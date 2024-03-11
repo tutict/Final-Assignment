@@ -1,4 +1,4 @@
-package com.tutict.finalassignmetbackend;
+package com.tutict.finalassignmentbackend;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
