@@ -1,13 +1,13 @@
--- MySQL dump 10.13  Distrib 8.0.17, for Win64 (x86_64)
+-- MariaDB dump 10.19-11.3.2-MariaDB, for Linux (x86_64)
 --
--- Host: 127.0.0.1    Database: cesi
+-- Host: 127.0.0.1    Database: cesql
 -- ------------------------------------------------------
--- Server version	8.0.17
+-- Server version	11.3.2-MariaDB
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
 /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!50503 SET NAMES utf8mb4 */;
+/*!40101 SET NAMES utf8mb4 */;
 /*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
 /*!40103 SET TIME_ZONE='+00:00' */;
 /*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
@@ -21,16 +21,16 @@
 
 DROP TABLE IF EXISTS `appeal_management`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `appeal_management` (
   `offense_id` int(11) DEFAULT NULL,
-  `appellant_name` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `id_card_number` varchar(18) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `contact_number` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `appeal_reason` text COLLATE utf8mb4_unicode_ci,
+  `appellant_name` varchar(100) DEFAULT NULL,
+  `id_card_number` varchar(18) DEFAULT NULL,
+  `contact_number` varchar(20) DEFAULT NULL,
+  `appeal_reason` text DEFAULT NULL,
   `appeal_time` datetime DEFAULT NULL,
-  `process_status` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `process_result` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `process_status` varchar(50) DEFAULT NULL,
+  `process_result` varchar(255) DEFAULT NULL,
   KEY `offense_id` (`offense_id`),
   CONSTRAINT `appeal_management_ibfk_1` FOREIGN KEY (`offense_id`) REFERENCES `offense_information` (`offense_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -51,14 +51,14 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `backup_restore`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `backup_restore` (
   `backup_id` int(11) NOT NULL AUTO_INCREMENT,
-  `backup_file_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `backup_file_name` varchar(255) DEFAULT NULL,
   `backup_time` datetime DEFAULT NULL,
   `restore_time` datetime DEFAULT NULL,
-  `restore_status` enum('Success','Failed') COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `remarks` text COLLATE utf8mb4_unicode_ci,
+  `restore_status` enum('Success','Failed') DEFAULT NULL,
+  `remarks` text DEFAULT NULL,
   PRIMARY KEY (`backup_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -78,19 +78,19 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `case_statistics`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `case_statistics` (
   `offense_id` int(11) NOT NULL AUTO_INCREMENT,
   `offense_time` datetime DEFAULT NULL,
-  `offense_location` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `license_plate` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `driver_name` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `offense_type` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `offense_code` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `offense_location` varchar(100) DEFAULT NULL,
+  `license_plate` varchar(20) DEFAULT NULL,
+  `driver_name` varchar(100) DEFAULT NULL,
+  `offense_type` varchar(100) DEFAULT NULL,
+  `offense_code` varchar(50) DEFAULT NULL,
   `fine_amount` decimal(10,2) DEFAULT NULL,
   `deducted_points` int(11) DEFAULT NULL,
-  `process_status` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `process_result` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `process_status` varchar(50) DEFAULT NULL,
+  `process_result` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`offense_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -110,14 +110,14 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `deduction_information`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `deduction_information` (
   `offense_id` int(11) DEFAULT NULL,
   `deducted_points` int(11) DEFAULT NULL,
   `deduction_time` datetime DEFAULT NULL,
-  `handler` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `approver` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `remarks` text COLLATE utf8mb4_unicode_ci,
+  `handler` varchar(100) DEFAULT NULL,
+  `approver` varchar(100) DEFAULT NULL,
+  `remarks` text DEFAULT NULL,
   KEY `offense_id` (`offense_id`),
   CONSTRAINT `deduction_information_ibfk_1` FOREIGN KEY (`offense_id`) REFERENCES `offense_information` (`offense_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -138,17 +138,17 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `driver_information`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `driver_information` (
   `driver_id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `id_card_number` varchar(18) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `contact_number` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `driver_license_number` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `gender` enum('Male','Female','Other') COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `name` varchar(100) DEFAULT NULL,
+  `id_card_number` varchar(18) DEFAULT NULL,
+  `contact_number` varchar(20) DEFAULT NULL,
+  `driver_license_number` varchar(50) DEFAULT NULL,
+  `gender` enum('Male','Female','Other') DEFAULT NULL,
   `birthdate` date DEFAULT NULL,
   `first_license_date` date DEFAULT NULL,
-  `allowed_vehicle_type` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `allowed_vehicle_type` varchar(100) DEFAULT NULL,
   `issue_date` date DEFAULT NULL,
   `expiry_date` date DEFAULT NULL,
   PRIMARY KEY (`driver_id`)
@@ -170,16 +170,16 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `fine_information`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `fine_information` (
   `offense_id` int(11) DEFAULT NULL,
   `fine_amount` decimal(10,2) DEFAULT NULL,
   `fine_time` datetime DEFAULT NULL,
-  `payee` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `account_number` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `bank` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `receipt_number` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `remarks` text COLLATE utf8mb4_unicode_ci,
+  `payee` varchar(100) DEFAULT NULL,
+  `account_number` varchar(50) DEFAULT NULL,
+  `bank` varchar(100) DEFAULT NULL,
+  `receipt_number` varchar(50) DEFAULT NULL,
+  `remarks` text DEFAULT NULL,
   KEY `offense_id` (`offense_id`),
   CONSTRAINT `fine_information_ibfk_1` FOREIGN KEY (`offense_id`) REFERENCES `offense_information` (`offense_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -200,16 +200,16 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `login_log`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `login_log` (
   `log_id` int(11) NOT NULL AUTO_INCREMENT,
-  `username` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `login_ip_address` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `username` varchar(50) DEFAULT NULL,
+  `login_ip_address` varchar(50) DEFAULT NULL,
   `login_time` datetime DEFAULT NULL,
-  `login_result` enum('Success','Failed') COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `browser_type` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `os_version` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `remarks` text COLLATE utf8mb4_unicode_ci,
+  `login_result` enum('Success','Failed') DEFAULT NULL,
+  `browser_type` varchar(100) DEFAULT NULL,
+  `os_version` varchar(100) DEFAULT NULL,
+  `remarks` text DEFAULT NULL,
   PRIMARY KEY (`log_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -229,7 +229,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `offense_appeal`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `offense_appeal` (
   `offense_id` int(11) DEFAULT NULL,
   `appeal_id` int(11) DEFAULT NULL,
@@ -237,7 +237,7 @@ CREATE TABLE `offense_appeal` (
   KEY `appeal_id` (`appeal_id`),
   CONSTRAINT `offense_appeal_ibfk_1` FOREIGN KEY (`offense_id`) REFERENCES `offense_information` (`offense_id`),
   CONSTRAINT `offense_appeal_ibfk_2` FOREIGN KEY (`appeal_id`) REFERENCES `appeal_management` (`offense_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -255,7 +255,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `offense_deduction`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `offense_deduction` (
   `offense_id` int(11) DEFAULT NULL,
   `deduction_id` int(11) DEFAULT NULL,
@@ -263,7 +263,7 @@ CREATE TABLE `offense_deduction` (
   KEY `deduction_id` (`deduction_id`),
   CONSTRAINT `offense_deduction_ibfk_1` FOREIGN KEY (`offense_id`) REFERENCES `offense_information` (`offense_id`),
   CONSTRAINT `offense_deduction_ibfk_2` FOREIGN KEY (`deduction_id`) REFERENCES `deduction_information` (`offense_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -281,7 +281,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `offense_fine`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `offense_fine` (
   `offense_id` int(11) DEFAULT NULL,
   `fine_id` int(11) DEFAULT NULL,
@@ -289,7 +289,7 @@ CREATE TABLE `offense_fine` (
   KEY `fine_id` (`fine_id`),
   CONSTRAINT `offense_fine_ibfk_1` FOREIGN KEY (`offense_id`) REFERENCES `offense_information` (`offense_id`),
   CONSTRAINT `offense_fine_ibfk_2` FOREIGN KEY (`fine_id`) REFERENCES `fine_information` (`offense_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -307,19 +307,19 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `offense_information`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `offense_information` (
   `offense_id` int(11) NOT NULL AUTO_INCREMENT,
   `offense_time` datetime DEFAULT NULL,
-  `offense_location` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `license_plate` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `driver_name` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `offense_type` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `offense_code` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `offense_location` varchar(100) DEFAULT NULL,
+  `license_plate` varchar(20) DEFAULT NULL,
+  `driver_name` varchar(100) DEFAULT NULL,
+  `offense_type` varchar(100) DEFAULT NULL,
+  `offense_code` varchar(50) DEFAULT NULL,
   `fine_amount` decimal(10,2) DEFAULT NULL,
   `deducted_points` int(11) DEFAULT NULL,
-  `process_status` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `process_result` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `process_status` varchar(50) DEFAULT NULL,
+  `process_result` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`offense_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -339,15 +339,15 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `operation_log`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `operation_log` (
   `log_id` int(11) NOT NULL AUTO_INCREMENT,
   `user_id` int(11) DEFAULT NULL,
   `operation_time` datetime DEFAULT NULL,
-  `operation_ip_address` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `operation_content` text COLLATE utf8mb4_unicode_ci,
-  `operation_result` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `remarks` text COLLATE utf8mb4_unicode_ci,
+  `operation_ip_address` varchar(50) DEFAULT NULL,
+  `operation_content` text DEFAULT NULL,
+  `operation_result` varchar(255) DEFAULT NULL,
+  `remarks` text DEFAULT NULL,
   PRIMARY KEY (`log_id`),
   KEY `user_id` (`user_id`),
   CONSTRAINT `operation_log_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `user_management` (`user_id`)
@@ -369,14 +369,14 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `permission_management`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `permission_management` (
   `permission_id` int(11) NOT NULL AUTO_INCREMENT,
-  `permission_name` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `permission_description` text COLLATE utf8mb4_unicode_ci,
+  `permission_name` varchar(100) DEFAULT NULL,
+  `permission_description` text DEFAULT NULL,
   `created_time` datetime DEFAULT NULL,
   `modified_time` datetime DEFAULT NULL,
-  `remarks` text COLLATE utf8mb4_unicode_ci,
+  `remarks` text DEFAULT NULL,
   PRIMARY KEY (`permission_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -396,15 +396,15 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `role_management`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `role_management` (
   `role_id` int(11) NOT NULL AUTO_INCREMENT,
-  `role_name` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `role_description` text COLLATE utf8mb4_unicode_ci,
-  `permission_list` text COLLATE utf8mb4_unicode_ci,
+  `role_name` varchar(100) DEFAULT NULL,
+  `role_description` text DEFAULT NULL,
+  `permission_list` text DEFAULT NULL,
   `created_time` datetime DEFAULT NULL,
   `modified_time` datetime DEFAULT NULL,
-  `remarks` text COLLATE utf8mb4_unicode_ci,
+  `remarks` text DEFAULT NULL,
   PRIMARY KEY (`role_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -424,7 +424,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `role_permission`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `role_permission` (
   `role_id` int(11) DEFAULT NULL,
   `permission_id` int(11) DEFAULT NULL,
@@ -432,7 +432,7 @@ CREATE TABLE `role_permission` (
   KEY `permission_id` (`permission_id`),
   CONSTRAINT `role_permission_ibfk_1` FOREIGN KEY (`role_id`) REFERENCES `role_management` (`role_id`),
   CONSTRAINT `role_permission_ibfk_2` FOREIGN KEY (`permission_id`) REFERENCES `permission_management` (`permission_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -450,15 +450,15 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `system_logs`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `system_logs` (
   `log_id` int(11) NOT NULL AUTO_INCREMENT,
-  `log_type` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `log_content` text COLLATE utf8mb4_unicode_ci,
+  `log_type` varchar(50) DEFAULT NULL,
+  `log_content` text DEFAULT NULL,
   `operation_time` datetime DEFAULT NULL,
-  `operation_user` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `operation_ip_address` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `remarks` text COLLATE utf8mb4_unicode_ci,
+  `operation_user` varchar(100) DEFAULT NULL,
+  `operation_ip_address` varchar(50) DEFAULT NULL,
+  `remarks` text DEFAULT NULL,
   PRIMARY KEY (`log_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -478,21 +478,21 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `system_settings`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `system_settings` (
-  `system_name` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `system_version` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `system_description` text COLLATE utf8mb4_unicode_ci,
-  `copyright_info` text COLLATE utf8mb4_unicode_ci,
-  `storage_path` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `system_name` varchar(100) DEFAULT NULL,
+  `system_version` varchar(50) DEFAULT NULL,
+  `system_description` text DEFAULT NULL,
+  `copyright_info` text DEFAULT NULL,
+  `storage_path` varchar(255) DEFAULT NULL,
   `login_timeout` int(11) DEFAULT NULL,
   `session_timeout` int(11) DEFAULT NULL,
-  `date_format` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `date_format` varchar(50) DEFAULT NULL,
   `page_size` int(11) DEFAULT NULL,
-  `smtp_server` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `email_account` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `email_password` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `remarks` text COLLATE utf8mb4_unicode_ci
+  `smtp_server` varchar(100) DEFAULT NULL,
+  `email_account` varchar(100) DEFAULT NULL,
+  `email_password` varchar(100) DEFAULT NULL,
+  `remarks` text DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -511,19 +511,19 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `user_management`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `user_management` (
   `user_id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `username` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `password` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `contact_number` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `email` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `user_type` enum('Admin','Operator') COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `status` enum('Active','Inactive') COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `name` varchar(100) DEFAULT NULL,
+  `username` varchar(50) DEFAULT NULL,
+  `password` varchar(255) DEFAULT NULL,
+  `contact_number` varchar(20) DEFAULT NULL,
+  `email` varchar(100) DEFAULT NULL,
+  `user_type` enum('Admin','Operator') DEFAULT NULL,
+  `status` enum('Active','Inactive') DEFAULT NULL,
   `created_time` datetime DEFAULT NULL,
   `modified_time` datetime DEFAULT NULL,
-  `remarks` text COLLATE utf8mb4_unicode_ci,
+  `remarks` text DEFAULT NULL,
   PRIMARY KEY (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -543,7 +543,7 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `user_role`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `user_role` (
   `user_id` int(11) DEFAULT NULL,
   `role_id` int(11) DEFAULT NULL,
@@ -551,7 +551,7 @@ CREATE TABLE `user_role` (
   KEY `role_id` (`role_id`),
   CONSTRAINT `user_role_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `user_management` (`user_id`),
   CONSTRAINT `user_role_ibfk_2` FOREIGN KEY (`role_id`) REFERENCES `role_management` (`role_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -569,19 +569,19 @@ UNLOCK TABLES;
 
 DROP TABLE IF EXISTS `vehicle_information`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `vehicle_information` (
   `vehicle_id` int(11) NOT NULL AUTO_INCREMENT,
-  `license_plate` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `vehicle_type` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `owner_name` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `id_card_number` varchar(18) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `contact_number` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `engine_number` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `frame_number` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `vehicle_color` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `license_plate` varchar(20) DEFAULT NULL,
+  `vehicle_type` varchar(50) DEFAULT NULL,
+  `owner_name` varchar(100) DEFAULT NULL,
+  `id_card_number` varchar(18) DEFAULT NULL,
+  `contact_number` varchar(20) DEFAULT NULL,
+  `engine_number` varchar(50) DEFAULT NULL,
+  `frame_number` varchar(50) DEFAULT NULL,
+  `vehicle_color` varchar(50) DEFAULT NULL,
   `first_registration_date` date DEFAULT NULL,
-  `current_status` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `current_status` varchar(50) DEFAULT NULL,
   PRIMARY KEY (`vehicle_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -604,4 +604,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2024-03-18 15:47:16
+-- Dump completed on 2024-03-18 21:40:07
