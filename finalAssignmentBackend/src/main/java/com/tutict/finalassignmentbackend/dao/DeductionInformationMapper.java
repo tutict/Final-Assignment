@@ -5,5 +5,5 @@ import com.tutict.finalassignmentbackend.entity.DeductionInformation;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
-public class DeductionInformationMapper extends BaseMapper<DeductionInformation> {
+public interface DeductionInformationMapper extends BaseMapper<DeductionInformation> {
 }

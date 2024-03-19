@@ -5,5 +5,5 @@ import com.tutict.finalassignmentbackend.entity.DriverInformation;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
-public class DriverInformationMapper extends BaseMapper<DriverInformation> {
+public interface DriverInformationMapper extends BaseMapper<DriverInformation> {
 }

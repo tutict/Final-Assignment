@@ -5,5 +5,5 @@ import com.tutict.finalassignmentbackend.entity.PermissionManagement;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
-public class PermissionManagementMapper extends BaseMapper<PermissionManagement> {
+public interface PermissionManagementMapper extends BaseMapper<PermissionManagement> {
 }

@@ -5,5 +5,5 @@ import com.tutict.finalassignmentbackend.entity.UserManagement;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
-public class UserManagementMapper extends BaseMapper<UserManagement> {
+public interface UserManagementMapper extends BaseMapper<UserManagement> {
 }

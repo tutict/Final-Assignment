@@ -5,5 +5,5 @@ import com.tutict.finalassignmentbackend.entity.OperationLog;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
-public class OperationLogMapper extends BaseMapper<OperationLog> {
+public interface OperationLogMapper extends BaseMapper<OperationLog> {
 }

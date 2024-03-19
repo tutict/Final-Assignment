@@ -5,5 +5,5 @@ import com.tutict.finalassignmentbackend.entity.LoginLog;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
-public class LoginLogMapper extends BaseMapper<LoginLog> {
+public interface LoginLogMapper extends BaseMapper<LoginLog> {
 }

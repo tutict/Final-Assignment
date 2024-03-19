@@ -5,5 +5,5 @@ import com.tutict.finalassignmentbackend.entity.RoleManagement;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
-public class RoleManagementMapper extends BaseMapper<RoleManagement> {
+public interface RoleManagementMapper extends BaseMapper<RoleManagement> {
 }

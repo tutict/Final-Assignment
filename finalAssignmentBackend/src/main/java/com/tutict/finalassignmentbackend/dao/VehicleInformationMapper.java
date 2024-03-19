@@ -5,5 +5,5 @@ import com.tutict.finalassignmentbackend.entity.VehicleInformation;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
-public class VehicleInformationMapper extends BaseMapper<VehicleInformation> {
+public interface VehicleInformationMapper extends BaseMapper<VehicleInformation> {
 }

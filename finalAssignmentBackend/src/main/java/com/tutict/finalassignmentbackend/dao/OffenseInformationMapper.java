@@ -5,5 +5,5 @@ import com.tutict.finalassignmentbackend.entity.OffenseInformation;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
-public class OffenseInformationMapper extends BaseMapper<OffenseInformation> {
+public interface OffenseInformationMapper extends BaseMapper<OffenseInformation> {
 }

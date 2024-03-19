@@ -5,5 +5,5 @@ import com.tutict.finalassignmentbackend.entity.FineInformation;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
-public class FineInformationMapper extends BaseMapper<FineInformation> {
+public interface FineInformationMapper extends BaseMapper<FineInformation> {
 }

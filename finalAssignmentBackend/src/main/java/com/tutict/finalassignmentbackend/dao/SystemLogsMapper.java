@@ -5,5 +5,5 @@ import com.tutict.finalassignmentbackend.entity.SystemLogs;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
-public class SystemLogsMapper extends BaseMapper<SystemLogs> {
+public interface SystemLogsMapper extends BaseMapper<SystemLogs> {
 }
