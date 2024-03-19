@@ -30,12 +30,12 @@ public class OffenseInformationController {
 
     @PostMapping
     public OffenseInformation saveOffense(@RequestBody OffenseInformation offenseInformation) {
-        offenseInformationService.saveOffense(offenseInformation);
+        offenseInformationService.saveOffenseInformation(offenseInformation);
         return offenseInformation;
     }
 
     @DeleteMapping("/{offenseId}")
     public void deleteOffense(@PathVariable Long offenseId) {
-        offenseInformationService.deleteOffense(offenseId);
+        offenseInformationService.deleteOffenseInformation(offenseId);
     }
 }

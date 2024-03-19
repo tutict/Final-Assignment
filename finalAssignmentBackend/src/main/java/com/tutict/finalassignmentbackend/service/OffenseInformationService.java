@@ -25,12 +25,16 @@ public class OffenseInformationService {
         return offenseInformationMapper.selectById(offenseId);
     }
 
-    public int saveOffense(OffenseInformation offenseInformation) {
+    public int saveOffenseInformation(OffenseInformation offenseInformation) {
         return offenseInformationMapper.insert(offenseInformation);
     }
 
-    public int deleteOffense(Long offenseId) {
+    public int deleteOffenseInformation(Long offenseId) {
         return offenseInformationMapper.deleteById(offenseId);
+    }
+
+    public int updateOffenseInformation(OffenseInformation offenseInformation) {
+       return offenseInformationMapper.updateById(offenseInformation);
     }
 
 }
