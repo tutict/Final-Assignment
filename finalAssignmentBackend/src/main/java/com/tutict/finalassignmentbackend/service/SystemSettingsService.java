@@ -97,5 +97,4 @@ public class SystemSettingsService {
         return systemSettings != null ? systemSettings.getEmailPassword() : null;
     }
 
-    // 其他业务方法...
 }

@@ -54,7 +54,6 @@ public class DeductionInformationController {
             existingDeduction.setDeductedPoints(updatedDeduction.getDeductedPoints());
             existingDeduction.setDeductionTime(updatedDeduction.getDeductionTime());
             existingDeduction.setApprover(updatedDeduction.getApprover());
-            existingDeduction.setOffenseId(updatedDeduction.getOffenseId());
 
             deductionInformationService.updateDeduction(updatedDeduction);
             return ResponseEntity.ok().build();
