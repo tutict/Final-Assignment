@@ -1,19 +1,39 @@
 package com.tutict.finalassignmentbackend.entity;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
-import java.util.Date;
+import java.io.Serial;
+import java.io.Serializable;
+import java.time.LocalDateTime;
 
 @Data
 @TableName("role_management")
-public class RoleManagement {
+public class RoleManagement implements Serializable {
+    @Serial
+    private static final long serialVersionUID = 1L;
 
-    private int roleId;
+    @TableId(value = "role_id", type = IdType.AUTO)
+    private Integer roleId;
+
+    @TableField("role_name")
     private String roleName;
+
+    @TableField("role_description")
     private String roleDescription;
+
+    @TableField("permission_list")
     private String permissionList;
-    private Date createdTime;
-    private Date modifiedTime;
+
+    @TableField("created_time")
+    private LocalDateTime createdTime;
+
+    @TableField("modified_time")
+    private LocalDateTime modifiedTime;
+
+    @TableField("remarks")
     private String remarks;
 }

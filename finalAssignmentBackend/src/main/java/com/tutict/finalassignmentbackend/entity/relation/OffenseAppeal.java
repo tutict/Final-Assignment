@@ -1,11 +1,21 @@
 package com.tutict.finalassignmentbackend.entity.relation;
 
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
+import java.io.Serial;
+import java.io.Serializable;
+
 @Data
-public class OffenseAppeal {
+@TableName("offense_appeal")
+public class OffenseAppeal implements Serializable {
+    @Serial
+    private static final long serialVersionUID = 1L;
 
-    private int offenseId;
-    private int appealId;
+    @TableField("offense_id")
+    private Integer offenseId;
+
+    @TableField("appeal_id")
+    private Integer appealId;
 }
-

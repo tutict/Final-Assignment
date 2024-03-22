@@ -1,23 +1,40 @@
 package com.tutict.finalassignmentbackend.entity;
 
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
-import java.util.Date;
+import java.io.Serial;
+import java.io.Serializable;
+import java.time.LocalDateTime;
 
 @Data
 @TableName("appeal_management")
-public class AppealManagement {
+public class AppealManagement implements Serializable {
+    @Serial
+    private static final long serialVersionUID = 1L;
 
-    @TableId(type = IdType.AUTO)
-    private int offenseId;
+    @TableField("offense_id")
+    private Integer offenseId;
+
+    @TableField("appellant_name")
     private String appellantName;
+
+    @TableField("id_card_number")
     private String idCardNumber;
+
+    @TableField("contact_number")
     private String contactNumber;
+
+    @TableField("appeal_reason")
     private String appealReason;
-    private Date appealTime;
+
+    @TableField("appeal_time")
+    private LocalDateTime appealTime;
+
+    @TableField("process_status")
     private String processStatus;
+
+    @TableField("process_result")
     private String processResult;
 }
