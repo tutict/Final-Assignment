@@ -1,7 +1,7 @@
 package com.tutict.finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.tutict.finalassignmentbackend.dao.VehicleInformationMapper;
+import com.tutict.finalassignmentbackend.mapper.VehicleInformationMapper;
 import com.tutict.finalassignmentbackend.entity.VehicleInformation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;

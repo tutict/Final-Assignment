@@ -1,7 +1,7 @@
 package com.tutict.finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.tutict.finalassignmentbackend.dao.DeductionInformationMapper;
+import com.tutict.finalassignmentbackend.mapper.DeductionInformationMapper;
 import com.tutict.finalassignmentbackend.entity.DeductionInformation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;

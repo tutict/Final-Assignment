@@ -1,6 +1,6 @@
 package com.tutict.finalassignmentbackend.service;
 
-import com.tutict.finalassignmentbackend.dao.SystemSettingsMapper;
+import com.tutict.finalassignmentbackend.mapper.SystemSettingsMapper;
 import com.tutict.finalassignmentbackend.entity.SystemSettings;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;

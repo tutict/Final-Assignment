@@ -1,7 +1,7 @@
 package com.tutict.finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.tutict.finalassignmentbackend.dao.LoginLogMapper;
+import com.tutict.finalassignmentbackend.mapper.LoginLogMapper;
 import com.tutict.finalassignmentbackend.entity.LoginLog;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;

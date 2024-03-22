@@ -1,7 +1,7 @@
 package com.tutict.finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.tutict.finalassignmentbackend.dao.BackupRestoreMapper;
+import com.tutict.finalassignmentbackend.mapper.BackupRestoreMapper;
 import com.tutict.finalassignmentbackend.entity.BackupRestore;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;

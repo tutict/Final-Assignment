@@ -1,8 +1,8 @@
 package com.tutict.finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.tutict.finalassignmentbackend.dao.AppealManagementMapper;
-import com.tutict.finalassignmentbackend.dao.OffenseInformationMapper;
+import com.tutict.finalassignmentbackend.mapper.AppealManagementMapper;
+import com.tutict.finalassignmentbackend.mapper.OffenseInformationMapper;
 import com.tutict.finalassignmentbackend.entity.AppealManagement;
 import com.tutict.finalassignmentbackend.entity.OffenseInformation;
 import org.springframework.beans.factory.annotation.Autowired;

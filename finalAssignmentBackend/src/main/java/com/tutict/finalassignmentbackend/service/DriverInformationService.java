@@ -1,7 +1,7 @@
 package com.tutict.finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.tutict.finalassignmentbackend.dao.DriverInformationMapper;
+import com.tutict.finalassignmentbackend.mapper.DriverInformationMapper;
 import com.tutict.finalassignmentbackend.entity.DriverInformation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;

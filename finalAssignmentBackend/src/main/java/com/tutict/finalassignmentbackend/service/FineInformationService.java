@@ -1,7 +1,7 @@
 package com.tutict.finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.tutict.finalassignmentbackend.dao.FineInformationMapper;
+import com.tutict.finalassignmentbackend.mapper.FineInformationMapper;
 import com.tutict.finalassignmentbackend.entity.FineInformation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;

@@ -1,4 +1,4 @@
-package com.tutict.finalassignmentbackend.dao;
+package com.tutict.finalassignmentbackend.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.tutict.finalassignmentbackend.entity.OffenseInformation;
