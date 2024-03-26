@@ -46,7 +46,7 @@
         <dependency>
             <groupId>io.vertx</groupId>
             <artifactId>vertx-core</artifactId>
-            <version>4.5.1</version>
+            <version>4.5.6</version>
         </dependency>
         <dependency>
             <groupId>junit</groupId>
@@ -66,6 +66,10 @@
             <groupId>org.mybatis.spring.boot</groupId>
             <artifactId>mybatis-spring-boot-starter</artifactId>
             <version>3.0.3</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-jdbc</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.kafka</groupId>
@@ -167,6 +171,10 @@
             <id>central</id>
             <name>Maven Central</name>
             <url>https://repo1.maven.org/maven2/</url>
+        </repository>
+        <repository>
+            <id/>
+            <url>https://repo.maven.apache.org/maven2/</url>
         </repository>
     </repositories>
 </project>
