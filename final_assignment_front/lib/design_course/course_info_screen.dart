@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'design_course_app_theme.dart';
 
 class CourseInfoScreen extends StatefulWidget {
+  const CourseInfoScreen({super.key});
+
   @override
   _CourseInfoScreenState createState() => _CourseInfoScreenState();
 }
@@ -20,7 +22,7 @@ class _CourseInfoScreenState extends State<CourseInfoScreen>
         duration: const Duration(milliseconds: 1000), vsync: this);
     animation = Tween<double>(begin: 0.0, end: 1.0).animate(CurvedAnimation(
         parent: animationController!,
-        curve: Interval(0, 1.0, curve: Curves.fastOutSlowIn)));
+        curve: const Interval(0, 1.0, curve: Curves.fastOutSlowIn)));
     setData();
     super.initState();
   }
@@ -91,8 +93,8 @@ class _CourseInfoScreenState extends State<CourseInfoScreen>
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
-                          Padding(
-                            padding: const EdgeInsets.only(
+                          const Padding(
+                            padding: EdgeInsets.only(
                                 top: 32.0, left: 18, right: 16),
                             child: Text(
                               'Web Design\nCourse',
@@ -105,8 +107,8 @@ class _CourseInfoScreenState extends State<CourseInfoScreen>
                               ),
                             ),
                           ),
-                          Padding(
-                            padding: const EdgeInsets.only(
+                          const Padding(
+                            padding: EdgeInsets.only(
                                 left: 16, right: 16, bottom: 8, top: 16),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -122,26 +124,24 @@ class _CourseInfoScreenState extends State<CourseInfoScreen>
                                     color: DesignCourseAppTheme.nearlyBlue,
                                   ),
                                 ),
-                                Container(
-                                  child: Row(
-                                    children: <Widget>[
-                                      Text(
-                                        '4.3',
-                                        textAlign: TextAlign.left,
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w200,
-                                          fontSize: 22,
-                                          letterSpacing: 0.27,
-                                          color: DesignCourseAppTheme.grey,
-                                        ),
+                                Row(
+                                  children: <Widget>[
+                                    Text(
+                                      '4.3',
+                                      textAlign: TextAlign.left,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w200,
+                                        fontSize: 22,
+                                        letterSpacing: 0.27,
+                                        color: DesignCourseAppTheme.grey,
                                       ),
-                                      Icon(
-                                        Icons.star,
-                                        color: DesignCourseAppTheme.nearlyBlue,
-                                        size: 24,
-                                      ),
-                                    ],
-                                  ),
+                                    ),
+                                    Icon(
+                                      Icons.star,
+                                      color: DesignCourseAppTheme.nearlyBlue,
+                                      size: 24,
+                                    ),
+                                  ],
                                 )
                               ],
                             ),
@@ -164,8 +164,8 @@ class _CourseInfoScreenState extends State<CourseInfoScreen>
                             child: AnimatedOpacity(
                               duration: const Duration(milliseconds: 500),
                               opacity: opacity2,
-                              child: Padding(
-                                padding: const EdgeInsets.only(
+                              child: const Padding(
+                                padding: EdgeInsets.only(
                                     left: 16, right: 16, top: 8, bottom: 8),
                                 child: Text(
                                   'Lorem ipsum is simply dummy text of printing & typesetting industry, Lorem ipsum is simply dummy text of printing & typesetting industry.',
@@ -192,7 +192,7 @@ class _CourseInfoScreenState extends State<CourseInfoScreen>
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: <Widget>[
-                                  Container(
+                                  SizedBox(
                                     width: 48,
                                     height: 48,
                                     child: Container(
@@ -205,7 +205,7 @@ class _CourseInfoScreenState extends State<CourseInfoScreen>
                                             color: DesignCourseAppTheme.grey
                                                 .withOpacity(0.2)),
                                       ),
-                                      child: Icon(
+                                      child: const Icon(
                                         Icons.add,
                                         color: DesignCourseAppTheme.nearlyBlue,
                                         size: 28,
@@ -232,7 +232,7 @@ class _CourseInfoScreenState extends State<CourseInfoScreen>
                                               blurRadius: 10.0),
                                         ],
                                       ),
-                                      child: Center(
+                                      child: const Center(
                                         child: Text(
                                           'Join Course',
                                           textAlign: TextAlign.left,
@@ -273,7 +273,7 @@ class _CourseInfoScreenState extends State<CourseInfoScreen>
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(50.0)),
                   elevation: 10.0,
-                  child: Container(
+                  child: const SizedBox(
                     width: 60,
                     height: 60,
                     child: Center(
@@ -297,7 +297,7 @@ class _CourseInfoScreenState extends State<CourseInfoScreen>
                   child: InkWell(
                     borderRadius:
                         BorderRadius.circular(AppBar().preferredSize.height),
-                    child: Icon(
+                    child: const Icon(
                       Icons.arrow_back_ios,
                       color: DesignCourseAppTheme.nearlyBlack,
                     ),
@@ -338,7 +338,7 @@ class _CourseInfoScreenState extends State<CourseInfoScreen>
               Text(
                 text1,
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   fontWeight: FontWeight.w600,
                   fontSize: 14,
                   letterSpacing: 0.27,
@@ -348,7 +348,7 @@ class _CourseInfoScreenState extends State<CourseInfoScreen>
               Text(
                 txt2,
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   fontWeight: FontWeight.w200,
                   fontSize: 14,
                   letterSpacing: 0.27,

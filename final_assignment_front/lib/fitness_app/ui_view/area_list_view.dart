@@ -4,8 +4,7 @@ import '../fitness_app_theme.dart';
 
 class AreaListView extends StatefulWidget {
   const AreaListView(
-      {Key? key, this.mainScreenAnimationController, this.mainScreenAnimation})
-      : super(key: key);
+      {super.key, this.mainScreenAnimationController, this.mainScreenAnimation});
 
   final AnimationController? mainScreenAnimationController;
   final Animation<double>? mainScreenAnimation;
@@ -55,6 +54,12 @@ class _AreaListViewState extends State<AreaListView>
                       left: 16, right: 16, top: 16, bottom: 16),
                   physics: const BouncingScrollPhysics(),
                   scrollDirection: Axis.vertical,
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 24.0,
+                    crossAxisSpacing: 24.0,
+                    childAspectRatio: 1.0,
+                  ),
                   children: List<Widget>.generate(
                     areaListData.length,
                     (int index) {
@@ -75,12 +80,6 @@ class _AreaListViewState extends State<AreaListView>
                       );
                     },
                   ),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    mainAxisSpacing: 24.0,
-                    crossAxisSpacing: 24.0,
-                    childAspectRatio: 1.0,
-                  ),
                 ),
               ),
             ),
@@ -93,11 +92,11 @@ class _AreaListViewState extends State<AreaListView>
 
 class AreaView extends StatelessWidget {
   const AreaView({
-    Key? key,
+    super.key,
     this.imagepath,
     this.animationController,
     this.animation,
-  }) : super(key: key);
+  });
 
   final String? imagepath;
   final AnimationController? animationController;
