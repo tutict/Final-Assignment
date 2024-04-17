@@ -160,6 +160,17 @@
             <artifactId>spring-ai-bedrock-ai-spring-boot-starter</artifactId>
             <version>0.8.1-SNAPSHOT</version>
         </dependency>
+        <dependency>
+            <groupId>com.xingyuv</groupId>
+            <artifactId>captcha-plus</artifactId>
+            <version>1.0.4</version>
+        </dependency>
+        <dependency>
+            <groupId>com.xingyuv</groupId>
+            <artifactId>spring-boot-starter-captcha-plus</artifactId>
+            <version>1.0.4</version>
+        </dependency>
+
     </dependencies>
 
     <build>
