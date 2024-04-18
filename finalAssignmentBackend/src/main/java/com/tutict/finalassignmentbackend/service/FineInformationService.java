@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.tutict.finalassignmentbackend.mapper.FineInformationMapper;
 import com.tutict.finalassignmentbackend.entity.FineInformation;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.Date;
@@ -12,15 +13,19 @@ import java.util.List;
 @Service
 public class FineInformationService {
 
-    public final FineInformationMapper fineInformationMapper;
+    private final FineInformationMapper fineInformationMapper;
+    private final KafkaTemplate<String, FineInformation> kafkaTemplate;
 
     @Autowired
-    public FineInformationService(FineInformationMapper fineInformationMapper) {
+    public FineInformationService(FineInformationMapper fineInformationMapper, KafkaTemplate<String, FineInformation> kafkaTemplate) {
         this.fineInformationMapper = fineInformationMapper;
+        this.kafkaTemplate = kafkaTemplate;
     }
 
     public void createFine(FineInformation fineInformation) {
         fineInformationMapper.insert(fineInformation);
+        // 发送罚款信息到 Kafka 主题
+        kafkaTemplate.send("fine_topic", fineInformation);
     }
 
     public FineInformation getFineById(int fineId) {

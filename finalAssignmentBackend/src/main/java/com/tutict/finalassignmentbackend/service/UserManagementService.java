@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.tutict.finalassignmentbackend.mapper.UserManagementMapper;
 import com.tutict.finalassignmentbackend.entity.UserManagement;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -12,15 +13,19 @@ import java.util.List;
 public class UserManagementService {
 
     private final UserManagementMapper userManagementMapper;
+    private final KafkaTemplate<String, UserManagement> kafkaTemplate;
 
     @Autowired
-    public UserManagementService(UserManagementMapper userManagementMapper) {
+    public UserManagementService(UserManagementMapper userManagementMapper, KafkaTemplate<String, UserManagement> kafkaTemplate) {
         this.userManagementMapper = userManagementMapper;
+        this.kafkaTemplate = kafkaTemplate;
     }
 
     // 创建用户
     public void createUser(UserManagement user) {
         userManagementMapper.insert(user);
+        // 发送用户创建信息到 Kafka 主题
+        kafkaTemplate.send("user_management_topic", user);
     }
 
     // 根据用户ID查询用户
@@ -57,19 +62,30 @@ public class UserManagementService {
     // 更新用户
     public void updateUser(UserManagement user) {
         userManagementMapper.updateById(user);
+        // 发送用户更新信息到 Kafka 主题
+        kafkaTemplate.send("user_management_topic", user);
     }
 
     // 删除用户
     public void deleteUser(int userId) {
-        userManagementMapper.deleteById(userId);
+        UserManagement userToDelete = userManagementMapper.selectById(userId);
+        if (userToDelete != null) {
+            userManagementMapper.deleteById(userId);
+            // 发送用户删除信息到 Kafka 主题
+            kafkaTemplate.send("user_management_topic", userToDelete);
+        }
     }
 
     // 根据用户名删除用户
     public void deleteUserByUsername(String username) {
-        QueryWrapper<UserManagement> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("username", username);
-        userManagementMapper.delete(queryWrapper);
+        UserManagement userToDelete = getUserByUsername(username);
+        if (userToDelete != null) {
+            userManagementMapper.delete(new QueryWrapper<UserManagement>().eq("username", username));
+            // 发送用户删除信息到 Kafka 主题
+            kafkaTemplate.send("user_management_topic", userToDelete);
+        }
     }
+
 
     // 检查用户名是否存在
     public boolean isUsernameExists(String username) {

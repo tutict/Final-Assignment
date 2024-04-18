@@ -14,8 +14,11 @@ import java.util.List;
 @RequestMapping("/offense-details")
 public class OffenseDetailsController {
 
-    @Autowired
-    private OffenseDetailsMapper offenseDetailsMapper;
+    private final OffenseDetailsMapper offenseDetailsMapper;
+
+    public OffenseDetailsController(OffenseDetailsMapper offenseDetailsMapper) {
+        this.offenseDetailsMapper = offenseDetailsMapper;
+    }
 
     @GetMapping
     public List<OffenseDetails> getAllOffenseDetails() {

@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.tutict.finalassignmentbackend.mapper.VehicleInformationMapper;
 import com.tutict.finalassignmentbackend.entity.VehicleInformation;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -12,15 +13,19 @@ import java.util.List;
 public class VehicleInformationService {
 
     private final VehicleInformationMapper vehicleInformationMapper;
+    private final KafkaTemplate<String, VehicleInformation> kafkaTemplate;
 
     @Autowired
-    public VehicleInformationService(VehicleInformationMapper vehicleInformationMapper) {
+    public VehicleInformationService(VehicleInformationMapper vehicleInformationMapper, KafkaTemplate<String, VehicleInformation> kafkaTemplate) {
         this.vehicleInformationMapper = vehicleInformationMapper;
+        this.kafkaTemplate = kafkaTemplate;
     }
 
     // 创建车辆信息
     public void createVehicleInformation(VehicleInformation vehicleInformation) {
         vehicleInformationMapper.insert(vehicleInformation);
+        // 发送车辆创建信息到 Kafka 主题
+        kafkaTemplate.send("vehicle_management_topic", vehicleInformation);
     }
 
     // 根据车辆ID查询车辆信息
@@ -64,18 +69,26 @@ public class VehicleInformationService {
     // 更新车辆信息
     public void updateVehicleInformation(VehicleInformation vehicleInformation) {
         vehicleInformationMapper.updateById(vehicleInformation);
+        // 发送车辆更新信息到 Kafka 主题
+        kafkaTemplate.send("vehicle_management_topic", vehicleInformation);
     }
 
     // 删除车辆信息
     public void deleteVehicleInformation(int vehicleId) {
+        VehicleInformation deletedVehicle = vehicleInformationMapper.selectById(vehicleId);
         vehicleInformationMapper.deleteById(vehicleId);
+        // 发送车辆删除信息到 Kafka 主题
+        kafkaTemplate.send("vehicle_management_topic", deletedVehicle);
     }
 
     // 根据车牌号删除车辆信息
     public void deleteVehicleInformationByLicensePlate(String licensePlate) {
         QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("license_plate", licensePlate);
+        VehicleInformation deletedVehicle = vehicleInformationMapper.selectOne(queryWrapper);
         vehicleInformationMapper.delete(queryWrapper);
+        // 发送车辆删除信息到 Kafka 主题
+        kafkaTemplate.send("vehicle_management_topic", deletedVehicle);
     }
 
     // 检查车牌号是否存在

@@ -24,7 +24,7 @@ public class OperationLogController {
 
     @PostMapping
     public ResponseEntity<Void> createOperationLog(@RequestBody OperationLog operationLog) {
-        operationLogService.CreateOperationLog(operationLog);
+        operationLogService.createOperationLog(operationLog);
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 

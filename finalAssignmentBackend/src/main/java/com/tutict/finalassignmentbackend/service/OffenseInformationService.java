@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.tutict.finalassignmentbackend.mapper.OffenseInformationMapper;
 import com.tutict.finalassignmentbackend.entity.OffenseInformation;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.Date;
@@ -13,14 +14,18 @@ import java.util.List;
 public class OffenseInformationService {
 
     private final OffenseInformationMapper offenseInformationMapper;
+    private final KafkaTemplate<String, OffenseInformation> kafkaTemplate;
 
     @Autowired
-    public OffenseInformationService(OffenseInformationMapper offenseInformationMapper) {
+    public OffenseInformationService(OffenseInformationMapper offenseInformationMapper, KafkaTemplate<String, OffenseInformation> kafkaTemplate) {
         this.offenseInformationMapper = offenseInformationMapper;
+        this.kafkaTemplate = kafkaTemplate;
     }
 
     public void createOffense(OffenseInformation offenseInformation) {
         offenseInformationMapper.insert(offenseInformation);
+        // 发送违法信息到 Kafka 主题
+        kafkaTemplate.send("offense_topic", offenseInformation);
     }
 
     public OffenseInformation getOffenseByOffenseId(int offenseId) {

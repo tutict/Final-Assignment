@@ -6,25 +6,29 @@ import com.tutict.finalassignmentbackend.mapper.OffenseInformationMapper;
 import com.tutict.finalassignmentbackend.entity.AppealManagement;
 import com.tutict.finalassignmentbackend.entity.OffenseInformation;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-
 
 @Service
 public class AppealManagementService {
 
     private final AppealManagementMapper appealManagementMapper;
     private final OffenseInformationMapper offenseInformationMapper;
+    private final KafkaTemplate<String, AppealManagement> kafkaTemplate;
 
     @Autowired
-    public AppealManagementService(AppealManagementMapper appealManagementMapper, OffenseInformationMapper offenseInformationMapper) {
+    public AppealManagementService(AppealManagementMapper appealManagementMapper, OffenseInformationMapper offenseInformationMapper, KafkaTemplate<String, AppealManagement> kafkaTemplate) {
         this.appealManagementMapper = appealManagementMapper;
         this.offenseInformationMapper = offenseInformationMapper;
+        this.kafkaTemplate = kafkaTemplate;
     }
 
     public void createAppeal(AppealManagement appeal) {
         appealManagementMapper.insert(appeal);
+        // 发送消息到 Kafka 主题
+        kafkaTemplate.send("your_kafka_topic", appeal);
     }
 
     public AppealManagement getAppealById(Long appealId) {
@@ -59,10 +63,10 @@ public class AppealManagementService {
 
     //根据申述ID查询关联的违法行为信息
     public OffenseInformation getOffenseByAppealId(Long appealId) {
-       AppealManagement appeal = appealManagementMapper.selectById(appealId);
-       if (appeal != null) {
-           return offenseInformationMapper.selectById(appeal.getOffenseId());
-       }
-       return null;
+        AppealManagement appeal = appealManagementMapper.selectById(appealId);
+        if (appeal != null) {
+            return offenseInformationMapper.selectById(appeal.getOffenseId());
+        }
+        return null;
     }
 }

@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.tutict.finalassignmentbackend.mapper.BackupRestoreMapper;
 import com.tutict.finalassignmentbackend.entity.BackupRestore;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -12,14 +13,18 @@ import java.util.List;
 public class BackupRestoreService {
 
     private final BackupRestoreMapper backupRestoreMapper;
+    private final KafkaTemplate<String, BackupRestore> kafkaTemplate;
 
     @Autowired
-    public BackupRestoreService(BackupRestoreMapper backupRestoreMapper) {
+    public BackupRestoreService(BackupRestoreMapper backupRestoreMapper, KafkaTemplate<String, BackupRestore> kafkaTemplate) {
         this.backupRestoreMapper = backupRestoreMapper;
+        this.kafkaTemplate = kafkaTemplate;
     }
 
     public void createBackup(BackupRestore backup) {
         backupRestoreMapper.insert(backup);
+        // 发送备份信息到 Kafka 主题
+        kafkaTemplate.send("backup_topic", backup);
     }
 
     public List<BackupRestore> getAllBackups() {

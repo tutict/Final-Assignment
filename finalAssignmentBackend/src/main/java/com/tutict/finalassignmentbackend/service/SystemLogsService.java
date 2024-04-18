@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.tutict.finalassignmentbackend.mapper.SystemLogsMapper;
 import com.tutict.finalassignmentbackend.entity.SystemLogs;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.Date;
@@ -13,15 +14,19 @@ import java.util.List;
 public class SystemLogsService {
 
     private final SystemLogsMapper systemLogsMapper;
+    private final KafkaTemplate<String, SystemLogs> kafkaTemplate;
 
     @Autowired
-    public SystemLogsService(SystemLogsMapper systemLogsMapper) {
+    public SystemLogsService(SystemLogsMapper systemLogsMapper, KafkaTemplate<String, SystemLogs> kafkaTemplate) {
         this.systemLogsMapper = systemLogsMapper;
+        this.kafkaTemplate = kafkaTemplate;
     }
 
     // 创建系统日志
     public void createSystemLog(SystemLogs systemLog) {
         systemLogsMapper.insert(systemLog);
+        // 发送系统日志到 Kafka 主题
+        kafkaTemplate.send("system_logs_topic", systemLog);
     }
 
     // 根据日志ID查询系统日志
@@ -58,11 +63,17 @@ public class SystemLogsService {
     // 更新系统日志
     public void updateSystemLog(SystemLogs systemLog) {
         systemLogsMapper.updateById(systemLog);
+        // 发送更新后的系统日志到 Kafka 主题
+        kafkaTemplate.send("system_logs_topic", systemLog);
     }
 
     // 删除系统日志
     public void deleteSystemLog(int logId) {
-        systemLogsMapper.deleteById(logId);
+        SystemLogs systemLogToDelete = systemLogsMapper.selectById(logId);
+        if (systemLogToDelete != null) {
+            systemLogsMapper.deleteById(logId);
+            // 发送删除系统日志的消息到 Kafka 主题
+            kafkaTemplate.send("system_logs_topic", systemLogToDelete);
+        }
     }
-
 }

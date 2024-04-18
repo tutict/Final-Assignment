@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.tutict.finalassignmentbackend.mapper.PermissionManagementMapper;
 import com.tutict.finalassignmentbackend.entity.PermissionManagement;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -12,15 +13,19 @@ import java.util.List;
 public class PermissionManagementService {
 
     private final PermissionManagementMapper permissionManagementMapper;
+    private final KafkaTemplate<String, PermissionManagement> kafkaTemplate;
 
     @Autowired
-    public PermissionManagementService(PermissionManagementMapper permissionManagementMapper) {
+    public PermissionManagementService(PermissionManagementMapper permissionManagementMapper, KafkaTemplate<String, PermissionManagement> kafkaTemplate) {
         this.permissionManagementMapper = permissionManagementMapper;
+        this.kafkaTemplate = kafkaTemplate;
     }
 
     // 创建权限
     public void createPermission(PermissionManagement permission) {
         permissionManagementMapper.insert(permission);
+        // 发送权限变更信息到 Kafka 主题
+        kafkaTemplate.send("permission_management_topic", permission);
     }
 
     // 根据权限ID查询权限
@@ -50,18 +55,29 @@ public class PermissionManagementService {
     // 更新权限
     public void updatePermission(PermissionManagement permission) {
         permissionManagementMapper.updateById(permission);
+        // 发送权限变更信息到 Kafka 主题
+        kafkaTemplate.send("permission_management_topic", permission);
     }
 
     // 删除权限
     public void deletePermission(int permissionId) {
-        permissionManagementMapper.deleteById(permissionId);
+        PermissionManagement permissionToDelete = permissionManagementMapper.selectById(permissionId);
+        if (permissionToDelete != null) {
+            permissionManagementMapper.deleteById(permissionId);
+            // 发送完整的 PermissionManagement 对象到 Kafka 主题
+            kafkaTemplate.send("permission_management_topic", permissionToDelete);
+        }
     }
 
     // 根据权限名称删除权限
     public void deletePermissionByName(String permissionName) {
         QueryWrapper<PermissionManagement> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("permission_name", permissionName);
-        permissionManagementMapper.delete(queryWrapper);
+        PermissionManagement permissionToDelete = permissionManagementMapper.selectOne(queryWrapper);
+        if (permissionToDelete != null) {
+            permissionManagementMapper.delete(queryWrapper);
+            // 发送完整的 PermissionManagement 对象到 Kafka 主题
+            kafkaTemplate.send("permission_management_topic", permissionToDelete);
+        }
     }
-
 }

@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.tutict.finalassignmentbackend.mapper.RoleManagementMapper;
 import com.tutict.finalassignmentbackend.entity.RoleManagement;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -12,15 +13,19 @@ import java.util.List;
 public class RoleManagementService {
 
     private final RoleManagementMapper roleManagementMapper;
+    private final KafkaTemplate<String, RoleManagement> kafkaTemplate;
 
     @Autowired
-    public RoleManagementService(RoleManagementMapper roleManagementMapper) {
+    public RoleManagementService(RoleManagementMapper roleManagementMapper, KafkaTemplate<String, RoleManagement> kafkaTemplate) {
         this.roleManagementMapper = roleManagementMapper;
+        this.kafkaTemplate = kafkaTemplate;
     }
 
     // 创建角色
     public void createRole(RoleManagement role) {
         roleManagementMapper.insert(role);
+        // 发送角色变更信息到 Kafka 主题
+        kafkaTemplate.send("role_management_topic", role);
     }
 
     // 根据角色ID查询角色
@@ -50,18 +55,30 @@ public class RoleManagementService {
     // 更新角色
     public void updateRole(RoleManagement role) {
         roleManagementMapper.updateById(role);
+        // 发送角色变更信息到 Kafka 主题
+        kafkaTemplate.send("role_management_topic", role);
     }
 
     // 删除角色
     public void deleteRole(int roleId) {
-        roleManagementMapper.deleteById(roleId);
+        RoleManagement roleToDelete = roleManagementMapper.selectById(roleId);
+        if (roleToDelete != null) {
+            roleManagementMapper.deleteById(roleId);
+            // 发送完整的 RoleManagement 对象到 Kafka 主题
+            kafkaTemplate.send("role_management_topic", roleToDelete);
+        }
     }
 
     // 根据角色名称删除角色
     public void deleteRoleByName(String roleName) {
         QueryWrapper<RoleManagement> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("role_name", roleName);
-        roleManagementMapper.delete(queryWrapper);
+        RoleManagement roleToDelete = roleManagementMapper.selectOne(queryWrapper);
+        if (roleToDelete != null) {
+            roleManagementMapper.delete(queryWrapper);
+            // 发送完整的 RoleManagement 对象到 Kafka 主题
+            kafkaTemplate.send("role_management_topic", roleToDelete);
+        }
     }
 
     // 根据角色ID查询权限列表
@@ -69,5 +86,4 @@ public class RoleManagementService {
         RoleManagement role = roleManagementMapper.selectById(roleId);
         return role != null ? role.getPermissionList() : null;
     }
-
 }

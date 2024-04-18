@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.tutict.finalassignmentbackend.mapper.DriverInformationMapper;
 import com.tutict.finalassignmentbackend.entity.DriverInformation;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -12,14 +13,18 @@ import java.util.List;
 public class DriverInformationService {
 
     private final DriverInformationMapper driverInformationMapper;
+    private final KafkaTemplate<String, DriverInformation> kafkaTemplate;
 
     @Autowired
-    public DriverInformationService(DriverInformationMapper driverInformationMapper) {
+    public DriverInformationService(DriverInformationMapper driverInformationMapper, KafkaTemplate<String, DriverInformation> kafkaTemplate) {
         this.driverInformationMapper = driverInformationMapper;
+        this.kafkaTemplate = kafkaTemplate;
     }
 
     public void createDriver(DriverInformation driverInformation) {
         driverInformationMapper.insert(driverInformation);
+        // 发送驾驶员信息到 Kafka 主题
+        kafkaTemplate.send("driver_topic", driverInformation);
     }
 
     public DriverInformation getDriverById(int driverId) {
@@ -59,4 +64,3 @@ public class DriverInformationService {
         return driverInformationMapper.selectList(queryWrapper);
     }
 }
-

@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.tutict.finalassignmentbackend.mapper.OperationLogMapper;
 import com.tutict.finalassignmentbackend.entity.OperationLog;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.Date;
@@ -13,14 +14,18 @@ import java.util.List;
 public class OperationLogService {
 
     private final OperationLogMapper operationLogMapper;
+    private final KafkaTemplate<String, OperationLog> kafkaTemplate;
 
     @Autowired
-    public OperationLogService(OperationLogMapper operationLogMapper) {
+    public OperationLogService(OperationLogMapper operationLogMapper, KafkaTemplate<String, OperationLog> kafkaTemplate) {
         this.operationLogMapper = operationLogMapper;
+        this.kafkaTemplate = kafkaTemplate;
     }
 
-    public void CreateOperationLog(OperationLog operationLog) {
+    public void createOperationLog(OperationLog operationLog) {
         operationLogMapper.insert(operationLog);
+        // 发送操作日志到 Kafka 主题
+        kafkaTemplate.send("operation_log_topic", operationLog);
     }
 
     public OperationLog getOperationLog(int logId) {

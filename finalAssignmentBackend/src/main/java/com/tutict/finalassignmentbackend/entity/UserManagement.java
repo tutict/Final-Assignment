@@ -17,7 +17,7 @@ public class UserManagement implements Serializable {
     private static final long serialVersionUID = 1L;
 
     @TableId(value = "user_id", type = IdType.AUTO)
-    private Integer userId;
+    private int userId;
 
     @TableField("name")
     private String name;
@@ -48,4 +48,6 @@ public class UserManagement implements Serializable {
 
     @TableField("remarks")
     private String remarks;
+
+
 }

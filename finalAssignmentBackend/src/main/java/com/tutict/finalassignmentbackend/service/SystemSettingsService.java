@@ -3,16 +3,19 @@ package com.tutict.finalassignmentbackend.service;
 import com.tutict.finalassignmentbackend.mapper.SystemSettingsMapper;
 import com.tutict.finalassignmentbackend.entity.SystemSettings;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 @Service
 public class SystemSettingsService {
 
     private final SystemSettingsMapper systemSettingsMapper;
+    private final KafkaTemplate<String, SystemSettings> kafkaTemplate;
 
     @Autowired
-    public SystemSettingsService(SystemSettingsMapper systemSettingsMapper) {
+    public SystemSettingsService(SystemSettingsMapper systemSettingsMapper, KafkaTemplate<String, SystemSettings> kafkaTemplate) {
         this.systemSettingsMapper = systemSettingsMapper;
+        this.kafkaTemplate = kafkaTemplate;
     }
 
     // 获取系统设置
@@ -23,6 +26,8 @@ public class SystemSettingsService {
     // 更新系统设置
     public void updateSystemSettings(SystemSettings systemSettings) {
         systemSettingsMapper.updateById(systemSettings);
+        // 发送更新后的系统设置到 Kafka 主题
+        kafkaTemplate.send("system_settings_topic", systemSettings);
     }
 
     // 获取系统名称

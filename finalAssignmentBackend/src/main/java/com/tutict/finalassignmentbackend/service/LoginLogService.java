@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.tutict.finalassignmentbackend.mapper.LoginLogMapper;
 import com.tutict.finalassignmentbackend.entity.LoginLog;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.Date;
@@ -13,22 +14,26 @@ import java.util.List;
 public class LoginLogService {
 
     private final LoginLogMapper loginLogMapper;
+    private final KafkaTemplate<String, LoginLog> kafkaTemplate;
 
     @Autowired
-    public LoginLogService(LoginLogMapper loginLogMapper) {
+    public LoginLogService(LoginLogMapper loginLogMapper, KafkaTemplate<String, LoginLog> kafkaTemplate) {
         this.loginLogMapper = loginLogMapper;
+        this.kafkaTemplate = kafkaTemplate;
     }
 
     public void createLoginLog(LoginLog loginLog) {
         loginLogMapper.insert(loginLog);
+        // 发送登录日志到 Kafka 主题
+        kafkaTemplate.send("login_log_topic", loginLog);
     }
 
     public LoginLog getLoginLog(int logId) {
-         return loginLogMapper.selectById(logId);
+        return loginLogMapper.selectById(logId);
     }
 
     public List<LoginLog> getAllLoginLogs() {
-       return loginLogMapper.selectList(null);
+        return loginLogMapper.selectList(null);
     }
 
     public void updateLoginLog(LoginLog loginLog) {
@@ -42,7 +47,7 @@ public class LoginLogService {
     // getLoginLogsByTimeRange
     public List<LoginLog> getLoginLogsByTimeRange(Date startTime, Date endTime) {
         QueryWrapper<LoginLog> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("login_time", startTime);
+        queryWrapper.between("login_time", startTime, endTime);
         return loginLogMapper.selectList(queryWrapper);
     }
 
