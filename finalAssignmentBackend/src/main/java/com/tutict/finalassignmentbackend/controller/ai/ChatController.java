@@ -1,5 +1,6 @@
 package com.tutict.finalassignmentbackend.controller.ai;
 
+import org.springframework.ai.bedrock.titan.BedrockTitanChatClient;
 import org.springframework.ai.chat.ChatResponse;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.prompt.Prompt;

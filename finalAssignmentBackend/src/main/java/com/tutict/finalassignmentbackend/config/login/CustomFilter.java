@@ -1,4 +1,4 @@
-package com.tutict.finalassignmentbackend.login.config;
+package com.tutict.finalassignmentbackend.config.login;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
