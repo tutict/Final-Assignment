@@ -1,44 +1,66 @@
 package com.tutict.finalassignmentbackend.KafkaListener;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.entity.OperationLog;
 import com.tutict.finalassignmentbackend.service.OperationLogService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 
-@Service
+import java.util.List;
+
+@Component
 public class OperationLogKafkaListener {
+
+    private static final Logger log = LoggerFactory.getLogger(OperationLogKafkaListener.class);
+    private final OperationLogService operationLogService;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Autowired
     public OperationLogKafkaListener(OperationLogService operationLogService) {
+        this.operationLogService = operationLogService;
     }
 
-    @KafkaListener(topics = "operation_log_topic", groupId = "operation_log_group")
-    public void onOperationLogReceived(String message, Acknowledgment acknowledgment) {
+    @KafkaListener(topics = "operation_create", groupId = "operation_listener_group")
+    public void onOperationLogCreateReceived(String message, Acknowledgment acknowledgment) {
         try {
             // 反序列化消息内容为OperationLog对象
             OperationLog operationLog = deserializeMessage(message);
 
-            // 根据业务需求处理接收到的操作日志，例如进行安全审计或数据分析
-            // 这里可以添加自定义的业务逻辑处理代码
+            // 根据业务逻辑处理创建操作日志
+            operationLogService.createOperationLog(operationLog);
 
-            // 确认消息处理成功
+            // 确认消息已被成功处理
             acknowledgment.acknowledge();
         } catch (Exception e) {
-            // 处理异常，可以选择不确认消息，以便Kafka重新投递
-            // acknowledgment.nack(false, false);
-            // log.error("Error processing operation log", e);
+            // 记录异常信息，不确认消息，以便Kafka重新投递
+            log.error("Error processing create operation log message: {}", message, e);
         }
     }
 
-    private OperationLog deserializeMessage(String message) {
-        // 实现JSON字符串到OperationLog对象的反序列化
-        // 这里需要一个合适的JSON转换器，例如Jackson的ObjectMapper
-        // ObjectMapper objectMapper = new ObjectMapper();
-        // return objectMapper.readValue(message, OperationLog.class);
+    @KafkaListener(topics = "operation_update", groupId = "operation_listener_group")
+    public void onOperationLogUpdateReceived(String message, Acknowledgment acknowledgment) {
+        try {
+            // 反序列化消息内容为OperationLog对象
+            OperationLog operationLog = deserializeMessage(message);
 
-        // 模拟反序列化过程，实际应用中需要替换为上述代码
-        return new OperationLog();
+            // 根据业务逻辑处理更新操作日志
+            operationLogService.updateOperationLog(operationLog);
+
+            // 确认消息已被成功处理
+            acknowledgment.acknowledge();
+        } catch (Exception e) {
+            // 记录异常信息，不确认消息，以便Kafka重新投递
+            log.error("Error processing update operation log message: {}", message, e);
+        }
+    }
+
+    private OperationLog deserializeMessage(String message) throws JsonProcessingException {
+        // 实现JSON字符串到OperationLog对象的反序列化
+        return objectMapper.readValue(message, OperationLog.class);
     }
 }

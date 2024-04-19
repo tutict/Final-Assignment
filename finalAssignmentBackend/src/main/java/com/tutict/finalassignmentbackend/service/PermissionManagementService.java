@@ -23,9 +23,9 @@ public class PermissionManagementService {
 
     // 创建权限
     public void createPermission(PermissionManagement permission) {
-        permissionManagementMapper.insert(permission);
         // 发送权限变更信息到 Kafka 主题
-        kafkaTemplate.send("permission_management_topic", permission);
+        kafkaTemplate.send("permission_create", permission);
+        permissionManagementMapper.insert(permission);
     }
 
     // 根据权限ID查询权限
@@ -54,9 +54,9 @@ public class PermissionManagementService {
 
     // 更新权限
     public void updatePermission(PermissionManagement permission) {
-        permissionManagementMapper.updateById(permission);
         // 发送权限变更信息到 Kafka 主题
-        kafkaTemplate.send("permission_management_topic", permission);
+        kafkaTemplate.send("permission_update", permission);
+        permissionManagementMapper.updateById(permission);
     }
 
     // 删除权限
@@ -64,8 +64,6 @@ public class PermissionManagementService {
         PermissionManagement permissionToDelete = permissionManagementMapper.selectById(permissionId);
         if (permissionToDelete != null) {
             permissionManagementMapper.deleteById(permissionId);
-            // 发送完整的 PermissionManagement 对象到 Kafka 主题
-            kafkaTemplate.send("permission_management_topic", permissionToDelete);
         }
     }
 
@@ -76,8 +74,6 @@ public class PermissionManagementService {
         PermissionManagement permissionToDelete = permissionManagementMapper.selectOne(queryWrapper);
         if (permissionToDelete != null) {
             permissionManagementMapper.delete(queryWrapper);
-            // 发送完整的 PermissionManagement 对象到 Kafka 主题
-            kafkaTemplate.send("permission_management_topic", permissionToDelete);
         }
     }
 }

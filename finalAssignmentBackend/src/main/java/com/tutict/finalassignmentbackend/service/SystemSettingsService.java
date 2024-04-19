@@ -25,9 +25,9 @@ public class SystemSettingsService {
 
     // 更新系统设置
     public void updateSystemSettings(SystemSettings systemSettings) {
-        systemSettingsMapper.updateById(systemSettings);
         // 发送更新后的系统设置到 Kafka 主题
-        kafkaTemplate.send("system_settings_topic", systemSettings);
+        kafkaTemplate.send("system_settings_update", systemSettings);
+        systemSettingsMapper.updateById(systemSettings);
     }
 
     // 获取系统名称

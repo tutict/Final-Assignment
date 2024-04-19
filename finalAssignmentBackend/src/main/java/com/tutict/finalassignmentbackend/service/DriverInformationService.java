@@ -22,9 +22,9 @@ public class DriverInformationService {
     }
 
     public void createDriver(DriverInformation driverInformation) {
-        driverInformationMapper.insert(driverInformation);
         // 发送驾驶员信息到 Kafka 主题
-        kafkaTemplate.send("driver_topic", driverInformation);
+        kafkaTemplate.send("driver_create", driverInformation);
+        driverInformationMapper.insert(driverInformation);
     }
 
     public DriverInformation getDriverById(int driverId) {
@@ -36,6 +36,7 @@ public class DriverInformationService {
     }
 
     public void updateDriver(DriverInformation driverInformation) {
+        kafkaTemplate.send("driver_update", driverInformation);
         driverInformationMapper.updateById(driverInformation);
     }
 

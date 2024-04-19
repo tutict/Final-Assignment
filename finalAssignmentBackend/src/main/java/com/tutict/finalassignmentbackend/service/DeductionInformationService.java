@@ -23,9 +23,9 @@ public class DeductionInformationService {
     }
 
     public void createDeduction(DeductionInformation deduction) {
-        deductionInformationMapper.insert(deduction);
         // 发送扣款信息到 Kafka 主题
-        kafkaTemplate.send("deduction_topic", deduction);
+        kafkaTemplate.send("deduction_create", deduction);
+        deductionInformationMapper.insert(deduction);
     }
 
     public DeductionInformation getDeductionById(int deductionId) {
@@ -37,6 +37,7 @@ public class DeductionInformationService {
     }
 
     public void updateDeduction(DeductionInformation deduction) {
+        kafkaTemplate.send("deduction_update", deduction);
         deductionInformationMapper.updateById(deduction);
     }
 

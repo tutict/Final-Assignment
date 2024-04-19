@@ -23,9 +23,9 @@ public class LoginLogService {
     }
 
     public void createLoginLog(LoginLog loginLog) {
-        loginLogMapper.insert(loginLog);
         // 发送登录日志到 Kafka 主题
-        kafkaTemplate.send("login_log_topic", loginLog);
+        kafkaTemplate.send("login_create", loginLog);
+        loginLogMapper.insert(loginLog);
     }
 
     public LoginLog getLoginLog(int logId) {
@@ -37,6 +37,7 @@ public class LoginLogService {
     }
 
     public void updateLoginLog(LoginLog loginLog) {
+        kafkaTemplate.send("login_update", loginLog);
         loginLogMapper.updateById(loginLog);
     }
 

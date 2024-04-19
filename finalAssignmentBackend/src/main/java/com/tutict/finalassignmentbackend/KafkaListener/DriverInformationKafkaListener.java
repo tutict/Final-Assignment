@@ -1,47 +1,65 @@
 package com.tutict.finalassignmentbackend.KafkaListener;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.entity.DriverInformation;
 import com.tutict.finalassignmentbackend.service.DriverInformationService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 
-@Service
+import java.util.List;
+
+@Component
 public class DriverInformationKafkaListener {
 
+    private static final Logger log = LoggerFactory.getLogger(DriverInformationKafkaListener.class);
     private final DriverInformationService driverInformationService;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Autowired
     public DriverInformationKafkaListener(DriverInformationService driverInformationService) {
         this.driverInformationService = driverInformationService;
     }
 
-    @KafkaListener(topics = "driver_update_topic", groupId = "driver_group")
+    @KafkaListener(topics = "driver_create", groupId = "driver_listener_group")
+    public void onDriverCreateReceived(String message, Acknowledgment acknowledgment) {
+        try {
+            // 反序列化消息内容为DriverInformation对象
+            DriverInformation driverInformation = deserializeMessage(message);
+
+            driverInformationService.createDriver(driverInformation);
+
+            // 确认消息已被成功处理
+            acknowledgment.acknowledge();
+        } catch (Exception e) {
+            // 记录异常信息，不确认消息，以便Kafka重新投递
+            log.error("Error processing create driver message: {}", message, e);
+        }
+    }
+
+    @KafkaListener(topics = "driver_update", groupId = "driver_listener_group")
     public void onDriverUpdateReceived(String message, Acknowledgment acknowledgment) {
         try {
             // 反序列化消息内容为DriverInformation对象
             DriverInformation driverInformation = deserializeMessage(message);
 
-            // 根据消息类型处理更新，例如更新驾驶员信息
+            // 根据业务逻辑处理更新驾驶员信息
             driverInformationService.updateDriver(driverInformation);
 
-            // 确认消息处理成功
+            // 确认消息已被成功处理
             acknowledgment.acknowledge();
         } catch (Exception e) {
-            // 处理异常，可以选择不确认消息，以便Kafka重新投递
-            // acknowledgment.nack(false, false);
-            // log.error("Error processing driver update", e);
+            // 记录异常信息，不确认消息，以便Kafka重新投递
+            log.error("Error processing update driver message: {}", message, e);
         }
     }
 
-    private DriverInformation deserializeMessage(String message) {
+    private DriverInformation deserializeMessage(String message) throws JsonProcessingException {
         // 实现JSON字符串到DriverInformation对象的反序列化
-        // 这里需要一个合适的JSON转换器，例如Jackson的ObjectMapper
-        // ObjectMapper objectMapper = new ObjectMapper();
-        // return objectMapper.readValue(message, DriverInformation.class);
-
-        // 模拟反序列化过程，实际应用中需要替换为上述代码
-        return new DriverInformation();
+        return objectMapper.readValue(message, DriverInformation.class);
     }
 }

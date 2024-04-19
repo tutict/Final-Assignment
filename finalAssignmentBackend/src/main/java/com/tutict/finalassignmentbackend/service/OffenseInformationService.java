@@ -23,9 +23,9 @@ public class OffenseInformationService {
     }
 
     public void createOffense(OffenseInformation offenseInformation) {
-        offenseInformationMapper.insert(offenseInformation);
         // 发送违法信息到 Kafka 主题
-        kafkaTemplate.send("offense_topic", offenseInformation);
+        kafkaTemplate.send("offense_create", offenseInformation);
+        offenseInformationMapper.insert(offenseInformation);
     }
 
     public OffenseInformation getOffenseByOffenseId(int offenseId) {
@@ -37,6 +37,7 @@ public class OffenseInformationService {
     }
 
     public void updateOffense(OffenseInformation offenseInformation) {
+        kafkaTemplate.send("offense_update", offenseInformation);
         offenseInformationMapper.updateById(offenseInformation);
     }
 

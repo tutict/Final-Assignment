@@ -25,7 +25,7 @@ public class VehicleInformationService {
     public void createVehicleInformation(VehicleInformation vehicleInformation) {
         vehicleInformationMapper.insert(vehicleInformation);
         // 发送车辆创建信息到 Kafka 主题
-        kafkaTemplate.send("vehicle_management_topic", vehicleInformation);
+        kafkaTemplate.send("vehicle_create", vehicleInformation);
     }
 
     // 根据车辆ID查询车辆信息
@@ -70,15 +70,12 @@ public class VehicleInformationService {
     public void updateVehicleInformation(VehicleInformation vehicleInformation) {
         vehicleInformationMapper.updateById(vehicleInformation);
         // 发送车辆更新信息到 Kafka 主题
-        kafkaTemplate.send("vehicle_management_topic", vehicleInformation);
+        kafkaTemplate.send("vehicle_update", vehicleInformation);
     }
 
     // 删除车辆信息
     public void deleteVehicleInformation(int vehicleId) {
-        VehicleInformation deletedVehicle = vehicleInformationMapper.selectById(vehicleId);
         vehicleInformationMapper.deleteById(vehicleId);
-        // 发送车辆删除信息到 Kafka 主题
-        kafkaTemplate.send("vehicle_management_topic", deletedVehicle);
     }
 
     // 根据车牌号删除车辆信息
@@ -87,8 +84,6 @@ public class VehicleInformationService {
         queryWrapper.eq("license_plate", licensePlate);
         VehicleInformation deletedVehicle = vehicleInformationMapper.selectOne(queryWrapper);
         vehicleInformationMapper.delete(queryWrapper);
-        // 发送车辆删除信息到 Kafka 主题
-        kafkaTemplate.send("vehicle_management_topic", deletedVehicle);
     }
 
     // 检查车牌号是否存在

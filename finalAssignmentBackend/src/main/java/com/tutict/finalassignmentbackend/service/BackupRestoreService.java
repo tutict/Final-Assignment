@@ -22,9 +22,9 @@ public class BackupRestoreService {
     }
 
     public void createBackup(BackupRestore backup) {
-        backupRestoreMapper.insert(backup);
         // 发送备份信息到 Kafka 主题
-        kafkaTemplate.send("backup_topic", backup);
+        kafkaTemplate.send("backup_create", backup);
+        backupRestoreMapper.insert(backup);
     }
 
     public List<BackupRestore> getAllBackups() {
@@ -40,6 +40,8 @@ public class BackupRestoreService {
     }
 
     public void updateBackup(BackupRestore backup) {
+        // 发送备份信息到 Kafka 主题
+        kafkaTemplate.send("backup_update", backup);
         backupRestoreMapper.updateById(backup);
     }
 

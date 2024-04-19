@@ -1,47 +1,66 @@
 package com.tutict.finalassignmentbackend.KafkaListener;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.entity.OffenseInformation;
 import com.tutict.finalassignmentbackend.service.OffenseInformationService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 
-@Service
+import java.util.List;
+
+@Component
 public class OffenseInformationKafkaListener {
 
+    private static final Logger log = LoggerFactory.getLogger(OffenseInformationKafkaListener.class);
     private final OffenseInformationService offenseInformationService;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Autowired
     public OffenseInformationKafkaListener(OffenseInformationService offenseInformationService) {
         this.offenseInformationService = offenseInformationService;
     }
 
-    @KafkaListener(topics = "offense_update_topic", groupId = "offense_group")
+    @KafkaListener(topics = "offense_create", groupId = "offense_listener_group")
+    public void onOffenseCreateReceived(String message, Acknowledgment acknowledgment) {
+        try {
+            // 反序列化消息内容为OffenseInformation对象
+            OffenseInformation offenseInformation = deserializeMessage(message);
+
+            // 根据业务逻辑处理创建违法行为信息
+            offenseInformationService.createOffense(offenseInformation);
+
+            // 确认消息已被成功处理
+            acknowledgment.acknowledge();
+        } catch (Exception e) {
+            // 记录异常信息，不确认消息，以便Kafka重新投递
+            log.error("Error processing create offense message: {}", message, e);
+        }
+    }
+
+    @KafkaListener(topics = "offense_update", groupId = "offense_listener_group")
     public void onOffenseUpdateReceived(String message, Acknowledgment acknowledgment) {
         try {
             // 反序列化消息内容为OffenseInformation对象
             OffenseInformation offenseInformation = deserializeMessage(message);
 
-            // 根据消息类型处理更新，例如更新违法行为信息
+            // 根据业务逻辑处理更新违法行为信息
             offenseInformationService.updateOffense(offenseInformation);
 
-            // 确认消息处理成功
+            // 确认消息已被成功处理
             acknowledgment.acknowledge();
         } catch (Exception e) {
-            // 处理异常，可以选择不确认消息，以便Kafka重新投递
-            // acknowledgment.nack(false, false);
-            // log.error("Error processing offense update", e);
+            // 记录异常信息，不确认消息，以便Kafka重新投递
+            log.error("Error processing update offense message: {}", message, e);
         }
     }
 
-    private OffenseInformation deserializeMessage(String message) {
+    private OffenseInformation deserializeMessage(String message) throws JsonProcessingException {
         // 实现JSON字符串到OffenseInformation对象的反序列化
-        // 这里需要一个合适的JSON转换器，例如Jackson的ObjectMapper
-        // ObjectMapper objectMapper = new ObjectMapper();
-        // return objectMapper.readValue(message, OffenseInformation.class);
-
-        // 模拟反序列化过程，实际应用中需要替换为上述代码
-        return new OffenseInformation();
+        return objectMapper.readValue(message, OffenseInformation.class);
     }
 }

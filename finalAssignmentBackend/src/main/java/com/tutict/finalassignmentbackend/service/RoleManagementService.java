@@ -23,9 +23,9 @@ public class RoleManagementService {
 
     // 创建角色
     public void createRole(RoleManagement role) {
-        roleManagementMapper.insert(role);
         // 发送角色变更信息到 Kafka 主题
-        kafkaTemplate.send("role_management_topic", role);
+        kafkaTemplate.send("role_create", role);
+        roleManagementMapper.insert(role);
     }
 
     // 根据角色ID查询角色
@@ -54,9 +54,9 @@ public class RoleManagementService {
 
     // 更新角色
     public void updateRole(RoleManagement role) {
-        roleManagementMapper.updateById(role);
         // 发送角色变更信息到 Kafka 主题
-        kafkaTemplate.send("role_management_topic", role);
+        kafkaTemplate.send("role_update", role);
+        roleManagementMapper.updateById(role);
     }
 
     // 删除角色
@@ -64,8 +64,6 @@ public class RoleManagementService {
         RoleManagement roleToDelete = roleManagementMapper.selectById(roleId);
         if (roleToDelete != null) {
             roleManagementMapper.deleteById(roleId);
-            // 发送完整的 RoleManagement 对象到 Kafka 主题
-            kafkaTemplate.send("role_management_topic", roleToDelete);
         }
     }
 
@@ -76,8 +74,6 @@ public class RoleManagementService {
         RoleManagement roleToDelete = roleManagementMapper.selectOne(queryWrapper);
         if (roleToDelete != null) {
             roleManagementMapper.delete(queryWrapper);
-            // 发送完整的 RoleManagement 对象到 Kafka 主题
-            kafkaTemplate.send("role_management_topic", roleToDelete);
         }
     }
 

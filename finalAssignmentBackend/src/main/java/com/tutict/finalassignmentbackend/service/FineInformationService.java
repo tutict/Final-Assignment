@@ -23,9 +23,9 @@ public class FineInformationService {
     }
 
     public void createFine(FineInformation fineInformation) {
-        fineInformationMapper.insert(fineInformation);
         // 发送罚款信息到 Kafka 主题
-        kafkaTemplate.send("fine_topic", fineInformation);
+        kafkaTemplate.send("fine_create", fineInformation);
+        fineInformationMapper.insert(fineInformation);
     }
 
     public FineInformation getFineById(int fineId) {
@@ -37,6 +37,7 @@ public class FineInformationService {
     }
 
     public void updateFine(FineInformation fineInformation) {
+        kafkaTemplate.send("fine_update", fineInformation);
         fineInformationMapper.updateById(fineInformation);
     }
 

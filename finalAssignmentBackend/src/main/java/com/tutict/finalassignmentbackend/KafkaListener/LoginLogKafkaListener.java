@@ -1,44 +1,66 @@
 package com.tutict.finalassignmentbackend.KafkaListener;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.entity.LoginLog;
 import com.tutict.finalassignmentbackend.service.LoginLogService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 
-@Service
+import java.util.List;
+
+@Component
 public class LoginLogKafkaListener {
+
+    private static final Logger log = LoggerFactory.getLogger(LoginLogKafkaListener.class);
+    private final LoginLogService loginLogService;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Autowired
     public LoginLogKafkaListener(LoginLogService loginLogService) {
+        this.loginLogService = loginLogService;
     }
 
-    @KafkaListener(topics = "login_log_topic", groupId = "login_log_group")
-    public void onLoginLogReceived(String message, Acknowledgment acknowledgment) {
+    @KafkaListener(topics = "login_create", groupId = "login_listener_group")
+    public void onLoginLogCreateReceived(String message, Acknowledgment acknowledgment) {
         try {
             // 反序列化消息内容为LoginLog对象
             LoginLog loginLog = deserializeMessage(message);
 
-            // 根据业务需求处理接收到的登录日志，例如进行安全审计或数据分析
-            // 这里可以添加自定义的业务逻辑处理代码
+            // 根据业务逻辑处理创建登录日志
+            loginLogService.createLoginLog(loginLog);
 
-            // 确认消息处理成功
+            // 确认消息已被成功处理
             acknowledgment.acknowledge();
         } catch (Exception e) {
-            // 处理异常，可以选择不确认消息，以便Kafka重新投递
-            // acknowledgment.nack(false, false);
-            // log.error("Error processing login log", e);
+            // 记录异常信息，不确认消息，以便Kafka重新投递
+            log.error("Error processing create login log message: {}", message, e);
         }
     }
 
-    private LoginLog deserializeMessage(String message) {
-        // 实现JSON字符串到LoginLog对象的反序列化
-        // 这里需要一个合适的JSON转换器，例如Jackson的ObjectMapper
-        // ObjectMapper objectMapper = new ObjectMapper();
-        // return objectMapper.readValue(message, LoginLog.class);
+    @KafkaListener(topics = "login_update", groupId = "login_listener_group")
+    public void onLoginLogUpdateReceived(String message, Acknowledgment acknowledgment) {
+        try {
+            // 反序列化消息内容为LoginLog对象
+            LoginLog loginLog = deserializeMessage(message);
 
-        // 模拟反序列化过程，实际应用中需要替换为上述代码
-        return new LoginLog();
+            // 根据业务逻辑处理更新登录日志
+            loginLogService.updateLoginLog(loginLog);
+
+            // 确认消息已被成功处理
+            acknowledgment.acknowledge();
+        } catch (Exception e) {
+            // 记录异常信息，不确认消息，以便Kafka重新投递
+            log.error("Error processing update login log message: {}", message, e);
+        }
+    }
+
+    private LoginLog deserializeMessage(String message) throws JsonProcessingException {
+        // 实现JSON字符串到LoginLog对象的反序列化
+        return objectMapper.readValue(message, LoginLog.class);
     }
 }

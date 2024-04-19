@@ -23,9 +23,9 @@ public class OperationLogService {
     }
 
     public void createOperationLog(OperationLog operationLog) {
-        operationLogMapper.insert(operationLog);
         // 发送操作日志到 Kafka 主题
-        kafkaTemplate.send("operation_log_topic", operationLog);
+        kafkaTemplate.send("operation_create", operationLog);
+        operationLogMapper.insert(operationLog);
     }
 
     public OperationLog getOperationLog(int logId) {
@@ -37,6 +37,7 @@ public class OperationLogService {
     }
 
     public void updateOperationLog(OperationLog operationLog) {
+        kafkaTemplate.send("operation_update", operationLog);
         operationLogMapper.updateById(operationLog);
     }
 

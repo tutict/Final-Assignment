@@ -26,9 +26,9 @@ public class AppealManagementService {
     }
 
     public void createAppeal(AppealManagement appeal) {
-        appealManagementMapper.insert(appeal);
         // 发送消息到 Kafka 主题
-        kafkaTemplate.send("your_kafka_topic", appeal);
+        kafkaTemplate.send("appeal_create", appeal);
+        appealManagementMapper.insert(appeal);
     }
 
     public AppealManagement getAppealById(Long appealId) {
@@ -39,7 +39,9 @@ public class AppealManagementService {
         return appealManagementMapper.selectList(null);
     }
 
-    public void updateAppeal(AppealManagement appeal)  {
+    public void updateAppeal(AppealManagement appeal) {
+        // 发送更新申述的消息到 Kafka 主题
+        kafkaTemplate.send("appeal_updated", appeal);
         appealManagementMapper.updateById(appeal);
     }
 

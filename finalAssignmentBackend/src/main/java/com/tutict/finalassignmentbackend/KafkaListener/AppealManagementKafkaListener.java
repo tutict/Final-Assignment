@@ -1,47 +1,66 @@
 package com.tutict.finalassignmentbackend.KafkaListener;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.entity.AppealManagement;
 import com.tutict.finalassignmentbackend.service.AppealManagementService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 
-@Service
+@Component
 public class AppealManagementKafkaListener {
 
+    private static final Logger log = LoggerFactory.getLogger(AppealManagementKafkaListener.class);
     private final AppealManagementService appealManagementService;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Autowired
     public AppealManagementKafkaListener(AppealManagementService appealManagementService) {
         this.appealManagementService = appealManagementService;
     }
 
-    @KafkaListener(topics = "your_kafka_topic", groupId = "group_id")
-    public void onAppealReceived(String message, Acknowledgment acknowledgment) {
+    // 监听"appeal-create"主题的消息
+    @KafkaListener(topics = "appeal_create", groupId = "group_id")
+    public void onAppealCreateReceived(String message, Acknowledgment acknowledgment) {
         try {
             // 反序列化消息内容为AppealManagement对象
             AppealManagement appealManagement = deserializeMessage(message);
 
-            // 处理收到的AppealManagement对象，例如保存到数据库
+            // 调用服务层方法处理创建申述逻辑
             appealManagementService.createAppeal(appealManagement);
 
-            // 确认消息处理成功
+            // 确认消息已被成功处理
             acknowledgment.acknowledge();
         } catch (Exception e) {
-            // 处理异常，可以选择不确认消息，以便Kafka重新投递
-            // acknowledgment.nack(false, false);
-            // log.error("Error processing message", e);
+            // 记录异常信息，不确认消息，以便Kafka重新投递
+            log.error("Error processing create appeal message: {}", message, e);
         }
     }
 
-    private AppealManagement deserializeMessage(String message) {
-        // 实现JSON字符串到AppealManagement对象的反序列化
-        // 这里需要一个合适的JSON转换器，例如Jackson的ObjectMapper
-        // ObjectMapper objectMapper = new ObjectMapper();
-        // return objectMapper.readValue(message, AppealManagement.class);
+    // 监听"appeal-updated"主题的消息
+    @KafkaListener(topics = "appeal_updated", groupId = "group_id")
+    public void onAppealUpdateReceived(String message, Acknowledgment acknowledgment) {
+        try {
+            // 反序列化消息内容为AppealManagement对象
+            AppealManagement appealManagement = deserializeMessage(message);
 
-        // 模拟反序列化过程，实际应用中需要替换为上述代码
-        return new AppealManagement();
+            // 调用服务层方法处理更新申述逻辑
+            appealManagementService.updateAppeal(appealManagement);
+
+            // 确认消息已被成功处理
+            acknowledgment.acknowledge();
+        } catch (Exception e) {
+            // 记录异常信息，不确认消息，以便Kafka重新投递
+            log.error("Error processing update appeal message: {}", message, e);
+        }
+    }
+
+    private AppealManagement deserializeMessage(String message) throws JsonProcessingException {
+        // 实现JSON字符串到AppealManagement对象的反序列化
+        return objectMapper.readValue(message, AppealManagement.class);
     }
 }

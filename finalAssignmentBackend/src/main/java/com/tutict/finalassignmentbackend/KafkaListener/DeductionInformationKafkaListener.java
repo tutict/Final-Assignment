@@ -1,44 +1,65 @@
 package com.tutict.finalassignmentbackend.KafkaListener;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.entity.DeductionInformation;
 import com.tutict.finalassignmentbackend.service.DeductionInformationService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 
-@Service
+import java.util.List;
+
+@Component
 public class DeductionInformationKafkaListener {
 
+    private static final Logger log = LoggerFactory.getLogger(DeductionInformationKafkaListener.class);
     private final DeductionInformationService deductionInformationService;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Autowired
     public DeductionInformationKafkaListener(DeductionInformationService deductionInformationService) {
         this.deductionInformationService = deductionInformationService;
     }
 
-    @KafkaListener(topics = "deduction_command_topic", groupId = "deduction_group")
-    public void onDeductionCommandReceived(String message, Acknowledgment acknowledgment) {
+    @KafkaListener(topics = "deduction_create", groupId = "deduction_listener_group")
+    public void onDeductionCreateReceived(String message, Acknowledgment acknowledgment) {
         try {
-            // 解析消息内容，确定扣款操作的类型和参数
-            // 例如，这里可以根据消息内容创建一个扣款记录
-            DeductionInformation deduction = parseDeductionCommand(message);
-            deductionInformationService.createDeduction(deduction);
+            // 反序列化消息内容为DeductionInformation对象
+            DeductionInformation deductionInformation = deserializeMessage(message);
 
-            // 确认消息处理成功
+            deductionInformationService.createDeduction(deductionInformation);
+
+            // 确认消息已被成功处理
             acknowledgment.acknowledge();
         } catch (Exception e) {
-            // 处理异常，可以选择不确认消息，以便Kafka重新投递
-            // acknowledgment.nack(false, false);
-            // log.error("Error processing deduction command", e);
+            // 记录异常信息，不确认消息，以便Kafka重新投递
+            log.error("Error processing create deduction message: {}", message, e);
         }
     }
 
-    private DeductionInformation parseDeductionCommand(String message) {
-        // 实现消息内容解析逻辑，创建DeductionInformation对象
-        // 这里只是一个示意，需要根据实际的消息格式来实现
+    @KafkaListener(topics = "deduction_update", groupId = "deduction_listener_group")
+    public void onDeductionUpdateReceived(String message, Acknowledgment acknowledgment) {
+        try {
+            // 反序列化消息内容为DeductionInformation对象
+            DeductionInformation deductionInformation = deserializeMessage(message);
 
-        // 模拟返回一个DeductionInformation对象
-        return new DeductionInformation();
+            // 根据业务逻辑处理更新扣款信息
+            deductionInformationService.updateDeduction(deductionInformation);
+
+            // 确认消息已被成功处理
+            acknowledgment.acknowledge();
+        } catch (Exception e) {
+            // 记录异常信息，不确认消息，以便Kafka重新投递
+            log.error("Error processing update deduction message: {}", message, e);
+        }
+    }
+
+    private DeductionInformation deserializeMessage(String message) throws JsonProcessingException {
+        // 实现JSON字符串到DeductionInformation对象的反序列化
+        return objectMapper.readValue(message, DeductionInformation.class);
     }
 }

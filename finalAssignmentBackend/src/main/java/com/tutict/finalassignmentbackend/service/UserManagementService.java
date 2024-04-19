@@ -23,9 +23,9 @@ public class UserManagementService {
 
     // 创建用户
     public void createUser(UserManagement user) {
-        userManagementMapper.insert(user);
         // 发送用户创建信息到 Kafka 主题
-        kafkaTemplate.send("user_management_topic", user);
+        kafkaTemplate.send("user_create", user);
+        userManagementMapper.insert(user);
     }
 
     // 根据用户ID查询用户
@@ -61,9 +61,9 @@ public class UserManagementService {
 
     // 更新用户
     public void updateUser(UserManagement user) {
-        userManagementMapper.updateById(user);
         // 发送用户更新信息到 Kafka 主题
-        kafkaTemplate.send("user_management_topic", user);
+        kafkaTemplate.send("user_update", user);
+        userManagementMapper.updateById(user);
     }
 
     // 删除用户
@@ -71,8 +71,6 @@ public class UserManagementService {
         UserManagement userToDelete = userManagementMapper.selectById(userId);
         if (userToDelete != null) {
             userManagementMapper.deleteById(userId);
-            // 发送用户删除信息到 Kafka 主题
-            kafkaTemplate.send("user_management_topic", userToDelete);
         }
     }
 
@@ -81,8 +79,6 @@ public class UserManagementService {
         UserManagement userToDelete = getUserByUsername(username);
         if (userToDelete != null) {
             userManagementMapper.delete(new QueryWrapper<UserManagement>().eq("username", username));
-            // 发送用户删除信息到 Kafka 主题
-            kafkaTemplate.send("user_management_topic", userToDelete);
         }
     }
 

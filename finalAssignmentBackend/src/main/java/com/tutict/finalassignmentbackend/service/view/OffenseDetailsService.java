@@ -32,4 +32,9 @@ public class OffenseDetailsService {
     public void sendOffenseDetailsToKafka(OffenseDetails offenseDetails) {
         kafkaTemplate.send("offense_details_topic", offenseDetails);
     }
+
+    public void saveOffenseDetails(OffenseDetails offenseDetails) {
+        // 将 offenseDetails 保存到数据库中
+        offenseDetailsMapper.insert(offenseDetails);
+    }
 }
