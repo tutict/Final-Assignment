@@ -38,6 +38,8 @@ dependencies:
 
   intl: ^0.19.0
 
+  intl_generator: ^0.4.1
+
   font_awesome_flutter: ^10.7.0
 
   flutter_rating_bar: ^4.0.1
@@ -55,6 +57,12 @@ dependencies:
   convert: ^3.1.1
 
   crypto: ^3.0.3
+
+  http: ^0.13.3
+
+  analyzer: ^5.1.0
+
+  _fe_analyzer_shared : ^61.0.0
 
 dev_dependencies:
   flutter_test:
