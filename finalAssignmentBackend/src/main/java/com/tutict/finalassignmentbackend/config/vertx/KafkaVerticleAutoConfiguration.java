@@ -18,7 +18,7 @@ public class KafkaVerticleAutoConfiguration {
         this.kafkaConsumer = kafkaConsumer;
     }
 
-    @Bean
+    @Bean(name = "kafkaVerticleConfig")
     @ConditionalOnMissingBean
     public KafkaVerticle kafkaVerticle() {
         return new KafkaVerticle(vertx, kafkaConsumer);

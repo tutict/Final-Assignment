@@ -17,7 +17,7 @@ public class UserManagement implements Serializable {
     private static final long serialVersionUID = 1L;
 
     @TableId(value = "user_id", type = IdType.AUTO)
-    private int userId;
+    private Integer userId;
 
     @TableField("name")
     private String name;

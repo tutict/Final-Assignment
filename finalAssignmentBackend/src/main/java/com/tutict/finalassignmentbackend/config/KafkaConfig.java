@@ -1,7 +1,6 @@
 package com.tutict.finalassignmentbackend.config;
 
 import io.vertx.core.Vertx;
-import io.vertx.core.VertxOptions;
 import io.vertx.kafka.client.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.springframework.beans.factory.annotation.Value;
@@ -17,10 +16,6 @@ public class KafkaConfig {
     @Value("${spring.kafka.bootstrap-servers}")
     private String bootstrapServers;
 
-    @Bean
-    public Vertx vertx() {
-        return Vertx.vertx(new VertxOptions());
-    }
 
     @Bean
     @DependsOn("vertx") // 确保Vertx Bean已经存在
