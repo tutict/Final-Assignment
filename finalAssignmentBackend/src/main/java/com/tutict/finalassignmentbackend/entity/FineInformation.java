@@ -1,6 +1,8 @@
 package com.tutict.finalassignmentbackend.entity;
 
+import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
@@ -15,7 +17,7 @@ public class FineInformation implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
 
-    @TableField("offense_id")
+    @TableId(value = "offense_id", type = IdType.AUTO)
     private Integer offenseId;
 
     @TableField("fine_amount")

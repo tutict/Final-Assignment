@@ -14,7 +14,7 @@ public class SystemSettings implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
 
-    @TableId("system_name")
+    @TableId(value = "system_name")
     private String systemName;
 
     @TableField("system_version")
