@@ -16,7 +16,7 @@ class _TrafficViolationManagementQueryPageState extends State<TrafficViolationMa
   late TextEditingController _dateController;
 
   // 初始化日期选择器的当前日期
-  final DateTime _initialDate = DateTime.now();
+  late final DateTime _initialDate = DateTime.now();
 
   @override
   void initState() {

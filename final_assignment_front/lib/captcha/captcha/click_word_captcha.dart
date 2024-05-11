@@ -109,7 +109,7 @@ class _ClickWordCaptchaState extends State<ClickWordCaptcha> {
     // secretKey 不为空 进行as加密
     if (!ObjectUtils.isEmpty(_clickWordCaptchaModel.secretKey)) {
       var aesEncrypter =
-      AesCrypt(key: _clickWordCaptchaModel.secretKey, 'ecb', 'pkcs7', padding: null);
+      AesCrypt(key: _clickWordCaptchaModel.secretKey, "ecb", 'pkcs7', padding: null);
       cryptedStr = aesEncrypter.encrypt(pointStr);
       var dcrypt = aesEncrypter.decrypt(cryptedStr);
     }

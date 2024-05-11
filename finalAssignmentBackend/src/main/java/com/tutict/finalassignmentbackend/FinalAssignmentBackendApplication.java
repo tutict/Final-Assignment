@@ -30,7 +30,7 @@ public class FinalAssignmentBackendApplication {
         return new WebMvcConfigurer() {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
-                CorsRegistration reg = registry.addMapping("/**");
+                CorsRegistration reg = registry.addMapping("/ws/**");
                 reg.allowedOrigins("*")
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                         .allowedHeaders("*")

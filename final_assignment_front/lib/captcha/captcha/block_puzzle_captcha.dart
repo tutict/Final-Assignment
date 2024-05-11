@@ -12,7 +12,7 @@ class BlockPuzzleCaptchaPage extends StatefulWidget {
   final VoidSuccessCallback onSuccess; //拖放完成后验证成功回调
   final VoidCallback onFail; //拖放完成后验证失败回调
 
-  BlockPuzzleCaptchaPage({this.onSuccess, this.onFail});
+  BlockPuzzleCaptchaPage({required this.onSuccess, required this.onFail});
 
   @override
   _BlockPuzzleCaptchaPageState createState() => _BlockPuzzleCaptchaPageState();
@@ -43,10 +43,10 @@ class _BlockPuzzleCaptchaPageState extends State<BlockPuzzleCaptchaPage>
   int _checkMilliseconds = 0; //滑动时间
   bool _showTimeLine = false; //是否显示动画部件
   bool _checkSuccess = false; //校验是否成功
-  AnimationController controller;
+  late AnimationController controller;
 
   //高度动画
-  Animation<double> offsetAnimation;
+  late Animation<double> offsetAnimation;
 
   //底部部件key
   GlobalKey _containerKey = new GlobalKey();
@@ -201,7 +201,7 @@ class _BlockPuzzleCaptchaPageState extends State<BlockPuzzleCaptchaPage>
 
     // secretKey 不为空 进行as加密
     if(!ObjectUtils.isEmpty(secretKey)){
-      var aesEncrypter = AesCrypt(secretKey, 'ecb', 'pkcs7');
+      var aesEncrypter = AesCrypt(secretKey, 'ecb', 'pkcs7', key: '');
       cryptedStr = aesEncrypter.encrypt(pointStr);
       var dcrypt = aesEncrypter.decrypt(cryptedStr);
       Map _map = json.decode(dcrypt);
@@ -535,7 +535,7 @@ class MaxScaleTextWidget extends StatelessWidget {
   final double max;
   final Widget child;
 
-  MaxScaleTextWidget({Key key, this.max = 1.0, this.child}) : super(key: key);
+  MaxScaleTextWidget({required Key key, this.max = 1.0, required this.child}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
