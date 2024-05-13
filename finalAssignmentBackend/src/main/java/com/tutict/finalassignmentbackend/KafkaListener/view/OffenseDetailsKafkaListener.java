@@ -1,7 +1,6 @@
 package com.tutict.finalassignmentbackend.KafkaListener.view;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.tutict.finalassignmentbackend.entity.AppealManagement;
 import com.tutict.finalassignmentbackend.entity.view.OffenseDetails;
 import com.tutict.finalassignmentbackend.service.view.OffenseDetailsService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,7 +34,7 @@ public class OffenseDetailsKafkaListener {
         }
     }
 
-    private OffenseDetails deserializeMessage(String message) throws Exception {
+    private OffenseDetails deserializeMessage(String message) {
         try {
             // 实现JSON字符串到OffenseDetails对象的反序列化
             ObjectMapper objectMapper = new ObjectMapper();

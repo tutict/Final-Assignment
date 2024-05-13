@@ -1,7 +1,6 @@
 package com.tutict.finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.tutict.finalassignmentbackend.entity.AppealManagement;
 import com.tutict.finalassignmentbackend.mapper.SystemLogsMapper;
 import com.tutict.finalassignmentbackend.entity.SystemLogs;
 import org.slf4j.Logger;
@@ -88,10 +87,29 @@ public class SystemLogsService {
     }
 
     // 更新系统日志
+    @Transactional
     public void updateSystemLog(SystemLogs systemLog) {
-        // 发送更新后的系统日志到 Kafka 主题
-        kafkaTemplate.send("system_update", systemLog);
-        systemLogsMapper.updateById(systemLog);
+        try {
+            // 异步发送消息到 Kafka，并处理发送结果
+            CompletableFuture<SendResult<String, SystemLogs>> future =   kafkaTemplate.send("system_update", systemLog);
+
+            // 处理发送成功的情况
+            future.thenAccept(sendResult -> log.info("Update message sent to Kafka successfully: {}", sendResult.toString())).exceptionally(ex -> {
+                // 处理发送失败的情况
+                log.error("Failed to send message to Kafka, triggering transaction rollback", ex);
+                // 抛出异常
+                throw new RuntimeException("Kafka message send failure", ex);
+            });
+
+            // 由于是异步发送，不需要等待发送完成，Spring事务管理器将处理事务
+            systemLogsMapper.updateById(systemLog);
+
+        } catch (Exception e) {
+            // 记录异常信息
+            log.error("Exception occurred while updating appeal or sending Kafka message", e);
+            // 异常将由Spring事务管理器处理，可能触发事务回滚
+            throw e;
+        }
     }
 
     // 删除系统日志

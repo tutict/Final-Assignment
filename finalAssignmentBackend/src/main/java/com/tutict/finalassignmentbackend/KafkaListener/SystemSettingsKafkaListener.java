@@ -30,6 +30,7 @@ public class SystemSettingsKafkaListener {
             SystemSettings systemSettings = deserializeMessage(message);
 
             // 根据业务逻辑处理更新系统设置
+            systemSettingsService.updateSystemSettings(systemSettings);
             // 这里通常不需要再次保存数据库，因为更新操作已经在产生消息的服务层完成
 
             // 确认消息已被成功处理
