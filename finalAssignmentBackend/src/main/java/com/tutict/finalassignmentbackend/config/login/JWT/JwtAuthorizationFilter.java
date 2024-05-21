@@ -13,44 +13,36 @@ public class JwtAuthorizationFilter implements Filter {
 
     private final TokenProvider tokenProvider;
 
-    public JwtAuthorizationFilter(TokenProvider tokenProvider)
-    {
+    public JwtAuthorizationFilter(TokenProvider tokenProvider) {
         this.tokenProvider = tokenProvider;
     }
 
     @Override
-    public void doFilter(ServletRequest request, ServletResponse response, FilterChain filterChain)
-            throws IOException, ServletException {
+    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
         HttpServletRequest httpRequest = (HttpServletRequest) request;
-        String authHeader = httpRequest.getHeader("Authorization");
+        String jwtToken = extractToken(httpRequest);
 
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            String token = authHeader.substring("Bearer ".length());
+        try {
+            if (jwtToken != null && tokenProvider.validateToken(jwtToken)) {
+                String username = tokenProvider.getUsernameFromToken(jwtToken);
 
-            try {
-                // 验证JWT Token
-                if (tokenProvider.validateToken(token)) {
-                    // 如果Token有效，从Token中获取用户名
-                    String username = tokenProvider.getUsernameFromToken(token);
-
-                    // 检查SecurityContextHolder是否已经有Authentication对象
-                    if (SecurityContextHolder.getContext().getAuthentication() == null) {
-                        // 创建Authentication对象并加入到SecurityContextHolder
-                        Authentication authentication = tokenProvider.getAuthentication(username);
-                        SecurityContextHolder.getContext().setAuthentication(authentication);
-                    }
-                    // 其他逻辑...
-                } else {
-                    // 如果Token无效，可以在这里处理，例如返回401 Unauthorized响应
-                    throw new ServletException("Invalid JWT Token");
+                if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                    Authentication authentication = tokenProvider.getAuthentication(jwtToken);
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
                 }
-            } catch (Exception ex) {
-                // 如果在验证过程中发生异常，可以在这里处理
-                throw new ServletException("Error processing JWT Token", ex);
             }
+        } catch (Exception ex) {
+            throw new ServletException("Error processing JWT Token", ex);
         }
 
-        // 继续过滤器链
-        filterChain.doFilter(request, response);
+        chain.doFilter(request, response);
+    }
+
+    private String extractToken(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            return authHeader.substring(7);
+        }
+        return null;
     }
 }
