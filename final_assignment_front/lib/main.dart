@@ -5,9 +5,9 @@ import 'package:flutter/material.dart';
 void main() {
   runApp(
     ScreenUtilInit(
-      designSize: const Size(1080, 1920), // 设计稿宽高的px
-      minTextAdapt: true, // 是否根据宽度/高度中的最小值适配文字
-      splitScreenMode: true, // 支持分屏尺寸
+      designSize: const Size(1080, 1920), /// 设计稿宽高的px
+      minTextAdapt: true, /// 是否根据宽度/高度中的最小值适配文字
+      splitScreenMode: true, /// 支持分屏尺寸
       useInheritedMediaQuery: true,
       builder: (BuildContext context, Widget? child) {
         return MaterialApp(
@@ -22,47 +22,95 @@ void main() {
   );
 }
 
-class TrafficViolationScreen extends StatelessWidget {
+
+class TrafficViolationScreen extends StatefulWidget {
+  @override
+  State<TrafficViolationScreen> createState() => _TrafficViolationScreenState();
+}
+
+class _TrafficViolationScreenState extends State<TrafficViolationScreen> {
+  TextEditingController _searchController = TextEditingController();
+
+  /// 定义渐变
+  final Gradient gradient = LinearGradient(
+    colors: [Color(0xFF3271ae), Colors.white],
+    stops: [0.0, 0.5],
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+  );
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('12123'),
-        centerTitle: true,
-        backgroundColor: Colors.blue,
+    return Container(
+      decoration: BoxDecoration(
+        gradient: gradient,
       ),
-      body: Column(
-        children: <Widget>[
-          ComSwiper(
-            paginationBuilder: ComPaginationBuilder.circle(),
-            bannerList: [
-              "https://img0.baidu.com/it/u=2862534777,914942650&fm=253&fmt=auto&app=138&f=JPEG?w=889&h=500",
-              "https://img0.baidu.com/it/u=2862534777,914942650&fm=253&fmt=auto&app=138&f=JPEG?w=889&h=500",
-              "https://img0.baidu.com/it/u=2862534777,914942650&fm=253&fmt=auto&app=138&f=JPEG?w=889&h=500",
-              "https://img0.baidu.com/it/u=2862534777,914942650&fm=253&fmt=auto&app=138&f=JPEG?w=889&h=500",
+      child: Scaffold(
+        backgroundColor: Colors.transparent, // 确保Scaffold背景透明
+        appBar: AppBar(
+          backgroundColor: Colors.transparent, // 确保Scaffold背景透明
+          title: Row(
+            children: <Widget>[
+              Text('哈尔滨'),
+              SizedBox(width: 10),
+              Expanded(
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: "搜索",
+                    prefixIcon: Icon(Icons.search),
+                    border: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(width: 10),
             ],
-            onTap: (index) {
-              debugPrint("我点击了第 $index 张图片");
-            },
-            item: (item) => Padding(
-              padding: EdgeInsets.all(ScreenHelper.width(18)),
-              child: ClipRRect(
-                borderRadius: BorderRadius.all(Radius.circular(ScreenHelper.width(6))),
-                child: CaCheImageWidget(imageUrl: item),
+          ),
+          actions: <Widget>[
+            IconButton(
+              icon: Icon(Icons.mail, color: Colors.white),
+              onPressed: () {
+                // 添加设置按钮的点击事件
+              },
+            ),
+          ],
+        ),
+        body: Column(
+          children: <Widget>[
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  // 在这里添加您的其他组件
+                ),
               ),
             ),
-          ),
-          Expanded( // 确保Column中的其他组件在Swiper下方有足够空间显示
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                // 在这里添加您的其他组件
+            ComSwiper(
+              paginationBuilder: ComPaginationBuilder.circle(),
+              bannerList: [
+                "https://img0.baidu.com/it/u=2862534777,914942650&fm=253&fmt=auto&app=138&f=JPEG?w=889&h=500",
+                "https://img0.baidu.com/it/u=2862534777,914942650&fm=253&fmt=auto&app=138&f=JPEG?w=889&h=500",
+                "https://img0.baidu.com/it/u=2862534777,914942650&fm=253&fmt=auto&app=138&f=JPEG?w=889&h=500",
+                "https://img0.baidu.com/it/u=2862534777,914942650&fm=253&fmt=auto&app=138&f=JPEG?w=889&h=500",
+              ],
+              onTap: (index) {
+                debugPrint("我点击了第 $index 张图片");
+              },
+              item: (item) => Padding(
+                padding: EdgeInsets.all(18),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.all(Radius.circular(6)),
+                  child: CaCheImageWidget(imageUrl: item),
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
+        bottomNavigationBar: CustomBottomNavigationBar(),
       ),
-      bottomNavigationBar: CustomBottomNavigationBar(), // 添加底部导航栏
     );
   }
 }

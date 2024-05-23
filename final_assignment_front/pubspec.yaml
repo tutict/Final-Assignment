@@ -110,12 +110,6 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/images/
-    - assets/design_course/
-    - assets/fitness_app/
-    - assets/fonts/
-    - assets/hotel/
-    - assets/introduction_animation/
 
 
 
