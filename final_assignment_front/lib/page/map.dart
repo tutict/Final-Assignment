@@ -1,38 +1,104 @@
+import 'package:amap_flutter_location/amap_location_option.dart';
+import 'package:flutter/material.dart';
+import 'package:amap_flutter_map/amap_flutter_map.dart';
+import 'package:amap_flutter_location/amap_flutter_location.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 
-Future<String> getFormattedAddress(double latitude, double longitude) async {
-  // 替换为你的后端服务地址
-  String baseUrl = "http://your-backend-service.com/geocode";
-  String url = '$baseUrl?latitude=$latitude&longitude=$longitude';
-
-  try {
-    final response = await http.get(Uri.parse(url));
-
-    if (response.statusCode == 200) {
-      // 解析JSON响应
-      Map<String, dynamic> jsonResponse = jsonDecode(response.body);
-
-      // 检查高德地图返回的状态码
-      if (jsonResponse['infocode'] == 10000) {
-        return jsonResponse['regeocode']['addressComponent']['formattedAddress'];
-      } else {
-        throw Exception('Geocode error: ' + jsonResponse['info']);
-      }
-    } else {
-      throw Exception('Failed to load address.');
-    }
-  } catch (error) {
-    print(error);
-    return "Error loading address";
-  }
+class LocationScreen extends StatefulWidget {
+  @override
+  _LocationScreenState createState() => _LocationScreenState();
 }
 
-// 使用示例
-void main() async {
-  double latitude = 39.9289; // 示例纬度
-  double longitude = 116.3883; // 示例经度
+class _LocationScreenState extends State<LocationScreen> {
+  final WebSocketChannel _channel = WebSocketChannel.connect(Uri.parse('ws://your-backend-url/ws'));
+  final AMapFlutterLocation _locationPlugin = AMapFlutterLocation();
+  double _latitude = 0.0;
+  double _longitude = 0.0;
+  String _address = '';
 
-  String address = await getFormatted(latitude, longitude);
-  print(address);
+  @override
+  void initState() {
+    super.initState();
+
+    // Initialize location plugin
+    _locationPlugin.setLocationOption(AMapLocationOption(
+      onceLocation: false,
+      needAddress: true,
+    ));
+
+    // Listen to location updates
+    _locationPlugin.onLocationChanged().listen((Map<String, Object> location) {
+      final latitude = location['latitude'] as double?;
+      final longitude = location['longitude'] as double?;
+      if (latitude != null && longitude != null) {
+        setState(() {
+          _latitude = latitude;
+          _longitude = longitude;
+        });
+        _sendLocation(_latitude, _longitude);
+      }
+    });
+
+    // Listen to WebSocket messages
+    _channel.stream.listen((message) {
+      setState(() {
+        _address = json.decode(message)['formattedAddress'];
+      });
+    });
+
+    // Start location updates
+    _locationPlugin.startLocation();
+  }
+
+  void _sendLocation(double latitude, double longitude) {
+    _channel.sink.add(json.encode({
+      'type': 'get_address',
+      'latitude': latitude,
+      'longitude': longitude,
+    }));
+  }
+
+  @override
+  void dispose() {
+    _channel.sink.close();
+    _locationPlugin.stopLocation();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Location and Map Example'),
+      ),
+      body: Column(
+        children: <Widget>[
+          Expanded(
+            child: AMapWidget(
+              apiKey: AMapApiKey(
+                androidKey: 'YOUR_ANDROID_KEY',
+                iosKey: 'YOUR_IOS_KEY',
+              ),
+              onMapCreated: (AMapController controller) {
+                // Map created callback, can be used to add additional map layers or controls
+              },
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              children: [
+                Text('Latitude: $_latitude'),
+                Text('Longitude: $_longitude'),
+                Text('Address: $_address'),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  AMapApiKey({required String androidKey, required String iosKey}) {}
 }
