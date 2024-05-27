@@ -6,9 +6,9 @@ import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:eva_icons_flutter/eva_icons_flutter.dart';
 import 'package:final_assignment_front/constans/app_constants.dart';
 import 'package:final_assignment_front/shared_components/chatting_card.dart';
-import 'package:final_assignment_front/shared_components/get_premium_card.dart';
+import 'package:final_assignment_front/shared_components/police_card.dart';
 import 'package:final_assignment_front/shared_components/list_profil_image.dart';
-import 'package:final_assignment_front/shared_components/progress_card.dart';
+import 'package:final_assignment_front/shared_components/add_car_card.dart';
 import 'package:final_assignment_front/shared_components/progress_report_card.dart';
 import 'package:final_assignment_front/shared_components/project_card.dart';
 import 'package:final_assignment_front/shared_components/responsive_builder.dart';
@@ -16,7 +16,7 @@ import 'package:final_assignment_front/shared_components/search_field.dart';
 import 'package:final_assignment_front/shared_components/selection_button.dart';
 import 'package:final_assignment_front/shared_components/task_card.dart';
 import 'package:final_assignment_front/shared_components/today_text.dart';
-import 'package:final_assignment_front/shared_components/upgrade_premium_card.dart';
+import 'package:final_assignment_front/shared_components/post_card.dart';
 import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
 
 import 'package:flutter/material.dart';
@@ -264,7 +264,7 @@ class DashboardScreen extends GetView<DashboardController> {
                   flex: 4,
                   child: ProgressReportCard(
                     data: ProgressReportCardData(
-                      title: "1st Sprint",
+                      title: "案件申诉处理",
                       doneTask: 5,
                       percent: .3,
                       task: 3,
@@ -286,7 +286,7 @@ class DashboardScreen extends GetView<DashboardController> {
                 const SizedBox(height: kSpacing / 2),
                 const ProgressReportCard(
                   data: ProgressReportCardData(
-                    title: "1st Sprint",
+                    title: "案件申诉处理",
                     doneTask: 5,
                     percent: .3,
                     task: 3,

@@ -27,6 +27,10 @@ class ProgressCard extends StatelessWidget {
     return Card(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(kBorderRadius),
+        side: BorderSide(
+          color: Colors.white,
+          width: 0.5,
+        ),
       ),
       child: Stack(
         children: [
@@ -40,7 +44,7 @@ class ProgressCard extends StatelessWidget {
                   height: 200,
                   width: 200,
                   child: SvgPicture.asset(
-                    ImageVectorPath.happy2,
+                    ImageVectorPath.car,
                     fit: BoxFit.fitHeight,
                   ),
                 ),
@@ -54,20 +58,29 @@ class ProgressCard extends StatelessWidget {
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "You Have ${data.totalUndone} Undone Tasks",
-                  style: const TextStyle(fontWeight: FontWeight.w500),
-                ),
-                Text(
-                  "${data.totalTaskInProress} Tasks are in progress",
-                  style: TextStyle(color: kFontColorPallets[1]),
+              children: <Widget>[
+                Row(
+                  children: <Widget>[
+                    Icon(Icons.directions_car, size: 44.0),
+                    Text(
+                      "机动车",
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: kSpacing),
                 ElevatedButton(
                   onPressed: onPressedCheck,
-                  child: const Text("Check"),
-                )
+                  child:Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                          Icon(Icons.add, size: 24.0),
+                          const SizedBox(width: 8.0),
+                          Text("备案机动车信息", style: const TextStyle(fontSize: 16.0)),
+                      ],
+                  ),
+                ),
               ],
             ),
           ),

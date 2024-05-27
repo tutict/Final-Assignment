@@ -30,10 +30,11 @@ class GetPremiumCard extends StatelessWidget {
           padding: const EdgeInsets.all(10),
           child: Stack(
             children: [
-              Align(
-                alignment: Alignment.topRight,
+              Positioned(
+                top: -15,
+                right: -30,
                 child: SvgPicture.asset(
-                  ImageVectorPath.wavyBus,
+                  ImageVectorPath.police,
                   width: 180,
                   height: 180,
                   fit: BoxFit.contain,
@@ -60,15 +61,21 @@ class _Info extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.end,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          "Get\nPremium\nAccount",
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
+        Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: const Text(
+            "执法为民\n公正廉洁\n无私奉献",
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
-        Text(
-          "To add more members",
-          style: Theme.of(context).textTheme.bodySmall,
+        Padding(
+          padding: const EdgeInsets.only(top: 10),
+          child: Text(
+            "加强综合治理，保障交通安全",
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
         ),
       ],
     );

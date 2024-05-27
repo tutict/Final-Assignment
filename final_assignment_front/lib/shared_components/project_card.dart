@@ -44,7 +44,7 @@ class ProjectCard extends StatelessWidget {
               const SizedBox(height: 5),
               Row(
                 children: [
-                  const _SubtitleText("Release time : "),
+                  const _SubtitleText("更新时间: "),
                   _ReleaseTimeText(data.releaseTime)
                 ],
               )
@@ -146,7 +146,7 @@ class _ReleaseTimeText extends StatelessWidget {
       ),
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2.5),
       child: Text(
-        DateFormat.yMMMd().format(date),
+        DateFormat.yMMMd('zh_CN').format(date),
         style: const TextStyle(fontSize: 9, color: Colors.white),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,

@@ -23,7 +23,7 @@ class _ActiveProjectCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _title("My Active Project"),
+                _title("其他事务"),
                 _seeAllButton(onPressed: onPressedSeeAll),
               ],
             ),
@@ -49,7 +49,7 @@ class _ActiveProjectCard extends StatelessWidget {
   Widget _seeAllButton({required Function() onPressed}) {
     return TextButton(
       onPressed: onPressed,
-      child: const Text("See All"),
+      child: const Text("详情"),
       style: TextButton.styleFrom(foregroundColor: kFontColorPallets[1]),
     );
   }

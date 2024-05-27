@@ -12,12 +12,13 @@ class TodayText extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            "Today",
+            "哈尔滨",
             style: Theme.of(context).textTheme.bodySmall,
           ),
           Text(
-            DateFormat.yMMMEd().format(DateTime.now()),
-          )
+            DateFormat.yMMMEd('zh_CN').format(DateTime.now()),
+            style: TextStyle(fontSize: 14),
+          ),
         ],
       ),
     );

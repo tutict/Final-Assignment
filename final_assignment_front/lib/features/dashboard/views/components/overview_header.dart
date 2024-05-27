@@ -18,7 +18,7 @@ class _OverviewHeader extends StatelessWidget {
           ? Row(
               children: [
                 const Text(
-                  "Task Overview",
+                  "当前工作",
                   style: TextStyle(fontWeight: FontWeight.w600),
                 ),
                 const Spacer(),
@@ -35,7 +35,7 @@ class _OverviewHeader extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  "Task Overview",
+                  "当前工作",
                   style: TextStyle(fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 10),
@@ -64,7 +64,7 @@ class _OverviewHeader extends StatelessWidget {
     return [
       _button(
         selected: task == null,
-        label: "All",
+        label: "信息管理",
         onPressed: () {
           task = null;
           onSelected(null);
@@ -72,7 +72,7 @@ class _OverviewHeader extends StatelessWidget {
       ),
       _button(
         selected: task == TaskType.todo,
-        label: "To do",
+        label: "案件查询",
         onPressed: () {
           task = TaskType.todo;
           onSelected(TaskType.todo);
@@ -80,18 +80,10 @@ class _OverviewHeader extends StatelessWidget {
       ),
       _button(
         selected: task == TaskType.inProgress,
-        label: "In progress",
+        label: "案件申诉",
         onPressed: () {
           task = TaskType.inProgress;
           onSelected(TaskType.inProgress);
-        },
-      ),
-      _button(
-        selected: task == TaskType.done,
-        label: "Done",
-        onPressed: () {
-          task = TaskType.done;
-          onSelected(TaskType.done);
         },
       ),
     ];

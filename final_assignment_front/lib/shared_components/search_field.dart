@@ -19,7 +19,7 @@ class SearchField extends StatelessWidget {
           borderSide: BorderSide.none,
         ),
         prefixIcon: const Icon(EvaIcons.search),
-        hintText: "search..",
+        hintText: "搜索..",
         isDense: true,
         fillColor: Theme.of(context).cardColor,
       ),

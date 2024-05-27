@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:get/get.dart';
 import 'package:final_assignment_front/constans/app_constants.dart';
 
 class UpgradePremiumCard extends StatelessWidget {
@@ -62,53 +61,14 @@ class _Info extends StatelessWidget {
       children: [
         _title(),
         const SizedBox(height: 2),
-        _subtitle(),
-        const SizedBox(height: 10),
-        _price(),
       ],
     );
   }
 
   Widget _title() {
     return const Text(
-      "Upgrade your account",
+      "交通安全时时不忘\n幸福生活天天拥有",
     );
   }
 
-  Widget _subtitle() {
-    return Text(
-      "in order to get full access",
-      style: Theme.of(Get.context!).textTheme.bodySmall,
-    );
-  }
-
-  Widget _price() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(.1),
-        borderRadius: BorderRadius.circular(5),
-      ),
-      padding: const EdgeInsets.all(10),
-      child: RichText(
-        text: TextSpan(
-          style: TextStyle(
-            fontSize: 10,
-            color: kFontColorPallets[0],
-            fontWeight: FontWeight.w200,
-          ),
-          children: [
-            const TextSpan(text: "10\$ "),
-            TextSpan(
-              text: "per month",
-              style: TextStyle(
-                color: kFontColorPallets[1],
-              ),
-            ),
-          ],
-        ),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-    );
-  }
 }
