@@ -7,84 +7,76 @@ class _OverviewHeader extends StatelessWidget {
     Key? key,
   }) : super(key: key);
 
-  final Function(TaskType? task) onSelected;
+  final Function(CaseType) onSelected;  // Ensure onSelected expects a CaseType
   final Axis axis;
+
   @override
   Widget build(BuildContext context) {
-    final Rx<TaskType?> task = Rx(null);
-
+    // 使用Get.find来访问DashboardController中的响应式变量
+    final selectedCase = Get.find<DashboardController>().selectedCaseType;
     return Obx(
-      () => (axis == Axis.horizontal)
+          () => (axis == Axis.horizontal)
           ? Row(
-              children: [
-                const Text(
-                  "当前工作",
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-                const Spacer(),
-                ..._listButton(
-                  task: task.value,
-                  onSelected: (value) {
-                    task.value = value;
-                    onSelected(value);
-                  },
-                )
-              ],
-            )
+        children: [
+          const Text(
+            "当前工作",
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
+          const Spacer(),
+          ..._listButton(
+            selectedCase: selectedCase.value,
+            onSelected: (value) {
+              selectedCase.value = value;
+              onSelected(value);
+            },
+          )
+        ],
+      )
           : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "当前工作",
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 10),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  physics: const BouncingScrollPhysics(),
-                  child: Row(
-                    children: _listButton(
-                      task: task.value,
-                      onSelected: (value) {
-                        task.value = value;
-                        onSelected(value);
-                      },
-                    ),
-                  ),
-                ),
-              ],
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "当前工作",
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 10),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            child: Row(
+              children: _listButton(
+                selectedCase: selectedCase.value,
+                onSelected: (value) {
+                  selectedCase.value = value;
+                  onSelected(value);
+                },
+              ),
             ),
+          ),
+        ],
+      ),
     );
   }
 
   List<Widget> _listButton({
-    required TaskType? task,
-    required Function(TaskType? value) onSelected,
+    required CaseType selectedCase,  // 确保selectedCase是CaseType类型
+    required Function(CaseType) onSelected,
   }) {
     return [
       _button(
-        selected: task == null,
+        selected: selectedCase == CaseType.caseManagement,
         label: "信息管理",
-        onPressed: () {
-          task = null;
-          onSelected(null);
-        },
+        onPressed: () => onSelected(CaseType.caseManagement), // 修改这里，移除错误的参数并正确传递枚举值
       ),
       _button(
-        selected: task == TaskType.todo,
+        selected: selectedCase == CaseType.caseSearch,
         label: "案件查询",
-        onPressed: () {
-          task = TaskType.todo;
-          onSelected(TaskType.todo);
-        },
+        onPressed: () => onSelected(CaseType.caseSearch), // 修改这里，同上
       ),
       _button(
-        selected: task == TaskType.inProgress,
+        selected: selectedCase == CaseType.caseAppeal,
         label: "案件申诉",
-        onPressed: () {
-          task = TaskType.inProgress;
-          onSelected(TaskType.inProgress);
-        },
+        onPressed: () => onSelected(CaseType.caseAppeal), // 修改这里，同上
       ),
     ];
   }
@@ -92,17 +84,18 @@ class _OverviewHeader extends StatelessWidget {
   Widget _button({
     required bool selected,
     required String label,
-    required Function() onPressed,
+    required VoidCallback onPressed, // 修改这里，使用VoidCallback代替Function(CaseType)
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 5),
       child: ElevatedButton(
-        onPressed: onPressed,
+        onPressed: onPressed, // 使用onPressed回调
         child: Text(
           label,
         ),
         style: ElevatedButton.styleFrom(
-          foregroundColor: selected ? kFontColorPallets[0] : kFontColorPallets[2], backgroundColor: selected
+          foregroundColor: selected ? kFontColorPallets[0] : kFontColorPallets[2],
+          backgroundColor: selected
               ? Theme.of(Get.context!).cardColor
               : Theme.of(Get.context!).canvasColor,
           shape: RoundedRectangleBorder(

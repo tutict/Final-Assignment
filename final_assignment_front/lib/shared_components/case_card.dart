@@ -5,15 +5,15 @@ import 'package:final_assignment_front/constans/app_constants.dart';
 import 'package:final_assignment_front/shared_components/list_profil_image.dart';
 import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
 
-class TaskCardData {
+class CaseCardData {
   final String title;
   final int dueDay;
   final List<ImageProvider> profilContributors;
-  final TaskType type;
+  final CaseType type;
   final int totalComments;
   final int totalContributors;
 
-  const TaskCardData({
+  const CaseCardData({
     required this.title,
     required this.dueDay,
     required this.totalComments,
@@ -23,8 +23,8 @@ class TaskCardData {
   });
 }
 
-class TaskCard extends StatelessWidget {
-  const TaskCard({
+class CaseCard extends StatelessWidget {
+  const CaseCard({
     required this.data,
     required this.onPressedMore,
     required this.onPressedTask,
@@ -33,7 +33,7 @@ class TaskCard extends StatelessWidget {
     Key? key,
   }) : super(key: key);
 
-  final TaskCardData data;
+  final CaseCardData data;
 
   final Function() onPressedMore;
   final Function() onPressedTask;
@@ -54,7 +54,6 @@ class TaskCard extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.all(5),
               child: _Tile(
-                dotColor: data.type.getColor(),
                 title: data.title,
                 subtitle: (data.dueDay < 0)
                     ? "Late in ${data.dueDay * -1} days"
@@ -68,18 +67,6 @@ class TaskCard extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      elevation: 0, backgroundColor: data.type.getColor(),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                    ),
-                    onPressed: onPressedTask,
-                    child: Text(
-                      data.type.toStringValue(),
-                    ),
-                  ),
                   ListProfilImage(
                     images: data.profilContributors,
                     onPressed: onPressedContributors,
@@ -117,14 +104,12 @@ class TaskCard extends StatelessWidget {
 /* -----------------------------> COMPONENTS <------------------------------ */
 class _Tile extends StatelessWidget {
   const _Tile({
-    required this.dotColor,
     required this.title,
     required this.subtitle,
     required this.onPressedMore,
     Key? key,
   }) : super(key: key);
 
-  final Color dotColor;
   final String title;
   final String subtitle;
   final Function() onPressedMore;
@@ -141,7 +126,6 @@ class _Tile extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.center,
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
-              _dot(dotColor),
               const SizedBox(width: 8),
               Expanded(child: _title(title)),
               _moreButton(onPressed: onPressedMore),
@@ -154,13 +138,6 @@ class _Tile extends StatelessWidget {
         ),
         const SizedBox(height: 12),
       ],
-    );
-  }
-
-  Widget _dot(Color color) {
-    return CircleAvatar(
-      radius: 4,
-      backgroundColor: color,
     );
   }
 

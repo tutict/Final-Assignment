@@ -1,25 +1,27 @@
 part of app_helpers;
 
+
 extension TaskTypeExtension on TaskType {
-  Color getColor() {
+  String toStringValue() {
     switch (this) {
-      case TaskType.done:
-        return Colors.lightBlue;
+      case TaskType.todo:
+        return "To Do";
       case TaskType.inProgress:
-        return Colors.amber[700]!;
-      default:
-        return Colors.redAccent;
+        return "In Progress";
+      case TaskType.done:
+        return "Done";
     }
   }
 
-  String toStringValue() {
+  Color getColor() {
     switch (this) {
-      case TaskType.done:
-        return "Done";
+      case TaskType.todo:
+        return Colors.blue;
       case TaskType.inProgress:
-        return "In Progress";
-      default:
-        return "Todo";
+        return Colors.orange;
+      case TaskType.done:
+        return Colors.green;
     }
   }
 }
+

@@ -2,11 +2,19 @@ part of dashboard;
 
 class DashboardController extends GetxController {
   final scaffoldKey = GlobalKey<ScaffoldState>();
+  var caseCardDataList = <CaseCardData>[].obs;
+  var selectedCaseType = CaseType.caseManagement.obs;  // Set default to caseManagement
 
   void openDrawer() {
-    if (scaffoldKey.currentState != null) {
-      scaffoldKey.currentState!.openDrawer();
-    }
+    scaffoldKey.currentState?.openDrawer();
+  }
+
+  void onCaseTypeSelected(CaseType selectedType) {
+    selectedCaseType.value = selectedType;
+  }
+
+  List<CaseCardData> getCaseByType(CaseType type) {
+    return caseCardDataList.where((task) => task.type == type).toList();
   }
 
   // Data
@@ -18,48 +26,40 @@ class DashboardController extends GetxController {
     );
   }
 
-  List<TaskCardData> getAllTask() {
-    return [
-      const TaskCardData(
-        title: "Landing page UI Design",
-        dueDay: 2,
-        totalComments: 50,
-        type: TaskType.todo,
-        totalContributors: 30,
+  @override
+  void onInit() {
+    super.onInit();
+    // 添加示例任务
+    caseCardDataList.addAll([
+      CaseCardData(
+        title: 'Todo Task 1',
+        dueDay: 5,
+        totalComments: 10,
+        totalContributors: 3,
+        type: CaseType.caseManagement, // 改为 CaseType
         profilContributors: [
-          AssetImage(ImageRasterPath.avatar1),
-          AssetImage(ImageRasterPath.avatar2),
-          AssetImage(ImageRasterPath.avatar3),
-          AssetImage(ImageRasterPath.avatar4),
         ],
       ),
-      const TaskCardData(
-        title: "Landing page UI Design",
-        dueDay: -1,
-        totalComments: 50,
-        totalContributors: 34,
-        type: TaskType.inProgress,
+      CaseCardData(
+        title: 'In Progress Task 1',
+        dueDay: 10,
+        totalComments: 5,
+        totalContributors: 2,
+        type: CaseType.caseSearch, // 改为 CaseType
         profilContributors: [
-          AssetImage(ImageRasterPath.avatar5),
-          AssetImage(ImageRasterPath.avatar6),
-          AssetImage(ImageRasterPath.avatar7),
-          AssetImage(ImageRasterPath.avatar8),
         ],
       ),
-      const TaskCardData(
-        title: "Landing page UI Design",
-        dueDay: 1,
-        totalComments: 50,
-        totalContributors: 34,
-        type: TaskType.done,
+      CaseCardData(
+        title: 'Done Task 1',
+        dueDay: -2,
+        totalComments: 3,
+        totalContributors: 1,
+        type: CaseType.caseAppeal, // 改为 CaseType
         profilContributors: [
-          AssetImage(ImageRasterPath.avatar5),
-          AssetImage(ImageRasterPath.avatar3),
-          AssetImage(ImageRasterPath.avatar4),
-          AssetImage(ImageRasterPath.avatar2),
         ],
       ),
-    ];
+      // 添加更多任务
+    ]);
   }
 
   ProjectCardData getSelectedProject() {
@@ -73,6 +73,7 @@ class DashboardController extends GetxController {
 
   List<ProjectCardData> getActiveProject() {
     return [
+      // 返回活动项目的列表
     ];
   }
 

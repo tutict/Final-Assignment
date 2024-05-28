@@ -14,7 +14,7 @@ import 'package:final_assignment_front/shared_components/project_card.dart';
 import 'package:final_assignment_front/shared_components/responsive_builder.dart';
 import 'package:final_assignment_front/shared_components/search_field.dart';
 import 'package:final_assignment_front/shared_components/selection_button.dart';
-import 'package:final_assignment_front/shared_components/task_card.dart';
+import 'package:final_assignment_front/shared_components/case_card.dart';
 import 'package:final_assignment_front/shared_components/today_text.dart';
 import 'package:final_assignment_front/shared_components/post_card.dart';
 import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
@@ -51,177 +51,186 @@ class DashboardScreen extends GetView<DashboardController> {
       drawer: (ResponsiveBuilder.isDesktop(context))
           ? null
           : Drawer(
-              child: Padding(
-                padding: const EdgeInsets.only(top: kSpacing),
-                child: _Sidebar(data: controller.getSelectedProject()),
-              ),
-            ),
+        child: Padding(
+          padding: const EdgeInsets.only(top: kSpacing),
+          child: _Sidebar(data: controller.getSelectedProject()),
+        ),
+      ),
       body: SingleChildScrollView(
-          child: ResponsiveBuilder(
-        mobileBuilder: (context, constraints) {
-          return Column(children: [
-            const SizedBox(height: kSpacing * (kIsWeb ? 1 : 2)),
-            _buildHeader(onPressedMenu: () => controller.openDrawer()),
-            const SizedBox(height: kSpacing / 2),
-            const Divider(),
-            _buildProfile(data: controller.getProfil()),
-            const SizedBox(height: kSpacing),
-            _buildProgress(axis: Axis.vertical),
-            const SizedBox(height: kSpacing),
-            _buildTeamMember(data: controller.getMember()),
-            const SizedBox(height: kSpacing),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: kSpacing),
-              child: GetPremiumCard(onPressed: () {}),
-            ),
-            const SizedBox(height: kSpacing * 2),
-            _buildTaskOverview(
-              data: controller.getAllTask(),
-              headerAxis: Axis.vertical,
-              crossAxisCount: 6,
-              crossAxisCellCount: 6,
-            ),
-            const SizedBox(height: kSpacing * 2),
-            _buildActiveProject(
-              data: controller.getActiveProject(),
-              crossAxisCount: 6,
-              crossAxisCellCount: 6,
-            ),
-            const SizedBox(height: kSpacing),
-            _buildRecentMessages(data: controller.getChatting()),
-          ]);
-        },
-        tabletBuilder: (context, constraints) {
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Flexible(
-                flex: (constraints.maxWidth < 950) ? 6 : 9,
-                child: Column(
-                  children: [
-                    const SizedBox(height: kSpacing * (kIsWeb ? 1 : 2)),
-                    _buildHeader(onPressedMenu: () => controller.openDrawer()),
-                    const SizedBox(height: kSpacing * 2),
-                    _buildProgress(
-                      axis: (constraints.maxWidth < 950)
-                          ? Axis.vertical
-                          : Axis.horizontal,
-                    ),
-                    const SizedBox(height: kSpacing * 2),
-                    _buildTaskOverview(
-                      data: controller.getAllTask(),
-                      headerAxis: (constraints.maxWidth < 850)
-                          ? Axis.vertical
-                          : Axis.horizontal,
-                      crossAxisCount: 6,
-                      crossAxisCellCount: (constraints.maxWidth < 950)
-                          ? 6
-                          : (constraints.maxWidth < 1100)
-                              ? 3
-                              : 2,
-                    ),
-                    const SizedBox(height: kSpacing * 2),
-                    _buildActiveProject(
-                      data: controller.getActiveProject(),
-                      crossAxisCount: 6,
-                      crossAxisCellCount: (constraints.maxWidth < 950)
-                          ? 6
-                          : (constraints.maxWidth < 1100)
-                              ? 3
-                              : 2,
-                    ),
-                    const SizedBox(height: kSpacing),
-                  ],
-                ),
+        child: ResponsiveBuilder(
+          mobileBuilder: (context, constraints) {
+            return Column(children: [
+              const SizedBox(height: kSpacing * (kIsWeb ? 1 : 2)),
+              _buildHeader(onPressedMenu: () => controller.openDrawer()),
+              const SizedBox(height: kSpacing / 2),
+              const Divider(),
+              _buildProfile(data: controller.getProfil()),
+              const SizedBox(height: kSpacing),
+              _buildProgress(axis: Axis.vertical),
+              const SizedBox(height: kSpacing),
+              _buildTeamMember(data: controller.getMember()),
+              const SizedBox(height: kSpacing),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: kSpacing),
+                child: GetPremiumCard(onPressed: () {}),
               ),
-              Flexible(
-                flex: 4,
-                child: Column(
-                  children: [
-                    const SizedBox(height: kSpacing * (kIsWeb ? 0.5 : 1.5)),
-                    _buildProfile(data: controller.getProfil()),
-                    const Divider(thickness: 1),
-                    const SizedBox(height: kSpacing),
-                    _buildTeamMember(data: controller.getMember()),
-                    const SizedBox(height: kSpacing),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: kSpacing),
-                      child: GetPremiumCard(onPressed: () {}),
-                    ),
-                    const SizedBox(height: kSpacing),
-                    const Divider(thickness: 1),
-                    const SizedBox(height: kSpacing),
-                    _buildRecentMessages(data: controller.getChatting()),
-                  ],
-                ),
-              )
-            ],
-          );
-        },
-        desktopBuilder: (context, constraints) {
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Flexible(
-                flex: (constraints.maxWidth < 1360) ? 4 : 3,
-                child: ClipRRect(
-                    borderRadius: const BorderRadius.only(
-                      topRight: Radius.circular(kBorderRadius),
-                      bottomRight: Radius.circular(kBorderRadius),
-                    ),
-                    child: _Sidebar(data: controller.getSelectedProject())),
+              const SizedBox(height: kSpacing * 2),
+              Obx(() {
+                List<CaseCardData> taskList = controller.getCaseByType(controller.selectedCaseType.value);
+                return _buildTaskOverview(
+                  data: taskList,
+                  headerAxis: Axis.vertical,
+                  crossAxisCount: 6,
+                  crossAxisCellCount: 6,
+                );
+              }),
+              const SizedBox(height: kSpacing * 2),
+              _buildActiveProject(
+                data: controller.getActiveProject(),
+                crossAxisCount: 6,
+                crossAxisCellCount: 6,
               ),
-              Flexible(
-                flex: 9,
-                child: Column(
-                  children: [
-                    const SizedBox(height: kSpacing),
-                    _buildHeader(),
-                    const SizedBox(height: kSpacing * 2),
-                    _buildProgress(),
-                    const SizedBox(height: kSpacing * 2),
-                    _buildTaskOverview(
-                      data: controller.getAllTask(),
-                      crossAxisCount: 6,
-                      crossAxisCellCount: (constraints.maxWidth < 1360) ? 3 : 2,
-                    ),
-                    const SizedBox(height: kSpacing * 2),
-                    _buildActiveProject(
-                      data: controller.getActiveProject(),
-                      crossAxisCount: 6,
-                      crossAxisCellCount: (constraints.maxWidth < 1360) ? 3 : 2,
-                    ),
-                    const SizedBox(height: kSpacing),
-                  ],
+              const SizedBox(height: kSpacing),
+              _buildRecentMessages(data: controller.getChatting()),
+            ]);
+          },
+          tabletBuilder: (context, constraints) {
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Flexible(
+                  flex: (constraints.maxWidth < 950) ? 6 : 9,
+                  child: Column(
+                    children: [
+                      const SizedBox(height: kSpacing * (kIsWeb ? 1 : 2)),
+                      _buildHeader(onPressedMenu: () => controller.openDrawer()),
+                      const SizedBox(height: kSpacing * 2),
+                      _buildProgress(
+                        axis: (constraints.maxWidth < 950)
+                            ? Axis.vertical
+                            : Axis.horizontal,
+                      ),
+                      const SizedBox(height: kSpacing * 2),
+                      Obx(() {
+                        List<CaseCardData> taskList = controller.getCaseByType(controller.selectedCaseType.value);
+                        return _buildTaskOverview(
+                          data: taskList,
+                          headerAxis: (constraints.maxWidth < 850) ? Axis.vertical : Axis.horizontal,
+                          crossAxisCount: 6,
+                          crossAxisCellCount: (constraints.maxWidth < 950) ? 6 : (constraints.maxWidth < 1100) ? 3 : 2,
+                        );
+                      }),
+                      const SizedBox(height: kSpacing * 2),
+                      _buildActiveProject(
+                        data: controller.getActiveProject(),
+                        crossAxisCount: 6,
+                        crossAxisCellCount: (constraints.maxWidth < 950)
+                            ? 6
+                            : (constraints.maxWidth < 1100)
+                            ? 3
+                            : 2,
+                      ),
+                      const SizedBox(height: kSpacing),
+                    ],
+                  ),
                 ),
-              ),
-              Flexible(
-                flex: 4,
-                child: Column(
-                  children: [
-                    const SizedBox(height: kSpacing / 2),
-                    _buildProfile(data: controller.getProfil()),
-                    const Divider(thickness: 1),
-                    const SizedBox(height: kSpacing),
-                    _buildTeamMember(data: controller.getMember()),
-                    const SizedBox(height: kSpacing),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: kSpacing),
-                      child: GetPremiumCard(onPressed: () {}),
-                    ),
-                    const SizedBox(height: kSpacing),
-                    const Divider(thickness: 1),
-                    const SizedBox(height: kSpacing),
-                    _buildRecentMessages(data: controller.getChatting()),
-                  ],
+                Flexible(
+                  flex: 4,
+                  child: Column(
+                    children: [
+                      const SizedBox(height: kSpacing * (kIsWeb ? 0.5 : 1.5)),
+                      _buildProfile(data: controller.getProfil()),
+                      const Divider(thickness: 1),
+                      const SizedBox(height: kSpacing),
+                      _buildTeamMember(data: controller.getMember()),
+                      const SizedBox(height: kSpacing),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: kSpacing),
+                        child: GetPremiumCard(onPressed: () {}),
+                      ),
+                      const SizedBox(height: kSpacing),
+                      const Divider(thickness: 1),
+                      const SizedBox(height: kSpacing),
+                      _buildRecentMessages(data: controller.getChatting()),
+                    ],
+                  ),
+                )
+              ],
+            );
+          },
+          desktopBuilder: (context, constraints) {
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Flexible(
+                  flex: (constraints.maxWidth < 1360) ? 4 : 3,
+                  child: ClipRRect(
+                      borderRadius: const BorderRadius.only(
+                        topRight: Radius.circular(kBorderRadius),
+                        bottomRight: Radius.circular(kBorderRadius),
+                      ),
+                      child: _Sidebar(data: controller.getSelectedProject())),
                 ),
-              )
-            ],
-          );
-        },
-      )),
+                Flexible(
+                  flex: 9,
+                  child: Column(
+                    children: [
+                      const SizedBox(height: kSpacing),
+                      _buildHeader(),
+                      const SizedBox(height: kSpacing * 2),
+                      _buildProgress(),
+                      const SizedBox(height: kSpacing * 2),
+                      Obx(() {
+                        List<CaseCardData> taskList = controller.getCaseByType(controller.selectedCaseType.value);
+                        return _buildTaskOverview(
+                          data: taskList,
+                          headerAxis: (constraints.maxWidth < 850) ? Axis.vertical : Axis.horizontal,
+                          crossAxisCount: 6,
+                          crossAxisCellCount: (constraints.maxWidth < 1100) ? 3 : 2,
+                        );
+                      }),
+                      const SizedBox(height: kSpacing * 2),
+                      _buildActiveProject(
+                        data: controller.getActiveProject(),
+                        crossAxisCount: 6,
+                        crossAxisCellCount: (constraints.maxWidth < 950)
+                            ? 6
+                            : (constraints.maxWidth < 1100)
+                            ? 3
+                            : 2,
+                      ),
+                      const SizedBox(height: kSpacing),
+                    ],
+                  ),
+                ),
+                Flexible(
+                  flex: 4,
+                  child: Column(
+                    children: [
+                      const SizedBox(height: kSpacing / 2),
+                      _buildProfile(data: controller.getProfil()),
+                      const Divider(thickness: 1),
+                      const SizedBox(height: kSpacing),
+                      _buildTeamMember(data: controller.getMember()),
+                      const SizedBox(height: kSpacing),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: kSpacing),
+                        child: GetPremiumCard(onPressed: () {}),
+                      ),
+                      const SizedBox(height: kSpacing),
+                      const Divider(thickness: 1),
+                      const SizedBox(height: kSpacing),
+                      _buildRecentMessages(data: controller.getChatting()),
+                    ],
+                  ),
+                )
+              ],
+            );
+          },
+        )),
     );
   }
+
 
   Widget _buildHeader({Function()? onPressedMenu}) {
     return Padding(
@@ -248,58 +257,58 @@ class DashboardScreen extends GetView<DashboardController> {
       padding: const EdgeInsets.symmetric(horizontal: kSpacing),
       child: (axis == Axis.horizontal)
           ? Row(
-              children: [
-                Flexible(
-                  flex: 5,
-                  child: ProgressCard(
-                    data: const ProgressCardData(
-                      totalUndone: 10,
-                      totalTaskInProress: 2,
-                    ),
-                    onPressedCheck: () {},
-                  ),
-                ),
-                const SizedBox(width: kSpacing / 2),
-                const Flexible(
-                  flex: 4,
-                  child: ProgressReportCard(
-                    data: ProgressReportCardData(
-                      title: "案件申诉处理",
-                      doneTask: 5,
-                      percent: .3,
-                      task: 3,
-                      undoneTask: 2,
-                    ),
-                  ),
-                ),
-              ],
-            )
-          : Column(
-              children: [
-                ProgressCard(
-                  data: const ProgressCardData(
-                    totalUndone: 10,
-                    totalTaskInProress: 2,
-                  ),
-                  onPressedCheck: () {},
-                ),
-                const SizedBox(height: kSpacing / 2),
-                const ProgressReportCard(
-                  data: ProgressReportCardData(
-                    title: "案件申诉处理",
-                    doneTask: 5,
-                    percent: .3,
-                    task: 3,
-                    undoneTask: 2,
-                  ),
-                ),
-              ],
+        children: [
+          Flexible(
+            flex: 5,
+            child: ProgressCard(
+              data: const ProgressCardData(
+                totalUndone: 10,
+                totalTaskInProress: 2,
+              ),
+              onPressedCheck: () {},
             ),
+          ),
+          const SizedBox(width: kSpacing / 2),
+          const Flexible(
+            flex: 4,
+            child: ProgressReportCard(
+              data: ProgressReportCardData(
+                title: "案件申诉处理",
+                doneTask: 5,
+                percent: .3,
+                task: 3,
+                undoneTask: 2,
+              ),
+            ),
+          ),
+        ],
+      )
+          : Column(
+        children: [
+          ProgressCard(
+            data: const ProgressCardData(
+              totalUndone: 10,
+              totalTaskInProress: 2,
+            ),
+            onPressedCheck: () {},
+          ),
+          const SizedBox(height: kSpacing / 2),
+          const ProgressReportCard(
+            data: ProgressReportCardData(
+              title: "案件申诉处理",
+              doneTask: 5,
+              percent: .3,
+              task: 3,
+              undoneTask: 2,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildTaskOverview({
-    required List<TaskCardData> data,
+    required List<CaseCardData> data,
     int crossAxisCount = 6,
     int crossAxisCellCount = 2,
     Axis headerAxis = Axis.horizontal,
@@ -314,19 +323,21 @@ class DashboardScreen extends GetView<DashboardController> {
       itemBuilder: (context, index) {
         return (index == 0)
             ? Padding(
-                padding: const EdgeInsets.only(bottom: kSpacing),
-                child: _OverviewHeader(
-                  axis: headerAxis,
-                  onSelected: (task) {},
-                ),
-              )
-            : TaskCard(
-                data: data[index - 1],
-                onPressedMore: () {},
-                onPressedTask: () {},
-                onPressedContributors: () {},
-                onPressedComments: () {},
-              );
+          padding: const EdgeInsets.only(bottom: kSpacing),
+          child: _OverviewHeader(
+            axis: headerAxis,
+            onSelected: (caseType) {
+              controller.onCaseTypeSelected(caseType);
+            },
+          ),
+        )
+            : CaseCard(
+          data: data[index - 1],
+          onPressedMore: () {},
+          onPressedTask: () {},
+          onPressedContributors: () {},
+          onPressedComments: () {},
+        );
       },
       staggeredTileBuilder: (int index) =>
           StaggeredTile.fit((index == 0) ? crossAxisCount : crossAxisCellCount),
@@ -397,7 +408,7 @@ class DashboardScreen extends GetView<DashboardController> {
       ...data
           .map(
             (e) => ChattingCard(data: e, onPressed: () {}),
-          )
+      )
           .toList(),
     ]);
   }
