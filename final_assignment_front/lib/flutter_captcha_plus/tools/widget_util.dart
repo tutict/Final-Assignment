@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'object_utils.dart';
+
 /**
  * @Author: thl
  * @GitHub: https://github.com/Sky24n
@@ -13,8 +14,8 @@ import 'object_utils.dart';
 /// Widget Util.
 class WidgetUtil {
   bool _hasMeasured = false;
-  late double _width;
-  late double _height;
+  double _width = 0;
+  double _height = 0;
 
   /// Widget rendering listener.
   /// Widget渲染监听.
@@ -22,10 +23,10 @@ class WidgetUtil {
   /// isOnce: true,Continuous monitoring  false,Listen only once.
   /// onCallBack: Widget Rect CallBack.
   void asyncPrepare(
-      BuildContext context, bool isOnce, ValueChanged<Rect> onCallBack) {
+      BuildContext context, bool isOnce, ValueChanged<Rect?> onCallBack) {
     if (_hasMeasured) return;
     WidgetsBinding.instance.addPostFrameCallback((Duration timeStamp) {
-      RenderObject? box = context.findRenderObject();
+      final box = context.findRenderObject() as RenderBox?;
       if (box != null) {
         if (isOnce) _hasMeasured = true;
         double width = box.semanticBounds.width;
@@ -40,32 +41,26 @@ class WidgetUtil {
   }
 
   /// Widget渲染监听.
-  void asyncPrepares(bool isOnce, ValueChanged<Rect> onCallBack) {
+  void asyncPrepares(bool isOnce, ValueChanged<Rect?> onCallBack) {
     if (_hasMeasured) return;
     WidgetsBinding.instance.addPostFrameCallback((Duration timeStamp) {
       if (isOnce) _hasMeasured = true;
       onCallBack(null);
-        });
+    });
   }
 
   ///get Widget Bounds (width, height, left, top, right, bottom and so on).Widgets must be rendered completely.
   ///获取widget Rect
-  static Rect? getWidgetBounds(BuildContext context) {
-    RenderObject? box = context.findRenderObject();
-    return (box?.semanticBounds != null)
-        ? box?.semanticBounds
-        : Rect.zero;
+  static Rect getWidgetBounds(BuildContext context) {
+    final box = context.findRenderObject() as RenderBox?;
+    return (box != null) ? box.semanticBounds : Rect.zero;
   }
 
   ///Get the coordinates of the widget on the screen.Widgets must be rendered completely.
   ///获取widget在屏幕上的坐标,widget必须渲染完成
   static Offset getWidgetLocalToGlobal(BuildContext context) {
-    RenderObject? box = context.findRenderObject();
-    if (box == null) {
-      return Offset.zero;
-    } else {
-      return box.localToGlobal(Offset.zero);
-    }
+    final box = context.findRenderObject() as RenderBox?;
+    return box?.localToGlobal(Offset.zero) ?? Offset.zero;
   }
 
   /// get image width height，load error return Rect.zero.（unit px）
@@ -73,25 +68,30 @@ class WidgetUtil {
   /// image
   /// url network
   /// local url , package
-  static Future<Rect> getImageWH(
-      {required Image image, required String url, required String localUrl, required String package}) {
-    if (ObjectUtils.isEmpty(image) &&
-        ObjectUtils.isEmpty(url) &&
-        ObjectUtils.isEmpty(localUrl)) {
+  static Future<Rect> getImageWH({
+    Image? image,
+    String? url,
+    String? localUrl,
+    String? package,
+  }) {
+    if (ObjectUtils.isEmpty(image as Object) &&
+        ObjectUtils.isEmpty(url as Object) &&
+        ObjectUtils.isEmpty(localUrl as Object)) {
       return Future.value(Rect.zero);
     }
     Completer<Rect> completer = Completer<Rect>();
-    Image img = image ?? ((url.isNotEmpty)
-        ? Image.network(url)
-        : Image.asset(localUrl, package: package));
+    Image img = image ??
+        ((url != null && url.isNotEmpty)
+            ? Image.network(url)
+            : Image.asset(localUrl!, package: package));
     img.image
-        .resolve(const ImageConfiguration())
+        .resolve(ImageConfiguration())
         .addListener(ImageStreamListener(
           (ImageInfo info, bool _) {
-        completer.complete(Rect.fromLTWH(0, 0, info.image.width.toDouble(),
-            info.image.height.toDouble()));
+        completer.complete(Rect.fromLTWH(
+            0, 0, info.image.width.toDouble(), info.image.height.toDouble()));
       },
-      onError: (dynamic exception, StackTrace stackTrace) {
+      onError: (Object exception, StackTrace? stackTrace) {
         completer.completeError(exception, stackTrace);
       },
     ));
@@ -104,25 +104,30 @@ class WidgetUtil {
   /// url network
   /// local url (full path/全路径，example："assets/images/ali_connors.png"，""assets/images/3.0x/ali_connors.png"" );
   /// package
-  static Future<Rect> getImageWHE(
-      {required Image image, required String url, required String localUrl, required String package}) {
-    if (ObjectUtils.isEmpty(image) &&
-        ObjectUtils.isEmpty(url) &&
-        ObjectUtils.isEmpty(localUrl)) {
+  static Future<Rect> getImageWHE({
+    Image? image,
+    String? url,
+    String? localUrl,
+    String? package,
+  }) {
+    if (ObjectUtils.isEmpty(image as Object) &&
+        ObjectUtils.isEmpty(url as Object) &&
+        ObjectUtils.isEmpty(localUrl as Object)) {
       return Future.error("image is null.");
     }
     Completer<Rect> completer = Completer<Rect>();
-    Image img = image ?? ((url.isNotEmpty)
-        ? Image.network(url)
-        : Image.asset(localUrl, package: package));
+    Image img = image ??
+        ((url != null && url.isNotEmpty)
+            ? Image.network(url)
+            : Image.asset(localUrl!, package: package));
     img.image
-        .resolve(const ImageConfiguration())
+        .resolve(ImageConfiguration())
         .addListener(ImageStreamListener(
           (ImageInfo info, bool _) {
-        completer.complete(Rect.fromLTWH(0, 0, info.image.width.toDouble(),
-            info.image.height.toDouble()));
+        completer.complete(Rect.fromLTWH(
+            0, 0, info.image.width.toDouble(), info.image.height.toDouble()));
       },
-      onError: (dynamic exception, StackTrace stackTrace) {
+      onError: (Object exception, StackTrace? stackTrace) {
         completer.completeError(exception, stackTrace);
       },
     ));

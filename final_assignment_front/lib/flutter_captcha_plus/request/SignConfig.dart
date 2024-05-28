@@ -3,34 +3,29 @@ import 'package:convert/convert.dart';
 import 'package:crypto/crypto.dart';
 
 class SignConfig {
-
-
-  static String generateMd5(String data){
-    var content = const Utf8Encoder().convert(data);
+  static String generateMd5(String data) {
+    var content = Utf8Encoder().convert(data);
     var digest = md5.convert(content);
     return hex.encode(digest.bytes);
   }
 
-  static signData( Object params, tokenStr) async{
+  static Future<Map<String, dynamic>> signData(Map<String, dynamic> params, String tokenStr) async {
     var time = DateTime.now().millisecondsSinceEpoch;
     String token = tokenStr;
-    Map<String , dynamic> reqData = {};
-    Map<String , dynamic>? paramsObj = {};
-    paramsObj = params as Map<String, dynamic>?;
-    var arr = [];
-    //将字典转成数组
-    paramsObj?.forEach((key,value)=>  arr.add(key));
+    Map<String, dynamic> reqData = {};
+    Map<String, dynamic> paramsObj = params;
+
     //进行签名校验
-    Map cr = {};
+    Map<String, dynamic> cr = {};
     cr['token'] = token;
     cr['time'] = time.toString();
     cr['reqData'] = json.encode(paramsObj);
-    var array = [];
-    cr.forEach((key,value) => array.add(key));
+
+    var array = cr.keys.toList();
     array.sort();
+
     var str = '';
-    for (var i = 0; i < array.length; i++) {
-      var key = array[i];
+    for (var key in array) {
       var value = cr[key];
       str += key + value;
     }
@@ -42,5 +37,4 @@ class SignConfig {
 
     return reqData;
   }
-
 }

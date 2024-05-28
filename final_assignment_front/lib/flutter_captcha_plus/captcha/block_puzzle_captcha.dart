@@ -1,18 +1,20 @@
 import 'dart:convert';
 import 'dart:math';
 
-import 'package:final_assignment_front/captcha/request/HttpManager.dart';
-import 'package:final_assignment_front/captcha/request/encrypt_util.dart';
-import 'package:final_assignment_front/captcha/tools/object_utils.dart';
-import 'package:final_assignment_front/captcha/tools/widget_util.dart';
+import 'package:final_assignment_front/flutter_captcha_plus/request/HttpManager.dart';
+import 'package:final_assignment_front/flutter_captcha_plus/request/encrypt_util.dart';
+import 'package:final_assignment_front/flutter_captcha_plus/tools/object_utils.dart';
+import 'package:final_assignment_front/flutter_captcha_plus/tools/widget_util.dart';
 import 'package:flutter/material.dart';
 import 'package:steel_crypt/steel_crypt.dart';
+
 typedef VoidSuccessCallback = dynamic Function(String v);
+
 class BlockPuzzleCaptchaPage extends StatefulWidget {
   final VoidSuccessCallback onSuccess; //拖放完成后验证成功回调
   final VoidCallback onFail; //拖放完成后验证失败回调
 
-  BlockPuzzleCaptchaPage({required this.onSuccess, required this.onFail});
+  BlockPuzzleCaptchaPage({this.onSuccess, this.onFail});
 
   @override
   _BlockPuzzleCaptchaPageState createState() => _BlockPuzzleCaptchaPageState();
@@ -25,11 +27,10 @@ class _BlockPuzzleCaptchaPageState extends State<BlockPuzzleCaptchaPage>
   String baseImageBase64 = "";
   String slideImageBase64 = "";
   String captchaToken = "";
-  String secretKey = "";//加密key
+  String secretKey = ""; //加密key
 
   Size baseSize = Size.zero; //底部基类图片
   Size slideSize = Size.zero; //滑块图片
-
 
   var sliderColor = Colors.white; //滑块的背景色
   var sliderIcon = Icons.arrow_forward; //滑块的图标
@@ -43,10 +44,10 @@ class _BlockPuzzleCaptchaPageState extends State<BlockPuzzleCaptchaPage>
   int _checkMilliseconds = 0; //滑动时间
   bool _showTimeLine = false; //是否显示动画部件
   bool _checkSuccess = false; //校验是否成功
-  late AnimationController controller;
+  AnimationController controller;
 
   //高度动画
-  late Animation<double> offsetAnimation;
+  Animation<double> offsetAnimation;
 
   //底部部件key
   GlobalKey _containerKey = new GlobalKey();
@@ -55,7 +56,6 @@ class _BlockPuzzleCaptchaPageState extends State<BlockPuzzleCaptchaPage>
   //滑块
   GlobalKey _slideImageKey = new GlobalKey();
   double _bottomSliderSize = 60;
-
 
   //------------动画------------
 
@@ -146,8 +146,7 @@ class _BlockPuzzleCaptchaPageState extends State<BlockPuzzleCaptchaPage>
       sliderIcon = Icons.arrow_forward; //滑块的图标
       movedXBorderColor = Colors.white; //滑块拖动时，左边已滑的区域边框颜色
     });
-    HttpManager.requestData(
-        '/captcha/get', {"captchaType": "blockPuzzle"}, {})
+    HttpManager.requestData('/captcha/get', {"captchaType": "blockPuzzle"}, {})
         .then((res) async {
       if (res['repCode'] != '0000' || res['repData'] == null) {
         setState(() {
@@ -200,14 +199,12 @@ class _BlockPuzzleCaptchaPageState extends State<BlockPuzzleCaptchaPage>
     var cryptedStr = pointStr;
 
     // secretKey 不为空 进行as加密
-    if(!ObjectUtils.isEmpty(secretKey)){
-      var aesEncrypter = AesCrypt(secretKey, 'ecb', 'pkcs7', key: '');
+    if (!ObjectUtils.isEmpty(secretKey)) {
+      var aesEncrypter = AesCrypt(secretKey, 'ecb', 'pkcs7');
       cryptedStr = aesEncrypter.encrypt(pointStr);
       var dcrypt = aesEncrypter.decrypt(cryptedStr);
       Map _map = json.decode(dcrypt);
-
     }
-
 
     HttpManager.requestData('/captcha/check', {
       "pointJson": cryptedStr,
@@ -223,9 +220,10 @@ class _BlockPuzzleCaptchaPageState extends State<BlockPuzzleCaptchaPage>
       if (repData["result"] != null && repData["result"] == true) {
         //如果不加密  将  token  和 坐标序列化 通过  --- 链接成字符串
         var captchaVerification = "$captchaToken---$pointStr";
-        if(!ObjectUtils.isEmpty(secretKey)){
+        if (!ObjectUtils.isEmpty(secretKey)) {
           //如果加密  将  token  和 坐标序列化 通过  --- 链接成字符串 进行加密  加密密钥为 _clickWordCaptchaModel.secretKey
-          captchaVerification = EncryptUtil.aesEncode(key: secretKey, content: captchaVerification);
+          captchaVerification = EncryptUtil.aesEncode(
+              key: secretKey, content: captchaVerification);
         }
         checkSuccess(captchaVerification);
       } else {
@@ -351,29 +349,29 @@ class _BlockPuzzleCaptchaPageState extends State<BlockPuzzleCaptchaPage>
           ///底图 310*155
           baseImageBase64.length > 0
               ? Image.memory(
-            Base64Decoder().convert(baseImageBase64),
-            fit: BoxFit.fitWidth,
-            key: _baseImageKey,
-            gaplessPlayback: true,
-          )
+                  Base64Decoder().convert(baseImageBase64),
+                  fit: BoxFit.fitWidth,
+                  key: _baseImageKey,
+                  gaplessPlayback: true,
+                )
               : Container(
-            width: 310,
-            height: 155,
-            alignment: Alignment.center,
-            child: CircularProgressIndicator(),
-          ),
+                  width: 310,
+                  height: 155,
+                  alignment: Alignment.center,
+                  child: CircularProgressIndicator(),
+                ),
 
           ///滑块图
           slideImageBase64.length > 0
               ? Container(
-            margin: EdgeInsets.fromLTRB(sliderXMoved, 0, 0, 0),
-            child: Image.memory(
-              Base64Decoder().convert(slideImageBase64),
-              fit: BoxFit.fitHeight,
-              key: _slideImageKey,
-              gaplessPlayback: true,
-            ),
-          )
+                  margin: EdgeInsets.fromLTRB(sliderXMoved, 0, 0, 0),
+                  child: Image.memory(
+                    Base64Decoder().convert(slideImageBase64),
+                    fit: BoxFit.fitHeight,
+                    key: _slideImageKey,
+                    gaplessPlayback: true,
+                  ),
+                )
               : Container(),
 
           //刷新按钮
@@ -429,118 +427,126 @@ class _BlockPuzzleCaptchaPageState extends State<BlockPuzzleCaptchaPage>
       ),
     );
   }
+
   ///底部，滑动区域
   _bottomContainer() {
-    return baseSize.width >0
+    return baseSize.width > 0
         ? Container(
-        height: 70,
-        width: baseSize.width,
+            height: 70,
+            width: baseSize.width,
 //            color: Colors.cyanAccent,
-        child: Stack(
-          alignment: AlignmentDirectional.centerStart,
-          children: <Widget>[
-            Container(
-              height: _bottomSliderSize,
-              decoration: BoxDecoration(
-                border: Border.all(
-                  width: 1,
-                  color: Color(0xffe5e5e5),
-                ),
-                color: Color(0xfff8f9fb),
-              ),
-            ),
-            Container(
-              alignment: Alignment.center,
-              child: Text(
-                '向右拖动滑块填充拼图',
-                style: TextStyle(fontSize: 16),
-              ),
-            ),
-            Container(
-              width: sliderXMoved,
-              height: _bottomSliderSize-2,
-              decoration: BoxDecoration(
-                border: Border.all(
-                  width: sliderXMoved > 0 ? 1 : 0,
-                  color: movedXBorderColor,
-                ),
-                color: Color(0xfff3fef1),
-              ),
-            ),
-            GestureDetector(
-              onPanStart: (startDetails) {///开始
-                _checkMilliseconds = new DateTime.now().millisecondsSinceEpoch;
-                print(startDetails.localPosition);
-                sliderStartX = startDetails.localPosition.dx;
-              },
-              onPanUpdate: (updateDetails) { ///更新
-                print(updateDetails.localPosition);
-                double _w1 = _baseImageKey.currentContext.size.width - _slideImageKey.currentContext.size.width;
-                double offset = updateDetails.localPosition.dx - sliderStartX;
-                if(offset < 0){
-                  offset = 0;
-                }
-                if(offset > _w1){
-                  offset = _w1;
-                }
-                print("offset ------ $offset");
-                setState(() {
-                  sliderXMoved = offset;
-                });
-                //滑动过程，改变滑块左边框颜色
-                updateSliderColorIcon();
-              },
-              onPanEnd: (endDetails) { //结束
-                print("endDetails");
-                checkCaptcha(sliderXMoved, captchaToken);
-                int _nowTime = new DateTime.now().millisecondsSinceEpoch;
-                _checkMilliseconds = _nowTime - _checkMilliseconds;
-              },
-              child: Container(
-                width: _bottomSliderSize,
-                height: _bottomSliderSize,
-                margin: EdgeInsets.only(left: sliderXMoved > 0 ? sliderXMoved : 1),
-                decoration: BoxDecoration(
-                  border: Border(
-                    top: BorderSide(
+            child: Stack(
+              alignment: AlignmentDirectional.centerStart,
+              children: <Widget>[
+                Container(
+                  height: _bottomSliderSize,
+                  decoration: BoxDecoration(
+                    border: Border.all(
                       width: 1,
                       color: Color(0xffe5e5e5),
                     ),
-                    right: BorderSide(
-                      width: 1,
-                      color: Color(0xffe5e5e5),
+                    color: Color(0xfff8f9fb),
+                  ),
+                ),
+                Container(
+                  alignment: Alignment.center,
+                  child: Text(
+                    '向右拖动滑块填充拼图',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                ),
+                Container(
+                  width: sliderXMoved,
+                  height: _bottomSliderSize - 2,
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      width: sliderXMoved > 0 ? 1 : 0,
+                      color: movedXBorderColor,
                     ),
-                    bottom: BorderSide(
-                      width: 1,
-                      color: Color(0xffe5e5e5),
+                    color: Color(0xfff3fef1),
+                  ),
+                ),
+                GestureDetector(
+                  onPanStart: (startDetails) {
+                    ///开始
+                    _checkMilliseconds =
+                        new DateTime.now().millisecondsSinceEpoch;
+                    print(startDetails.localPosition);
+                    sliderStartX = startDetails.localPosition.dx;
+                  },
+                  onPanUpdate: (updateDetails) {
+                    ///更新
+                    print(updateDetails.localPosition);
+                    double _w1 = _baseImageKey.currentContext.size.width -
+                        _slideImageKey.currentContext.size.width;
+                    double offset =
+                        updateDetails.localPosition.dx - sliderStartX;
+                    if (offset < 0) {
+                      offset = 0;
+                    }
+                    if (offset > _w1) {
+                      offset = _w1;
+                    }
+                    print("offset ------ $offset");
+                    setState(() {
+                      sliderXMoved = offset;
+                    });
+                    //滑动过程，改变滑块左边框颜色
+                    updateSliderColorIcon();
+                  },
+                  onPanEnd: (endDetails) {
+                    //结束
+                    print("endDetails");
+                    checkCaptcha(sliderXMoved, captchaToken);
+                    int _nowTime = new DateTime.now().millisecondsSinceEpoch;
+                    _checkMilliseconds = _nowTime - _checkMilliseconds;
+                  },
+                  child: Container(
+                    width: _bottomSliderSize,
+                    height: _bottomSliderSize,
+                    margin: EdgeInsets.only(
+                        left: sliderXMoved > 0 ? sliderXMoved : 1),
+                    decoration: BoxDecoration(
+                      border: Border(
+                        top: BorderSide(
+                          width: 1,
+                          color: Color(0xffe5e5e5),
+                        ),
+                        right: BorderSide(
+                          width: 1,
+                          color: Color(0xffe5e5e5),
+                        ),
+                        bottom: BorderSide(
+                          width: 1,
+                          color: Color(0xffe5e5e5),
+                        ),
+                      ),
+                      color: sliderColor,
+                    ),
+                    child: IconButton(
+                      icon: Icon(sliderIcon),
+                      iconSize: 30,
+                      color: Colors.black54,
                     ),
                   ),
-                  color: sliderColor,
-                ),
-                child: IconButton(
-                  icon: Icon(sliderIcon),
-                  iconSize: 30,
-                  color: Colors.black54,
-                ),
-              ),
-            )
-          ],
-        ))
+                )
+              ],
+            ))
         : Container();
   }
 }
-
 
 class MaxScaleTextWidget extends StatelessWidget {
   final double max;
   final Widget child;
 
-  MaxScaleTextWidget({required Key key, this.max = 1.0, required this.child}) : super(key: key);
+  MaxScaleTextWidget({Key key, this.max = 1.0, this.child}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     var data = MediaQuery.of(context);
     var textScaleFactor = min(max, data.textScaleFactor);
-    return MediaQuery(data: data.copyWith(textScaleFactor: textScaleFactor), child: child);
+    return MediaQuery(
+        data: data.copyWith(textScaleFactor: textScaleFactor), child: child);
   }
 }
