@@ -13,7 +13,7 @@ class ClickWordCaptcha extends StatefulWidget {
   final VoidSuccessCallback onSuccess; //文字点击后验证成功回调
   final VoidCallback onFail; //文字点击完成后验证失败回调
 
-  const ClickWordCaptcha({Key key, this.onSuccess, this.onFail})
+  const ClickWordCaptcha({required Key key, required this.onSuccess, required this.onFail})
       : super(key: key);
 
   @override
@@ -146,10 +146,8 @@ class _ClickWordCaptchaState extends State<ClickWordCaptcha> {
     await Future.delayed(Duration(milliseconds: 1000));
     _loadCaptcha();
     //回调
-    if (widget.onFail != null) {
-      widget.onFail();
+    widget.onFail();
     }
-  }
 
   //校验成功
   _checkSuccess(String pointJson) async {
@@ -163,10 +161,8 @@ class _ClickWordCaptchaState extends State<ClickWordCaptcha> {
 
     print(cryptedStr);
     //回调   pointJson 是经过es加密之后的信息
-    if (widget.onSuccess != null) {
-      widget.onSuccess(cryptedStr);
-    }
-    //关闭
+    widget.onSuccess(cryptedStr);
+      //关闭
     Navigator.pop(context);
   }
 

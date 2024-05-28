@@ -19,7 +19,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GetMaterialApp(
-      title: 'Project Management',
+      title: '管理系统',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.basic,
       initialRoute: AppPages.initial,

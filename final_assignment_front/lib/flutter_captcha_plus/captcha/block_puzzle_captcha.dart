@@ -14,7 +14,7 @@ class BlockPuzzleCaptchaPage extends StatefulWidget {
   final VoidSuccessCallback onSuccess; //拖放完成后验证成功回调
   final VoidCallback onFail; //拖放完成后验证失败回调
 
-  BlockPuzzleCaptchaPage({this.onSuccess, this.onFail});
+  BlockPuzzleCaptchaPage({required this.onSuccess, required this.onFail});
 
   @override
   _BlockPuzzleCaptchaPageState createState() => _BlockPuzzleCaptchaPageState();
@@ -44,10 +44,10 @@ class _BlockPuzzleCaptchaPageState extends State<BlockPuzzleCaptchaPage>
   int _checkMilliseconds = 0; //滑动时间
   bool _showTimeLine = false; //是否显示动画部件
   bool _checkSuccess = false; //校验是否成功
-  AnimationController controller;
+  late AnimationController controller;
 
   //高度动画
-  Animation<double> offsetAnimation;
+  late Animation<double> offsetAnimation;
 
   //底部部件key
   GlobalKey _containerKey = new GlobalKey();
@@ -76,10 +76,8 @@ class _BlockPuzzleCaptchaPageState extends State<BlockPuzzleCaptchaPage>
           _showTimeLine = false;
         });
         //回调
-        if (widget.onSuccess != null) {
-          widget.onSuccess(content);
-        }
-        //关闭验证码
+        widget.onSuccess(content);
+              //关闭验证码
         print(content);
         Navigator.pop(context);
       });
@@ -104,10 +102,8 @@ class _BlockPuzzleCaptchaPageState extends State<BlockPuzzleCaptchaPage>
         });
         loadCaptcha();
         //回调
-        if (widget.onFail != null) {
-          widget.onFail();
-        }
-      });
+        widget.onFail();
+            });
     });
   }
 
@@ -184,7 +180,7 @@ class _BlockPuzzleCaptchaPageState extends State<BlockPuzzleCaptchaPage>
   }
 
   //校验验证码
-  void checkCaptcha(sliderXMoved, captchaToken, {BuildContext myContext}) {
+  void checkCaptcha(sliderXMoved, captchaToken, {required BuildContext myContext}) {
     setState(() {
       sliderMoveFinish = true;
     });
@@ -477,8 +473,8 @@ class _BlockPuzzleCaptchaPageState extends State<BlockPuzzleCaptchaPage>
                   onPanUpdate: (updateDetails) {
                     ///更新
                     print(updateDetails.localPosition);
-                    double _w1 = _baseImageKey.currentContext.size.width -
-                        _slideImageKey.currentContext.size.width;
+                    double _w1 = _baseImageKey.currentContext!.size!.width -
+                        _slideImageKey.currentContext!.size!.width;
                     double offset =
                         updateDetails.localPosition.dx - sliderStartX;
                     if (offset < 0) {
@@ -526,7 +522,7 @@ class _BlockPuzzleCaptchaPageState extends State<BlockPuzzleCaptchaPage>
                     child: IconButton(
                       icon: Icon(sliderIcon),
                       iconSize: 30,
-                      color: Colors.black54,
+                      color: Colors.black54, onPressed: () {  },
                     ),
                   ),
                 )
@@ -540,13 +536,13 @@ class MaxScaleTextWidget extends StatelessWidget {
   final double max;
   final Widget child;
 
-  MaxScaleTextWidget({Key key, this.max = 1.0, this.child}) : super(key: key);
+  MaxScaleTextWidget({required Key key, this.max = 1.0, required this.child}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     var data = MediaQuery.of(context);
     var textScaleFactor = min(max, data.textScaleFactor);
     return MediaQuery(
-        data: data.copyWith(textScaleFactor: textScaleFactor), child: child);
+        data: data.copyWith(textScaler: TextScaler.linear(textScaleFactor)), child: child);
   }
 }
