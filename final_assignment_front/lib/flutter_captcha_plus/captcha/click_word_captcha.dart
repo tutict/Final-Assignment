@@ -1,27 +1,26 @@
 import 'dart:convert';
-
-import 'package:final_assignment_front/flutter_captcha_plus/request/HttpManager.dart';
-import 'package:final_assignment_front/flutter_captcha_plus/request/encrypt_util.dart';
-import 'package:final_assignment_front/flutter_captcha_plus/tools/object_utils.dart';
-import 'package:final_assignment_front/flutter_captcha_plus/tools/widget_util.dart';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:steel_crypt/steel_crypt.dart';
 
 typedef VoidSuccessCallback = dynamic Function(String v);
 
 class ClickWordCaptcha extends StatefulWidget {
-  final VoidSuccessCallback onSuccess; //文字点击后验证成功回调
-  final VoidCallback onFail; //文字点击完成后验证失败回调
+  final VoidSuccessCallback onSuccess;
+  final VoidCallback onFail;
 
-  const ClickWordCaptcha({required Key key, required this.onSuccess, required this.onFail})
-      : super(key: key);
+  const ClickWordCaptcha({
+    Key? key,
+    required this.onSuccess,
+    required this.onFail,
+  }) : super(key: key);
 
   @override
   _ClickWordCaptchaState createState() => _ClickWordCaptchaState();
 }
 
 class _ClickWordCaptchaState extends State<ClickWordCaptcha> {
-  ClickWordCaptchaState _clickWordCaptchaState = ClickWordCaptchaState.none;
+  ClickWordCaptchaStateEnum _clickWordCaptchaState = ClickWordCaptchaStateEnum.none;
   List<Offset> _tapOffsetList = [];
   ClickWordCaptchaModel _clickWordCaptchaModel = ClickWordCaptchaModel();
 
@@ -33,17 +32,17 @@ class _ClickWordCaptchaState extends State<ClickWordCaptcha> {
   //改变底部样式及字段
   _changeResultState() {
     switch (_clickWordCaptchaState) {
-      case ClickWordCaptchaState.normal:
+      case ClickWordCaptchaStateEnum.normal:
         titleColor = Colors.black;
         borderColor = Color(0xffdddddd);
         break;
-      case ClickWordCaptchaState.success:
+      case ClickWordCaptchaStateEnum.success:
         _tapOffsetList = [];
         titleColor = Colors.green;
         borderColor = Colors.green;
         bottomTitle = "验证成功";
         break;
-      case ClickWordCaptchaState.fail:
+      case ClickWordCaptchaStateEnum.fail:
         _tapOffsetList = [];
         titleColor = Colors.red;
         borderColor = Colors.red;
@@ -67,14 +66,14 @@ class _ClickWordCaptchaState extends State<ClickWordCaptcha> {
   //加载验证码
   _loadCaptcha() async {
     _tapOffsetList = [];
-    _clickWordCaptchaState = ClickWordCaptchaState.none;
+    _clickWordCaptchaState = ClickWordCaptchaStateEnum.none;
     _changeResultState();
     var res = await HttpManager.requestData(
         '/captcha/get', {"captchaType": "clickWord"}, {});
     if (res['repCode'] != '0000' || res['repData'] == null) {
       _clickWordCaptchaModel.secretKey = "";
       bottomTitle = "加载失败,请刷新";
-      _clickWordCaptchaState = ClickWordCaptchaState.normal;
+      _clickWordCaptchaState = ClickWordCaptchaStateEnum.normal;
       _changeResultState();
       return;
     } else {
@@ -84,12 +83,12 @@ class _ClickWordCaptchaState extends State<ClickWordCaptcha> {
       var baseR = await WidgetUtil.getImageWH(
           image: Image.memory(
               Base64Decoder().convert(_clickWordCaptchaModel.imgStr)));
-      baseSize = baseR.size;
+      baseSize = baseR;
 
       bottomTitle = "请依次点击【${_clickWordCaptchaModel.wordStr}】";
     }
 
-    _clickWordCaptchaState = ClickWordCaptchaState.normal;
+    _clickWordCaptchaState = ClickWordCaptchaStateEnum.normal;
     _changeResultState();
   }
 
@@ -104,15 +103,15 @@ class _ClickWordCaptchaState extends State<ClickWordCaptcha> {
 
     var cryptedStr = pointStr;
 
-    // secretKey 不为空 进行as加密
-    if (!ObjectUtils.isEmpty(_clickWordCaptchaModel.secretKey)) {
-      var aesEncrypter =
-          AesCrypt(_clickWordCaptchaModel.secretKey, 'ecb', 'pkcs7');
-      cryptedStr = aesEncrypter.encrypt(pointStr);
-      var dcrypt = aesEncrypter.decrypt(cryptedStr);
+    // secretKey 不为空 进行AES加密
+    if (_clickWordCaptchaModel.secretKey.isNotEmpty) {
+      var aesEncrypter = AesCrypt(
+        key: _clickWordCaptchaModel.secretKey,
+        padding: PaddingAES.pkcs7,
+      );
+      cryptedStr = aesEncrypter.gcm.encrypt(inp: pointStr, iv: '');
     }
 
-//    Map _map = json.decode(dcrypt);
     var res = await HttpManager.requestData('/captcha/check', {
       "pointJson": cryptedStr,
       "captchaType": "clickWord",
@@ -124,10 +123,8 @@ class _ClickWordCaptchaState extends State<ClickWordCaptcha> {
     }
     Map<String, dynamic> repData = res['repData'];
     if (repData["result"] != null && repData["result"] == true) {
-      //如果不加密  将  token  和 坐标序列化 通过  --- 链接成字符串
       var captchaVerification = "${_clickWordCaptchaModel.token}---$pointStr";
-      if (!ObjectUtils.isEmpty(_clickWordCaptchaModel.secretKey)) {
-        //如果加密  将  token  和 坐标序列化 通过  --- 链接成字符串 进行加密  加密密钥为 _clickWordCaptchaModel.secretKey
+      if (_clickWordCaptchaModel.secretKey.isNotEmpty) {
         captchaVerification = EncryptUtil.aesEncode(
             key: _clickWordCaptchaModel.secretKey,
             content: captchaVerification);
@@ -140,29 +137,32 @@ class _ClickWordCaptchaState extends State<ClickWordCaptcha> {
 
   //校验失败
   _checkFail() async {
-    _clickWordCaptchaState = ClickWordCaptchaState.fail;
+    _clickWordCaptchaState = ClickWordCaptchaStateEnum.fail;
     _changeResultState();
 
     await Future.delayed(Duration(milliseconds: 1000));
     _loadCaptcha();
     //回调
     widget.onFail();
-    }
+  }
 
   //校验成功
   _checkSuccess(String pointJson) async {
-    _clickWordCaptchaState = ClickWordCaptchaState.success;
+    _clickWordCaptchaState = ClickWordCaptchaStateEnum.success;
     _changeResultState();
 
     await Future.delayed(Duration(milliseconds: 1000));
 
-    var aesEncrypter = AesCrypt('BGxdEUOZkXka4HSj', 'ecb', 'pkcs7');
-    var cryptedStr = aesEncrypter.encrypt(pointJson);
+    var aesEncrypter = AesCrypt(
+      key: 'BGxdEUOZkXka4HSj',
+      padding: PaddingAES.pkcs7,
+    );
+    var cryptedStr = aesEncrypter.gcm.encrypt(inp: pointJson, iv: '');
 
     print(cryptedStr);
-    //回调   pointJson 是经过es加密之后的信息
+    //回调 pointJson 是经过AES加密之后的信息
     widget.onSuccess(cryptedStr);
-      //关闭
+    //关闭
     Navigator.pop(context);
   }
 
@@ -170,10 +170,8 @@ class _ClickWordCaptchaState extends State<ClickWordCaptcha> {
   Widget build(BuildContext context) {
     var data = MediaQuery.of(context);
     var dialogWidth = 0.9 * data.size.width;
-    var isRatioCross = false;
     if (dialogWidth < 320.0) {
       dialogWidth = data.size.width;
-      isRatioCross = true;
     }
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -184,7 +182,7 @@ class _ClickWordCaptchaState extends State<ClickWordCaptcha> {
           color: Colors.white,
           child: Column(
             children: <Widget>[
-              _topConttainer(),
+              _topContainer(),
               _captchaContainer(),
               _bottomContainer()
             ],
@@ -197,7 +195,7 @@ class _ClickWordCaptchaState extends State<ClickWordCaptcha> {
   //图片验证码
   _captchaContainer() {
     List<Widget> _widgetList = [];
-    if (!ObjectUtils.isEmpty(_clickWordCaptchaModel.imgStr)) {
+    if (_clickWordCaptchaModel.imgStr.isNotEmpty) {
       _widgetList.add(Image(
           width: baseSize.width,
           height: baseSize.height,
@@ -225,31 +223,32 @@ class _ClickWordCaptchaState extends State<ClickWordCaptcha> {
             ),
           )));
     }
-    _widgetList.add(//刷新按钮
-        Positioned(
-      top: 0,
-      right: 0,
-      child: IconButton(
-          icon: Icon(Icons.refresh),
-          iconSize: 30,
-          color: Colors.deepOrangeAccent,
-          onPressed: () {
-            //刷新
-            _loadCaptcha();
-          }),
-    ));
+    _widgetList.add(
+      Positioned(
+        top: 0,
+        right: 0,
+        child: IconButton(
+            icon: Icon(Icons.refresh),
+            iconSize: 30,
+            color: Colors.deepOrangeAccent,
+            onPressed: () {
+              //刷新
+              _loadCaptcha();
+            }),
+      ),
+    );
 
     return GestureDetector(
         onTapDown: (TapDownDetails details) {
           debugPrint(
               "onTapDown globalPosition全局坐标系位置:  ${details.globalPosition} localPosition组件坐标系位置: ${details.localPosition} ");
-          if (!ObjectUtils.isListEmpty(_clickWordCaptchaModel.wordList) &&
+          if (_clickWordCaptchaModel.wordList.isNotEmpty &&
               _tapOffsetList.length < _clickWordCaptchaModel.wordList.length) {
             _tapOffsetList.add(
                 Offset(details.localPosition.dx, details.localPosition.dy));
           }
           setState(() {});
-          if (!ObjectUtils.isListEmpty(_clickWordCaptchaModel.wordList) &&
+          if (_clickWordCaptchaModel.wordList.isNotEmpty &&
               _tapOffsetList.length == _clickWordCaptchaModel.wordList.length) {
             _checkCaptcha();
           }
@@ -263,23 +262,21 @@ class _ClickWordCaptchaState extends State<ClickWordCaptcha> {
         ));
   }
 
-  //底部提示部件
+  //底部按钮
   _bottomContainer() {
     return Container(
-      height: 50,
       margin: EdgeInsets.only(top: 10),
       alignment: Alignment.center,
       width: baseSize.width,
       decoration: BoxDecoration(
           borderRadius: BorderRadius.all(Radius.circular(4)),
           border: Border.all(color: borderColor)),
-      child:
-          Text(bottomTitle, style: TextStyle(fontSize: 18, color: titleColor)),
+      child: Text(bottomTitle, style: TextStyle(fontSize: 18, color: titleColor)),
     );
   }
 
   //顶部，提示+关闭
-  _topConttainer() {
+  _topContainer() {
     return Container(
       padding: EdgeInsets.fromLTRB(10, 0, 10, 0),
       margin: EdgeInsets.only(bottom: 20, top: 5),
@@ -308,7 +305,7 @@ class _ClickWordCaptchaState extends State<ClickWordCaptcha> {
 }
 
 //校验状态
-enum ClickWordCaptchaState {
+enum ClickWordCaptchaStateEnum {
   normal, //默认 可自定义描述
   success, //成功
   fail, //失败
@@ -323,12 +320,13 @@ class ClickWordCaptchaModel {
   String wordStr; //显示需要点选的字转换为字符串
   String secretKey; //加密key
 
-  ClickWordCaptchaModel(
-      {this.imgStr = "",
-      this.token = "",
-      this.secretKey = "",
-      this.wordList = const [],
-      this.wordStr = ""});
+  ClickWordCaptchaModel({
+    this.imgStr = "",
+    this.token = "",
+    this.secretKey = "",
+    this.wordList = const [],
+    this.wordStr = "",
+  });
 
   //解析数据转换模型
   static ClickWordCaptchaModel fromMap(Map<String, dynamic> map) {
@@ -338,7 +336,7 @@ class ClickWordCaptchaModel {
     captchaModel.secretKey = map["secretKey"] ?? "";
     captchaModel.wordList = map["wordList"] ?? [];
 
-    if (!ObjectUtils.isListEmpty(captchaModel.wordList)) {
+    if (captchaModel.wordList.isNotEmpty) {
       captchaModel.wordStr = captchaModel.wordList.join(",");
     }
 
@@ -350,7 +348,7 @@ class ClickWordCaptchaModel {
     var map = new Map<String, dynamic>();
     map['imgStr'] = imgStr;
     map['token'] = token;
-    map['secretKey'] = token;
+    map['secretKey'] = secretKey;
     map['wordList'] = wordList;
     map['wordStr'] = wordStr;
     return map;
@@ -358,7 +356,47 @@ class ClickWordCaptchaModel {
 
   @override
   String toString() {
-    // TODO: implement toString
     return JsonEncoder.withIndent('  ').convert(toJson());
+  }
+}
+
+class HttpManager {
+  static Future<Map<String, dynamic>> requestData(
+      String endpoint, Map<String, dynamic> params, Map<String, dynamic> headers) async {
+    // Implement the HTTP request logic here
+    // This is a placeholder function, replace it with your actual HTTP request implementation
+    return {
+      'repCode': '0000',
+      'repData': {
+        "originalImageBase64": "base64encodedimage",
+        "token": "sometoken",
+        "secretKey": "somesecretkey",
+        "wordList": ["word1", "word2"]
+      }
+    };
+  }
+}
+
+class WidgetUtil {
+  static Future<Size> getImageWH({required Image image}) async {
+    Completer<Size> completer = Completer();
+    image.image.resolve(ImageConfiguration()).addListener(
+      ImageStreamListener((ImageInfo info, bool _) {
+        var myImage = info.image;
+        Size size = Size(myImage.width.toDouble(), myImage.height.toDouble());
+        completer.complete(size);
+      }),
+    );
+    return completer.future;
+  }
+}
+
+class EncryptUtil {
+  static String aesEncode({required String key, required String content}) {
+    var aesEncrypter = AesCrypt(
+      key: key,
+      padding: PaddingAES.pkcs7,
+    );
+    return aesEncrypter.gcm.encrypt(inp: content, iv: '');
   }
 }
