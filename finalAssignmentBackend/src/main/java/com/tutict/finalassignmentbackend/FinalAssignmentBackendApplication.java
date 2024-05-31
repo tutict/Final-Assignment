@@ -1,8 +1,6 @@
 package com.tutict.finalassignmentbackend;
 
-import com.tutict.finalassignmentbackend.config.vertx.KafkaVerticle;
 import io.vertx.core.Vertx;
-import io.vertx.kafka.client.consumer.KafkaConsumer;
 import jakarta.annotation.PostConstruct;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -18,11 +16,6 @@ public class FinalAssignmentBackendApplication {
 
     public FinalAssignmentBackendApplication(Vertx vertx) {
         this.vertx = vertx;
-    }
-
-    @Bean
-    public KafkaVerticle kafkaVerticle(KafkaConsumer<String, String> kafkaConsumer) {
-        return new KafkaVerticle(vertx, kafkaConsumer);
     }
 
     @Bean

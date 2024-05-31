@@ -17,7 +17,7 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   late WebSocketChannel channel;
-  final String websocketUrl = 'wss://localhost:8080/ws'; // 更新为实际的 URL
+  final String websocketUrl = 'wss://localhost:8082/eventbus'; // 更新为实际的 URL
 
   @override
   void initState() {
@@ -36,7 +36,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<String?> _authUser(LoginData data) async {
     debugPrint('用户名: ${data.name}, 密码: ${data.password}');
     channel.sink.add(jsonEncode({
-      'action': 'login',
+      'action': 'auth/login',
       'username': data.name,
       'password': data.password
     }));
@@ -61,7 +61,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<String?> _signupUser(SignupData data) async {
     debugPrint('名字: ${data.name}, 密码: ${data.password}');
     channel.sink.add(jsonEncode({
-      'action': 'signup',
+      'action': 'auth/signup',
       'username': data.name,
       'password': data.password
     }));
@@ -82,7 +82,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<String?> _recoverPassword(String name) async {
     debugPrint('名字: $name');
     channel.sink.add(jsonEncode({
-      'action': 'recover',
+      'action': 'auth/recover',
       'username': name
     }));
 

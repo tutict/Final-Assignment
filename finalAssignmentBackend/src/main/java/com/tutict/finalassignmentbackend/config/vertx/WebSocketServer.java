@@ -8,7 +8,6 @@ import io.vertx.ext.web.handler.sockjs.SockJSHandler;
 import io.vertx.ext.web.handler.sockjs.SockJSHandlerOptions;
 import org.springframework.stereotype.Component;
 
-
 @Component
 public class WebSocketServer extends AbstractVerticle {
 
@@ -28,12 +27,12 @@ public class WebSocketServer extends AbstractVerticle {
         HttpServer server = vertx.createHttpServer();
 
         // 将路由器与 HTTP 服务器关联
-        server.requestHandler(router).listen(8080, res -> {
+        server.requestHandler(router).listen(8082, res -> {
             if (res.succeeded()) {
-                System.out.println("WebSocket server is up and running on port 8080!");
+                System.out.println("WebSocket server is up and running on port 8082!");
                 startPromise.complete();
             } else {
-                System.err.println("Could not start WebSocket server on port 8080");
+                System.err.println("Could not start WebSocket server on port 8082");
                 startPromise.fail(res.cause());
             }
         });

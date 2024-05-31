@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.entity.DeductionInformation;
 import com.tutict.finalassignmentbackend.service.DeductionInformationService;
+import io.vertx.core.Future;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,35 +27,49 @@ public class DeductionInformationKafkaListener {
 
     @KafkaListener(topics = "deduction_create", groupId = "deduction_listener_group")
     public void onDeductionCreateReceived(String message, Acknowledgment acknowledgment) {
-        try {
-            // 反序列化消息内容为DeductionInformation对象
-            DeductionInformation deductionInformation = deserializeMessage(message);
-
-            deductionInformationService.createDeduction(deductionInformation);
-
-            // 确认消息已被成功处理
-            acknowledgment.acknowledge();
-        } catch (Exception e) {
-            // 记录异常信息，不确认消息，以便Kafka重新投递
-            log.error("Error processing create deduction message: {}", message, e);
-        }
+        Future.<Void>future(promise -> {
+            try {
+                // 反序列化消息内容为DeductionInformation对象
+                DeductionInformation deductionInformation = deserializeMessage(message);
+                deductionInformationService.createDeduction(deductionInformation);
+                promise.complete();
+            } catch (Exception e) {
+                log.error("Error processing create deduction message: {}", message, e);
+                promise.fail(e);
+            }
+        }).onComplete(res -> {
+            if (res.succeeded()) {
+                acknowledgment.acknowledge();
+            } else {
+                log.error("Error processing create deduction message: {}", message, res.cause());
+            }
+        });
     }
 
     @KafkaListener(topics = "deduction_update", groupId = "deduction_listener_group")
     public void onDeductionUpdateReceived(String message, Acknowledgment acknowledgment) {
-        try {
-            // 反序列化消息内容为DeductionInformation对象
-            DeductionInformation deductionInformation = deserializeMessage(message);
+        Future.<Void>future(promise -> {
+            try {
+                // 反序列化消息内容为DeductionInformation对象
+                DeductionInformation deductionInformation = deserializeMessage(message);
 
-            // 根据业务逻辑处理更新扣款信息
-            deductionInformationService.updateDeduction(deductionInformation);
+                // 根据业务逻辑处理更新扣款信息
+                deductionInformationService.updateDeduction(deductionInformation);
 
-            // 确认消息已被成功处理
-            acknowledgment.acknowledge();
-        } catch (Exception e) {
-            // 记录异常信息，不确认消息，以便Kafka重新投递
-            log.error("Error processing update deduction message: {}", message, e);
-        }
+                // 确认消息已被成功处理
+                promise.complete();
+            } catch (Exception e) {
+                // 记录异常信息，不确认消息，以便Kafka重新投递
+                log.error("Error processing update deduction message: {}", message, e);
+                promise.fail(e);
+            }
+        }).onComplete(res -> {
+            if (res.succeeded()) {
+                acknowledgment.acknowledge();
+            } else {
+                log.error("Error processing update deduction message: {}", message, res.cause());
+            }
+        });
     }
 
     private DeductionInformation deserializeMessage(String message) throws JsonProcessingException {

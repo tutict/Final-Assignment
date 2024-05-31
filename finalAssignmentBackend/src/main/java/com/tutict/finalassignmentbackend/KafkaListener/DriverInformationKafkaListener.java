@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.entity.DriverInformation;
 import com.tutict.finalassignmentbackend.service.DriverInformationService;
+import io.vertx.core.Future;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,35 +27,53 @@ public class DriverInformationKafkaListener {
 
     @KafkaListener(topics = "driver_create", groupId = "driver_listener_group")
     public void onDriverCreateReceived(String message, Acknowledgment acknowledgment) {
-        try {
-            // 反序列化消息内容为DriverInformation对象
-            DriverInformation driverInformation = deserializeMessage(message);
+        Future.<Void>future(promise -> {
+            try {
+                // 反序列化消息内容为DriverInformation对象
+                DriverInformation driverInformation = deserializeMessage(message);
 
-            driverInformationService.createDriver(driverInformation);
+                driverInformationService.createDriver(driverInformation);
+                promise.complete();
 
-            // 确认消息已被成功处理
-            acknowledgment.acknowledge();
-        } catch (Exception e) {
-            // 记录异常信息，不确认消息，以便Kafka重新投递
-            log.error("Error processing create driver message: {}", message, e);
-        }
+            } catch (Exception e) {
+                // 记录异常信息，不确认消息，以便Kafka重新投递
+                log.error("Error processing create driver message: {}", message, e);
+                promise.fail(e);
+            }
+        }).onComplete(res -> {
+            if (res.succeeded()) {
+                // 确认消息已被成功处理
+                acknowledgment.acknowledge();
+            } else {
+                log.error("Error processing create driver message: {}", message, res.cause());
+            }
+        });
     }
 
     @KafkaListener(topics = "driver_update", groupId = "driver_listener_group")
     public void onDriverUpdateReceived(String message, Acknowledgment acknowledgment) {
-        try {
-            // 反序列化消息内容为DriverInformation对象
-            DriverInformation driverInformation = deserializeMessage(message);
+        Future.<Void>future(promise -> {
+            try {
+                // 反序列化消息内容为DriverInformation对象
+                DriverInformation driverInformation = deserializeMessage(message);
 
-            // 根据业务逻辑处理更新驾驶员信息
-            driverInformationService.updateDriver(driverInformation);
+                // 根据业务逻辑处理更新驾驶员信息
+                driverInformationService.updateDriver(driverInformation);
 
-            // 确认消息已被成功处理
-            acknowledgment.acknowledge();
-        } catch (Exception e) {
-            // 记录异常信息，不确认消息，以便Kafka重新投递
-            log.error("Error processing update driver message: {}", message, e);
-        }
+                promise.complete();
+            } catch (Exception e) {
+                // 记录异常信息，不确认消息，以便Kafka重新投递
+                log.error("Error processing update driver message: {}", message, e);
+                promise.fail(e);
+            }
+        }).onComplete(res -> {
+            if (res.succeeded()) {
+                // 确认消息已被成功处理
+                acknowledgment.acknowledge();
+            } else {
+                log.error("Error processing update driver message: {}", message, res.cause());
+            }
+        });
     }
 
     private DriverInformation deserializeMessage(String message) throws JsonProcessingException {

@@ -10,6 +10,8 @@ public class VertxConfig {
 
     @Bean
     public Vertx vertx() {
-        return Vertx.vertx(new VertxOptions());
+        Vertx vertx = Vertx.vertx(new VertxOptions().setWorkerPoolSize(10));
+        vertx.deployVerticle(new WebSocketServer());
+        return vertx;
     }
 }
