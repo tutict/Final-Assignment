@@ -22,7 +22,7 @@ class MyApp extends StatelessWidget {
       title: '管理系统',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.basic,
-      initialRoute: AppPages.initial,
+      initialRoute: AppPages.login,
       getPages: AppPages.routes,
     );
   }

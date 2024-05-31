@@ -1,46 +1,102 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_login/flutter_login.dart';
+import 'package:get/get.dart';
+import 'package:web_socket_channel/io.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
+import 'dart:convert';
 import 'package:final_assignment_front/features/dashboard/views/screens/dashboard_screen.dart';
 
-const users =  {
-  'dribbble@gmail.com': '12345',
-  'hunter@gmail.com': 'hunter',
-};
+import '../../config/routes/app_pages.dart';
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
+
+  @override
+  _LoginScreenState createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  late WebSocketChannel channel;
+  final String websocketUrl = 'wss://localhost:8080/ws'; // 更新为实际的 URL
+
+  @override
+  void initState() {
+    super.initState();
+    channel = IOWebSocketChannel.connect(websocketUrl);
+  }
+
+  @override
+  void dispose() {
+    channel.sink.close();
+    super.dispose();
+  }
 
   Duration get loginTime => const Duration(milliseconds: 2250);
 
-  Future<String?> _authUser(LoginData data) {
+  Future<String?> _authUser(LoginData data) async {
     debugPrint('用户名: ${data.name}, 密码: ${data.password}');
-    return Future.delayed(loginTime).then((_) {
-      if (!users.containsKey(data.name)) {
-        return '用户不存在';
-      }
-      if (users[data.name] != data.password) {
-        return '用户名或密码错误';
-      }
-      return null;
+    channel.sink.add(jsonEncode({
+      'action': 'login',
+      'username': data.name,
+      'password': data.password
+    }));
+
+    final response = await channel.stream.firstWhere((message) {
+      final decodedMessage = jsonDecode(message);
+      return decodedMessage['action'] == 'login';
     });
+
+    final decodedMessage = jsonDecode(response);
+    if (decodedMessage['status'] == 'error') {
+      return decodedMessage['message'];
+    } else {
+      // 安全存储 JWT 令牌（例如，使用 flutter_secure_storage）
+      String token = decodedMessage['token'];
+      // 导航到仪表板
+      Get.toNamed(Routes.dashboard);
+      return null;
+    }
   }
 
-  Future<String?> _signupUser(SignupData data) {
+  Future<String?> _signupUser(SignupData data) async {
     debugPrint('名字: ${data.name}, 密码: ${data.password}');
-    return Future.delayed(loginTime).then((_) {
-      return null;
+    channel.sink.add(jsonEncode({
+      'action': 'signup',
+      'username': data.name,
+      'password': data.password
+    }));
+
+    final response = await channel.stream.firstWhere((message) {
+      final decodedMessage = jsonDecode(message);
+      return decodedMessage['action'] == 'signup';
     });
+
+    final decodedMessage = jsonDecode(response);
+    if (decodedMessage['status'] == 'error') {
+      return decodedMessage['message'];
+    } else {
+      return null;
+    }
   }
 
-  Future<String?> _recoverPassword(String name) {
+  Future<String?> _recoverPassword(String name) async {
     debugPrint('名字: $name');
-    return Future.delayed(loginTime).then((_) async {
-      if (!users.containsKey(name)) {
-        return '用户不存在';
-      }
-      // 这里返回 null，但确保返回的是 Future 类型
-      return null;
+    channel.sink.add(jsonEncode({
+      'action': 'recover',
+      'username': name
+    }));
+
+    final response = await channel.stream.firstWhere((message) {
+      final decodedMessage = jsonDecode(message);
+      return decodedMessage['action'] == 'recover';
     });
+
+    final decodedMessage = jsonDecode(response);
+    if (decodedMessage['status'] == 'error') {
+      return decodedMessage['message'];
+    } else {
+      return null;
+    }
   }
 
   @override
