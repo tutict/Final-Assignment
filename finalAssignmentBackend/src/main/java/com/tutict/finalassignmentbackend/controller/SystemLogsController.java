@@ -12,7 +12,7 @@ import java.util.Date;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/systemLogs")
+@RequestMapping("/eventbus/systemLogs")
 public class SystemLogsController {
 
     private final SystemLogsService systemLogsService;

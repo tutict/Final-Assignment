@@ -7,7 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/systemSettings")
+@RequestMapping("/eventbus/systemSettings")
 public class SystemSettingsController {
 
     private final SystemSettingsService systemSettingsService;

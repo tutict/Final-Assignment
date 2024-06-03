@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_login/flutter_login.dart';
 import 'package:get/get.dart';
-import 'package:web_socket_channel/io.dart';
-import 'package:web_socket_channel/web_socket_channel.dart';
 import 'dart:convert';
 import 'package:final_assignment_front/features/dashboard/views/screens/dashboard_screen.dart';
+import 'package:final_assignment_front/config/websocket/websocket_service.dart';
 
 import '../../config/routes/app_pages.dart';
 
@@ -16,18 +15,17 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  late WebSocketChannel channel;
-  final String websocketUrl = 'wss://localhost:8082/eventbus'; // 更新为实际的 URL
+  late WebSocketService webSocketService;
 
   @override
   void initState() {
     super.initState();
-    channel = IOWebSocketChannel.connect(websocketUrl);
+    webSocketService = WebSocketService();
   }
 
   @override
   void dispose() {
-    channel.sink.close();
+    webSocketService.close();
     super.dispose();
   }
 
@@ -35,13 +33,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<String?> _authUser(LoginData data) async {
     debugPrint('用户名: ${data.name}, 密码: ${data.password}');
-    channel.sink.add(jsonEncode({
+    webSocketService.sendMessage(jsonEncode({
       'action': 'auth/login',
       'username': data.name,
       'password': data.password
     }));
 
-    final response = await channel.stream.firstWhere((message) {
+    final response = await webSocketService.getMessages().firstWhere((message) {
       final decodedMessage = jsonDecode(message);
       return decodedMessage['action'] == 'login';
     });
@@ -60,13 +58,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<String?> _signupUser(SignupData data) async {
     debugPrint('名字: ${data.name}, 密码: ${data.password}');
-    channel.sink.add(jsonEncode({
+    webSocketService.sendMessage(jsonEncode({
       'action': 'auth/signup',
       'username': data.name,
       'password': data.password
     }));
 
-    final response = await channel.stream.firstWhere((message) {
+    final response = await webSocketService.getMessages().firstWhere((message) {
       final decodedMessage = jsonDecode(message);
       return decodedMessage['action'] == 'signup';
     });
@@ -81,12 +79,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<String?> _recoverPassword(String name) async {
     debugPrint('名字: $name');
-    channel.sink.add(jsonEncode({
+    webSocketService.sendMessage(jsonEncode({
       'action': 'auth/recover',
       'username': name
     }));
 
-    final response = await channel.stream.firstWhere((message) {
+    final response = await webSocketService.getMessages().firstWhere((message) {
       final decodedMessage = jsonDecode(message);
       return decodedMessage['action'] == 'recover';
     });

@@ -5,7 +5,6 @@ import jakarta.annotation.PostConstruct;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
-import org.springframework.web.servlet.config.annotation.CorsRegistration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -23,8 +22,8 @@ public class FinalAssignmentBackendApplication {
         return new WebMvcConfigurer() {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
-                CorsRegistration reg = registry.addMapping("/ws/**");
-                reg.allowedOrigins("*")
+                registry.addMapping("/**")
+                        .allowedOrigins("http://localhost:8082") // 根据需求设置允许的来源
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                         .allowedHeaders("*")
                         .exposedHeaders("Authorization")
@@ -33,6 +32,7 @@ public class FinalAssignmentBackendApplication {
             }
         };
     }
+
 
     @PostConstruct
     public void deployVerticles() {

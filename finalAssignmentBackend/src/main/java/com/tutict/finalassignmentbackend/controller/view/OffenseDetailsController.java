@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 @RestController
-@RequestMapping("/offense-details")
+@RequestMapping("/eventbus/offense-details")
 public class OffenseDetailsController {
 
     private final OffenseDetailsMapper offenseDetailsMapper;

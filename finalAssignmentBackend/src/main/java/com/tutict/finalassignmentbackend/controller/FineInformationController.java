@@ -12,7 +12,7 @@ import java.util.Date;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/fines")
+@RequestMapping("/eventbus/fines")
 public class FineInformationController {
 
     private final FineInformationService fineInformationService;

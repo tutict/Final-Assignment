@@ -12,7 +12,7 @@ import java.util.Date;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/offenses")
+@RequestMapping("/eventbus/offenses")
 public class OffenseInformationController {
 
     private final OffenseInformationService offenseInformationService;

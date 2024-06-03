@@ -12,7 +12,7 @@ import java.util.Date;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/deductions")
+@RequestMapping("/eventbus/deductions")
 public class DeductionInformationController {
 
     private final DeductionInformationService deductionInformationService;

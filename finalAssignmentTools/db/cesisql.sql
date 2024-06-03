@@ -23,6 +23,7 @@ DROP TABLE IF EXISTS `appeal_management`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `appeal_management` (
+  `appeal_id` INT(11) NOT NULL AUTO_INCREMENT,
   `offense_id` int(11) DEFAULT NULL,
   `appellant_name` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `id_card_number` varchar(18) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
@@ -31,6 +32,7 @@ CREATE TABLE `appeal_management` (
   `appeal_time` datetime DEFAULT NULL,
   `process_status` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `process_result` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`appeal_id`),
   KEY `offense_id` (`offense_id`),
   CONSTRAINT `appeal_management_ibfk_1` FOREIGN KEY (`offense_id`) REFERENCES `offense_information` (`offense_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -107,19 +109,20 @@ UNLOCK TABLES;
 --
 -- Table structure for table `deduction_information`
 --
-
 DROP TABLE IF EXISTS `deduction_information`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `deduction_information` (
-  `offense_id` int(11) DEFAULT NULL,
-  `deducted_points` int(11) DEFAULT NULL,
-  `deduction_time` datetime DEFAULT NULL,
-  `handler` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `approver` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `remarks` text COLLATE utf8mb4_unicode_ci,
-  KEY `offense_id` (`offense_id`),
-  CONSTRAINT `deduction_information_ibfk_1` FOREIGN KEY (`offense_id`) REFERENCES `offense_information` (`offense_id`)
+                                         `deduction_id` INT(11) NOT NULL AUTO_INCREMENT, -- 新增主键列
+                                         `offense_id` int(11) DEFAULT NULL,
+                                         `deducted_points` int(11) DEFAULT NULL,
+                                         `deduction_time` datetime DEFAULT NULL,
+                                         `handler` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+                                         `approver` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+                                         `remarks` text COLLATE utf8mb4_unicode_ci,
+                                         PRIMARY KEY (`deduction_id`), -- 设置 deduction_id 为主键
+                                         KEY `offense_id` (`offense_id`),
+                                         CONSTRAINT `deduction_information_ibfk_1` FOREIGN KEY (`offense_id`) REFERENCES `offense_information` (`offense_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -172,6 +175,7 @@ DROP TABLE IF EXISTS `fine_information`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `fine_information` (
+    `fine_id` int(11) NOT NULL AUTO_INCREMENT,
   `offense_id` int(11) DEFAULT NULL,
   `fine_amount` decimal(10,2) DEFAULT NULL,
   `fine_time` datetime DEFAULT NULL,
@@ -180,6 +184,7 @@ CREATE TABLE `fine_information` (
   `bank` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `receipt_number` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `remarks` text COLLATE utf8mb4_unicode_ci,
+  PRIMARY KEY (`fine_id`),
   KEY `offense_id` (`offense_id`),
   CONSTRAINT `fine_information_ibfk_1` FOREIGN KEY (`offense_id`) REFERENCES `offense_information` (`offense_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -236,7 +241,7 @@ CREATE TABLE `offense_appeal` (
   KEY `offense_id` (`offense_id`),
   KEY `appeal_id` (`appeal_id`),
   CONSTRAINT `offense_appeal_ibfk_1` FOREIGN KEY (`offense_id`) REFERENCES `offense_information` (`offense_id`),
-  CONSTRAINT `offense_appeal_ibfk_2` FOREIGN KEY (`appeal_id`) REFERENCES `appeal_management` (`offense_id`)
+  CONSTRAINT `offense_appeal_ibfk_2` FOREIGN KEY (`appeal_id`) REFERENCES `appeal_management` (`appeal_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -257,15 +262,14 @@ DROP TABLE IF EXISTS `offense_deduction`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `offense_deduction` (
-  `offense_id` int(11) DEFAULT NULL,
-  `deduction_id` int(11) DEFAULT NULL,
-  KEY `offense_id` (`offense_id`),
-  KEY `deduction_id` (`deduction_id`),
-  CONSTRAINT `offense_deduction_ibfk_1` FOREIGN KEY (`offense_id`) REFERENCES `offense_information` (`offense_id`),
-  CONSTRAINT `offense_deduction_ibfk_2` FOREIGN KEY (`deduction_id`) REFERENCES `deduction_information` (`offense_id`)
+                                     `offense_id` int(11) DEFAULT NULL,
+                                     `deduction_id` int(11) DEFAULT NULL,
+                                     KEY `offense_id` (`offense_id`),
+                                     KEY `deduction_id` (`deduction_id`),
+                                     CONSTRAINT `offense_deduction_ibfk_1` FOREIGN KEY (`offense_id`) REFERENCES `offense_information` (`offense_id`),
+                                     CONSTRAINT `offense_deduction_ibfk_2` FOREIGN KEY (`deduction_id`) REFERENCES `deduction_information` (`deduction_id`) -- 修改这里
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-
 --
 -- Dumping data for table `offense_deduction`
 --
@@ -309,7 +313,7 @@ CREATE TABLE `offense_fine` (
   KEY `offense_id` (`offense_id`),
   KEY `fine_id` (`fine_id`),
   CONSTRAINT `offense_fine_ibfk_1` FOREIGN KEY (`offense_id`) REFERENCES `offense_information` (`offense_id`),
-  CONSTRAINT `offense_fine_ibfk_2` FOREIGN KEY (`fine_id`) REFERENCES `fine_information` (`offense_id`)
+  CONSTRAINT `offense_fine_ibfk_2` FOREIGN KEY (`fine_id`) REFERENCES `fine_information` (`fine_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 

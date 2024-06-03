@@ -2,45 +2,52 @@ package com.tutict.finalassignmentbackend.config.vertx;
 
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Promise;
-import io.vertx.core.http.HttpServer;
+import io.vertx.ext.bridge.PermittedOptions;
 import io.vertx.ext.web.Router;
+import io.vertx.ext.web.handler.sockjs.SockJSBridgeOptions;
 import io.vertx.ext.web.handler.sockjs.SockJSHandler;
 import io.vertx.ext.web.handler.sockjs.SockJSHandlerOptions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 @Component
 public class WebSocketServer extends AbstractVerticle {
 
+    private static final Logger logger = LoggerFactory.getLogger(WebSocketServer.class);
+
+    @Value("${server.port}")
+    private int port;
+
     @Override
     public void start(Promise<Void> startPromise) {
-        // 创建 Vert.x 事件总线
         Router router = Router.router(vertx);
 
-        // 创建 SockJS 处理器
-        SockJSHandlerOptions options = new SockJSHandlerOptions().setHeartbeatInterval(3000);
-        SockJSHandler sockJSHandler = SockJSHandler.create(vertx, options);
+        SockJSHandlerOptions sockJSOptions = new SockJSHandlerOptions().setHeartbeatInterval(3000);
+        SockJSHandler sockJSHandler = SockJSHandler.create(vertx, sockJSOptions);
 
-        // 将 SockJS 处理器添加到路由器
+        SockJSBridgeOptions bridgeOptions = new SockJSBridgeOptions()
+                .addInboundPermitted(new PermittedOptions().setAddress("chat.to.server"))
+                .addOutboundPermitted(new PermittedOptions().setAddress("chat.to.client"));
+
+        sockJSHandler.bridge(bridgeOptions);
+
         router.route("/eventbus/*").handler(sockJSHandler);
 
-        // 创建 HTTP 服务器
-        HttpServer server = vertx.createHttpServer();
-
-        // 将路由器与 HTTP 服务器关联
-        server.requestHandler(router).listen(8082, res -> {
+        vertx.createHttpServer().requestHandler(router).listen(port, res -> {
             if (res.succeeded()) {
-                System.out.println("WebSocket server is up and running on port 8082!");
+                logger.info("WebSocket server is up and running on port {}", port);
                 startPromise.complete();
             } else {
-                System.err.println("Could not start WebSocket server on port 8082");
+                logger.error("Could not start WebSocket server on port {}", port, res.cause());
                 startPromise.fail(res.cause());
             }
         });
 
-        // 为 SockJS 配置事件总线
-        vertx.eventBus().consumer("events", message -> {
-            // 处理来自 WebSocket 客户端的消息
-            System.out.println("Received message: " + message.body());
+        vertx.eventBus().<String>consumer("chat.to.server", message -> {
+            logger.info("Received message: {}", message.body());
+            vertx.eventBus().publish("chat.to.client", "Reply: " + message.body());
         });
     }
 }

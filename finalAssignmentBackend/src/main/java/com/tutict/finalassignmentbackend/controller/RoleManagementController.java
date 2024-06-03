@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/roles")
+@RequestMapping("/eventbus/roles")
 public class RoleManagementController {
 
     private final RoleManagementService roleManagementService;

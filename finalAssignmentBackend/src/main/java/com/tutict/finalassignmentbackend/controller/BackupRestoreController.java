@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/backups")
+@RequestMapping("/eventbus/backups")
 public class BackupRestoreController {
 
     private final BackupRestoreService backupRestoreService;

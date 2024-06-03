@@ -13,7 +13,7 @@ import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
-@RequestMapping("/captcha")
+@RequestMapping("/eventbus/captcha")
 public class CaptchaController {
 
     @Resource
