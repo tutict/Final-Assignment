@@ -3,7 +3,7 @@ import 'package:w_transport/vm.dart' show configureWTransportForVM;
 
 class WebSocketService {
   transport.WebSocket? webSocket;
-  final String websocketUrl = 'ws://localhost:8082/eventbus/';
+  final String websocketUrl = 'wss://localhost:8082/eventbus/users';
 
   WebSocketService() {
     configureWTransportForVM();
