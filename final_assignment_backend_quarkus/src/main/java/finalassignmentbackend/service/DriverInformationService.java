@@ -1,55 +1,53 @@
 package finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.tutict.finalassignmentbackend.mapper.DriverInformationMapper;
-import com.tutict.finalassignmentbackend.entity.DriverInformation;
+import finalassignmentbackend.mapper.DriverInformationMapper;
+import finalassignmentbackend.entity.DriverInformation;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import jakarta.transaction.Transactional;
+import org.eclipse.microprofile.reactive.messaging.Channel;
+import org.eclipse.microprofile.reactive.messaging.Emitter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.kafka.support.SendResult;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
-@Service
+@ApplicationScoped
 public class DriverInformationService {
 
     private static final Logger log = LoggerFactory.getLogger(DriverInformationService.class);
 
+    @Inject
+    DriverInformationMapper driverInformationMapper;
 
-    private final DriverInformationMapper driverInformationMapper;
-    private final KafkaTemplate<String, DriverInformation> kafkaTemplate;
+    @Inject
+    @Channel("driver_create")
+    Emitter<DriverInformation> driverCreateEmitter;
 
-    @Autowired
-    public DriverInformationService(DriverInformationMapper driverInformationMapper, KafkaTemplate<String, DriverInformation> kafkaTemplate) {
-        this.driverInformationMapper = driverInformationMapper;
-        this.kafkaTemplate = kafkaTemplate;
-    }
+    @Inject
+    @Channel("driver_update")
+    Emitter<DriverInformation> driverUpdateEmitter;
 
     @Transactional
     public void createDriver(DriverInformation driverInformation) {
         try {
             // 异步发送消息到 Kafka，并处理发送结果
-            CompletableFuture<SendResult<String, DriverInformation>> future = kafkaTemplate.send("driver_create", driverInformation);
+            driverCreateEmitter.send(driverInformation).toCompletableFuture().exceptionally(ex -> {
 
-            // 处理发送成功的情况
-            future.thenAccept(sendResult -> log.info("Create message sent to Kafka successfully: {}", sendResult.toString())).exceptionally(ex -> {
                 // 处理发送失败的情况
                 log.error("Failed to send message to Kafka, triggering transaction rollback", ex);
                 // 抛出异常
                 throw new RuntimeException("Kafka message send failure", ex);
             });
 
-            // 由于是异步发送，不需要等待发送完成，Spring事务管理器将处理事务
+            // 由于是异步发送，不需要等待发送完成，事务管理器将处理事务
             driverInformationMapper.insert(driverInformation);
 
         } catch (Exception e) {
             // 记录异常信息
             log.error("Exception occurred while updating appeal or sending Kafka message", e);
-            // 异常将由Spring事务管理器处理，可能触发事务回滚
+            // 异常将由事务管理器处理，可能触发事务回滚
             throw e;
         }
     }
@@ -66,23 +64,21 @@ public class DriverInformationService {
     public void updateDriver(DriverInformation driverInformation) {
         try {
             // 异步发送消息到 Kafka，并处理发送结果
-            CompletableFuture<SendResult<String, DriverInformation>> future = kafkaTemplate.send("driver_update", driverInformation);
+            driverUpdateEmitter.send(driverInformation).toCompletableFuture().exceptionally(ex -> {
 
-            // 处理发送成功的情况
-            future.thenAccept(sendResult -> log.info("Update message sent to Kafka successfully: {}", sendResult.toString())).exceptionally(ex -> {
                 // 处理发送失败的情况
                 log.error("Failed to send message to Kafka, triggering transaction rollback", ex);
                 // 抛出异常
                 throw new RuntimeException("Kafka message send failure", ex);
             });
 
-            // 由于是异步发送，不需要等待发送完成，Spring事务管理器将处理事务
+            // 由于是异步发送，不需要等待发送完成，事务管理器将处理事务
             driverInformationMapper.updateById(driverInformation);
 
         } catch (Exception e) {
             // 记录异常信息
             log.error("Exception occurred while updating appeal or sending Kafka message", e);
-            // 异常将由Spring事务管理器处理，可能触发事务回滚
+            // 异常将由事务管理器处理，可能触发事务回滚
             throw e;
         }
     }

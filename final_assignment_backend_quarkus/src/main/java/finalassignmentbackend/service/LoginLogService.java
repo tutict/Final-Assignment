@@ -1,43 +1,41 @@
 package finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.tutict.finalassignmentbackend.mapper.LoginLogMapper;
-import com.tutict.finalassignmentbackend.entity.LoginLog;
+import finalassignmentbackend.mapper.LoginLogMapper;
+import finalassignmentbackend.entity.LoginLog;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import jakarta.transaction.Transactional;
+import org.eclipse.microprofile.reactive.messaging.Channel;
+import org.eclipse.microprofile.reactive.messaging.Emitter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.kafka.support.SendResult;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Date;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
-@Service
+@ApplicationScoped
 public class LoginLogService {
 
     private static final Logger log = LoggerFactory.getLogger(LoginLogService.class);
 
+    @Inject
+    LoginLogMapper loginLogMapper;
 
-    private final LoginLogMapper loginLogMapper;
-    private final KafkaTemplate<String, LoginLog> kafkaTemplate;
+    @Inject
+    @Channel("login_create")
+    Emitter<LoginLog> loginCreateEmitter;
 
-    @Autowired
-    public LoginLogService(LoginLogMapper loginLogMapper, KafkaTemplate<String, LoginLog> kafkaTemplate) {
-        this.loginLogMapper = loginLogMapper;
-        this.kafkaTemplate = kafkaTemplate;
-    }
+    @Inject
+    @Channel("login_update")
+    Emitter<LoginLog> loginUpdateEmitter;
 
     @Transactional
     public void createLoginLog(LoginLog loginLog) {
         try {
             // 异步发送消息到 Kafka，并处理发送结果
-            CompletableFuture<SendResult<String, LoginLog>> future = kafkaTemplate.send("login_create", loginLog);
+            loginCreateEmitter.send(loginLog).toCompletableFuture().exceptionally(ex -> {
 
-            // 处理发送成功的情况
-            future.thenAccept(sendResult -> log.info("Create message sent to Kafka successfully: {}", sendResult.toString())).exceptionally(ex -> {
                 // 处理发送失败的情况
                 log.error("Failed to send message to Kafka, triggering transaction rollback", ex);
                 // 抛出异常
@@ -67,10 +65,8 @@ public class LoginLogService {
     public void updateLoginLog(LoginLog loginLog) {
         try {
             // 异步发送消息到 Kafka，并处理发送结果
-            CompletableFuture<SendResult<String, LoginLog>> future = kafkaTemplate.send("login_update", loginLog);
+            loginCreateEmitter.send(loginLog).toCompletableFuture().exceptionally(ex -> {
 
-            // 处理发送成功的情况
-            future.thenAccept(sendResult -> log.info("Update message sent to Kafka successfully: {}", sendResult.toString())).exceptionally(ex -> {
                 // 处理发送失败的情况
                 log.error("Failed to send message to Kafka, triggering transaction rollback", ex);
                 // 抛出异常

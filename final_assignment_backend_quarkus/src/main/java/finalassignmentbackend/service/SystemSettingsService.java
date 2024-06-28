@@ -1,30 +1,30 @@
 package finalassignmentbackend.service;
 
-import com.tutict.finalassignmentbackend.mapper.SystemSettingsMapper;
-import com.tutict.finalassignmentbackend.entity.SystemSettings;
+import finalassignmentbackend.mapper.SystemSettingsMapper;
+import finalassignmentbackend.entity.SystemSettings;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import jakarta.transaction.Transactional;
+import org.eclipse.microprofile.reactive.messaging.Channel;
+import org.eclipse.microprofile.reactive.messaging.Emitter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.kafka.support.SendResult;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.util.concurrent.CompletableFuture;
-
-@Service
+@ApplicationScoped
 public class SystemSettingsService {
 
     private static final Logger log = LoggerFactory.getLogger(SystemLogsService.class);
 
-    private final SystemSettingsMapper systemSettingsMapper;
-    private final KafkaTemplate<String, SystemSettings> kafkaTemplate;
+    @Inject
+    SystemSettingsMapper systemSettingsMapper;
 
-    @Autowired
-    public SystemSettingsService(SystemSettingsMapper systemSettingsMapper, KafkaTemplate<String, SystemSettings> kafkaTemplate) {
-        this.systemSettingsMapper = systemSettingsMapper;
-        this.kafkaTemplate = kafkaTemplate;
-    }
+    @Inject
+    @Channel("system_settings_update")
+    Emitter<SystemSettings> systemSettingsUpdateEmitter;
+
+    @Inject
+    @Channel("system_settings_create")
+    Emitter<SystemSettings> systemSettingsCreateEmitter;
 
     // 获取系统设置
     public SystemSettings getSystemSettings() {
@@ -36,10 +36,8 @@ public class SystemSettingsService {
     public void updateSystemSettings(SystemSettings systemSettings) {
         try {
             // 异步发送消息到 Kafka，并处理发送结果
-            CompletableFuture<SendResult<String, SystemSettings>> future = kafkaTemplate.send("system_settings_update", systemSettings);
+            systemSettingsCreateEmitter.send(systemSettings).toCompletableFuture().exceptionally(ex -> {
 
-            // 处理发送成功的情况
-            future.thenAccept(sendResult -> log.info("Create message sent to Kafka successfully: {}", sendResult.toString())).exceptionally(ex -> {
                 // 处理发送失败的情况
                 log.error("Failed to send message to Kafka, triggering transaction rollback", ex);
                 // 抛出异常

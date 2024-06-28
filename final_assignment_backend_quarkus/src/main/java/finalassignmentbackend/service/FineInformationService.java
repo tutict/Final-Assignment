@@ -1,40 +1,39 @@
 package finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.tutict.finalassignmentbackend.mapper.FineInformationMapper;
-import com.tutict.finalassignmentbackend.entity.FineInformation;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.kafka.support.SendResult;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import finalassignmentbackend.mapper.FineInformationMapper;
+import finalassignmentbackend.entity.FineInformation;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import jakarta.transaction.Transactional;
+import org.eclipse.microprofile.reactive.messaging.Channel;
+import org.eclipse.microprofile.reactive.messaging.Emitter;
 
 import java.util.Date;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
-@Service
+@ApplicationScoped
 public class FineInformationService {
 
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(FineInformationService.class);
 
-    private final FineInformationMapper fineInformationMapper;
-    private final KafkaTemplate<String, FineInformation> kafkaTemplate;
+    @Inject
+    FineInformationMapper fineInformationMapper;
 
-    @Autowired
-    public FineInformationService(FineInformationMapper fineInformationMapper, KafkaTemplate<String, FineInformation> kafkaTemplate) {
-        this.fineInformationMapper = fineInformationMapper;
-        this.kafkaTemplate = kafkaTemplate;
-    }
+    @Inject
+    @Channel("fine_create")
+    Emitter<FineInformation> fineCreateEmitter;
+
+    @Inject
+    @Channel("fine_update")
+    Emitter<FineInformation> fineUpdateEmitter;
 
     @Transactional
     public void createFine(FineInformation fineInformation) {
         try {
             // 异步发送消息到 Kafka，并处理发送结果
-            CompletableFuture<SendResult<String, FineInformation>> future =kafkaTemplate.send("fine_create", fineInformation);
+            fineCreateEmitter.send(fineInformation).toCompletableFuture().exceptionally(ex -> {
 
-            // 处理发送成功的情况
-            future.thenAccept(sendResult -> log.info("Create message sent to Kafka successfully: {}", sendResult.toString())).exceptionally(ex -> {
                 // 处理发送失败的情况
                 log.error("Failed to send message to Kafka, triggering transaction rollback", ex);
                 // 抛出异常
@@ -64,10 +63,8 @@ public class FineInformationService {
     public void updateFine(FineInformation fineInformation) {
         try {
             // 异步发送消息到 Kafka，并处理发送结果
-            CompletableFuture<SendResult<String, FineInformation>> future =kafkaTemplate.send("fine_update", fineInformation);
+            fineUpdateEmitter.send(fineInformation).toCompletableFuture().exceptionally(ex -> {
 
-            // 处理发送成功的情况
-            future.thenAccept(sendResult -> log.info("Update message sent to Kafka successfully: {}", sendResult.toString())).exceptionally(ex -> {
                 // 处理发送失败的情况
                 log.error("Failed to send message to Kafka, triggering transaction rollback", ex);
                 // 抛出异常

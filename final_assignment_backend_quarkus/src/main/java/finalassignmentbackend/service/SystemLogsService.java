@@ -1,43 +1,41 @@
 package finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.tutict.finalassignmentbackend.mapper.SystemLogsMapper;
-import com.tutict.finalassignmentbackend.entity.SystemLogs;
+import finalassignmentbackend.mapper.SystemLogsMapper;
+import finalassignmentbackend.entity.SystemLogs;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import jakarta.transaction.Transactional;
+import org.eclipse.microprofile.reactive.messaging.Channel;
+import org.eclipse.microprofile.reactive.messaging.Emitter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.kafka.support.SendResult;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Date;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
-@Service
+@ApplicationScoped
 public class SystemLogsService {
 
     private static final Logger log = LoggerFactory.getLogger(SystemLogsService.class);
 
-    private final SystemLogsMapper systemLogsMapper;
-    private final KafkaTemplate<String, SystemLogs> kafkaTemplate;
+    @Inject
+    SystemLogsMapper systemLogsMapper;
 
-    @Autowired
-    public SystemLogsService(SystemLogsMapper systemLogsMapper, KafkaTemplate<String, SystemLogs> kafkaTemplate) {
-        this.systemLogsMapper = systemLogsMapper;
-        this.kafkaTemplate = kafkaTemplate;
-    }
+    @Inject
+    @Channel("system_create")
+    Emitter<SystemLogs> systemCreateEmitter;
+
+    @Inject
+    @Channel("system_update")
+    Emitter<SystemLogs> systemUpdateEmitter;
 
     // 创建系统日志
     @Transactional
     public void createSystemLog(SystemLogs systemLog) {
         try {
             // 异步发送消息到 Kafka，并处理发送结果
-            CompletableFuture<SendResult<String, SystemLogs>> future =  kafkaTemplate.send("system_create", systemLog);
-
-            // 处理发送成功的情况
-            future.thenAccept(sendResult -> log.info("Create message sent to Kafka successfully: {}", sendResult.toString())).exceptionally(ex -> {
+            systemCreateEmitter.send(systemLog).toCompletableFuture().exceptionally(ex -> {
                 // 处理发送失败的情况
                 log.error("Failed to send message to Kafka, triggering transaction rollback", ex);
                 // 抛出异常
@@ -91,10 +89,7 @@ public class SystemLogsService {
     public void updateSystemLog(SystemLogs systemLog) {
         try {
             // 异步发送消息到 Kafka，并处理发送结果
-            CompletableFuture<SendResult<String, SystemLogs>> future =   kafkaTemplate.send("system_update", systemLog);
-
-            // 处理发送成功的情况
-            future.thenAccept(sendResult -> log.info("Update message sent to Kafka successfully: {}", sendResult.toString())).exceptionally(ex -> {
+            systemUpdateEmitter.send(systemLog).toCompletableFuture().exceptionally(ex -> {
                 // 处理发送失败的情况
                 log.error("Failed to send message to Kafka, triggering transaction rollback", ex);
                 // 抛出异常

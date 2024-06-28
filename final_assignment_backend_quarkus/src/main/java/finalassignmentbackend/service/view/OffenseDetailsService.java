@@ -1,24 +1,27 @@
 package finalassignmentbackend.service.view;
 
-import com.tutict.finalassignmentbackend.mapper.view.OffenseDetailsMapper;
-import com.tutict.finalassignmentbackend.entity.view.OffenseDetails;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.stereotype.Service;
+import finalassignmentbackend.mapper.view.OffenseDetailsMapper;
+import finalassignmentbackend.entity.view.OffenseDetails;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import org.eclipse.microprofile.reactive.messaging.Channel;
+import org.eclipse.microprofile.reactive.messaging.Emitter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
-@Service
+@ApplicationScoped
 public class OffenseDetailsService {
 
-    private final OffenseDetailsMapper offenseDetailsMapper;
-    private final KafkaTemplate<String, OffenseDetails> kafkaTemplate;
+    private static final Logger log = LoggerFactory.getLogger(OffenseDetailsService.class);
 
-    @Autowired
-    public OffenseDetailsService(OffenseDetailsMapper offenseDetailsMapper, KafkaTemplate<String, OffenseDetails> kafkaTemplate) {
-        this.offenseDetailsMapper = offenseDetailsMapper;
-        this.kafkaTemplate = kafkaTemplate;
-    }
+    @Inject
+    OffenseDetailsMapper offenseDetailsMapper;
+
+    @Inject
+    @Channel("offense_details_topic")
+    Emitter<OffenseDetails> offenseDetailsEmitter;
 
     public List<OffenseDetails> getAllOffenseDetails() {
         return offenseDetailsMapper.selectList(null);
@@ -30,7 +33,10 @@ public class OffenseDetailsService {
 
     // 创建方法，用于发送 OffenseDetails 对象到 Kafka 主题
     public void sendOffenseDetailsToKafka(OffenseDetails offenseDetails) {
-        kafkaTemplate.send("offense_details_topic", offenseDetails);
+        offenseDetailsEmitter.send(offenseDetails).toCompletableFuture().exceptionally(ex -> {
+            log.error("Failed to send OffenseDetails to Kafka", ex);
+            return null;
+        });
     }
 
     public void saveOffenseDetails(OffenseDetails offenseDetails) {

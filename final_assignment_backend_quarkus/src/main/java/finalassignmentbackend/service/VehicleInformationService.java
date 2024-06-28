@@ -1,42 +1,41 @@
 package finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.tutict.finalassignmentbackend.mapper.VehicleInformationMapper;
-import com.tutict.finalassignmentbackend.entity.VehicleInformation;
+import finalassignmentbackend.mapper.VehicleInformationMapper;
+import finalassignmentbackend.entity.VehicleInformation;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import jakarta.transaction.Transactional;
+import org.eclipse.microprofile.reactive.messaging.Channel;
+import org.eclipse.microprofile.reactive.messaging.Emitter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.kafka.support.SendResult;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
-@Service
+@ApplicationScoped
 public class VehicleInformationService {
 
     private static final Logger log = LoggerFactory.getLogger(VehicleInformationService.class);
 
-    private final VehicleInformationMapper vehicleInformationMapper;
-    private final KafkaTemplate<String, VehicleInformation> kafkaTemplate;
+    @Inject
+    VehicleInformationMapper vehicleInformationMapper;
 
-    @Autowired
-    public VehicleInformationService(VehicleInformationMapper vehicleInformationMapper, KafkaTemplate<String, VehicleInformation> kafkaTemplate) {
-        this.vehicleInformationMapper = vehicleInformationMapper;
-        this.kafkaTemplate = kafkaTemplate;
-    }
+    @Inject
+    @Channel("vehicle_create")
+    Emitter<VehicleInformation> vehicleCreateEmitter;
+
+    @Inject
+    @Channel("vehicle_update")
+    Emitter<VehicleInformation> vehicleUpdateEmitter;
 
     // 创建车辆信息
     @Transactional
     public void createVehicleInformation(VehicleInformation vehicleInformation) {
         try {
             // 异步发送消息到 Kafka，并处理发送结果
-            CompletableFuture<SendResult<String, VehicleInformation>> future = kafkaTemplate.send("vehicle_create", vehicleInformation);
+            vehicleCreateEmitter.send(vehicleInformation).toCompletableFuture().exceptionally(ex -> {
 
-            // 处理发送成功的情况
-            future.thenAccept(sendResult -> log.info("Create message sent to Kafka successfully: {}", sendResult.toString())).exceptionally(ex -> {
                 // 处理发送失败的情况
                 log.error("Failed to send message to Kafka, triggering transaction rollback", ex);
                 // 抛出异常
@@ -97,10 +96,8 @@ public class VehicleInformationService {
     public void updateVehicleInformation(VehicleInformation vehicleInformation) {
         try {
             // 异步发送消息到 Kafka，并处理发送结果
-            CompletableFuture<SendResult<String, VehicleInformation>> future = kafkaTemplate.send("vehicle_update", vehicleInformation);
+            vehicleUpdateEmitter.send(vehicleInformation).toCompletableFuture().exceptionally(ex -> {
 
-            // 处理发送成功的情况
-            future.thenAccept(sendResult -> log.info("Update message sent to Kafka successfully: {}", sendResult.toString())).exceptionally(ex -> {
                 // 处理发送失败的情况
                 log.error("Failed to send message to Kafka, triggering transaction rollback", ex);
                 // 抛出异常
