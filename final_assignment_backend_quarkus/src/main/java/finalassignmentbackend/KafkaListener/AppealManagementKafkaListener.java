@@ -8,7 +8,6 @@ import io.smallrye.reactive.messaging.annotations.Blocking;
 import io.vertx.core.Future;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.eclipse.microprofile.reactive.messaging.Acknowledgment;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,7 +27,7 @@ public class AppealManagementKafkaListener {
 
     @Incoming("appeal_create")
     @Blocking
-    public void onAppealCreateReceived(String message, Acknowledgment acknowledgment) {
+    public void onAppealCreateReceived(String message) {
         Future.<Void>future(promise -> {
             try {
                 AppealManagement appealManagement = deserializeMessage(message);
@@ -40,7 +39,7 @@ public class AppealManagementKafkaListener {
             }
         }).onComplete(res -> {
             if (res.succeeded()) {
-                acknowledgment.acknowledge();
+                log.info("Successfully create appeal message: {}", message);
             } else {
                 log.error("Error processing create appeal message: {}", message, res.cause());
             }
@@ -49,7 +48,7 @@ public class AppealManagementKafkaListener {
 
     @Incoming("appeal_updated")
     @Blocking
-    public void onAppealUpdateReceived(String message, Acknowledgment acknowledgment) {
+    public void onAppealUpdateReceived(String message) {
         Future.<Void>future(promise -> {
             try {
                 AppealManagement appealManagement = deserializeMessage(message);
@@ -61,7 +60,7 @@ public class AppealManagementKafkaListener {
             }
         }).onComplete(res -> {
             if (res.succeeded()) {
-                acknowledgment.acknowledge();
+                log.info("Successfully update appeal message: {}", message);
             } else {
                 log.error("Error processing update appeal message: {}", message, res.cause());
             }

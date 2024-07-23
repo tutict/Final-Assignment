@@ -8,7 +8,6 @@ import io.smallrye.reactive.messaging.annotations.Blocking;
 import io.vertx.core.Future;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.eclipse.microprofile.reactive.messaging.Acknowledgment;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,7 +26,7 @@ public class SystemSettingsKafkaListener {
 
     @Incoming("system_settings_create")
     @Blocking
-    public void onSystemSettingsUpdateReceived(String message, Acknowledgment acknowledgment) {
+    public void onSystemSettingsUpdateReceived(String message) {
         Future.<Void>future(promise -> {
             try {
                 // 反序列化消息内容为SystemSettings对象
@@ -46,7 +45,7 @@ public class SystemSettingsKafkaListener {
             }
         }).onComplete(res -> {
             if (res.succeeded()) {
-                acknowledgment.acknowledge();
+                log.info("Successfully update system settings message: {}", message);
             } else {
                 log.error("Error processing update system settings message: {}", message, res.cause());
             }

@@ -8,7 +8,6 @@ import io.smallrye.reactive.messaging.annotations.Blocking;
 import io.vertx.core.Future;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.eclipse.microprofile.reactive.messaging.Acknowledgment;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,7 +27,7 @@ public class DeductionInformationKafkaListener {
 
     @Incoming("deduction_create")
     @Blocking
-    public void onDeductionCreateReceived(String message, Acknowledgment acknowledgment) {
+    public void onDeductionCreateReceived(String message) {
         Future.<Void>future(promise -> {
             try {
                 // 反序列化消息内容为DeductionInformation对象
@@ -41,7 +40,7 @@ public class DeductionInformationKafkaListener {
             }
         }).onComplete(res -> {
             if (res.succeeded()) {
-                acknowledgment.acknowledge();
+                log.info("Successfully create deduction message: {}", message);
             } else {
                 log.error("Error processing create deduction message: {}", message, res.cause());
             }
@@ -50,7 +49,7 @@ public class DeductionInformationKafkaListener {
 
     @Incoming("deduction_update")
     @Blocking
-    public void onDeductionUpdateReceived(String message, Acknowledgment acknowledgment) {
+    public void onDeductionUpdateReceived(String message) {
         Future.<Void>future(promise -> {
             try {
                 // 反序列化消息内容为DeductionInformation对象
@@ -68,7 +67,7 @@ public class DeductionInformationKafkaListener {
             }
         }).onComplete(res -> {
             if (res.succeeded()) {
-                acknowledgment.acknowledge();
+                log.info("Successfully update deduction message: {}", message);
             } else {
                 log.error("Error processing update deduction message: {}", message, res.cause());
             }

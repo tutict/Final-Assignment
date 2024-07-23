@@ -8,7 +8,6 @@ import io.smallrye.reactive.messaging.annotations.Blocking;
 import io.vertx.core.Future;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.eclipse.microprofile.reactive.messaging.Acknowledgment;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,7 +26,7 @@ public class DriverInformationKafkaListener {
 
     @Incoming("driver_create")
     @Blocking
-    public void onDriverCreateReceived(String message, Acknowledgment acknowledgment) {
+    public void onDriverCreateReceived(String message) {
         Future.<Void>future(promise -> {
             try {
                 // 反序列化消息内容为DriverInformation对象
@@ -44,7 +43,7 @@ public class DriverInformationKafkaListener {
         }).onComplete(res -> {
             if (res.succeeded()) {
                 // 确认消息已被成功处理
-                acknowledgment.acknowledge();
+                log.info("Successfully create driver message: {}", message);
             } else {
                 log.error("Error processing create driver message: {}", message, res.cause());
             }
@@ -53,7 +52,7 @@ public class DriverInformationKafkaListener {
 
     @Incoming("driver_update")
     @Blocking
-    public void onDriverUpdateReceived(String message, Acknowledgment acknowledgment) {
+    public void onDriverUpdateReceived(String message) {
         Future.<Void>future(promise -> {
             try {
                 // 反序列化消息内容为DriverInformation对象
@@ -71,7 +70,7 @@ public class DriverInformationKafkaListener {
         }).onComplete(res -> {
             if (res.succeeded()) {
                 // 确认消息已被成功处理
-                acknowledgment.acknowledge();
+                log.info("Successfully update driver message: {}", message);
             } else {
                 log.error("Error processing update driver message: {}", message, res.cause());
             }

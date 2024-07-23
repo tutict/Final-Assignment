@@ -72,7 +72,7 @@ public class UserManagementKafkaListener {
             if (res.succeeded()) {
                 acknowledgment.acknowledge();
             } else {
-                log.error("Error processing create user message: {}", message, res.cause());
+                log.error("Error processing update user message: {}", message, res.cause());
             }
         });
     }

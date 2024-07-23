@@ -8,7 +8,6 @@ import io.smallrye.reactive.messaging.annotations.Blocking;
 import io.vertx.core.Future;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.eclipse.microprofile.reactive.messaging.Acknowledgment;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,7 +26,7 @@ public class OffenseDetailsKafkaListener {
 
     @Incoming("offense_details_topic")
     @Blocking
-    public void onOffenseDetailsReceived(String message, Acknowledgment acknowledgment) {
+    public void onOffenseDetailsReceived(String message) {
         Future.<Void>future(promise -> {
             try {
                 // 反序列化消息内容为OffenseDetails对象
@@ -45,7 +44,7 @@ public class OffenseDetailsKafkaListener {
         }).onComplete(res -> {
             if (res.succeeded()) {
                 // 消息处理成功，确认消息处理成功
-                acknowledgment.();
+                log.info("Successfully processed offense message: {}", message);
             } else {
                 log.error("Error processing appeal message: {}", message, res.cause());
             }

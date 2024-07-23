@@ -8,7 +8,6 @@ import io.smallrye.reactive.messaging.annotations.Blocking;
 import io.vertx.core.Future;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.eclipse.microprofile.reactive.messaging.Acknowledgment;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,7 +27,7 @@ public class RoleManagementKafkaListener {
 
     @Incoming("role_create")
     @Blocking
-    public void onRoleCreateReceived(String message, Acknowledgment acknowledgment) {
+    public void onRoleCreateReceived(String message) {
         Future.<Void>future(promise -> {
             try {
                 // 反序列化消息内容为RoleManagement对象
@@ -46,7 +45,7 @@ public class RoleManagementKafkaListener {
             }
         }).onComplete(res -> {
             if (res.failed()) {
-                acknowledgment.acknowledge();
+                log.info("Successfully create role message: {}", message);
             } else {
                 log.error("Error processing create role message: {}", message, res.cause());
             }
@@ -55,7 +54,7 @@ public class RoleManagementKafkaListener {
 
     @Incoming("role_update")
     @Blocking
-    public void onRoleUpdateReceived(String message, Acknowledgment acknowledgment) {
+    public void onRoleUpdateReceived(String message) {
         Future.<Void>future(promise -> {
             try {
                 // 反序列化消息内容为RoleManagement对象
@@ -73,7 +72,7 @@ public class RoleManagementKafkaListener {
             }
         }).onComplete(res -> {
             if (res.failed()) {
-                acknowledgment.acknowledge();
+                log.info("Successfully update role message: {}", message);
             } else {
                 log.error("Error processing update role message: {}", message, res.cause());
             }

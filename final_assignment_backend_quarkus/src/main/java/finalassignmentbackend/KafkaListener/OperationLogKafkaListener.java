@@ -8,7 +8,6 @@ import io.smallrye.reactive.messaging.annotations.Blocking;
 import io.vertx.core.Future;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.eclipse.microprofile.reactive.messaging.Acknowledgment;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,7 +27,7 @@ public class OperationLogKafkaListener {
 
     @Incoming("operation_create")
     @Blocking
-    public void onOperationLogCreateReceived(String message, Acknowledgment acknowledgment) {
+    public void onOperationLogCreateReceived(String message) {
         Future.<Void>future(promise -> {
             try {
                 // 反序列化消息内容为OperationLog对象
@@ -45,7 +44,7 @@ public class OperationLogKafkaListener {
             }
         }).onComplete(res -> {
             if (res.succeeded()) {
-                acknowledgment.acknowledge();
+                log.info("Successfully create operation log message: {}", message);
             } else {
                 log.error("Error processing create operation log message: {}", message, res.cause());
             }
@@ -54,7 +53,7 @@ public class OperationLogKafkaListener {
 
     @Incoming("operation_update")
     @Blocking
-    public void onOperationLogUpdateReceived(String message, Acknowledgment acknowledgment) {
+    public void onOperationLogUpdateReceived(String message) {
         Future.<Void>future(promise -> {
             try {
                 // 反序列化消息内容为OperationLog对象
@@ -71,7 +70,7 @@ public class OperationLogKafkaListener {
             }
         }).onComplete(res -> {
             if (res.succeeded()) {
-                acknowledgment.acknowledge();
+                log.info("Successfully update operation log message: {}", message);
             } else {
                 log.error("Error processing update operation log message: {}", message, res.cause());
             }

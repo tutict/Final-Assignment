@@ -8,7 +8,6 @@ import io.smallrye.reactive.messaging.annotations.Blocking;
 import io.vertx.core.Future;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.eclipse.microprofile.reactive.messaging.Acknowledgment;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,7 +26,7 @@ public class BackupRestoreKafkaListener {
 
     @Incoming("backup_create")
     @Blocking
-    public void onBackupCreateReceived(String message, Acknowledgment acknowledgment) {
+    public void onBackupCreateReceived(String message) {
         Future.<Void>future(promise -> {
             try {
                 BackupRestore backupRestore = deserializeMessage(message);
@@ -39,7 +38,7 @@ public class BackupRestoreKafkaListener {
             }
         }).onComplete(res -> {
             if (res.succeeded()) {
-                acknowledgment.acknowledge();
+                log.info("Successfully create backup message: {}", message);
             } else {
                 log.error("Error processing backup create message: {}", message, res.cause());
             }
@@ -48,7 +47,7 @@ public class BackupRestoreKafkaListener {
 
     @Incoming("backup_update")
     @Blocking
-    public void onBackupUpdateReceived(String message, Acknowledgment acknowledgment) {
+    public void onBackupUpdateReceived(String message) {
         Future.<Void>future(promise -> {
             try {
                 BackupRestore backupRestore = deserializeMessage(message);
@@ -60,7 +59,7 @@ public class BackupRestoreKafkaListener {
             }
         }).onComplete(res -> {
             if (res.succeeded()) {
-                acknowledgment.acknowledge();
+                log.info("Successfully update backup message: {}", message);
             } else {
                 log.error("Error processing backup update message: {}", message, res.cause());
             }

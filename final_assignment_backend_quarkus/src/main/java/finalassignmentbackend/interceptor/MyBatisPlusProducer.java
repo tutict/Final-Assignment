@@ -1,6 +1,18 @@
 package finalassignmentbackend.interceptor;
 
-import finalassignmentbackend.mapper.*;
+import finalassignmentbackend.mapper.AppealManagementMapper;
+import finalassignmentbackend.mapper.BackupRestoreMapper;
+import finalassignmentbackend.mapper.DeductionInformationMapper;
+import finalassignmentbackend.mapper.DriverInformationMapper;
+import finalassignmentbackend.mapper.FineInformationMapper;
+import finalassignmentbackend.mapper.LoginLogMapper;
+import finalassignmentbackend.mapper.OffenseInformationMapper;
+import finalassignmentbackend.mapper.OperationLogMapper;
+import finalassignmentbackend.mapper.RoleManagementMapper;
+import finalassignmentbackend.mapper.SystemLogsMapper;
+import finalassignmentbackend.mapper.SystemSettingsMapper;
+import finalassignmentbackend.mapper.UserManagementMapper;
+import finalassignmentbackend.mapper.VehicleInformationMapper;
 import finalassignmentbackend.mapper.view.OffenseDetailsMapper;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Produces;

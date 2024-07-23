@@ -8,7 +8,6 @@ import io.smallrye.reactive.messaging.annotations.Blocking;
 import io.vertx.core.Future;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.eclipse.microprofile.reactive.messaging.Acknowledgment;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,7 +27,7 @@ public class SystemLogsKafkaListener {
 
     @Incoming("system_update")
     @Blocking
-    public void onSystemLogCreateReceived(String message, Acknowledgment acknowledgment) {
+    public void onSystemLogCreateReceived(String message) {
         Future.<Void>future(promise -> {
             try {
                 // 反序列化消息内容为SystemLogs对象
@@ -46,16 +45,16 @@ public class SystemLogsKafkaListener {
             }
         }).onComplete(res -> {
             if (res.succeeded()) {
-                acknowledgment.acknowledge();
+                log.info("Successfully create system logs message: {}", message);
             } else {
-                log.error("Error processing create system log message: {}", message, res.cause());
+                log.error("Error processing create system logs message: {}", message, res.cause());
             }
         });
     }
 
     @Incoming("system_create")
     @Blocking
-    public void onSystemLogUpdateReceived(String message, Acknowledgment acknowledgment) {
+    public void onSystemLogUpdateReceived(String message) {
         Future.<Void>future(promise -> {
             try {
                 // 反序列化消息内容为SystemLogs对象
@@ -68,12 +67,12 @@ public class SystemLogsKafkaListener {
                 promise.complete();
             } catch (Exception e) {
                 // 记录异常信息，不确认消息，以便Kafka重新投递
-                log.error("Error processing update system log message: {}", message, e);
+                log.error("Error processing update system logs message: {}", message, e);
                 promise.fail(e);
             }
         }).onComplete(res -> {
             if (res.succeeded()) {
-                acknowledgment.acknowledge();
+                log.info("Successfully update system logs message: {}", message);
             } else {
                 log.error("Error processing update system log message: {}", message, res.cause());
             }

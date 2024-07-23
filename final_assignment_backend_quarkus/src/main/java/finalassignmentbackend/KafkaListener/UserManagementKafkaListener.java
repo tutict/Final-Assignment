@@ -8,7 +8,6 @@ import io.smallrye.reactive.messaging.annotations.Blocking;
 import io.vertx.core.Future;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.eclipse.microprofile.reactive.messaging.Acknowledgment;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,7 +27,7 @@ public class UserManagementKafkaListener {
 
     @Incoming("user_create")
     @Blocking
-    public void onUserCreateReceived(String message, Acknowledgment acknowledgment) {
+    public void onUserCreateReceived(String message) {
         Future.<Void>future(promise -> {
             try {
                 // 反序列化消息内容为UserManagement对象
@@ -46,7 +45,7 @@ public class UserManagementKafkaListener {
             }
         }).onComplete(res -> {
             if (res.succeeded()) {
-                acknowledgment.acknowledge();
+                log.info("Successfully create user message: {}", message);
             } else {
                 log.error("Error processing create user message: {}", message, res.cause());
             }
@@ -55,7 +54,7 @@ public class UserManagementKafkaListener {
 
     @Incoming("user_update")
     @Blocking
-    public void onUserUpdateReceived(String message, Acknowledgment acknowledgment) {
+    public void onUserUpdateReceived(String message) {
         Future.<Void>future(promise -> {
             try {
                 // 反序列化消息内容为UserManagement对象
@@ -73,9 +72,9 @@ public class UserManagementKafkaListener {
             }
         }).onComplete(res -> {
             if (res.succeeded()) {
-                acknowledgment.acknowledge();
+                log.info("Successfully update user message: {}", message);
             } else {
-                log.error("Error processing create user message: {}", message, res.cause());
+                log.error("Error processing update user message: {}", message, res.cause());
             }
         });
     }

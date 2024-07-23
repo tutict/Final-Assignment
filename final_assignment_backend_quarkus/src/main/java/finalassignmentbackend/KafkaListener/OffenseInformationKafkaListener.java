@@ -8,7 +8,6 @@ import io.smallrye.reactive.messaging.annotations.Blocking;
 import io.vertx.core.Future;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.eclipse.microprofile.reactive.messaging.Acknowledgment;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,7 +27,7 @@ public class OffenseInformationKafkaListener {
 
     @Incoming("offense_create")
     @Blocking
-    public void onOffenseCreateReceived(String message, Acknowledgment acknowledgment) {
+    public void onOffenseCreateReceived(String message) {
         Future.<Void>future(promise -> {
             try {
                 // 反序列化消息内容为OffenseInformation对象
@@ -45,7 +44,7 @@ public class OffenseInformationKafkaListener {
             }
         }).onComplete(res -> {
             if (res.succeeded()) {
-                acknowledgment.acknowledge();
+                log.info("Successfully create offense message: {}", message);
             } else {
                 log.error("Error processing create offense message: {}", message, res.cause());
             }
@@ -54,7 +53,7 @@ public class OffenseInformationKafkaListener {
 
     @Incoming("offense_update")
     @Blocking
-    public void onOffenseUpdateReceived(String message, Acknowledgment acknowledgment) {
+    public void onOffenseUpdateReceived(String message) {
         Future.<Void>future(promise -> {
             try {
                 // 反序列化消息内容为OffenseInformation对象
@@ -71,7 +70,7 @@ public class OffenseInformationKafkaListener {
             }
         }).onComplete(res -> {
             if (res.succeeded()) {
-                acknowledgment.acknowledge();
+                log.info("Successfully update offense message: {}", message);
             } else {
                 log.error("Error processing update offense message: {}", message, res.cause());
             }

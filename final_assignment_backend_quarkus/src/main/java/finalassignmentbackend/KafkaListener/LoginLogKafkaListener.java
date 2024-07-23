@@ -8,7 +8,6 @@ import io.smallrye.reactive.messaging.annotations.Blocking;
 import io.vertx.core.Future;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.eclipse.microprofile.reactive.messaging.Acknowledgment;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,7 +27,7 @@ public class LoginLogKafkaListener {
 
     @Incoming("login_create")
     @Blocking
-    public void onLoginLogCreateReceived(String message, Acknowledgment acknowledgment) {
+    public void onLoginLogCreateReceived(String message) {
         Future.<Void>future(promise -> {
             try {
                 // 反序列化消息内容为LoginLog对象
@@ -45,7 +44,7 @@ public class LoginLogKafkaListener {
             }
         }).onComplete(res -> {
             if (res.succeeded()) {
-                acknowledgment.acknowledge();
+                log.info("Successfully create login log message: {}", message);
             } else {
                 log.error("Error processing create login log message: {}", message, res.cause());
             }
@@ -54,7 +53,7 @@ public class LoginLogKafkaListener {
 
     @Incoming("login_update")
     @Blocking
-    public void onLoginLogUpdateReceived(String message, Acknowledgment acknowledgment) {
+    public void onLoginLogUpdateReceived(String message) {
         Future.<Void>future(promise -> {
             try {
                 // 反序列化消息内容为LoginLog对象
@@ -71,7 +70,7 @@ public class LoginLogKafkaListener {
             }
         }).onComplete(res -> {
             if (res.succeeded()) {
-                acknowledgment.acknowledge();
+                log.info("Successfully update login log message: {}", message);
             } else {
                 log.error("Error processing update login log message: {}", message, res.cause());
             }

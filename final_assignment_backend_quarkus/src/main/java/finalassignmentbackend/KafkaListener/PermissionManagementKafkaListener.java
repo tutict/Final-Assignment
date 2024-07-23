@@ -8,7 +8,6 @@ import io.smallrye.reactive.messaging.annotations.Blocking;
 import io.vertx.core.Future;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.eclipse.microprofile.reactive.messaging.Acknowledgment;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,7 +27,7 @@ public class PermissionManagementKafkaListener {
 
     @Incoming("permission_create")
     @Blocking
-    public void onPermissionCreateReceived(String message, Acknowledgment acknowledgment) {
+    public void onPermissionCreateReceived(String message) {
         Future.<Void>future(promise -> {
             try {
                 // 反序列化消息内容为PermissionManagement对象
@@ -45,7 +44,7 @@ public class PermissionManagementKafkaListener {
             }
         }).onComplete(res -> {
             if (res.succeeded()) {
-                acknowledgment.acknowledge();
+                log.info("Successfully create permission message: {}", message);
             } else {
                 log.error("Error processing create permission message: {}", message, res.cause());
             }
@@ -54,7 +53,7 @@ public class PermissionManagementKafkaListener {
 
     @Incoming("permission_update")
     @Blocking
-    public void onPermissionUpdateReceived(String message, Acknowledgment acknowledgment) {
+    public void onPermissionUpdateReceived(String message) {
         Future.<Void>future(promise -> {
             try {
                 // 反序列化消息内容为PermissionManagement对象
@@ -71,7 +70,7 @@ public class PermissionManagementKafkaListener {
             }
         }).onComplete(res -> {
             if (res.succeeded()) {
-                acknowledgment.acknowledge();
+                log.info("Successfully update permission message: {}", message);
             } else {
                 log.error("Error processing update permission message: {}", message, res.cause());
             }

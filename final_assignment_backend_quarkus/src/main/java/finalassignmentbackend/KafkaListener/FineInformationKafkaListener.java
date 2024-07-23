@@ -8,7 +8,6 @@ import io.smallrye.reactive.messaging.annotations.Blocking;
 import io.vertx.core.Future;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.eclipse.microprofile.reactive.messaging.Acknowledgment;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,7 +27,7 @@ public class FineInformationKafkaListener {
 
     @Incoming("fine_create")
     @Blocking
-    public void onFineCreateReceived(String message, Acknowledgment acknowledgment) {
+    public void onFineCreateReceived(String message) {
         Future.<Void>future(promise -> {
             try {
                 // 反序列化消息内容为FineInformation对象
@@ -45,7 +44,7 @@ public class FineInformationKafkaListener {
             }
         }).onComplete(res -> {
             if (res.succeeded()) {
-                acknowledgment.acknowledge();
+                log.info("Successfully create fine message: {}", message);
             } else {
                 log.error("Error processing create fine message: {}", message, res.cause());
             }
@@ -54,7 +53,7 @@ public class FineInformationKafkaListener {
 
     @Incoming("fine_update")
     @Blocking
-    public void onFineUpdateReceived(String message, Acknowledgment acknowledgment) {
+    public void onFineUpdateReceived(String message) {
         Future.<Void>future(promise -> {
             try {
                 // 反序列化消息内容为FineInformation对象
@@ -71,7 +70,7 @@ public class FineInformationKafkaListener {
             }
         }).onComplete(res -> {
             if (res.succeeded()) {
-                acknowledgment.acknowledge();
+                log.info("Successfully update fine message: {}", message);
             } else {
                 log.error("Error processing update fine message: {}", message, res.cause());
             }

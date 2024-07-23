@@ -8,7 +8,6 @@ import io.smallrye.reactive.messaging.annotations.Blocking;
 import io.vertx.core.Future;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.eclipse.microprofile.reactive.messaging.Acknowledgment;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,7 +26,7 @@ public class VehicleInformationKafkaListener {
 
     @Incoming("vehicle_create")
     @Blocking
-    public void onVehicleCreateReceived(String message, Acknowledgment acknowledgment) {
+    public void onVehicleCreateReceived(String message) {
         Future.<Void>future(promise -> {
             try {
                 // 反序列化消息内容为VehicleInformation对象
@@ -45,7 +44,7 @@ public class VehicleInformationKafkaListener {
             }
         }).onComplete(res -> {
             if (res.succeeded()) {
-                acknowledgment.acknowledge();
+                log.info("Successfully create vehicle message: {}", message);
             } else {
                 log.error("Error processing create vehicle information message: {}", message, res.cause());
             }
@@ -54,7 +53,7 @@ public class VehicleInformationKafkaListener {
 
     @Incoming("vehicle_update")
     @Blocking
-    public void onVehicleUpdateReceived(String message, Acknowledgment acknowledgment) {
+    public void onVehicleUpdateReceived(String message) {
         Future.<Void>future(promise -> {
             try {
                 // 反序列化消息内容为VehicleInformation对象
@@ -72,7 +71,7 @@ public class VehicleInformationKafkaListener {
             }
         }).onComplete(res -> {
             if (res.succeeded()) {
-                acknowledgment.acknowledge();
+                log.info("Successfully update vehicle message: {}", message);
             } else {
                 log.error("Error processing update vehicle information message: {}", message, res.cause());
             }
