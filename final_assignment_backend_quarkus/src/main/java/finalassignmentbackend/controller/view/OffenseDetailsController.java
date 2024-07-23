@@ -1,42 +1,41 @@
 package finalassignmentbackend.controller.view;
 
-import com.tutict.finalassignmentbackend.entity.view.OffenseDetails;
-import com.tutict.finalassignmentbackend.mapper.view.OffenseDetailsMapper;
-import com.tutict.finalassignmentbackend.service.view.OffenseDetailsService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+
+import finalassignmentbackend.entity.view.OffenseDetails;
+import finalassignmentbackend.mapper.view.OffenseDetailsMapper;
+import finalassignmentbackend.service.view.OffenseDetailsService;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
 
 import java.util.List;
 
-@RestController
-@RequestMapping("/eventbus/offense-details")
+@Path("/eventbus/offense-details")
+@Produces(MediaType.APPLICATION_JSON)
+@Consumes(MediaType.APPLICATION_JSON)
 public class OffenseDetailsController {
 
-    private final OffenseDetailsMapper offenseDetailsMapper;
-    private final OffenseDetailsService offenseDetailsService;
+    @Inject
+    OffenseDetailsMapper offenseDetailsMapper;
 
-    @Autowired
-    public OffenseDetailsController(OffenseDetailsMapper offenseDetailsMapper, OffenseDetailsService offenseDetailsService) {
-        this.offenseDetailsMapper = offenseDetailsMapper;
-        this.offenseDetailsService = offenseDetailsService;
-    }
+    @Inject
+    OffenseDetailsService offenseDetailsService;
 
-    @GetMapping
+    @GET
     public List<OffenseDetails> getAllOffenseDetails() {
         return offenseDetailsMapper.selectList(null);
     }
 
-    @GetMapping("/{id}")
-    public OffenseDetails getOffenseDetailsById(@PathVariable Integer id) {
+    @GET
+    @Path("/{id}")
+    public OffenseDetails getOffenseDetailsById(@PathParam("id") Integer id) {
         return offenseDetailsMapper.selectById(id);
     }
 
     // 创建方法，用于发送 OffenseDetails 对象到 Kafka 主题
-    @GetMapping("/send-to-kafka/{id}")
-    public String sendOffenseDetailsToKafka(@PathVariable Integer id) {
+    @GET
+    @Path("/send-to-kafka/{id}")
+    public String sendOffenseDetailsToKafka(@PathParam("id") Integer id) {
         OffenseDetails offenseDetails = offenseDetailsMapper.selectById(id);
         if (offenseDetails != null) {
             offenseDetailsService.sendOffenseDetailsToKafka(offenseDetails);

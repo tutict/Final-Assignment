@@ -1,21 +1,15 @@
 package finalassignmentbackend.controller.ai;
-import org.springframework.ai.bedrock.titan.BedrockTitanChatClient;
-import org.springframework.ai.chat.ChatResponse;
-import org.springframework.ai.chat.messages.UserMessage;
-import org.springframework.ai.chat.prompt.Prompt;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
-import reactor.core.publisher.Flux;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
 
-@RestController
-@RequestMapping("/eventbus/")
+@Path("/eventbus/")
+@Consumes(MediaType.APPLICATION_JSON)
+@Produces(MediaType.APPLICATION_JSON)
 public class ChatController {
 
-    @Autowired
-    private BedrockTitanChatClient bedrockTitanChatClient;
+    BedrockTitanChatClient bedrockTitanChatClient;
 
     @GetMapping("/chat")
     public Flux<ChatResponse> chat(@RequestParam String message) {

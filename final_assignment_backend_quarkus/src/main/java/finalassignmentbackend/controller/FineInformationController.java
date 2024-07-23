@@ -1,51 +1,60 @@
 package finalassignmentbackend.controller;
 
-import com.tutict.finalassignmentbackend.entity.FineInformation;
-import com.tutict.finalassignmentbackend.service.FineInformationService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
 
-import java.util.Date;
+import finalassignmentbackend.entity.FineInformation;
+import finalassignmentbackend.service.FineInformationService;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.DefaultValue;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+
+import java.time.LocalDate;
+import java.sql.Date;
 import java.util.List;
 
-@RestController
-@RequestMapping("/eventbus/fines")
+@Path("/eventbus/fines")
+@Produces(MediaType.APPLICATION_JSON)
+@Consumes(MediaType.APPLICATION_JSON)
 public class FineInformationController {
 
-    private final FineInformationService fineInformationService;
+    @Inject
+    FineInformationService fineInformationService;
 
-    @Autowired
-    public FineInformationController(FineInformationService fineInformationService) {
-        this.fineInformationService = fineInformationService;
-    }
-
-    @PostMapping
-    public ResponseEntity<Void> createFine(@RequestBody FineInformation fineInformation) {
+    @POST
+    public Response createFine(FineInformation fineInformation) {
         fineInformationService.createFine(fineInformation);
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+        return Response.status(Response.Status.CREATED).build();
     }
 
-    @GetMapping("/{fineId}")
-    public ResponseEntity<FineInformation> getFineById(@PathVariable int fineId) {
+    @GET
+    @Path("/{fineId}")
+    public Response getFineById(@PathParam("fineId") int fineId) {
         FineInformation fineInformation = fineInformationService.getFineById(fineId);
         if (fineInformation != null) {
-            return ResponseEntity.ok(fineInformation);
+            return Response.ok(fineInformation).build();
         } else {
-            return ResponseEntity.notFound().build();
+            return Response.status(Response.Status.NOT_FOUND).build();
         }
     }
 
-    @GetMapping
-    public ResponseEntity<List<FineInformation>> getAllFines() {
+    @GET
+    public Response getAllFines() {
         List<FineInformation> fines = fineInformationService.getAllFines();
-        return ResponseEntity.ok(fines);
+        return Response.ok(fines).build();
     }
 
-    @PutMapping("/{fineId}")
-    public ResponseEntity<Void> updateFine(@PathVariable int fineId, @RequestBody FineInformation updatedFineInformation) {
+    @PUT
+    @Path("/{fineId}")
+    public Response updateFine(@PathParam("fineId") int fineId, FineInformation updatedFineInformation) {
         FineInformation existingFineInformation = fineInformationService.getFineById(fineId);
         if (existingFineInformation != null) {
 
@@ -59,39 +68,54 @@ public class FineInformationController {
 
 
             fineInformationService.updateFine(updatedFineInformation);
-            return ResponseEntity.ok().build();
+            return Response.ok().build();
         } else {
-            return ResponseEntity.notFound().build();
+            return Response.status(Response.Status.NOT_FOUND).build();
         }
     }
 
-    @DeleteMapping("/{fineId}")
-    public ResponseEntity<Void> deleteFine(@PathVariable int fineId) {
+    @DELETE
+    @Path("/{fineId}")
+    public Response deleteFine(@PathParam("fineId") int fineId) {
         fineInformationService.deleteFine(fineId);
-        return ResponseEntity.noContent().build();
+        return Response.noContent().build();
     }
 
-    @GetMapping("/payee/{payee}")
-    public ResponseEntity<List<FineInformation>> getFinesByPayee(@PathVariable String payee) {
+    @GET
+    @Path("/payee/{payee}")
+    public Response getFinesByPayee(@PathParam("payee") String payee) {
         List<FineInformation> fines = fineInformationService.getFinesByPayee(payee);
-        return ResponseEntity.ok(fines);
+        return Response.ok(fines).build();
     }
 
-    @GetMapping("/timeRange")
-    public ResponseEntity<List<FineInformation>> getFinesByTimeRange(
-            @RequestParam("startTime") @DateTimeFormat(pattern = "yyyy-MM-dd") Date startTime,
-            @RequestParam("endTime") @DateTimeFormat(pattern = "yyyy-MM-dd") Date endTime) {
-        List<FineInformation> fines = fineInformationService.getFinesByTimeRange(startTime, endTime);
-        return ResponseEntity.ok(fines);
+    @GET
+    @Path("/timeRange")
+    public Response getDeductionsByTimeRange(
+            @QueryParam("startTime") @DefaultValue("1970-01-01") String startTimeStr,
+            @QueryParam("endTime") @DefaultValue("9999-12-31") String endTimeStr) {
+        try {
+            LocalDate startDate = LocalDate.parse(startTimeStr);
+            LocalDate endDate = LocalDate.parse(endTimeStr);
+
+            // Convert LocalDate to java.util.Date
+            Date startTime = Date.valueOf(startDate);
+            Date endTime = Date.valueOf(endDate);
+
+            List<FineInformation> fines = fineInformationService.getFinesByTimeRange(startTime, endTime);
+            return Response.ok(fines).build();
+        } catch (Exception e) {
+            return Response.status(Response.Status.BAD_REQUEST).entity("Invalid date format").build();
+        }
     }
 
-    @GetMapping("/receiptNumber/{receiptNumber}")
-    public ResponseEntity<FineInformation> getFineByReceiptNumber(@PathVariable String receiptNumber) {
+    @GET
+    @Path("/receiptNumber/{receiptNumber}")
+    public Response getFineByReceiptNumber(@PathParam("receiptNumber") String receiptNumber) {
         FineInformation fineInformation = fineInformationService.getFineByReceiptNumber(receiptNumber);
         if (fineInformation != null) {
-            return ResponseEntity.ok(fineInformation);
+            return Response.ok(fineInformation).build();
         } else {
-            return ResponseEntity.notFound().build();
+            return Response.status(Response.Status.NOT_FOUND).build();
         }
     }
 }

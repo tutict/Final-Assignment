@@ -1,39 +1,42 @@
 package finalassignmentbackend.controller.captcha;
 
-import com.xingyuv.captcha.model.common.ResponseModel;
-import com.xingyuv.captcha.model.vo.CaptchaVO;
-import com.xingyuv.captcha.service.CaptchaService;
-import com.xingyuv.captcha.util.StringUtils;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
 
-import jakarta.annotation.Resource;
+import com.baomidou.mybatisplus.core.toolkit.StringUtils;
+import jakarta.inject.Inject;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.MediaType;
 
-@RestController
-@RequestMapping("/eventbus/captcha")
+@Path("/eventbus/captcha")
+@Produces(MediaType.APPLICATION_JSON)
+@Consumes(MediaType.APPLICATION_JSON)
 public class CaptchaController {
 
-    @Resource
-    private CaptchaService captchaService;
+    @Inject
+    CaptchaService captchaService;
 
-    @PostMapping("/get")
-    public ResponseModel get(@RequestBody CaptchaVO data, HttpServletRequest request) {
+    @POST
+    @Path("/get")
+    public ResponseModel get(CaptchaVO data, @Context HttpServletRequest request) {
         assert request.getRemoteHost() != null;
         data.setBrowserInfo(getRemoteId(request));
         return captchaService.get(data);
     }
 
-    @PostMapping("/check")
-    public ResponseModel check(@RequestBody CaptchaVO data, HttpServletRequest request) {
+    @POST
+    @Path("/check")
+    public ResponseModel check(CaptchaVO data, @Context HttpServletRequest request) {
         data.setBrowserInfo(getRemoteId(request));
         return captchaService.check(data);
     }
 
-    //@PostMapping("/verify")
-    public ResponseModel verify(@RequestBody CaptchaVO data, HttpServletRequest request) {
+    @POST
+    @Path("/verify")
+    public ResponseModel verify(CaptchaVO data, @Context HttpServletRequest request) {
         return captchaService.verification(data);
     }
 

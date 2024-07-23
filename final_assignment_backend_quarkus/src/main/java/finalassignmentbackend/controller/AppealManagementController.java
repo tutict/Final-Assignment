@@ -1,50 +1,57 @@
 package finalassignmentbackend.controller;
 
-import com.tutict.finalassignmentbackend.entity.AppealManagement;
-import com.tutict.finalassignmentbackend.entity.OffenseInformation;
-import com.tutict.finalassignmentbackend.service.AppealManagementService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+
+import finalassignmentbackend.entity.AppealManagement;
+import finalassignmentbackend.entity.OffenseInformation;
+import finalassignmentbackend.service.AppealManagementService;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 
 import java.util.List;
 
-@RestController
-@RequestMapping("/eventbus/appeals")
+@Path("/eventbus/appeals")
+@Produces(MediaType.APPLICATION_JSON)
+@Consumes(MediaType.APPLICATION_JSON)
 public class AppealManagementController {
 
-    private final AppealManagementService appealManagementService;
+    @Inject
+    AppealManagementService appealManagementService;
 
-    @Autowired
-    public AppealManagementController(AppealManagementService appealManagementService) {
-        this.appealManagementService = appealManagementService;
-    }
-
-    @PostMapping
-    public ResponseEntity<Void> createAppeal(@RequestBody AppealManagement appeal) {
+    @POST
+    public Response createAppeal(AppealManagement appeal) {
         appealManagementService.createAppeal(appeal);
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+        return Response.status(Response.Status.CREATED).build();
     }
 
-    @GetMapping("/{appealId}")
-    public ResponseEntity<AppealManagement> getAppealById(@PathVariable Long appealId) {
+    @GET
+    @Path("/{appealId}")
+    public Response getAppealById(@PathParam("appealId") Long appealId) {
         AppealManagement appeal = appealManagementService.getAppealById(appealId);
         if (appeal != null) {
-            return ResponseEntity.ok(appeal);
+            return Response.ok(appeal).build();
         } else {
-            return ResponseEntity.notFound().build();
+            return Response.status(Response.Status.NOT_FOUND).build();
         }
     }
 
-    @GetMapping
-    public ResponseEntity<List<AppealManagement>> getAllAppeals() {
+    @GET
+    public Response getAllAppeals() {
         List<AppealManagement> appeals = appealManagementService.getAllAppeals();
-        return ResponseEntity.ok(appeals);
+        return Response.ok(appeals).build();
     }
 
-    @PutMapping("/{appealId}")
-    public ResponseEntity<Void> updateAppeal(@PathVariable Long appealId, @RequestBody AppealManagement updatedAppeal) {
+    @PUT
+    @Path("/{appealId}")
+    public Response updateAppeal(@PathParam("appealId") Long appealId, AppealManagement updatedAppeal) {
         AppealManagement existingAppeal = appealManagementService.getAppealById(appealId);
         if (existingAppeal != null) {
             // 更新现有申诉的属性
@@ -59,37 +66,41 @@ public class AppealManagementController {
 
             // 更新申诉
             appealManagementService.updateAppeal(existingAppeal);
-            return ResponseEntity.ok().build();
+            return Response.ok().build();
         } else {
-            return ResponseEntity.notFound().build();
+            return Response.status(Response.Status.NOT_FOUND).build();
         }
     }
 
-    @DeleteMapping("/{appealId}")
-    public ResponseEntity<Void> deleteAppeal(@PathVariable Long appealId) {
+    @DELETE
+    @Path("/{appealId}")
+    public Response deleteAppeal(@PathParam("appealId") Long appealId) {
         appealManagementService.deleteAppeal(appealId);
-        return ResponseEntity.noContent().build();
+        return Response.noContent().build();
     }
 
-    @GetMapping("/status/{processStatus}")
-    public ResponseEntity<List<AppealManagement>> getAppealsByProcessStatus(@PathVariable String processStatus) {
+    @GET
+    @Path("/status/{processStatus}")
+    public Response getAppealsByProcessStatus(@PathParam("processStatus") String processStatus) {
         List<AppealManagement> appeals = appealManagementService.getAppealsByProcessStatus(processStatus);
-        return ResponseEntity.ok(appeals);
+        return Response.ok(appeals).build();
     }
 
-    @GetMapping("/name/{appealName}")
-    public ResponseEntity<List<AppealManagement>> getAppealsByAppealName(@PathVariable String appealName) {
+    @GET
+    @Path("/name/{appealName}")
+    public Response getAppealsByAppealName(@PathParam("appealName") String appealName) {
         List<AppealManagement> appeals = appealManagementService.getAppealsByAppealName(appealName);
-        return ResponseEntity.ok(appeals);
+        return Response.ok(appeals).build();
     }
 
-    @GetMapping("/{appealId}/offense")
-    public ResponseEntity<OffenseInformation> getOffenseByAppealId(@PathVariable Long appealId) {
+    @GET
+    @Path("/{appealId}/offense")
+    public Response getOffenseByAppealId(@PathParam("appealId") Long appealId) {
         OffenseInformation offense = appealManagementService.getOffenseByAppealId(appealId);
         if (offense != null) {
-            return ResponseEntity.ok(offense);
+            return Response.ok(offense).build();
         } else {
-            return ResponseEntity.notFound().build();
+            return Response.status(Response.Status.NOT_FOUND).build();
         }
     }
 }

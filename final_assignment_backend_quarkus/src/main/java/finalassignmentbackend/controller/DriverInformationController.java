@@ -1,84 +1,95 @@
 package finalassignmentbackend.controller;
 
-import com.tutict.finalassignmentbackend.entity.DriverInformation;
-import com.tutict.finalassignmentbackend.service.DriverInformationService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+
+import finalassignmentbackend.entity.DriverInformation;
+import finalassignmentbackend.service.DriverInformationService;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 
 import java.util.List;
 
-@RestController
-@RequestMapping("/eventbus/drivers")
+@Path("/eventbus/drivers")
+@Produces(MediaType.APPLICATION_JSON)
+@Consumes(MediaType.APPLICATION_JSON)
 public class DriverInformationController {
 
-    private final DriverInformationService driverInformationService;
+    @Inject
+    DriverInformationService driverInformationService;
 
-    @Autowired
-    public DriverInformationController(DriverInformationService driverInformationService) {
-        this.driverInformationService = driverInformationService;
-    }
-
-    @PostMapping
-    public ResponseEntity<Void> createDriver(@RequestBody DriverInformation driverInformation) {
+    @POST
+    public Response createDriver(DriverInformation driverInformation) {
         driverInformationService.createDriver(driverInformation);
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+        return Response.status(Response.Status.CREATED).build();
     }
 
-    @GetMapping("/{driverId}")
-    public ResponseEntity<DriverInformation> getDriverById(@PathVariable int driverId) {
+    @GET
+    @Path("/{driverId}")
+    public Response getDriverById(@PathParam("driverId") int driverId) {
         DriverInformation driverInformation = driverInformationService.getDriverById(driverId);
         if (driverInformation != null) {
-            return ResponseEntity.ok(driverInformation);
+            return Response.ok(driverInformation).build();
         } else {
-            return ResponseEntity.notFound().build();
+            return Response.status(Response.Status.NOT_FOUND).build();
         }
     }
 
-    @GetMapping
-    public ResponseEntity<List<DriverInformation>> getAllDrivers() {
+    @GET
+    public Response getAllDrivers() {
         List<DriverInformation> drivers = driverInformationService.getAllDrivers();
-        return ResponseEntity.ok(drivers);
+        return Response.ok(drivers).build();
     }
 
-    @PutMapping("/{driverId}")
-    public ResponseEntity<Void> updateDriver(@PathVariable int driverId, @RequestBody DriverInformation updatedDriverInformation) {
+    @PUT
+    @Path("/{driverId}")
+    public Response updateDriver(@PathParam("driverId") int driverId, DriverInformation updatedDriverInformation) {
         DriverInformation existingDriverInformation = driverInformationService.getDriverById(driverId);
         if (existingDriverInformation != null) {
             updatedDriverInformation.setDriverId(driverId);
             driverInformationService.updateDriver(updatedDriverInformation);
-            return ResponseEntity.ok().build();
+            return Response.ok().build();
         } else {
-            return ResponseEntity.notFound().build();
+            return Response.status(Response.Status.NOT_FOUND).build();
         }
     }
 
-    @DeleteMapping("/{driverId}")
-    public ResponseEntity<Void> deleteDriver(@PathVariable int driverId) {
+    @DELETE
+    @Path("/{driverId}")
+    public Response deleteDriver(@PathParam("driverId") int driverId) {
         driverInformationService.deleteDriver(driverId);
-        return ResponseEntity.noContent().build();
+        return Response.noContent().build();
     }
 
-    @GetMapping("/idCardNumber/{idCardNumber}")
-    public ResponseEntity<List<DriverInformation>> getDriversByIdCardNumber(@PathVariable String idCardNumber) {
+    @GET
+    @Path("/idCardNumber/{idCardNumber}")
+    public Response getDriversByIdCardNumber(@PathParam("idCardNumber") String idCardNumber) {
         List<DriverInformation> drivers = driverInformationService.getDriversByIdCardNumber(idCardNumber);
-        return ResponseEntity.ok(drivers);
+        return Response.ok(drivers).build();
     }
 
-    @GetMapping("/driverLicenseNumber/{driverLicenseNumber}")
-    public ResponseEntity<DriverInformation> getDriverByDriverLicenseNumber(@PathVariable String driverLicenseNumber) {
+    @GET
+    @Path("/driverLicenseNumber/{driverLicenseNumber}")
+    public Response getDriverByDriverLicenseNumber(@PathParam("driverLicenseNumber") String driverLicenseNumber) {
         DriverInformation driverInformation = driverInformationService.getDriverByDriverLicenseNumber(driverLicenseNumber);
         if (driverInformation != null) {
-            return ResponseEntity.ok(driverInformation);
+            return Response.ok(driverInformation).build();
         } else {
-            return ResponseEntity.notFound().build();
+            return Response.status(Response.Status.NOT_FOUND).build();
         }
     }
 
-    @GetMapping("/name/{name}")
-    public ResponseEntity<List<DriverInformation>> getDriversByName(@PathVariable String name) {
+    @GET
+    @Path("/name/{name}")
+    public Response getDriversByName(@PathParam("name") String name) {
         List<DriverInformation> drivers = driverInformationService.getDriversByName(name);
-        return ResponseEntity.ok(drivers);
+        return Response.ok(drivers).build();
     }
 }

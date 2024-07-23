@@ -45,7 +45,7 @@
     <dependency>
         <groupId>org.projectlombok</groupId>
         <artifactId>lombok</artifactId>
-        <version>1.18.32</version>
+        <version>1.18.34</version>
     </dependency>
     <dependency>
         <groupId>io.quarkus</groupId>
@@ -72,11 +72,15 @@
         <artifactId>quarkus-junit5</artifactId>
             <scope>test</scope>
     </dependency>
-        <dependency>
-            <groupId>io.rest-assured</groupId>
-            <artifactId>rest-assured-bom</artifactId>
-            <version>5.4.0</version>
-        </dependency>
+    <dependency>
+        <groupId>io.quarkus</groupId>
+        <artifactId>quarkus-resteasy</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>io.rest-assured</groupId>
+        <artifactId>rest-assured-bom</artifactId>
+        <version>5.4.0</version>
+    </dependency>
     <dependency>
         <groupId>cn.hutool</groupId>
         <artifactId>hutool-all</artifactId>

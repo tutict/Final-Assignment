@@ -1,78 +1,88 @@
 package finalassignmentbackend.controller;
 
-import com.tutict.finalassignmentbackend.entity.BackupRestore;
-import com.tutict.finalassignmentbackend.service.BackupRestoreService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+
+import finalassignmentbackend.entity.BackupRestore;
+import finalassignmentbackend.service.BackupRestoreService;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 
 import java.util.List;
 
-@RestController
-@RequestMapping("/eventbus/backups")
+@Path("/eventbus/backups")
+@Produces(MediaType.APPLICATION_JSON)
+@Consumes(MediaType.APPLICATION_JSON)
 public class BackupRestoreController {
 
-    private final BackupRestoreService backupRestoreService;
+    @Inject
+    BackupRestoreService backupRestoreService;
 
-    @Autowired
-    public BackupRestoreController(BackupRestoreService backupRestoreService) {
-        this.backupRestoreService = backupRestoreService;
-    }
-
-    @PostMapping
-    public ResponseEntity<Void> createBackup(@RequestBody BackupRestore backup) {
+    @POST
+    public Response createBackup(BackupRestore backup) {
         backupRestoreService.createBackup(backup);
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+        return Response.status(Response.Status.CREATED).build();
     }
 
-    @GetMapping
-    public ResponseEntity<List<BackupRestore>> getAllBackups() {
+    @GET
+    public Response getAllBackups() {
         List<BackupRestore> backups = backupRestoreService.getAllBackups();
-        return ResponseEntity.ok(backups);
+        return Response.ok(backups).build();
     }
 
-    @GetMapping("/{backupId}")
-    public ResponseEntity<BackupRestore> getBackupById(@PathVariable int backupId) {
+    @GET
+    @Path("/{backupId}")
+    public Response getBackupById(@PathParam("backupId") int backupId) {
         BackupRestore backup = backupRestoreService.getBackupById(backupId);
         if (backup != null) {
-            return ResponseEntity.ok(backup);
+            return Response.ok(backup).build();
         } else {
-            return ResponseEntity.notFound().build();
+            return Response.status(Response.Status.NOT_FOUND).build();
         }
     }
 
-    @DeleteMapping("/{backupId}")
-    public ResponseEntity<Void> deleteBackup(@PathVariable int backupId) {
+    @DELETE
+    @Path("/{backupId}")
+    public Response deleteBackup(@PathParam("backupId") int backupId) {
         backupRestoreService.deleteBackup(backupId);
-        return ResponseEntity.noContent().build();
+        return Response.noContent().build();
     }
 
-    @PutMapping("/{backupId}")
-    public ResponseEntity<Void> updateBackup(@PathVariable int backupId, @RequestBody BackupRestore updatedBackup) {
+    @PUT
+    @Path("/{backupId}")
+    public Response updateBackup(@PathParam("backupId") int backupId, BackupRestore updatedBackup) {
         BackupRestore existingBackup = backupRestoreService.getBackupById(backupId);
         if (existingBackup != null) {
             updatedBackup.setBackupId(backupId);
             backupRestoreService.updateBackup(updatedBackup);
-            return ResponseEntity.ok().build();
+            return Response.ok().build();
         } else {
-            return ResponseEntity.notFound().build();
+            return Response.status(Response.Status.NOT_FOUND).build();
         }
     }
 
-    @GetMapping("/filename/{backupFileName}")
-    public ResponseEntity<BackupRestore> getBackupByFileName(@PathVariable String backupFileName) {
+    @GET
+    @Path("/filename/{backupFileName}")
+    public Response getBackupByFileName(@PathParam("backupFileName") String backupFileName) {
         BackupRestore backup = backupRestoreService.getupByFileName(backupFileName);
         if (backup != null) {
-            return ResponseEntity.ok(backup);
+            return Response.ok(backup).build();
         } else {
-            return ResponseEntity.notFound().build();
+            return Response.status(Response.Status.NOT_FOUND).build();
         }
     }
 
-    @GetMapping("/time/{backupTime}")
-    public ResponseEntity<List<BackupRestore>> getBackupsByTime(@PathVariable String backupTime) {
+    @GET
+    @Path("/time/{backupTime}")
+    public Response getBackupsByTime(@PathParam("backupTime") String backupTime) {
         List<BackupRestore> backups = backupRestoreService.getBackupsByTime(backupTime);
-        return ResponseEntity.ok(backups);
+        return Response.ok(backups).build();
     }
 }

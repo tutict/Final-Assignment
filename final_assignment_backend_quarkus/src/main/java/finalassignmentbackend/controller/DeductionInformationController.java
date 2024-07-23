@@ -1,51 +1,60 @@
 package finalassignmentbackend.controller;
 
-import com.tutict.finalassignmentbackend.entity.DeductionInformation;
-import com.tutict.finalassignmentbackend.service.DeductionInformationService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import finalassignmentbackend.entity.DeductionInformation;
+import finalassignmentbackend.service.DeductionInformationService;
+import jakarta.inject.Inject;
 
-import java.util.Date;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.DefaultValue;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+
+import java.time.LocalDate;
+import java.sql.Date;
 import java.util.List;
 
-@RestController
-@RequestMapping("/eventbus/deductions")
+@Path("/eventbus/deductions")
+@Produces(MediaType.APPLICATION_JSON)
+@Consumes(MediaType.APPLICATION_JSON)
 public class DeductionInformationController {
 
-    private final DeductionInformationService deductionInformationService;
+    @Inject
+    DeductionInformationService deductionInformationService;
 
-    @Autowired
-    public DeductionInformationController(DeductionInformationService deductionInformationService) {
-        this.deductionInformationService = deductionInformationService;
-    }
-
-    @PostMapping
-    public ResponseEntity<Void> createDeduction(@RequestBody DeductionInformation deduction) {
+    @POST
+    public Response createDeduction(DeductionInformation deduction) {
         deductionInformationService.createDeduction(deduction);
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+        return Response.status(Response.Status.CREATED).build();
     }
 
-    @GetMapping("/{deductionId}")
-    public ResponseEntity<DeductionInformation> getDeductionById(@PathVariable int deductionId) {
+    @PUT
+    @Path("/{deductionId}")
+    public Response getDeductionById(@PathParam("deductionId") int deductionId) {
         DeductionInformation deduction = deductionInformationService.getDeductionById(deductionId);
         if (deduction != null) {
-            return ResponseEntity.ok(deduction);
+            return Response.ok(deduction).build();
         } else {
-            return ResponseEntity.notFound().build();
+            return Response.status(Response.Status.NOT_FOUND).build();
         }
     }
 
-    @GetMapping
-    public ResponseEntity<List<DeductionInformation>> getAllDeductions() {
+    @GET
+    public Response getAllDeductions() {
         List<DeductionInformation> deductions = deductionInformationService.getAllDeductions();
-        return ResponseEntity.ok(deductions);
+        return Response.ok(deductions).build();
     }
 
-    @PutMapping("/{deductionId}")
-    public ResponseEntity<Void> updateDeduction(@PathVariable int deductionId, @RequestBody DeductionInformation updatedDeduction) {
+    @PUT
+    @Path("/{deductionId}")
+    public Response updateDeduction(@PathParam("deductionId") int deductionId, DeductionInformation updatedDeduction) {
         DeductionInformation existingDeduction = deductionInformationService.getDeductionById(deductionId);
         if (existingDeduction != null) {
             // Update the existing deduction
@@ -56,29 +65,43 @@ public class DeductionInformationController {
             existingDeduction.setApprover(updatedDeduction.getApprover());
 
             deductionInformationService.updateDeduction(updatedDeduction);
-            return ResponseEntity.ok().build();
+            return Response.ok().build();
         } else {
-            return ResponseEntity.notFound().build();
+            return Response.status(Response.Status.NOT_FOUND).build();
         }
     }
 
-    @DeleteMapping("/{deductionId}")
-    public ResponseEntity<Void> deleteDeduction(@PathVariable int deductionId) {
+    @DELETE
+    @Path("/{deductionId}")
+    public Response deleteDeduction(@PathParam("deductionId") int deductionId) {
         deductionInformationService.deleteDeduction(deductionId);
-        return ResponseEntity.noContent().build();
+        return Response.noContent().build();
     }
 
-    @GetMapping("/handler/{handler}")
-    public ResponseEntity<List<DeductionInformation>> getDeductionsByHandler(@PathVariable String handler) {
+    @GET
+    @Path("/handler/{handler}")
+    public Response getDeductionsByHandler(@PathParam("handler") String handler) {
         List<DeductionInformation> deductions = deductionInformationService.getDeductionsByHandler(handler);
-        return ResponseEntity.ok(deductions);
+        return Response.ok(deductions).build();
     }
 
-    @GetMapping("/timeRange")
-    public ResponseEntity<List<DeductionInformation>> getDeductionsByTimeRange(
-            @RequestParam("startTime") @DateTimeFormat(pattern = "yyyy-MM-dd") Date startTime,
-            @RequestParam("endTime") @DateTimeFormat(pattern = "yyyy-MM-dd") Date endTime) {
-        List<DeductionInformation> deductions = deductionInformationService.getDeductionsByByTimeRange(startTime, endTime);
-        return ResponseEntity.ok(deductions);
+    @GET
+    @Path("/timeRange")
+    public Response getDeductionsByTimeRange(
+            @QueryParam("startTime") @DefaultValue("1970-01-01") String startTimeStr,
+            @QueryParam("endTime") @DefaultValue("2100-12-31") String endTimeStr) {
+        try {
+            LocalDate startDate = LocalDate.parse(startTimeStr);
+            LocalDate endDate = LocalDate.parse(endTimeStr);
+
+            // Convert LocalDate to java.util.Date
+            Date startTime = Date.valueOf(startDate);
+            Date endTime = Date.valueOf(endDate);
+
+            List<DeductionInformation> deductions = deductionInformationService.getDeductionsByByTimeRange(startTime, endTime);
+            return Response.ok(deductions).build();
+        } catch (Exception e) {
+            return Response.status(Response.Status.BAD_REQUEST).entity("Invalid date format").build();
+        }
     }
 }
