@@ -1,84 +1,96 @@
 package finalassignmentbackend.controller;
 
-import com.tutict.finalassignmentbackend.entity.PermissionManagement;
-import com.tutict.finalassignmentbackend.service.PermissionManagementService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+
+import finalassignmentbackend.entity.PermissionManagement;
+import finalassignmentbackend.service.PermissionManagementService;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 
 import java.util.List;
 
-@RestController
-@RequestMapping("/eventbus/permissions")
+@Path("/eventbus/permissions")
+@Produces(MediaType.APPLICATION_JSON)
+@Consumes(MediaType.APPLICATION_JSON)
 public class PermissionManagementController {
 
-    private final PermissionManagementService permissionManagementService;
+    @Inject
+    PermissionManagementService permissionManagementService;
 
-    @Autowired
-    public PermissionManagementController(PermissionManagementService permissionManagementService) {
-        this.permissionManagementService = permissionManagementService;
-    }
-
-    @PostMapping
-    public ResponseEntity<Void> createPermission(@RequestBody PermissionManagement permission) {
+    @POST
+    public Response createPermission(PermissionManagement permission) {
         permissionManagementService.createPermission(permission);
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+        return Response.status(Response.Status.CREATED).build();
     }
 
-    @GetMapping("/{permissionId}")
-    public ResponseEntity<PermissionManagement> getPermissionById(@PathVariable int permissionId) {
+    @GET
+    @Path("/{permissionId}")
+    public Response getPermissionById(@PathParam("permissionId") int permissionId) {
         PermissionManagement permission = permissionManagementService.getPermissionById(permissionId);
         if (permission != null) {
-            return ResponseEntity.ok(permission);
+            return Response.ok(permission).build();
         } else {
-            return ResponseEntity.notFound().build();
+            return Response.status(Response.Status.NOT_FOUND).build();
         }
     }
 
-    @GetMapping
-    public ResponseEntity<List<PermissionManagement>> getAllPermissions() {
+    @GET
+    public Response getAllPermissions() {
         List<PermissionManagement> permissions = permissionManagementService.getAllPermissions();
-        return ResponseEntity.ok(permissions);
+        return Response.ok(permissions).build();
     }
 
-    @GetMapping("/name/{permissionName}")
-    public ResponseEntity<PermissionManagement> getPermissionByName(@PathVariable String permissionName) {
+    @GET
+    @Path("/name/{permissionName}")
+    public Response getPermissionByName(@PathParam("permissionName") String permissionName) {
         PermissionManagement permission = permissionManagementService.getPermissionByName(permissionName);
         if (permission != null) {
-            return ResponseEntity.ok(permission);
+            return Response.ok(permission).build();
         } else {
-            return ResponseEntity.notFound().build();
+            return Response.status(Response.Status.NOT_FOUND).build();
         }
     }
 
-    @GetMapping("/search")
-    public ResponseEntity<List<PermissionManagement>> getPermissionsByNameLike(@RequestParam("name") String permissionName) {
+    @GET
+    @Path("/search")
+    public Response getPermissionsByNameLike(@QueryParam("name") String permissionName) {
         List<PermissionManagement> permissions = permissionManagementService.getPermissionsByNameLike(permissionName);
-        return ResponseEntity.ok(permissions);
+        return Response.ok(permissions).build();
     }
 
-    @PutMapping("/{permissionId}")
-    public ResponseEntity<Void> updatePermission(@PathVariable int permissionId, @RequestBody PermissionManagement updatedPermission) {
+    @PUT
+    @Path("/{permissionId}")
+    public Response updatePermission(@PathParam("permissionId") int permissionId, PermissionManagement updatedPermission) {
         PermissionManagement existingPermission = permissionManagementService.getPermissionById(permissionId);
         if (existingPermission != null) {
             updatedPermission.setPermissionId(permissionId);
             permissionManagementService.updatePermission(updatedPermission);
-            return ResponseEntity.ok().build();
+            return Response.ok().build();
         } else {
-            return ResponseEntity.notFound().build();
+            return Response.status(Response.Status.NOT_FOUND).build();
         }
     }
 
-    @DeleteMapping("/{permissionId}")
-    public ResponseEntity<Void> deletePermission(@PathVariable int permissionId) {
+    @DELETE
+    @Path("/{permissionId}")
+    public Response deletePermission(@PathParam("permissionId") int permissionId) {
         permissionManagementService.deletePermission(permissionId);
-        return ResponseEntity.noContent().build();
+        return Response.noContent().build();
     }
 
-    @DeleteMapping("/name/{permissionName}")
-    public ResponseEntity<Void> deletePermissionByName(@PathVariable String permissionName) {
+    @DELETE
+    @Path("/name/{permissionName}")
+    public Response deletePermissionByName(@PathParam("permissionName") String permissionName) {
         permissionManagementService.deletePermissionByName(permissionName);
-        return ResponseEntity.noContent().build();
+        return Response.noContent().build();
     }
 }

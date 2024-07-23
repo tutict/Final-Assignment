@@ -1,143 +1,158 @@
 package finalassignmentbackend.controller;
 
-import com.tutict.finalassignmentbackend.entity.SystemSettings;
-import com.tutict.finalassignmentbackend.service.SystemSettingsService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
 
-@RestController
-@RequestMapping("/eventbus/systemSettings")
+import finalassignmentbackend.entity.SystemSettings;
+import finalassignmentbackend.service.SystemSettingsService;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.PUT;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+
+@Path("/eventbus/systemSettings")
+@Produces(MediaType.APPLICATION_JSON)
+@Consumes(MediaType.APPLICATION_JSON)
 public class SystemSettingsController {
 
-    private final SystemSettingsService systemSettingsService;
+    @Inject
+    SystemSettingsService systemSettingsService;
 
-    @Autowired
-    public SystemSettingsController(SystemSettingsService systemSettingsService) {
-        this.systemSettingsService = systemSettingsService;
-    }
-
-    @GetMapping
-    public ResponseEntity<SystemSettings> getSystemSettings() {
+    @GET
+    public Response getSystemSettings() {
         SystemSettings systemSettings = systemSettingsService.getSystemSettings();
         if (systemSettings != null) {
-            return ResponseEntity.ok(systemSettings);
+            return Response.ok(systemSettings).build();
         } else {
-            return ResponseEntity.notFound().build();
+            return Response.status(Response.Status.NOT_FOUND).build();
         }
     }
 
-    @PutMapping
-    public ResponseEntity<Void> updateSystemSettings(@RequestBody SystemSettings systemSettings) {
+    @PUT
+    public Response updateSystemSettings(SystemSettings systemSettings) {
         systemSettingsService.updateSystemSettings(systemSettings);
-        return ResponseEntity.ok().build();
+        return Response.ok().build();
     }
 
-    @GetMapping("/systemName")
-    public ResponseEntity<String> getSystemName() {
+    @GET
+    @Path("/systemName")
+    public Response getSystemName() {
         String systemName = systemSettingsService.getSystemName();
         if (systemName != null) {
-            return ResponseEntity.ok(systemName);
+            return Response.ok(systemName).build();
         } else {
-            return ResponseEntity.notFound().build();
+            return Response.status(Response.Status.NOT_FOUND).build();
         }
     }
 
-    @GetMapping("/systemVersion")
-    public ResponseEntity<String> getSystemVersion() {
+    @GET
+    @Path("/systemVersion")
+    public Response getSystemVersion() {
         String systemVersion = systemSettingsService.getSystemVersion();
         if (systemVersion != null) {
-            return ResponseEntity.ok(systemVersion);
+            return Response.ok(systemVersion).build();
         } else {
-            return ResponseEntity.notFound().build();
+            return Response.status(Response.Status.NOT_FOUND).build();
         }
     }
 
-    @GetMapping("/systemDescription")
-    public ResponseEntity<String> getSystemDescription() {
+    @GET
+    @Path("/systemDescription")
+    public Response getSystemDescription() {
         String systemDescription = systemSettingsService.getSystemDescription();
         if (systemDescription != null) {
-            return ResponseEntity.ok(systemDescription);
+            return Response.ok(systemDescription).build();
         } else {
-            return ResponseEntity.notFound().build();
+            return Response.status(Response.Status.NOT_FOUND).build();
         }
     }
 
-    @GetMapping("/copyrightInfo")
-    public ResponseEntity<String> getCopyrightInfo() {
+    @GET
+    @Path("/copyrightInfo")
+    public Response getCopyrightInfo() {
         String copyrightInfo = systemSettingsService.getCopyrightInfo();
         if (copyrightInfo != null) {
-            return ResponseEntity.ok(copyrightInfo);
+            return Response.ok(copyrightInfo).build();
         } else {
-            return ResponseEntity.notFound().build();
+            return Response.status(Response.Status.NOT_FOUND).build();
         }
     }
 
-    @GetMapping("/storagePath")
-    public ResponseEntity<String> getStoragePath() {
+    @GET
+    @Path("/storagePath")
+    public Response getStoragePath() {
         String storagePath = systemSettingsService.getStoragePath();
         if (storagePath != null) {
-            return ResponseEntity.ok(storagePath);
+            return Response.ok(storagePath).build();
         } else {
-            return ResponseEntity.notFound().build();
+            return Response.status(Response.Status.NOT_FOUND).build();
         }
     }
 
-    @GetMapping("/loginTimeout")
-    public ResponseEntity<Integer> getLoginTimeout() {
+    @GET
+    @Path("/loginTimeout")
+    public Response getLoginTimeout() {
         int loginTimeout = systemSettingsService.getLoginTimeout();
-        return ResponseEntity.ok(loginTimeout);
+        return Response.ok(loginTimeout).build();
     }
 
-    @GetMapping("/sessionTimeout")
-    public ResponseEntity<Integer> getSessionTimeout() {
+    @GET
+    @Path("/sessionTimeout")
+    public Response getSessionTimeout() {
         int sessionTimeout = systemSettingsService.getSessionTimeout();
-        return ResponseEntity.ok(sessionTimeout);
+        return Response.ok(sessionTimeout).build();
     }
 
-    @GetMapping("/dateFormat")
-    public ResponseEntity<String> getDateFormat() {
+    @GET
+    @Path("/dateFormat")
+    public Response getDateFormat() {
         String dateFormat = systemSettingsService.getDateFormat();
         if (dateFormat != null) {
-            return ResponseEntity.ok(dateFormat);
+            return Response.ok(dateFormat).build();
         } else {
-            return ResponseEntity.notFound().build();
+            return Response.status(Response.Status.NOT_FOUND).build();
         }
     }
 
-    @GetMapping("/pageSize")
-    public ResponseEntity<Integer> getPageSize() {
+    @GET
+    @Path("/pageSize")
+    public Response getPageSize() {
         int pageSize = systemSettingsService.getPageSize();
-        return ResponseEntity.ok(pageSize);
+        return Response.ok(pageSize).build();
     }
 
-    @GetMapping("/smtpServer")
-    public ResponseEntity<String> getSmtpServer() {
+    @GET
+    @Path("/smtpServer")
+    public Response getSmtpServer() {
         String smtpServer = systemSettingsService.getSmtpServer();
         if (smtpServer != null) {
-            return ResponseEntity.ok(smtpServer);
+            return Response.ok(smtpServer).build();
         } else {
-            return ResponseEntity.notFound().build();
+            return Response.status(Response.Status.NOT_FOUND).build();
         }
     }
 
-    @GetMapping("/emailAccount")
-    public ResponseEntity<String> getEmailAccount() {
+    @GET
+    @Path("/emailAccount")
+    public Response getEmailAccount() {
         String emailAccount = systemSettingsService.getEmailAccount();
         if (emailAccount != null) {
-            return ResponseEntity.ok(emailAccount);
+            return Response.ok(emailAccount).build();
         } else {
-            return ResponseEntity.notFound().build();
+            return Response.status(Response.Status.NOT_FOUND).build();
         }
     }
 
-    @GetMapping("/emailPassword")
-    public ResponseEntity<String> getEmailPassword() {
+    @GET
+    @Path("/emailPassword")
+    public Response getEmailPassword() {
         String emailPassword = systemSettingsService.getEmailPassword();
         if (emailPassword != null) {
-            return ResponseEntity.ok(emailPassword);
+            return Response.ok(emailPassword).build();
         } else {
-            return ResponseEntity.notFound().build();
+            return Response.status(Response.Status.NOT_FOUND).build();
         }
     }
 }

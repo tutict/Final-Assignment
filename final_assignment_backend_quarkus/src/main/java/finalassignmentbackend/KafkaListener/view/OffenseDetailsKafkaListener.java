@@ -45,7 +45,7 @@ public class OffenseDetailsKafkaListener {
         }).onComplete(res -> {
             if (res.succeeded()) {
                 // 消息处理成功，确认消息处理成功
-                acknowledgment.acknowledge();
+                acknowledgment.();
             } else {
                 log.error("Error processing appeal message: {}", message, res.cause());
             }

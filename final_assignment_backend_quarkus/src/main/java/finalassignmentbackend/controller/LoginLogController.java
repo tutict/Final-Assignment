@@ -1,18 +1,12 @@
 package finalassignmentbackend.controller;
 
-import com.tutict.finalassignmentbackend.entity.LoginLog;
-import com.tutict.finalassignmentbackend.service.LoginLogService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+
+import jakarta.ws.rs.Path;
 
 import java.util.Date;
-import java.util.List;
 
-@RestController
-@RequestMapping("/eventbus/loginLogs")
+@Path("/eventbus/loginLogs")
+
 public class LoginLogController {
 
     private final LoginLogService loginLogService;

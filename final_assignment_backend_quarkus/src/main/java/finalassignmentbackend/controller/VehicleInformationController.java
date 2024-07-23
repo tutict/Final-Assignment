@@ -1,109 +1,123 @@
 package finalassignmentbackend.controller;
 
-import com.tutict.finalassignmentbackend.entity.VehicleInformation;
-import com.tutict.finalassignmentbackend.service.VehicleInformationService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+
+import finalassignmentbackend.entity.VehicleInformation;
+import finalassignmentbackend.service.VehicleInformationService;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 
 import java.util.List;
 
-@RestController
-@RequestMapping("/eventbus/vehicles")
+@Path("/eventbus/vehicles")
+@Produces(MediaType.APPLICATION_JSON)
+@Consumes(MediaType.APPLICATION_JSON)
 public class VehicleInformationController {
 
-    private final VehicleInformationService vehicleInformationService;
-
-    @Autowired
-    public VehicleInformationController(VehicleInformationService vehicleInformationService) {
-        this.vehicleInformationService = vehicleInformationService;
-    }
+    @Inject
+    VehicleInformationService vehicleInformationService;
 
     // Create a new vehicle
-    @PostMapping
-    public ResponseEntity<Void> createVehicleInformation(@RequestBody VehicleInformation vehicleInformation) {
+    @POST
+    public Response createVehicleInformation(VehicleInformation vehicleInformation) {
         vehicleInformationService.createVehicleInformation(vehicleInformation);
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+        return Response.status(Response.Status.CREATED).build();
     }
 
     // Get a vehicle by ID
-    @GetMapping("/{vehicleId}")
-    public ResponseEntity<VehicleInformation> getVehicleInformationById(@PathVariable int vehicleId) {
+    @GET
+    @Path("/{vehicleId}")
+    public Response getVehicleInformationById(@PathParam("vehicleId") int vehicleId) {
         VehicleInformation vehicleInformation = vehicleInformationService.getVehicleInformationById(vehicleId);
         if (vehicleInformation != null) {
-            return ResponseEntity.ok(vehicleInformation);
+            return Response.ok(vehicleInformation).build();
         } else {
-            return ResponseEntity.notFound().build();
+            return Response.status(Response.Status.NOT_FOUND).build();
         }
     }
 
     // Get a vehicle by license plate
-    @GetMapping("/license-plate/{licensePlate}")
-    public ResponseEntity<VehicleInformation> getVehicleInformationByLicensePlate(@PathVariable String licensePlate) {
+    @GET
+    @Path("/license-plate/{licensePlate}")
+    public Response getVehicleInformationByLicensePlate(@PathParam("licensePlate") String licensePlate) {
         VehicleInformation vehicleInformation = vehicleInformationService.getVehicleInformationByLicensePlate(licensePlate);
         if (vehicleInformation != null) {
-            return ResponseEntity.ok(vehicleInformation);
+            return Response.ok(vehicleInformation).build();
         } else {
-            return ResponseEntity.notFound().build();
+            return Response.status(Response.Status.NOT_FOUND).build();
         }
     }
 
     // Get all vehicles
-    @GetMapping
-    public ResponseEntity<List<VehicleInformation>> getAllVehicleInformation() {
+    @GET
+    public Response getAllVehicleInformation() {
         List<VehicleInformation> vehicleInformationList = vehicleInformationService.getAllVehicleInformation();
-        return ResponseEntity.ok(vehicleInformationList);
+        return Response.ok(vehicleInformationList).build();
     }
 
     // Get a vehicle by type
-    @GetMapping("/type/{vehicleType}")
-    public ResponseEntity<List<VehicleInformation>> getVehicleInformationByType(@PathVariable String vehicleType) {
+    @GET
+    @Path("/type/{vehicleType}")
+    public Response getVehicleInformationByType(@PathParam("vehicleType") String vehicleType) {
         List<VehicleInformation> vehicleInformationList = vehicleInformationService.getVehicleInformationByType(vehicleType);
-        return ResponseEntity.ok(vehicleInformationList);
+        return Response.ok(vehicleInformationList).build();
     }
 
     // Get a vehicle by owner name
-    @GetMapping("/owner/{ownerName}")
-    public ResponseEntity<List<VehicleInformation>> getVehicleInformationByOwnerName(@PathVariable String ownerName) {
+    @GET
+    @Path("/owner/{ownerName}")
+    public Response getVehicleInformationByOwnerName(@PathParam("ownerName") String ownerName) {
         List<VehicleInformation> vehicleInformationList = vehicleInformationService.getVehicleInformationByOwnerName(ownerName);
-        return ResponseEntity.ok(vehicleInformationList);
+        return Response.ok(vehicleInformationList).build();
     }
 
     // Get a vehicle by status
-    @GetMapping("/status/{currentStatus}")
-    public ResponseEntity<List<VehicleInformation>> getVehicleInformationByStatus(@PathVariable String currentStatus) {
+    @GET
+    @Path("/status/{currentStatus}")
+    public Response getVehicleInformationByStatus(@PathParam("currentStatus") String currentStatus) {
         List<VehicleInformation> vehicleInformationList = vehicleInformationService.getVehicleInformationByStatus(currentStatus);
-        return ResponseEntity.ok(vehicleInformationList);
+        return Response.ok(vehicleInformationList).build();
     }
 
     // Update a vehicle
-    @PutMapping("/{vehicleId}")
-    public ResponseEntity<Void> updateVehicleInformation(@PathVariable int vehicleId, @RequestBody VehicleInformation vehicleInformation) {
+    @PUT
+    @Path("/{vehicleId}")
+    public Response updateVehicleInformation(@PathParam("vehicleId") int vehicleId, VehicleInformation vehicleInformation) {
         vehicleInformation.setVehicleId(vehicleId);
         vehicleInformationService.updateVehicleInformation(vehicleInformation);
-        return ResponseEntity.ok().build();
+        return Response.ok().build();
     }
 
     // Delete a vehicle by ID
-    @DeleteMapping("/{vehicleId}")
-    public ResponseEntity<Void> deleteVehicleInformation(@PathVariable int vehicleId) {
+    @DELETE
+    @Path("/{vehicleId}")
+    public Response deleteVehicleInformation(@PathParam("vehicleId") int vehicleId) {
         vehicleInformationService.deleteVehicleInformation(vehicleId);
-        return ResponseEntity.noContent().build();
+        return Response.noContent().build();
     }
 
     // Delete a vehicle by license plate
-    @DeleteMapping("/license-plate/{licensePlate}")
-    public ResponseEntity<Void> deleteVehicleInformationByLicensePlate(@PathVariable String licensePlate) {
+    @DELETE
+    @Path("/license-plate/{licensePlate}")
+    public Response deleteVehicleInformationByLicensePlate(@PathParam("licensePlate") String licensePlate) {
         vehicleInformationService.deleteVehicleInformationByLicensePlate(licensePlate);
-        return ResponseEntity.noContent().build();
+        return Response.noContent().build();
     }
 
     // Check if a vehicle exists
-    @GetMapping("/exists/{licensePlate}")
-    public ResponseEntity<Boolean> isLicensePlateExists(@PathVariable String licensePlate) {
+    @GET
+    @Path("/exists/{licensePlate}")
+    public Response isLicensePlateExists(@PathParam("licensePlate") String licensePlate) {
         boolean exists = vehicleInformationService.isLicensePlateExists(licensePlate);
-        return ResponseEntity.ok(exists);
+        return Response.ok(exists).build();
     }
 }
 

@@ -1,25 +1,28 @@
 package finalassignmentbackend.controller;
 
-import com.tutict.finalassignmentbackend.utils.GaoDeGeocoder;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+
+import finalassignmentbackend.utils.GaoDeGeocoder;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
 
 import java.util.Map;
 
-@RestController
-@RequestMapping("/eventbus/")
+@Path("/eventbus/")
+@Produces(MediaType.APPLICATION_JSON)
+@Consumes(MediaType.APPLICATION_JSON)
 public class LocationController {
 
-//    @Autowired
-    @Autowired
-    private GaoDeGeocoder gaoDeGeocoder;
+    @Inject
+    GaoDeGeocoder gaoDeGeocoder;
 
 //    @PostMapping("/location")
-    @PostMapping("/location")
-    public String handleLocation(@RequestBody Map<String, Object> locationData) throws Exception {
+    @POST
+    @Path("/location")
+    public String handleLocation(Map<String, Object> locationData) throws Exception {
 
         double longitude = (double) locationData.get("laitude");
         double latitude = (double) locationData.get("longitude");

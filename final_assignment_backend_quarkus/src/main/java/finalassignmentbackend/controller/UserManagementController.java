@@ -1,93 +1,105 @@
 package finalassignmentbackend.controller;
 
-import com.tutict.finalassignmentbackend.entity.UserManagement;
-import com.tutict.finalassignmentbackend.service.UserManagementService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+
+import finalassignmentbackend.entity.UserManagement;
+import finalassignmentbackend.service.UserManagementService;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 
 import java.util.List;
 
-@RestController
-@RequestMapping("/eventbus/users")
+@Path("/eventbus/users")
+@Produces(MediaType.APPLICATION_JSON)
+@Consumes(MediaType.APPLICATION_JSON)
 public class UserManagementController {
 
-    private final UserManagementService userManagementService;
+    @Inject
+    UserManagementService userManagementService;
 
-    @Autowired
-    public UserManagementController(UserManagementService userManagementService) {
-        this.userManagementService = userManagementService;
-    }
-
-    @PostMapping
-    public ResponseEntity<Void> createUser(@RequestBody UserManagement user) {
+    @POST
+    public Response createUser(UserManagement user) {
         if (userManagementService.isUsernameExists(user.getUsername())) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+            return Response.status(Response.Status.CONFLICT).build();
         }
         userManagementService.createUser(user);
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+        return Response.status(Response.Status.CREATED).build();
     }
 
-    @GetMapping("/{userId}")
-    public ResponseEntity<UserManagement> getUserById(@PathVariable int userId) {
+    @GET
+    @Path("/{userId}")
+    public Response getUserById(@PathParam("userId") int userId) {
         UserManagement user = userManagementService.getUserById(userId);
         if (user != null) {
-            return ResponseEntity.ok(user);
+            return Response.ok(user).build();
         } else {
-            return ResponseEntity.notFound().build();
+            return Response.status(Response.Status.NOT_FOUND).build();
         }
     }
 
-    @GetMapping("/username/{username}")
-    public ResponseEntity<UserManagement> getUserByUsername(@PathVariable String username) {
+    @GET
+    @Path("/username/{username}")
+    public Response getUserByUsername(@PathParam("username") String username) {
         UserManagement user = userManagementService.getUserByUsername(username);
         if (user != null) {
-            return ResponseEntity.ok(user);
+            return Response.ok(user).build();
         } else {
-            return ResponseEntity.notFound().build();
+            return Response.status(Response.Status.NOT_FOUND).build();
         }
     }
 
-    @GetMapping
-    public ResponseEntity<List<UserManagement>> getAllUsers() {
+    @GET
+    public Response getAllUsers() {
         List<UserManagement> users = userManagementService.getAllUsers();
-        return ResponseEntity.ok(users);
+        return Response.ok(users).build();
     }
 
-    @GetMapping("/type/{userType}")
-    public ResponseEntity<List<UserManagement>> getUsersByType(@PathVariable String userType) {
+    @GET
+    @Path("/type/{userType}")
+    public Response getUsersByType(@PathParam("userType") String userType) {
         List<UserManagement> users = userManagementService.getUsersByType(userType);
-        return ResponseEntity.ok(users);
+        return Response.ok(users).build();
     }
 
-    @GetMapping("/status/{status}")
-    public ResponseEntity<List<UserManagement>> getUsersByStatus(@PathVariable String status) {
+    @GET
+    @Path("/status/{status}")
+    public Response getUsersByStatus(@PathParam("status") String status) {
         List<UserManagement> users = userManagementService.getUsersByStatus(status);
-        return ResponseEntity.ok(users);
+        return Response.ok(users).build();
     }
 
-    @PutMapping("/{userId}")
-    public ResponseEntity<Void> updateUser(@PathVariable int userId, @RequestBody UserManagement updatedUser) {
+    @PUT
+    @Path("/{userId}")
+    public Response updateUser(@PathParam("userId") int userId, UserManagement updatedUser) {
         UserManagement existingUser = userManagementService.getUserById(userId);
         if (existingUser != null) {
             updatedUser.setUserId(userId);
             userManagementService.updateUser(updatedUser);
-            return ResponseEntity.ok().build();
+            return Response.ok().build();
         } else {
-            return ResponseEntity.notFound().build();
+            return Response.status(Response.Status.NOT_FOUND).build();
         }
     }
 
-    @DeleteMapping("/{userId}")
-    public ResponseEntity<Void> deleteUser(@PathVariable int userId) {
+    @DELETE
+    @Path("/{userId}")
+    public Response deleteUser(@PathParam("userId") int userId) {
         userManagementService.deleteUser(userId);
-        return ResponseEntity.noContent().build();
+        return Response.noContent().build();
     }
 
-    @DeleteMapping("/username/{username}")
-    public ResponseEntity<Void> deleteUserByUsername(@PathVariable String username) {
+    @DELETE
+    @Path("/username/{username}")
+    public Response deleteUserByUsername(@PathParam("username") String username) {
         userManagementService.deleteUserByUsername(username);
-        return ResponseEntity.noContent().build();
+        return Response.noContent().build();
     }
 }

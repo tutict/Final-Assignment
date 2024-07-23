@@ -1,84 +1,107 @@
 package finalassignmentbackend.controller;
 
-import com.tutict.finalassignmentbackend.entity.OperationLog;
-import com.tutict.finalassignmentbackend.service.OperationLogService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import finalassignmentbackend.entity.OperationLog;
+import finalassignmentbackend.service.OperationLogService;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.DefaultValue;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 
-import java.util.Date;
+import java.time.LocalDate;
 import java.util.List;
 
-@RestController
-@RequestMapping("/eventbus/operationLogs")
+@Path("/eventbus/operationLogs")
+@Consumes(MediaType.APPLICATION_JSON)
+@Produces(MediaType.APPLICATION_JSON)
 public class OperationLogController {
 
-    private final OperationLogService operationLogService;
+    @Inject
+    OperationLogService operationLogService;
 
-    @Autowired
-    public OperationLogController(OperationLogService operationLogService) {
-        this.operationLogService = operationLogService;
-    }
-
-    @PostMapping
-    public ResponseEntity<Void> createOperationLog(@RequestBody OperationLog operationLog) {
+    @POST
+    public Response createOperationLog(OperationLog operationLog) {
         operationLogService.createOperationLog(operationLog);
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+        return Response.status(Response.Status.CREATED).build();
     }
 
-    @GetMapping("/{logId}")
-    public ResponseEntity<OperationLog> getOperationLog(@PathVariable int logId) {
+    @GET
+    @Path("/{logId}")
+    public Response getOperationLog(@PathParam("logId") int logId) {
         OperationLog operationLog = operationLogService.getOperationLog(logId);
         if (operationLog != null) {
-            return ResponseEntity.ok(operationLog);
+            return Response.ok(operationLog).build();
         } else {
-            return ResponseEntity.notFound().build();
+            return Response.status(Response.Status.NOT_FOUND).build();
         }
     }
 
-    @GetMapping
-    public ResponseEntity<List<OperationLog>> getAllOperationLogs() {
+    @GET
+    public Response getAllOperationLogs() {
         List<OperationLog> operationLogs = operationLogService.getAllOperationLogs();
-        return ResponseEntity.ok(operationLogs);
+        return Response.ok(operationLogs).build();
     }
 
-    @PutMapping("/{logId}")
-    public ResponseEntity<Void> updateOperationLog(@PathVariable int logId, @RequestBody OperationLog updatedOperationLog) {
+    @PUT
+    @Path("/{logId}")
+    public Response updateOperationLog(@PathParam("logId") int logId, OperationLog updatedOperationLog) {
         OperationLog existingOperationLog = operationLogService.getOperationLog(logId);
         if (existingOperationLog != null) {
             updatedOperationLog.setLogId(logId);
             operationLogService.updateOperationLog(updatedOperationLog);
-            return ResponseEntity.ok().build();
+            return Response.ok().build();
         } else {
-            return ResponseEntity.notFound().build();
+            return Response.status(Response.Status.NOT_FOUND).build();
         }
     }
 
-    @DeleteMapping("/{logId}")
-    public ResponseEntity<Void> deleteOperationLog(@PathVariable int logId) {
+    @DELETE
+    @Path("/{logId}")
+    public Response deleteOperationLog(@PathParam("logId") int logId) {
         operationLogService.deleteOperationLog(logId);
-        return ResponseEntity.noContent().build();
+        return Response.noContent().build();
     }
 
-    @GetMapping("/timeRange")
-    public ResponseEntity<List<OperationLog>> getOperationLogsByTimeRange(
-            @RequestParam("startTime") @DateTimeFormat(pattern = "yyyy-MM-dd") Date startTime,
-            @RequestParam("endTime") @DateTimeFormat(pattern = "yyyy-MM-dd") Date endTime) {
-        List<OperationLog> operationLogs = operationLogService.getOperationLogsByTimeRange(startTime, endTime);
-        return ResponseEntity.ok(operationLogs);
+
+    @GET
+    @Path("/timeRange")
+    public Response getDeductionsByTimeRange(
+            @QueryParam("startTime") @DefaultValue("1970-01-01") String startTimeStr,
+            @QueryParam("endTime") @DefaultValue("2100-12-31") String endTimeStr) {
+        try {
+            LocalDate startDate = LocalDate.parse(startTimeStr);
+            LocalDate endDate = LocalDate.parse(endTimeStr);
+
+            // Convert LocalDate to java.util.Date
+            java.sql.Date startTime = java.sql.Date.valueOf(startDate);
+            java.sql.Date endTime = java.sql.Date.valueOf(endDate);
+
+            List<OperationLog> operationLogs = operationLogService.getOperationLogsByTimeRange(startTime, endTime);
+            return Response.ok(operationLogs).build();
+        } catch (Exception e) {
+            return Response.status(Response.Status.BAD_REQUEST).entity("Invalid date format").build();
+        }
     }
 
-    @GetMapping("/userId/{userId}")
-    public ResponseEntity<List<OperationLog>> getOperationLogsByUserId(@PathVariable String userId) {
+    @GET
+    @Path("/userId/{userId}")
+    public Response getOperationLogsByUserId(@PathParam("userId") String userId) {
         List<OperationLog> operationLogs = operationLogService.getOperationLogsByUserId(userId);
-        return ResponseEntity.ok(operationLogs);
+        return Response.ok(operationLogs).build();
     }
 
-    @GetMapping("/result/{result}")
-    public ResponseEntity<List<OperationLog>> getOperationLogsByResult(@PathVariable String result) {
+    @GET
+    @Path("/result/{result}")
+    public Response getOperationLogsByResult(@PathParam("result") String result) {
         List<OperationLog> operationLogs = operationLogService.getOperationLogsByResult(result);
-        return ResponseEntity.ok(operationLogs);
+        return Response.ok(operationLogs).build();
     }
 }

@@ -1,90 +1,116 @@
 package finalassignmentbackend.controller;
 
-import com.tutict.finalassignmentbackend.entity.OffenseInformation;
-import com.tutict.finalassignmentbackend.service.OffenseInformationService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
 
-import java.util.Date;
+import finalassignmentbackend.entity.OffenseInformation;
+import finalassignmentbackend.service.OffenseInformationService;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.DefaultValue;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+
+import java.time.LocalDate;
 import java.util.List;
 
-@RestController
-@RequestMapping("/eventbus/offenses")
+@Path("/eventbus/offenses")
+@Produces(MediaType.APPLICATION_JSON)
+@Consumes(MediaType.APPLICATION_JSON)
 public class OffenseInformationController {
 
-    private final OffenseInformationService offenseInformationService;
+    @Inject
+    OffenseInformationService offenseInformationService;
 
-    @Autowired
-    public OffenseInformationController(OffenseInformationService offenseInformationService) {
-        this.offenseInformationService = offenseInformationService;
-    }
-
-    @PostMapping
-    public ResponseEntity<Void> createOffense(@RequestBody OffenseInformation offenseInformation) {
+    @POST
+    public Response createOffense(OffenseInformation offenseInformation) {
         offenseInformationService.createOffense(offenseInformation);
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+        return Response.status(Response.Status.CREATED).build();
     }
 
-    @GetMapping("/{offenseId}")
-    public ResponseEntity<OffenseInformation> getOffenseByOffenseId(@PathVariable int offenseId) {
+    @GET
+    @Path("/{offenseId}")
+    public Response getOffenseByOffenseId(@PathParam("offenseId") int offenseId) {
         OffenseInformation offenseInformation = offenseInformationService.getOffenseByOffenseId(offenseId);
         if (offenseInformation != null) {
-            return ResponseEntity.ok(offenseInformation);
+            return Response.ok(offenseInformation).build();
         } else {
-            return ResponseEntity.notFound().build();
+            return Response.status(Response.Status.NOT_FOUND).build();
         }
     }
 
-    @GetMapping
-    public ResponseEntity<List<OffenseInformation>> getOffensesInformation() {
+    @GET
+    public Response getOffensesInformation() {
         List<OffenseInformation> offensesInformation = offenseInformationService.getOffensesInformation();
-        return ResponseEntity.ok(offensesInformation);
+        return Response.ok(offensesInformation).build();
     }
 
-    @PutMapping("/{offenseId}")
-    public ResponseEntity<Void> updateOffense(@PathVariable int offenseId, @RequestBody OffenseInformation updatedOffenseInformation) {
+    @PUT
+    @Path("/{offenseId}")
+    public Response updateOffense(@PathParam("offenseId") int offenseId, OffenseInformation updatedOffenseInformation) {
         OffenseInformation existingOffenseInformation = offenseInformationService.getOffenseByOffenseId(offenseId);
         if (existingOffenseInformation != null) {
             updatedOffenseInformation.setOffenseId(offenseId);
             offenseInformationService.updateOffense(updatedOffenseInformation);
-            return ResponseEntity.ok().build();
+            return Response.ok().build();
         } else {
-            return ResponseEntity.notFound().build();
+            return Response.status(Response.Status.NOT_FOUND).build();
         }
     }
 
-    @DeleteMapping("/{offenseId}")
-    public ResponseEntity<Void> deleteOffense(@PathVariable int offenseId) {
+    @DELETE
+    @Path("/{offenseId}")
+    public Response deleteOffense(@PathParam("offenseId") int offenseId) {
         offenseInformationService.deleteOffense(offenseId);
-        return ResponseEntity.noContent().build();
+        return Response.noContent().build();
     }
 
-    @GetMapping("/timeRange")
-    public ResponseEntity<List<OffenseInformation>> getOffensesByTimeRange(
-            @RequestParam("startTime") @DateTimeFormat(pattern = "yyyy-MM-dd") Date startTime,
-            @RequestParam("endTime") @DateTimeFormat(pattern = "yyyy-MM-dd") Date endTime) {
-        List<OffenseInformation> offenses = offenseInformationService.getOffensesByTimeRange(startTime, endTime);
-        return ResponseEntity.ok(offenses);
+
+    @GET
+    @Path("/timeRange")
+    public Response getDeductionsByTimeRange(
+            @QueryParam("startTime") @DefaultValue("1970-01-01") String startTimeStr,
+            @QueryParam("endTime") @DefaultValue("2100-12-31") String endTimeStr) {
+        try {
+            LocalDate startDate = LocalDate.parse(startTimeStr);
+            LocalDate endDate = LocalDate.parse(endTimeStr);
+
+            // Convert LocalDate to java.util.Date
+            java.sql.Date startTime = java.sql.Date.valueOf(startDate);
+            java.sql.Date endTime = java.sql.Date.valueOf(endDate);
+
+            List<OffenseInformation> offenses = offenseInformationService.getOffensesByTimeRange(startTime, endTime);
+            return Response.ok(offenses).build();
+        } catch (Exception e) {
+            return Response.status(Response.Status.BAD_REQUEST).entity("Invalid date format").build();
+        }
     }
 
-    @GetMapping("/processState/{processState}")
-    public ResponseEntity<List<OffenseInformation>> getOffensesByProcessState(@PathVariable String processState) {
+
+    @GET
+    @Path("/processState/{processState}")
+    public Response getOffensesByProcessState(@PathParam("processState") String processState) {
         List<OffenseInformation> offenses = offenseInformationService.getOffensesByProcessState(processState);
-        return ResponseEntity.ok(offenses);
+        return Response.ok(offenses).build();
     }
 
-    @GetMapping("/driverName/{driverName}")
-    public ResponseEntity<List<OffenseInformation>> getOffensesByDriverName(@PathVariable String driverName) {
+    @GET
+    @Path("/driverName/{driverName}")
+    public Response getOffensesByDriverName(@PathParam("driverName") String driverName) {
         List<OffenseInformation> offenses = offenseInformationService.getOffensesByDriverName(driverName);
-        return ResponseEntity.ok(offenses);
+        return Response.ok(offenses).build();
     }
 
-    @GetMapping("/licensePlate/{licensePlate}")
-    public ResponseEntity<List<OffenseInformation>> getOffensesByLicensePlate(@PathVariable String licensePlate) {
+    @GET
+    @Path("/licensePlate/{licensePlate}")
+    public Response getOffensesByLicensePlate(@PathParam("licensePlate") String licensePlate) {
         List<OffenseInformation> offenses = offenseInformationService.getOffensesByLicensePlate(licensePlate);
-        return ResponseEntity.ok(offenses);
+        return Response.ok(offenses).build();
     }
 }

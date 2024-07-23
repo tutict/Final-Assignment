@@ -1,94 +1,107 @@
 package finalassignmentbackend.controller;
 
-import com.tutict.finalassignmentbackend.entity.RoleManagement;
-import com.tutict.finalassignmentbackend.service.RoleManagementService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+
+import finalassignmentbackend.entity.RoleManagement;
+import finalassignmentbackend.service.RoleManagementService;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 
 import java.util.List;
 
-@RestController
-@RequestMapping("/eventbus/roles")
+@Path("/eventbus/roles")
+@Consumes(MediaType.APPLICATION_JSON)
+@Produces(MediaType.APPLICATION_JSON)
 public class RoleManagementController {
 
-    private final RoleManagementService roleManagementService;
+    @Inject
+    RoleManagementService roleManagementService;
 
-    @Autowired
-    public RoleManagementController(RoleManagementService roleManagementService) {
-        this.roleManagementService = roleManagementService;
-    }
-
-    @PostMapping
-    public ResponseEntity<Void> createRole(@RequestBody RoleManagement role) {
+    @POST
+    public Response createRole(RoleManagement role) {
         roleManagementService.createRole(role);
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+        return Response.status(Response.Status.CREATED).build();
     }
 
-    @GetMapping("/{roleId}")
-    public ResponseEntity<RoleManagement> getRoleById(@PathVariable int roleId) {
+    @GET
+    @Path("/{roleId}")
+    public Response getRoleById(@PathParam("roleId") int roleId) {
         RoleManagement role = roleManagementService.getRoleById(roleId);
         if (role != null) {
-            return ResponseEntity.ok(role);
+            return Response.ok(role).build();
         } else {
-            return ResponseEntity.notFound().build();
+            return Response.status(Response.Status.NOT_FOUND).build();
         }
     }
 
-    @GetMapping
-    public ResponseEntity<List<RoleManagement>> getAllRoles() {
+    @GET
+    public Response getAllRoles() {
         List<RoleManagement> roles = roleManagementService.getAllRoles();
-        return ResponseEntity.ok(roles);
+        return Response.ok(roles).build();
     }
 
-    @GetMapping("/name/{roleName}")
-    public ResponseEntity<RoleManagement> getRoleByName(@PathVariable String roleName) {
+    @GET
+    @Path("/name/{roleName}")
+    public Response getRoleByName(@PathParam("roleName") String roleName) {
         RoleManagement role = roleManagementService.getRoleByName(roleName);
         if (role != null) {
-            return ResponseEntity.ok(role);
+            return Response.ok(role).build();
         } else {
-            return ResponseEntity.notFound().build();
+            return Response.status(Response.Status.NOT_FOUND).build();
         }
     }
 
-    @GetMapping("/search")
-    public ResponseEntity<List<RoleManagement>> getRolesByNameLike(@RequestParam("name") String roleName) {
+    @GET
+    @Path("/search")
+    public Response getRolesByNameLike(@QueryParam("name") String roleName) {
         List<RoleManagement> roles = roleManagementService.getRolesByNameLike(roleName);
-        return ResponseEntity.ok(roles);
+        return Response.ok(roles).build();
     }
 
-    @PutMapping("/{roleId}")
-    public ResponseEntity<Void> updateRole(@PathVariable int roleId, @RequestBody RoleManagement updatedRole) {
+    @PUT
+    @Path("/{roleId}")
+    public Response updateRole(@PathParam("roleId") int roleId, RoleManagement updatedRole) {
         RoleManagement existingRole = roleManagementService.getRoleById(roleId);
         if (existingRole != null) {
             updatedRole.setRoleId(roleId);
             roleManagementService.updateRole(updatedRole);
-            return ResponseEntity.ok().build();
+            return Response.ok().build();
         } else {
-            return ResponseEntity.notFound().build();
+            return Response.status(Response.Status.NOT_FOUND).build();
         }
     }
 
-    @DeleteMapping("/{roleId}")
-    public ResponseEntity<Void> deleteRole(@PathVariable int roleId) {
+    @DELETE
+    @Path("/{roleId}")
+    public Response deleteRole(@PathParam("roleId") int roleId) {
         roleManagementService.deleteRole(roleId);
-        return ResponseEntity.noContent().build();
+        return Response.noContent().build();
     }
 
-    @DeleteMapping("/name/{roleName}")
-    public ResponseEntity<Void> deleteRoleByName(@PathVariable String roleName) {
+    @DELETE
+    @Path("/name/{roleName}")
+    public Response deleteRoleByName(@PathParam("roleName") String roleName) {
         roleManagementService.deleteRoleByName(roleName);
-        return ResponseEntity.noContent().build();
+        return Response.noContent().build();
     }
 
-    @GetMapping("/{roleId}/permissions")
-    public ResponseEntity<String> getPermissionListByRoleId(@PathVariable int roleId) {
+    @GET
+    @Path("/{roleId}/permissions")
+    public Response getPermissionListByRoleId(@PathParam("roleId") int roleId) {
         String permissionList = roleManagementService.getPermissionListByRoleId(roleId);
         if (permissionList != null) {
-            return ResponseEntity.ok(permissionList);
+            return Response.ok(permissionList).build();
         } else {
-            return ResponseEntity.notFound().build();
+            return Response.status(Response.Status.NOT_FOUND).build();
         }
     }
 }
