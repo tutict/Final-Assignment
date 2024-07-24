@@ -29,7 +29,7 @@ public class WebSocketServer extends AbstractVerticle {
         Router router = Router.router(vertx);
 
         // 设置跨域处理器
-        CorsHandler corsHandler = CorsHandler.create("http://localhost:8082")
+        CorsHandler corsHandler = CorsHandler.create("ws://localhost:8082")
                 .allowedMethod(HttpMethod.GET)
                 .allowedMethod(HttpMethod.POST)
                 .allowedMethod(HttpMethod.PUT)

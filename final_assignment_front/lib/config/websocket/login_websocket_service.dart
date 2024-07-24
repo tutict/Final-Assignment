@@ -1,37 +1,46 @@
-import 'package:w_transport/w_transport.dart' as transport;
-import 'package:w_transport/vm.dart' show configureWTransportForVM;
+import 'dart:async';
+import 'package:logging/logging.dart';
+import 'package:sockjs_client_wrapper/sockjs_client_wrapper.dart';
 
 class WebSocketService {
-  transport.WebSocket? webSocket;
-  final String websocketUrl = 'wss://localhost:8082/eventbus/users';
+  late SockJSClient sockJS;
+  final String websocketUrl = 'http://localhost:8082/eventbus/users';
+
+  final Logger logger = Logger('WebSocketService');
 
   WebSocketService() {
-    configureWTransportForVM();
     _connect();
   }
 
-  Future<void> _connect() async {
-    try {
-      webSocket = await transport.WebSocket.connect(Uri.parse(websocketUrl));
-      if (webSocket == null) {
-        throw Exception('Failed to connect to WebSocket');
-      }
-    } catch (e) {
-      print('Error connecting to WebSocket: $e');
-      // 这里你可以添加一些重试逻辑或者错误处理逻辑
-    }
+  void _connect() {
+    final uri = Uri.parse(websocketUrl);
+    final options = SockJSOptions(transports: ['websocket', 'xhr-streaming', 'xhr-polling']);
+    sockJS = SockJSClient(uri, options: options);
+
+    sockJS.onOpen.listen((event) {
+      logger.info('OPEN: ${event.transport} ${event.url} ${event.debugUrl}');
+    });
+
+    sockJS.onMessage.listen((event) {
+      logger.info('MSG: ${event.data}');
+    });
+
+    sockJS.onClose.listen((event) {
+      logger.info('CLOSE: ${event.code} ${event.reason} (wasClean ${event.wasClean})');
+    });
+
   }
 
   void sendMessage(String message) {
-    webSocket?.add(message);
+    sockJS.send(message);
   }
 
   Stream<String> getMessages() {
-    // 使用 `where` 过滤掉空消息
-    return webSocket?.asBroadcastStream().where((event) => event.isNotEmpty).map((message) => message.toString()) ?? Stream.empty();
+    return sockJS.onMessage.map((event) => event.data.toString()).where((message) => message.isNotEmpty);
   }
 
   void close() {
-    webSocket?.close();
+    sockJS.close();
   }
 }
+
