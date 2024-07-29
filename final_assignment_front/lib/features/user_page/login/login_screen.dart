@@ -5,7 +5,7 @@ import 'dart:convert';
 import 'package:final_assignment_front/features/dashboard/views/screens/manager_dashboard_screen.dart';
 import 'package:final_assignment_front/config/websocket/login_websocket_service.dart';
 
-import '../../config/routes/app_pages.dart';
+import '../../../config/routes/app_pages.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});

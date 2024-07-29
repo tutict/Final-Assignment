@@ -1,10 +1,10 @@
 import 'dart:convert';
 import 'dart:math';
 
-import 'package:final_assignment_front/flutter_captcha_plus/request/HttpManager.dart';
-import 'package:final_assignment_front/flutter_captcha_plus/request/encrypt_util.dart';
-import 'package:final_assignment_front/flutter_captcha_plus/tools/object_utils.dart';
-import 'package:final_assignment_front/flutter_captcha_plus/tools/widget_util.dart';
+import 'package:final_assignment_front/features/flutter_captcha_plus/request/HttpManager.dart';
+import 'package:final_assignment_front/features/flutter_captcha_plus/request/encrypt_util.dart';
+import 'package:final_assignment_front/features/flutter_captcha_plus/tools/object_utils.dart';
+import 'package:final_assignment_front/features/flutter_captcha_plus/tools/widget_util.dart';
 import 'package:flutter/material.dart';
 import 'package:steel_crypt/steel_crypt.dart';
 
@@ -14,7 +14,7 @@ class BlockPuzzleCaptchaPage extends StatefulWidget {
   final VoidSuccessCallback onSuccess; //拖放完成后验证成功回调
   final VoidCallback onFail; //拖放完成后验证失败回调
 
-  BlockPuzzleCaptchaPage({required this.onSuccess, required this.onFail});
+  const BlockPuzzleCaptchaPage({super.key, required this.onSuccess, required this.onFail});
 
   @override
   _BlockPuzzleCaptchaPageState createState() => _BlockPuzzleCaptchaPageState();
@@ -50,12 +50,12 @@ class _BlockPuzzleCaptchaPageState extends State<BlockPuzzleCaptchaPage>
   late Animation<double> offsetAnimation;
 
   //底部部件key
-  GlobalKey _containerKey = new GlobalKey();
+  final GlobalKey _containerKey = GlobalKey();
   //背景图key
-  GlobalKey _baseImageKey = new GlobalKey();
+  final GlobalKey _baseImageKey = GlobalKey();
   //滑块
-  GlobalKey _slideImageKey = new GlobalKey();
-  double _bottomSliderSize = 60;
+  final GlobalKey _slideImageKey = GlobalKey();
+  final double _bottomSliderSize = 60;
 
   //------------动画------------
 
@@ -70,7 +70,7 @@ class _BlockPuzzleCaptchaPageState extends State<BlockPuzzleCaptchaPage>
     updateSliderColorIcon();
 
     //刷新验证码
-    Future.delayed(Duration(milliseconds: 1000)).then((v) {
+    Future.delayed(const Duration(milliseconds: 1000)).then((v) {
       _reverseAnimation().then((v) {
         setState(() {
           _showTimeLine = false;
@@ -95,7 +95,7 @@ class _BlockPuzzleCaptchaPageState extends State<BlockPuzzleCaptchaPage>
     updateSliderColorIcon();
 
     //刷新验证码
-    Future.delayed(Duration(milliseconds: 1000)).then((v) {
+    Future.delayed(const Duration(milliseconds: 1000)).then((v) {
       _reverseAnimation().then((v) {
         setState(() {
           _showTimeLine = false;
@@ -109,26 +109,26 @@ class _BlockPuzzleCaptchaPageState extends State<BlockPuzzleCaptchaPage>
 
   //重设滑动颜色与图标
   void updateSliderColorIcon() {
-    var _sliderColor; //滑块的背景色
-    var _sliderIcon; //滑块的图标
-    var _movedXBorderColor; //滑块拖动时，左边已滑的区域边框颜色
+    var sliderColor; //滑块的背景色
+    var sliderIcon; //滑块的图标
+    var movedXBorderColor; //滑块拖动时，左边已滑的区域边框颜色
 
     //滑块的背景色
     if (sliderMoveFinish) {
       //拖动结束
-      _sliderColor = checkResultAfterDrag ? Colors.green : Colors.red;
-      _sliderIcon = checkResultAfterDrag ? Icons.check : Icons.close;
-      _movedXBorderColor = checkResultAfterDrag ? Colors.green : Colors.red;
+      sliderColor = checkResultAfterDrag ? Colors.green : Colors.red;
+      sliderIcon = checkResultAfterDrag ? Icons.check : Icons.close;
+      movedXBorderColor = checkResultAfterDrag ? Colors.green : Colors.red;
     } else {
       //拖动未开始或正在拖动中
-      _sliderColor = sliderXMoved > 0 ? Color(0xff447ab2) : Colors.white;
-      _sliderIcon = Icons.arrow_forward;
-      _movedXBorderColor = Color(0xff447ab2);
+      sliderColor = sliderXMoved > 0 ? const Color(0xff447ab2) : Colors.white;
+      sliderIcon = Icons.arrow_forward;
+      movedXBorderColor = const Color(0xff447ab2);
     }
 
-    sliderColor = _sliderColor;
-    sliderIcon = _sliderIcon;
-    movedXBorderColor = _movedXBorderColor;
+    sliderColor = sliderColor;
+    sliderIcon = sliderIcon;
+    movedXBorderColor = movedXBorderColor;
     setState(() {});
   }
 
@@ -166,11 +166,11 @@ class _BlockPuzzleCaptchaPageState extends State<BlockPuzzleCaptchaPage>
       captchaToken = repData["token"];
 
       var baseR = await WidgetUtil.getImageWH(
-          image: Image.memory(Base64Decoder().convert(baseImageBase64)));
+          image: Image.memory(const Base64Decoder().convert(baseImageBase64)));
       baseSize = baseR.size;
 
       var silderR = await WidgetUtil.getImageWH(
-          image: Image.memory(Base64Decoder().convert(slideImageBase64)));
+          image: Image.memory(const Base64Decoder().convert(slideImageBase64)));
       slideSize = silderR.size;
 
       setState(() {});
@@ -199,7 +199,7 @@ class _BlockPuzzleCaptchaPageState extends State<BlockPuzzleCaptchaPage>
       var aesEncrypter = AesCrypt(secretKey, 'ecb', 'pkcs7');
       cryptedStr = aesEncrypter.encrypt(pointStr);
       var dcrypt = aesEncrypter.decrypt(cryptedStr);
-      Map _map = json.decode(dcrypt);
+      json.decode(dcrypt);
     }
 
     HttpManager.requestData('/captcha/check', {
@@ -247,12 +247,12 @@ class _BlockPuzzleCaptchaPageState extends State<BlockPuzzleCaptchaPage>
   // 初始化动画
   void initAnimation() {
     controller =
-        AnimationController(duration: Duration(milliseconds: 500), vsync: this);
+        AnimationController(duration: const Duration(milliseconds: 500), vsync: this);
 
     offsetAnimation = Tween<double>(begin: 0.5, end: 0)
         .animate(CurvedAnimation(parent: controller, curve: Curves.ease))
       ..addListener(() {
-        this.setState(() {});
+        setState(() {});
       });
   }
 
@@ -312,19 +312,19 @@ class _BlockPuzzleCaptchaPageState extends State<BlockPuzzleCaptchaPage>
   _topContainer() {
     return Container(
       height: 50,
-      padding: EdgeInsets.fromLTRB(10, 0, 10, 0),
-      decoration: BoxDecoration(
+      padding: const EdgeInsets.fromLTRB(10, 0, 10, 0),
+      decoration: const BoxDecoration(
         border: Border(bottom: BorderSide(width: 1, color: Color(0xffe5e5e5))),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: <Widget>[
-          Text(
+          const Text(
             '请完成安全验证',
             style: TextStyle(fontSize: 18),
           ),
           IconButton(
-              icon: Icon(Icons.highlight_off),
+              icon: const Icon(Icons.highlight_off),
               iconSize: 30,
               color: Colors.black38,
               onPressed: () {
@@ -339,13 +339,13 @@ class _BlockPuzzleCaptchaPageState extends State<BlockPuzzleCaptchaPage>
   _middleContainer() {
     ////显示验证码
     return Container(
-      margin: EdgeInsets.symmetric(vertical: 10),
+      margin: const EdgeInsets.symmetric(vertical: 10),
       child: Stack(
         children: <Widget>[
           ///底图 310*155
-          baseImageBase64.length > 0
+          baseImageBase64.isNotEmpty
               ? Image.memory(
-                  Base64Decoder().convert(baseImageBase64),
+                  const Base64Decoder().convert(baseImageBase64),
                   fit: BoxFit.fitWidth,
                   key: _baseImageKey,
                   gaplessPlayback: true,
@@ -354,15 +354,15 @@ class _BlockPuzzleCaptchaPageState extends State<BlockPuzzleCaptchaPage>
                   width: 310,
                   height: 155,
                   alignment: Alignment.center,
-                  child: CircularProgressIndicator(),
+                  child: const CircularProgressIndicator(),
                 ),
 
           ///滑块图
-          slideImageBase64.length > 0
+          slideImageBase64.isNotEmpty
               ? Container(
                   margin: EdgeInsets.fromLTRB(sliderXMoved, 0, 0, 0),
                   child: Image.memory(
-                    Base64Decoder().convert(slideImageBase64),
+                    const Base64Decoder().convert(slideImageBase64),
                     fit: BoxFit.fitHeight,
                     key: _slideImageKey,
                     gaplessPlayback: true,
@@ -375,7 +375,7 @@ class _BlockPuzzleCaptchaPageState extends State<BlockPuzzleCaptchaPage>
             top: 0,
             right: 0,
             child: IconButton(
-                icon: Icon(Icons.refresh),
+                icon: const Icon(Icons.refresh),
                 iconSize: 30,
                 color: Colors.black54,
                 onPressed: () {
@@ -392,17 +392,17 @@ class _BlockPuzzleCaptchaPageState extends State<BlockPuzzleCaptchaPage>
                 child: FractionalTranslation(
                   translation: Offset(0, offsetAnimation.value),
                   child: Container(
-                    margin: EdgeInsets.only(left: 10, right: 10),
+                    margin: const EdgeInsets.only(left: 10, right: 10),
                     height: 40,
                     color: _checkSuccess
-                        ? Color(0x7F66BB6A)
-                        : Color.fromRGBO(200, 100, 100, 0.4),
+                        ? const Color(0x7F66BB6A)
+                        : const Color.fromRGBO(200, 100, 100, 0.4),
                     alignment: Alignment.centerLeft,
                     child: Text(
                       _checkSuccess
                           ? "${(_checkMilliseconds / (60.0 * 12)).toStringAsFixed(2)}s验证成功"
                           : "验证失败",
-                      style: TextStyle(color: Colors.white),
+                      style: const TextStyle(color: Colors.white),
                     ),
                   ),
                 ),
@@ -414,7 +414,7 @@ class _BlockPuzzleCaptchaPageState extends State<BlockPuzzleCaptchaPage>
               child: Offstage(
                 offstage: !_showTimeLine,
                 child: Container(
-                  margin: EdgeInsets.only(left: 10, right: 10),
+                  margin: const EdgeInsets.only(left: 10, right: 10),
                   height: 20,
                   color: Colors.white,
                 ),
@@ -427,7 +427,7 @@ class _BlockPuzzleCaptchaPageState extends State<BlockPuzzleCaptchaPage>
   ///底部，滑动区域
   _bottomContainer() {
     return baseSize.width > 0
-        ? Container(
+        ? SizedBox(
             height: 70,
             width: baseSize.width,
 //            color: Colors.cyanAccent,
@@ -439,14 +439,14 @@ class _BlockPuzzleCaptchaPageState extends State<BlockPuzzleCaptchaPage>
                   decoration: BoxDecoration(
                     border: Border.all(
                       width: 1,
-                      color: Color(0xffe5e5e5),
+                      color: const Color(0xffe5e5e5),
                     ),
-                    color: Color(0xfff8f9fb),
+                    color: const Color(0xfff8f9fb),
                   ),
                 ),
                 Container(
                   alignment: Alignment.center,
-                  child: Text(
+                  child: const Text(
                     '向右拖动滑块填充拼图',
                     style: TextStyle(fontSize: 16),
                   ),
@@ -459,29 +459,29 @@ class _BlockPuzzleCaptchaPageState extends State<BlockPuzzleCaptchaPage>
                       width: sliderXMoved > 0 ? 1 : 0,
                       color: movedXBorderColor,
                     ),
-                    color: Color(0xfff3fef1),
+                    color: const Color(0xfff3fef1),
                   ),
                 ),
                 GestureDetector(
                   onPanStart: (startDetails) {
                     ///开始
                     _checkMilliseconds =
-                        new DateTime.now().millisecondsSinceEpoch;
+                        DateTime.now().millisecondsSinceEpoch;
                     print(startDetails.localPosition);
                     sliderStartX = startDetails.localPosition.dx;
                   },
                   onPanUpdate: (updateDetails) {
                     ///更新
                     print(updateDetails.localPosition);
-                    double _w1 = _baseImageKey.currentContext!.size!.width -
+                    double w1 = _baseImageKey.currentContext!.size!.width -
                         _slideImageKey.currentContext!.size!.width;
                     double offset =
                         updateDetails.localPosition.dx - sliderStartX;
                     if (offset < 0) {
                       offset = 0;
                     }
-                    if (offset > _w1) {
-                      offset = _w1;
+                    if (offset > w1) {
+                      offset = w1;
                     }
                     print("offset ------ $offset");
                     setState(() {
@@ -494,8 +494,8 @@ class _BlockPuzzleCaptchaPageState extends State<BlockPuzzleCaptchaPage>
                     //结束
                     print("endDetails");
                     checkCaptcha(sliderXMoved, captchaToken);
-                    int _nowTime = new DateTime.now().millisecondsSinceEpoch;
-                    _checkMilliseconds = _nowTime - _checkMilliseconds;
+                    int nowTime = DateTime.now().millisecondsSinceEpoch;
+                    _checkMilliseconds = nowTime - _checkMilliseconds;
                   },
                   child: Container(
                     width: _bottomSliderSize,
@@ -503,7 +503,7 @@ class _BlockPuzzleCaptchaPageState extends State<BlockPuzzleCaptchaPage>
                     margin: EdgeInsets.only(
                         left: sliderXMoved > 0 ? sliderXMoved : 1),
                     decoration: BoxDecoration(
-                      border: Border(
+                      border: const Border(
                         top: BorderSide(
                           width: 1,
                           color: Color(0xffe5e5e5),
@@ -536,7 +536,7 @@ class MaxScaleTextWidget extends StatelessWidget {
   final double max;
   final Widget child;
 
-  MaxScaleTextWidget({required Key key, this.max = 1.0, required this.child}) : super(key: key);
+  const MaxScaleTextWidget({required Key key, this.max = 1.0, required this.child}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {

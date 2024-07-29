@@ -53,7 +53,7 @@ class GetPremiumCard extends StatelessWidget {
 }
 
 class _Info extends StatelessWidget {
-  const _Info({super.key});
+  const _Info();
 
   @override
   Widget build(BuildContext context) {
