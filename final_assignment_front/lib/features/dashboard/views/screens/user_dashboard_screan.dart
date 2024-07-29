@@ -29,7 +29,7 @@ import 'manager_dashboard_screen.dart';
 part '../../bindings/dashboard_binding.dart';
 
 // controller
-part '../../controllers/manager_dashboard_controller.dart';
+part '../../controllers/user_dashboard_screen_controller.dart';
 
 // models
 part '../../models/profile.dart';
