@@ -24,13 +24,13 @@ import 'package:get/get.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 // binding
-part '../../bindings/dashboard_binding.dart';
+part '../../bindings/manager_dashboard_binding.dart';
 
 // controller
 part '../../controllers/manager_dashboard_controller.dart';
 
 // models
-part '../../models/profile.dart';
+part '../../models/manager_profile.dart';
 
 // component
 part '../components/active_project_card.dart';

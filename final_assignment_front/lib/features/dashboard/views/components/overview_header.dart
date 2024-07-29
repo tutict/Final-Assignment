@@ -1,4 +1,4 @@
-part of '../screens/user_dashboard_screan.dart';
+part of '../screens/manager_dashboard_screen.dart';
 
 class _OverviewHeader extends StatefulWidget {
   const _OverviewHeader({
