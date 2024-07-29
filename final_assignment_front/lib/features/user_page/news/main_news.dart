@@ -252,7 +252,7 @@ class _MyAppState extends State<MyApp> {
                                         "${news[index]['source']['name']}",
                                         style: Theme.of(context)
                                             .textTheme
-                                            .subtitle2,
+                                            .titleSmall,
                                       ),
                                     ),
                                   ),
