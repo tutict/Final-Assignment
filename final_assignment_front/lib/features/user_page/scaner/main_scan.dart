@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter_hms_scan_kit/flutter_hms_scan_kit.dart';
 import 'package:flutter_hms_scan_kit/scan_result.dart';
 
@@ -5,12 +6,12 @@ import 'package:flutter_hms_scan_kit/scan_result.dart';
 ScanResult? _scanResult;
 ///方式一
 Future<void> scan() async {
-  _scanResult = await FlutterHmsScanKit.scan;
+  _scanResult = (await FlutterHmsScanKit.scan) as ScanResult?;
   setState(() {});
 }
 ///方式二
 Future<void> scan() async {
-  _scanResult = await FlutterHmsScanKit.startScan();
+  _scanResult = (await FlutterHmsScanKit.startScan()) as ScanResult?;
   setState(() {});
 }
 

@@ -5,8 +5,8 @@ class ResponsiveBuilder extends StatelessWidget {
     required this.mobileBuilder,
     required this.tabletBuilder,
     required this.desktopBuilder,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   final Widget Function(
     BuildContext context,

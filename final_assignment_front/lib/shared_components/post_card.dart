@@ -6,8 +6,8 @@ class UpgradePremiumCard extends StatelessWidget {
   const UpgradePremiumCard({
     required this.onPressed,
     this.backgroundColor,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   final Color? backgroundColor;
   final Function() onPressed;
@@ -52,7 +52,7 @@ class UpgradePremiumCard extends StatelessWidget {
 }
 
 class _Info extends StatelessWidget {
-  const _Info({Key? key}) : super(key: key);
+  const _Info();
 
   @override
   Widget build(BuildContext context) {

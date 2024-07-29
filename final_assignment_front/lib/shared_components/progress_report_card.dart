@@ -21,8 +21,8 @@ class ProgressReportCardData {
 class ProgressReportCard extends StatelessWidget {
   const ProgressReportCard({
     required this.data,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   final ProgressReportCardData data;
 
@@ -73,8 +73,7 @@ class _RichText extends StatelessWidget {
   const _RichText({
     required this.value1,
     required this.value2,
-    Key? key,
-  }) : super(key: key);
+  });
 
   final String value1;
   final String value2;
@@ -104,7 +103,7 @@ class _RichText extends StatelessWidget {
 }
 
 class _Indicator extends StatelessWidget {
-  const _Indicator({required this.percent, Key? key}) : super(key: key);
+  const _Indicator({required this.percent});
 
   final double percent;
 
@@ -119,7 +118,7 @@ class _Indicator extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
-            (percent * 100).toString() + " %",
+            "${percent * 100} %",
             style: const TextStyle(fontWeight: FontWeight.bold),
           ),
           const Text(

@@ -21,8 +21,8 @@ class ProjectCardData {
 class ProjectCard extends StatelessWidget {
   const ProjectCard({
     required this.data,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   final ProjectCardData data;
 
@@ -61,8 +61,7 @@ class _ProgressIndicator extends StatelessWidget {
   const _ProgressIndicator({
     required this.percent,
     required this.center,
-    Key? key,
-  }) : super(key: key);
+  });
 
   final double percent;
   final Widget center;
@@ -82,7 +81,7 @@ class _ProgressIndicator extends StatelessWidget {
 }
 
 class _ProfilImage extends StatelessWidget {
-  const _ProfilImage({required this.image, Key? key}) : super(key: key);
+  const _ProfilImage({required this.image});
 
   final ImageProvider image;
 
@@ -97,7 +96,7 @@ class _ProfilImage extends StatelessWidget {
 }
 
 class _TitleText extends StatelessWidget {
-  const _TitleText(this.data, {Key? key}) : super(key: key);
+  const _TitleText(this.data);
 
   final String data;
 
@@ -118,7 +117,7 @@ class _TitleText extends StatelessWidget {
 }
 
 class _SubtitleText extends StatelessWidget {
-  const _SubtitleText(this.data, {Key? key}) : super(key: key);
+  const _SubtitleText(this.data);
 
   final String data;
   @override
@@ -133,7 +132,7 @@ class _SubtitleText extends StatelessWidget {
 }
 
 class _ReleaseTimeText extends StatelessWidget {
-  const _ReleaseTimeText(this.date, {Key? key}) : super(key: key);
+  const _ReleaseTimeText(this.date);
 
   final DateTime date;
 

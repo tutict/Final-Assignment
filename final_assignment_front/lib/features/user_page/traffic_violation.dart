@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 class TrafficViolationManagementQueryPage extends StatefulWidget {
+  const TrafficViolationManagementQueryPage({super.key});
+
   @override
   _TrafficViolationManagementQueryPageState createState() => _TrafficViolationManagementQueryPageState();
 }
@@ -16,7 +18,7 @@ class _TrafficViolationManagementQueryPageState extends State<TrafficViolationMa
   late TextEditingController _dateController;
 
   // 初始化日期选择器的当前日期
-  late final DateTime _initialDate = DateTime.now();
+  late DateTime _initialDate = DateTime.now();
 
   @override
   void initState() {
@@ -30,15 +32,15 @@ class _TrafficViolationManagementQueryPageState extends State<TrafficViolationMa
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('交通违法行为管理系统查询'),
+        title: const Text('交通违法行为管理系统查询'),
       ),
       body: Padding(
-        padding: EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           children: <Widget>[
             // 查询区域
             QuerySection(),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             // 查询结果列表
             Expanded(
               child: ViolationRecordList(violationRecords: _violationRecords),
@@ -56,9 +58,9 @@ class _TrafficViolationManagementQueryPageState extends State<TrafficViolationMa
         Expanded(
           child: TextFormField(
             controller: _licensePlateController,
-            decoration: InputDecoration(
+            decoration: const InputDecoration(
               labelText: '请输入车牌号',
-              prefixIcon: Icon(Icons.local_car),
+              prefixIcon: Icon(Icons.local_bar),
             ),
             validator: (value) {
               if (value == null || value.isEmpty) {
@@ -68,11 +70,11 @@ class _TrafficViolationManagementQueryPageState extends State<TrafficViolationMa
             },
           ),
         ),
-        SizedBox(width: 16),
+        const SizedBox(width: 16),
         Expanded(
           child: TextFormField(
             controller: _dateController,
-            decoration: InputDecoration(
+            decoration: const InputDecoration(
               labelText: '选择查询时间',
               prefixIcon: Icon(Icons.date_range),
             ),
@@ -93,7 +95,7 @@ class _TrafficViolationManagementQueryPageState extends State<TrafficViolationMa
             },
           ),
         ),
-        SizedBox(width: 16),
+        const SizedBox(width: 16),
         ElevatedButton(
           onPressed: () {
             // 处理查询点击事件
@@ -108,7 +110,7 @@ class _TrafficViolationManagementQueryPageState extends State<TrafficViolationMa
               ),
             ];
           },
-          child: Text('查询'),
+          child: const Text('查询'),
         ),
       ],
     );
@@ -119,7 +121,7 @@ class _TrafficViolationManagementQueryPageState extends State<TrafficViolationMa
 class ViolationRecordList extends StatelessWidget {
   final List<ViolationRecord> violationRecords;
 
-  ViolationRecordList({required this.violationRecords});
+  const ViolationRecordList({super.key, required this.violationRecords});
 
   @override
   Widget build(BuildContext context) {
@@ -129,7 +131,7 @@ class ViolationRecordList extends StatelessWidget {
         final record = violationRecords[index];
         return Card(
           child: Padding(
-            padding: EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(16.0),
             child: Column(
               children: <Widget>[
                 Text('车牌号: ${record.plateNumber}'),

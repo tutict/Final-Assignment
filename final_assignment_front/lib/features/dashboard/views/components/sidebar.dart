@@ -1,10 +1,9 @@
-part of dashboard;
+part of '../screens/manager_dashboard_screen.dart';
 
 class _Sidebar extends StatelessWidget {
   const _Sidebar({
     required this.data,
-    Key? key,
-  }) : super(key: key);
+  });
 
   final ProjectCardData data;
 

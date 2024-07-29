@@ -6,8 +6,8 @@ class GetPremiumCard extends StatelessWidget {
   const GetPremiumCard({
     required this.onPressed,
     this.backgroundColor,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   final Color? backgroundColor;
   final Function() onPressed;
@@ -53,7 +53,7 @@ class GetPremiumCard extends StatelessWidget {
 }
 
 class _Info extends StatelessWidget {
-  const _Info({Key? key}) : super(key: key);
+  const _Info({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -61,9 +61,9 @@ class _Info extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.end,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: const Text(
+        const Padding(
+          padding: EdgeInsets.only(bottom: 10),
+          child: Text(
             "执法为民\n公正廉洁\n无私奉献",
             style: TextStyle(
               fontWeight: FontWeight.bold,

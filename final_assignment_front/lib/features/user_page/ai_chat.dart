@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 
 
 class AIChatPage extends StatefulWidget {
+  const AIChatPage({super.key});
+
   @override
   AIJumpChatPageState createState() => AIChatPageState();
 }
@@ -11,43 +13,43 @@ class AIChatPageState extends State<AIChatPage> {
   // 模拟的消息列表
   final List<Message> _messages = [];
   // 控制器用于文本输入
-  TextEditingController _textEditingController = TextEditingController();
+  final TextEditingController _textEditingController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('AI 客服助手'),
+        title: const Text('AI 客服助手'),
       ),
       body: Column(
         children: <Widget>[
           Flexible(
             child: ListView.builder(
-              padding: EdgeInsets.all(8.0),
+              padding: const EdgeInsets.all(8.0),
               itemCount: _messages.length,
               reverse: true, // 使列表从底部开始，最新消息在最上面
               itemBuilder: (context, index) {
                 final message = _messages[index];
                 return ListTile(
                   title: message.isFromUser
-                      ? Text(message.content, style: TextStyle(color: Colors.black))
-                      : Text(message.content, style: TextStyle(color: Colors.blue)),
+                      ? Text(message.content, style: const TextStyle(color: Colors.black))
+                      : Text(message.content, style: const TextStyle(color: Colors.blue)),
                 );
               },
             ),
           ),
-          Divider(height: 1), // 分隔线
+          const Divider(height: 1), // 分隔线
           Flexible(
             child: Column(
               children: <Widget>[
                 Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 8.0),
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
                   child: Row(
                     children: <Widget>[
                       Flexible(
                         child: TextField(
                           controller: _textEditingController,
-                          decoration: InputDecoration(
+                          decoration: const InputDecoration(
                             hintText: '输入您的问题...',
                             filled: true,
                             fillColor: Colors.white,
@@ -61,7 +63,7 @@ class AIChatPageState extends State<AIChatPage> {
                           },
                         ),
                       ),
-                      SizedBox(width: 8.0),
+                      const SizedBox(width: 8.0),
                       ElevatedButton(
                         onPressed: () {
                           // 用户点击发送按钮
@@ -69,7 +71,7 @@ class AIChatPageState extends State<AIChatPage> {
                               ? addMessage(_textEditingController.text)
                               : null;
                         },
-                        child: Text('发送'),
+                        child: const Text('发送'),
                       ),
                     ],
                   ),
@@ -112,9 +114,9 @@ class AIChatPageState extends State<AIChatPage> {
       },
     ) as ScrollableState;
 
-    scrollableState?.animateTo(
+    scrollableState.animateTo(
       0.0,
-      duration: Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 300),
       curve: Curves.easeOut,
     );
   }

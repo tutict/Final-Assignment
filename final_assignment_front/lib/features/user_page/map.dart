@@ -70,7 +70,7 @@ class _LocationScreenState extends State<LocationScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Location and Map Example'),
+        title: const Text('Location and Map Example'),
       ),
       body: Column(
         children: <Widget>[

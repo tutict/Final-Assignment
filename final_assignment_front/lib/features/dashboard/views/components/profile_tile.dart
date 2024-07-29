@@ -1,9 +1,8 @@
-part of dashboard;
+part of '../screens/manager_dashboard_screen.dart';
 
 class _ProfilTile extends StatelessWidget {
   const _ProfilTile(
-      {required this.data, required this.onPressedNotification, Key? key})
-      : super(key: key);
+      {required this.data, required this.onPressedNotification});
 
   final _Profile data;
   final Function() onPressedNotification;
@@ -33,3 +32,4 @@ class _ProfilTile extends StatelessWidget {
     );
   }
 }
+

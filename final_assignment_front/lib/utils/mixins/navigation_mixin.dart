@@ -1,4 +1,4 @@
-part of app_mixins;
+part of 'app_mixins.dart';
 
 /// Contains all instants routing
 mixin NavigationMixin {

@@ -1,10 +1,9 @@
-part of dashboard;
+part of '../screens/manager_dashboard_screen.dart';
 
 class _RecentMessages extends StatelessWidget {
   const _RecentMessages({
     required this.onPressedMore,
-    Key? key,
-  }) : super(key: key);
+  });
 
   final Function() onPressedMore;
 

@@ -1,3 +1,3 @@
-part of app_helpers;
+part of 'app_helpers.dart';
 
 class StringHelper {}

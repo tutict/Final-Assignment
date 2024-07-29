@@ -1,7 +1,7 @@
-part of dashboard;
+part of '../screens/manager_dashboard_screen.dart';
 
 class _Header extends StatelessWidget {
-  const _Header({Key? key}) : super(key: key);
+  const _Header();
 
   @override
   Widget build(BuildContext context) {

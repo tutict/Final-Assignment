@@ -21,8 +21,8 @@ class SelectionButton extends StatefulWidget {
     this.initialSelected = 0,
     required this.data,
     required this.onSelected,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   final int initialSelected;
   final List<SelectionButtonData> data;
@@ -71,8 +71,7 @@ class _Button extends StatelessWidget {
     required this.selected,
     required this.data,
     required this.onPressed,
-    Key? key,
-  }) : super(key: key);
+  });
 
   final bool selected;
   final SelectionButtonData data;

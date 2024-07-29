@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 class TodayText extends StatelessWidget {
-  const TodayText({Key? key}) : super(key: key);
+  const TodayText({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -17,7 +17,7 @@ class TodayText extends StatelessWidget {
           ),
           Text(
             DateFormat.yMMMEd('zh_CN').format(DateTime.now()),
-            style: TextStyle(fontSize: 14),
+            style: const TextStyle(fontSize: 14),
           ),
         ],
       ),

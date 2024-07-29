@@ -6,8 +6,8 @@ class ListProfilImage extends StatelessWidget {
     required this.images,
     this.onPressed,
     this.maxImages = 3,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   final List<ImageProvider> images;
 

@@ -1,4 +1,4 @@
-part of dashboard;
+part of '../views/screens/user_dashboard_screan.dart';
 
 class _Profile {
   final ImageProvider photo;

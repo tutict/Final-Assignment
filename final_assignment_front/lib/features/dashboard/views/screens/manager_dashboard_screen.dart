@@ -27,7 +27,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 part '../../bindings/dashboard_binding.dart';
 
 // controller
-part '../../controllers/dashboard_controller.dart';
+part '../../controllers/manager_dashboard_controller.dart';
 
 // models
 part '../../models/profile.dart';
@@ -42,7 +42,7 @@ part '../components/sidebar.dart';
 part '../components/team_member.dart';
 
 class DashboardScreen extends GetView<DashboardController> {
-  const DashboardScreen({Key? key}) : super(key: key);
+  const DashboardScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -409,7 +409,7 @@ class DashboardScreen extends GetView<DashboardController> {
           .map(
             (e) => ChattingCard(data: e, onPressed: () {}),
       )
-          .toList(),
+          ,
     ]);
   }
 }

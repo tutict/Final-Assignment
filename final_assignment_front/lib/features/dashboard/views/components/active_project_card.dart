@@ -1,11 +1,10 @@
-part of dashboard;
+part of '../screens/manager_dashboard_screen.dart';
 
 class _ActiveProjectCard extends StatelessWidget {
   const _ActiveProjectCard({
     required this.child,
     required this.onPressedSeeAll,
-    Key? key,
-  }) : super(key: key);
+  });
 
   final Widget child;
   final Function() onPressedSeeAll;
@@ -49,8 +48,8 @@ class _ActiveProjectCard extends StatelessWidget {
   Widget _seeAllButton({required Function() onPressed}) {
     return TextButton(
       onPressed: onPressed,
-      child: const Text("详情"),
       style: TextButton.styleFrom(foregroundColor: kFontColorPallets[1]),
+      child: const Text("详情"),
     );
   }
 }

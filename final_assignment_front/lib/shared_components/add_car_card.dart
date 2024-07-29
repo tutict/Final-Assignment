@@ -16,8 +16,8 @@ class ProgressCard extends StatelessWidget {
   const ProgressCard({
     required this.data,
     required this.onPressedCheck,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   final ProgressCardData data;
   final Function() onPressedCheck;
@@ -27,7 +27,7 @@ class ProgressCard extends StatelessWidget {
     return Card(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(kBorderRadius),
-        side: BorderSide(
+        side: const BorderSide(
           color: Colors.white,
           width: 0.5,
         ),
@@ -59,25 +59,25 @@ class ProgressCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Row(
+                const Row(
                   children: <Widget>[
                     Icon(Icons.directions_car, size: 44.0),
                     Text(
                       "机动车",
-                      style: const TextStyle(fontWeight: FontWeight.w700),
+                      style: TextStyle(fontWeight: FontWeight.w700),
                     ),
                   ],
                 ),
                 const SizedBox(height: kSpacing),
                 ElevatedButton(
                   onPressed: onPressedCheck,
-                  child:Row(
+                  child:const Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       mainAxisSize: MainAxisSize.min,
                       children: <Widget>[
                           Icon(Icons.add, size: 24.0),
-                          const SizedBox(width: 8.0),
-                          Text("备案机动车信息", style: const TextStyle(fontSize: 16.0)),
+                          SizedBox(width: 8.0),
+                          Text("备案机动车信息", style: TextStyle(fontSize: 16.0)),
                       ],
                   ),
                 ),

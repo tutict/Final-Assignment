@@ -1,11 +1,10 @@
-part of dashboard;
+part of '../screens/manager_dashboard_screen.dart';
 
 class _TeamMember extends StatelessWidget {
   const _TeamMember({
     required this.totalMember,
     required this.onPressedAdd,
-    Key? key,
-  }) : super(key: key);
+  });
 
   final int totalMember;
   final Function() onPressedAdd;

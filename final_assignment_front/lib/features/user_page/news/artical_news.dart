@@ -44,7 +44,7 @@ class _ArticalNewsState extends State<ArticalNews> {
               ),
             )
           else
-            SizedBox.shrink()
+            const SizedBox.shrink()
         ],
       ),
     );

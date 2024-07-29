@@ -21,8 +21,7 @@ class ChattingCardData {
 }
 
 class ChattingCard extends StatelessWidget {
-  const ChattingCard({required this.data, required this.onPressed, Key? key})
-      : super(key: key);
+  const ChattingCard({required this.data, required this.onPressed, super.key});
 
   final ChattingCardData data;
   final Function() onPressed;

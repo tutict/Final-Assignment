@@ -1,4 +1,4 @@
-part of app_constants;
+part of 'app_constants.dart';
 
 class Font {
   static const poppins = "Poppins";

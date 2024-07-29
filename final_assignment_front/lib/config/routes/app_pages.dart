@@ -1,5 +1,5 @@
-import 'package:final_assignment_front/features/dashboard/views/screens/dashboard_screen.dart';
-import 'package:final_assignment_front/page/login/login_screen.dart';
+import 'package:final_assignment_front/features/dashboard/views/screens/manager_dashboard_screen.dart';
+import 'package:final_assignment_front/features/user_page/login/login_screen.dart';
 import 'package:get/get.dart';
 
 part 'app_routes.dart';

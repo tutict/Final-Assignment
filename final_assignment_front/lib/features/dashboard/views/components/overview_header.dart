@@ -1,21 +1,24 @@
-part of dashboard;
+part of '../screens/user_dashboard_screan.dart';
 
-class _OverviewHeader extends StatelessWidget {
+class _OverviewHeader extends StatefulWidget {
   const _OverviewHeader({
-    required this.onSelected,
-    this.axis = Axis.horizontal,
-    Key? key,
-  }) : super(key: key);
+    required this.onSelected, required this.axis,
+  });
 
   final Function(CaseType) onSelected;  // Ensure onSelected expects a CaseType
   final Axis axis;
 
   @override
+  State<_OverviewHeader> createState() => _OverviewHeaderState();
+}
+
+class _OverviewHeaderState extends State<_OverviewHeader> {
+  @override
   Widget build(BuildContext context) {
     // 使用Get.find来访问DashboardController中的响应式变量
     final selectedCase = Get.find<DashboardController>().selectedCaseType;
     return Obx(
-          () => (axis == Axis.horizontal)
+          () => (widget.axis == Axis.horizontal)
           ? Row(
         children: [
           const Text(
@@ -27,7 +30,7 @@ class _OverviewHeader extends StatelessWidget {
             selectedCase: selectedCase.value,
             onSelected: (value) {
               selectedCase.value = value;
-              onSelected(value);
+              widget.onSelected(value);
             },
           )
         ],
@@ -48,7 +51,7 @@ class _OverviewHeader extends StatelessWidget {
                 selectedCase: selectedCase.value,
                 onSelected: (value) {
                   selectedCase.value = value;
-                  onSelected(value);
+                  widget.onSelected(value);
                 },
               ),
             ),
@@ -89,10 +92,7 @@ class _OverviewHeader extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 5),
       child: ElevatedButton(
-        onPressed: onPressed, // 使用onPressed回调
-        child: Text(
-          label,
-        ),
+        onPressed: onPressed,
         style: ElevatedButton.styleFrom(
           foregroundColor: selected ? kFontColorPallets[0] : kFontColorPallets[2],
           backgroundColor: selected
@@ -101,6 +101,9 @@ class _OverviewHeader extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
+        ), // 使用onPressed回调
+        child: Text(
+          label,
         ),
       ),
     );

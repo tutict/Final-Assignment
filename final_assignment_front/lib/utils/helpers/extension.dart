@@ -1,4 +1,4 @@
-part of app_helpers;
+part of 'app_helpers.dart';
 
 
 extension TaskTypeExtension on TaskType {

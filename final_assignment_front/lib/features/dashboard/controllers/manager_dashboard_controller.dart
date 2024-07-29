@@ -1,4 +1,4 @@
-part of dashboard;
+part of '../views/screens/manager_dashboard_screen.dart';
 
 class DashboardController extends GetxController {
   final scaffoldKey = GlobalKey<ScaffoldState>();
@@ -31,7 +31,7 @@ class DashboardController extends GetxController {
     super.onInit();
     // 添加示例任务
     caseCardDataList.addAll([
-      CaseCardData(
+      const CaseCardData(
         title: 'Todo Task 1',
         dueDay: 5,
         totalComments: 10,
@@ -40,7 +40,7 @@ class DashboardController extends GetxController {
         profilContributors: [
         ],
       ),
-      CaseCardData(
+      const CaseCardData(
         title: 'In Progress Task 1',
         dueDay: 10,
         totalComments: 5,
@@ -49,7 +49,7 @@ class DashboardController extends GetxController {
         profilContributors: [
         ],
       ),
-      CaseCardData(
+      const CaseCardData(
         title: 'Done Task 1',
         dueDay: -2,
         totalComments: 3,

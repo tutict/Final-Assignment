@@ -24,15 +24,17 @@ void main() {
 
 
 class TrafficViolationScreen extends StatefulWidget {
+  const TrafficViolationScreen({super.key});
+
   @override
   State<TrafficViolationScreen> createState() => _TrafficViolationScreenState();
 }
 
 class _TrafficViolationScreenState extends State<TrafficViolationScreen> {
-  TextEditingController _searchController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
 
   /// 定义渐变
-  final Gradient gradient = LinearGradient(
+  final Gradient gradient = const LinearGradient(
     colors: [Color(0xFF3271ae),Color(0xFF3271ae), Colors.white],
     stops: [0.0, 0.3, 0.5],
     begin: Alignment.topCenter,
@@ -51,30 +53,30 @@ class _TrafficViolationScreenState extends State<TrafficViolationScreen> {
           backgroundColor: Colors.transparent, // 确保Scaffold背景透明
           title: Row(
             children: <Widget>[
-              Text('哈尔滨',style: TextStyle(color: Colors.white),),
-              SizedBox(width: 10),
+              const Text('哈尔滨',style: TextStyle(color: Colors.white),),
+              const SizedBox(width: 10),
               Expanded(
                 child: TextField(
                   controller: _searchController,
                   decoration: InputDecoration(
                     hintText: "搜索",
-                    prefixIcon: Icon(Icons.search),
+                    prefixIcon: const Icon(Icons.search),
                     hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
                     filled: true,
                     fillColor: Colors.white.withOpacity(0.3),
                     border: OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.white),
+                      borderSide: const BorderSide(color: Colors.white),
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
                 ),
               ),
-              SizedBox(width: 10),
+              const SizedBox(width: 10),
             ],
           ),
           actions: <Widget>[
             IconButton(
-              icon: Icon(Icons.mail, color: Colors.white),
+              icon: const Icon(Icons.mail, color: Colors.white),
               onPressed: () {
                 // 添加设置按钮的点击事件
               },
@@ -90,8 +92,8 @@ class _TrafficViolationScreenState extends State<TrafficViolationScreen> {
                 Container(
                   width: MediaQuery.of(context).size.width * 0.4,
                   height: MediaQuery.of(context).size.height * 0.2,
-                  padding: EdgeInsets.all(10.0),
-                  margin: EdgeInsets.only(left: 5.0, right: 5.0),
+                  padding: const EdgeInsets.all(10.0),
+                  margin: const EdgeInsets.only(left: 5.0, right: 5.0),
                   decoration: BoxDecoration(
                     color: Colors.transparent,
                     borderRadius: BorderRadius.circular(10),
@@ -101,8 +103,8 @@ class _TrafficViolationScreenState extends State<TrafficViolationScreen> {
                 Container(
                   width: MediaQuery.of(context).size.width * 0.4,
                   height: MediaQuery.of(context).size.height * 0.2,
-                  padding: EdgeInsets.all(10.0),
-                  margin: EdgeInsets.only(left: 5.0, right: 5.0),
+                  padding: const EdgeInsets.all(10.0),
+                  margin: const EdgeInsets.only(left: 5.0, right: 5.0),
                   decoration: BoxDecoration(
                     color: Colors.transparent,
                     borderRadius: BorderRadius.circular(10),
@@ -118,8 +120,8 @@ class _TrafficViolationScreenState extends State<TrafficViolationScreen> {
                   Container(
                     width: MediaQuery.of(context).size.width * 0.4,
                     height: MediaQuery.of(context).size.height * 0.2,
-                    padding: EdgeInsets.all(10.0),
-                    margin: EdgeInsets.only(left: 5.0, right: 5.0),
+                    padding: const EdgeInsets.all(10.0),
+                    margin: const EdgeInsets.only(left: 5.0, right: 5.0),
                     decoration: BoxDecoration(
                       color: Colors.transparent,
                       borderRadius: BorderRadius.circular(10),
@@ -135,8 +137,8 @@ class _TrafficViolationScreenState extends State<TrafficViolationScreen> {
                   Container(
                     width: MediaQuery.of(context).size.width * 0.4,
                     height: MediaQuery.of(context).size.height * 0.2,
-                    padding: EdgeInsets.all(10.0),
-                    margin: EdgeInsets.only(left: 5.0, right: 5.0),
+                    padding: const EdgeInsets.all(10.0),
+                    margin: const EdgeInsets.only(left: 5.0, right: 5.0),
                     decoration: BoxDecoration(
                       color: Colors.transparent,
                       borderRadius: BorderRadius.circular(10),
@@ -145,9 +147,9 @@ class _TrafficViolationScreenState extends State<TrafficViolationScreen> {
                   ),
                 ]
             ),
-            Expanded(
+            const Expanded(
               child: Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: EdgeInsets.all(16.0),
                 child: Column(
                   // 在这里添加您的其他组件
                 ),
@@ -155,7 +157,7 @@ class _TrafficViolationScreenState extends State<TrafficViolationScreen> {
             ),
             ComSwiper(
               paginationBuilder: ComPaginationBuilder.circle(),
-              bannerList: [
+              bannerList: const [
                 "https://img0.baidu.com/it/u=2862534777,914942650&fm=253&fmt=auto&app=138&f=JPEG?w=889&h=500",
                 "https://img0.baidu.com/it/u=2862534777,914942650&fm=253&fmt=auto&app=138&f=JPEG?w=889&h=500",
                 "https://img0.baidu.com/it/u=2862534777,914942650&fm=253&fmt=auto&app=138&f=JPEG?w=889&h=500",
@@ -165,16 +167,16 @@ class _TrafficViolationScreenState extends State<TrafficViolationScreen> {
                 debugPrint("我点击了第 $index 张图片");
               },
               item: (item) => Padding(
-                padding: EdgeInsets.all(18),
+                padding: const EdgeInsets.all(18),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.all(Radius.circular(6)),
+                  borderRadius: const BorderRadius.all(Radius.circular(6)),
                   child: CaCheImageWidget(imageUrl: item),
                 ),
               ),
             ),
           ],
         ),
-        bottomNavigationBar: CustomBottomNavigationBar(),
+        bottomNavigationBar: const CustomBottomNavigationBar(),
       ),
     );
   }
@@ -210,7 +212,7 @@ class ComSwiper extends StatelessWidget {
   final SwiperPlugin? paginationBuilder;
 
   const ComSwiper({
-    Key? key,
+    super.key,
     required this.bannerList,
     this.widgetHeight = 160,
     required this.item,
@@ -220,7 +222,7 @@ class ComSwiper extends StatelessWidget {
     this.paginationAlignment = Alignment.bottomRight,
     this.paginationMargin,
     this.paginationBuilder,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -243,7 +245,7 @@ class ComSwiper extends StatelessWidget {
       pagination: (bannerList.length != 1) && showSwiperPagination
           ? SwiperPagination(
         alignment: paginationAlignment,
-        margin: paginationMargin ?? EdgeInsets.only(right: 20.0, bottom: 20.0),
+        margin: paginationMargin ?? const EdgeInsets.only(right: 20.0, bottom: 20.0),
         builder: paginationBuilder ?? ComPaginationBuilder.circle(
           activeColor: Theme.of(context).indicatorColor,
           color: Theme.of(context).textTheme.bodySmall?.color ?? Colors.grey,
@@ -363,7 +365,7 @@ class ScreenHelper {
 class CaCheImageWidget extends StatelessWidget {
   final String imageUrl;
 
-  const CaCheImageWidget({Key? key, required this.imageUrl}) : super(key: key);
+  const CaCheImageWidget({super.key, required this.imageUrl});
 
   @override
   Widget build(BuildContext context) {
@@ -372,7 +374,7 @@ class CaCheImageWidget extends StatelessWidget {
 }
 
 class CustomBottomNavigationBar extends StatefulWidget {
-  const CustomBottomNavigationBar({Key? key}) : super(key: key);
+  const CustomBottomNavigationBar({super.key});
 
   @override
   CustomBottomNavigationBarState createState() => CustomBottomNavigationBarState();
@@ -445,7 +447,7 @@ class CustomBottomNavigationBarState extends State<CustomBottomNavigationBar> {
             ],
           ) else Icon(icon, color: _selectedIndex == index ? Colors.blue[800] : Colors.grey[300]),
           if (!isScanButton)
-            SizedBox(height: 8), // 添加一些间隔
+            const SizedBox(height: 8), // 添加一些间隔
           if (!isScanButton)
             Text(
               label,

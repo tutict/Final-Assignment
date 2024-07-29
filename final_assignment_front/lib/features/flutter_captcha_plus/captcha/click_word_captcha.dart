@@ -10,10 +10,10 @@ class ClickWordCaptcha extends StatefulWidget {
   final VoidCallback onFail;
 
   const ClickWordCaptcha({
-    Key? key,
+    super.key,
     required this.onSuccess,
     required this.onFail,
-  }) : super(key: key);
+  });
 
   @override
   _ClickWordCaptchaState createState() => _ClickWordCaptchaState();
@@ -25,16 +25,16 @@ class _ClickWordCaptchaState extends State<ClickWordCaptcha> {
   ClickWordCaptchaModel _clickWordCaptchaModel = ClickWordCaptchaModel();
 
   Color titleColor = Colors.black;
-  Color borderColor = Color(0xffdddddd);
+  Color borderColor = const Color(0xffdddddd);
   String bottomTitle = "";
-  Size baseSize = Size(310.0, 155.0);
+  Size baseSize = const Size(310.0, 155.0);
 
   //改变底部样式及字段
   _changeResultState() {
     switch (_clickWordCaptchaState) {
       case ClickWordCaptchaStateEnum.normal:
         titleColor = Colors.black;
-        borderColor = Color(0xffdddddd);
+        borderColor = const Color(0xffdddddd);
         break;
       case ClickWordCaptchaStateEnum.success:
         _tapOffsetList = [];
@@ -50,7 +50,7 @@ class _ClickWordCaptchaState extends State<ClickWordCaptcha> {
         break;
       default:
         titleColor = Colors.black;
-        borderColor = Color(0xffdddddd);
+        borderColor = const Color(0xffdddddd);
         bottomTitle = "数据加载中……";
         break;
     }
@@ -82,7 +82,7 @@ class _ClickWordCaptchaState extends State<ClickWordCaptcha> {
 
       var baseR = await WidgetUtil.getImageWH(
           image: Image.memory(
-              Base64Decoder().convert(_clickWordCaptchaModel.imgStr)));
+              const Base64Decoder().convert(_clickWordCaptchaModel.imgStr)));
       baseSize = baseR;
 
       bottomTitle = "请依次点击【${_clickWordCaptchaModel.wordStr}】";
@@ -140,7 +140,7 @@ class _ClickWordCaptchaState extends State<ClickWordCaptcha> {
     _clickWordCaptchaState = ClickWordCaptchaStateEnum.fail;
     _changeResultState();
 
-    await Future.delayed(Duration(milliseconds: 1000));
+    await Future.delayed(const Duration(milliseconds: 1000));
     _loadCaptcha();
     //回调
     widget.onFail();
@@ -151,7 +151,7 @@ class _ClickWordCaptchaState extends State<ClickWordCaptcha> {
     _clickWordCaptchaState = ClickWordCaptchaStateEnum.success;
     _changeResultState();
 
-    await Future.delayed(Duration(milliseconds: 1000));
+    await Future.delayed(const Duration(milliseconds: 1000));
 
     var aesEncrypter = AesCrypt(
       key: 'BGxdEUOZkXka4HSj',
@@ -194,41 +194,41 @@ class _ClickWordCaptchaState extends State<ClickWordCaptcha> {
 
   //图片验证码
   _captchaContainer() {
-    List<Widget> _widgetList = [];
+    List<Widget> widgetList = [];
     if (_clickWordCaptchaModel.imgStr.isNotEmpty) {
-      _widgetList.add(Image(
+      widgetList.add(Image(
           width: baseSize.width,
           height: baseSize.height,
           gaplessPlayback: true,
           image: MemoryImage(
-              Base64Decoder().convert(_clickWordCaptchaModel.imgStr))));
+              const Base64Decoder().convert(_clickWordCaptchaModel.imgStr))));
     }
 
-    double _widgetW = 20;
+    double widgetW = 20;
     for (int i = 0; i < _tapOffsetList.length; i++) {
       Offset offset = _tapOffsetList[i];
-      _widgetList.add(Positioned(
-          left: offset.dx - _widgetW * 0.5,
-          top: offset.dy - _widgetW * 0.5,
+      widgetList.add(Positioned(
+          left: offset.dx - widgetW * 0.5,
+          top: offset.dy - widgetW * 0.5,
           child: Container(
             alignment: Alignment.center,
-            width: _widgetW,
-            height: _widgetW,
+            width: widgetW,
+            height: widgetW,
             decoration: BoxDecoration(
-                color: Color(0xCC43A047),
-                borderRadius: BorderRadius.all(Radius.circular(_widgetW))),
+                color: const Color(0xCC43A047),
+                borderRadius: BorderRadius.all(Radius.circular(widgetW))),
             child: Text(
               "${i + 1}",
-              style: TextStyle(color: Colors.white, fontSize: 15),
+              style: const TextStyle(color: Colors.white, fontSize: 15),
             ),
           )));
     }
-    _widgetList.add(
+    widgetList.add(
       Positioned(
         top: 0,
         right: 0,
         child: IconButton(
-            icon: Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh),
             iconSize: 30,
             color: Colors.deepOrangeAccent,
             onPressed: () {
@@ -253,11 +253,11 @@ class _ClickWordCaptchaState extends State<ClickWordCaptcha> {
             _checkCaptcha();
           }
         },
-        child: Container(
+        child: SizedBox(
           width: baseSize.width,
           height: baseSize.height,
           child: Stack(
-            children: _widgetList,
+            children: widgetList,
           ),
         ));
   }
@@ -265,11 +265,11 @@ class _ClickWordCaptchaState extends State<ClickWordCaptcha> {
   //底部按钮
   _bottomContainer() {
     return Container(
-      margin: EdgeInsets.only(top: 10),
+      margin: const EdgeInsets.only(top: 10),
       alignment: Alignment.center,
       width: baseSize.width,
       decoration: BoxDecoration(
-          borderRadius: BorderRadius.all(Radius.circular(4)),
+          borderRadius: const BorderRadius.all(Radius.circular(4)),
           border: Border.all(color: borderColor)),
       child: Text(bottomTitle, style: TextStyle(fontSize: 18, color: titleColor)),
     );
@@ -278,20 +278,20 @@ class _ClickWordCaptchaState extends State<ClickWordCaptcha> {
   //顶部，提示+关闭
   _topContainer() {
     return Container(
-      padding: EdgeInsets.fromLTRB(10, 0, 10, 0),
-      margin: EdgeInsets.only(bottom: 20, top: 5),
-      decoration: BoxDecoration(
+      padding: const EdgeInsets.fromLTRB(10, 0, 10, 0),
+      margin: const EdgeInsets.only(bottom: 20, top: 5),
+      decoration: const BoxDecoration(
         border: Border(bottom: BorderSide(width: 1, color: Color(0xffe5e5e5))),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: <Widget>[
-          Text(
+          const Text(
             '请完成安全验证',
             style: TextStyle(fontSize: 18),
           ),
           IconButton(
-              icon: Icon(Icons.highlight_off),
+              icon: const Icon(Icons.highlight_off),
               iconSize: 35,
               color: Colors.black54,
               onPressed: () {
@@ -345,7 +345,7 @@ class ClickWordCaptchaModel {
 
   //将模型转换
   Map<String, dynamic> toJson() {
-    var map = new Map<String, dynamic>();
+    var map = <String, dynamic>{};
     map['imgStr'] = imgStr;
     map['token'] = token;
     map['secretKey'] = secretKey;
@@ -356,7 +356,7 @@ class ClickWordCaptchaModel {
 
   @override
   String toString() {
-    return JsonEncoder.withIndent('  ').convert(toJson());
+    return const JsonEncoder.withIndent('  ').convert(toJson());
   }
 }
 
@@ -380,7 +380,7 @@ class HttpManager {
 class WidgetUtil {
   static Future<Size> getImageWH({required Image image}) async {
     Completer<Size> completer = Completer();
-    image.image.resolve(ImageConfiguration()).addListener(
+    image.image.resolve(const ImageConfiguration()).addListener(
       ImageStreamListener((ImageInfo info, bool _) {
         var myImage = info.image;
         Size size = Size(myImage.width.toDouble(), myImage.height.toDouble());

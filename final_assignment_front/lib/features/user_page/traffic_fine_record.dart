@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 class TrafficFineRecordPage extends StatefulWidget {
+  const TrafficFineRecordPage({super.key});
+
   @override
   _TrafficFineRecordPageState createState() => _TrafficFineRecordPageState();
 }
@@ -23,15 +25,15 @@ class _TrafficFineRecordPageState extends State<TrafficFineRecordPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('5G 交通违法罚款记录'),
+        title: const Text('5G 交通违法罚款记录'),
       ),
       body: Padding(
-        padding: EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           children: <Widget>[
             // 搜索区域
-            SearchSection(),
-            SizedBox(height: 16),
+            const SearchSection(),
+            const SizedBox(height: 16),
             // 罚款记录列表
             Expanded(
               child: FineRecordList(fineRecords: _fineRecords),
@@ -45,25 +47,27 @@ class _TrafficFineRecordPageState extends State<TrafficFineRecordPage> {
 
 // 搜索区域
 class SearchSection extends StatelessWidget {
+  const SearchSection({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Row(
       children: <Widget>[
         Expanded(
           child: TextField(
-            decoration: InputDecoration(
+            decoration: const InputDecoration(
               labelText: '请输入车牌号',
-              prefixIcon: Icon(Icons.local_car),
+              prefixIcon: Icon(Icons.local_bar),
             ),
             onChanged: (value) {
               // 更新搜索的车牌号
             },
           ),
         ),
-        SizedBox(width: 16),
+        const SizedBox(width: 16),
         Expanded(
           child: TextField(
-            decoration: InputDecoration(
+            decoration: const InputDecoration(
               labelText: '选择查询时间',
               prefixIcon: Icon(Icons.date_range),
             ),
@@ -72,12 +76,12 @@ class SearchSection extends StatelessWidget {
             },
           ),
         ),
-        SizedBox(width: 16),
+        const SizedBox(width: 16),
         ElevatedButton(
           onPressed: () {
             // 处理查询点击事件
           },
-          child: Text('查询'),
+          child: const Text('查询'),
         ),
       ],
     );
@@ -88,7 +92,7 @@ class SearchSection extends StatelessWidget {
 class FineRecordList extends StatelessWidget {
   final List<FineRecord> fineRecords;
 
-  FineRecordList({required this.fineRecords});
+  const FineRecordList({super.key, required this.fineRecords});
 
   @override
   Widget build(BuildContext context) {

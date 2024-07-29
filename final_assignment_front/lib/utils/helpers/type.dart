@@ -1,4 +1,4 @@
-part of app_helpers;
+part of 'app_helpers.dart';
 
 // 这个文件主要处理枚举数据
 

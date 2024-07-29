@@ -1,4 +1,4 @@
-part of app_constants;
+part of 'app_constants.dart';
 
 /// all endpoint api
 class ApiPath {

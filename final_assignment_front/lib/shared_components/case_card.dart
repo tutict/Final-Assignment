@@ -30,8 +30,8 @@ class CaseCard extends StatelessWidget {
     required this.onPressedTask,
     required this.onPressedContributors,
     required this.onPressedComments,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   final CaseCardData data;
 
@@ -57,8 +57,7 @@ class CaseCard extends StatelessWidget {
                 title: data.title,
                 subtitle: (data.dueDay < 0)
                     ? "Late in ${data.dueDay * -1} days"
-                    : "Due in " +
-                        ((data.dueDay > 1) ? "${data.dueDay} days" : "today"),
+                    : "Due in ${(data.dueDay > 1) ? "${data.dueDay} days" : "today"}",
                 onPressedMore: onPressedMore,
               ),
             ),
@@ -107,8 +106,7 @@ class _Tile extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.onPressedMore,
-    Key? key,
-  }) : super(key: key);
+  });
 
   final String title;
   final String subtitle;
@@ -175,8 +173,7 @@ class _IconButton extends StatelessWidget {
     required this.iconData,
     required this.totalContributors,
     required this.onPressed,
-    Key? key,
-  }) : super(key: key);
+  });
 
   final IconData iconData;
   final int totalContributors;
