@@ -1,6 +1,6 @@
 import 'package:eva_icons_flutter/eva_icons_flutter.dart';
 import 'package:flutter/material.dart';
-import 'package:final_assignment_front/constans/app_constants.dart';
+import 'package:final_assignment_front/constants/app_constants.dart';
 
 class SearchField extends StatelessWidget {
   SearchField({this.onSearch, super.key});

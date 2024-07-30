@@ -79,7 +79,7 @@ class HttpManager {
       }
     } catch (e) {
       print(e.toString());
-      throw e;
+      rethrow;
     }
 
     // Handle the case where response is null

@@ -4,7 +4,7 @@ import 'dart:developer';
 
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:eva_icons_flutter/eva_icons_flutter.dart';
-import 'package:final_assignment_front/constans/app_constants.dart';
+import 'package:final_assignment_front/constants/app_constants.dart';
 import 'package:final_assignment_front/shared_components/chatting_card.dart';
 import 'package:final_assignment_front/shared_components/police_card.dart';
 import 'package:final_assignment_front/shared_components/list_profil_image.dart';

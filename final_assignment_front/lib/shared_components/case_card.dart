@@ -1,7 +1,7 @@
 import 'package:eva_icons_flutter/eva_icons_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:final_assignment_front/constans/app_constants.dart';
+import 'package:final_assignment_front/constants/app_constants.dart';
 import 'package:final_assignment_front/shared_components/list_profil_image.dart';
 import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
 

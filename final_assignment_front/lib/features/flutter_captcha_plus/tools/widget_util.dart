@@ -85,7 +85,7 @@ class WidgetUtil {
             ? Image.network(url)
             : Image.asset(localUrl!, package: package));
     img.image
-        .resolve(ImageConfiguration())
+        .resolve(const ImageConfiguration())
         .addListener(ImageStreamListener(
           (ImageInfo info, bool _) {
         completer.complete(Rect.fromLTWH(
@@ -121,7 +121,7 @@ class WidgetUtil {
             ? Image.network(url)
             : Image.asset(localUrl!, package: package));
     img.image
-        .resolve(ImageConfiguration())
+        .resolve(const ImageConfiguration())
         .addListener(ImageStreamListener(
           (ImageInfo info, bool _) {
         completer.complete(Rect.fromLTWH(

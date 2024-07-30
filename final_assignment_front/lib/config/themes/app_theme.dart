@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:final_assignment_front/constans/app_constants.dart';
+import 'package:final_assignment_front/constants/app_constants.dart';
 
 /// all custom application theme
 class AppTheme {
@@ -23,8 +23,102 @@ class AppTheme {
 
 // you can add other custom theme in this class like  light theme, dark theme ,etc.
 
-// example :
-// static ThemeData get light => ThemeData();
+  static ThemeData get ionicLightTheme => ThemeData(
+    fontFamily: 'Helvetica',
+    primaryColor: const Color.fromRGBO(0, 122, 255, 1), // Ionic primary blue color
+    primaryColorLight: const Color.fromRGBO(102, 169, 255, 1),
+    primaryColorDark: const Color.fromRGBO(0, 95, 204, 1),
+    brightness: Brightness.light,
+    primarySwatch: Colors.blue,
+    elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color.fromRGBO(0, 122, 255, 1),
+          textStyle: const TextStyle(color: Colors.white),
+        ).merge(
+          ButtonStyle(elevation: WidgetStateProperty.all(0)),
+        )),
+    canvasColor: const Color.fromRGBO(242, 242, 247, 1), // Ionic canvas color
+    cardColor: const Color.fromRGBO(255, 255, 255, 1), // Ionic card color
+    appBarTheme: const AppBarTheme(
+      backgroundColor: Color.fromRGBO(255, 255, 255, 1),
+      foregroundColor: Colors.black,
+      elevation: 0,
+    ),
+    bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+      backgroundColor: Color.fromRGBO(255, 255, 255, 1),
+      selectedItemColor: Color.fromRGBO(0, 122, 255, 1),
+      unselectedItemColor: Color.fromRGBO(142, 142, 147, 1),
+    ),
+    textTheme: const TextTheme(
+      displayLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.black),
+      titleLarge: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black),
+      bodyLarge: TextStyle(fontSize: 16, color: Colors.black),
+      bodyMedium: TextStyle(fontSize: 14, color: Colors.black),
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: const Color.fromRGBO(255, 255, 255, 1),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(
+          color: Color.fromRGBO(0, 122, 255, 1),
+          width: 2,
+        ),
+      ),
+    ),
+  );
 
-// static ThemeData get dark => ThemeData();
+  static ThemeData get ionicDarkTheme => ThemeData(
+    fontFamily: 'Helvetica',
+    primaryColor: const Color.fromRGBO(0, 122, 255, 1), // Ionic primary blue color
+    primaryColorLight: const Color.fromRGBO(102, 169, 255, 1),
+    primaryColorDark: const Color.fromRGBO(0, 95, 204, 1),
+    brightness: Brightness.dark,
+    primarySwatch: Colors.blue,
+    elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color.fromRGBO(0, 122, 255, 1),
+          textStyle: const TextStyle(color: Colors.white),
+        ).merge(
+          ButtonStyle(elevation: WidgetStateProperty.all(0)),
+        )),
+    canvasColor: const Color.fromRGBO(18, 18, 18, 1), // Dark canvas color
+    cardColor: const Color.fromRGBO(28, 28, 30, 1), // Dark card color
+    appBarTheme: const AppBarTheme(
+      backgroundColor: Color.fromRGBO(28, 28, 30, 1),
+      foregroundColor: Colors.white,
+      elevation: 0,
+    ),
+    bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+      backgroundColor: Color.fromRGBO(28, 28, 30, 1),
+      selectedItemColor: Color.fromRGBO(0, 122, 255, 1),
+      unselectedItemColor: Color.fromRGBO(142, 142, 147, 1),
+    ),
+    textTheme: const TextTheme(
+      displayLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white),
+      titleLarge: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+      bodyLarge: TextStyle(fontSize: 16, color: Colors.white),
+      bodyMedium: TextStyle(fontSize: 14, color: Colors.white),
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: const Color.fromRGBO(28, 28, 30, 1),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(
+          color: Color.fromRGBO(0, 122, 255, 1),
+          width: 2,
+        ),
+      ),
+    ),
+  );
+
 }

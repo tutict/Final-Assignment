@@ -16,10 +16,10 @@ class _TrafficFineRecordPageState extends State<TrafficFineRecordPage> {
   ];
 
   // 用于搜索的车牌号
-  String _searchPlateNumber = '';
+  final String _searchPlateNumber = '';
 
   // 用于搜索的时间
-  String _searchDate = '';
+  final String _searchDate = '';
 
   @override
   Widget build(BuildContext context) {

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:percent_indicator/percent_indicator.dart';
-import 'package:final_assignment_front/constans/app_constants.dart';
+import 'package:final_assignment_front/constants/app_constants.dart';
 
 class ProgressReportCardData {
   final double percent;

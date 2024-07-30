@@ -4,7 +4,7 @@ import 'package:crypto/crypto.dart';
 
 class SignConfig {
   static String generateMd5(String data) {
-    var content = Utf8Encoder().convert(data);
+    var content = const Utf8Encoder().convert(data);
     var digest = md5.convert(content);
     return hex.encode(digest.bytes);
   }

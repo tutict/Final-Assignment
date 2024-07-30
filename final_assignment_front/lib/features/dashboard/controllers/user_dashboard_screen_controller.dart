@@ -1,4 +1,11 @@
-part of '../views/screens/user_dashboard_screen.dart';
+import 'package:final_assignment_front/constants/app_constants.dart';
+import 'package:final_assignment_front/features/dashboard/models/user_profile.dart';
+import 'package:final_assignment_front/shared_components/case_card.dart';
+import 'package:final_assignment_front/shared_components/chatting_card.dart';
+import 'package:final_assignment_front/shared_components/project_card.dart';
+import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
 class UserDashboardController extends GetxController {
   final scaffoldKey = GlobalKey<ScaffoldState>();
@@ -18,8 +25,8 @@ class UserDashboardController extends GetxController {
   }
 
   // Data
-  _Profile getProfil() {
-    return const _Profile(
+  UserProfile getProfil() {
+    return const UserProfile(
       photo: AssetImage(ImageRasterPath.avatar1),
       name: "tutict",
       email: "tutict@163.com",

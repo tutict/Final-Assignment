@@ -1,12 +1,11 @@
-part of 'package:final_assignment_front/features/dashboard/views/screens/user_dashboard_screen.dart';
+import 'package:flutter/material.dart';
 
-
-class _Profile {
+class UserProfile {
   final ImageProvider photo;
   final String name;
   final String email;
 
-  const _Profile({
+  const UserProfile({
     required this.photo,
     required this.name,
     required this.email,

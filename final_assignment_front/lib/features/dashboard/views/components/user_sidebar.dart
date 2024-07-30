@@ -1,5 +1,11 @@
-part of '../screens/user_dashboard_screen.dart';
+import 'dart:nativewrappers/_internal/vm/lib/developer.dart';
 
+import 'package:eva_icons_flutter/eva_icons_flutter.dart';
+import 'package:final_assignment_front/constants/app_constants.dart';
+import 'package:final_assignment_front/shared_components/post_card.dart';
+import 'package:final_assignment_front/shared_components/project_card.dart';
+import 'package:final_assignment_front/shared_components/selection_button.dart';
+import 'package:flutter/material.dart';
 
 class UserSidebar extends StatelessWidget {
   const UserSidebar({super.key,
@@ -37,7 +43,7 @@ class UserSidebar extends StatelessWidget {
                 ),
                 SelectionButtonData(
                   activeIcon: EvaIcons.globe,
-                  icon: EvaIcons.globeOutline,
+                  icon: EvaIcons.globe2Outline,
                   label: "Íø°ì´óÌü",
                 ),
                 SelectionButtonData(

@@ -1,6 +1,7 @@
-part of 'package:final_assignment_front/features/dashboard/views/screens/user_dashboard_screen.dart';
+import 'package:get/get.dart';
+import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
 
-class DashboardBinding extends Bindings {
+class UserDashboardBinding extends Bindings {
   @override
   void dependencies() {
     Get.lazyPut(() => UserDashboardController());

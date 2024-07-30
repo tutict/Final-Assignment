@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 class VehicleManagementPage extends StatefulWidget {
+  const VehicleManagementPage({super.key});
+
   @override
   _VehicleManagementPageState createState() => _VehicleManagementPageState();
 }
@@ -17,11 +19,11 @@ class _VehicleManagementPageState extends State<VehicleManagementPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('5G 车辆管理'),
+        title: const Text('5G 车辆管理'),
         actions: [
           // 添加车辆按钮
           IconButton(
-            icon: Icon(Icons.add),
+            icon: const Icon(Icons.add),
             onPressed: () {
               _showAddVehicleDialog();
             },
@@ -39,17 +41,17 @@ class _VehicleManagementPageState extends State<VehicleManagementPage> {
       builder: (BuildContext context) {
         // 返回添加车辆的表单
         return AlertDialog(
-          title: Text('添加车辆'),
-          content: _VehicleForm(),
+          title: const Text('添加车辆'),
+          content: const _VehicleForm(),
           actions: <Widget>[
             TextButton(
-              child: Text('取消'),
+              child: const Text('取消'),
               onPressed: () {
                 Navigator.of(context).pop();
               },
             ),
             TextButton(
-              child: Text('保存'),
+              child: const Text('保存'),
               onPressed: () {
                 // 从表单获取数据并保存
                 // 这里仅作为示例，实际应用中需要处理表单验证和数据保存逻辑
@@ -67,7 +69,7 @@ class _VehicleManagementPageState extends State<VehicleManagementPage> {
 class VehiclesList extends StatelessWidget {
   final List<Vehicle> vehicles;
 
-  VehiclesList({required this.vehicles});
+  const VehiclesList({super.key, required this.vehicles});
 
   @override
   Widget build(BuildContext context) {
@@ -82,14 +84,14 @@ class VehiclesList extends StatelessWidget {
           title: Text(vehicle.name),
           subtitle: Text('型号: ${vehicle.model}, 品牌: ${vehicle.brand}, 颜色: ${vehicle.color}'),
           trailing: IconButton(
-            icon: Icon(Icons.edit),
+            icon: const Icon(Icons.edit),
             onPressed: () {
               // 编辑车辆信息
               showDialog(
                 context: context,
                 builder: (BuildContext context) {
                   return AlertDialog(
-                    title: Text('编辑车辆信息'),
+                    title: const Text('编辑车辆信息'),
                     content: _VehicleForm(
                       initialName: vehicle.name,
                       initialModel: vehicle.model,
@@ -98,13 +100,13 @@ class VehiclesList extends StatelessWidget {
                     ),
                     actions: <Widget>[
                       TextButton(
-                        child: Text('取消'),
+                        child: const Text('取消'),
                         onPressed: () {
                           Navigator.of(context).pop();
                         },
                       ),
                       TextButton(
-                        child: Text('保存'),
+                        child: const Text('保存'),
                         onPressed: () {
                           // 从表单获取数据并更新车辆信息
                           // 这里仅作为示例，实际应用中需要处理表单验证和数据更新逻辑
@@ -130,7 +132,7 @@ class _VehicleForm extends StatefulWidget {
   final String initialBrand;
   final String initialColor;
 
-  _VehicleForm({
+  const _VehicleForm({
     this.initialName = '',
     this.initialModel = '',
     this.initialBrand = '',
@@ -162,7 +164,7 @@ class __VehicleFormState extends State<_VehicleForm> {
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         TextFormField(
-          decoration: InputDecoration(labelText: '车辆名称'),
+          decoration: const InputDecoration(labelText: '车辆名称'),
           initialValue: _name,
           onChanged: (value) {
             setState(() {
@@ -171,7 +173,7 @@ class __VehicleFormState extends State<_VehicleForm> {
           },
         ),
         TextFormField(
-          decoration: InputDecoration(labelText: '车辆型号'),
+          decoration: const InputDecoration(labelText: '车辆型号'),
           initialValue: _model,
           onChanged: (value) {
             setState(() {
@@ -180,7 +182,7 @@ class __VehicleFormState extends State<_VehicleForm> {
           },
         ),
         TextFormField(
-          decoration: InputDecoration(labelText: '车辆品牌'),
+          decoration: const InputDecoration(labelText: '车辆品牌'),
           initialValue: _brand,
           onChanged: (value) {
             setState(() {
@@ -189,7 +191,7 @@ class __VehicleFormState extends State<_VehicleForm> {
           },
         ),
         TextFormField(
-          decoration: InputDecoration(labelText: '车辆颜色'),
+          decoration: const InputDecoration(labelText: '车辆颜色'),
           initialValue: _color,
           onChanged: (value) {
             setState(() {
