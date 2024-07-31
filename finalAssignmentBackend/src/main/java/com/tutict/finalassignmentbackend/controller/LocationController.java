@@ -1,7 +1,6 @@
 package com.tutict.finalassignmentbackend.controller;
 
 import com.tutict.finalassignmentbackend.utils.GaoDeGeocoder;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -13,11 +12,12 @@ import java.util.Map;
 @RequestMapping("/eventbus/")
 public class LocationController {
 
-//    @Autowired
-    @Autowired
-    private GaoDeGeocoder gaoDeGeocoder;
+    private final GaoDeGeocoder gaoDeGeocoder;
 
-//    @PostMapping("/location")
+    public LocationController(GaoDeGeocoder gaoDeGeocoder) {
+        this.gaoDeGeocoder = gaoDeGeocoder;
+    }
+
     @PostMapping("/location")
     public String handleLocation(@RequestBody Map<String, Object> locationData) throws Exception {
 

@@ -1,6 +1,4 @@
-// TODO Implement this library.import 'dart:nativewrappers/_internal/vm/lib/developer.dart';
-
-import 'dart:nativewrappers/_internal/vm/lib/developer.dart';
+import 'dart:developer';
 import 'package:eva_icons_flutter/eva_icons_flutter.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
 import 'package:final_assignment_front/shared_components/post_card.dart';
@@ -35,33 +33,33 @@ class UserSidebar extends StatelessWidget {
                 SelectionButtonData(
                   activeIcon: EvaIcons.grid,
                   icon: EvaIcons.gridOutline,
-                  label: "Ê×Ò³",
+                  label: "ï¿½ï¿½Ò³",
                 ),
                 SelectionButtonData(
                   activeIcon: EvaIcons.trendingUp,
                   icon: EvaIcons.trendingUpOutline,
-                  label: "Íø°ì½ø¶È",
+                  label: "ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½",
                 ),
                 SelectionButtonData(
                   activeIcon: EvaIcons.globe,
                   icon: EvaIcons.globe2Outline,
-                  label: "Íø°ì´óÌü",
+                  label: "ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½",
                 ),
                 SelectionButtonData(
                   activeIcon: EvaIcons.pin,
                   icon: EvaIcons.pinOutline,
-                  label: "ÏßÏÂÍøµã",
+                  label: "ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½",
                   totalNotif: 20,
                 ),
                 SelectionButtonData(
                   activeIcon: EvaIcons.person,
                   icon: EvaIcons.personOutline,
-                  label: "¸öÈËÐÅÏ¢",
+                  label: "ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ï¢",
                 ),
                 SelectionButtonData(
                   activeIcon: EvaIcons.settings,
                   icon: EvaIcons.settingsOutline,
-                  label: "ÉèÖÃ",
+                  label: "ï¿½ï¿½ï¿½ï¿½",
                 ),
               ],
               onSelected: (index, value) {

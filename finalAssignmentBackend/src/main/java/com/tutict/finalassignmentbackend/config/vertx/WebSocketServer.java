@@ -1,5 +1,10 @@
 package com.tutict.finalassignmentbackend.config.vertx;
 
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.JwtParser;
+import io.jsonwebtoken.JwtParserBuilder;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Promise;
 import io.vertx.core.buffer.Buffer;
@@ -10,15 +15,19 @@ import io.vertx.ext.web.handler.CorsHandler;
 import io.vertx.ext.web.handler.sockjs.SockJSBridgeOptions;
 import io.vertx.ext.web.handler.sockjs.SockJSHandler;
 import io.vertx.ext.web.handler.sockjs.SockJSHandlerOptions;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import javax.crypto.SecretKey;
+
+import java.nio.charset.StandardCharsets;
+
+import static javax.crypto.Cipher.SECRET_KEY;
+
+@Slf4j
 @Component
 public class WebSocketServer extends AbstractVerticle {
-
-    private static final Logger logger = LoggerFactory.getLogger(WebSocketServer.class);
 
     @Value("${server.port}")
     private int port;
@@ -29,7 +38,7 @@ public class WebSocketServer extends AbstractVerticle {
         Router router = Router.router(vertx);
 
         // 设置跨域处理器
-        CorsHandler corsHandler = CorsHandler.create("ws://localhost:8082")
+        CorsHandler corsHandler = CorsHandler.create("http://localhost:8082")
                 .allowedMethod(HttpMethod.GET)
                 .allowedMethod(HttpMethod.POST)
                 .allowedMethod(HttpMethod.PUT)
@@ -61,24 +70,50 @@ public class WebSocketServer extends AbstractVerticle {
 
         vertx.createHttpServer()
                 .requestHandler(router)
-                .webSocketHandler(ws -> ws.handler(buffer -> {
-                    // 将接收到的消息发送到事件总线
-                    vertx.eventBus().publish("chat.to.server", buffer);
-                }))
+                .webSocketHandler(ws -> {
+                    // Extract and validate JWT from headers
+                    String token = ws.headers().get("Authorization");
+                    if (token != null && token.startsWith("Bearer ")) {
+                        String jwtToken = token.substring(7);
+                        if (validateToken(jwtToken)) {
+                            ws.handler(buffer -> {
+                                // Handle WebSocket messages
+                                vertx.eventBus().publish("chat.to.server", buffer);
+                            });
+                        } else {
+                            ws.reject();
+                        }
+                    } else {
+                        ws.reject();
+                    }
+                })
                 .listen(port, res -> {
                     if (res.succeeded()) {
-                        logger.info("WebSocket server is up and running on port {}", res.result().actualPort());
+                        log.info("WebSocket server is up and running on port {}", res.result().actualPort());
                         startPromise.complete();
                     } else {
-                        logger.error("Could not start WebSocket server on port 8080", res.cause());
+                        log.error("Could not start WebSocket server on port {}", port, res.cause());
                         startPromise.fail(res.cause());
                     }
                 });
 
         vertx.eventBus().<Buffer>consumer("chat.to.server", message -> {
-            logger.info("Received binary message of length: {}", message.body().length());
+            log.info("Received binary message of length: {}", message.body().length());
             // 将接收到的二进制消息发布到 chat.to.client 地址
             vertx.eventBus().publish("chat.to.client", message.body());
         });
+
     }
+}
+private boolean validateToken(String token) {
+    try {
+        SecretKey key = Keys.hmacShaKeyFor(SECRET_KEY.getBytes(StandardCharsets.UTF_8));
+        JwtParserBuilder parserBuilder = Jwts.parserBuilder().setSigningKey(key);
+        JwtParser parser = parserBuilder.build();
+        parser.parseClaimsJws(token);
+        return true; // Token is valid
+    } catch (JwtException e) {
+        return false; // Token is invalid
+    }
+}
 }

@@ -71,8 +71,6 @@ dependencies:
 
   crypto: ^3.0.3
 
-  web_socket: ^0.1.5
-
   http: ^1.2.1
 
   analyzer: ^5.1.0
