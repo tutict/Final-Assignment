@@ -21,11 +21,30 @@ class MyApp extends StatelessWidget {
     return GetMaterialApp(
       title: '管理系统',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.basic,
       //initialRoute: AppPages.initial,
-      //initialRoute: AppPages.userInitial,
-      initialRoute: AppPages.login,
+      initialRoute: AppPages.userInitial,
+      //initialRoute: AppPages.login,
       getPages: AppPages.routes,
+
+      builder: (context, child) {
+        final currentRoute = Get.currentRoute;
+
+        if (currentRoute == AppPages.initial) {
+          return Theme(
+            data: AppTheme.basicLight,
+            child: child!,
+          );
+        }
+
+        if (currentRoute == AppPages.userInitial) {
+          return Theme(
+             data: AppTheme.materialLightTheme,
+            child: child!,
+          );
+        }
+
+        return child!;
+      },
     );
   }
 }

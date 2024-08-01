@@ -10,7 +10,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 
-
 class UserDashboardScreen extends GetView<UserDashboardController> {
   const UserDashboardScreen({super.key});
 
@@ -73,7 +72,9 @@ class UserDashboardScreen extends GetView<UserDashboardController> {
   }
 
   Widget _buildHeader({Function()? onPressedMenu}) {
-    return Padding(
+    return Container(
+      color: Colors.lightBlueAccent,
+      child: Padding(
       padding: const EdgeInsets.symmetric(horizontal: kSpacing),
       child: Row(
         children: [
@@ -83,12 +84,13 @@ class UserDashboardScreen extends GetView<UserDashboardController> {
               child: IconButton(
                 onPressed: onPressedMenu,
                 icon: const Icon(EvaIcons.menu),
-                tooltip: "menu",
+                tooltip: "¹¦ÄÜ²Ëµ¥",
               ),
             ),
           const Expanded(child: UserHeader()),
         ],
       ),
+    ),
     );
   }
 }
