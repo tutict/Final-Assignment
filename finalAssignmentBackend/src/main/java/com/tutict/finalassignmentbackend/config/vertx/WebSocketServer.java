@@ -1,8 +1,6 @@
 package com.tutict.finalassignmentbackend.config.vertx;
 
-import io.jsonwebtoken.JwtException;
-import io.jsonwebtoken.JwtParser;
-import io.jsonwebtoken.JwtParserBuilder;
+import com.auth0.jwt.exceptions.JWTVerificationException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import io.vertx.core.AbstractVerticle;
@@ -22,8 +20,10 @@ import org.springframework.stereotype.Component;
 import javax.crypto.SecretKey;
 
 import java.nio.charset.StandardCharsets;
+import java.util.HashSet;
+import java.util.Set;
 
-import static javax.crypto.Cipher.SECRET_KEY;
+import static com.tutict.finalassignmentbackend.config.login.JWT.AuthController.logger;
 
 @Slf4j
 @Component
@@ -32,29 +32,35 @@ public class WebSocketServer extends AbstractVerticle {
     @Value("${server.port}")
     private int port;
 
+    @Value("${jwt.secret-key}")
+    private String secretKey;
+
     @Override
     public void start(Promise<Void> startPromise) {
 
         Router router = Router.router(vertx);
 
         // 设置跨域处理器
-        CorsHandler corsHandler = CorsHandler.create("http://localhost:8082")
-                .allowedMethod(HttpMethod.GET)
-                .allowedMethod(HttpMethod.POST)
-                .allowedMethod(HttpMethod.PUT)
-                .allowedMethod(HttpMethod.DELETE)
-                .allowedMethod(HttpMethod.OPTIONS)
-                .allowedHeader("Access-Control-Allow-Method")
-                .allowedHeader("Access-Control-Allow-Origin")
-                .allowedHeader("Access-Control-Allow-Credentials")
-                .allowedHeader("Access-Control-Allow-Headers")
-                .allowedHeader("Authorization")
-                .allowedHeader("Content-Type")
-                .allowCredentials(true)
-                .maxAgeSeconds(3600);
+        Set<String> allowedHeaders = new HashSet<>();
+        allowedHeaders.add("x-requested-with");
+        allowedHeaders.add("Access-Control-Allow-Origin");
+        allowedHeaders.add("origin");
+        allowedHeaders.add("Content-Type");
+        allowedHeaders.add("accept");
+        allowedHeaders.add("X-PINGARUNER");
+
+        Set<HttpMethod> allowedMethods = new HashSet<>();
+        allowedMethods.add(HttpMethod.GET);
+        allowedMethods.add(HttpMethod.POST);
+        allowedMethods.add(HttpMethod.DELETE);
+        allowedMethods.add(HttpMethod.PATCH);
+        allowedMethods.add(HttpMethod.OPTIONS);
+        allowedMethods.add(HttpMethod.PUT);
 
         // 添加跨域处理器到路由器
-        router.route().handler(corsHandler);
+        router.route().handler(CorsHandler.create("http:\\\\/\\\\/localhost:8082")
+                .allowedHeaders(allowedHeaders)
+                .allowedMethods(allowedMethods));
 
         SockJSHandlerOptions sockJSOptions = new SockJSHandlerOptions().setHeartbeatInterval(3000);
         SockJSHandler sockJSHandler = SockJSHandler.create(vertx, sockJSOptions);
@@ -63,10 +69,10 @@ public class WebSocketServer extends AbstractVerticle {
                 .addInboundPermitted(new PermittedOptions().setAddress("chat.to.server"))
                 .addOutboundPermitted(new PermittedOptions().setAddress("chat.to.client"));
 
-        sockJSHandler.bridge(bridgeOptions);
 
         router.route("/eventbus/*").handler(sockJSHandler);
 
+        sockJSHandler.bridge(bridgeOptions);
 
         vertx.createHttpServer()
                 .requestHandler(router)
@@ -104,16 +110,21 @@ public class WebSocketServer extends AbstractVerticle {
         });
 
     }
-}
-private boolean validateToken(String token) {
+boolean validateToken(String token) {
+
     try {
-        SecretKey key = Keys.hmacShaKeyFor(SECRET_KEY.getBytes(StandardCharsets.UTF_8));
-        JwtParserBuilder parserBuilder = Jwts.parserBuilder().setSigningKey(key);
-        JwtParser parser = parserBuilder.build();
-        parser.parseClaimsJws(token);
-        return true; // Token is valid
-    } catch (JwtException e) {
-        return false; // Token is invalid
+        SecretKey key = Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
+        Jwts.parser().verifyWith(key).build().parseSignedClaims(token);
+        return true; // Token有用
+    } catch (JWTVerificationException e) {
+        logger.error(e, () -> "JWT签名无效,报错如下： " + e.getMessage());
+        return false;
+    } catch (IllegalArgumentException e) {
+        logger.error(e, () -> "JWT声明字符串为空,报错如下： " + e.getMessage());
+        return false;
+    } catch (Exception e) {
+        logger.error(e, () -> "解析JWT时发生意外错误,报错如下： " + e.getMessage());
+        return false;
     }
-}
+    }
 }

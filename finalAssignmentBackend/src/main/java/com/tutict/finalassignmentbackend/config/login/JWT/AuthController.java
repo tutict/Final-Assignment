@@ -22,7 +22,7 @@ import java.util.function.Supplier;
 @RequestMapping("/api/auth")
 public class AuthController {
 
-    private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
+    public static final Logger logger = LoggerFactory.getLogger(AuthController.class);
 
     private final TokenProvider tokenProvider;
 
