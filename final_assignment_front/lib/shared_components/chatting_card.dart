@@ -1,3 +1,4 @@
+import 'package:chinese_font_library/chinese_font_library.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
@@ -46,7 +47,7 @@ class ChattingCard extends StatelessWidget {
             style: TextStyle(
               fontSize: 13,
               color: kFontColorPallets[0],
-            ),
+            ).useSystemChineseFont(),
           ),
           subtitle: Text(
             data.lastMessage,

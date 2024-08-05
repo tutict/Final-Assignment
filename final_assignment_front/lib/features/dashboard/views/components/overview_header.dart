@@ -21,9 +21,9 @@ class _OverviewHeaderState extends State<_OverviewHeader> {
           () => (widget.axis == Axis.horizontal)
           ? Row(
         children: [
-          const Text(
+          Text(
             "当前工作",
-            style: TextStyle(fontWeight: FontWeight.w600),
+            style: const TextStyle(fontWeight: FontWeight.w600).useSystemChineseFont(),
           ),
           const Spacer(),
           ..._listButton(
@@ -38,9 +38,9 @@ class _OverviewHeaderState extends State<_OverviewHeader> {
           : Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             "当前工作",
-            style: TextStyle(fontWeight: FontWeight.w600),
+            style: const TextStyle(fontWeight: FontWeight.w600).useSystemChineseFont(),
           ),
           const SizedBox(height: 10),
           SingleChildScrollView(

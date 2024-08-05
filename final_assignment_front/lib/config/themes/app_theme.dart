@@ -1,3 +1,4 @@
+import 'package:chinese_font_library/chinese_font_library.dart';
 import 'package:flutter/material.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
 
@@ -48,7 +49,7 @@ class AppTheme {
     elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color.fromRGBO(0, 122, 255, 1),
-          textStyle: const TextStyle(color: Colors.white),
+          textStyle: const TextStyle(color: Colors.white).useSystemChineseFont(),
         ).merge(
           ButtonStyle(elevation: WidgetStateProperty.all(0)),
         )),
@@ -64,11 +65,11 @@ class AppTheme {
       selectedItemColor: Color.fromRGBO(0, 122, 255, 1),
       unselectedItemColor: Color.fromRGBO(142, 142, 147, 1),
     ),
-    textTheme: const TextTheme(
-      displayLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.black),
-      titleLarge: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black),
-      bodyLarge: TextStyle(fontSize: 16, color: Colors.black),
-      bodyMedium: TextStyle(fontSize: 14, color: Colors.black),
+    textTheme: TextTheme(
+      displayLarge: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.black).useSystemChineseFont(),
+      titleLarge: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black).useSystemChineseFont(),
+      bodyLarge: const TextStyle(fontSize: 16, color: Colors.black).useSystemChineseFont(),
+      bodyMedium: const TextStyle(fontSize: 14, color: Colors.black).useSystemChineseFont(),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
@@ -97,7 +98,7 @@ class AppTheme {
     elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color.fromRGBO(0, 122, 255, 1),
-          textStyle: const TextStyle(color: Colors.white),
+          textStyle: const TextStyle(color: Colors.white).useSystemChineseFont(),
         ).merge(
           ButtonStyle(elevation: WidgetStateProperty.all(0)),
         )),
@@ -113,11 +114,11 @@ class AppTheme {
       selectedItemColor: Color.fromRGBO(0, 122, 255, 1),
       unselectedItemColor: Color.fromRGBO(142, 142, 147, 1),
     ),
-    textTheme: const TextTheme(
-      displayLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white),
-      titleLarge: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
-      bodyLarge: TextStyle(fontSize: 16, color: Colors.white),
-      bodyMedium: TextStyle(fontSize: 14, color: Colors.white),
+    textTheme: TextTheme(
+      displayLarge: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white).useSystemChineseFont(),
+      titleLarge: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white).useSystemChineseFont(),
+      bodyLarge: const TextStyle(fontSize: 16, color: Colors.white).useSystemChineseFont(),
+      bodyMedium: const TextStyle(fontSize: 14, color: Colors.white).useSystemChineseFont(),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
@@ -146,7 +147,7 @@ class AppTheme {
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
         backgroundColor: const Color.fromRGBO(33, 150, 243, 1),
-        textStyle: const TextStyle(color: Colors.white),
+        textStyle: const TextStyle(color: Colors.white).useSystemChineseFont(),
       ).merge(
         ButtonStyle(elevation: WidgetStateProperty.all(0)),
       ),
@@ -163,11 +164,11 @@ class AppTheme {
       selectedItemColor: Color.fromRGBO(33, 150, 243, 1),
       unselectedItemColor: Color.fromRGBO(158, 158, 158, 1),
     ),
-    textTheme: const TextTheme(
-      displayLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.black),
-      titleLarge: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black),
-      bodyLarge: TextStyle(fontSize: 16, color: Colors.black),
-      bodyMedium: TextStyle(fontSize: 14, color: Colors.black),
+    textTheme: TextTheme(
+      displayLarge: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.black).useSystemChineseFont(),
+      titleLarge: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black).useSystemChineseFont(),
+      bodyLarge: const TextStyle(fontSize: 16, color: Colors.black).useSystemChineseFont(),
+      bodyMedium: const TextStyle(fontSize: 14, color: Colors.black).useSystemChineseFont(),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
@@ -196,7 +197,7 @@ class AppTheme {
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
         backgroundColor: const Color.fromRGBO(33, 150, 243, 1),
-        textStyle: const TextStyle(color: Colors.white),
+        textStyle: const TextStyle(color: Colors.white).useSystemChineseFont(),
       ).merge(
         ButtonStyle(elevation: WidgetStateProperty.all(0)),
       ),
@@ -213,11 +214,11 @@ class AppTheme {
       selectedItemColor: Color.fromRGBO(33, 150, 243, 1),
       unselectedItemColor: Color.fromRGBO(142, 142, 147, 1),
     ),
-    textTheme: const TextTheme(
-      displayLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white),
-      titleLarge: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
-      bodyLarge: TextStyle(fontSize: 16, color: Colors.white),
-      bodyMedium: TextStyle(fontSize: 14, color: Colors.white),
+    textTheme: TextTheme(
+      displayLarge: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white).useSystemChineseFont(),
+      titleLarge: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white).useSystemChineseFont(),
+      bodyLarge: const TextStyle(fontSize: 16, color: Colors.white).useSystemChineseFont(),
+      bodyMedium: const TextStyle(fontSize: 14, color: Colors.white).useSystemChineseFont(),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,

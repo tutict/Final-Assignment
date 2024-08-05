@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:chinese_font_library/chinese_font_library.dart';
 import 'package:final_assignment_front/features/flutter_captcha_plus/request/HttpManager.dart';
 import 'package:final_assignment_front/features/flutter_captcha_plus/request/encrypt_util.dart';
 import 'package:final_assignment_front/features/flutter_captcha_plus/tools/object_utils.dart';
@@ -319,9 +320,9 @@ class _BlockPuzzleCaptchaPageState extends State<BlockPuzzleCaptchaPage>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: <Widget>[
-          const Text(
+          Text(
             '请完成安全验证',
-            style: TextStyle(fontSize: 18),
+            style: const TextStyle(fontSize: 18).useSystemChineseFont(),
           ),
           IconButton(
               icon: const Icon(Icons.highlight_off),
@@ -402,7 +403,7 @@ class _BlockPuzzleCaptchaPageState extends State<BlockPuzzleCaptchaPage>
                       _checkSuccess
                           ? "${(_checkMilliseconds / (60.0 * 12)).toStringAsFixed(2)}s验证成功"
                           : "验证失败",
-                      style: const TextStyle(color: Colors.white),
+                      style: const TextStyle(color: Colors.white).useSystemChineseFont(),
                     ),
                   ),
                 ),
@@ -446,9 +447,9 @@ class _BlockPuzzleCaptchaPageState extends State<BlockPuzzleCaptchaPage>
                 ),
                 Container(
                   alignment: Alignment.center,
-                  child: const Text(
+                  child: Text(
                     '向右拖动滑块填充拼图',
-                    style: TextStyle(fontSize: 16),
+                    style: const TextStyle(fontSize: 16).useSystemChineseFont(),
                   ),
                 ),
                 Container(

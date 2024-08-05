@@ -1,3 +1,4 @@
+import 'package:chinese_font_library/chinese_font_library.dart';
 import 'package:flutter/material.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
 import 'package:get/get.dart';
@@ -126,7 +127,7 @@ class _Button extends StatelessWidget {
         fontWeight: FontWeight.w600,
         letterSpacing: .8,
         fontSize: 13,
-      ),
+      ).useSystemChineseFont(),
     );
   }
 

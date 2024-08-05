@@ -1,3 +1,4 @@
+import 'package:chinese_font_library/chinese_font_library.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:get/get.dart';
@@ -109,7 +110,7 @@ class _TitleText extends StatelessWidget {
         fontWeight: FontWeight.w600,
         color: kFontColorPallets[0],
         letterSpacing: 0.8,
-      ),
+      ).useSystemChineseFont(),
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
     );
@@ -124,7 +125,7 @@ class _SubtitleText extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       data,
-      style: TextStyle(fontSize: 11, color: kFontColorPallets[2]),
+      style: TextStyle(fontSize: 11, color: kFontColorPallets[2]).useSystemChineseFont(),
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
     );

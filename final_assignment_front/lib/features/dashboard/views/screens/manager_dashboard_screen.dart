@@ -2,6 +2,7 @@ library dashboard;
 
 import 'dart:developer';
 
+import 'package:chinese_font_library/chinese_font_library.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:eva_icons_flutter/eva_icons_flutter.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';

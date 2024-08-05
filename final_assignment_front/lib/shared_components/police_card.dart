@@ -1,3 +1,4 @@
+import 'package:chinese_font_library/chinese_font_library.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
@@ -61,13 +62,13 @@ class _Info extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.end,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.only(bottom: 10),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 10),
           child: Text(
             "执法为民\n公正廉洁\n无私奉献",
-            style: TextStyle(
+            style: const TextStyle(
               fontWeight: FontWeight.bold,
-            ),
+            ).useSystemChineseFont(),
           ),
         ),
         Padding(

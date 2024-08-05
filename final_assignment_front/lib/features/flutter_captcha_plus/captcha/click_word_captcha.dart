@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:async';
+import 'package:chinese_font_library/chinese_font_library.dart';
 import 'package:flutter/material.dart';
 import 'package:steel_crypt/steel_crypt.dart';
 
@@ -271,7 +272,7 @@ class _ClickWordCaptchaState extends State<ClickWordCaptcha> {
       decoration: BoxDecoration(
           borderRadius: const BorderRadius.all(Radius.circular(4)),
           border: Border.all(color: borderColor)),
-      child: Text(bottomTitle, style: TextStyle(fontSize: 18, color: titleColor)),
+      child: Text(bottomTitle, style: TextStyle(fontSize: 18, color: titleColor).useSystemChineseFont()),
     );
   }
 

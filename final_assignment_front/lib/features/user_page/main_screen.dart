@@ -1,3 +1,4 @@
+import 'package:chinese_font_library/chinese_font_library.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:card_swiper/card_swiper.dart';
 import 'package:flutter/material.dart';
@@ -53,7 +54,7 @@ class _TrafficViolationScreenState extends State<TrafficViolationScreen> {
           backgroundColor: Colors.transparent, // 确保Scaffold背景透明
           title: Row(
             children: <Widget>[
-              const Text('哈尔滨',style: TextStyle(color: Colors.white),),
+              Text('哈尔滨',style: const TextStyle(color: Colors.white).useSystemChineseFont()),
               const SizedBox(width: 10),
               Expanded(
                 child: TextField(
@@ -61,7 +62,7 @@ class _TrafficViolationScreenState extends State<TrafficViolationScreen> {
                   decoration: InputDecoration(
                     hintText: "搜索",
                     prefixIcon: const Icon(Icons.search),
-                    hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
+                    hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)).useSystemChineseFont(),
                     filled: true,
                     fillColor: Colors.white.withOpacity(0.3),
                     border: OutlineInputBorder(

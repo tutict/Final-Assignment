@@ -1,3 +1,4 @@
+import 'package:chinese_font_library/chinese_font_library.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -17,7 +18,7 @@ class TodayText extends StatelessWidget {
           ),
           Text(
             DateFormat.yMMMEd('zh_CN').format(DateTime.now()),
-            style: const TextStyle(fontSize: 14),
+            style: const TextStyle(fontSize: 14).useSystemChineseFont(),
           ),
         ],
       ),
