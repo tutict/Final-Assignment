@@ -36,14 +36,14 @@ class UserDashboardController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    // Ìí¼ÓÊ¾ÀýÈÎÎñ
+    // ï¿½ï¿½ï¿½Ê¾ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
     caseCardDataList.addAll([
       const CaseCardData(
         title: 'Todo Task 1',
         dueDay: 5,
         totalComments: 10,
         totalContributors: 3,
-        type: CaseType.caseManagement, // ¸ÄÎª CaseType
+        type: CaseType.caseManagement, // ï¿½ï¿½Îª CaseType
         profilContributors: [
         ],
       ),
@@ -52,7 +52,7 @@ class UserDashboardController extends GetxController {
         dueDay: 10,
         totalComments: 5,
         totalContributors: 2,
-        type: CaseType.caseSearch, // ¸ÄÎª CaseType
+        type: CaseType.caseSearch, // ï¿½ï¿½Îª CaseType
         profilContributors: [
         ],
       ),
@@ -61,11 +61,11 @@ class UserDashboardController extends GetxController {
         dueDay: -2,
         totalComments: 3,
         totalContributors: 1,
-        type: CaseType.caseAppeal, // ¸ÄÎª CaseType
+        type: CaseType.caseAppeal, // ï¿½ï¿½Îª CaseType
         profilContributors: [
         ],
       ),
-      // Ìí¼Ó¸ü¶àÈÎÎñ
+      // ï¿½ï¿½Ó¸ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
     ]);
   }
 
@@ -73,14 +73,14 @@ class UserDashboardController extends GetxController {
     return ProjectCardData(
       percent: .3,
       projectImage: const AssetImage(ImageRasterPath.logo1),
-      projectName: "½»Í¨Î¥·¨ÐÐÎª´¦Àí¹ÜÀíÏµÍ³",
+      projectName: "ï¿½ï¿½Í¨Î¥ï¿½ï¿½ï¿½ï¿½Îªï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ÏµÍ³",
       releaseTime: DateTime.now(),
     );
   }
 
   List<ProjectCardData> getActiveProject() {
     return [
-      // ·µ»Ø»î¶¯ÏîÄ¿µÄÁÐ±í
+      // ï¿½ï¿½ï¿½Ø»î¶¯ï¿½ï¿½Ä¿ï¿½ï¿½ï¿½Ð±ï¿½
     ];
   }
 
@@ -101,7 +101,7 @@ class UserDashboardController extends GetxController {
         image: AssetImage(ImageRasterPath.avatar6),
         isOnline: true,
         name: "Samantha",
-        lastMessage: "ÎÒ´¦ÀíÁËÐÂµÄÉêËß",
+        lastMessage: "ï¿½Ò´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Âµï¿½ï¿½ï¿½ï¿½ï¿½",
         isRead: false,
         totalUnread: 1,
       ),
