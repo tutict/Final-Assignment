@@ -27,23 +27,20 @@ class UserDashboardScreen extends GetView<UserDashboardController> {
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
-          return SingleChildScrollView(
+          return Column(
+            children: [
+          Flexible(
             child: Container(
-              decoration: const BoxDecoration(
+                decoration: const BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [
-                    Colors.blue,            // Start with a darker blue
-                    Colors.lightBlueAccent, // End with a lighter blue
-                  ],
-                  begin: Alignment.topCenter,   // Start the gradient from the top
-                  end: Alignment.topLeft,  // End the gradient at the bottom
-                ),
-              ),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minWidth: constraints.maxWidth,
-                  maxHeight: 80,
-                ),
+            colors: [
+                Colors.lightBlueAccent,
+                Colors.white,
+            ],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+            ),
+          ),
                 child: ResponsiveBuilder(
                   mobileBuilder: (context, constraints) {
                     return Column(
@@ -53,10 +50,13 @@ class UserDashboardScreen extends GetView<UserDashboardController> {
                         _buildHeader(onPressedMenu: () => controller.openDrawer()),
                         const SizedBox(height: kSpacing / 2),
                         const Divider(),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: kSpacing),
-                          child: UserScreenSwiper(onPressed: () {}),
-                        ),
+                        SizedBox(
+                          height: 250,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: kSpacing),
+                            child: UserScreenSwiper(onPressed: () {}),
+                          ),
+                        )
                       ],
                     );
                   },
@@ -68,10 +68,13 @@ class UserDashboardScreen extends GetView<UserDashboardController> {
                         _buildHeader(onPressedMenu: () => controller.openDrawer()),
                         const SizedBox(height: kSpacing / 2),
                         const Divider(),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: kSpacing),
-                          child: UserScreenSwiper(onPressed: () {}),
-                        ),
+                        SizedBox(
+                          height: 250,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: kSpacing),
+                            child: UserScreenSwiper(onPressed: () {}),
+                          ),
+                        )
                       ],
                     );
                   },
@@ -83,23 +86,27 @@ class UserDashboardScreen extends GetView<UserDashboardController> {
                         _buildHeader(),
                         const SizedBox(height: kSpacing / 2),
                         const Divider(),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: kSpacing),
-                          child: UserScreenSwiper(onPressed: () {}),
-                        ),
+                        SizedBox(
+                          height: 250,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: kSpacing),
+                            child: UserScreenSwiper(onPressed: () {}),
+                          ),
+                        )
                       ],
                     );
                   },
                 ),
               ),
             ),
+            ],
           );
         },
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          // Action for the floating action button
         },
+        backgroundColor: Colors.lightBlueAccent,
         child: const Icon(Icons.chat),
       ),
     );
@@ -108,21 +115,21 @@ class UserDashboardScreen extends GetView<UserDashboardController> {
 
   Widget _buildHeader({Function()? onPressedMenu}) {
     return Padding(
-    padding: const EdgeInsets.symmetric(horizontal: kSpacing),
-    child: Row(
-      children: [
-        if (onPressedMenu != null)
-          Padding(
-            padding: const EdgeInsets.only(right: kSpacing),
-            child: IconButton(
-              onPressed: onPressedMenu,
-              icon: const Icon(EvaIcons.menu),
-              tooltip: "功能菜单",
+      padding: const EdgeInsets.symmetric(horizontal: kSpacing),
+      child: Row(
+        children: [
+          if (onPressedMenu != null)
+            Padding(
+              padding: const EdgeInsets.only(right: kSpacing),
+              child: IconButton(
+                onPressed: onPressedMenu,
+                icon: const Icon(EvaIcons.menu),
+                tooltip: "功能菜单",
+              ),
             ),
-          ),
-        const Expanded(child: UserHeader()),
-      ],
-    ),
-        );
+          const Expanded(child: UserHeader()),
+        ],
+      ),
+    );
   }
 }

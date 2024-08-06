@@ -33,33 +33,32 @@ class UserSidebar extends StatelessWidget {
                 SelectionButtonData(
                   activeIcon: EvaIcons.grid,
                   icon: EvaIcons.gridOutline,
-                  label: "��ҳ",
+                  label: "更多",
                 ),
                 SelectionButtonData(
                   activeIcon: EvaIcons.trendingUp,
                   icon: EvaIcons.trendingUpOutline,
-                  label: "�������",
+                  label: "网办进度",
                 ),
                 SelectionButtonData(
                   activeIcon: EvaIcons.globe,
                   icon: EvaIcons.globe2Outline,
-                  label: "�������",
+                  label: "网办大厅",
                 ),
                 SelectionButtonData(
                   activeIcon: EvaIcons.pin,
                   icon: EvaIcons.pinOutline,
-                  label: "��������",
-                  totalNotif: 20,
+                  label: "线下网点",
                 ),
                 SelectionButtonData(
                   activeIcon: EvaIcons.person,
                   icon: EvaIcons.personOutline,
-                  label: "������Ϣ",
+                  label: "我的",
                 ),
                 SelectionButtonData(
                   activeIcon: EvaIcons.settings,
                   icon: EvaIcons.settingsOutline,
-                  label: "����",
+                  label: "设置",
                 ),
               ],
               onSelected: (index, value) {

@@ -148,7 +148,7 @@ class _Button extends StatelessWidget {
                 color: Colors.white,
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
-              ),
+              ).useSystemChineseFont(),
               textAlign: TextAlign.center,
             ),
           );
