@@ -1,48 +1,35 @@
 package finalassignmentbackend.config.login.JWT;
 
-import jakarta.servlet.*;
-import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Component;
+import io.quarkus.security.identity.SecurityIdentity;
+import jakarta.ws.rs.core.SecurityContext;
+import java.security.Principal;
 
-import java.io.IOException;
+public class JwtAuthorizationFilter implements SecurityContext {
 
-@Component
-public class JwtAuthorizationFilter implements Filter {
+    private final Authentication authentication;
 
-    private final TokenProvider tokenProvider;
-
-    public JwtAuthorizationFilter(TokenProvider tokenProvider) {
-        this.tokenProvider = tokenProvider;
+    public JwtAuthorizationFilter(Authentication authentication) {
+        this.authentication = authentication;
     }
 
     @Override
-    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
-        HttpServletRequest httpRequest = (HttpServletRequest) request;
-        String jwtToken = extractToken(httpRequest);
-
-        try {
-            if (jwtToken != null && tokenProvider.validateToken(jwtToken)) {
-                String username = tokenProvider.getUsernameFromToken(jwtToken);
-
-                if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                    Authentication authentication = tokenProvider.getAuthentication(jwtToken);
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
-                }
-            }
-        } catch (Exception ex) {
-            throw new ServletException("Error processing JWT Token", ex);
-        }
-
-        chain.doFilter(request, response);
+    public Principal getUserPrincipal() {
+        return authentication;
     }
 
-    private String extractToken(HttpServletRequest request) {
-        String authHeader = request.getHeader("Authorization");
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            return authHeader.substring(7);
-        }
-        return null;
+    @Override
+    public boolean isUserInRole(String role) {
+        return authentication.getAuthorities().stream()
+                .anyMatch(grantedAuthority -> grantedAuthority.getAuthority().equals(role));
+    }
+
+    @Override
+    public boolean isSecure() {
+        return true;
+    }
+
+    @Override
+    public String getAuthenticationScheme() {
+        return "Bearer";
     }
 }

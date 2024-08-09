@@ -1,88 +1,89 @@
 package finalassignmentbackend.config.login;
 
-import com.tutict.finalassignmentbackend.config.login.JWT.JwtAuthenticationFilter;
-import com.tutict.finalassignmentbackend.config.login.JWT.JwtAuthorizationFilter;
-import com.tutict.finalassignmentbackend.config.login.JWT.TokenProvider;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpStatus;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
-import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.crypto.factory.PasswordEncoderFactories;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.web.authentication.HttpStatusEntryPoint;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import io.quarkus.security.identity.SecurityIdentity;
+import io.quarkus.security.runtime.QuarkusSecurityIdentity;
+import io.smallrye.jwt.auth.principal.DefaultJWTCallerPrincipal;
+import io.smallrye.jwt.auth.principal.JWTParser;
+import io.vertx.ext.web.RoutingContext;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Observes;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.Priorities;
+import jakarta.ws.rs.container.ContainerRequestContext;
+import jakarta.ws.rs.container.ContainerRequestFilter;
+import jakarta.ws.rs.core.HttpHeaders;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.ext.Provider;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
-@Configuration
-@EnableWebSecurity
+import java.util.Set;
+
+@ApplicationScoped
 public class SecurityConfig {
 
-    @Bean
-    public JwtAuthenticationFilter jwtAuthenticationFilter(TokenProvider tokenProvider) {
-        return new JwtAuthenticationFilter(tokenProvider);
+    @Inject
+    JWTParser jwtParser;
+
+    @ConfigProperty(name = "jwt.secret-key")
+    String secretKey;
+
+    // Validate the token and extract SecurityIdentity
+    public SecurityIdentity getSecurityIdentity(String token) {
+        try {
+            DefaultJWTCallerPrincipal callerPrincipal = (DefaultJWTCallerPrincipal) jwtParser.verify(token);
+            Set<String> roles = callerPrincipal.getGroups();
+            return QuarkusSecurityIdentity.builder()
+                    .setPrincipal(callerPrincipal)
+                    .addRoles(roles)
+                    .build();
+        } catch (Exception e) {
+            return null;
+        }
     }
 
-    @Bean
-    public JwtAuthorizationFilter jwtAuthorizationFilter(TokenProvider tokenProvider) {
-        return new JwtAuthorizationFilter(tokenProvider);
+    // Create a JWT token (simplified for demo purposes)
+    public String createToken(String username, Set<String> roles) {
+        // Implement token creation logic using your JWT library
+        // Return a JWT string
+        return "your.jwt.token";
     }
 
-    @Bean
-    public TokenProvider tokenProvider() {
-        // 实现TokenProvider的逻辑
-        return new TokenProvider();
+    // Filter that will intercept requests and check the JWT token
+    @Provider
+    @javax.annotation.Priority(Priorities.AUTHENTICATION)
+    public static class JWTFilter implements ContainerRequestFilter {
+
+        @Inject
+        SecurityConfig securityConfig;
+
+        @Override
+        public void filter(ContainerRequestContext requestContext) {
+            String token = extractToken(requestContext);
+            if (token != null) {
+                SecurityIdentity securityIdentity = securityConfig.getSecurityIdentity(token);
+                if (securityIdentity != null) {
+                    // Set the security identity for the current request
+                    QuarkusSecurityIdentity.setCurrent(securityIdentity);
+                    return;
+                }
+            }
+            // If token is invalid or absent, abort the request with 401 Unauthorized
+            requestContext.abortWith(Response.status(Response.Status.UNAUTHORIZED).build());
+        }
+
+        private String extractToken(ContainerRequestContext requestContext) {
+            String authHeader = requestContext.getHeaderString(HttpHeaders.AUTHORIZATION);
+            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                return authHeader.substring(7);
+            }
+            return null;
+        }
     }
 
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return PasswordEncoderFactories.createDelegatingPasswordEncoder();
-    }
-
-    @Bean
-    public AuthenticationManager authenticationManager(UserDetailsService userDetailsService, PasswordEncoder encoder) {
-        DaoAuthenticationProvider authenticationProvider = new DaoAuthenticationProvider();
-        authenticationProvider.setUserDetailsService(userDetailsService);
-        authenticationProvider.setPasswordEncoder(encoder);
-
-        return authenticationProvider::authenticate;
-    }
-
-    @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtAuthorizationFilter jwtAuthorizationFilter, JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
-        http.csrf(AbstractHttpConfigurer::disable)
-                .exceptionHandling(exception -> exception.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/eventbus/**").permitAll() // 允许 /eventbus 路径
-                        .anyRequest().authenticated())
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterAfter(jwtAuthorizationFilter, UsernamePasswordAuthenticationFilter.class);
-
-        return http.build();
-    }
-
-    @Bean
-    public UserDetailsService userDetailsService() {
-        PasswordEncoder encoder = PasswordEncoderFactories.createDelegatingPasswordEncoder();
-        UserDetails user = User.withUsername("user")
-                .password(encoder.encode("password"))
-                .roles("USER")
-                .build();
-
-        UserDetails admin = User.withUsername("admin")
-                .password(encoder.encode("password"))
-                .roles("ADMIN")
-                .build();
-
-        return new InMemoryUserDetailsManager(user, admin);
+    // Handle successful authentication and allow access to routes
+    public void onStartup(@Observes RoutingContext routingContext) {
+        routingContext.addHeadersEndHandler(v -> {
+            // Custom logic can be added here, e.g., logging, metrics, etc.
+        });
     }
 }

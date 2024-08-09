@@ -6,38 +6,44 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
-import org.springframework.beans.factory.annotation.Value;
+import jakarta.enterprise.context.ApplicationScoped;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.jboss.logging.Logger;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.stereotype.Component;
 
 import java.security.Key;
-import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-@Component
+@ApplicationScoped
 public class TokenProvider {
 
-    // 过期时间24小时
+    private static final Logger LOG = Logger.getLogger(TokenProvider.class);
+
+    // JWT token validity duration (24 hours)
     private static final long JWT_TOKEN_VALIDITY = 24 * 60 * 60 * 1000;
 
-    // JWT Token的密钥
-    @Value("${jwt.secret-key}")
-    private String secretKey;
+    // Secret key for JWT token
+    @ConfigProperty(name = "jwt.secret-key")
+    String secretKey;
 
     private Key key;
 
     @PostConstruct
     public void init() {
-        this.key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(secretKey));
+        try {
+            this.key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(secretKey));
+        } catch (Exception e) {
+            LOG.error("Failed to initialize the secret key for JWT", e);
+        }
     }
 
-    // 为用户生成JWT Token
+    // Generates a JWT token for a user
     public String createToken(String username, Collection<? extends GrantedAuthority> authorities) {
         long now = System.currentTimeMillis();
         Date validity = new Date(now + JWT_TOKEN_VALIDITY);
@@ -51,63 +57,54 @@ public class TokenProvider {
                 .compact();
     }
 
-    // 从Token中提取用户名
+    // Extracts the username from the token
     public String getUsernameFromToken(String token) {
         return getClaimFromToken(token, Claims::getSubject);
     }
 
-    // 从Token中提取权限
-    public List<String> getAuthoritiesFromToken(String token) {
+    // Extracts authorities from the token
+    public List getAuthoritiesFromToken(String token) {
         return getClaimFromToken(token, claims -> claims.get("authorities", List.class));
     }
 
-    // 从Token中提取特定声明
+    // Extracts a specific claim from the token
     private <T> T getClaimFromToken(String token, Function<Claims, T> claimsResolver) {
         return claimsResolver.apply(getAllClaimsFromToken(token));
     }
 
-    // 获取Token中的所有声明
+    // Gets all claims from the token
     private Claims getAllClaimsFromToken(String token) {
-       return Jwts.parser()
-                   .setSigningKey(key)
-                   .build()
-                   .parseClaimsJws(token)
-                   .getBody();
+        return Jwts.parserBuilder()
+                .setSigningKey(key)
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
     }
 
-    // 验证Token是否仍然有效
+    // Validates if the token is still valid
     public boolean validateToken(String token) {
-        // 从Token中获取用户名
         String username = getUsernameFromToken(token);
-
-        // 检查用户名是否存在，如果存在，继续验证Token是否过期
-        if (username != null) {
-            return !isTokenExpired(token);
-        }
-
-        return false;
+        return (username != null && !isTokenExpired(token));
     }
 
-    // 检查Token是否过期
+    // Checks if the token has expired
     private boolean isTokenExpired(String token) {
         return getClaimFromToken(token, Claims::getExpiration).before(new Date());
     }
 
-    // 根据Token创建Authentication对象
+    // Creates an Authentication object from the token
     public Authentication getAuthentication(String token) {
         String username = getUsernameFromToken(token);
         List<String> authorityStrings = getAuthoritiesFromToken(token);
 
-        // 将字符串列表转换为GrantedAuthority集合
         List<GrantedAuthority> grantedAuthorities = authorityStrings.stream()
                 .map(SimpleGrantedAuthority::new)
                 .collect(Collectors.toList());
 
-        // 使用转换后的GrantedAuthority集合创建UsernamePasswordAuthenticationToken
         return new UsernamePasswordAuthenticationToken(username, null, grantedAuthorities);
     }
 
-    // 将GrantedAuthority集合转换为String列表
+    // Converts a collection of GrantedAuthority to a list of Strings
     private List<String> extractAuthorities(Collection<? extends GrantedAuthority> authorities) {
         return authorities.stream()
                 .map(GrantedAuthority::getAuthority)
