@@ -5,6 +5,7 @@ import 'package:final_assignment_front/features/dashboard/views/components/user_
 import 'package:final_assignment_front/features/dashboard/views/components/user_sidebar.dart';
 import 'package:final_assignment_front/shared_components/responsive_builder.dart';
 import 'package:final_assignment_front/shared_components/user_screen_swiper.dart';
+import 'package:final_assignment_front/shared_components/user_tools_card.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -56,7 +57,27 @@ class UserDashboardScreen extends GetView<UserDashboardController> {
                             padding: const EdgeInsets.symmetric(horizontal: kSpacing),
                             child: UserScreenSwiper(onPressed: () {}),
                           ),
-                        )
+                        ),
+                        SizedBox(
+                          height: 150,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: kSpacing),
+                            child: UserToolsCard(
+                              title: 'User Tools',
+                              icon: EvaIcons.person,
+                              onPressed: () {},
+                              onPressedSecond: () {},
+                              onPressedThird: () {},
+                              onPressedFourth: () {},
+                              onPressedFifth: () {},
+                              onPressedSixth: () {},
+                              onPressedSeventh: () {},
+                              onPressedEighth: () {},
+                              onPressedNinth: () {},
+                              onPressedTenth: () {},
+                            ),
+                          ),
+                        ),
                       ],
                     );
                   },
@@ -74,7 +95,27 @@ class UserDashboardScreen extends GetView<UserDashboardController> {
                             padding: const EdgeInsets.symmetric(horizontal: kSpacing),
                             child: UserScreenSwiper(onPressed: () {}),
                           ),
-                        )
+                        ),
+                        SizedBox(
+                          height: 150,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: kSpacing),
+                            child: UserToolsCard(
+                              title: 'User Tools',
+                              icon: EvaIcons.person,
+                              onPressed: () {},
+                              onPressedSecond: () {},
+                              onPressedThird: () {},
+                              onPressedFourth: () {},
+                              onPressedFifth: () {},
+                              onPressedSixth: () {},
+                              onPressedSeventh: () {},
+                              onPressedEighth: () {},
+                              onPressedNinth: () {},
+                              onPressedTenth: () {},
+                            ),
+                          ),
+                        ),
                       ],
                     );
                   },
@@ -92,7 +133,27 @@ class UserDashboardScreen extends GetView<UserDashboardController> {
                             padding: const EdgeInsets.symmetric(horizontal: kSpacing),
                             child: UserScreenSwiper(onPressed: () {}),
                           ),
-                        )
+                        ),
+                        SizedBox(
+                          height: 150,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: kSpacing),
+                            child: UserToolsCard(
+                              title: 'User Tools',
+                              icon: EvaIcons.person,
+                              onPressed: () {},
+                              onPressedSecond: () {},
+                              onPressedThird: () {},
+                              onPressedFourth: () {},
+                              onPressedFifth: () {},
+                              onPressedSixth: () {},
+                              onPressedSeventh: () {},
+                              onPressedEighth: () {},
+                              onPressedNinth: () {},
+                              onPressedTenth: () {},
+                            ),
+                          ),
+                        ),
                       ],
                     );
                   },
