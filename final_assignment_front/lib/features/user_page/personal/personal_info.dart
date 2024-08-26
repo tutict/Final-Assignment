@@ -31,11 +31,11 @@ class PersonalInfoPage extends StatelessWidget {
           ),
           const ListTile(
             title: Text('有效期限'),
-            leading: Icon(Icons.logout),
+            trailing: Icon(Icons.keyboard_arrow_right),
           ),
           const ListTile(
             title: Text('手机号码'),
-            leading: Icon(Icons.logout),
+            trailing: Icon(Icons.keyboard_arrow_right),
           ),
           const ListTile(
             title: Text('注册时间'),

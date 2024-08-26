@@ -62,15 +62,17 @@ class UserToolsCard extends StatelessWidget {
           ),
 
           // Buttons row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          Wrap(
+            spacing: 8.0, // 设置按钮之间的水平间距
+            runSpacing: 8.0, // 设置行之间的垂直间距
+            alignment: WrapAlignment.center,
             children: <Widget>[
               _buildButton(
                 activeIcon: EvaIcons.arrowForward,
                 icon: EvaIcons.arrowForwardOutline,
                 context,
                 onPressed,
-                'Main Action',
+                '违法处理',
               ),
               if (onPressedSecond != null)
                 _buildButton(
@@ -78,7 +80,7 @@ class UserToolsCard extends StatelessWidget {
                   icon: EvaIcons.arrowForwardOutline,
                   context,
                   onPressedSecond,
-                  'Secondary Action',
+                  '罚款缴纳',
                 ),
               if (onPressedThird != null)
                 _buildButton(
@@ -86,7 +88,7 @@ class UserToolsCard extends StatelessWidget {
                   icon: EvaIcons.arrowForwardOutline,
                   context,
                   onPressedThird,
-                  'Third Action',
+                  '事故快处',
                 ),
               if (onPressedFourth != null)
                 _buildButton(
@@ -94,7 +96,7 @@ class UserToolsCard extends StatelessWidget {
                   icon: EvaIcons.arrowForwardOutline,
                   context,
                   onPressedFourth,
-                  'Fourth Action',
+                  '事故处理与结果',
                 ),
               if (onPressedFifth != null)
                 _buildButton(
@@ -102,7 +104,7 @@ class UserToolsCard extends StatelessWidget {
                   icon: EvaIcons.arrowForwardOutline,
                   context,
                   onPressedFifth,
-                  'Fifth Action',
+                  '事故证据材料查阅',
                 ),
               if (onPressedSixth != null)
                 _buildButton(
@@ -110,7 +112,7 @@ class UserToolsCard extends StatelessWidget {
                   icon: EvaIcons.arrowForwardOutline,
                   context,
                   onPressedSixth,
-                  'Sixth Action',
+                  '事故视频快处',
                 ),
               if (onPressedSeventh != null)
                 _buildButton(
@@ -142,11 +144,10 @@ class UserToolsCard extends StatelessWidget {
                   icon: EvaIcons.arrowForwardOutline,
                   context,
                   onPressedTenth,
-                  'Tenth Action',
-                )
+                  '更多',
+                ),
             ],
-          ),
-          const SizedBox(height: 10.0),
+          )
         ],
       ),
     );
