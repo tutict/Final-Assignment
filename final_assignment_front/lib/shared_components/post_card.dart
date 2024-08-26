@@ -70,5 +70,4 @@ class _Info extends StatelessWidget {
       "交通安全时时不忘\n幸福生活天天拥有",
     );
   }
-
 }

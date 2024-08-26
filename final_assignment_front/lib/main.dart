@@ -38,7 +38,7 @@ class MyApp extends StatelessWidget {
 
         if (currentRoute == AppPages.userInitial) {
           return Theme(
-             data: AppTheme.materialLightTheme,
+            data: AppTheme.materialLightTheme,
             child: child!,
           );
         }

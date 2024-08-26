@@ -7,7 +7,8 @@ import 'package:final_assignment_front/shared_components/selection_button.dart';
 import 'package:flutter/material.dart';
 
 class UserSidebar extends StatelessWidget {
-  const UserSidebar({super.key,
+  const UserSidebar({
+    super.key,
     required this.data,
   });
 

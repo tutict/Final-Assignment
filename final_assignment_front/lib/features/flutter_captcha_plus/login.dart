@@ -29,6 +29,7 @@ class _LoginPageState extends State<LoginPage> {
 
     return items;
   }
+
   @override
   Widget build(BuildContext context) {
     // TODO: implement build
@@ -62,8 +63,10 @@ class _LoginPageState extends State<LoginPage> {
             ),
             DropdownButton(
               items: getListData(),
-              hint: const Text('登录'), //当没有默认值的时候可以设置的提示
-              value: value, //下拉菜单选择完之后显示给用户的值
+              hint: const Text('登录'),
+              //当没有默认值的时候可以设置的提示
+              value: value,
+              //下拉菜单选择完之后显示给用户的值
               onChanged: (v) {
                 //下拉菜单item点击之后的回调
                 if (v == 1) {
@@ -72,7 +75,8 @@ class _LoginPageState extends State<LoginPage> {
                   loadingClickWord(context);
                 }
               },
-              elevation: 24, //设置阴影的高度
+              elevation: 24,
+              //设置阴影的高度
               style: const TextStyle(
                   //设置文本框里面文字的样式
                   color: Colors.red),

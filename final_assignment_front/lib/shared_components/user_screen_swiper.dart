@@ -26,7 +26,7 @@ class UserScreenSwiper extends StatelessWidget {
             fit: BoxFit.fill,
           );
         },
-        itemCount: imageUrls.length,  // 使用图片数量作为itemCount
+        itemCount: imageUrls.length, // 使用图片数量作为itemCount
         pagination: const SwiperPagination(),
         control: const SwiperControl(),
       ),

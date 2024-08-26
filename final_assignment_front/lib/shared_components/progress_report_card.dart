@@ -52,7 +52,8 @@ class ProgressReportCard extends StatelessWidget {
             children: [
               Text(
                 data.title,
-                style: const TextStyle(fontWeight: FontWeight.bold).useSystemChineseFont(),
+                style: const TextStyle(fontWeight: FontWeight.bold)
+                    .useSystemChineseFont(),
               ),
               const SizedBox(height: 15),
               _RichText(value1: "${data.task} ", value2: "申诉"),
@@ -120,11 +121,13 @@ class _Indicator extends StatelessWidget {
         children: [
           Text(
             "${percent * 100} %",
-            style: const TextStyle(fontWeight: FontWeight.bold).useSystemChineseFont(),
+            style: const TextStyle(fontWeight: FontWeight.bold)
+                .useSystemChineseFont(),
           ),
           Text(
             "完成度",
-            style: const TextStyle(fontWeight: FontWeight.w300, fontSize: 12).useSystemChineseFont(),
+            style: const TextStyle(fontWeight: FontWeight.w300, fontSize: 12)
+                .useSystemChineseFont(),
           ),
         ],
       ),

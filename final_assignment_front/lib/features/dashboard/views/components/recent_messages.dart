@@ -15,7 +15,8 @@ class _RecentMessages extends StatelessWidget {
         const SizedBox(width: 10),
         Text(
           "来自其他管理员的消息",
-          style: TextStyle(color: Theme.of(context).primaryColor).useSystemChineseFont(),
+          style: TextStyle(color: Theme.of(context).primaryColor)
+              .useSystemChineseFont(),
         ),
         const Spacer(),
         IconButton(

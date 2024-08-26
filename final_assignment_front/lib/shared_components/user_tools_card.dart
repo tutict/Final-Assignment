@@ -104,7 +104,7 @@ class UserToolsCard extends StatelessWidget {
                   onPressedFifth,
                   'Fifth Action',
                 ),
-             if (onPressedSixth != null)
+              if (onPressedSixth != null)
                 _buildButton(
                   activeIcon: EvaIcons.arrowForward,
                   icon: EvaIcons.arrowForwardOutline,
@@ -153,7 +153,8 @@ class UserToolsCard extends StatelessWidget {
   }
 
   // Helper method to build buttons
-  Widget _buildButton(BuildContext context, Function()? onTap, String text, {required IconData activeIcon, required IconData icon}) {
+  Widget _buildButton(BuildContext context, Function()? onTap, String text,
+      {required IconData activeIcon, required IconData icon}) {
     return InkWell(
       onTap: onTap,
       child: Container(

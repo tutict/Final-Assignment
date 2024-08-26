@@ -13,6 +13,3 @@ enum CaseType {
   caseSearch, // 添加案件查询类型
   caseManagement, // 添加信息管理类型
 }
-
-
-

@@ -65,21 +65,24 @@ class ProgressCard extends StatelessWidget {
                     const Icon(Icons.directions_car, size: 44.0),
                     Text(
                       "机动车",
-                      style: const TextStyle(fontWeight: FontWeight.w700).useSystemChineseFont(),
+                      style: const TextStyle(fontWeight: FontWeight.w700)
+                          .useSystemChineseFont(),
                     ),
                   ],
                 ),
                 const SizedBox(height: kSpacing),
                 ElevatedButton(
                   onPressed: onPressedCheck,
-                  child:Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                          const Icon(Icons.add, size: 24.0),
-                          const SizedBox(width: 8.0),
-                          Text("备案机动车信息", style: const TextStyle(fontSize: 16.0).useSystemChineseFont()),
-                      ],
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      const Icon(Icons.add, size: 24.0),
+                      const SizedBox(width: 8.0),
+                      Text("备案机动车信息",
+                          style: const TextStyle(fontSize: 16.0)
+                              .useSystemChineseFont()),
+                    ],
                   ),
                 ),
               ],

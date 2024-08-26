@@ -10,7 +10,8 @@ import 'package:get/get.dart';
 class UserDashboardController extends GetxController {
   final scaffoldKey = GlobalKey<ScaffoldState>();
   var caseCardDataList = <CaseCardData>[].obs;
-  var selectedCaseType = CaseType.caseManagement.obs;  // Set default to caseManagement
+  var selectedCaseType =
+      CaseType.caseManagement.obs; // Set default to caseManagement
 
   void openDrawer() {
     scaffoldKey.currentState?.openDrawer();
@@ -43,27 +44,27 @@ class UserDashboardController extends GetxController {
         dueDay: 5,
         totalComments: 10,
         totalContributors: 3,
-        type: CaseType.caseManagement, // ��Ϊ CaseType
-        profilContributors: [
-        ],
+        type: CaseType.caseManagement,
+        // ��Ϊ CaseType
+        profilContributors: [],
       ),
       const CaseCardData(
         title: 'In Progress Task 1',
         dueDay: 10,
         totalComments: 5,
         totalContributors: 2,
-        type: CaseType.caseSearch, // ��Ϊ CaseType
-        profilContributors: [
-        ],
+        type: CaseType.caseSearch,
+        // ��Ϊ CaseType
+        profilContributors: [],
       ),
       const CaseCardData(
         title: 'Done Task 1',
         dueDay: -2,
         totalComments: 3,
         totalContributors: 1,
-        type: CaseType.caseAppeal, // ��Ϊ CaseType
-        profilContributors: [
-        ],
+        type: CaseType.caseAppeal,
+        // ��Ϊ CaseType
+        profilContributors: [],
       ),
       // ��Ӹ�������
     ]);

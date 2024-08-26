@@ -1,3 +1,4 @@
+import 'package:final_assignment_front/features/user_page/select_text_item.dart';
 import 'package:flutter/material.dart';
 
 class SettingPage extends StatelessWidget {
@@ -17,14 +18,24 @@ class SettingPage extends StatelessWidget {
         backgroundColor: Colors.lightBlue,
         foregroundColor: Colors.white,
       ),
-      body: Container(
-        child: const SingleChildScrollView(
-          controller: ScrollController(),
-          child: Column(
-
+      body: ListView(
+        children: [
+          SelectTextItem(
+            height: 35,
+            title: 'Çå¿Õ»º´æ',
+            content: '1024k',
+            isShowArrow: false,
+            textAlign: TextAlign.end,
+            contentStyle: const TextStyle(
+              fontSize: 12,
+              color: Color(0xFF333333),
+            ),
           ),
-        ),
-
+          SelectTextItem(),
+          SelectTextItem(),
+          SelectTextItem(),
+          SelectTextItem(),
+        ],
       ),
     );
   }

@@ -41,7 +41,8 @@ class _ActiveProjectCard extends StatelessWidget {
   Widget _title(String value) {
     return Text(
       value,
-      style: const TextStyle(fontWeight: FontWeight.bold).useSystemChineseFont(),
+      style:
+          const TextStyle(fontWeight: FontWeight.bold).useSystemChineseFont(),
     );
   }
 

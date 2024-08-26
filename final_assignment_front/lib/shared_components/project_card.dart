@@ -121,11 +121,13 @@ class _SubtitleText extends StatelessWidget {
   const _SubtitleText(this.data);
 
   final String data;
+
   @override
   Widget build(BuildContext context) {
     return Text(
       data,
-      style: TextStyle(fontSize: 11, color: kFontColorPallets[2]).useSystemChineseFont(),
+      style: TextStyle(fontSize: 11, color: kFontColorPallets[2])
+          .useSystemChineseFont(),
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
     );

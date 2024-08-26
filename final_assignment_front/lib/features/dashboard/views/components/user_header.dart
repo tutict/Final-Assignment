@@ -16,12 +16,13 @@ class UserHeader extends StatelessWidget {
           child: Container(
             decoration: BoxDecoration(
               border: Border.all(
-                color: Colors.grey,  // Border color
-                width: 1.0,          // Border width
+                color: Colors.grey, // Border color
+                width: 1.0, // Border width
               ),
-              borderRadius: BorderRadius.circular(8.0), // Optional: Rounded corners
+              borderRadius:
+                  BorderRadius.circular(8.0), // Optional: Rounded corners
             ),
-            child: SearchField(),  // Your SearchField widget
+            child: SearchField(), // Your SearchField widget
           ),
         ),
       ],

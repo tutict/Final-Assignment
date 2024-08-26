@@ -10,7 +10,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-
 class UserDashboardScreen extends GetView<UserDashboardController> {
   const UserDashboardScreen({super.key});
 
@@ -21,158 +20,164 @@ class UserDashboardScreen extends GetView<UserDashboardController> {
       drawer: ResponsiveBuilder.isDesktop(context)
           ? null
           : Drawer(
-        child: Padding(
-          padding: const EdgeInsets.only(top: kSpacing),
-          child: UserSidebar(data: controller.getSelectedProject()),
-        ),
-      ),
+              child: Padding(
+                padding: const EdgeInsets.only(top: kSpacing),
+                child: UserSidebar(data: controller.getSelectedProject()),
+              ),
+            ),
       body: LayoutBuilder(
         builder: (context, constraints) {
           return Column(
             children: [
-          Flexible(
-            child: Container(
-                decoration: const BoxDecoration(
-                gradient: LinearGradient(
-            colors: [
-                Colors.lightBlueAccent,
-                Colors.white,
-            ],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-            ),
-          ),
-                child: ResponsiveBuilder(
-                  mobileBuilder: (context, constraints) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: kSpacing * (kIsWeb ? 1 : 2)),
-                        _buildHeader(onPressedMenu: () => controller.openDrawer()),
-                        const SizedBox(height: kSpacing / 2),
-                        const Divider(),
-                        SizedBox(
-                          height: 250,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: kSpacing),
-                            child: UserScreenSwiper(onPressed: () {}),
-                          ),
-                        ),
-                        SizedBox(
-                          height: 150,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: kSpacing),
-                            child: UserToolsCard(
-                              title: 'User Tools',
-                              icon: EvaIcons.person,
-                              onPressed: () {},
-                              onPressedSecond: () {},
-                              onPressedThird: () {},
-                              onPressedFourth: () {},
-                              onPressedFifth: () {},
-                              onPressedSixth: () {},
-                              onPressedSeventh: () {},
-                              onPressedEighth: () {},
-                              onPressedNinth: () {},
-                              onPressedTenth: () {},
+              Flexible(
+                child: Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.lightBlueAccent,
+                        Colors.white,
+                      ],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    ),
+                  ),
+                  child: ResponsiveBuilder(
+                    mobileBuilder: (context, constraints) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: kSpacing * (kIsWeb ? 1 : 2)),
+                          _buildHeader(
+                              onPressedMenu: () => controller.openDrawer()),
+                          const SizedBox(height: kSpacing / 2),
+                          const Divider(),
+                          SizedBox(
+                            height: 250,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: kSpacing),
+                              child: UserScreenSwiper(onPressed: () {}),
                             ),
                           ),
-                        ),
-                      ],
-                    );
-                  },
-                  tabletBuilder: (context, constraints) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: kSpacing * (kIsWeb ? 1 : 2)),
-                        _buildHeader(onPressedMenu: () => controller.openDrawer()),
-                        const SizedBox(height: kSpacing / 2),
-                        const Divider(),
-                        SizedBox(
-                          height: 250,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: kSpacing),
-                            child: UserScreenSwiper(onPressed: () {}),
-                          ),
-                        ),
-                        SizedBox(
-                          height: 150,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: kSpacing),
-                            child: UserToolsCard(
-                              title: 'User Tools',
-                              icon: EvaIcons.person,
-                              onPressed: () {},
-                              onPressedSecond: () {},
-                              onPressedThird: () {},
-                              onPressedFourth: () {},
-                              onPressedFifth: () {},
-                              onPressedSixth: () {},
-                              onPressedSeventh: () {},
-                              onPressedEighth: () {},
-                              onPressedNinth: () {},
-                              onPressedTenth: () {},
+                          SizedBox(
+                            height: 150,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: kSpacing),
+                              child: UserToolsCard(
+                                title: 'User Tools',
+                                icon: EvaIcons.person,
+                                onPressed: () {},
+                                onPressedSecond: () {},
+                                onPressedThird: () {},
+                                onPressedFourth: () {},
+                                onPressedFifth: () {},
+                                onPressedSixth: () {},
+                                onPressedSeventh: () {},
+                                onPressedEighth: () {},
+                                onPressedNinth: () {},
+                                onPressedTenth: () {},
+                              ),
                             ),
                           ),
-                        ),
-                      ],
-                    );
-                  },
-                  desktopBuilder: (context, constraints) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: kSpacing),
-                        _buildHeader(),
-                        const SizedBox(height: kSpacing / 2),
-                        const Divider(),
-                        SizedBox(
-                          height: 250,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: kSpacing),
-                            child: UserScreenSwiper(onPressed: () {}),
-                          ),
-                        ),
-                        SizedBox(
-                          height: 150,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: kSpacing),
-                            child: UserToolsCard(
-                              title: 'User Tools',
-                              icon: EvaIcons.person,
-                              onPressed: () {},
-                              onPressedSecond: () {},
-                              onPressedThird: () {},
-                              onPressedFourth: () {},
-                              onPressedFifth: () {},
-                              onPressedSixth: () {},
-                              onPressedSeventh: () {},
-                              onPressedEighth: () {},
-                              onPressedNinth: () {},
-                              onPressedTenth: () {},
+                        ],
+                      );
+                    },
+                    tabletBuilder: (context, constraints) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: kSpacing * (kIsWeb ? 1 : 2)),
+                          _buildHeader(
+                              onPressedMenu: () => controller.openDrawer()),
+                          const SizedBox(height: kSpacing / 2),
+                          const Divider(),
+                          SizedBox(
+                            height: 250,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: kSpacing),
+                              child: UserScreenSwiper(onPressed: () {}),
                             ),
                           ),
-                        ),
-                      ],
-                    );
-                  },
+                          SizedBox(
+                            height: 150,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: kSpacing),
+                              child: UserToolsCard(
+                                title: 'User Tools',
+                                icon: EvaIcons.person,
+                                onPressed: () {},
+                                onPressedSecond: () {},
+                                onPressedThird: () {},
+                                onPressedFourth: () {},
+                                onPressedFifth: () {},
+                                onPressedSixth: () {},
+                                onPressedSeventh: () {},
+                                onPressedEighth: () {},
+                                onPressedNinth: () {},
+                                onPressedTenth: () {},
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                    desktopBuilder: (context, constraints) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: kSpacing),
+                          _buildHeader(),
+                          const SizedBox(height: kSpacing / 2),
+                          const Divider(),
+                          SizedBox(
+                            height: 250,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: kSpacing),
+                              child: UserScreenSwiper(onPressed: () {}),
+                            ),
+                          ),
+                          SizedBox(
+                            height: 150,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: kSpacing),
+                              child: UserToolsCard(
+                                title: 'User Tools',
+                                icon: EvaIcons.person,
+                                onPressed: () {},
+                                onPressedSecond: () {},
+                                onPressedThird: () {},
+                                onPressedFourth: () {},
+                                onPressedFifth: () {},
+                                onPressedSixth: () {},
+                                onPressedSeventh: () {},
+                                onPressedEighth: () {},
+                                onPressedNinth: () {},
+                                onPressedTenth: () {},
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
                 ),
               ),
-            ),
             ],
           );
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-        },
+        onPressed: () {},
         backgroundColor: Colors.lightBlueAccent,
         child: const Icon(Icons.chat),
       ),
     );
   }
-
 
   Widget _buildHeader({Function()? onPressedMenu}) {
     return Padding(

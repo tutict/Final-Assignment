@@ -1,6 +1,5 @@
 part of 'app_helpers.dart';
 
-
 extension TaskTypeExtension on TaskType {
   String toStringValue() {
     switch (this) {
@@ -24,4 +23,3 @@ extension TaskTypeExtension on TaskType {
     }
   }
 }
-

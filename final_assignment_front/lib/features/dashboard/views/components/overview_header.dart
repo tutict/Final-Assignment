@@ -2,10 +2,11 @@ part of '../screens/manager_dashboard_screen.dart';
 
 class _OverviewHeader extends StatefulWidget {
   const _OverviewHeader({
-    required this.onSelected, required this.axis,
+    required this.onSelected,
+    required this.axis,
   });
 
-  final Function(CaseType) onSelected;  // Ensure onSelected expects a CaseType
+  final Function(CaseType) onSelected; // Ensure onSelected expects a CaseType
   final Axis axis;
 
   @override
@@ -18,58 +19,61 @@ class _OverviewHeaderState extends State<_OverviewHeader> {
     // 使用Get.find来访问DashboardController中的响应式变量
     final selectedCase = Get.find<DashboardController>().selectedCaseType;
     return Obx(
-          () => (widget.axis == Axis.horizontal)
+      () => (widget.axis == Axis.horizontal)
           ? Row(
-        children: [
-          Text(
-            "当前工作",
-            style: const TextStyle(fontWeight: FontWeight.w600).useSystemChineseFont(),
-          ),
-          const Spacer(),
-          ..._listButton(
-            selectedCase: selectedCase.value,
-            onSelected: (value) {
-              selectedCase.value = value;
-              widget.onSelected(value);
-            },
-          )
-        ],
-      )
+              children: [
+                Text(
+                  "当前工作",
+                  style: const TextStyle(fontWeight: FontWeight.w600)
+                      .useSystemChineseFont(),
+                ),
+                const Spacer(),
+                ..._listButton(
+                  selectedCase: selectedCase.value,
+                  onSelected: (value) {
+                    selectedCase.value = value;
+                    widget.onSelected(value);
+                  },
+                )
+              ],
+            )
           : Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            "当前工作",
-            style: const TextStyle(fontWeight: FontWeight.w600).useSystemChineseFont(),
-          ),
-          const SizedBox(height: 10),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            child: Row(
-              children: _listButton(
-                selectedCase: selectedCase.value,
-                onSelected: (value) {
-                  selectedCase.value = value;
-                  widget.onSelected(value);
-                },
-              ),
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "当前工作",
+                  style: const TextStyle(fontWeight: FontWeight.w600)
+                      .useSystemChineseFont(),
+                ),
+                const SizedBox(height: 10),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  child: Row(
+                    children: _listButton(
+                      selectedCase: selectedCase.value,
+                      onSelected: (value) {
+                        selectedCase.value = value;
+                        widget.onSelected(value);
+                      },
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
-      ),
     );
   }
 
   List<Widget> _listButton({
-    required CaseType selectedCase,  // 确保selectedCase是CaseType类型
+    required CaseType selectedCase, // 确保selectedCase是CaseType类型
     required Function(CaseType) onSelected,
   }) {
     return [
       _button(
         selected: selectedCase == CaseType.caseManagement,
         label: "信息管理",
-        onPressed: () => onSelected(CaseType.caseManagement), // 修改这里，移除错误的参数并正确传递枚举值
+        onPressed: () =>
+            onSelected(CaseType.caseManagement), // 修改这里，移除错误的参数并正确传递枚举值
       ),
       _button(
         selected: selectedCase == CaseType.caseSearch,
@@ -94,7 +98,8 @@ class _OverviewHeaderState extends State<_OverviewHeader> {
       child: ElevatedButton(
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
-          foregroundColor: selected ? kFontColorPallets[0] : kFontColorPallets[2],
+          foregroundColor:
+              selected ? kFontColorPallets[0] : kFontColorPallets[2],
           backgroundColor: selected
               ? Theme.of(Get.context!).cardColor
               : Theme.of(Get.context!).canvasColor,

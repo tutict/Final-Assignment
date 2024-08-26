@@ -3,7 +3,8 @@ part of '../views/screens/manager_dashboard_screen.dart';
 class DashboardController extends GetxController {
   final scaffoldKey = GlobalKey<ScaffoldState>();
   var caseCardDataList = <CaseCardData>[].obs;
-  var selectedCaseType = CaseType.caseManagement.obs;  // Set default to caseManagement
+  var selectedCaseType =
+      CaseType.caseManagement.obs; // Set default to caseManagement
 
   void openDrawer() {
     scaffoldKey.currentState?.openDrawer();
@@ -36,27 +37,27 @@ class DashboardController extends GetxController {
         dueDay: 5,
         totalComments: 10,
         totalContributors: 3,
-        type: CaseType.caseManagement, // 改为 CaseType
-        profilContributors: [
-        ],
+        type: CaseType.caseManagement,
+        // 改为 CaseType
+        profilContributors: [],
       ),
       const CaseCardData(
         title: 'In Progress Task 1',
         dueDay: 10,
         totalComments: 5,
         totalContributors: 2,
-        type: CaseType.caseSearch, // 改为 CaseType
-        profilContributors: [
-        ],
+        type: CaseType.caseSearch,
+        // 改为 CaseType
+        profilContributors: [],
       ),
       const CaseCardData(
         title: 'Done Task 1',
         dueDay: -2,
         totalComments: 3,
         totalContributors: 1,
-        type: CaseType.caseAppeal, // 改为 CaseType
-        profilContributors: [
-        ],
+        type: CaseType.caseAppeal,
+        // 改为 CaseType
+        profilContributors: [],
       ),
       // 添加更多任务
     ]);

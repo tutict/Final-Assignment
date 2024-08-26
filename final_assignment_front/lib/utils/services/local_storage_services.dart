@@ -6,19 +6,20 @@ class LocalStorageServices {
   factory LocalStorageServices() {
     return _localStorageServices;
   }
+
   LocalStorageServices._internal();
 
-  // to save data in local, you can use SharedPreferences for simple data
-  // or Sqflite for more complex data
+// to save data in local, you can use SharedPreferences for simple data
+// or Sqflite for more complex data
 
   /// example :
-  // Future<void> saveToken(String token) async {
-  //   SharedPreferences prefs = await SharedPreferences.getInstance();
-  //   prefs.setString('token', token);
-  // }
+// Future<void> saveToken(String token) async {
+//   SharedPreferences prefs = await SharedPreferences.getInstance();
+//   prefs.setString('token', token);
+// }
 
-  // Future<String?> getToken() async {
-  //   SharedPreferences prefs = await SharedPreferences.getInstance();
-  //   return prefs.getString('token');
-  // }
+// Future<String?> getToken() async {
+//   SharedPreferences prefs = await SharedPreferences.getInstance();
+//   return prefs.getString('token');
+// }
 }
