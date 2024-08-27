@@ -7,42 +7,48 @@ class PersonalInfoPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('ÎÒµÄÐÅÏ¢'),
+        title: const Text('ï¿½Òµï¿½ï¿½ï¿½Ï¢'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
         backgroundColor: Colors.lightBlue,
         foregroundColor: Colors.white,
       ),
       body: ListView(
         children: ListTile.divideTiles(tiles: [
           const ListTile(
-            title: Text('ÐÕÃû'),
+            title: Text('ï¿½ï¿½ï¿½ï¿½'),
             leading: Icon(Icons.person),
           ),
           const ListTile(
-            title: Text('ÊµÃûÈÏÖ¤'),
+            title: Text('Êµï¿½ï¿½ï¿½ï¿½Ö¤'),
             leading: Icon(Icons.settings),
           ),
           const ListTile(
-            title: Text('Ö¤¼þÀàÐÍ'),
+            title: Text('Ö¤ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½'),
             leading: Icon(Icons.logout),
           ),
           const ListTile(
-            title: Text('Ö¤¼þºÅÂë'),
+            title: Text('Ö¤ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½'),
             leading: Icon(Icons.logout),
           ),
           const ListTile(
-            title: Text('ÓÐÐ§ÆÚÏÞ'),
+            title: Text('ï¿½ï¿½Ð§ï¿½ï¿½ï¿½ï¿½'),
             trailing: Icon(Icons.keyboard_arrow_right),
           ),
           const ListTile(
-            title: Text('ÊÖ»úºÅÂë'),
+            title: Text('ï¿½Ö»ï¿½ï¿½ï¿½ï¿½ï¿½'),
             trailing: Icon(Icons.keyboard_arrow_right),
           ),
           const ListTile(
-            title: Text('×¢²áÊ±¼ä'),
+            title: Text('×¢ï¿½ï¿½Ê±ï¿½ï¿½'),
             leading: Icon(Icons.logout),
           ),
           const ListTile(
-            title: Text('×¢²áµØÖ·'),
+            title: Text('×¢ï¿½ï¿½ï¿½Ö·'),
             leading: Icon(Icons.logout),
           ),
         ]).toList(),
