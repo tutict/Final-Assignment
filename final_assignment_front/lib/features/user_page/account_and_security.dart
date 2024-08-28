@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 
-class PersonalMainPage extends StatelessWidget {
-  const PersonalMainPage({super.key});
+
+class AccountAndSecurityPage extends StatelessWidget {
+  const AccountAndSecurityPage({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('æˆ‘çš„'),
+        title: const Text('ÕËºÅÓë°²È«'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
@@ -20,43 +21,29 @@ class PersonalMainPage extends StatelessWidget {
       body: ListView(
         children: ListTile.divideTiles(tiles: [
           ListTile(
-            title: const Text('æˆ‘çš„ä¿¡æ¯'),
+            title: const Text('ĞŞ¸ÄµÇÂ¼ÃÜÂë'),
             leading: const Icon(Icons.person),
             onTap: () {
               Navigator.pushNamed(context, '/personal_info');
             },
           ),
           ListTile(
-            title: const Text('è´¦å·ä¸å®‰å…¨'),
-            leading: const Icon(Icons.settings),
-            onTap: () {
-              Navigator.pushNamed(context, '/');
-            },
-          ),
-          ListTile(
-            title: const Text('é‚®å¯„åœ°å€'),
+            title: const Text('É¾³ıÕËºÅ'),
             leading: const Icon(Icons.location_on_outlined),
             onTap: () {
               Navigator.pushNamed(context, '/');
             },
           ),
           ListTile(
-            title: const Text('å’¨è¯¢åé¦ˆ'),
+            title: const Text('Ç¨ÒÆÕËºÅ'),
             leading: const Icon(Icons.logout),
             onTap: () {
               Navigator.pushNamed(context, '/');
             },
           ),
           ListTile(
-            title: const Text('æ™ºèƒ½å®¢æœ'),
+            title: const Text('ĞÅÏ¢ÉêÊö'),
             leading: const Icon(Icons.chat_outlined),
-            onTap: () {
-              Navigator.pushNamed(context, '/');
-            },
-          ),
-          ListTile(
-            title: const Text('è®¾ç½®'),
-            leading: const Icon(Icons.settings),
             onTap: () {
               Navigator.pushNamed(context, '/');
             },

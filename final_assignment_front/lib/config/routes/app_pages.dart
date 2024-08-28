@@ -18,13 +18,11 @@ class AppPages {
       name: _Paths.login,
       page: () => const LoginScreen(),
     ),
-
     GetPage(
       name: _Paths.dashboard,
       page: () => const DashboardScreen(),
       binding: DashboardBinding(),
     ),
-
     GetPage(
       name: _Paths.userDashboard,
       page: () => const UserDashboardScreen(),

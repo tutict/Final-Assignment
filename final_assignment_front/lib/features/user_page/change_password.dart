@@ -101,7 +101,7 @@ class _changePasswordPageState extends State<changePasswordPage> {
                           setState(() {
                             _error = 'New password and confirm new password cannot be empty';
                           });
-                          return;
+                          returnaccount_and_security;
                         }
                         if (_newPasswordController.text !=
                             _confirmNewPasswordController.text) {
