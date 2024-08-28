@@ -1,5 +1,7 @@
 import 'dart:async';
+
 import 'package:flutter/widgets.dart';
+
 import 'object_utils.dart';
 
 /**
@@ -88,13 +90,13 @@ class WidgetUtil {
         .resolve(const ImageConfiguration())
         .addListener(ImageStreamListener(
           (ImageInfo info, bool _) {
-        completer.complete(Rect.fromLTWH(
-            0, 0, info.image.width.toDouble(), info.image.height.toDouble()));
-      },
-      onError: (Object exception, StackTrace? stackTrace) {
-        completer.completeError(exception, stackTrace);
-      },
-    ));
+            completer.complete(Rect.fromLTWH(0, 0, info.image.width.toDouble(),
+                info.image.height.toDouble()));
+          },
+          onError: (Object exception, StackTrace? stackTrace) {
+            completer.completeError(exception, stackTrace);
+          },
+        ));
     return completer.future;
   }
 
@@ -124,13 +126,13 @@ class WidgetUtil {
         .resolve(const ImageConfiguration())
         .addListener(ImageStreamListener(
           (ImageInfo info, bool _) {
-        completer.complete(Rect.fromLTWH(
-            0, 0, info.image.width.toDouble(), info.image.height.toDouble()));
-      },
-      onError: (Object exception, StackTrace? stackTrace) {
-        completer.completeError(exception, stackTrace);
-      },
-    ));
+            completer.complete(Rect.fromLTWH(0, 0, info.image.width.toDouble(),
+                info.image.height.toDouble()));
+          },
+          onError: (Object exception, StackTrace? stackTrace) {
+            completer.completeError(exception, stackTrace);
+          },
+        ));
 
     return completer.future;
   }

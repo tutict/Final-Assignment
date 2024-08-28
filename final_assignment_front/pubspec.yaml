@@ -59,7 +59,7 @@ dependencies:
 
   animations: ^2.0.9
 
-  jc_captcha: ^1.0.1
+  recaptcha_enterprise_flutter: ^18.6.0-beta02
 
   dio: ^5.4.3+1
 

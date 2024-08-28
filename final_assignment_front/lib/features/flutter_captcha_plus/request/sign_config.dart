@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:convert/convert.dart';
 import 'package:crypto/crypto.dart';
 
@@ -9,7 +10,8 @@ class SignConfig {
     return hex.encode(digest.bytes);
   }
 
-  static Future<Map<String, dynamic>> signData(Map<String, dynamic> params, String tokenStr) async {
+  static Future<Map<String, dynamic>> signData(
+      Map<String, dynamic> params, String tokenStr) async {
     var time = DateTime.now().millisecondsSinceEpoch;
     String token = tokenStr;
     Map<String, dynamic> reqData = {};

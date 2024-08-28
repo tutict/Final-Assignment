@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'package:encrypt/encrypt.dart';
 
 class EncryptUtil {
@@ -7,7 +8,7 @@ class EncryptUtil {
 
   EncryptUtil(String key)
       : key = Key.fromUtf8(key),
-        _encrypter = Encrypter(AES(Key.fromUtf8(key))),
+        _encrypter = Encrypter(AES(Key.fromUtf8(key), mode: AESMode.cbc)),
         iv = IV.fromLength(16); // AES needs a 16 bytes IV
 
   /// AES 加密
@@ -25,7 +26,7 @@ class EncryptUtil {
       final decrypted = _encrypter.decrypt(encrypted, iv: iv);
       return decrypted;
     } catch (e) {
-      print(e);
+      developer.log(e.toString());
       return '';
     }
   }

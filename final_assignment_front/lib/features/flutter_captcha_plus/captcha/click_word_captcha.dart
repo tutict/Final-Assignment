@@ -1,5 +1,7 @@
-import 'dart:convert';
 import 'dart:async';
+import 'dart:convert';
+import 'dart:developer' as developer;
+
 import 'package:chinese_font_library/chinese_font_library.dart';
 import 'package:flutter/material.dart';
 import 'package:steel_crypt/steel_crypt.dart';
@@ -17,11 +19,12 @@ class ClickWordCaptcha extends StatefulWidget {
   });
 
   @override
-  _ClickWordCaptchaState createState() => _ClickWordCaptchaState();
+  ClickWordCaptchaState createState() => ClickWordCaptchaState();
 }
 
-class _ClickWordCaptchaState extends State<ClickWordCaptcha> {
-  ClickWordCaptchaStateEnum _clickWordCaptchaState = ClickWordCaptchaStateEnum.none;
+class ClickWordCaptchaState extends State<ClickWordCaptcha> {
+  ClickWordCaptchaStateEnum _clickWordCaptchaState =
+      ClickWordCaptchaStateEnum.none;
   List<Offset> _tapOffsetList = [];
   ClickWordCaptchaModel _clickWordCaptchaModel = ClickWordCaptchaModel();
 
@@ -160,11 +163,13 @@ class _ClickWordCaptchaState extends State<ClickWordCaptcha> {
     );
     var cryptedStr = aesEncrypter.gcm.encrypt(inp: pointJson, iv: '');
 
-    print(cryptedStr);
+    developer.log(cryptedStr);
     //回调 pointJson 是经过AES加密之后的信息
     widget.onSuccess(cryptedStr);
     //关闭
-    Navigator.pop(context);
+    if (mounted) {
+      Navigator.pop(context);
+    }
   }
 
   @override
@@ -272,7 +277,9 @@ class _ClickWordCaptchaState extends State<ClickWordCaptcha> {
       decoration: BoxDecoration(
           borderRadius: const BorderRadius.all(Radius.circular(4)),
           border: Border.all(color: borderColor)),
-      child: Text(bottomTitle, style: TextStyle(fontSize: 18, color: titleColor).useSystemChineseFont()),
+      child: Text(bottomTitle,
+          style: TextStyle(fontSize: 18, color: titleColor)
+              .useSystemChineseFont()),
     );
   }
 
@@ -362,8 +369,8 @@ class ClickWordCaptchaModel {
 }
 
 class HttpManager {
-  static Future<Map<String, dynamic>> requestData(
-      String endpoint, Map<String, dynamic> params, Map<String, dynamic> headers) async {
+  static Future<Map<String, dynamic>> requestData(String endpoint,
+      Map<String, dynamic> params, Map<String, dynamic> headers) async {
     // Implement the HTTP request logic here
     // This is a placeholder function, replace it with your actual HTTP request implementation
     return {

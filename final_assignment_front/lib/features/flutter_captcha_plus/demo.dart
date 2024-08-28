@@ -4,10 +4,10 @@ class DemoPage extends StatefulWidget {
   const DemoPage({super.key});
 
   @override
-  _DemoPageState createState() => _DemoPageState();
+  DemoPageState createState() => DemoPageState();
 }
 
-class _DemoPageState extends State<DemoPage> {
+class DemoPageState extends State<DemoPage> {
   @override
   Widget build(BuildContext context) {
     // TODO: implement build
