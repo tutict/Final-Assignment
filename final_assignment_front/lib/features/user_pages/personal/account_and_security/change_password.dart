@@ -17,8 +17,13 @@ class ChangePassword extends StatelessWidget {
         backgroundColor: Colors.lightBlue,
         foregroundColor: Colors.white,
       ),
-      body: const Center(
-        child: Text('Change Password'),
+      body: Center(
+        child: Container(
+          padding: const EdgeInsets.all(16.0),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey, width: 2.0),
+          ),
+        )
       ),
     );
   }
