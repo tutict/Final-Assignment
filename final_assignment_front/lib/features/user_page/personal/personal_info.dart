@@ -7,7 +7,7 @@ class PersonalInfoPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('�ҵ���Ϣ'),
+        title: const Text('我的信息'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
@@ -20,36 +20,22 @@ class PersonalInfoPage extends StatelessWidget {
       body: ListView(
         children: ListTile.divideTiles(tiles: [
           const ListTile(
-            title: Text('����'),
-            leading: Icon(Icons.person),
+            title: Text('姓名'),
           ),
           const ListTile(
-            title: Text('ʵ����֤'),
-            leading: Icon(Icons.settings),
+            title: Text('是否实名认证'),
+          ),
+          ListTile(
+            title: const Text('手机号码'),
+            onTap: () {
+              Navigator.pushNamed(context, '/');
+            },
           ),
           const ListTile(
-            title: Text('֤������'),
-            leading: Icon(Icons.logout),
+            title: Text('注册时间'),
           ),
           const ListTile(
-            title: Text('֤������'),
-            leading: Icon(Icons.logout),
-          ),
-          const ListTile(
-            title: Text('��Ч����'),
-            trailing: Icon(Icons.keyboard_arrow_right),
-          ),
-          const ListTile(
-            title: Text('�ֻ�����'),
-            trailing: Icon(Icons.keyboard_arrow_right),
-          ),
-          const ListTile(
-            title: Text('ע��ʱ��'),
-            leading: Icon(Icons.logout),
-          ),
-          const ListTile(
-            title: Text('ע���ַ'),
-            leading: Icon(Icons.logout),
+            title: Text('注册地'),
           ),
         ]).toList(),
       ),

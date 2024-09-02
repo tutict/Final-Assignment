@@ -34,13 +34,6 @@ class PersonalMainPage extends StatelessWidget {
             },
           ),
           ListTile(
-            title: const Text('邮寄地址'),
-            leading: const Icon(Icons.location_on_outlined),
-            onTap: () {
-              Navigator.pushNamed(context, '/');
-            },
-          ),
-          ListTile(
             title: const Text('咨询反馈'),
             leading: const Icon(Icons.logout),
             onTap: () {

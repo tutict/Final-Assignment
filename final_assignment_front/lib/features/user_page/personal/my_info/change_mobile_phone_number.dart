@@ -20,12 +20,11 @@ class ChangeMobilePhoneNumber extends StatefulWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text('Change Mobile Phone Number'),
+            const Text('修改手机号码'),
             ElevatedButton(
               onPressed: () {
                 Navigator.pop(context);
-              },
-              child: const Text('Back'),
+              }, child: null,
             ),
           ],
         ),
