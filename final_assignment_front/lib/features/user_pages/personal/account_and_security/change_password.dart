@@ -22,6 +22,7 @@ class ChangePassword extends StatelessWidget {
           padding: const EdgeInsets.all(16.0),
           decoration: BoxDecoration(
             border: Border.all(color: Colors.grey, width: 2.0),
+
           ),
         )
       ),
