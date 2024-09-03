@@ -1,7 +1,7 @@
 import 'package:final_assignment_front/features/dashboard/bindings/user_dashboard_binding.dart';
 import 'package:final_assignment_front/features/dashboard/views/screens/manager_dashboard_screen.dart';
 import 'package:final_assignment_front/features/dashboard/views/screens/user_dashboard_screen.dart';
-import 'package:final_assignment_front/features/user_page/login_screen/login.dart';
+import 'package:final_assignment_front/features/user_pages/login_screen/login.dart';
 import 'package:get/get.dart';
 
 part 'app_routes.dart';

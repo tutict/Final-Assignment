@@ -7,7 +7,7 @@ class ChangePassword extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('ĞŞ¸ÄÃÜÂë'),
+        title: const Text('ä¿®æ”¹å¯†ç '),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {

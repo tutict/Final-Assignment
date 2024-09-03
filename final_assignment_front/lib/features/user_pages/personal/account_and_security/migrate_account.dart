@@ -7,7 +7,7 @@ class MigrateAccount extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('«®“∆’À∫≈'),
+        title: const Text('ËøÅÁßªË¥¶Âè∑'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {

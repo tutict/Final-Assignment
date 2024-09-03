@@ -8,7 +8,7 @@ class AccountAndSecurityPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('ÕËºÅÓë°²È«'),
+        title: const Text('è´¦å·ä¸å®‰å…¨'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
@@ -21,28 +21,28 @@ class AccountAndSecurityPage extends StatelessWidget {
       body: ListView(
         children: ListTile.divideTiles(tiles: [
           ListTile(
-            title: const Text('ĞŞ¸ÄµÇÂ¼ÃÜÂë'),
+            title: const Text('ä¿®æ”¹ç™»å½•å¯†ç '),
             leading: const Icon(Icons.person),
             onTap: () {
               Navigator.pushNamed(context, '/personal_info');
             },
           ),
           ListTile(
-            title: const Text('É¾³ıÕËºÅ'),
+            title: const Text('åˆ é™¤è´¦å·'),
             leading: const Icon(Icons.location_on_outlined),
             onTap: () {
               Navigator.pushNamed(context, '/');
             },
           ),
           ListTile(
-            title: const Text('Ç¨ÒÆÕËºÅ'),
+            title: const Text('ä¿¡æ¯ç”³è¿°'),
             leading: const Icon(Icons.logout),
             onTap: () {
               Navigator.pushNamed(context, '/');
             },
           ),
           ListTile(
-            title: const Text('ĞÅÏ¢ÉêÊö'),
+            title: const Text('è¿ç§»è´¦å·'),
             leading: const Icon(Icons.chat_outlined),
             onTap: () {
               Navigator.pushNamed(context, '/');

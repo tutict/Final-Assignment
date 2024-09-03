@@ -7,7 +7,7 @@ class DeleteAccount extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('…æ≥˝’À∫≈'),
+        title: const Text('Ê≥®ÈîÄË¥¶Âè∑'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
@@ -18,17 +18,7 @@ class DeleteAccount extends StatelessWidget {
         foregroundColor: Colors.white,
       ),
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('…æ≥˝’À∫≈'),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-              }, child: null,
-            ),
-          ],
-        ),
+
       ),
     );
   }

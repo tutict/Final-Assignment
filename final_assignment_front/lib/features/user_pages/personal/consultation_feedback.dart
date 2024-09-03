@@ -7,7 +7,7 @@ class ConsultationFeedback extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('×ÉÑ¯·´À¡'),
+        title: const Text('å’¨è¯¢åé¦ˆ'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {

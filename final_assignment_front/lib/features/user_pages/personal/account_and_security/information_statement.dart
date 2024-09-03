@@ -7,7 +7,7 @@ class InformationStatementPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('ĞÅÏ¢ÉêÊö'),
+        title: const Text('ä¿¡æ¯ç”³è¿°'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
@@ -20,7 +20,14 @@ class InformationStatementPage extends StatelessWidget {
       body: ListView(
         children: ListTile.divideTiles(tiles: [
           ListTile(
-            title: const Text('ĞÅÏ¢ÉêÊö'),
+            title: const Text('é»‘åå•æ‰‹æœºå·ç ç”³è¿°'),
+            leading: const Icon(Icons.info),
+            onTap: () {
+              Navigator.pushNamed(context, '/');
+            },
+          ),
+          ListTile(
+            title: const Text('é»‘åå•ç”¨æˆ·ç”³è¿°'),
             leading: const Icon(Icons.info),
             onTap: () {
               Navigator.pushNamed(context, '/');
