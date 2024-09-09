@@ -41,128 +41,139 @@ class UserToolsCard extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: <Widget>[
-          // Icon and title section
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                Icon(
-                  icon,
-                  size: 48.0,
-                  color: Colors.lightBlueAccent,
-                ),
-                const SizedBox(height: 8.0),
-                Text(
-                  title,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-          ),
-
-          // Buttons row
-          Wrap(
-            spacing: 8.0, // 设置按钮之间的水平间距
-            runSpacing: 8.0, // 设置行之间的垂直间距
-            alignment: WrapAlignment.center,
-            children: <Widget>[
-              _buildButton(
-                activeIcon: EvaIcons.arrowForward,
-                icon: EvaIcons.arrowForwardOutline,
-                context,
-                onPressed,
-                '违法处理',
-              ),
-              if (onPressedSecond != null)
-                _buildButton(
-                  activeIcon: EvaIcons.arrowForward,
-                  icon: EvaIcons.arrowForwardOutline,
-                  context,
-                  onPressedSecond,
-                  '罚款缴纳',
-                ),
-              if (onPressedThird != null)
-                _buildButton(
-                  activeIcon: EvaIcons.arrowForward,
-                  icon: EvaIcons.arrowForwardOutline,
-                  context,
-                  onPressedThird,
-                  '事故快处',
-                ),
-              if (onPressedFourth != null)
-                _buildButton(
-                  activeIcon: EvaIcons.arrowForward,
-                  icon: EvaIcons.arrowForwardOutline,
-                  context,
-                  onPressedFourth,
-                  '事故处理与结果',
-                ),
-              if (onPressedFifth != null)
-                _buildButton(
-                  activeIcon: EvaIcons.arrowForward,
-                  icon: EvaIcons.arrowForwardOutline,
-                  context,
-                  onPressedFifth,
-                  '事故证据材料查阅',
-                ),
-              if (onPressedSixth != null)
-                _buildButton(
-                  activeIcon: EvaIcons.arrowForward,
-                  icon: EvaIcons.arrowForwardOutline,
-                  context,
-                  onPressedSixth,
-                  '事故视频快处',
-                ),
-              if (onPressedSeventh != null)
-                _buildButton(
-                  activeIcon: EvaIcons.arrowForward,
-                  icon: EvaIcons.arrowForwardOutline,
-                  context,
-                  onPressedSeventh,
-                  'Seventh Action',
-                ),
-              if (onPressedEighth != null)
-                _buildButton(
-                  activeIcon: EvaIcons.arrowForward,
-                  icon: EvaIcons.arrowForwardOutline,
-                  context,
-                  onPressedEighth,
-                  'Eighth Action',
-                ),
-              if (onPressedNinth != null)
-                _buildButton(
-                  activeIcon: EvaIcons.arrowForward,
-                  icon: EvaIcons.arrowForwardOutline,
-                  context,
-                  onPressedNinth,
-                  'Ninth Action',
-                ),
-              if (onPressedTenth != null)
-                _buildButton(
-                  activeIcon: EvaIcons.arrowForward,
-                  icon: EvaIcons.arrowForwardOutline,
-                  context,
-                  onPressedTenth,
-                  '更多',
-                ),
-            ],
-          )
+          _buildHeader(),
+          _buildButtonGrid(context),
         ],
       ),
     );
   }
 
-  // Helper method to build buttons
-  Widget _buildButton(BuildContext context, Function()? onTap, String text,
-      {required IconData activeIcon, required IconData icon}) {
+  // 鏋勫缓鏍囬閮ㄥ垎
+  Widget _buildHeader() {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: <Widget>[
+          Icon(
+            icon,
+            size: 48.0,
+            color: Colors.lightBlueAccent,
+          ),
+          const SizedBox(height: 8.0),
+          Text(
+            title,
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 鏋勫缓鎸夐挳缃戞牸
+  Widget _buildButtonGrid(BuildContext context) {
+    final actions = <Map<String, dynamic>>[
+      {
+        'label': 'Primary Action',
+        'onPressed': onPressed,
+        'icon': EvaIcons.arrowForward
+      },
+      if (onPressedSecond != null)
+        {
+          'label': 'Second Action',
+          'onPressed': onPressedSecond,
+          'icon': EvaIcons.arrowForwardOutline
+        },
+      if (onPressedThird != null)
+        {
+          'label': 'Third Action',
+          'onPressed': onPressedThird,
+          'icon': EvaIcons.arrowForwardOutline
+        },
+      if (onPressedFourth != null)
+        {
+          'label': 'Fourth Action',
+          'onPressed': onPressedFourth,
+          'icon': EvaIcons.arrowForwardOutline
+        },
+      if (onPressedFifth != null)
+        {
+          'label': 'Fifth Action',
+          'onPressed': onPressedFifth,
+          'icon': EvaIcons.arrowForwardOutline
+        },
+      if (onPressedSixth != null)
+        {
+          'label': 'Sixth Action',
+          'onPressed': onPressedSixth,
+          'icon': EvaIcons.arrowForwardOutline
+        },
+      if (onPressedSeventh != null)
+        {
+          'label': 'Seventh Action',
+          'onPressed': onPressedSeventh,
+          'icon': EvaIcons.arrowForwardOutline
+        },
+      if (onPressedEighth != null)
+        {
+          'label': 'Eighth Action',
+          'onPressed': onPressedEighth,
+          'icon': EvaIcons.arrowForwardOutline
+        },
+      if (onPressedNinth != null)
+        {
+          'label': 'Ninth Action',
+          'onPressed': onPressedNinth,
+          'icon': EvaIcons.arrowForwardOutline
+        },
+      if (onPressedTenth != null)
+        {
+          'label': 'Tenth Action',
+          'onPressed': onPressedTenth,
+          'icon': EvaIcons.arrowForwardOutline
+        },
+    ];
+
+    return Wrap(
+      spacing: 8.0, // 妯悜闂磋窛
+      runSpacing: 8.0, // 绾靛悜闂磋窛
+      alignment: WrapAlignment.center,
+      children: actions
+          .map(
+            (action) => _buildButton(
+              context,
+              onTap: action['onPressed'],
+              text: action['label'],
+              icon: action['icon'],
+            ),
+          )
+          .toList(),
+    );
+  }
+
+  // 鏋勫缓鎸夐挳
+  Widget _buildButton(BuildContext context,
+      {required Function()? onTap,
+      required String text,
+      required IconData icon}) {
     return InkWell(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(8.0),
-        child: Text(
-          text,
-          style: const TextStyle(color: Colors.blue),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8.0),
+          border: Border.all(color: Colors.lightBlueAccent),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: Colors.lightBlueAccent, size: 16),
+            const SizedBox(width: 4.0),
+            Text(
+              text,
+              style: const TextStyle(color: Colors.lightBlueAccent),
+            ),
+          ],
         ),
       ),
     );

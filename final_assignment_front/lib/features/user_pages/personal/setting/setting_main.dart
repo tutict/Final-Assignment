@@ -1,4 +1,4 @@
-import 'package:final_assignment_front/features/user_page/select_text_item.dart';
+import '../../select_text_item.dart';
 import 'package:flutter/material.dart';
 
 class SettingPage extends StatelessWidget {
@@ -8,7 +8,7 @@ class SettingPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('ÉèÖÃ'),
+        title: const Text('è®¾ç½®'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
@@ -22,7 +22,7 @@ class SettingPage extends StatelessWidget {
         children: [
           SelectTextItem(
             height: 35,
-            title: 'Çå¿Õ»º´æ',
+            title: 'æ¸…é™¤ç¼“å­˜',
             content: '1024k',
             isShowArrow: false,
             textAlign: TextAlign.end,

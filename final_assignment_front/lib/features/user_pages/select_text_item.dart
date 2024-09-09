@@ -21,8 +21,8 @@ class SelectTextItem extends StatelessWidget {
   final TextStyle? titleStyle;
   final TextStyle? contentStyle;
   final double? height;
-  final bool isShowArrow; //是否显示右侧箭头
-  final String? imageName; //左侧图片名字 不传则不显示图片
+  final bool isShowArrow;
+  final String? imageName;
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +34,6 @@ class SelectTextItem extends StatelessWidget {
         width: double.infinity,
         decoration: BoxDecoration(
             border: Border(
-                //下面的分割线 width 这个参数应该是控制分割线高度的
                 bottom: Divider.createBorderSide(context,
                     color: const Color(0xFFEEEEEE), width: 1))),
         child: Row(
@@ -65,7 +64,6 @@ class SelectTextItem extends StatelessWidget {
                         )),
               ),
             ),
-            //这里为了方便用了系统icon 可以设置一张arrow 的图片
             // Image.asset(
             //   '',
             //   width: 16,

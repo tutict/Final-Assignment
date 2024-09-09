@@ -1,18 +1,17 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 class ArticalNews extends StatefulWidget {
   const ArticalNews({super.key, required this.newsUrl});
   final String newsUrl;
+
   @override
-  _ArticalNewsState createState() => _ArticalNewsState();
+  ArticalNewsState createState() => ArticalNewsState();
 }
 
-class _ArticalNewsState extends State<ArticalNews> {
-  final Completer<WebViewController> _completer =
-  Completer<WebViewController>();
+class ArticalNewsState extends State<ArticalNews> {
+  final Completer<WebViewController> _completer = Completer<WebViewController>();
   late bool _isLoadingPage;
 
   @override
@@ -24,7 +23,10 @@ class _ArticalNewsState extends State<ArticalNews> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(centerTitle: true, title: const Text('News',),),
+      appBar: AppBar(
+        centerTitle: true,
+        title: const Text('News'),
+      ),
       body: Stack(
         children: [
           WebView(
@@ -33,18 +35,16 @@ class _ArticalNewsState extends State<ArticalNews> {
             onWebViewCreated: (WebViewController controller) {
               _completer.complete(controller);
             },
-            onPageFinished: (String finish) =>
-                setState(() => _isLoadingPage = false),
+            onPageFinished: (String finish) {
+              setState(() => _isLoadingPage = false);
+            },
           ),
           if (_isLoadingPage)
-            Container(
-              alignment: FractionalOffset.center,
-              child: const CircularProgressIndicator(
+            const Center(
+              child: CircularProgressIndicator(
                 backgroundColor: Colors.yellow,
               ),
-            )
-          else
-            const SizedBox.shrink()
+            ),
         ],
       ),
     );
