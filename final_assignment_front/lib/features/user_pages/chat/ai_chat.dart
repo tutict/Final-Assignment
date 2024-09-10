@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 class AIChatPage extends StatefulWidget {
   const AIChatPage({super.key});
 
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
         appBar: AppBar(

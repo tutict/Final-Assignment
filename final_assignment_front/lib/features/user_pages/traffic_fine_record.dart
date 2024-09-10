@@ -17,12 +17,6 @@ class _TrafficFineRecordPageState extends State<TrafficFineRecordPage> {
     // ... 更多罚款记录
   ];
 
-  // 用于搜索的车牌号
-  final String _searchPlateNumber = '';
-
-  // 用于搜索的时间
-  final String _searchDate = '';
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
