@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 
-class LocationScreen extends StatefulWidget {
-  const LocationScreen({super.key});
+class MapScreen extends StatefulWidget {
+  const MapScreen({super.key});
 
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
         appBar: AppBar(
-          title: const Text('·þÎñÍøµã'),
+          title: const Text('ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½'),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: () {
