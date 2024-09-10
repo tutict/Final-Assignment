@@ -69,10 +69,10 @@ class _TrafficViolationScreenState extends State<TrafficViolationScreen> {
                   decoration: InputDecoration(
                     hintText: "搜索",
                     prefixIcon: const Icon(Icons.search),
-                    hintStyle: TextStyle(color: Colors.white.withOpacity(0.5))
+                    hintStyle: const TextStyle(color: Color.fromRGBO(255, 255, 255, 0.5))
                         .useSystemChineseFont(),
                     filled: true,
-                    fillColor: Colors.white.withOpacity(0.3),
+                    fillColor: const Color.fromRGBO(255, 255, 255, 0.3),
                     border: OutlineInputBorder(
                       borderSide: const BorderSide(color: Colors.white),
                       borderRadius: BorderRadius.circular(10),
@@ -107,7 +107,8 @@ class _TrafficViolationScreenState extends State<TrafficViolationScreen> {
                     color: Colors.transparent,
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
-                        width: 2, color: Colors.grey.withOpacity(0.6)),
+                        width: 2, color: const Color.fromRGBO(128, 128, 128, 0.6),
+                    ),
                   ),
                 ),
                 Container(
@@ -119,7 +120,8 @@ class _TrafficViolationScreenState extends State<TrafficViolationScreen> {
                     color: Colors.transparent,
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
-                        width: 2, color: Colors.grey.withOpacity(0.6)),
+                        width: 2, color: const Color.fromRGBO(128, 128, 128, 0.6),
+                    ),
                   ),
                 ),
               ],
@@ -137,7 +139,8 @@ class _TrafficViolationScreenState extends State<TrafficViolationScreen> {
                       color: Colors.transparent,
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                          width: 2, color: Colors.grey.withOpacity(0.6)),
+                          width: 2, color: const Color.fromRGBO(128, 128, 128, 0.6),
+                      ),
                     ),
                   ),
                 ]),
@@ -154,7 +157,8 @@ class _TrafficViolationScreenState extends State<TrafficViolationScreen> {
                       color: Colors.transparent,
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                          width: 2, color: Colors.grey.withOpacity(0.6)),
+                          width: 2, color: const Color.fromRGBO(128, 128, 128, 0.6),
+                      ),
                     ),
                   ),
                 ]),
