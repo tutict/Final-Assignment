@@ -1,5 +1,5 @@
 import 'package:final_assignment_front/features/dashboard/bindings/user_dashboard_binding.dart';
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard_screen.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 import 'package:get/get.dart';
 
 part 'user_app_routes.dart';
