@@ -6,9 +6,15 @@ import 'package:flutter/material.dart';
 void main() {
   runApp(
     ScreenUtilInit(
-      designSize: const Size(1080, 1920), /// 设计稿宽高的px
-      minTextAdapt: true, /// 是否根据宽度/高度中的最小值适配文字
-      splitScreenMode: true, /// 支持分屏尺寸
+      designSize: const Size(1080, 1920),
+
+      /// 设计稿宽高的px
+      minTextAdapt: true,
+
+      /// 是否根据宽度/高度中的最小值适配文字
+      splitScreenMode: true,
+
+      /// 支持分屏尺寸
       useInheritedMediaQuery: true,
       builder: (BuildContext context, Widget? child) {
         return MaterialApp(
@@ -23,7 +29,6 @@ void main() {
   );
 }
 
-
 class TrafficViolationScreen extends StatefulWidget {
   const TrafficViolationScreen({super.key});
 
@@ -36,7 +41,7 @@ class _TrafficViolationScreenState extends State<TrafficViolationScreen> {
 
   /// 定义渐变
   final Gradient gradient = const LinearGradient(
-    colors: [Color(0xFF3271ae),Color(0xFF3271ae), Colors.white],
+    colors: [Color(0xFF3271ae), Color(0xFF3271ae), Colors.white],
     stops: [0.0, 0.3, 0.5],
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
@@ -54,7 +59,9 @@ class _TrafficViolationScreenState extends State<TrafficViolationScreen> {
           backgroundColor: Colors.transparent, // 确保Scaffold背景透明
           title: Row(
             children: <Widget>[
-              Text('哈尔滨',style: const TextStyle(color: Colors.white).useSystemChineseFont()),
+              Text('哈尔滨',
+                  style: const TextStyle(color: Colors.white)
+                      .useSystemChineseFont()),
               const SizedBox(width: 10),
               Expanded(
                 child: TextField(
@@ -62,7 +69,8 @@ class _TrafficViolationScreenState extends State<TrafficViolationScreen> {
                   decoration: InputDecoration(
                     hintText: "搜索",
                     prefixIcon: const Icon(Icons.search),
-                    hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)).useSystemChineseFont(),
+                    hintStyle: TextStyle(color: Colors.white.withOpacity(0.5))
+                        .useSystemChineseFont(),
                     filled: true,
                     fillColor: Colors.white.withOpacity(0.3),
                     border: OutlineInputBorder(
@@ -98,7 +106,8 @@ class _TrafficViolationScreenState extends State<TrafficViolationScreen> {
                   decoration: BoxDecoration(
                     color: Colors.transparent,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(width: 2, color: Colors.grey.withOpacity(0.6)),
+                    border: Border.all(
+                        width: 2, color: Colors.grey.withOpacity(0.6)),
                   ),
                 ),
                 Container(
@@ -109,7 +118,8 @@ class _TrafficViolationScreenState extends State<TrafficViolationScreen> {
                   decoration: BoxDecoration(
                     color: Colors.transparent,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(width: 2, color: Colors.grey.withOpacity(0.6)),
+                    border: Border.all(
+                        width: 2, color: Colors.grey.withOpacity(0.6)),
                   ),
                 ),
               ],
@@ -117,7 +127,7 @@ class _TrafficViolationScreenState extends State<TrafficViolationScreen> {
             Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.center,
-                children: <Widget> [
+                children: <Widget>[
                   Container(
                     width: MediaQuery.of(context).size.width * 0.4,
                     height: MediaQuery.of(context).size.height * 0.2,
@@ -126,15 +136,15 @@ class _TrafficViolationScreenState extends State<TrafficViolationScreen> {
                     decoration: BoxDecoration(
                       color: Colors.transparent,
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(width: 2, color: Colors.grey.withOpacity(0.6)),
+                      border: Border.all(
+                          width: 2, color: Colors.grey.withOpacity(0.6)),
                     ),
                   ),
-                ]
-            ),
+                ]),
             Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.center,
-                children: <Widget> [
+                children: <Widget>[
                   Container(
                     width: MediaQuery.of(context).size.width * 0.4,
                     height: MediaQuery.of(context).size.height * 0.2,
@@ -143,17 +153,17 @@ class _TrafficViolationScreenState extends State<TrafficViolationScreen> {
                     decoration: BoxDecoration(
                       color: Colors.transparent,
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(width: 2, color: Colors.grey.withOpacity(0.6)),
+                      border: Border.all(
+                          width: 2, color: Colors.grey.withOpacity(0.6)),
                     ),
                   ),
-                ]
-            ),
+                ]),
             const Expanded(
               child: Padding(
                 padding: EdgeInsets.all(16.0),
                 child: Column(
-                  // 在这里添加您的其他组件
-                ),
+                    // 在这里添加您的其他组件
+                    ),
               ),
             ),
             ComSwiper(
@@ -245,13 +255,16 @@ class ComSwiper extends StatelessWidget {
       itemBuilder: (BuildContext context, int index) => item(bannerList[index]),
       pagination: (bannerList.length != 1) && showSwiperPagination
           ? SwiperPagination(
-        alignment: paginationAlignment,
-        margin: paginationMargin ?? const EdgeInsets.only(right: 20.0, bottom: 20.0),
-        builder: paginationBuilder ?? ComPaginationBuilder.circle(
-          activeColor: Theme.of(context).indicatorColor,
-          color: Theme.of(context).textTheme.bodySmall?.color ?? Colors.grey,
-        ),
-      )
+              alignment: paginationAlignment,
+              margin: paginationMargin ??
+                  const EdgeInsets.only(right: 20.0, bottom: 20.0),
+              builder: paginationBuilder ??
+                  ComPaginationBuilder.circle(
+                    activeColor: Theme.of(context).indicatorColor,
+                    color: Theme.of(context).textTheme.bodySmall?.color ??
+                        Colors.grey,
+                  ),
+            )
           : null,
     );
   }
@@ -378,7 +391,8 @@ class CustomBottomNavigationBar extends StatefulWidget {
   const CustomBottomNavigationBar({super.key});
 
   @override
-  CustomBottomNavigationBarState createState() => CustomBottomNavigationBarState();
+  CustomBottomNavigationBarState createState() =>
+      CustomBottomNavigationBarState();
 }
 
 class CustomBottomNavigationBarState extends State<CustomBottomNavigationBar> {
@@ -408,7 +422,8 @@ class CustomBottomNavigationBarState extends State<CustomBottomNavigationBar> {
             children: <Widget>[
               _buildNavItem(Icons.home, '首页', 0),
               _buildNavItem(Icons.business, '业务办理进度', 1),
-              _buildNavItem(Icons.qr_code_scanner, '扫一扫', 2, isScanButton: true),
+              _buildNavItem(Icons.qr_code_scanner, '扫一扫', 2,
+                  isScanButton: true),
               _buildNavItem(Icons.location_on, '服务网点', 3),
               _buildNavItem(Icons.person, '我的', 4),
             ],
@@ -418,41 +433,52 @@ class CustomBottomNavigationBarState extends State<CustomBottomNavigationBar> {
     );
   }
 
-  Widget _buildNavItem(IconData icon, String label, int index, {bool isScanButton = false}) {
+  Widget _buildNavItem(IconData icon, String label, int index,
+      {bool isScanButton = false}) {
     return GestureDetector(
       onTap: () => _onItemTapped(index),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: <Widget>[
-          if (isScanButton) Stack(
-            clipBehavior: Clip.none,
-            children: [
-              ClipPath(
-                clipper: ScanButtonClipper(),
-                child: Container(
-                  color: Colors.black,
-                  height: 60,
-                  width: 70,
+          if (isScanButton)
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                ClipPath(
+                  clipper: ScanButtonClipper(),
+                  child: Container(
+                    color: Colors.black,
+                    height: 60,
+                    width: 70,
+                  ),
                 ),
-              ),
-              Positioned(
-                top: -25,
-                left: 0,
-                right: 0,
-                child: CircleAvatar(
-                  radius: 35,
-                  backgroundColor: Colors.blue[800],
-                  child: Icon(icon, color: Colors.white, size: 25),
+                Positioned(
+                  top: -25,
+                  left: 0,
+                  right: 0,
+                  child: CircleAvatar(
+                    radius: 35,
+                    backgroundColor: Colors.blue[800],
+                    child: Icon(icon, color: Colors.white, size: 25),
+                  ),
                 ),
-              ),
-            ],
-          ) else Icon(icon, color: _selectedIndex == index ? Colors.blue[800] : Colors.grey[300]),
-          if (!isScanButton)
-            const SizedBox(height: 8), // 添加一些间隔
+              ],
+            )
+          else
+            Icon(icon,
+                color: _selectedIndex == index
+                    ? Colors.blue[800]
+                    : Colors.grey[300]),
+          if (!isScanButton) const SizedBox(height: 8), // 添加一些间隔
           if (!isScanButton)
             Text(
               label,
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: _selectedIndex == index ? Colors.blue[800] : Colors.grey[300]),
+              style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                  color: _selectedIndex == index
+                      ? Colors.blue[800]
+                      : Colors.grey[300]),
             ),
         ],
       ),

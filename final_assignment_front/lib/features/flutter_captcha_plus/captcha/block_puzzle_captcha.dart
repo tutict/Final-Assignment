@@ -185,7 +185,8 @@ class BlockPuzzleCaptchaPageState extends State<BlockPuzzleCaptchaPage>
   }
 
   //校验验证码
-  void checkCaptcha(sliderXMoved, captchaToken, {required BuildContext myContext}) {
+  void checkCaptcha(sliderXMoved, captchaToken,
+      {required BuildContext myContext}) {
     setState(() {
       sliderMoveFinish = true;
     });
@@ -238,7 +239,6 @@ class BlockPuzzleCaptchaPageState extends State<BlockPuzzleCaptchaPage>
           captchaVerification = encryptUtil.aesEncode(captchaVerification);
         }
         checkSuccess(captchaVerification);
-
       } else {
         checkFail();
       }
@@ -490,10 +490,12 @@ class BlockPuzzleCaptchaPageState extends State<BlockPuzzleCaptchaPage>
                     ///更新
                     debugPrint(updateDetails.localPosition as String?);
 
-                    final double w1 = (_baseImageKey.currentContext?.size?.width ?? 0) -
-                        (_slideImageKey.currentContext?.size?.width ?? 0);
+                    final double w1 =
+                        (_baseImageKey.currentContext?.size?.width ?? 0) -
+                            (_slideImageKey.currentContext?.size?.width ?? 0);
 
-                    double offset = updateDetails.localPosition.dx - sliderStartX;
+                    double offset =
+                        updateDetails.localPosition.dx - sliderStartX;
 
                     if (offset < 0) {
                       offset = 0;
@@ -555,7 +557,8 @@ class MaxScaleTextWidget extends StatelessWidget {
   final double max;
   final Widget child;
 
-  const MaxScaleTextWidget({required Key key, this.max = 1.0, required this.child})
+  const MaxScaleTextWidget(
+      {required Key key, this.max = 1.0, required this.child})
       : super(key: key);
 
   @override

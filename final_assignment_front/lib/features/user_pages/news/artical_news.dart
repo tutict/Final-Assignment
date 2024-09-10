@@ -4,6 +4,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 
 class ArticalNews extends StatefulWidget {
   const ArticalNews({super.key, required this.newsUrl});
+
   final String newsUrl;
 
   @override
@@ -11,7 +12,8 @@ class ArticalNews extends StatefulWidget {
 }
 
 class ArticalNewsState extends State<ArticalNews> {
-  final Completer<WebViewController> _completer = Completer<WebViewController>();
+  final Completer<WebViewController> _completer =
+      Completer<WebViewController>();
   late bool _isLoadingPage;
 
   @override

@@ -6,9 +6,9 @@ class AIChatPage extends StatefulWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('智慧助手'),
-        leading: IconButton(
+        appBar: AppBar(
+      title: const Text('智慧助手'),
+      leading: IconButton(
         icon: const Icon(Icons.arrow_back),
         onPressed: () {
           Navigator.pop(context);
@@ -16,9 +16,7 @@ class AIChatPage extends StatefulWidget {
       ),
       backgroundColor: Colors.lightBlue,
       foregroundColor: Colors.white,
-    )
-
-    );
+    ));
   }
 
   @override

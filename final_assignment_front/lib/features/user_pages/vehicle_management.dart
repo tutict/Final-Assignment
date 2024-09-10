@@ -10,7 +10,8 @@ class VehicleManagementPage extends StatefulWidget {
 class _VehicleManagementPageState extends State<VehicleManagementPage> {
   // 假设的车辆列表
   final List<Vehicle> _vehicles = [
-    Vehicle(name: '奔驰C200', model: 'C-Class', brand: 'Mercedes-Benz', color: '黑色'),
+    Vehicle(
+        name: '奔驰C200', model: 'C-Class', brand: 'Mercedes-Benz', color: '黑色'),
     Vehicle(name: '宝马320i', model: '3 Series', brand: 'BMW', color: '白色'),
     // ... 更多车辆
   ];
@@ -82,7 +83,8 @@ class VehiclesList extends StatelessWidget {
             child: Text(vehicle.brand[0]),
           ),
           title: Text(vehicle.name),
-          subtitle: Text('型号: ${vehicle.model}, 品牌: ${vehicle.brand}, 颜色: ${vehicle.color}'),
+          subtitle: Text(
+              '型号: ${vehicle.model}, 品牌: ${vehicle.brand}, 颜色: ${vehicle.color}'),
           trailing: IconButton(
             icon: const Icon(Icons.edit),
             onPressed: () {

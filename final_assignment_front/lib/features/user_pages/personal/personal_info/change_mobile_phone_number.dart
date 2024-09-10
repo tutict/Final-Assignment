@@ -24,7 +24,8 @@ class ChangeMobilePhoneNumber extends StatefulWidget {
             ElevatedButton(
               onPressed: () {
                 Navigator.pop(context);
-              }, child: null,
+              },
+              child: null,
             ),
           ],
         ),

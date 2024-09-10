@@ -10,8 +10,10 @@ class TrafficFineRecordPage extends StatefulWidget {
 class _TrafficFineRecordPageState extends State<TrafficFineRecordPage> {
   // 假设的罚款记录列表
   final List<FineRecord> _fineRecords = [
-    FineRecord(id: 1, plateNumber: '京A0001', fineAmount: 200, date: '2024-04-01'),
-    FineRecord(id: 2, plateNumber: '京A0002', fineAmount: 500, date: '2024-04-10'),
+    FineRecord(
+        id: 1, plateNumber: '京A0001', fineAmount: 200, date: '2024-04-01'),
+    FineRecord(
+        id: 2, plateNumber: '京A0002', fineAmount: 500, date: '2024-04-10'),
     // ... 更多罚款记录
   ];
 
@@ -120,5 +122,9 @@ class FineRecord {
   int fineAmount;
   String date;
 
-  FineRecord({required this.id, required this.plateNumber, required this.fineAmount, required this.date});
+  FineRecord(
+      {required this.id,
+      required this.plateNumber,
+      required this.fineAmount,
+      required this.date});
 }

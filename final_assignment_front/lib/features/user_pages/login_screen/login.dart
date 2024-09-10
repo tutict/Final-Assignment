@@ -58,11 +58,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<String?> _signupUser(SignupData data) async {
     debugPrint('名字: ${data.name}, 密码: ${data.password}');
-    webSocketService.sendMessage(jsonEncode({
-      'action': 'users',
-      'username': data.name,
-      'password': data.password
-    }));
+    webSocketService.sendMessage(jsonEncode(
+        {'action': 'users', 'username': data.name, 'password': data.password}));
 
     final response = await webSocketService.getMessages().firstWhere((message) {
       final decodedMessage = jsonDecode(message);
@@ -79,10 +76,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<String?> _recoverPassword(String name) async {
     debugPrint('名字: $name');
-    webSocketService.sendMessage(jsonEncode({
-      'action': 'auth/recover',
-      'username': name
-    }));
+    webSocketService
+        .sendMessage(jsonEncode({'action': 'auth/recover', 'username': name}));
 
     final response = await webSocketService.getMessages().firstWhere((message) {
       final decodedMessage = jsonDecode(message);

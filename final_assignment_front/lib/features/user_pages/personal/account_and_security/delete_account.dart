@@ -17,9 +17,7 @@ class DeleteAccount extends StatelessWidget {
         backgroundColor: Colors.lightBlue,
         foregroundColor: Colors.white,
       ),
-      body: Center(
-
-      ),
+      body: Center(),
     );
   }
 }

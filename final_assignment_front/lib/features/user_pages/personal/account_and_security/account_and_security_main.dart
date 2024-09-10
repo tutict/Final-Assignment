@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-
 class AccountAndSecurityPage extends StatelessWidget {
   const AccountAndSecurityPage({super.key});
 

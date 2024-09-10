@@ -15,12 +15,13 @@ class OnlineProcessingProgressState extends State<OnlineProcessingProgress>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this); // ³õÊ¼»¯TabController
+    _tabController =
+        TabController(length: 2, vsync: this); // ï¿½ï¿½Ê¼ï¿½ï¿½TabController
   }
 
   @override
   void dispose() {
-    _tabController.dispose(); // ÊÍ·ÅTabController
+    _tabController.dispose(); // ï¿½Í·ï¿½TabController
     super.dispose();
   }
 
@@ -28,7 +29,7 @@ class OnlineProcessingProgressState extends State<OnlineProcessingProgress>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Íø°ì½ø¶È'),
+        title: const Text('ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½'),
         backgroundColor: Colors.lightBlue,
         foregroundColor: Colors.white,
       ),
@@ -39,25 +40,25 @@ class OnlineProcessingProgressState extends State<OnlineProcessingProgress>
               itemCount: 20,
               itemBuilder: (context, index) {
                 return const ListTile(
-                  title: Text('ÒÔÏÂÊý¾ÝÀ´×ÔÓÚ'),
+                  title: Text('ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½'),
                   trailing: Icon(Icons.arrow_forward_ios),
                 );
               },
             ),
           ),
-          // Ìí¼Ó TabBar
+          // ï¿½ï¿½ï¿½ TabBar
           TabBar(
             controller: _tabController,
             tabs: const [
-              Tab(text: 'ÊÜÀíÖÐ'),
-              Tab(text: 'ÒÑ°ì½á'),
-              Tab(text: 'ÒÑÈ¡Ïû'),
-              Tab(text: 'È«²¿'),
+              Tab(text: 'ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½'),
+              Tab(text: 'ï¿½Ñ°ï¿½ï¿½'),
+              Tab(text: 'ï¿½ï¿½È¡ï¿½ï¿½'),
+              Tab(text: 'È«ï¿½ï¿½'),
             ],
           ),
-          // Ìí¼Ó TabBarView
+          // ï¿½ï¿½ï¿½ TabBarView
           SizedBox(
-            height: 200, // ÉèÖÃ TabBarView µÄ¸ß¶È
+            height: 200, // ï¿½ï¿½ï¿½ï¿½ TabBarView ï¿½Ä¸ß¶ï¿½
             child: TabBarView(
               controller: _tabController,
               children: const [
