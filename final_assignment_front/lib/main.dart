@@ -1,3 +1,4 @@
+import 'package:final_assignment_front/config/routes/user_routes/user_app_pages.dart';
 import 'package:intl/date_symbol_data_local.dart'; // 只导入本地化日期格式化数据
 import 'config/routes/app_pages.dart';
 import 'config/themes/app_theme.dart';
@@ -36,7 +37,7 @@ class MyApp extends StatelessWidget {
           );
         }
 
-        if (currentRoute == AppPages.userInitial) {
+        if (currentRoute == UserAppPages.userInitial) {
           return Theme(
             data: AppTheme.materialLightTheme,
             child: child!,
