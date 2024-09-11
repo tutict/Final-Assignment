@@ -1,3 +1,4 @@
+import 'package:final_assignment_front/config/routes/user_routes/user_app_pages.dart';
 import 'package:flutter/material.dart';
 
 class AccountAndSecurityPage extends StatelessWidget {
@@ -23,28 +24,28 @@ class AccountAndSecurityPage extends StatelessWidget {
             title: const Text('修改登录密码'),
             leading: const Icon(Icons.person),
             onTap: () {
-              Navigator.pushNamed(context, '/personal_info');
+              Navigator.pushNamed(context, UserRoutes.changePassword);
             },
           ),
           ListTile(
             title: const Text('删除账号'),
             leading: const Icon(Icons.location_on_outlined),
             onTap: () {
-              Navigator.pushNamed(context, '/');
+              Navigator.pushNamed(context, UserRoutes.deleteAccount);
             },
           ),
           ListTile(
             title: const Text('信息申述'),
             leading: const Icon(Icons.logout),
             onTap: () {
-              Navigator.pushNamed(context, '/');
+              Navigator.pushNamed(context, UserRoutes.informationStatement);
             },
           ),
           ListTile(
             title: const Text('迁移账号'),
             leading: const Icon(Icons.chat_outlined),
             onTap: () {
-              Navigator.pushNamed(context, '/');
+              Navigator.pushNamed(context, UserRoutes.migrateAccount);
             },
           ),
         ]).toList(),
