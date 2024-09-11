@@ -1,8 +1,23 @@
-import '../../select_text_item.dart';
+import 'package:final_assignment_front/config/themes/app_theme.dart';
 import 'package:flutter/material.dart';
 
-class SettingPage extends StatelessWidget {
+class SettingPage extends StatefulWidget {
   const SettingPage({super.key});
+
+  @override
+  _SettingPageState createState() => _SettingPageState();
+}
+
+class _SettingPageState extends State<SettingPage> {
+  bool _isDarkMode = Config.dark;
+
+  void _toggleTheme(bool value) {
+    setState(() {
+      _isDarkMode = value;
+      Config.dark = value;
+      Config.themeData = value ? AppTheme.materialDarkTheme: AppTheme.materialLightTheme;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -20,23 +35,64 @@ class SettingPage extends StatelessWidget {
       ),
       body: ListView(
         children: [
-          SelectTextItem(
-            height: 35,
-            title: '清除缓存',
-            content: '1024k',
-            isShowArrow: false,
-            textAlign: TextAlign.end,
-            contentStyle: const TextStyle(
-              fontSize: 12,
-              color: Color(0xFF333333),
-            ),
+          SwitchListTile(
+            title: const Text('切换白天/夜间模式'),
+            value: _isDarkMode,
+            onChanged: _toggleTheme,
+            secondary: const Icon(Icons.nightlight_round),
           ),
-          SelectTextItem(),
-          SelectTextItem(),
-          SelectTextItem(),
-          SelectTextItem(),
+          ListTile(
+            title: const Text('清除缓存'),
+            subtitle: const Text('1024k'),
+            onTap: () {
+              showDialog(
+                context: context,
+                builder: (context) {
+                  return AlertDialog(
+                    title: const Text('清除缓存'),
+                    content: const Text('确定要清除缓存吗？'),
+                    actions: [
+                      TextButton(
+                        child: const Text('取消'),
+                        onPressed: () {
+                          Navigator.pop(context);
+                        },
+                      ),
+                      TextButton(
+                        child: const Text('确定'),
+                        onPressed: () {
+                          // Add your cache clearing logic here
+                          Navigator.pop(context);
+                        },
+                      ),
+                    ],
+                  );
+                },
+              );
+            },
+          ),
+          OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              side: const BorderSide(
+                width: 1,
+                color: Colors.red,
+              ),
+            ),
+            onPressed: () {
+              // Add delete account logic here
+            },
+            child: const Text('删除账户'),
+          ),
         ],
       ),
     );
   }
+}
+
+class Config {
+  static bool dark = true;
+  static ThemeData themeData = AppTheme.materialDarkTheme;
 }
