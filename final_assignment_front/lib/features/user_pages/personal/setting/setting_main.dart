@@ -61,7 +61,6 @@ class _SettingPageState extends State<SettingPage> {
                       TextButton(
                         child: const Text('确定'),
                         onPressed: () {
-                          // Add your cache clearing logic here
                           Navigator.pop(context);
                         },
                       ),
@@ -82,7 +81,6 @@ class _SettingPageState extends State<SettingPage> {
               ),
             ),
             onPressed: () {
-              // Add delete account logic here
             },
             child: const Text('删除账户'),
           ),
