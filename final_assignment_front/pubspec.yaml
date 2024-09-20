@@ -61,7 +61,7 @@ dependencies:
 
   animations: ^2.0.9
 
-  recaptcha_enterprise_flutter: ^18.6.0-beta02
+  local_captcha: ^1.0.4
 
   dio: ^5.4.3+1
 
