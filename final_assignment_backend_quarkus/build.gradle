@@ -1,6 +1,5 @@
 plugins {
     id 'java'
-    id 'io.quarkus'
 }
 
 java {
@@ -15,12 +14,14 @@ repositories {
 }
 
 dependencies {
-    implementation enforcedPlatform("${quarkusPlatformGroupId}:${quarkusPlatformArtifactId}:${quarkusPlatformVersion}")
     implementation 'io.quarkus:quarkus-rest'
     implementation 'io.quarkus:quarkus-rest-jackson'
     implementation 'io.quarkus:quarkus-arc'
+    implementation 'io.vertx:vertx-kafka-client:4.5.10'
+    implementation 'io.quarkus:quarkus-kafka-client:3.11.3'
     implementation 'io.quarkiverse.mybatis:quarkus-mybatis-plus:2.2.3'
-    annotationProcessor 'org.projectlombok:lombok:1.18.30'
+    //noinspection AnnotationProcessorOnCompilePath
+    implementation 'org.projectlombok:lombok:1.18.34'
     implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
     implementation 'io.jsonwebtoken:jjwt-impl:0.11.5'
     implementation 'io.quarkus:quarkus-smallrye-jwt:4.0.0'

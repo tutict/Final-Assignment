@@ -2,23 +2,21 @@ package finalassignmentbackend.config;
 
 import io.vertx.core.Vertx;
 import io.vertx.kafka.client.consumer.KafkaConsumer;
+import jakarta.enterprise.context.ApplicationScoped;
 import org.apache.kafka.common.serialization.StringDeserializer;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.DependsOn;
+import org.eclipse.microprofile.config.inject.ConfigProperties;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.util.Properties;
 
-@Configuration
+@ConfigProperties(prefix = "kafka")
 public class KafkaConfig {
 
-    @Value("${spring.kafka.bootstrap-servers}")
-    private String bootstrapServers;
+    @ConfigProperty(name = "quarkus.kafka.servers")
+    String bootstrapServers;
 
 
-    @Bean
-    @DependsOn("vertx") // 确保Vertx Bean已经存在
+    @ApplicationScoped
     public KafkaConsumer<String, String> kafkaConsumer(Vertx vertx) {
         Properties props = new Properties();
         props.put("bootstrap.servers", bootstrapServers);
