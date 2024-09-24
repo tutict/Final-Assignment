@@ -7,18 +7,18 @@ import io.vertx.ext.web.Router;
 import io.vertx.ext.web.handler.sockjs.SockJSBridgeOptions;
 import io.vertx.ext.web.handler.sockjs.SockJSHandler;
 import io.vertx.ext.web.handler.sockjs.SockJSHandlerOptions;
+import jakarta.enterprise.context.ApplicationScoped;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
 
-@Component
+@ApplicationScoped
 public class WebSocketServer extends AbstractVerticle {
 
     private static final Logger logger = LoggerFactory.getLogger(WebSocketServer.class);
 
-    @Value("${server.port}")
-    private int port;
+    @ConfigProperty(name = "server.port")
+    int port;
 
     @Override
     public void start(Promise<Void> startPromise) {

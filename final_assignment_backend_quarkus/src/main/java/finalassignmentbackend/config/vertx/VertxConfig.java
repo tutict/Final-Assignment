@@ -2,13 +2,13 @@ package finalassignmentbackend.config.vertx;
 
 import io.vertx.core.Vertx;
 import io.vertx.core.VertxOptions;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.inject.Produces;
 
-@Configuration
+@ApplicationScoped
 public class VertxConfig {
 
-    @Bean
+    @Produces
     public Vertx vertx() {
         Vertx vertx = Vertx.vertx(new VertxOptions().setWorkerPoolSize(10));
         vertx.deployVerticle(new WebSocketServer());

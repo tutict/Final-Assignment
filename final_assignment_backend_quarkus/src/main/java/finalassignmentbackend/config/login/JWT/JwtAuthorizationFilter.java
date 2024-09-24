@@ -1,7 +1,7 @@
 package finalassignmentbackend.config.login.JWT;
 
-import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.ws.rs.core.SecurityContext;
+
 import java.security.Principal;
 
 public class JwtAuthorizationFilter implements SecurityContext {

@@ -1,35 +1,44 @@
 package finalassignmentbackend.config.login.JWT;
 
-import io.quarkus.security.identity.SecurityIdentity;
-import jakarta.ws.rs.core.SecurityContext;
-import java.security.Principal;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.servlet.*;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
-public class QuarkusSecurityContext implements SecurityContext {
+import java.io.IOException;
 
-    private final Authentication authentication;
+@ApplicationScoped
+public class JwtAuthenticationFilter implements Filter {
 
-    public QuarkusSecurityContext(Authentication authentication) {
-        this.authentication = authentication;
+    private final TokenProvider tokenProvider;
+
+    public JwtAuthenticationFilter(TokenProvider tokenProvider) {
+        this.tokenProvider = tokenProvider;
     }
 
     @Override
-    public Principal getUserPrincipal() {
-        return authentication;
+    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
+        HttpServletRequest httpRequest = (HttpServletRequest) request;
+        String jwtToken = extractToken(httpRequest);
+
+        if (jwtToken != null && tokenProvider.validateToken(jwtToken)) {
+            String username = tokenProvider.getUsernameFromToken(jwtToken);
+
+            if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                Authentication authentication = tokenProvider.getAuthentication(username);
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+            }
+        }
+
+        chain.doFilter(request, response);
     }
 
-    @Override
-    public boolean isUserInRole(String role) {
-        return authentication.getAuthorities().stream()
-                .anyMatch(grantedAuthority -> grantedAuthority.getAuthority().equals(role));
-    }
-
-    @Override
-    public boolean isSecure() {
-        return true;
-    }
-
-    @Override
-    public String getAuthenticationScheme() {
-        return "Bearer";
+    private String extractToken(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            return authHeader.substring(7);
+        }
+        return null;
     }
 }

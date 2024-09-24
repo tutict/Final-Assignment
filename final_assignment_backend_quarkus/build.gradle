@@ -18,6 +18,9 @@ dependencies {
     implementation 'io.quarkus:quarkus-rest-jackson'
     implementation 'io.quarkus:quarkus-arc'
     implementation 'io.vertx:vertx-kafka-client:4.5.10'
+    implementation 'io.vertx:vertx-core:4.5.10'
+    implementation 'io.quarkus:quarkus-vertx-http:3.11.3'
+    implementation 'io.quarkus:quarkus-vertx-http-parent:3.11.3'
     implementation 'io.quarkus:quarkus-kafka-client:3.11.3'
     implementation 'io.quarkiverse.mybatis:quarkus-mybatis-plus:2.2.3'
     //noinspection AnnotationProcessorOnCompilePath

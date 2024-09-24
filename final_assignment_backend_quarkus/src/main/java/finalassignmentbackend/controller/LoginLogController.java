@@ -1,78 +1,98 @@
 package finalassignmentbackend.controller;
 
 
-import jakarta.ws.rs.Path;
+import finalassignmentbackend.entity.LoginLog;
+import finalassignmentbackend.service.LoginLogService;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 
-import java.util.Date;
+import java.time.LocalDate;
+import java.sql.Date;
+import java.util.List;
 
 @Path("/eventbus/loginLogs")
-
+@Produces(MediaType.APPLICATION_JSON)
+@Consumes(MediaType.APPLICATION_JSON)
 public class LoginLogController {
 
-    private final LoginLogService loginLogService;
+    @Inject
+    LoginLogService loginLogService;
 
-    @Autowired
-    public LoginLogController(LoginLogService loginLogService) {
-        this.loginLogService = loginLogService;
-    }
-
-    @PostMapping
-    public ResponseEntity<Void> createLoginLog(@RequestBody LoginLog loginLog) {
+    @POST
+    public Response createLoginLog(LoginLog loginLog) {
         loginLogService.createLoginLog(loginLog);
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+        return Response.status(Response.Status.CREATED).build();
     }
 
-    @GetMapping("/{logId}")
-    public ResponseEntity<LoginLog> getLoginLog(@PathVariable int logId) {
+    @POST
+    @Path("/{logId}")
+    public Response getLoginLog(@PathParam("logId") int logId) {
         LoginLog loginLog = loginLogService.getLoginLog(logId);
         if (loginLog != null) {
-            return ResponseEntity.ok(loginLog);
+            return Response.ok(loginLog).build();
         } else {
-            return ResponseEntity.notFound().build();
+            return Response.status(Response.Status.NOT_FOUND).build();
         }
     }
 
-    @GetMapping
-    public ResponseEntity<List<LoginLog>> getAllLoginLogs() {
+    @GET
+    public Response getAllLoginLogs() {
         List<LoginLog> loginLogs = loginLogService.getAllLoginLogs();
-        return ResponseEntity.ok(loginLogs);
+        return Response.ok(loginLogs).build();
     }
 
-    @PutMapping("/{logId}")
-    public ResponseEntity<Void> updateLoginLog(@PathVariable int logId, @RequestBody LoginLog updatedLoginLog) {
+    @PUT
+    @Path("/{logId}")
+    public Response updateLoginLog(@PathParam("logId") int logId, LoginLog updatedLoginLog) {
         LoginLog existingLoginLog = loginLogService.getLoginLog(logId);
         if (existingLoginLog != null) {
             updatedLoginLog.setLogId(logId);
             loginLogService.updateLoginLog(updatedLoginLog);
-            return ResponseEntity.ok().build();
+            return Response.ok().build();
         } else {
-            return ResponseEntity.notFound().build();
+            return Response.status(Response.Status.NOT_FOUND).build();
         }
     }
 
-    @DeleteMapping("/{logId}")
-    public ResponseEntity<Void> deleteLoginLog(@PathVariable int logId) {
+    @DELETE
+    @Path("/{logId}")
+    public Response deleteLoginLog(@PathParam("logId") int logId) {
         loginLogService.deleteLoginLog(logId);
-        return ResponseEntity.noContent().build();
+        return Response.noContent().build();
     }
 
-    @GetMapping("/timeRange")
-    public ResponseEntity<List<LoginLog>> getLoginLogsByTimeRange(
-            @RequestParam("startTime") @DateTimeFormat(pattern = "yyyy-MM-dd") Date startTime,
-            @RequestParam("endTime") @DateTimeFormat(pattern = "yyyy-MM-dd") Date endTime) {
-        List<LoginLog> loginLogs = loginLogService.getLoginLogsByTimeRange(startTime, endTime);
-        return ResponseEntity.ok(loginLogs);
+    @GET
+    @Path("/timeRange")
+    public Response getLoginLogsByTimeRange(
+            @QueryParam("startTime") @DefaultValue("1970-01-01") String startTimeStr,
+            @QueryParam("endTime") @DefaultValue("9999-12-31") String endTimeStr) {
+        try {
+            LocalDate startDate = LocalDate.parse(startTimeStr);
+            LocalDate endDate = LocalDate.parse(endTimeStr);
+            // Convert LocalDate to java.util.Date
+            Date startTime = Date.valueOf(startDate);
+            Date endTime = Date.valueOf(endDate);
+
+            List<LoginLog> loginLogs = loginLogService.getLoginLogsByTimeRange(startTime, endTime);
+            return Response.ok(loginLogs).build();
+        } catch (Exception e) {
+            return Response.status(Response.Status.BAD_REQUEST).entity("Invalid date format").build();
+        }
     }
 
-    @GetMapping("/username/{username}")
-    public ResponseEntity<List<LoginLog>> getLoginLogsByUsername(@PathVariable String username) {
+    @GET
+    @Path("/username/{username}")
+    public Response getLoginLogsByUsername(@PathParam("username") String username) {
         List<LoginLog> loginLogs = loginLogService.getLoginLogsByUsername(username);
-        return ResponseEntity.ok(loginLogs);
+        return Response.ok(loginLogs).build();
     }
 
-    @GetMapping("/loginResult/{loginResult}")
-    public ResponseEntity<List<LoginLog>> getLoginLogsByLoginResult(@PathVariable String loginResult) {
+    @GET
+    @Path("/loginResult/{loginResult}")
+    public Response getLoginLogsByLoginResult(@PathParam("loginResult") String loginResult) {
         List<LoginLog> loginLogs = loginLogService.getLoginLogsByLoginResult(loginResult);
-        return ResponseEntity.ok(loginLogs);
+        return Response.ok(loginLogs).build();
     }
 }

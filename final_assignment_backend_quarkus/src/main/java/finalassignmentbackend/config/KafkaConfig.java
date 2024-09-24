@@ -3,6 +3,7 @@ package finalassignmentbackend.config;
 import io.vertx.core.Vertx;
 import io.vertx.kafka.client.consumer.KafkaConsumer;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.inject.Produces;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.eclipse.microprofile.config.inject.ConfigProperties;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -16,6 +17,7 @@ public class KafkaConfig {
     String bootstrapServers;
 
 
+    @Produces
     @ApplicationScoped
     public KafkaConsumer<String, String> kafkaConsumer(Vertx vertx) {
         Properties props = new Properties();
