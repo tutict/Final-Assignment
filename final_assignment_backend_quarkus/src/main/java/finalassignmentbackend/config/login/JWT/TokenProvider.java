@@ -44,7 +44,7 @@ public class TokenProvider {
     }
 
     // Generates a JWT token for a user
-    public String createToken(String username, Collection<? extends GrantedAuthority> authorities) {
+    public String createToken(String username, String authorities) {
         long now = System.currentTimeMillis();
         Date validity = new Date(now + JWT_TOKEN_VALIDITY);
 

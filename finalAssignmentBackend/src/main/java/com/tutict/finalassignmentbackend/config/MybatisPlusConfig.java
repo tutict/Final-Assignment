@@ -6,15 +6,14 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * @Description: MybatisPlusConfig
- * @Version: 1.0
+ * {@code @Description:} MybatisPlusConfig
  */
 @Configuration
 public class MybatisPlusConfig {
 
     /**
      * 分页插件
-     * @return
+     * @return PaginationInnerInterceptor实例
      */
     @Bean
     public PaginationInnerInterceptor paginationInnerInterceptor() {
@@ -23,7 +22,7 @@ public class MybatisPlusConfig {
 
     /**
      * 乐观锁插件
-     * @return
+     * @return OptimisticLockerInnerInterceptor实例
      */
     @Bean
     public OptimisticLockerInnerInterceptor optimisticLockerInnerInterceptor() {

@@ -32,12 +32,21 @@ public class TokenProvider {
 
     private Key key;
 
+    /**
+     * 在组件构造后初始化密钥
+     */
     @PostConstruct
     public void init() {
         this.key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(secretKey));
     }
 
-    // 为用户生成JWT Token
+    /**
+     * 为用户生成JWT Token
+     *
+     * @param username 用户名
+     * @param authorities 用户权限
+     * @return 生成的JWT Token
+     */
     public String createToken(String username, Collection<? extends GrantedAuthority> authorities) {
         long now = System.currentTimeMillis();
         Date validity = new Date(now + JWT_TOKEN_VALIDITY);
@@ -51,31 +60,58 @@ public class TokenProvider {
                 .compact();
     }
 
-    // 从Token中提取用户名
+    /**
+     * 从Token中提取用户名
+     *
+     * @param token JWT Token
+     * @return Token中的用户名
+     */
     public String getUsernameFromToken(String token) {
         return getClaimFromToken(token, Claims::getSubject);
     }
 
-    // 从Token中提取权限
+    /**
+     * 从Token中提取权限
+     *
+     * @param token JWT Token
+     * @return Token中的权限列表
+     */
     public List<String> getAuthoritiesFromToken(String token) {
         return getClaimFromToken(token, claims -> claims.get("authorities", List.class));
     }
 
-    // 从Token中提取特定声明
+    /**
+     * 从Token中提取特定声明
+     *
+     * @param token JWT Token
+     * @param claimsResolver 用于提取声明的函数
+     * @param <T> 声明的类型
+     * @return 提取的声明
+     */
     private <T> T getClaimFromToken(String token, Function<Claims, T> claimsResolver) {
         return claimsResolver.apply(getAllClaimsFromToken(token));
     }
 
-    // 获取Token中的所有声明
+    /**
+     * 获取Token中的所有声明
+     *
+     * @param token JWT Token
+     * @return Token中的所有声明
+     */
     private Claims getAllClaimsFromToken(String token) {
-       return Jwts.parser()
-                   .setSigningKey(key)
-                   .build()
-                   .parseClaimsJws(token)
-                   .getBody();
+        return Jwts.parser()
+                .setSigningKey(key)
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
     }
 
-    // 验证Token是否仍然有效
+    /**
+     * 验证Token是否仍然有效
+     *
+     * @param token JWT Token
+     * @return Token是否有效
+     */
     public boolean validateToken(String token) {
         // 从Token中获取用户名
         String username = getUsernameFromToken(token);
@@ -88,12 +124,22 @@ public class TokenProvider {
         return false;
     }
 
-    // 检查Token是否过期
+    /**
+     * 检查Token是否过期
+     *
+     * @param token JWT Token
+     * @return Token是否过期
+     */
     private boolean isTokenExpired(String token) {
         return getClaimFromToken(token, Claims::getExpiration).before(new Date());
     }
 
-    // 根据Token创建Authentication对象
+    /**
+     * 根据Token创建Authentication对象
+     *
+     * @param token JWT Token
+     * @return 创建的Authentication对象
+     */
     public Authentication getAuthentication(String token) {
         String username = getUsernameFromToken(token);
         List<String> authorityStrings = getAuthoritiesFromToken(token);
@@ -107,7 +153,12 @@ public class TokenProvider {
         return new UsernamePasswordAuthenticationToken(username, null, grantedAuthorities);
     }
 
-    // 将GrantedAuthority集合转换为String列表
+    /**
+     * 将GrantedAuthority集合转换为String列表
+     *
+     * @param authorities GrantedAuthority集合
+     * @return 转换后的String列表
+     */
     private List<String> extractAuthorities(Collection<? extends GrantedAuthority> authorities) {
         return authorities.stream()
                 .map(GrantedAuthority::getAuthority)

@@ -22,31 +22,38 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+// 配置类，用于定义安全相关的配置
 @Configuration
+// 启用Web安全功能
 @EnableWebSecurity
 public class SecurityConfig {
 
+    // 创建JwtAuthenticationFilter实例
     @Bean
     public JwtAuthenticationFilter jwtAuthenticationFilter(TokenProvider tokenProvider) {
         return new JwtAuthenticationFilter(tokenProvider);
     }
 
+    // 创建JwtAuthorizationFilter实例
     @Bean
     public JwtAuthorizationFilter jwtAuthorizationFilter(TokenProvider tokenProvider) {
         return new JwtAuthorizationFilter(tokenProvider);
     }
 
+    // 提供TokenProvider实例
     @Bean
     public TokenProvider tokenProvider() {
         // 实现TokenProvider的逻辑
         return new TokenProvider();
     }
 
+    // 创建密码编码器
     @Bean
     public PasswordEncoder passwordEncoder() {
         return PasswordEncoderFactories.createDelegatingPasswordEncoder();
     }
 
+    // 配置认证管理器
     @Bean
     public AuthenticationManager authenticationManager(UserDetailsService userDetailsService, PasswordEncoder encoder) {
         DaoAuthenticationProvider authenticationProvider = new DaoAuthenticationProvider();
@@ -56,6 +63,7 @@ public class SecurityConfig {
         return authenticationProvider::authenticate;
     }
 
+    // 配置安全过滤器链
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtAuthorizationFilter jwtAuthorizationFilter, JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
         http.csrf(AbstractHttpConfigurer::disable)
@@ -70,6 +78,7 @@ public class SecurityConfig {
         return http.build();
     }
 
+    // 创建UserDetailsService实例，用于用户身份验证
     @Bean
     public UserDetailsService userDetailsService() {
         PasswordEncoder encoder = PasswordEncoderFactories.createDelegatingPasswordEncoder();

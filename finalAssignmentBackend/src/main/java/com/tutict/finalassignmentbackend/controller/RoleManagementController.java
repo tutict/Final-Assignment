@@ -17,23 +17,33 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+// 控制器类，用于管理角色相关操作
 @RestController
 @RequestMapping("/eventbus/roles")
 public class RoleManagementController {
 
+    // 角色管理服务的依赖项
     private final RoleManagementService roleManagementService;
 
+    // 构造函数，通过依赖注入初始化角色管理服务
     @Autowired
     public RoleManagementController(RoleManagementService roleManagementService) {
         this.roleManagementService = roleManagementService;
     }
 
+    // 创建一个新角色
+    // 接受一个包含角色信息的请求体
+    // 返回状态码201 Created，表示角色已成功创建
     @PostMapping
     public ResponseEntity<Void> createRole(@RequestBody RoleManagement role) {
         roleManagementService.createRole(role);
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
+    // 根据角色ID获取角色信息
+    // 接受路径变量roleId作为输入
+    // 如果找到角色，返回状态码200 OK和角色信息
+    // 如果未找到角色，返回状态码204 No Content
     @GetMapping("/{roleId}")
     public ResponseEntity<RoleManagement> getRoleById(@PathVariable int roleId) {
         RoleManagement role = roleManagementService.getRoleById(roleId);
@@ -44,12 +54,18 @@ public class RoleManagementController {
         }
     }
 
+    // 获取所有角色的信息列表
+    // 返回状态码200 OK和角色列表
     @GetMapping
     public ResponseEntity<List<RoleManagement>> getAllRoles() {
         List<RoleManagement> roles = roleManagementService.getAllRoles();
         return ResponseEntity.ok(roles);
     }
 
+    // 根据角色名称获取角色信息
+    // 接受路径变量roleName作为输入
+    // 如果找到角色，返回状态码200 OK和角色信息
+    // 如果未找到角色，返回状态码204 No Content
     @GetMapping("/name/{roleName}")
     public ResponseEntity<RoleManagement> getRoleByName(@PathVariable String roleName) {
         RoleManagement role = roleManagementService.getRoleByName(roleName);
@@ -60,12 +76,19 @@ public class RoleManagementController {
         }
     }
 
+    // 搜索名称相似的角色信息列表
+    // 接受请求参数name作为输入
+    // 返回状态码200 OK和角色列表
     @GetMapping("/search")
     public ResponseEntity<List<RoleManagement>> getRolesByNameLike(@RequestParam("name") String roleName) {
         List<RoleManagement> roles = roleManagementService.getRolesByNameLike(roleName);
         return ResponseEntity.ok(roles);
     }
 
+    // 更新角色信息
+    // 接受路径变量roleId和请求体中的角色信息作为输入
+    // 如果找到角色，更新角色信息并返回状态码200 OK
+    // 如果未找到角色，返回状态码204 No Content
     @PutMapping("/{roleId}")
     public ResponseEntity<Void> updateRole(@PathVariable int roleId, @RequestBody RoleManagement updatedRole) {
         RoleManagement existingRole = roleManagementService.getRoleById(roleId);
@@ -78,18 +101,28 @@ public class RoleManagementController {
         }
     }
 
+    // 删除角色
+    // 接受路径变量roleId作为输入
+    // 返回状态码204 No Content，表示角色已成功删除
     @DeleteMapping("/{roleId}")
     public ResponseEntity<Void> deleteRole(@PathVariable int roleId) {
         roleManagementService.deleteRole(roleId);
         return ResponseEntity.noContent().build();
     }
 
+    // 根据角色名称删除角色
+    // 接受路径变量roleName作为输入
+    // 返回状态码204 No Content，表示角色已成功删除
     @DeleteMapping("/name/{roleName}")
     public ResponseEntity<Void> deleteRoleByName(@PathVariable String roleName) {
         roleManagementService.deleteRoleByName(roleName);
         return ResponseEntity.noContent().build();
     }
 
+    // 根据角色ID获取权限列表
+    // 接受路径变量roleId作为输入
+    // 如果找到权限列表，返回状态码200 OK和权限列表字符串
+    // 如果未找到权限列表，返回状态码204 No Content
     @GetMapping("/{roleId}/permissions")
     public ResponseEntity<String> getPermissionListByRoleId(@PathVariable int roleId) {
         String permissionList = roleManagementService.getPermissionListByRoleId(roleId);
