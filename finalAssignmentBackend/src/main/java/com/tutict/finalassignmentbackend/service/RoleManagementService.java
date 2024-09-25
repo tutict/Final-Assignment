@@ -17,95 +17,123 @@ import java.util.concurrent.CompletableFuture;
 @Service
 public class RoleManagementService {
 
+    // 日志记录器
     private static final Logger log = LoggerFactory.getLogger(RoleManagementService.class);
 
 
+    // RoleManagement的Mapper，用于数据库操作
     private final RoleManagementMapper roleManagementMapper;
+    // Kafka消息模板，用于发送Kafka消息
     private final KafkaTemplate<String, RoleManagement> kafkaTemplate;
 
+    // 构造函数，通过DI注入RoleManagementMapper和KafkaTemplate
     @Autowired
     public RoleManagementService(RoleManagementMapper roleManagementMapper, KafkaTemplate<String, RoleManagement> kafkaTemplate) {
         this.roleManagementMapper = roleManagementMapper;
         this.kafkaTemplate = kafkaTemplate;
     }
 
-    // 创建角色
+    /**
+     * 创建角色
+     * @param role 要创建的角色对象
+     */
     @Transactional
     public void createRole(RoleManagement role) {
         try {
-            // 异步发送消息到 Kafka，并处理发送结果
+            // 异步发送创建角色消息到Kafka
             CompletableFuture<SendResult<String, RoleManagement>> future = kafkaTemplate.send("role_create", role);
 
-            // 处理发送成功的情况
-            future.thenAccept(sendResult -> log.info("Create message sent to Kafka successfully: {}", sendResult.toString())).exceptionally(ex -> {
-                // 处理发送失败的情况
-                log.error("Failed to send message to Kafka, triggering transaction rollback", ex);
-                // 抛出异常
-                throw new RuntimeException("Kafka message send failure", ex);
-            });
+            // 处理消息发送成功的情况
+            future.thenAccept(sendResult -> log.info("Create message sent to Kafka successfully: {}", sendResult.toString()))
+                    // 处理消息发送失败的情况
+                    .exceptionally(ex -> {
+                        log.error("Failed to send message to Kafka, triggering transaction rollback", ex);
+                        throw new RuntimeException("Kafka message send failure", ex);
+                    });
 
-            // 由于是异步发送，不需要等待发送完成，Spring事务管理器将处理事务
+            // 插入角色到数据库，Spring事务管理器管理整个过程
             roleManagementMapper.insert(role);
 
         } catch (Exception e) {
-            // 记录异常信息
+            // 记录异常
             log.error("Exception occurred while updating appeal or sending Kafka message", e);
-            // 异常将由Spring事务管理器处理，可能触发事务回滚
+            // 抛出异常，可能触发事务回滚
             throw e;
         }
     }
 
-    // 根据角色ID查询角色
+    /**
+     * 根据角色ID查询角色
+     * @param roleId 角色ID
+     * @return 查询到的角色对象，如果没有找到则返回null
+     */
     public RoleManagement getRoleById(int roleId) {
         return roleManagementMapper.selectById(roleId);
     }
 
-    // 查询所有角色
+    /**
+     * 查询所有角色
+     * @return 所有角色的列表
+     */
     public List<RoleManagement> getAllRoles() {
         return roleManagementMapper.selectList(null);
     }
 
-    // 根据角色名称查询角色
+    /**
+     * 根据角色名称查询角色
+     * @param roleName 角色名称
+     * @return 查询到的角色对象，如果没有找到则返回null
+     */
     public RoleManagement getRoleByName(String roleName) {
         QueryWrapper<RoleManagement> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("role_name", roleName);
         return roleManagementMapper.selectOne(queryWrapper);
     }
 
-    // 根据角色名称模糊查询角色
+    /**
+     * 根据角色名称模糊查询角色
+     * @param roleName 角色名称的部分字符串
+     * @return 模糊查询到的角色列表
+     */
     public List<RoleManagement> getRolesByNameLike(String roleName) {
         QueryWrapper<RoleManagement> queryWrapper = new QueryWrapper<>();
         queryWrapper.like("role_name", roleName);
         return roleManagementMapper.selectList(queryWrapper);
     }
 
-    // 更新角色
+    /**
+     * 更新角色
+     * @param role 要更新的角色对象
+     */
     @Transactional
     public void updateRole(RoleManagement role) {
         try {
-            // 异步发送消息到 Kafka，并处理发送结果
+            // 异步发送更新角色消息到Kafka
             CompletableFuture<SendResult<String, RoleManagement>> future = kafkaTemplate.send("role_update", role);
 
-            // 处理发送成功的情况
-            future.thenAccept(sendResult -> log.info("Update message sent to Kafka successfully: {}", sendResult.toString())).exceptionally(ex -> {
-                // 处理发送失败的情况
-                log.error("Failed to send message to Kafka, triggering transaction rollback", ex);
-                // 抛出异常
-                throw new RuntimeException("Kafka message send failure", ex);
-            });
+            // 处理消息发送成功的情况
+            future.thenAccept(sendResult -> log.info("Update message sent to Kafka successfully: {}", sendResult.toString()))
+                    // 处理消息发送失败的情况
+                    .exceptionally(ex -> {
+                        log.error("Failed to send message to Kafka, triggering transaction rollback", ex);
+                        throw new RuntimeException("Kafka message send failure", ex);
+                    });
 
-            // 由于是异步发送，不需要等待发送完成，Spring事务管理器将处理事务
+            // 更新数据库中的角色信息
             roleManagementMapper.updateById(role);
 
         } catch (Exception e) {
-            // 记录异常信息
+            // 记录异常
             log.error("Exception occurred while updating appeal or sending Kafka message", e);
-            // 异常将由Spring事务管理器处理，可能触发事务回滚
+            // 抛出异常，可能触发事务回滚
             throw e;
         }
     }
 
-    // 删除角色
+    /**
+     * 删除角色
+     * @param roleId 角色ID
+     */
     public void deleteRole(int roleId) {
         RoleManagement roleToDelete = roleManagementMapper.selectById(roleId);
         if (roleToDelete != null) {
@@ -113,7 +141,10 @@ public class RoleManagementService {
         }
     }
 
-    // 根据角色名称删除角色
+    /**
+     * 根据角色名称删除角色
+     * @param roleName 角色名称
+     */
     public void deleteRoleByName(String roleName) {
         QueryWrapper<RoleManagement> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("role_name", roleName);
@@ -123,7 +154,11 @@ public class RoleManagementService {
         }
     }
 
-    // 根据角色ID查询权限列表
+    /**
+     * 根据角色ID查询权限列表
+     * @param roleId 角色ID
+     * @return 权限列表字符串，如果没有找到则返回null
+     */
     public String getPermissionListByRoleId(int roleId) {
         RoleManagement role = roleManagementMapper.selectById(roleId);
         return role != null ? role.getPermissionList() : null;

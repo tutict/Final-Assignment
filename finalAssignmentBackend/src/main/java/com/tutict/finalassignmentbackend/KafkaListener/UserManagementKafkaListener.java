@@ -16,8 +16,11 @@ import org.springframework.stereotype.Component;
 @Component
 public class UserManagementKafkaListener {
 
+    // 日志记录器
     private static final Logger log = LoggerFactory.getLogger(UserManagementKafkaListener.class);
+    // 用户管理服务
     private final UserManagementService userManagementService;
+    // 对象映射器，用于JSON序列化和反序列化
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Autowired

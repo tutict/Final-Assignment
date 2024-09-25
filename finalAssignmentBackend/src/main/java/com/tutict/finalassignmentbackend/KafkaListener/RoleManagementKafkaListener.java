@@ -15,9 +15,11 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class RoleManagementKafkaListener {
-
+    // 日志记录器，用于记录应用的日志信息
     private static final Logger log = LoggerFactory.getLogger(RoleManagementKafkaListener.class);
+    // 角色管理服务，用于处理角色的创建和更新
     private final RoleManagementService roleManagementService;
+    // 对象映射器，用于JSON序列化和反序列化
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Autowired

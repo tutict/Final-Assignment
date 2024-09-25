@@ -18,11 +18,15 @@ import java.util.concurrent.CompletableFuture;
 @Service
 public class SystemLogsService {
 
+    // 日志记录器，用于记录应用的日志信息
     private static final Logger log = LoggerFactory.getLogger(SystemLogsService.class);
 
+    // MyBatis映射器，用于执行系统日志的数据库操作
     private final SystemLogsMapper systemLogsMapper;
+    // Kafka模板，用于发送消息到Kafka
     private final KafkaTemplate<String, SystemLogs> kafkaTemplate;
 
+    // 构造函数，通过依赖注入初始化SystemLogsMapper和KafkaTemplate
     @Autowired
     public SystemLogsService(SystemLogsMapper systemLogsMapper, KafkaTemplate<String, SystemLogs> kafkaTemplate) {
         this.systemLogsMapper = systemLogsMapper;
@@ -30,6 +34,7 @@ public class SystemLogsService {
     }
 
     // 创建系统日志
+    // 使用事务确保操作的原子性：如果Kafka消息发送失败或数据库插入失败，会触发事务回滚
     @Transactional
     public void createSystemLog(SystemLogs systemLog) {
         try {
@@ -57,36 +62,45 @@ public class SystemLogsService {
 
     // 根据日志ID查询系统日志
     public SystemLogs getSystemLogById(int logId) {
+        // 通过ID查询日志详情
         return systemLogsMapper.selectById(logId);
     }
 
     // 查询所有系统日志
     public List<SystemLogs> getAllSystemLogs() {
+        // 查询并返回所有系统日志
         return systemLogsMapper.selectList(null);
     }
 
     // 根据日志类型查询系统日志
     public List<SystemLogs> getSystemLogsByType(String logType) {
+        // 创建查询条件：根据日志类型查询
         QueryWrapper<SystemLogs> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("log_type", logType);
+        // 执行查询并返回结果
         return systemLogsMapper.selectList(queryWrapper);
     }
 
     // 根据操作时间范围查询系统日志
     public List<SystemLogs> getSystemLogsByTimeRange(Date startTime, Date endTime) {
+        // 创建查询条件：根据操作时间范围查询
         QueryWrapper<SystemLogs> queryWrapper = new QueryWrapper<>();
         queryWrapper.between("operation_time", startTime, endTime);
+        // 执行查询并返回结果
         return systemLogsMapper.selectList(queryWrapper);
     }
 
     // 根据操作用户查询系统日志
     public List<SystemLogs> getSystemLogsByOperationUser(String operationUser) {
+        // 创建查询条件：根据操作用户查询
         QueryWrapper<SystemLogs> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("operation_user", operationUser);
+        // 执行查询并返回结果
         return systemLogsMapper.selectList(queryWrapper);
     }
 
     // 更新系统日志
+    // 使用事务确保操作的原子性：如果Kafka消息发送失败或数据库更新失败，会触发事务回滚
     @Transactional
     public void updateSystemLog(SystemLogs systemLog) {
         try {
@@ -114,8 +128,10 @@ public class SystemLogsService {
 
     // 删除系统日志
     public void deleteSystemLog(int logId) {
+        // 根据ID查询待删除的日志，确保日志存在
         SystemLogs systemLogToDelete = systemLogsMapper.selectById(logId);
         if (systemLogToDelete != null) {
+            // 删除日志
             systemLogsMapper.deleteById(logId);
         }
     }

@@ -68,13 +68,13 @@ public class UserManagementService {
 
     // 查询所有用户
     public List<UserManagement> getAllUsers() {
-            UserManagement newUser = new UserManagement();
-            if (userManagementMapper.selectCount(null) == 0) {
-                newUser.setEmail(newUser.getEmail());
-                newUser.setPassword(newUser.getPassword());
-                createUser(newUser);
-            }
-            return userManagementMapper.selectList(null);
+        UserManagement newUser = new UserManagement();
+        if (userManagementMapper.selectCount(null) == 0) {
+            newUser.setEmail(newUser.getEmail());
+            newUser.setPassword(newUser.getPassword());
+            createUser(newUser);
+        }
+        return userManagementMapper.selectList(null);
     }
 
     // 根据用户类型查询用户

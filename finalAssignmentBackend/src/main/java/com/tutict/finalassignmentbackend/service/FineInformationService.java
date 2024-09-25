@@ -16,17 +16,25 @@ import java.util.concurrent.CompletableFuture;
 @Service
 public class FineInformationService {
 
+    // 日志记录器，用于记录应用运行时的信息
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(FineInformationService.class);
 
+    // MyBatis映射器，用于执行数据库操作
     private final FineInformationMapper fineInformationMapper;
+    // Kafka模板，用于发送消息到Kafka
     private final KafkaTemplate<String, FineInformation> kafkaTemplate;
 
+    // 构造函数，通过依赖注入初始化FineInformationMapper和KafkaTemplate
     @Autowired
     public FineInformationService(FineInformationMapper fineInformationMapper, KafkaTemplate<String, FineInformation> kafkaTemplate) {
         this.fineInformationMapper = fineInformationMapper;
         this.kafkaTemplate = kafkaTemplate;
     }
 
+    /**
+     * 创建罚款信息，并向Kafka发送消息
+     * @param fineInformation 罚款信息对象
+     */
     @Transactional
     public void createFine(FineInformation fineInformation) {
         try {
@@ -52,14 +60,27 @@ public class FineInformationService {
         }
     }
 
+    /**
+     * 根据罚款ID获取罚款信息
+     * @param fineId 罚款ID
+     * @return 罚款信息对象
+     */
     public FineInformation getFineById(int fineId) {
         return fineInformationMapper.selectById(fineId);
     }
 
+    /**
+     * 获取所有罚款信息
+     * @return 罚款信息列表
+     */
     public List<FineInformation> getAllFines() {
         return fineInformationMapper.selectList(null);
     }
 
+    /**
+     * 更新罚款信息，并向Kafka发送消息
+     * @param fineInformation 罚款信息对象
+     */
     @Transactional
     public void updateFine(FineInformation fineInformation) {
         try {
@@ -85,24 +106,42 @@ public class FineInformationService {
         }
     }
 
+    /**
+     * 删除罚款信息
+     * @param fineId 罚款ID
+     */
     public void deleteFine(int fineId) {
         fineInformationMapper.deleteById(fineId);
     }
 
-    // get all fines by payee
+    /**
+     * 根据付款人获取所有罚款信息
+     * @param payee 付款人
+     * @return 罚款信息列表
+     */
     public List<FineInformation> getFinesByPayee(String payee) {
         QueryWrapper<FineInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("payee", payee);
         return fineInformationMapper.selectList(queryWrapper);
     }
 
-    // get all fines by time range
+    /**
+     * 根据时间范围获取所有罚款信息
+     * @param startTime 开始时间
+     * @param endTime 结束时间
+     * @return 罚款信息列表
+     */
     public List<FineInformation> getFinesByTimeRange(Date startTime, Date endTime) {
         QueryWrapper<FineInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.between("fineTime", startTime, endTime);
         return fineInformationMapper.selectList(queryWrapper);
     }
 
+    /**
+     * 根据收据编号获取罚款信息
+     * @param receiptNumber 收据编号
+     * @return 罚款信息对象
+     */
     public FineInformation getFineByReceiptNumber(String receiptNumber) {
         QueryWrapper<FineInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("receiptNumber", receiptNumber);

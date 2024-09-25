@@ -13,18 +13,26 @@ import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
 
 
+// 定义一个Kafka消息监听器类，用于处理权限管理相关的Kafka消息
 @Component
 public class PermissionManagementKafkaListener {
 
+    // 初始化日志记录器
     private static final Logger log = LoggerFactory.getLogger(PermissionManagementKafkaListener.class);
+
+    // 权限管理服务接口，用于处理权限的业务逻辑
     private final PermissionManagementService permissionManagementService;
+
+    // 对象映射器，用于JSON序列化和反序列化
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    // 构造函数，自动注入权限管理服务
     @Autowired
     public PermissionManagementKafkaListener(PermissionManagementService permissionManagementService) {
         this.permissionManagementService = permissionManagementService;
     }
 
+    // 监听权限创建主题，处理权限创建消息
     @KafkaListener(topics = "permission_create", groupId = "permission_listener_group")
     public void onPermissionCreateReceived(String message, Acknowledgment acknowledgment) {
         Future.<Void>future(promise -> {
@@ -50,6 +58,7 @@ public class PermissionManagementKafkaListener {
         });
     }
 
+    // 监听权限更新主题，处理权限更新消息
     @KafkaListener(topics = "permission_update", groupId = "permission_listener_group")
     public void onPermissionUpdateReceived(String message, Acknowledgment acknowledgment) {
         Future.<Void>future(promise -> {
@@ -75,8 +84,8 @@ public class PermissionManagementKafkaListener {
         });
     }
 
+    // 反序列化JSON消息为PermissionManagement对象
     private PermissionManagement deserializeMessage(String message) throws JsonProcessingException {
-        // 实现JSON字符串到PermissionManagement对象的反序列化
         return objectMapper.readValue(message, PermissionManagement.class);
     }
 }

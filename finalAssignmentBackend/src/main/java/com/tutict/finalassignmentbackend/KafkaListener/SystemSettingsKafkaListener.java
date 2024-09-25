@@ -12,18 +12,26 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
 
+// 系统设置的Kafka监听器组件
 @Component
 public class SystemSettingsKafkaListener {
 
+    // 日志记录器
     private static final Logger log = LoggerFactory.getLogger(SystemSettingsKafkaListener.class);
+
+    // 系统设置服务
     private final SystemSettingsService systemSettingsService;
+
+    // JSON处理对象
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    // 构造函数，注入系统设置服务
     @Autowired
     public SystemSettingsKafkaListener(SystemSettingsService systemSettingsService) {
         this.systemSettingsService = systemSettingsService;
     }
 
+    // 监听Kafka上的系统设置更新消息
     @KafkaListener(topics = "system_settings_update", groupId = "system_settings_listener_group")
     public void onSystemSettingsUpdateReceived(String message, Acknowledgment acknowledgment) {
         Future.<Void>future(promise -> {
@@ -51,6 +59,7 @@ public class SystemSettingsKafkaListener {
         });
     }
 
+    // 将JSON字符串反序列化为SystemSettings对象
     private SystemSettings deserializeMessage(String message) throws JsonProcessingException {
         // 实现JSON字符串到SystemSettings对象的反序列化
         return objectMapper.readValue(message, SystemSettings.class);

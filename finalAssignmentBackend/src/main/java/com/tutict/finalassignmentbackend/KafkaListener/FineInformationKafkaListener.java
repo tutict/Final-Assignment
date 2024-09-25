@@ -13,18 +13,24 @@ import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
 
 
+// 定义一个Kafka消息监听器，用于处理罚款信息的相关消息
 @Component
 public class FineInformationKafkaListener {
 
+    // 初始化日志记录器
     private static final Logger log = LoggerFactory.getLogger(FineInformationKafkaListener.class);
+    // 注入罚款信息服务
     private final FineInformationService fineInformationService;
+    // 初始化一个对象映射器，用于JSON序列化和反序列化
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    // 构造函数，初始化罚款信息服务
     @Autowired
     public FineInformationKafkaListener(FineInformationService fineInformationService) {
         this.fineInformationService = fineInformationService;
     }
 
+    // 监听罚款创建消息的主题
     @KafkaListener(topics = "fine_create", groupId = "fine_listener_group")
     public void onFineCreateReceived(String message, Acknowledgment acknowledgment) {
         Future.<Void>future(promise -> {
@@ -50,6 +56,7 @@ public class FineInformationKafkaListener {
         });
     }
 
+    // 监听罚款更新消息的主题
     @KafkaListener(topics = "fine_update", groupId = "fine_listener_group")
     public void onFineUpdateReceived(String message, Acknowledgment acknowledgment) {
         Future.<Void>future(promise -> {
@@ -75,6 +82,7 @@ public class FineInformationKafkaListener {
         });
     }
 
+    // 反序列化JSON消息为FineInformation对象
     private FineInformation deserializeMessage(String message) throws JsonProcessingException {
         // 实现JSON字符串到FineInformation对象的反序列化
         return objectMapper.readValue(message, FineInformation.class);

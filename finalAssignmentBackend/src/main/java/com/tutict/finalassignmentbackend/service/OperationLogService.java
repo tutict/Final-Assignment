@@ -18,18 +18,26 @@ import java.util.concurrent.CompletableFuture;
 @Service
 public class OperationLogService {
 
+    // Logger实例，用于记录应用日志
     private static final Logger log = LoggerFactory.getLogger(OperationLogService.class);
 
-
+    // 操作日志数据访问对象，用于执行数据库操作
     private final OperationLogMapper operationLogMapper;
+    // Kafka模板，用于发送消息到Kafka
     private final KafkaTemplate<String, OperationLog> kafkaTemplate;
 
+    // 构造函数，通过依赖注入初始化OperationLogMapper和KafkaTemplate
     @Autowired
     public OperationLogService(OperationLogMapper operationLogMapper, KafkaTemplate<String, OperationLog> kafkaTemplate) {
         this.operationLogMapper = operationLogMapper;
         this.kafkaTemplate = kafkaTemplate;
     }
 
+    /**
+     * 创建操作日志
+     *
+     * @param operationLog 待创建的操作日志对象
+     */
     @Transactional
     public void createOperationLog(OperationLog operationLog) {
         try {
@@ -55,14 +63,30 @@ public class OperationLogService {
         }
     }
 
+    /**
+     * 根据日志ID获取操作日志
+     *
+     * @param logId 操作日志的ID
+     * @return 对应ID的操作日志对象
+     */
     public OperationLog getOperationLog(int logId) {
         return operationLogMapper.selectById(logId);
     }
 
+    /**
+     * 获取所有操作日志
+     *
+     * @return 包含所有操作日志的列表
+     */
     public List<OperationLog> getAllOperationLogs() {
         return operationLogMapper.selectList(null);
     }
 
+    /**
+     * 更新操作日志
+     *
+     * @param operationLog 待更新的操作日志对象
+     */
     @Transactional
     public void updateOperationLog(OperationLog operationLog) {
         try {
@@ -88,25 +112,46 @@ public class OperationLogService {
         }
     }
 
+    /**
+     * 根据日志ID删除操作日志
+     *
+     * @param logId 操作日志的ID
+     */
     public void deleteOperationLog(int logId) {
         operationLogMapper.deleteById(logId);
     }
 
-    // 根据时间范围查询操作日志
+    /**
+     * 根据时间范围查询操作日志
+     *
+     * @param startTime 查询的开始时间
+     * @param endTime 查询的结束时间
+     * @return 在指定时间范围内的操作日志列表
+     */
     public List<OperationLog> getOperationLogsByTimeRange(Date startTime, Date endTime) {
         QueryWrapper<OperationLog> queryWrapper = new QueryWrapper<>();
         queryWrapper.between("operation_time", startTime, endTime);
         return operationLogMapper.selectList(queryWrapper);
     }
 
-    // 根据用户ID查询操作日志
+    /**
+     * 根据用户ID查询操作日志
+     *
+     * @param userId 用户ID
+     * @return 对应用户ID的操作日志列表
+     */
     public List<OperationLog> getOperationLogsByUserId(String userId) {
         QueryWrapper<OperationLog> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("user_id", userId);
         return operationLogMapper.selectList(queryWrapper);
     }
 
-    // 根据操作结果查询操作日志
+    /**
+     * 根据操作结果查询操作日志
+     *
+     * @param operationResult 操作结果
+     * @return 对应操作结果的操作日志列表
+     */
     public List<OperationLog> getOperationLogsByResult(String operationResult) {
         QueryWrapper<OperationLog> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("operation_result", operationResult);

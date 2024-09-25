@@ -16,15 +16,21 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+// 申诉管理服务类
 @Service
 public class AppealManagementService {
 
+    // 日志记录器
     private static final Logger log = LoggerFactory.getLogger(AppealManagementService.class);
 
+    // 持久层映射器，用于申诉管理操作
     private final AppealManagementMapper appealManagementMapper;
+    // 持久层映射器，用于违法行为信息操作
     private final OffenseInformationMapper offenseInformationMapper;
+    // Kafka模板，用于发送申诉相关消息
     private final KafkaTemplate<String, AppealManagement> kafkaTemplate;
 
+    // 构造函数，通过DI注入映射器和Kafka模板
     @Autowired
     public AppealManagementService(AppealManagementMapper appealManagementMapper, OffenseInformationMapper offenseInformationMapper, KafkaTemplate<String, AppealManagement> kafkaTemplate) {
         this.appealManagementMapper = appealManagementMapper;
@@ -32,6 +38,7 @@ public class AppealManagementService {
         this.kafkaTemplate = kafkaTemplate;
     }
 
+    // 创建申诉记录
     @Transactional
     public void createAppeal(AppealManagement appeal) {
         try {
@@ -57,14 +64,17 @@ public class AppealManagementService {
         }
     }
 
+    // 根据申诉ID获取申诉记录
     public AppealManagement getAppealById(Long appealId) {
         return appealManagementMapper.selectById(appealId);
     }
 
+    // 获取所有申诉记录
     public List<AppealManagement> getAllAppeals() {
         return appealManagementMapper.selectList(null);
     }
 
+    // 更新申诉记录
     @Transactional
     public void updateAppeal(AppealManagement appeal) {
         try {
@@ -91,25 +101,26 @@ public class AppealManagementService {
     }
 
 
+    // 删除申诉记录
     public void deleteAppeal(Long appealId) {
         appealManagementMapper.deleteById(appealId);
     }
 
-    //根据申述状态查询申述信息
+    // 根据申诉状态查询申诉信息
     public List<AppealManagement> getAppealsByProcessStatus(String processStatus) {
         QueryWrapper<AppealManagement> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("process_status", processStatus);
         return appealManagementMapper.selectList(queryWrapper);
     }
 
-    //根据申述人姓名查询申述信息
+    // 根据申诉人姓名查询申诉信息
     public List<AppealManagement> getAppealsByAppealName(String appealName) {
         QueryWrapper<AppealManagement> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("appeal_name", appealName);
         return appealManagementMapper.selectList(queryWrapper);
     }
 
-    //根据申述ID查询关联的违法行为信息
+    // 根据申诉ID查询关联的违法行为信息
     public OffenseInformation getOffenseByAppealId(Long appealId) {
         AppealManagement appeal = appealManagementMapper.selectById(appealId);
         if (appeal != null) {

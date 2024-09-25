@@ -17,11 +17,15 @@ import java.util.concurrent.CompletableFuture;
 @Service
 public class VehicleInformationService {
 
+    // 日志记录器，用于记录应用的运行信息
     private static final Logger log = LoggerFactory.getLogger(VehicleInformationService.class);
 
+    // MyBatis映射器，用于执行车辆信息的数据访问操作
     private final VehicleInformationMapper vehicleInformationMapper;
+    // Kafka模板，用于发送消息到Kafka消息队列
     private final KafkaTemplate<String, VehicleInformation> kafkaTemplate;
 
+    // 构造函数，通过依赖注入初始化VehicleInformationMapper和KafkaTemplate
     @Autowired
     public VehicleInformationService(VehicleInformationMapper vehicleInformationMapper, KafkaTemplate<String, VehicleInformation> kafkaTemplate) {
         this.vehicleInformationMapper = vehicleInformationMapper;

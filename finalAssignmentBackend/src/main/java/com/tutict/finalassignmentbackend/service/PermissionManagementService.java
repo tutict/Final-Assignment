@@ -17,19 +17,27 @@ import java.util.concurrent.CompletableFuture;
 @Service
 public class PermissionManagementService {
 
+    // 日志记录器
     private static final Logger log = LoggerFactory.getLogger(PermissionManagementService.class);
 
 
+    // 权限管理的数据库操作接口
     private final PermissionManagementMapper permissionManagementMapper;
+    // Kafka消息模板，用于发送消息
     private final KafkaTemplate<String, PermissionManagement> kafkaTemplate;
 
+    // 构造函数，通过DI注入必要的组件
     @Autowired
     public PermissionManagementService(PermissionManagementMapper permissionManagementMapper, KafkaTemplate<String, PermissionManagement> kafkaTemplate) {
         this.permissionManagementMapper = permissionManagementMapper;
         this.kafkaTemplate = kafkaTemplate;
     }
 
-    // 创建权限
+    /**
+     * 创建权限
+     *
+     * @param permission 待创建的权限对象
+     */
     @Transactional
     public void createPermission(PermissionManagement permission) {
         try {
@@ -55,31 +63,54 @@ public class PermissionManagementService {
         }
     }
 
-    // 根据权限ID查询权限
+    /**
+     * 根据权限ID查询权限
+     *
+     * @param permissionId 权限ID
+     * @return 查询到的权限对象，如果不存在则返回null
+     */
     public PermissionManagement getPermissionById(int permissionId) {
         return permissionManagementMapper.selectById(permissionId);
     }
 
-    // 查询所有权限
+    /**
+     * 查询所有权限
+     *
+     * @return 所有权限的列表
+     */
     public List<PermissionManagement> getAllPermissions() {
         return permissionManagementMapper.selectList(null);
     }
 
-    // 根据权限名称查询权限
+    /**
+     * 根据权限名称查询权限
+     *
+     * @param permissionName 权限名称
+     * @return 查询到的权限对象，如果不存在则返回null
+     */
     public PermissionManagement getPermissionByName(String permissionName) {
         QueryWrapper<PermissionManagement> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("permission_name", permissionName);
         return permissionManagementMapper.selectOne(queryWrapper);
     }
 
-    // 根据权限名称模糊查询权限
+    /**
+     * 根据权限名称模糊查询权限
+     *
+     * @param permissionName 权限名称的部分字符串
+     * @return 模糊查询到的所有权限列表
+     */
     public List<PermissionManagement> getPermissionsByNameLike(String permissionName) {
         QueryWrapper<PermissionManagement> queryWrapper = new QueryWrapper<>();
         queryWrapper.like("permission_name", permissionName);
         return permissionManagementMapper.selectList(queryWrapper);
     }
 
-    // 更新权限
+    /**
+     * 更新权限
+     *
+     * @param permission 待更新的权限对象
+     */
     @Transactional
     public void updatePermission(PermissionManagement permission) {
         try {
@@ -104,7 +135,11 @@ public class PermissionManagementService {
         }
     }
 
-    // 删除权限
+    /**
+     * 删除权限
+     *
+     * @param permissionId 权限ID
+     */
     public void deletePermission(int permissionId) {
         PermissionManagement permissionToDelete = permissionManagementMapper.selectById(permissionId);
         if (permissionToDelete != null) {
@@ -112,7 +147,11 @@ public class PermissionManagementService {
         }
     }
 
-    // 根据权限名称删除权限
+    /**
+     * 根据权限名称删除权限
+     *
+     * @param permissionName 权限名称
+     */
     public void deletePermissionByName(String permissionName) {
         QueryWrapper<PermissionManagement> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("permission_name", permissionName);

@@ -15,21 +15,27 @@ import java.util.Date;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+// 定义一个服务类，用于处理违规信息的相关操作
 @Service
 public class OffenseInformationService {
 
+    // Logger用于记录应用运行时的日志信息
     private static final Logger log = LoggerFactory.getLogger(OffenseInformationService.class);
 
 
+    // 定义一个违规信息的Mapper接口实例，用于数据库操作
     private final OffenseInformationMapper offenseInformationMapper;
+    // 定义一个Kafka模板实例，用于发送消息到Kafka
     private final KafkaTemplate<String, OffenseInformation> kafkaTemplate;
 
+    // 构造函数，通过Spring的依赖注入初始化Mapper和KafkaTemplate实例
     @Autowired
     public OffenseInformationService(OffenseInformationMapper offenseInformationMapper, KafkaTemplate<String, OffenseInformation> kafkaTemplate) {
         this.offenseInformationMapper = offenseInformationMapper;
         this.kafkaTemplate = kafkaTemplate;
     }
 
+    // 创建违规信息，包含Kafka消息的异步发送和数据库插入操作
     @Transactional
     public void createOffense(OffenseInformation offenseInformation) {
         try {
@@ -55,14 +61,17 @@ public class OffenseInformationService {
         }
     }
 
+    // 根据违规ID获取违规信息
     public OffenseInformation getOffenseByOffenseId(int offenseId) {
         return offenseInformationMapper.selectById(offenseId);
     }
 
+    // 获取所有违规信息
     public List<OffenseInformation> getOffensesInformation() {
         return offenseInformationMapper.selectList(null);
     }
 
+    // 更新违规信息，包含Kafka消息的异步发送和数据库更新操作
     @Transactional
     public void updateOffense(OffenseInformation offenseInformation) {
         try {
@@ -88,32 +97,33 @@ public class OffenseInformationService {
         }
     }
 
+    // 删除违规信息
     public void deleteOffense(int offenseId) {
         offenseInformationMapper.deleteById(offenseId);
     }
 
-    // 根据时间范围查询
+    // 根据时间范围查询违规信息
     public List<OffenseInformation> getOffensesByTimeRange(Date startTime, Date endTime) {
         QueryWrapper<OffenseInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.between("offense_time", startTime, endTime);
         return offenseInformationMapper.selectList(queryWrapper);
     }
 
-    // 根据处理状态查询
+    // 根据处理状态查询违规信息
     public List<OffenseInformation> getOffensesByProcessState(String processState) {
         QueryWrapper<OffenseInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("process_status", processState);
         return offenseInformationMapper.selectList(queryWrapper);
     }
 
-    // 根据驾驶员姓名查询
+    // 根据驾驶员姓名查询违规信息
     public List<OffenseInformation> getOffensesByDriverName(String driverName) {
         QueryWrapper<OffenseInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("driver_name", driverName);
         return offenseInformationMapper.selectList(queryWrapper);
     }
 
-    // 根据车牌号查询
+    // 根据车牌号查询违规信息
     public List<OffenseInformation> getOffensesByLicensePlate(String offenseLicensePlate) {
         QueryWrapper<OffenseInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("license_plate", offenseLicensePlate);

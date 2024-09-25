@@ -14,20 +14,29 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+// 备份恢复服务类，处理备份创建、更新、查询和删除操作
 @Service
 public class BackupRestoreService {
 
+    // 日志记录器，用于记录应用运行时的日志信息
     private static final Logger log = LoggerFactory.getLogger(BackupRestoreService.class);
 
+    // 备份恢复数据访问对象，用于数据库操作
     private final BackupRestoreMapper backupRestoreMapper;
+    // Kafka消息模板，用于发送消息到Kafka主题
     private final KafkaTemplate<String, BackupRestore> kafkaTemplate;
 
+    // 构造函数，通过依赖注入初始化BackupRestoreMapper和KafkaTemplate
     @Autowired
     public BackupRestoreService(BackupRestoreMapper backupRestoreMapper, KafkaTemplate<String, BackupRestore> kafkaTemplate) {
         this.backupRestoreMapper = backupRestoreMapper;
         this.kafkaTemplate = kafkaTemplate;
     }
 
+    /**
+     * 创建备份
+     * @param backup 要创建的备份对象，包含备份的所有相关信息
+     */
     @Transactional
     public void createBackup(BackupRestore backup) {
         try {
@@ -53,18 +62,35 @@ public class BackupRestoreService {
         }
     }
 
+    /**
+     * 获取所有备份列表
+     * @return 包含所有备份的列表
+     */
     public List<BackupRestore> getAllBackups() {
         return backupRestoreMapper.selectList(null);
     }
 
+    /**
+     * 根据ID获取备份
+     * @param backupId 备份的唯一标识符
+     * @return 指定ID的备份对象，如果不存在则返回null
+     */
     public BackupRestore getBackupById(int backupId) {
         return backupRestoreMapper.selectById(backupId);
     }
 
+    /**
+     * 删除指定ID的备份
+     * @param backupId 要删除的备份的ID
+     */
     public void deleteBackup(int backupId) {
         backupRestoreMapper.deleteById(backupId);
     }
 
+    /**
+     * 更新备份信息
+     * @param backup 包含更新后的备份信息的对象
+     */
     @Transactional
     public void updateBackup(BackupRestore backup) {
         try {
@@ -90,12 +116,22 @@ public class BackupRestoreService {
         }
     }
 
+    /**
+     * 根据文件名获取备份
+     * @param backupFileName 备份文件名
+     * @return 指定文件名的备份对象，如果不存在则返回null
+     */
     public BackupRestore getupByFileName(String backupFileName) {
         QueryWrapper<BackupRestore> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("backupFileName", backupFileName);
         return backupRestoreMapper.selectOne(queryWrapper);
     }
 
+    /**
+     * 根据时间获取备份列表
+     * @param backupTime 备份时间
+     * @return 指定时间的备份列表
+     */
     public List<BackupRestore> getBackupsByTime(String backupTime) {
         QueryWrapper<BackupRestore> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("backupTime", backupTime);
