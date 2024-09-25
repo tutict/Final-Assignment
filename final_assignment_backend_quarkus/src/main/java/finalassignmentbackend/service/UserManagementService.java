@@ -8,6 +8,7 @@ import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Emitter;
+import org.mindrot.jbcrypt.BCrypt;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -123,6 +124,20 @@ public class UserManagementService {
         }
     }
 
+    // 检查用户名和密码是否匹配
+    public boolean authenticate(String username, String password) {
+        // 根据用户名查询用户
+        QueryWrapper<UserManagement> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("username", username);
+        UserManagement user = userManagementMapper.selectOne(queryWrapper);
+
+        if (user == null) {
+            // 用户不存在
+            return false;
+        }
+        // 使用 BCrypt 检查密码是否匹配
+        return BCrypt.checkpw(password, user.getPassword());
+    }
 
     // 检查用户名是否存在
     public boolean isUsernameExists(String username) {
