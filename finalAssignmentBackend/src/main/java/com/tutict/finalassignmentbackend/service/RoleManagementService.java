@@ -151,8 +151,6 @@ public class RoleManagementService {
         } catch (Exception e) {
             // 记录异常信息
             log.error("Exception occurred while deleting role", e);
-            // 抛出异常
-            throw e;
         }
     }
 

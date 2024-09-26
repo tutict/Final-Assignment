@@ -112,7 +112,11 @@ public class DriverInformationService {
      * @param driverId 要删除的司机的 ID
      */
     public void deleteDriver(int driverId) {
-        driverInformationMapper.deleteById(driverId);
+        try {
+            driverInformationMapper.deleteById(driverId);
+        } catch (Exception e) {
+            log.error("删除请求时发生异常", e);
+        }
     }
 
     /**

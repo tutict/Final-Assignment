@@ -23,7 +23,7 @@ public class OperationLogKafkaListener {
     private final OperationLogService operationLogService;
 
     // 对象映射器，用于JSON序列化和反序列化
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     // 构造函数，通过@Autowired自动装配OperationLogService实例
     @Autowired
@@ -85,7 +85,11 @@ public class OperationLogKafkaListener {
 
     // 将JSON字符串反序列化为OperationLog对象
     private OperationLog deserializeMessage(String message) throws JsonProcessingException {
-        // 实现JSON字符串到OperationLog对象的反序列化
-        return objectMapper.readValue(message, OperationLog.class);
+        try {
+            // 实现JSON字符串到OperationLog对象的反序列化
+            return objectMapper.readValue(message, OperationLog.class);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }

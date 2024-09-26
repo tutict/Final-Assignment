@@ -18,7 +18,7 @@ public class OffenseInformationKafkaListener {
 
     private static final Logger log = LoggerFactory.getLogger(OffenseInformationKafkaListener.class);
     private final OffenseInformationService offenseInformationService;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     @Autowired
     public OffenseInformationKafkaListener(OffenseInformationService offenseInformationService) {
@@ -76,7 +76,11 @@ public class OffenseInformationKafkaListener {
     }
 
     private OffenseInformation deserializeMessage(String message) throws JsonProcessingException {
-        // 实现JSON字符串到OffenseInformation对象的反序列化
-        return objectMapper.readValue(message, OffenseInformation.class);
+        try {
+            // 实现JSON字符串到OffenseInformation对象的反序列化
+            return objectMapper.readValue(message, OffenseInformation.class);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }

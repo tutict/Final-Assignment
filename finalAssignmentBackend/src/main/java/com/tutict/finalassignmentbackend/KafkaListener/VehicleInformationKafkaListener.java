@@ -21,7 +21,7 @@ public class VehicleInformationKafkaListener {
     // 注入车辆信息业务服务
     private final VehicleInformationService vehicleInformationService;
     // 初始化对象映射器，用于JSON序列化和反序列化
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     // 构造函数，自动注入车辆信息业务服务
     @Autowired
@@ -85,6 +85,10 @@ public class VehicleInformationKafkaListener {
 
     // 将JSON字符串反序列化为VehicleInformation对象
     private VehicleInformation deserializeMessage(String message) throws JsonProcessingException {
-        return objectMapper.readValue(message, VehicleInformation.class);
+        try {
+            return objectMapper.readValue(message, VehicleInformation.class);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }

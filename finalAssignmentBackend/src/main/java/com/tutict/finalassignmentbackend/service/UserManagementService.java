@@ -144,7 +144,6 @@ public class UserManagementService {
     /**
      * 删除用户
      * @param userId 用户ID
-     * @throws IllegalArgumentException 如果用户ID无效
      */
     public void deleteUser(int userId) {
         try {
@@ -155,8 +154,6 @@ public class UserManagementService {
         } catch (Exception e) {
             // 记录异常信息
             log.error("Exception occurred while deleting user", e);
-            // 抛出异常
-            throw e;
         }
     }
 

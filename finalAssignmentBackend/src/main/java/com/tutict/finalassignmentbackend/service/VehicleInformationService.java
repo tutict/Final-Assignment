@@ -163,7 +163,6 @@ public class VehicleInformationService {
             vehicleInformationMapper.deleteById(vehicleId);
         } catch (Exception e) {
             log.error("Exception occurred while deleting vehicle information", e);
-            throw e;
         }
     }
 

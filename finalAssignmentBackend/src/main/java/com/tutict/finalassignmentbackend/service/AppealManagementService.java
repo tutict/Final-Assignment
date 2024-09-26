@@ -113,17 +113,21 @@ public class AppealManagementService {
      * @param appealId 申诉ID
      */
     public void deleteAppeal(Long appealId) {
-        AppealManagement appeal = appealManagementMapper.selectById(appealId);
-        if (appeal == null) {
-            log.warn("Appeal with ID {} not found, cannot delete", appealId);
-            return;
-        }
+        try {
+            AppealManagement appeal = appealManagementMapper.selectById(appealId);
+            if (appeal == null) {
+                log.warn("Appeal with ID {} not found, cannot delete", appealId);
+                return;
+            }
 
-        int result = appealManagementMapper.deleteById(appealId);
-        if (result > 0) {
-            log.info("Appeal with ID {} deleted successfully", appealId);
-        } else {
-            log.error("Failed to delete appeal with ID {}", appealId);
+            int result = appealManagementMapper.deleteById(appealId);
+            if (result > 0) {
+                log.info("Appeal with ID {} deleted successfully", appealId);
+            } else {
+                log.error("Failed to delete appeal with ID {}", appealId);
+            }
+        } catch (Exception e) {
+            log.error("Exception occurred while deleting appeal", e);
         }
     }
 

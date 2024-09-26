@@ -100,13 +100,16 @@ public class OffenseInformationService {
     /**
      * 删除违规信息
      * @param offenseId 违规ID
-     * @throws IllegalArgumentException 如果提供的违规ID无效，则抛出此异常
      */
     public void deleteOffense(int offenseId) {
-        if (offenseId <= 0) {
-            throw new IllegalArgumentException("Invalid offense ID");
+        try {
+            if (offenseId <= 0) {
+                throw new IllegalArgumentException("Invalid offense ID");
+            }
+            offenseInformationMapper.deleteById(offenseId);
+        } catch (Exception e) {
+            log.error("Exception occurred while deleting offense", e);
         }
-        offenseInformationMapper.deleteById(offenseId);
     }
 
     /**

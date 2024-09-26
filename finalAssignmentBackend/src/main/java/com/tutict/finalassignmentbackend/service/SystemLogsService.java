@@ -166,8 +166,6 @@ public class SystemLogsService {
         } catch (Exception e) {
             // 记录异常信息
             log.error("Exception occurred while deleting system log", e);
-            // 抛出异常
-            throw e;
         }
     }
 }

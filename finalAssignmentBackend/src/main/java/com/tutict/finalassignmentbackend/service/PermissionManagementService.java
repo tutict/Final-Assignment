@@ -141,7 +141,6 @@ public class PermissionManagementService {
     /**
      * 删除权限
      * @param permissionId 权限ID
-     * @throws IllegalArgumentException 如果权限ID为空，则抛出此异常
      */
     public void deletePermission(int permissionId) {
         try {
@@ -152,8 +151,6 @@ public class PermissionManagementService {
         } catch (Exception e) {
             // 记录异常信息
             log.error("Exception occurred while deleting permission", e);
-            // 抛出异常
-            throw e;
         }
     }
 

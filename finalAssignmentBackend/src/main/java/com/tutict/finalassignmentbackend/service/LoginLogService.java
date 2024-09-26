@@ -118,8 +118,6 @@ public class LoginLogService {
         } catch (Exception e) {
             // 记录异常信息
             log.error("Exception occurred while deleting login log", e);
-            // 抛出异常
-            throw e;
         }
     }
 

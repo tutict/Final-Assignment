@@ -87,7 +87,11 @@ public class BackupRestoreService {
      * @param backupId 要删除的备份的ID
      */
     public void deleteBackup(int backupId) {
-        backupRestoreMapper.deleteById(backupId);
+        try {
+            backupRestoreMapper.deleteById(backupId);
+        } catch (Exception e) {
+            log.error("Exception occurred while deleting backup", e);
+        }
     }
 
     /**

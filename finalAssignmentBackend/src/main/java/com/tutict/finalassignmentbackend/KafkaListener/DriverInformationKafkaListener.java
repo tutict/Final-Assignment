@@ -21,7 +21,7 @@ public class DriverInformationKafkaListener {
     // 驾驶员信息服务类
     private final DriverInformationService driverInformationService;
     // 对象映射器，用于JSON处理
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     // 构造函数，自动装配DriverInformationService
     @Autowired
@@ -87,7 +87,11 @@ public class DriverInformationKafkaListener {
 
     // 反序列化消息内容为DriverInformation对象
     private DriverInformation deserializeMessage(String message) throws JsonProcessingException {
-        // 实现JSON字符串到DriverInformation对象的反序列化
-        return objectMapper.readValue(message, DriverInformation.class);
+        try {
+            // 实现JSON字符串到DriverInformation对象的反序列化
+            return objectMapper.readValue(message, DriverInformation.class);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }

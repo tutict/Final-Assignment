@@ -21,7 +21,7 @@ public class BackupRestoreKafkaListener {
     // 注入备份恢复服务
     private final BackupRestoreService backupRestoreService;
     // 初始化对象映射器，用于JSON序列化和反序列化
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     // 构造函数，接收一个BackupRestoreService实例
     @Autowired
@@ -89,7 +89,11 @@ public class BackupRestoreKafkaListener {
 
     // 将JSON字符串反序列化为BackupRestore对象
     private BackupRestore deserializeMessage(String message) throws JsonProcessingException {
-        // 使用ObjectMapper反序列化JSON字符串
-        return objectMapper.readValue(message, BackupRestore.class);
+        try {
+            // 使用ObjectMapper反序列化JSON字符串
+            return objectMapper.readValue(message, BackupRestore.class);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }

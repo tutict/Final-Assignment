@@ -16,7 +16,7 @@ import org.springframework.stereotype.Component;
 public class OffenseDetailsKafkaListener {
 
     private static final Logger log = LoggerFactory.getLogger(OffenseDetailsKafkaListener.class);
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
     private final OffenseDetailsService offenseDetailsService;
 
     @Autowired
@@ -51,6 +51,10 @@ public class OffenseDetailsKafkaListener {
     }
 
     private OffenseDetails deserializeMessage(String message) throws JsonProcessingException {
-        return objectMapper.readValue(message, OffenseDetails.class);
+        try {
+            return objectMapper.readValue(message, OffenseDetails.class);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }

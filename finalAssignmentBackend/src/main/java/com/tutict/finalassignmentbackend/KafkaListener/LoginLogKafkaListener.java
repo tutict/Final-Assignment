@@ -21,7 +21,7 @@ public class LoginLogKafkaListener {
     // 登录日志服务接口
     private final LoginLogService loginLogService;
     // 对象映射器，用于JSON序列化和反序列化
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     @Autowired
     public LoginLogKafkaListener(LoginLogService loginLogService) {
@@ -79,7 +79,11 @@ public class LoginLogKafkaListener {
     }
 
     private LoginLog deserializeMessage(String message) throws JsonProcessingException {
-        // 实现JSON字符串到LoginLog对象的反序列化
-        return objectMapper.readValue(message, LoginLog.class);
+        try {
+            // 实现JSON字符串到LoginLog对象的反序列化
+            return objectMapper.readValue(message, LoginLog.class);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }

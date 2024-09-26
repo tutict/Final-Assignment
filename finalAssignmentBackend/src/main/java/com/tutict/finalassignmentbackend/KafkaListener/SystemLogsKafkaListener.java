@@ -22,7 +22,7 @@ public class SystemLogsKafkaListener {
     // 系统日志服务实例，用于执行日志的业务操作
     private final SystemLogsService systemLogsService;
     // 对象映射器，用于Kafka消息的反序列化
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     // 构造函数，通过依赖注入初始化SystemLogsService
     @Autowired
@@ -86,7 +86,11 @@ public class SystemLogsKafkaListener {
 
     // 将JSON字符串反序列化为SystemLogs对象
     private SystemLogs deserializeMessage(String message) throws JsonProcessingException {
-        // 实现JSON字符串到SystemLogs对象的反序列化
-        return objectMapper.readValue(message, SystemLogs.class);
+        try {
+            // 实现JSON字符串到SystemLogs对象的反序列化
+            return objectMapper.readValue(message, SystemLogs.class);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }

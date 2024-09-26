@@ -24,7 +24,7 @@ public class PermissionManagementKafkaListener {
     private final PermissionManagementService permissionManagementService;
 
     // 对象映射器，用于JSON序列化和反序列化
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     // 构造函数，自动注入权限管理服务
     @Autowired
@@ -86,6 +86,10 @@ public class PermissionManagementKafkaListener {
 
     // 反序列化JSON消息为PermissionManagement对象
     private PermissionManagement deserializeMessage(String message) throws JsonProcessingException {
-        return objectMapper.readValue(message, PermissionManagement.class);
+        try {
+            return objectMapper.readValue(message, PermissionManagement.class);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }

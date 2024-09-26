@@ -12,6 +12,8 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
+
 // 声明一个Kafka监听器组件，用于处理申诉管理相关的消息
 @Component
 public class AppealManagementKafkaListener {
@@ -21,7 +23,7 @@ public class AppealManagementKafkaListener {
     // 依赖的申诉管理服务
     private final AppealManagementService appealManagementService;
     // 对象映射器，用于JSON序列化和反序列化
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     // 构造函数，自动注入申诉管理服务
     @Autowired
@@ -81,6 +83,11 @@ public class AppealManagementKafkaListener {
 
     // 将JSON字符串反序列化为AppealManagement对象
     private AppealManagement deserializeMessage(String message) throws JsonProcessingException {
-        return objectMapper.readValue(message, AppealManagement.class);
+        try {
+            return objectMapper.readValue(message, AppealManagement.class);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
+
 }

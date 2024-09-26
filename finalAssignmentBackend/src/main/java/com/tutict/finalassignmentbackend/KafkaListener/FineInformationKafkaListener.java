@@ -22,7 +22,7 @@ public class FineInformationKafkaListener {
     // 注入罚款信息服务
     private final FineInformationService fineInformationService;
     // 初始化一个对象映射器，用于JSON序列化和反序列化
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     // 构造函数，初始化罚款信息服务
     @Autowired
@@ -84,7 +84,11 @@ public class FineInformationKafkaListener {
 
     // 反序列化JSON消息为FineInformation对象
     private FineInformation deserializeMessage(String message) throws JsonProcessingException {
-        // 实现JSON字符串到FineInformation对象的反序列化
-        return objectMapper.readValue(message, FineInformation.class);
+        try {
+            // 实现JSON字符串到FineInformation对象的反序列化
+            return objectMapper.readValue(message, FineInformation.class);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }

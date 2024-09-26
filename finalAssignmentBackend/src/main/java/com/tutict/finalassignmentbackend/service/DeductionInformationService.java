@@ -110,15 +110,12 @@ public class DeductionInformationService {
     /**
      * 删除扣款信息
      * @param deductionId 扣款信息ID
-     * @throws IllegalArgumentException 如果deductionId无效
      */
     public void deleteDeduction(int deductionId) {
         try {
             deductionInformationMapper.deleteById(deductionId);
         } catch (Exception e) {
-            // 记录异常信息
             log.error("Exception occurred while deleting deduction", e);
-            throw e;
         }
     }
 

@@ -21,7 +21,7 @@ public class UserManagementKafkaListener {
     // 用户管理服务
     private final UserManagementService userManagementService;
     // 对象映射器，用于JSON序列化和反序列化
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     @Autowired
     public UserManagementKafkaListener(UserManagementService userManagementService) {
@@ -81,7 +81,11 @@ public class UserManagementKafkaListener {
     }
 
     private UserManagement deserializeMessage(String message) throws JsonProcessingException {
-        // 实现JSON字符串到UserManagement对象的反序列化
-        return objectMapper.readValue(message, UserManagement.class);
+        try {
+            // 实现JSON字符串到UserManagement对象的反序列化
+            return objectMapper.readValue(message, UserManagement.class);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }

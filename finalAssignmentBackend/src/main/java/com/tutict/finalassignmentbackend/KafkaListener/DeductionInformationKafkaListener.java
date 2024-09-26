@@ -22,7 +22,7 @@ public class DeductionInformationKafkaListener {
     // 注入扣款信息服务
     private final DeductionInformationService deductionInformationService;
     // 初始化对象映射器，用于JSON序列化和反序列化
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     // 构造函数，注入依赖的扣款信息服务
     @Autowired
@@ -92,7 +92,11 @@ public class DeductionInformationKafkaListener {
 
     // 反序列化JSON消息为DeductionInformation对象
     private DeductionInformation deserializeMessage(String message) throws JsonProcessingException {
-        // 使用ObjectMapper将JSON字符串转换为DeductionInformation对象
-        return objectMapper.readValue(message, DeductionInformation.class);
+        try {
+            // 使用ObjectMapper将JSON字符串转换为DeductionInformation对象
+            return objectMapper.readValue(message, DeductionInformation.class);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }

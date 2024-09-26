@@ -23,7 +23,7 @@ public class SystemSettingsKafkaListener {
     private final SystemSettingsService systemSettingsService;
 
     // JSON处理对象
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     // 构造函数，注入系统设置服务
     @Autowired
@@ -61,7 +61,11 @@ public class SystemSettingsKafkaListener {
 
     // 将JSON字符串反序列化为SystemSettings对象
     private SystemSettings deserializeMessage(String message) throws JsonProcessingException {
-        // 实现JSON字符串到SystemSettings对象的反序列化
-        return objectMapper.readValue(message, SystemSettings.class);
+        try {
+            // 实现JSON字符串到SystemSettings对象的反序列化
+            return objectMapper.readValue(message, SystemSettings.class);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }
