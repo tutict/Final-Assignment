@@ -17,7 +17,7 @@ import java.util.concurrent.CompletableFuture;
 public class SystemSettingsService {
 
     // 日志记录器
-    private static final Logger log = LoggerFactory.getLogger(SystemLogsService.class);
+    private static final Logger log = LoggerFactory.getLogger(SystemSettingsService.class);
 
     // 系统设置数据访问对象
     private final SystemSettingsMapper systemSettingsMapper;

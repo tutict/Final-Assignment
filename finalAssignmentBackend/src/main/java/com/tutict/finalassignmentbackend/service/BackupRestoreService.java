@@ -73,9 +73,12 @@ public class BackupRestoreService {
     /**
      * 根据ID获取备份
      * @param backupId 备份的唯一标识符
-     * @return 指定ID的备份对象，如果不存在则返回null
+     * @return 指定ID的备份对象，如果不存在则返回"Invalid backup ID"
      */
     public BackupRestore getBackupById(int backupId) {
+        if (backupId <= 0) {
+            throw new IllegalArgumentException("Invalid backup ID");
+        }
         return backupRestoreMapper.selectById(backupId);
     }
 
@@ -119,9 +122,13 @@ public class BackupRestoreService {
     /**
      * 根据文件名获取备份
      * @param backupFileName 备份文件名
-     * @return 指定文件名的备份对象，如果不存在则返回null
+     * @return 指定文件名的备份对象，如果不存在则返回"Invalid backup file name"
+     * @throws IllegalArgumentException 如果文件名为空或为null
      */
-    public BackupRestore getupByFileName(String backupFileName) {
+    public BackupRestore getBackupByFileName(String backupFileName) {
+        if (backupFileName == null || backupFileName.trim().isEmpty()) {
+            throw new IllegalArgumentException("Invalid backup file name");
+        }
         QueryWrapper<BackupRestore> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("backupFileName", backupFileName);
         return backupRestoreMapper.selectOne(queryWrapper);
@@ -130,9 +137,13 @@ public class BackupRestoreService {
     /**
      * 根据时间获取备份列表
      * @param backupTime 备份时间
-     * @return 指定时间的备份列表
+     * @return 指定时间的备份列表，如果不存在则返回"Invalid backup time"
+     * @throws IllegalArgumentException 如果时间参数为空或为null
      */
     public List<BackupRestore> getBackupsByTime(String backupTime) {
+        if (backupTime == null || backupTime.trim().isEmpty()) {
+            throw new IllegalArgumentException("Invalid backup time");
+        }
         QueryWrapper<BackupRestore> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("backupTime", backupTime);
         return backupRestoreMapper.selectList(queryWrapper);

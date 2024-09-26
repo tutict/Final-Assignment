@@ -35,7 +35,6 @@ public class PermissionManagementService {
 
     /**
      * 创建权限
-     *
      * @param permission 待创建的权限对象
      */
     @Transactional
@@ -65,7 +64,6 @@ public class PermissionManagementService {
 
     /**
      * 根据权限ID查询权限
-     *
      * @param permissionId 权限ID
      * @return 查询到的权限对象，如果不存在则返回null
      */
@@ -75,7 +73,6 @@ public class PermissionManagementService {
 
     /**
      * 查询所有权限
-     *
      * @return 所有权限的列表
      */
     public List<PermissionManagement> getAllPermissions() {
@@ -87,8 +84,12 @@ public class PermissionManagementService {
      *
      * @param permissionName 权限名称
      * @return 查询到的权限对象，如果不存在则返回null
+     * @throws IllegalArgumentException 如果权限名称为空，则抛出此异常
      */
     public PermissionManagement getPermissionByName(String permissionName) {
+        if (permissionName == null || permissionName.trim().isEmpty()) {
+            throw new IllegalArgumentException("Invalid permission name");
+        }
         QueryWrapper<PermissionManagement> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("permission_name", permissionName);
         return permissionManagementMapper.selectOne(queryWrapper);
@@ -96,11 +97,14 @@ public class PermissionManagementService {
 
     /**
      * 根据权限名称模糊查询权限
-     *
      * @param permissionName 权限名称的部分字符串
      * @return 模糊查询到的所有权限列表
+     * @throws IllegalArgumentException 如果权限名称为空，则抛出此异常
      */
     public List<PermissionManagement> getPermissionsByNameLike(String permissionName) {
+        if (permissionName == null || permissionName.trim().isEmpty()) {
+            throw new IllegalArgumentException("Invalid permission name");
+        }
         QueryWrapper<PermissionManagement> queryWrapper = new QueryWrapper<>();
         queryWrapper.like("permission_name", permissionName);
         return permissionManagementMapper.selectList(queryWrapper);
@@ -108,7 +112,6 @@ public class PermissionManagementService {
 
     /**
      * 更新权限
-     *
      * @param permission 待更新的权限对象
      */
     @Transactional
@@ -137,22 +140,32 @@ public class PermissionManagementService {
 
     /**
      * 删除权限
-     *
      * @param permissionId 权限ID
+     * @throws IllegalArgumentException 如果权限ID为空，则抛出此异常
      */
     public void deletePermission(int permissionId) {
-        PermissionManagement permissionToDelete = permissionManagementMapper.selectById(permissionId);
-        if (permissionToDelete != null) {
-            permissionManagementMapper.deleteById(permissionId);
+        try {
+            PermissionManagement permissionToDelete = permissionManagementMapper.selectById(permissionId);
+            if (permissionToDelete != null) {
+                permissionManagementMapper.deleteById(permissionId);
+            }
+        } catch (Exception e) {
+            // 记录异常信息
+            log.error("Exception occurred while deleting permission", e);
+            // 抛出异常
+            throw e;
         }
     }
 
     /**
      * 根据权限名称删除权限
-     *
      * @param permissionName 权限名称
+     * @throws IllegalArgumentException 如果权限名称为空或空字符串，则抛出此异常
      */
     public void deletePermissionByName(String permissionName) {
+        if (permissionName == null || permissionName.trim().isEmpty()) {
+            throw new IllegalArgumentException("Invalid permission name");
+        }
         QueryWrapper<PermissionManagement> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("permission_name", permissionName);
         PermissionManagement permissionToDelete = permissionManagementMapper.selectOne(queryWrapper);

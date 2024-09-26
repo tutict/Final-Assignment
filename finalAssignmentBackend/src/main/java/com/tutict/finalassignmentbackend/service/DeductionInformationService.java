@@ -60,12 +60,23 @@ public class DeductionInformationService {
         }
     }
 
-    // 根据ID获取扣款信息
+    /**
+     * 根据ID获取扣款信息
+     * @param deductionId 扣款信息ID
+     * @return 扣款信息对象
+     * @throws IllegalArgumentException 如果deductionId无效
+     */
     public DeductionInformation getDeductionById(int deductionId) {
+        if (deductionId <= 0) {
+            throw new IllegalArgumentException("Invalid deduction ID");
+        }
         return deductionInformationMapper.selectById(deductionId);
     }
 
-    // 获取所有扣款信息
+    /**
+     * 获取所有扣款信息
+     * @return 扣款信息列表
+     */
     public List<DeductionInformation> getAllDeductions() {
         return deductionInformationMapper.selectList(null);
     }
@@ -96,20 +107,47 @@ public class DeductionInformationService {
         }
     }
 
-    // 删除扣款信息
+    /**
+     * 删除扣款信息
+     * @param deductionId 扣款信息ID
+     * @throws IllegalArgumentException 如果deductionId无效
+     */
     public void deleteDeduction(int deductionId) {
-        deductionInformationMapper.deleteById(deductionId);
+        try {
+            deductionInformationMapper.deleteById(deductionId);
+        } catch (Exception e) {
+            // 记录异常信息
+            log.error("Exception occurred while deleting deduction", e);
+            throw e;
+        }
     }
 
-    // 获取指定处理人所有信息
+    /**
+     * 获取指定处理人所有信息
+     * @param handler 处理人姓名
+     * @return 扣款信息列表
+     * @throws IllegalArgumentException 如果处理人姓名为空或无效
+     */
     public List<DeductionInformation> getDeductionsByHandler(String handler) {
+        if (handler == null || handler.trim().isEmpty()) {
+            throw new IllegalArgumentException("Invalid handler");
+        }
         QueryWrapper<DeductionInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("handler", handler);
         return deductionInformationMapper.selectList(queryWrapper);
     }
 
-    // 获取指定时间范围内的所有信息
+    /**
+     * 获取指定时间范围内的扣款信息
+     * @param startTime 开始时间
+     * @param endTime 结束时间
+     * @return 扣款信息列表
+     * @throws IllegalArgumentException 如果时间范围无效
+     */
     public List<DeductionInformation> getDeductionsByByTimeRange(Date startTime, Date endTime) {
+        if (startTime == null || endTime == null || startTime.after(endTime)) {
+            throw new IllegalArgumentException("Invalid time range");
+        }
         QueryWrapper<DeductionInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.between("deductionTime", startTime, endTime);
         return deductionInformationMapper.selectList(queryWrapper);

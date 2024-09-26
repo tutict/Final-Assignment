@@ -31,6 +31,7 @@ dependencies {
     implementation 'io.quarkus:quarkus-smallrye-jwt'
     implementation 'io.quarkus:quarkus-smallrye-jwt-build'
     implementation 'io.quarkus:quarkus-security'
+    implementation 'io.quarkus:quarkus-smallrye-reactive-messaging-kafka:3.11.3'
     implementation 'io.smallrye.reactive:smallrye-reactive-messaging-api:4.21.0'
     implementation 'io.quarkiverse.langchain4j:quarkus-langchain4j-hugging-face:0.17.0'
     testImplementation 'io.quarkus:quarkus-junit5'

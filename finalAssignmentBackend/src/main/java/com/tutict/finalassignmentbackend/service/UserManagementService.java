@@ -59,8 +59,16 @@ public class UserManagementService {
         return userManagementMapper.selectById(userId);
     }
 
-    // 根据用户名查询用户
+    /**
+     * 根据用户名查询用户
+     * @param username 用户名
+     * @return 用户对象
+     * @throws IllegalArgumentException 如果用户名无效
+     */
     public UserManagement getUserByUsername(String username) {
+        if (username == null || username.trim().isEmpty()) {
+            throw new IllegalArgumentException("Invalid username");
+        }
         QueryWrapper<UserManagement> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("username", username);
         return userManagementMapper.selectOne(queryWrapper);
@@ -77,15 +85,31 @@ public class UserManagementService {
         return userManagementMapper.selectList(null);
     }
 
-    // 根据用户类型查询用户
+    /**
+     * 根据用户类型查询用户
+     * @param userType 用户类型
+     * @return 用户对象列表
+     * @throws IllegalArgumentException 如果用户类型无效
+     */
     public List<UserManagement> getUsersByType(String userType) {
+        if (userType == null || userType.trim().isEmpty()) {
+            throw new IllegalArgumentException("Invalid user type");
+        }
         QueryWrapper<UserManagement> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("user_type", userType);
         return userManagementMapper.selectList(queryWrapper);
     }
 
-    // 根据用户状态查询用户
+    /**
+     * 根据用户状态查询用户
+     * @param status 用户状态
+     * @return 用户对象列表
+     * @throws IllegalArgumentException 如果用户状态无效
+     */
     public List<UserManagement> getUsersByStatus(String status) {
+        if (status == null || status.trim().isEmpty()) {
+            throw new IllegalArgumentException("Invalid status");
+        }
         QueryWrapper<UserManagement> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("status", status);
         return userManagementMapper.selectList(queryWrapper);
@@ -117,25 +141,55 @@ public class UserManagementService {
         }
     }
 
-    // 删除用户
+    /**
+     * 删除用户
+     * @param userId 用户ID
+     * @throws IllegalArgumentException 如果用户ID无效
+     */
     public void deleteUser(int userId) {
-        UserManagement userToDelete = userManagementMapper.selectById(userId);
-        if (userToDelete != null) {
-            userManagementMapper.deleteById(userId);
+        try {
+            UserManagement userToDelete = userManagementMapper.selectById(userId);
+            if (userToDelete != null) {
+                userManagementMapper.deleteById(userId);
+            }
+        } catch (Exception e) {
+            // 记录异常信息
+            log.error("Exception occurred while deleting user", e);
+            // 抛出异常
+            throw e;
         }
     }
 
-    // 根据用户名删除用户
+    /**
+     * 根据用户名删除用户
+     * @param username 用户名
+     * @throws IllegalArgumentException 如果用户名无效
+     */
     public void deleteUserByUsername(String username) {
-        UserManagement userToDelete = getUserByUsername(username);
-        if (userToDelete != null) {
-            userManagementMapper.delete(new QueryWrapper<UserManagement>().eq("username", username));
+        try {
+            UserManagement userToDelete = getUserByUsername(username);
+            if (userToDelete != null) {
+                userManagementMapper.delete(new QueryWrapper<UserManagement>().eq("username", username));
+            }
+        } catch (Exception e) {
+            // 记录异常信息
+            log.error("Exception occurred while deleting user", e);
+            // 抛出异常
+            throw e;
         }
     }
 
 
-    // 检查用户名是否存在
+    /**
+     * 检查用户名是否存在
+     * @param username 用户名
+     * @return 如果用户名存在就true否则就false
+     * @throws IllegalArgumentException 如果用户名无效
+     */
     public boolean isUsernameExists(String username) {
+        if (username == null || username.trim().isEmpty()) {
+            throw new IllegalArgumentException("Invalid username");
+        }
         QueryWrapper<UserManagement> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("username", username);
         return userManagementMapper.selectCount(queryWrapper) > 0;

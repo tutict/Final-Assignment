@@ -83,8 +83,12 @@ public class RoleManagementService {
      * 根据角色名称查询角色
      * @param roleName 角色名称
      * @return 查询到的角色对象，如果没有找到则返回null
+     * @throws IllegalArgumentException 如果角色名称为空或空字符串
      */
     public RoleManagement getRoleByName(String roleName) {
+        if (roleName == null || roleName.trim().isEmpty()) {
+            throw new IllegalArgumentException("Invalid role name");
+        }
         QueryWrapper<RoleManagement> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("role_name", roleName);
         return roleManagementMapper.selectOne(queryWrapper);
@@ -94,8 +98,12 @@ public class RoleManagementService {
      * 根据角色名称模糊查询角色
      * @param roleName 角色名称的部分字符串
      * @return 模糊查询到的角色列表
+     * @throws IllegalArgumentException 如果角色名称为空或空字符串
      */
     public List<RoleManagement> getRolesByNameLike(String roleName) {
+        if (roleName == null || roleName.trim().isEmpty()) {
+            throw new IllegalArgumentException("Invalid role name");
+        }
         QueryWrapper<RoleManagement> queryWrapper = new QueryWrapper<>();
         queryWrapper.like("role_name", roleName);
         return roleManagementMapper.selectList(queryWrapper);
@@ -135,17 +143,28 @@ public class RoleManagementService {
      * @param roleId 角色ID
      */
     public void deleteRole(int roleId) {
-        RoleManagement roleToDelete = roleManagementMapper.selectById(roleId);
-        if (roleToDelete != null) {
-            roleManagementMapper.deleteById(roleId);
+        try {
+            RoleManagement roleToDelete = roleManagementMapper.selectById(roleId);
+            if (roleToDelete != null) {
+                roleManagementMapper.deleteById(roleId);
+            }
+        } catch (Exception e) {
+            // 记录异常信息
+            log.error("Exception occurred while deleting role", e);
+            // 抛出异常
+            throw e;
         }
     }
 
     /**
      * 根据角色名称删除角色
      * @param roleName 角色名称
+     * @throws IllegalArgumentException 如果角色名称为空或空字符串
      */
     public void deleteRoleByName(String roleName) {
+        if (roleName == null || roleName.trim().isEmpty()) {
+            throw new IllegalArgumentException("Invalid role name");
+        }
         QueryWrapper<RoleManagement> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("role_name", roleName);
         RoleManagement roleToDelete = roleManagementMapper.selectOne(queryWrapper);
@@ -158,8 +177,12 @@ public class RoleManagementService {
      * 根据角色ID查询权限列表
      * @param roleId 角色ID
      * @return 权限列表字符串，如果没有找到则返回null
+     * @throws IllegalArgumentException 如果角色ID小于等于0
      */
     public String getPermissionListByRoleId(int roleId) {
+        if (roleId <= 0) {
+            throw new IllegalArgumentException("Invalid role ID");
+        }
         RoleManagement role = roleManagementMapper.selectById(roleId);
         return role != null ? role.getPermissionList() : null;
     }

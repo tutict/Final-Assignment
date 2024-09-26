@@ -97,34 +97,74 @@ public class OffenseInformationService {
         }
     }
 
-    // 删除违规信息
+    /**
+     * 删除违规信息
+     * @param offenseId 违规ID
+     * @throws IllegalArgumentException 如果提供的违规ID无效，则抛出此异常
+     */
     public void deleteOffense(int offenseId) {
+        if (offenseId <= 0) {
+            throw new IllegalArgumentException("Invalid offense ID");
+        }
         offenseInformationMapper.deleteById(offenseId);
     }
 
-    // 根据时间范围查询违规信息
+    /**
+     * 根据时间范围查询违规信息
+     * @param startTime 开始时间
+     * @param endTime 结束时间
+     * @return 违规信息列表
+     * @throws IllegalArgumentException 如果提供的时间范围无效，则抛出此异常
+     */
     public List<OffenseInformation> getOffensesByTimeRange(Date startTime, Date endTime) {
+        if (startTime == null || endTime == null || startTime.after(endTime)) {
+            throw new IllegalArgumentException("Invalid time range");
+        }
         QueryWrapper<OffenseInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.between("offense_time", startTime, endTime);
         return offenseInformationMapper.selectList(queryWrapper);
     }
 
-    // 根据处理状态查询违规信息
+    /**
+     * 根据处理状态查询违规信息
+     * @param processState 处理状态
+     * @return 违规信息列表
+     * @throws IllegalArgumentException 如果提供的处理状态无效，则抛出此异常
+     */
     public List<OffenseInformation> getOffensesByProcessState(String processState) {
+        if (processState == null || processState.trim().isEmpty()) {
+            throw new IllegalArgumentException("Invalid process state");
+        }
         QueryWrapper<OffenseInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("process_status", processState);
         return offenseInformationMapper.selectList(queryWrapper);
     }
 
-    // 根据驾驶员姓名查询违规信息
+    /**
+     * 根据驾驶员姓名查询违规信息
+     * @param driverName 驾驶员姓名
+     * @return 违规信息列表
+     * @throws IllegalArgumentException 如果提供的驾驶员姓名无效，则抛出此异常
+     */
     public List<OffenseInformation> getOffensesByDriverName(String driverName) {
+        if (driverName == null || driverName.trim().isEmpty()) {
+            throw new IllegalArgumentException("Invalid driver name");
+        }
         QueryWrapper<OffenseInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("driver_name", driverName);
         return offenseInformationMapper.selectList(queryWrapper);
     }
 
-    // 根据车牌号查询违规信息
+    /**
+     * 根据车牌号查询违规信息
+     * @param offenseLicensePlate 车牌号
+     * @return 违规信息列表
+     * @throws IllegalArgumentException 如果提供的车牌号无效，则抛出此异常
+     */
     public List<OffenseInformation> getOffensesByLicensePlate(String offenseLicensePlate) {
+        if (offenseLicensePlate == null || offenseLicensePlate.trim().isEmpty()) {
+            throw new IllegalArgumentException("Invalid license plate");
+        }
         QueryWrapper<OffenseInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("license_plate", offenseLicensePlate);
         return offenseInformationMapper.selectList(queryWrapper);

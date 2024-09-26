@@ -64,12 +64,19 @@ public class AppealManagementService {
         }
     }
 
-    // 根据申诉ID获取申诉记录
+    /**
+     * 根据申诉ID获取申诉记录
+     * @param appealId 申诉ID
+     * @return 申诉记录
+     */
     public AppealManagement getAppealById(Long appealId) {
         return appealManagementMapper.selectById(appealId);
     }
 
-    // 获取所有申诉记录
+    /**
+     * 获取所有申诉记录
+     * @return 所有申诉记录列表
+     */
     public List<AppealManagement> getAllAppeals() {
         return appealManagementMapper.selectList(null);
     }
@@ -101,31 +108,60 @@ public class AppealManagementService {
     }
 
 
-    // 删除申诉记录
+    /**
+     * 删除申诉记录
+     * @param appealId 申诉ID
+     */
     public void deleteAppeal(Long appealId) {
-        appealManagementMapper.deleteById(appealId);
+        AppealManagement appeal = appealManagementMapper.selectById(appealId);
+        if (appeal == null) {
+            log.warn("Appeal with ID {} not found, cannot delete", appealId);
+            return;
+        }
+
+        int result = appealManagementMapper.deleteById(appealId);
+        if (result > 0) {
+            log.info("Appeal with ID {} deleted successfully", appealId);
+        } else {
+            log.error("Failed to delete appeal with ID {}", appealId);
+        }
     }
 
-    // 根据申诉状态查询申诉信息
+
+    /**
+     * 根据申诉状态查询申诉信息
+     * @param processStatus 申诉状态
+     * @return 申诉信息列表
+     */
     public List<AppealManagement> getAppealsByProcessStatus(String processStatus) {
         QueryWrapper<AppealManagement> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("process_status", processStatus);
         return appealManagementMapper.selectList(queryWrapper);
     }
 
-    // 根据申诉人姓名查询申诉信息
+    /**
+     * 根据申诉人姓名查询申诉信息
+     * @param appealName 申诉人姓名
+     * @return 申诉信息列表
+     */
     public List<AppealManagement> getAppealsByAppealName(String appealName) {
         QueryWrapper<AppealManagement> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("appeal_name", appealName);
         return appealManagementMapper.selectList(queryWrapper);
     }
 
-    // 根据申诉ID查询关联的违法行为信息
+    /**
+     * 根据申诉ID查询关联的违法行为信息
+     * @param appealId 申诉ID
+     * @return 关联的违法行为信息
+     */
     public OffenseInformation getOffenseByAppealId(Long appealId) {
         AppealManagement appeal = appealManagementMapper.selectById(appealId);
         if (appeal != null) {
             return offenseInformationMapper.selectById(appeal.getOffenseId());
+        } else {
+            log.warn("No appeal found with ID: {}", appealId);
+            return null;
         }
-        return null;
     }
 }

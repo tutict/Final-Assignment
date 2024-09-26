@@ -72,8 +72,16 @@ public class SystemLogsService {
         return systemLogsMapper.selectList(null);
     }
 
-    // 根据日志类型查询系统日志
+    /**
+     * 根据日志类型查询系统日志
+     * @param logType 日志类型
+     * @return 查询到的日志列表
+     * @throws IllegalArgumentException 如果日志类型为空或空字符串，则抛出此异常
+     */
     public List<SystemLogs> getSystemLogsByType(String logType) {
+        if (logType == null || logType.trim().isEmpty()) {
+            throw new IllegalArgumentException("Invalid log type");
+        }
         // 创建查询条件：根据日志类型查询
         QueryWrapper<SystemLogs> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("log_type", logType);
@@ -81,8 +89,17 @@ public class SystemLogsService {
         return systemLogsMapper.selectList(queryWrapper);
     }
 
-    // 根据操作时间范围查询系统日志
+    /**
+     * 根据操作时间范围查询系统日志
+     * @param startTime 开始时间
+     * @param endTime 结束时间
+     * @return 查询到的日志列表
+     * @throws IllegalArgumentException 如果时间范围无效（开始时间大于结束时间），则抛出此异常
+     */
     public List<SystemLogs> getSystemLogsByTimeRange(Date startTime, Date endTime) {
+        if (startTime == null || endTime == null || startTime.after(endTime)) {
+            throw new IllegalArgumentException("Invalid time range");
+        }
         // 创建查询条件：根据操作时间范围查询
         QueryWrapper<SystemLogs> queryWrapper = new QueryWrapper<>();
         queryWrapper.between("operation_time", startTime, endTime);
@@ -90,8 +107,16 @@ public class SystemLogsService {
         return systemLogsMapper.selectList(queryWrapper);
     }
 
-    // 根据操作用户查询系统日志
+    /**
+     * 根据操作用户查询系统日志
+     * @param operationUser 操作用户
+     * @return 查询到的日志列表
+     * @throws IllegalArgumentException 如果操作用户为空或空字符串，则抛出此异常
+     */
     public List<SystemLogs> getSystemLogsByOperationUser(String operationUser) {
+        if (operationUser == null || operationUser.trim().isEmpty()) {
+            throw new IllegalArgumentException("Invalid operation user");
+        }
         // 创建查询条件：根据操作用户查询
         QueryWrapper<SystemLogs> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("operation_user", operationUser);
@@ -126,13 +151,23 @@ public class SystemLogsService {
         }
     }
 
-    // 删除系统日志
+    /**
+     * 删除系统日志
+     * @param logId 日志ID
+     */
     public void deleteSystemLog(int logId) {
-        // 根据ID查询待删除的日志，确保日志存在
-        SystemLogs systemLogToDelete = systemLogsMapper.selectById(logId);
-        if (systemLogToDelete != null) {
-            // 删除日志
-            systemLogsMapper.deleteById(logId);
+        try {
+            // 根据ID查询待删除的日志，确保日志存在
+            SystemLogs systemLogToDelete = systemLogsMapper.selectById(logId);
+            if (systemLogToDelete != null) {
+                // 删除日志
+                systemLogsMapper.deleteById(logId);
+            }
+        } catch (Exception e) {
+            // 记录异常信息
+            log.error("Exception occurred while deleting system log", e);
+            // 抛出异常
+            throw e;
         }
     }
 }

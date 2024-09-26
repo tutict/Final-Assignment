@@ -35,7 +35,6 @@ public class OperationLogService {
 
     /**
      * 创建操作日志
-     *
      * @param operationLog 待创建的操作日志对象
      */
     @Transactional
@@ -65,7 +64,6 @@ public class OperationLogService {
 
     /**
      * 根据日志ID获取操作日志
-     *
      * @param logId 操作日志的ID
      * @return 对应ID的操作日志对象
      */
@@ -75,7 +73,6 @@ public class OperationLogService {
 
     /**
      * 获取所有操作日志
-     *
      * @return 包含所有操作日志的列表
      */
     public List<OperationLog> getAllOperationLogs() {
@@ -84,7 +81,6 @@ public class OperationLogService {
 
     /**
      * 更新操作日志
-     *
      * @param operationLog 待更新的操作日志对象
      */
     @Transactional
@@ -114,21 +110,30 @@ public class OperationLogService {
 
     /**
      * 根据日志ID删除操作日志
-     *
      * @param logId 操作日志的ID
      */
     public void deleteOperationLog(int logId) {
-        operationLogMapper.deleteById(logId);
+        try {
+            operationLogMapper.deleteById(logId);
+        } catch (Exception e) {
+            // 记录异常信息
+            log.error("Exception occurred while deleting operation log", e);
+            // 抛出异常
+            throw e;
+        }
     }
 
     /**
      * 根据时间范围查询操作日志
-     *
      * @param startTime 查询的开始时间
      * @param endTime 查询的结束时间
      * @return 在指定时间范围内的操作日志列表
+     * @throws IllegalArgumentException 如果时间范围无效
      */
     public List<OperationLog> getOperationLogsByTimeRange(Date startTime, Date endTime) {
+        if (startTime == null || endTime == null || startTime.after(endTime)) {
+            throw new IllegalArgumentException("Invalid time range");
+        }
         QueryWrapper<OperationLog> queryWrapper = new QueryWrapper<>();
         queryWrapper.between("operation_time", startTime, endTime);
         return operationLogMapper.selectList(queryWrapper);
@@ -136,11 +141,14 @@ public class OperationLogService {
 
     /**
      * 根据用户ID查询操作日志
-     *
      * @param userId 用户ID
      * @return 对应用户ID的操作日志列表
+     * @throws IllegalArgumentException 如果用户ID无效
      */
     public List<OperationLog> getOperationLogsByUserId(String userId) {
+        if (userId == null || userId.trim().isEmpty()) {
+            throw new IllegalArgumentException("Invalid userId");
+        }
         QueryWrapper<OperationLog> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("user_id", userId);
         return operationLogMapper.selectList(queryWrapper);
@@ -148,11 +156,14 @@ public class OperationLogService {
 
     /**
      * 根据操作结果查询操作日志
-     *
      * @param operationResult 操作结果
      * @return 对应操作结果的操作日志列表
+     * @throws IllegalArgumentException 如果操作结果无效
      */
     public List<OperationLog> getOperationLogsByResult(String operationResult) {
+        if (operationResult == null || operationResult.trim().isEmpty()) {
+            throw new IllegalArgumentException("Invalid operation result");
+        }
         QueryWrapper<OperationLog> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("operation_result", operationResult);
         return operationLogMapper.selectList(queryWrapper);

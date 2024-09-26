@@ -64,8 +64,12 @@ public class FineInformationService {
      * 根据罚款ID获取罚款信息
      * @param fineId 罚款ID
      * @return 罚款信息对象
+     * @throws IllegalArgumentException 如果提供的罚款ID无效
      */
     public FineInformation getFineById(int fineId) {
+        if (fineId <= 0) {
+            throw new IllegalArgumentException("Invalid fine ID");
+        }
         return fineInformationMapper.selectById(fineId);
     }
 
@@ -111,15 +115,26 @@ public class FineInformationService {
      * @param fineId 罚款ID
      */
     public void deleteFine(int fineId) {
-        fineInformationMapper.deleteById(fineId);
+        try {
+            fineInformationMapper.deleteById(fineId);
+        } catch (Exception e) {
+            // 记录异常信息
+            log.error("Exception occurred while deleting fine", e);
+            // 抛出异常
+            throw e;
+        }
     }
 
     /**
      * 根据付款人获取所有罚款信息
      * @param payee 付款人
      * @return 罚款信息列表
+     * @throws IllegalArgumentException 如果提供的付款人无效
      */
     public List<FineInformation> getFinesByPayee(String payee) {
+        if (payee == null || payee.trim().isEmpty()) {
+            throw new IllegalArgumentException("Invalid payee");
+        }
         QueryWrapper<FineInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("payee", payee);
         return fineInformationMapper.selectList(queryWrapper);
@@ -130,8 +145,12 @@ public class FineInformationService {
      * @param startTime 开始时间
      * @param endTime 结束时间
      * @return 罚款信息列表
+     * @throws IllegalArgumentException 如果提供的时间范围无效
      */
     public List<FineInformation> getFinesByTimeRange(Date startTime, Date endTime) {
+        if (startTime == null || endTime == null || startTime.after(endTime)) {
+            throw new IllegalArgumentException("Invalid time range");
+        }
         QueryWrapper<FineInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.between("fineTime", startTime, endTime);
         return fineInformationMapper.selectList(queryWrapper);
@@ -141,8 +160,12 @@ public class FineInformationService {
      * 根据收据编号获取罚款信息
      * @param receiptNumber 收据编号
      * @return 罚款信息对象
+     * @throws IllegalArgumentException 如果提供的收据编号无效
      */
     public FineInformation getFineByReceiptNumber(String receiptNumber) {
+        if (receiptNumber == null || receiptNumber.trim().isEmpty()) {
+            throw new IllegalArgumentException("Invalid receipt number");
+        }
         QueryWrapper<FineInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("receiptNumber", receiptNumber);
         return fineInformationMapper.selectOne(queryWrapper);

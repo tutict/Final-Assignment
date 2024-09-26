@@ -84,7 +84,7 @@ public class BackupRestoreController {
     // 如果找到对应文件名的备份，返回该备份和200状态码；否则返回404状态码
     @GetMapping("/filename/{backupFileName}")
     public ResponseEntity<BackupRestore> getBackupByFileName(@PathVariable String backupFileName) {
-        BackupRestore backup = backupRestoreService.getupByFileName(backupFileName);
+        BackupRestore backup = backupRestoreService.getBackupByFileName(backupFileName);
         if (backup != null) {
             return ResponseEntity.ok(backup);
         } else {

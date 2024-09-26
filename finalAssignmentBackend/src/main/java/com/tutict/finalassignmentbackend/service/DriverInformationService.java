@@ -34,7 +34,6 @@ public class DriverInformationService {
 
     /**
      * 异步发送司机创建消息到 Kafka 并将司机信息插入数据库。
-     *
      * @param driverInformation 包含司机详细信息的 DriverInformation 对象
      */
     @Transactional
@@ -64,7 +63,6 @@ public class DriverInformationService {
 
     /**
      * 根据司机 ID 获取司机信息。
-     *
      * @param driverId 司机的 ID
      * @return 对应于司机 ID 的 DriverInformation 对象
      */
@@ -74,7 +72,6 @@ public class DriverInformationService {
 
     /**
      * 获取所有司机信息。
-     *
      * @return 所有 DriverInformation 对象的列表
      */
     public List<DriverInformation> getAllDrivers() {
@@ -83,7 +80,6 @@ public class DriverInformationService {
 
     /**
      * 异步发送司机更新消息到 Kafka 并更新数据库中的司机信息。
-     *
      * @param driverInformation 包含更新后的司机详细信息的 DriverInformation 对象
      */
     @Transactional
@@ -113,7 +109,6 @@ public class DriverInformationService {
 
     /**
      * 根据司机 ID 删除司机信息。
-     *
      * @param driverId 要删除的司机的 ID
      */
     public void deleteDriver(int driverId) {
@@ -122,7 +117,6 @@ public class DriverInformationService {
 
     /**
      * 根据身份证号码获取司机信息。
-     *
      * @param idCardNumber 司机的身份证号码
      * @return 对应于身份证号码的 DriverInformation 对象列表
      */
@@ -134,7 +128,6 @@ public class DriverInformationService {
 
     /**
      * 根据驾驶证号码获取司机信息。
-     *
      * @param driverLicenseNumber 司机的驾驶证号码
      * @return 对应于驾驶证号码的 DriverInformation 对象
      */
@@ -146,7 +139,6 @@ public class DriverInformationService {
 
     /**
      * 根据姓名获取司机信息。
-     *
      * @param name 司机的姓名
      * @return 姓名包含指定名称的所有 DriverInformation 对象列表
      */

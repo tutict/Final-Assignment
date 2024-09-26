@@ -113,7 +113,14 @@ public class LoginLogService {
      * @param logId 日志ID
      */
     public void deleteLoginLog(int logId) {
-        loginLogMapper.deleteById(logId);
+        try {
+            loginLogMapper.deleteById(logId);
+        } catch (Exception e) {
+            // 记录异常信息
+            log.error("Exception occurred while deleting login log", e);
+            // 抛出异常
+            throw e;
+        }
     }
 
     /**
@@ -121,8 +128,12 @@ public class LoginLogService {
      * @param startTime 开始时间
      * @param endTime 结束时间
      * @return 返回在指定时间范围内的登录日志列表
+     * @throws IllegalArgumentException 如果时间范围无效
      */
     public List<LoginLog> getLoginLogsByTimeRange(Date startTime, Date endTime) {
+        if (startTime == null || endTime == null || startTime.after(endTime)) {
+            throw new IllegalArgumentException("Invalid time range");
+        }
         QueryWrapper<LoginLog> queryWrapper = new QueryWrapper<>();
         queryWrapper.between("login_time", startTime, endTime);
         return loginLogMapper.selectList(queryWrapper);
@@ -132,8 +143,12 @@ public class LoginLogService {
      * 根据用户名获取登录日志
      * @param username 用户名
      * @return 返回指定用户名的登录日志列表
+     * @throws IllegalArgumentException 如果用户名为空或无效
      */
     public List<LoginLog> getLoginLogsByUsername(String username) {
+        if (username == null || username.trim().isEmpty()) {
+            throw new IllegalArgumentException("Invalid username");
+        }
         QueryWrapper<LoginLog> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("username", username);
         return loginLogMapper.selectList(queryWrapper);
@@ -143,8 +158,12 @@ public class LoginLogService {
      * 根据登录结果获取登录日志
      * @param loginResult 登录结果
      * @return 返回指定登录结果的登录日志列表
+     * @throws IllegalArgumentException 如果登录结果为空或无效
      */
     public List<LoginLog> getLoginLogsByLoginResult(String loginResult) {
+        if (loginResult == null || loginResult.trim().isEmpty()) {
+            throw new IllegalArgumentException("Invalid login result");
+        }
         QueryWrapper<LoginLog> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("login_result", loginResult);
         return loginLogMapper.selectList(queryWrapper);

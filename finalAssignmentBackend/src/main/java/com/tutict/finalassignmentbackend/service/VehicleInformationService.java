@@ -63,8 +63,16 @@ public class VehicleInformationService {
         return vehicleInformationMapper.selectById(vehicleId);
     }
 
-    // 根据车牌号查询车辆信息
+    /**
+     * 根据车牌号查询车辆信息
+     * @param licensePlate 车牌号
+     * @return 车辆信息对象
+     * @throws IllegalArgumentException 如果传入的参数为空或空字符串
+     */
     public VehicleInformation getVehicleInformationByLicensePlate(String licensePlate) {
+        if (licensePlate == null || licensePlate.trim().isEmpty()) {
+            throw new IllegalArgumentException("Invalid license plate number");
+        }
         QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("license_plate", licensePlate);
         return vehicleInformationMapper.selectOne(queryWrapper);
@@ -75,22 +83,46 @@ public class VehicleInformationService {
         return vehicleInformationMapper.selectList(null);
     }
 
-    // 根据车辆类型查询车辆信息
+    /**
+     * 根据车辆类型查询车辆信息
+     * @param vehicleType 车辆类型
+     * @return 车辆信息对象列表
+     * @throws IllegalArgumentException 如果传入的参数为空或空字符串
+     */
     public List<VehicleInformation> getVehicleInformationByType(String vehicleType) {
+        if (vehicleType == null || vehicleType.trim().isEmpty()) {
+            throw new IllegalArgumentException("Invalid vehicle type");
+        }
         QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("vehicle_type", vehicleType);
         return vehicleInformationMapper.selectList(queryWrapper);
     }
 
-    // 根据车主姓名查询车辆信息
+    /**
+     * 根据车主姓名查询车辆信息
+     * @param ownerName 车主姓名
+     * @return 车辆信息对象列表
+     * @throws IllegalArgumentException 如果传入的参数为空或空字符串
+     */
     public List<VehicleInformation> getVehicleInformationByOwnerName(String ownerName) {
+        if (ownerName == null || ownerName.trim().isEmpty()) {
+            throw new IllegalArgumentException("Invalid owner name");
+        }
         QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("owner_name", ownerName);
         return vehicleInformationMapper.selectList(queryWrapper);
     }
 
-    // 根据车辆状态查询车辆信息
+    /**
+     * 根据车辆状态查询车辆信息
+     * @param currentStatus 车辆状态
+     * @return 车辆信息对象列表
+     * @throws IllegalArgumentException 如果传入的参数为空或空字符串
+     */
     public List<VehicleInformation> getVehicleInformationByStatus(String currentStatus) {
+        if (currentStatus == null || currentStatus.trim().isEmpty()) {
+            throw new IllegalArgumentException("Invalid current status");
+        }
         QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("current_status", currentStatus);
         return vehicleInformationMapper.selectList(queryWrapper);
@@ -122,19 +154,39 @@ public class VehicleInformationService {
         }
     }
 
-    // 删除车辆信息
+    /**
+     * 删除车辆信息
+     * @param vehicleId 车辆ID
+     */
     public void deleteVehicleInformation(int vehicleId) {
-        vehicleInformationMapper.deleteById(vehicleId);
+        try {
+            vehicleInformationMapper.deleteById(vehicleId);
+        } catch (Exception e) {
+            log.error("Exception occurred while deleting vehicle information", e);
+            throw e;
+        }
     }
 
-    // 根据车牌号删除车辆信息
+    /**
+     * 根据车牌号删除车辆信息
+     * @param licensePlate 车牌号
+     * @throws IllegalArgumentException 如果传入的参数为空或空字符串
+     */
     public void deleteVehicleInformationByLicensePlate(String licensePlate) {
+        if (licensePlate == null || licensePlate.trim().isEmpty()) {
+            throw new IllegalArgumentException("Invalid license plate number");
+        }
         QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("license_plate", licensePlate);
         vehicleInformationMapper.delete(queryWrapper);
     }
 
-    // 检查车牌号是否存在
+    /**
+     * 检查车牌号是否存在
+     * @param licensePlate 车牌号
+     * @return true 如果存在，false 如果不存在
+     * @throws IllegalArgumentException 如果传入的参数为空或空字符串
+     */
     public boolean isLicensePlateExists(String licensePlate) {
         QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("license_plate", licensePlate);
