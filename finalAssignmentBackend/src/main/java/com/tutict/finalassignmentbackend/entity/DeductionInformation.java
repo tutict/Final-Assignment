@@ -23,7 +23,6 @@ public class DeductionInformation implements Serializable {
 
     /**
      * 违纪行为ID
-     *
      * @value "offense_id" 数据库中的列名
      * {@code @type} IdType.AUTO 主键自增
      */
