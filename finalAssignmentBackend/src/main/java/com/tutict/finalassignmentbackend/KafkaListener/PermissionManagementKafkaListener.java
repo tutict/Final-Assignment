@@ -1,6 +1,5 @@
 package com.tutict.finalassignmentbackend.KafkaListener;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.entity.PermissionManagement;
 import com.tutict.finalassignmentbackend.service.PermissionManagementService;
@@ -85,7 +84,7 @@ public class PermissionManagementKafkaListener {
     }
 
     // 反序列化JSON消息为PermissionManagement对象
-    private PermissionManagement deserializeMessage(String message) throws JsonProcessingException {
+    private PermissionManagement deserializeMessage(String message) {
         try {
             return objectMapper.readValue(message, PermissionManagement.class);
         } catch (Exception e) {

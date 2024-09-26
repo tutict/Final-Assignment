@@ -1,6 +1,5 @@
 package com.tutict.finalassignmentbackend.KafkaListener;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.entity.SystemLogs;
 import com.tutict.finalassignmentbackend.service.SystemLogsService;
@@ -85,7 +84,7 @@ public class SystemLogsKafkaListener {
     }
 
     // 将JSON字符串反序列化为SystemLogs对象
-    private SystemLogs deserializeMessage(String message) throws JsonProcessingException {
+    private SystemLogs deserializeMessage(String message) {
         try {
             // 实现JSON字符串到SystemLogs对象的反序列化
             return objectMapper.readValue(message, SystemLogs.class);

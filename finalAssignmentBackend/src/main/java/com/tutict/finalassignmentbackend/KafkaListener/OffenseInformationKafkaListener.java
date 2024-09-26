@@ -1,6 +1,5 @@
 package com.tutict.finalassignmentbackend.KafkaListener;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.entity.OffenseInformation;
 import com.tutict.finalassignmentbackend.service.OffenseInformationService;
@@ -75,7 +74,7 @@ public class OffenseInformationKafkaListener {
         });
     }
 
-    private OffenseInformation deserializeMessage(String message) throws JsonProcessingException {
+    private OffenseInformation deserializeMessage(String message) {
         try {
             // 实现JSON字符串到OffenseInformation对象的反序列化
             return objectMapper.readValue(message, OffenseInformation.class);

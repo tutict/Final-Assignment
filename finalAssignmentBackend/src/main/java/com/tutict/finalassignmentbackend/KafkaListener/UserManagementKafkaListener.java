@@ -1,6 +1,5 @@
 package com.tutict.finalassignmentbackend.KafkaListener;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.entity.UserManagement;
 import com.tutict.finalassignmentbackend.service.UserManagementService;
@@ -80,7 +79,7 @@ public class UserManagementKafkaListener {
         });
     }
 
-    private UserManagement deserializeMessage(String message) throws JsonProcessingException {
+    private UserManagement deserializeMessage(String message) {
         try {
             // 实现JSON字符串到UserManagement对象的反序列化
             return objectMapper.readValue(message, UserManagement.class);

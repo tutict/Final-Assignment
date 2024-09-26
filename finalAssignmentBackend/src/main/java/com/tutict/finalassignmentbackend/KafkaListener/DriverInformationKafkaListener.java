@@ -1,6 +1,5 @@
 package com.tutict.finalassignmentbackend.KafkaListener;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.entity.DriverInformation;
 import com.tutict.finalassignmentbackend.service.DriverInformationService;
@@ -86,7 +85,7 @@ public class DriverInformationKafkaListener {
     }
 
     // 反序列化消息内容为DriverInformation对象
-    private DriverInformation deserializeMessage(String message) throws JsonProcessingException {
+    private DriverInformation deserializeMessage(String message) {
         try {
             // 实现JSON字符串到DriverInformation对象的反序列化
             return objectMapper.readValue(message, DriverInformation.class);

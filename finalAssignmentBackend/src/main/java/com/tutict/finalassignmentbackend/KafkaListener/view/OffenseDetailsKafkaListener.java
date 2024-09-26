@@ -1,6 +1,5 @@
 package com.tutict.finalassignmentbackend.KafkaListener.view;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.entity.view.OffenseDetails;
 import com.tutict.finalassignmentbackend.service.view.OffenseDetailsService;
@@ -50,7 +49,7 @@ public class OffenseDetailsKafkaListener {
         });
     }
 
-    private OffenseDetails deserializeMessage(String message) throws JsonProcessingException {
+    private OffenseDetails deserializeMessage(String message) {
         try {
             return objectMapper.readValue(message, OffenseDetails.class);
         } catch (Exception e) {

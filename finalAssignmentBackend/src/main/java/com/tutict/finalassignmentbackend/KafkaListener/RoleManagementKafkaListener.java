@@ -1,6 +1,5 @@
 package com.tutict.finalassignmentbackend.KafkaListener;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.entity.RoleManagement;
 import com.tutict.finalassignmentbackend.service.RoleManagementService;
@@ -79,7 +78,7 @@ public class RoleManagementKafkaListener {
         });
     }
 
-    private RoleManagement deserializeMessage(String message) throws JsonProcessingException {
+    private RoleManagement deserializeMessage(String message) {
         try {
             // 实现JSON字符串到RoleManagement对象的反序列化
             return objectMapper.readValue(message, RoleManagement.class);

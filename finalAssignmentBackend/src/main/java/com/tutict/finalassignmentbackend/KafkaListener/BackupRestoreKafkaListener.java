@@ -1,6 +1,5 @@
 package com.tutict.finalassignmentbackend.KafkaListener;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.entity.BackupRestore;
 import com.tutict.finalassignmentbackend.service.BackupRestoreService;
@@ -88,7 +87,7 @@ public class BackupRestoreKafkaListener {
     }
 
     // 将JSON字符串反序列化为BackupRestore对象
-    private BackupRestore deserializeMessage(String message) throws JsonProcessingException {
+    private BackupRestore deserializeMessage(String message) {
         try {
             // 使用ObjectMapper反序列化JSON字符串
             return objectMapper.readValue(message, BackupRestore.class);

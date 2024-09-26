@@ -1,6 +1,5 @@
 package com.tutict.finalassignmentbackend.KafkaListener;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.entity.DeductionInformation;
 import com.tutict.finalassignmentbackend.service.DeductionInformationService;
@@ -91,7 +90,7 @@ public class DeductionInformationKafkaListener {
     }
 
     // 反序列化JSON消息为DeductionInformation对象
-    private DeductionInformation deserializeMessage(String message) throws JsonProcessingException {
+    private DeductionInformation deserializeMessage(String message) {
         try {
             // 使用ObjectMapper将JSON字符串转换为DeductionInformation对象
             return objectMapper.readValue(message, DeductionInformation.class);

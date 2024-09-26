@@ -1,6 +1,5 @@
 package com.tutict.finalassignmentbackend.KafkaListener;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.entity.SystemSettings;
 import com.tutict.finalassignmentbackend.service.SystemSettingsService;
@@ -60,7 +59,7 @@ public class SystemSettingsKafkaListener {
     }
 
     // 将JSON字符串反序列化为SystemSettings对象
-    private SystemSettings deserializeMessage(String message) throws JsonProcessingException {
+    private SystemSettings deserializeMessage(String message) {
         try {
             // 实现JSON字符串到SystemSettings对象的反序列化
             return objectMapper.readValue(message, SystemSettings.class);

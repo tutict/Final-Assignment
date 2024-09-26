@@ -1,6 +1,5 @@
 package com.tutict.finalassignmentbackend.KafkaListener;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.entity.FineInformation;
 import com.tutict.finalassignmentbackend.service.FineInformationService;
@@ -83,7 +82,7 @@ public class FineInformationKafkaListener {
     }
 
     // 反序列化JSON消息为FineInformation对象
-    private FineInformation deserializeMessage(String message) throws JsonProcessingException {
+    private FineInformation deserializeMessage(String message) {
         try {
             // 实现JSON字符串到FineInformation对象的反序列化
             return objectMapper.readValue(message, FineInformation.class);

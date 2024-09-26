@@ -1,6 +1,5 @@
 package com.tutict.finalassignmentbackend.KafkaListener;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.entity.AppealManagement;
 import com.tutict.finalassignmentbackend.service.AppealManagementService;
@@ -12,7 +11,6 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
 
-import java.io.IOException;
 
 // 声明一个Kafka监听器组件，用于处理申诉管理相关的消息
 @Component
@@ -82,7 +80,7 @@ public class AppealManagementKafkaListener {
     }
 
     // 将JSON字符串反序列化为AppealManagement对象
-    private AppealManagement deserializeMessage(String message) throws JsonProcessingException {
+    private AppealManagement deserializeMessage(String message) {
         try {
             return objectMapper.readValue(message, AppealManagement.class);
         } catch (Exception e) {
