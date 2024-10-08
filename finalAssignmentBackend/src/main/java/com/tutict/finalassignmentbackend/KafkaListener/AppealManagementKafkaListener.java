@@ -30,7 +30,7 @@ public class AppealManagementKafkaListener {
     }
 
     // 监听Kafka主题中的申诉创建消息
-    @KafkaListener(topics = "appeal_create", groupId = "create_group")
+    @KafkaListener(topics = "appeal_create", groupId = "create_group", concurrency = "3")
     public void onAppealCreateReceived(String message, Acknowledgment acknowledgment) {
         Future.<Void>future(promise -> {
             try {
@@ -55,7 +55,7 @@ public class AppealManagementKafkaListener {
     }
 
     // 监听Kafka主题中的申诉更新消息
-    @KafkaListener(topics = "appeal_updated", groupId = "create_group")
+    @KafkaListener(topics = "appeal_updated", groupId = "create_group", concurrency = "3")
     public void onAppealUpdateReceived(String message, Acknowledgment acknowledgment) {
         Future.<Void>future(promise -> {
             try {

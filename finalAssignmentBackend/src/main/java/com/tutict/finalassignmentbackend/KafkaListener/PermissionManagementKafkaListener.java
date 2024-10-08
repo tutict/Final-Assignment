@@ -32,7 +32,7 @@ public class PermissionManagementKafkaListener {
     }
 
     // 监听权限创建主题，处理权限创建消息
-    @KafkaListener(topics = "permission_create", groupId = "permission_listener_group")
+    @KafkaListener(topics = "permission_create", groupId = "permission_listener_group", concurrency = "3")
     public void onPermissionCreateReceived(String message, Acknowledgment acknowledgment) {
         Future.<Void>future(promise -> {
             try {
@@ -58,7 +58,7 @@ public class PermissionManagementKafkaListener {
     }
 
     // 监听权限更新主题，处理权限更新消息
-    @KafkaListener(topics = "permission_update", groupId = "permission_listener_group")
+    @KafkaListener(topics = "permission_update", groupId = "permission_listener_group", concurrency = "3")
     public void onPermissionUpdateReceived(String message, Acknowledgment acknowledgment) {
         Future.<Void>future(promise -> {
             try {

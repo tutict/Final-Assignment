@@ -27,7 +27,7 @@ public class UserManagementKafkaListener {
         this.userManagementService = userManagementService;
     }
 
-    @KafkaListener(topics = "user_create", groupId = "user_listener_group")
+    @KafkaListener(topics = "user_create", groupId = "user_listener_group", concurrency = "3")
     public void onUserCreateReceived(String message, Acknowledgment acknowledgment) {
         Future.<Void>future(promise -> {
             try {
@@ -53,7 +53,7 @@ public class UserManagementKafkaListener {
         });
     }
 
-    @KafkaListener(topics = "user_update", groupId = "user_listener_group")
+    @KafkaListener(topics = "user_update", groupId = "user_listener_group", concurrency = "3")
     public void onUserUpdateReceived(String message, Acknowledgment acknowledgment) {
         Future.<Void>future(promise -> {
             try {

@@ -29,7 +29,7 @@ public class DriverInformationKafkaListener {
     }
 
     // 监听驾驶员创建消息
-    @KafkaListener(topics = "driver_create", groupId = "driver_listener_group")
+    @KafkaListener(topics = "driver_create", groupId = "driver_listener_group", concurrency = "3")
     public void onDriverCreateReceived(String message, Acknowledgment acknowledgment) {
         Future.<Void>future(promise -> {
             try {
@@ -57,7 +57,7 @@ public class DriverInformationKafkaListener {
     }
 
     // 监听驾驶员更新消息
-    @KafkaListener(topics = "driver_update", groupId = "driver_listener_group")
+    @KafkaListener(topics = "driver_update", groupId = "driver_listener_group", concurrency = "3")
     public void onDriverUpdateReceived(String message, Acknowledgment acknowledgment) {
         Future.<Void>future(promise -> {
             try {
@@ -83,6 +83,8 @@ public class DriverInformationKafkaListener {
             }
         });
     }
+
+
 
     // 反序列化消息内容为DriverInformation对象
     private DriverInformation deserializeMessage(String message) {

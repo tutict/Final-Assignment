@@ -23,7 +23,7 @@ public class OffenseDetailsKafkaListener {
         this.offenseDetailsService = offenseDetailsService;
     }
 
-    @KafkaListener(topics = "offense_details_topic", groupId = "offense_details_group")
+    @KafkaListener(topics = "offense_details_topic", groupId = "offense_details_group", concurrency = "3")
     public void onOffenseDetailsReceived(String message, Acknowledgment acknowledgment) {
         Future.<Void>future(promise -> {
             try {

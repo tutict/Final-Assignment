@@ -29,7 +29,7 @@ public class BackupRestoreKafkaListener {
     }
 
     // 监听"backup_create"主题，当收到消息时调用该方法处理
-    @KafkaListener(topics = "backup_create", groupId = "backup_listener_group")
+    @KafkaListener(topics = "backup_create", groupId = "backup_listener_group", concurrency = "3")
     public void onBackupCreateReceived(String message, Acknowledgment acknowledgment) {
         // 异步处理备份创建任务
         Future.<Void>future(promise -> {
@@ -58,7 +58,7 @@ public class BackupRestoreKafkaListener {
     }
 
     // 监听"backup_update"主题，当收到消息时调用该方法处理
-    @KafkaListener(topics = "backup_update", groupId = "backup_listener_group")
+    @KafkaListener(topics = "backup_update", groupId = "backup_listener_group", concurrency = "3")
     public void onBackupUpdateReceived(String message, Acknowledgment acknowledgment) {
         // 异步处理备份更新任务
         Future.<Void>future(promise -> {

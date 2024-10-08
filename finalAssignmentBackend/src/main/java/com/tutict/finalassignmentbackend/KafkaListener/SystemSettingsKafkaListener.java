@@ -31,7 +31,7 @@ public class SystemSettingsKafkaListener {
     }
 
     // 监听Kafka上的系统设置更新消息
-    @KafkaListener(topics = "system_settings_update", groupId = "system_settings_listener_group")
+    @KafkaListener(topics = "system_settings_update", groupId = "system_settings_listener_group", concurrency = "3")
     public void onSystemSettingsUpdateReceived(String message, Acknowledgment acknowledgment) {
         Future.<Void>future(promise -> {
             try {

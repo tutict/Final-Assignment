@@ -30,7 +30,7 @@ public class DeductionInformationKafkaListener {
     }
 
     // 监听扣款信息创建主题
-    @KafkaListener(topics = "deduction_create", groupId = "deduction_listener_group")
+    @KafkaListener(topics = "deduction_create", groupId = "deduction_listener_group", concurrency = "3")
     public void onDeductionCreateReceived(String message, Acknowledgment acknowledgment) {
         // 使用Vert.x的Future进行异步处理
         Future.<Void>future(promise -> {
@@ -59,7 +59,7 @@ public class DeductionInformationKafkaListener {
     }
 
     // 监听扣款信息更新主题
-    @KafkaListener(topics = "deduction_update", groupId = "deduction_listener_group")
+    @KafkaListener(topics = "deduction_update", groupId = "deduction_listener_group", concurrency = "3")
     public void onDeductionUpdateReceived(String message, Acknowledgment acknowledgment) {
         // 使用Vert.x的Future进行异步处理
         Future.<Void>future(promise -> {

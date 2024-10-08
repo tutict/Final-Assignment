@@ -26,7 +26,7 @@ public class RoleManagementKafkaListener {
         this.roleManagementService = roleManagementService;
     }
 
-    @KafkaListener(topics = "role_create", groupId = "role_listener_group")
+    @KafkaListener(topics = "role_create", groupId = "role_listener_group", concurrency = "3")
     public void onRoleCreateReceived(String message, Acknowledgment acknowledgment) {
         Future.<Void>future(promise -> {
             try {
@@ -52,7 +52,7 @@ public class RoleManagementKafkaListener {
         });
     }
 
-    @KafkaListener(topics = "role_update", groupId = "role_listener_group")
+    @KafkaListener(topics = "role_update", groupId = "role_listener_group", concurrency = "3")
     public void onRoleUpdateReceived(String message, Acknowledgment acknowledgment) {
         Future.<Void>future(promise -> {
             try {

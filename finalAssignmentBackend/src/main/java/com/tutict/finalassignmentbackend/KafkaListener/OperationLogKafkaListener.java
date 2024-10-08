@@ -31,7 +31,7 @@ public class OperationLogKafkaListener {
     }
 
     // 监听Kafka主题"operation_create"，处理操作日志创建事件
-    @KafkaListener(topics = "operation_create", groupId = "operation_listener_group")
+    @KafkaListener(topics = "operation_create", groupId = "operation_listener_group", concurrency = "3")
     public void onOperationLogCreateReceived(String message, Acknowledgment acknowledgment) {
         Future.<Void>future(promise -> {
             try {
@@ -57,7 +57,7 @@ public class OperationLogKafkaListener {
     }
 
     // 监听Kafka主题"operation_update"，处理操作日志更新事件
-    @KafkaListener(topics = "operation_update", groupId = "operation_listener_group")
+    @KafkaListener(topics = "operation_update", groupId = "operation_listener_group", concurrency = "3")
     public void onOperationLogUpdateReceived(String message, Acknowledgment acknowledgment) {
         Future.<Void>future(promise -> {
             try {

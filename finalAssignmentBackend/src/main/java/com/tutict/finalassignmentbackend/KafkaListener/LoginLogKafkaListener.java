@@ -27,7 +27,7 @@ public class LoginLogKafkaListener {
         this.loginLogService = loginLogService;
     }
 
-    @KafkaListener(topics = "login_create", groupId = "login_listener_group")
+    @KafkaListener(topics = "login_create", groupId = "login_listener_group", concurrency = "3")
     public void onLoginLogCreateReceived(String message, Acknowledgment acknowledgment) {
         Future.<Void>future(promise -> {
             try {
@@ -52,7 +52,7 @@ public class LoginLogKafkaListener {
         });
     }
 
-    @KafkaListener(topics = "login_update", groupId = "login_listener_group")
+    @KafkaListener(topics = "login_update", groupId = "login_listener_group", concurrency = "3")
     public void onLoginLogUpdateReceived(String message, Acknowledgment acknowledgment) {
         Future.<Void>future(promise -> {
             try {

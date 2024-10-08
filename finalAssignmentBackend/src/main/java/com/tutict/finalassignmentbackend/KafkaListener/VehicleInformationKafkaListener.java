@@ -29,7 +29,7 @@ public class VehicleInformationKafkaListener {
     }
 
     // 监听车辆创建主题，处理车辆创建消息
-    @KafkaListener(topics = "vehicle_create", groupId = "vehicle_listener_group")
+    @KafkaListener(topics = "vehicle_create", groupId = "vehicle_listener_group", concurrency = "3")
     public void onVehicleCreateReceived(String message, Acknowledgment acknowledgment) {
         Future.<Void>future(promise -> {
             try {
@@ -56,7 +56,7 @@ public class VehicleInformationKafkaListener {
     }
 
     // 监听车辆更新主题，处理车辆更新消息
-    @KafkaListener(topics = "vehicle_update", groupId = "vehicle_listener_group")
+    @KafkaListener(topics = "vehicle_update", groupId = "vehicle_listener_group", concurrency = "3")
     public void onVehicleUpdateReceived(String message, Acknowledgment acknowledgment) {
         Future.<Void>future(promise -> {
             try {

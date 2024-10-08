@@ -24,7 +24,7 @@ public class OffenseInformationKafkaListener {
         this.offenseInformationService = offenseInformationService;
     }
 
-    @KafkaListener(topics = "offense_create", groupId = "offense_listener_group")
+    @KafkaListener(topics = "offense_create", groupId = "offense_listener_group", concurrency = "3")
     public void onOffenseCreateReceived(String message, Acknowledgment acknowledgment) {
         Future.<Void>future(promise -> {
             try {
@@ -49,7 +49,7 @@ public class OffenseInformationKafkaListener {
         });
     }
 
-    @KafkaListener(topics = "offense_update", groupId = "offense_listener_group")
+    @KafkaListener(topics = "offense_update", groupId = "offense_listener_group", concurrency = "3")
     public void onOffenseUpdateReceived(String message, Acknowledgment acknowledgment) {
         Future.<Void>future(promise -> {
             try {

@@ -30,7 +30,7 @@ public class FineInformationKafkaListener {
     }
 
     // 监听罚款创建消息的主题
-    @KafkaListener(topics = "fine_create", groupId = "fine_listener_group")
+    @KafkaListener(topics = "fine_create", groupId = "fine_listener_group", concurrency = "3")
     public void onFineCreateReceived(String message, Acknowledgment acknowledgment) {
         Future.<Void>future(promise -> {
             try {
@@ -56,7 +56,7 @@ public class FineInformationKafkaListener {
     }
 
     // 监听罚款更新消息的主题
-    @KafkaListener(topics = "fine_update", groupId = "fine_listener_group")
+    @KafkaListener(topics = "fine_update", groupId = "fine_listener_group", concurrency = "3")
     public void onFineUpdateReceived(String message, Acknowledgment acknowledgment) {
         Future.<Void>future(promise -> {
             try {

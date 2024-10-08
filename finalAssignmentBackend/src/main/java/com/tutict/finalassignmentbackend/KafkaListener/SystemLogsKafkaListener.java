@@ -30,7 +30,7 @@ public class SystemLogsKafkaListener {
     }
 
     // 监听"system_create"主题，处理系统日志创建消息
-    @KafkaListener(topics = "system_create", groupId = "system_logs_listener_group")
+    @KafkaListener(topics = "system_create", groupId = "system_logs_listener_group", concurrency = "3")
     public void onSystemLogCreateReceived(String message, Acknowledgment acknowledgment) {
         Future.<Void>future(promise -> {
             try {
@@ -57,7 +57,7 @@ public class SystemLogsKafkaListener {
     }
 
     // 监听"system_update"主题，处理系统日志更新消息
-    @KafkaListener(topics = "system_update", groupId = "system_logs_listener_group")
+    @KafkaListener(topics = "system_update", groupId = "system_logs_listener_group", concurrency = "3")
     public void onSystemLogUpdateReceived(String message, Acknowledgment acknowledgment) {
         Future.<Void>future(promise -> {
             try {
