@@ -13,8 +13,8 @@ import java.util.concurrent.TimeUnit;
 @EnableCaching
 public class CacheConfig {
 
-    @Bean
-    public CacheManager cacheManager() {
+    @Bean(name = "redisCacheManager")
+    public CacheManager redisCacheManager() {
         CaffeineCacheManager cacheManager = new CaffeineCacheManager("driverInfoCache");
         cacheManager.setCaffeine(Caffeine.newBuilder()
                 .expireAfterWrite(5, TimeUnit.MINUTES) // 设置 Caffeine 缓存的有效期

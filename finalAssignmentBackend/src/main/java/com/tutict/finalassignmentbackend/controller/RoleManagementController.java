@@ -118,18 +118,4 @@ public class RoleManagementController {
         roleManagementService.deleteRoleByName(roleName);
         return ResponseEntity.noContent().build();
     }
-
-    // 根据角色ID获取权限列表
-    // 接受路径变量roleId作为输入
-    // 如果找到权限列表，返回状态码200 OK和权限列表字符串
-    // 如果未找到权限列表，返回状态码204 No Content
-    @GetMapping("/{roleId}/permissions")
-    public ResponseEntity<String> getPermissionListByRoleId(@PathVariable int roleId) {
-        String permissionList = roleManagementService.getPermissionListByRoleId(roleId);
-        if (permissionList != null) {
-            return ResponseEntity.ok(permissionList);
-        } else {
-            return ResponseEntity.notFound().build();
-        }
-    }
 }
