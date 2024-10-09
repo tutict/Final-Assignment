@@ -20,7 +20,10 @@ public class AppealManagement implements Serializable {
     private static final long serialVersionUID = 1L;
 
     // 使用@TableId标记主键字段，类型为 AUTO 自增
-    @TableId(value = "offense_id", type = IdType.AUTO)
+    @TableId(value = "appeal_id", type = IdType.AUTO)
+    private Integer appealId;
+
+    @TableField("offense_id")
     private Integer offenseId;
 
     // 上诉人姓名，数据库字段名为"appellant_name"

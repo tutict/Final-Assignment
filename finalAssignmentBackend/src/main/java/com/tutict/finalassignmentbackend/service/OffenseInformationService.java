@@ -6,6 +6,9 @@ import com.tutict.finalassignmentbackend.entity.OffenseInformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
@@ -37,6 +40,7 @@ public class OffenseInformationService {
 
     // 创建违规信息，包含Kafka消息的异步发送和数据库插入操作
     @Transactional
+    @CacheEvict(value = "offenseCache", allEntries = true, key = "#offenseInformation.offenseId")
     public void createOffense(OffenseInformation offenseInformation) {
         try {
             // 异步发送消息到 Kafka，并处理发送结果
@@ -62,17 +66,20 @@ public class OffenseInformationService {
     }
 
     // 根据违规ID获取违规信息
+    @Cacheable(value = "offenseCache", key = "#offenseId")
     public OffenseInformation getOffenseByOffenseId(int offenseId) {
         return offenseInformationMapper.selectById(offenseId);
     }
 
     // 获取所有违规信息
+    @Cacheable(value = "offenseCache")
     public List<OffenseInformation> getOffensesInformation() {
         return offenseInformationMapper.selectList(null);
     }
 
     // 更新违规信息，包含Kafka消息的异步发送和数据库更新操作
     @Transactional
+    @CachePut(value = "offenseCache", key = "#offenseInformation.offenseId")
     public void updateOffense(OffenseInformation offenseInformation) {
         try {
             // 异步发送消息到 Kafka，并处理发送结果
@@ -101,6 +108,7 @@ public class OffenseInformationService {
      * 删除违规信息
      * @param offenseId 违规ID
      */
+    @CacheEvict(value = "offenseCache", key = "#offenseId")
     public void deleteOffense(int offenseId) {
         try {
             if (offenseId <= 0) {
@@ -119,6 +127,7 @@ public class OffenseInformationService {
      * @return 违规信息列表
      * @throws IllegalArgumentException 如果提供的时间范围无效，则抛出此异常
      */
+    @Cacheable(value = "offenseCache", key = "#startTime + '-' + #endTime")
     public List<OffenseInformation> getOffensesByTimeRange(Date startTime, Date endTime) {
         if (startTime == null || endTime == null || startTime.after(endTime)) {
             throw new IllegalArgumentException("Invalid time range");
@@ -134,6 +143,7 @@ public class OffenseInformationService {
      * @return 违规信息列表
      * @throws IllegalArgumentException 如果提供的处理状态无效，则抛出此异常
      */
+    @Cacheable(value = "offenseCache", key = "#processState")
     public List<OffenseInformation> getOffensesByProcessState(String processState) {
         if (processState == null || processState.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid process state");
@@ -149,6 +159,7 @@ public class OffenseInformationService {
      * @return 违规信息列表
      * @throws IllegalArgumentException 如果提供的驾驶员姓名无效，则抛出此异常
      */
+    @Cacheable(value = "offenseCache", key = "#driverName")
     public List<OffenseInformation> getOffensesByDriverName(String driverName) {
         if (driverName == null || driverName.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid driver name");
@@ -164,6 +175,7 @@ public class OffenseInformationService {
      * @return 违规信息列表
      * @throws IllegalArgumentException 如果提供的车牌号无效，则抛出此异常
      */
+    @Cacheable(value = "offenseCache", key = "#offenseLicensePlate")
     public List<OffenseInformation> getOffensesByLicensePlate(String offenseLicensePlate) {
         if (offenseLicensePlate == null || offenseLicensePlate.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid license plate");

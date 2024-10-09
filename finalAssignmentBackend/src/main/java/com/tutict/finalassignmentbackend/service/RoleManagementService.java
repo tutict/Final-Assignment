@@ -6,6 +6,9 @@ import com.tutict.finalassignmentbackend.entity.RoleManagement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
@@ -38,6 +41,7 @@ public class RoleManagementService {
      * @param role 要创建的角色对象
      */
     @Transactional
+    @CacheEvict(cacheNames = "roleCache", allEntries = true, key = "#role.roleId")
     public void createRole(RoleManagement role) {
         try {
             // 异步发送创建角色消息到Kafka
@@ -67,6 +71,7 @@ public class RoleManagementService {
      * @param roleId 角色ID
      * @return 查询到的角色对象，如果没有找到则返回null
      */
+    @Cacheable(cacheNames = "roleCache", key = "#roleId")
     public RoleManagement getRoleById(int roleId) {
         return roleManagementMapper.selectById(roleId);
     }
@@ -75,6 +80,7 @@ public class RoleManagementService {
      * 查询所有角色
      * @return 所有角色的列表
      */
+    @Cacheable(cacheNames = "roleCache")
     public List<RoleManagement> getAllRoles() {
         return roleManagementMapper.selectList(null);
     }
@@ -85,6 +91,7 @@ public class RoleManagementService {
      * @return 查询到的角色对象，如果没有找到则返回null
      * @throws IllegalArgumentException 如果角色名称为空或空字符串
      */
+    @Cacheable(cacheNames = "roleCache", key = "#roleName")
     public RoleManagement getRoleByName(String roleName) {
         if (roleName == null || roleName.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid role name");
@@ -100,6 +107,7 @@ public class RoleManagementService {
      * @return 模糊查询到的角色列表
      * @throws IllegalArgumentException 如果角色名称为空或空字符串
      */
+    @Cacheable(cacheNames = "roleCache", key = "#roleName")
     public List<RoleManagement> getRolesByNameLike(String roleName) {
         if (roleName == null || roleName.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid role name");
@@ -114,6 +122,7 @@ public class RoleManagementService {
      * @param role 要更新的角色对象
      */
     @Transactional
+    @CachePut(cacheNames = "roleCache", key = "#role.roleId")
     public void updateRole(RoleManagement role) {
         try {
             // 异步发送更新角色消息到Kafka
@@ -142,6 +151,7 @@ public class RoleManagementService {
      * 删除角色
      * @param roleId 角色ID
      */
+    @CacheEvict(cacheNames = "roleCache", key = "#roleId")
     public void deleteRole(int roleId) {
         try {
             RoleManagement roleToDelete = roleManagementMapper.selectById(roleId);
@@ -159,6 +169,7 @@ public class RoleManagementService {
      * @param roleName 角色名称
      * @throws IllegalArgumentException 如果角色名称为空或空字符串
      */
+    @CacheEvict(cacheNames = "roleCache", key = "#roleName")
     public void deleteRoleByName(String roleName) {
         if (roleName == null || roleName.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid role name");
@@ -169,19 +180,5 @@ public class RoleManagementService {
         if (roleToDelete != null) {
             roleManagementMapper.delete(queryWrapper);
         }
-    }
-
-    /**
-     * 根据角色ID查询权限列表
-     * @param roleId 角色ID
-     * @return 权限列表字符串，如果没有找到则返回null
-     * @throws IllegalArgumentException 如果角色ID小于等于0
-     */
-    public String getPermissionListByRoleId(int roleId) {
-        if (roleId <= 0) {
-            throw new IllegalArgumentException("Invalid role ID");
-        }
-        RoleManagement role = roleManagementMapper.selectById(roleId);
-        return role != null ? role.getPermissionList() : null;
     }
 }

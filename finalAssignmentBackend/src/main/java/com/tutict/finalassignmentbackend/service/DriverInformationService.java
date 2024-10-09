@@ -6,6 +6,9 @@ import com.tutict.finalassignmentbackend.entity.DriverInformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
@@ -37,6 +40,7 @@ public class DriverInformationService {
      * @param driverInformation 包含司机详细信息的 DriverInformation 对象
      */
     @Transactional
+    @CacheEvict(value = "driverCache", allEntries = true, key = "#driverInformation.driverId")
     public void createDriver(DriverInformation driverInformation) {
         try {
             // 异步发送消息到 Kafka 并处理发送结果
@@ -66,6 +70,7 @@ public class DriverInformationService {
      * @param driverId 司机的 ID
      * @return 对应于司机 ID 的 DriverInformation 对象
      */
+    @Cacheable(value = "driverCache", key = "#driverId")
     public DriverInformation getDriverById(int driverId) {
         return driverInformationMapper.selectById(driverId);
     }
@@ -74,6 +79,7 @@ public class DriverInformationService {
      * 获取所有司机信息。
      * @return 所有 DriverInformation 对象的列表
      */
+    @Cacheable(value = "driverCache")
     public List<DriverInformation> getAllDrivers() {
         return driverInformationMapper.selectList(null);
     }
@@ -83,6 +89,7 @@ public class DriverInformationService {
      * @param driverInformation 包含更新后的司机详细信息的 DriverInformation 对象
      */
     @Transactional
+    @CachePut(value = "driverCache", key = "#driverInformation.driverId")
     public void updateDriver(DriverInformation driverInformation) {
         try {
             // 异步发送消息到 Kafka 并处理发送结果
@@ -111,6 +118,7 @@ public class DriverInformationService {
      * 根据司机 ID 删除司机信息。
      * @param driverId 要删除的司机的 ID
      */
+    @CacheEvict(value = "driverCache", key = "#driverId")
     public void deleteDriver(int driverId) {
         try {
             driverInformationMapper.deleteById(driverId);
@@ -124,6 +132,7 @@ public class DriverInformationService {
      * @param idCardNumber 司机的身份证号码
      * @return 对应于身份证号码的 DriverInformation 对象列表
      */
+    @Cacheable(value = "driverCache", key = "#idCardNumber")
     public List<DriverInformation> getDriversByIdCardNumber(String idCardNumber) {
         QueryWrapper<DriverInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("id_card_number", idCardNumber);
@@ -135,6 +144,7 @@ public class DriverInformationService {
      * @param driverLicenseNumber 司机的驾驶证号码
      * @return 对应于驾驶证号码的 DriverInformation 对象
      */
+    @Cacheable(value = "driverCache", key = "#driverLicenseNumber")
     public DriverInformation getDriverByDriverLicenseNumber(String driverLicenseNumber) {
         QueryWrapper<DriverInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("driver_license_number", driverLicenseNumber);
@@ -146,6 +156,7 @@ public class DriverInformationService {
      * @param name 司机的姓名
      * @return 姓名包含指定名称的所有 DriverInformation 对象列表
      */
+    @Cacheable(value = "driverCache", key = "#name")
     public List<DriverInformation> getDriversByName(String name) {
         QueryWrapper<DriverInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.like("name", name);

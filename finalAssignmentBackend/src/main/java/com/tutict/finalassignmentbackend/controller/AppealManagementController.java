@@ -42,7 +42,7 @@ public class AppealManagementController {
     // 根据ID获取申诉
     // [GET] 请求，通过申诉ID检索申诉信息
     @GetMapping("/{appealId}")
-    public ResponseEntity<AppealManagement> getAppealById(@PathVariable Long appealId) {
+    public ResponseEntity<AppealManagement> getAppealById(@PathVariable Integer appealId) {
         AppealManagement appeal = appealManagementService.getAppealById(appealId);
         if (appeal != null) {
             return ResponseEntity.ok(appeal);
@@ -62,7 +62,7 @@ public class AppealManagementController {
     // 更新申诉信息
     // [PUT] 请求，根据ID检索并更新现有申诉的信息
     @PutMapping("/{appealId}")
-    public ResponseEntity<Void> updateAppeal(@PathVariable Long appealId, @RequestBody AppealManagement updatedAppeal) {
+    public ResponseEntity<Void> updateAppeal(@PathVariable Integer appealId, @RequestBody AppealManagement updatedAppeal) {
         AppealManagement existingAppeal = appealManagementService.getAppealById(appealId);
         if (existingAppeal != null) {
             // 更新现有申诉的属性
@@ -86,7 +86,7 @@ public class AppealManagementController {
     // 删除申诉
     // [DELETE] 请求，根据ID删除申诉信息
     @DeleteMapping("/{appealId}")
-    public ResponseEntity<Void> deleteAppeal(@PathVariable Long appealId) {
+    public ResponseEntity<Void> deleteAppeal(@PathVariable Integer appealId) {
         appealManagementService.deleteAppeal(appealId);
         return ResponseEntity.noContent().build();
     }
@@ -110,7 +110,7 @@ public class AppealManagementController {
     // 根据申诉ID获取违规信息
     // [GET] 请求，通过申诉ID检索关联的违规信息
     @GetMapping("/{appealId}/offense")
-    public ResponseEntity<OffenseInformation> getOffenseByAppealId(@PathVariable Long appealId) {
+    public ResponseEntity<OffenseInformation> getOffenseByAppealId(@PathVariable Integer appealId) {
         OffenseInformation offense = appealManagementService.getOffenseByAppealId(appealId);
         if (offense != null) {
             return ResponseEntity.ok(offense);

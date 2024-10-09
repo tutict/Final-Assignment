@@ -6,6 +6,9 @@ import com.tutict.finalassignmentbackend.entity.PermissionManagement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
@@ -38,6 +41,7 @@ public class PermissionManagementService {
      * @param permission 待创建的权限对象
      */
     @Transactional
+    @CacheEvict(value = "permissionCache", allEntries = true, key = "#permission.permissionId")
     public void createPermission(PermissionManagement permission) {
         try {
             // 异步发送消息到 Kafka，并处理发送结果
@@ -67,6 +71,7 @@ public class PermissionManagementService {
      * @param permissionId 权限ID
      * @return 查询到的权限对象，如果不存在则返回null
      */
+    @Cacheable(value = "permissionCache", key = "#permissionId")
     public PermissionManagement getPermissionById(int permissionId) {
         return permissionManagementMapper.selectById(permissionId);
     }
@@ -75,6 +80,7 @@ public class PermissionManagementService {
      * 查询所有权限
      * @return 所有权限的列表
      */
+    @Cacheable(value = "permissionCache")
     public List<PermissionManagement> getAllPermissions() {
         return permissionManagementMapper.selectList(null);
     }
@@ -86,6 +92,7 @@ public class PermissionManagementService {
      * @return 查询到的权限对象，如果不存在则返回null
      * @throws IllegalArgumentException 如果权限名称为空，则抛出此异常
      */
+    @Cacheable(value = "permissionCache", key = "#permissionName")
     public PermissionManagement getPermissionByName(String permissionName) {
         if (permissionName == null || permissionName.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid permission name");
@@ -101,6 +108,7 @@ public class PermissionManagementService {
      * @return 模糊查询到的所有权限列表
      * @throws IllegalArgumentException 如果权限名称为空，则抛出此异常
      */
+    @Cacheable(value = "permissionCache", key = "#permissionName")
     public List<PermissionManagement> getPermissionsByNameLike(String permissionName) {
         if (permissionName == null || permissionName.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid permission name");
@@ -115,6 +123,7 @@ public class PermissionManagementService {
      * @param permission 待更新的权限对象
      */
     @Transactional
+    @CachePut(value = "permissionCache", key = "#permission.permissionId")
     public void updatePermission(PermissionManagement permission) {
         try {
             // 异步发送消息到 Kafka，并处理发送结果
@@ -142,6 +151,7 @@ public class PermissionManagementService {
      * 删除权限
      * @param permissionId 权限ID
      */
+    @CacheEvict(value = "permissionCache", key = "#permissionId")
     public void deletePermission(int permissionId) {
         try {
             PermissionManagement permissionToDelete = permissionManagementMapper.selectById(permissionId);
@@ -159,6 +169,7 @@ public class PermissionManagementService {
      * @param permissionName 权限名称
      * @throws IllegalArgumentException 如果权限名称为空或空字符串，则抛出此异常
      */
+    @CacheEvict(value = "permissionCache", key = "#permissionName")
     public void deletePermissionByName(String permissionName) {
         if (permissionName == null || permissionName.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid permission name");

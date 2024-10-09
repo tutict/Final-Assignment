@@ -4,6 +4,9 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.tutict.finalassignmentbackend.mapper.FineInformationMapper;
 import com.tutict.finalassignmentbackend.entity.FineInformation;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
@@ -36,6 +39,7 @@ public class FineInformationService {
      * @param fineInformation 罚款信息对象
      */
     @Transactional
+    @CacheEvict(value = "fineCache", allEntries = true, key = "#fineInformation.fineId")
     public void createFine(FineInformation fineInformation) {
         try {
             // 异步发送消息到 Kafka，并处理发送结果
@@ -66,6 +70,7 @@ public class FineInformationService {
      * @return 罚款信息对象
      * @throws IllegalArgumentException 如果提供的罚款ID无效
      */
+    @Cacheable(value = "fineCache", key = "#fineId")
     public FineInformation getFineById(int fineId) {
         if (fineId <= 0) {
             throw new IllegalArgumentException("Invalid fine ID");
@@ -77,6 +82,7 @@ public class FineInformationService {
      * 获取所有罚款信息
      * @return 罚款信息列表
      */
+    @Cacheable(value = "fineCache")
     public List<FineInformation> getAllFines() {
         return fineInformationMapper.selectList(null);
     }
@@ -86,6 +92,7 @@ public class FineInformationService {
      * @param fineInformation 罚款信息对象
      */
     @Transactional
+    @CachePut(value = "fineCache", key = "#fineInformation.fineId")
     public void updateFine(FineInformation fineInformation) {
         try {
             // 异步发送消息到 Kafka，并处理发送结果
@@ -114,6 +121,7 @@ public class FineInformationService {
      * 删除罚款信息
      * @param fineId 罚款ID
      */
+    @CacheEvict(value = "fineCache", key = "#fineId")
     public void deleteFine(int fineId) {
         try {
             fineInformationMapper.deleteById(fineId);
@@ -129,6 +137,7 @@ public class FineInformationService {
      * @return 罚款信息列表
      * @throws IllegalArgumentException 如果提供的付款人无效
      */
+    @Cacheable(value = "fineCache", key = "#payee")
     public List<FineInformation> getFinesByPayee(String payee) {
         if (payee == null || payee.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid payee");
@@ -145,6 +154,7 @@ public class FineInformationService {
      * @return 罚款信息列表
      * @throws IllegalArgumentException 如果提供的时间范围无效
      */
+    @Cacheable(value = "fineCache", key = "#startTime + '-' + #endTime")
     public List<FineInformation> getFinesByTimeRange(Date startTime, Date endTime) {
         if (startTime == null || endTime == null || startTime.after(endTime)) {
             throw new IllegalArgumentException("Invalid time range");
@@ -160,6 +170,7 @@ public class FineInformationService {
      * @return 罚款信息对象
      * @throws IllegalArgumentException 如果提供的收据编号无效
      */
+    @Cacheable(value = "fineCache", key = "#receiptNumber")
     public FineInformation getFineByReceiptNumber(String receiptNumber) {
         if (receiptNumber == null || receiptNumber.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid receipt number");

@@ -6,6 +6,9 @@ import com.tutict.finalassignmentbackend.entity.VehicleInformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
@@ -34,6 +37,7 @@ public class VehicleInformationService {
 
     // 创建车辆信息
     @Transactional
+    @CacheEvict(cacheNames = "vehicleCache", allEntries = true, key = "#vehicleInformation.vehicleId")
     public void createVehicleInformation(VehicleInformation vehicleInformation) {
         try {
             // 异步发送消息到 Kafka，并处理发送结果
@@ -59,6 +63,7 @@ public class VehicleInformationService {
     }
 
     // 根据车辆ID查询车辆信息
+    @Cacheable(cacheNames = "vehicleCache", key = "#vehicleId")
     public VehicleInformation getVehicleInformationById(int vehicleId) {
         return vehicleInformationMapper.selectById(vehicleId);
     }
@@ -69,6 +74,7 @@ public class VehicleInformationService {
      * @return 车辆信息对象
      * @throws IllegalArgumentException 如果传入的参数为空或空字符串
      */
+    @Cacheable(cacheNames = "vehicleCache", key = "#licensePlate")
     public VehicleInformation getVehicleInformationByLicensePlate(String licensePlate) {
         if (licensePlate == null || licensePlate.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid license plate number");
@@ -79,6 +85,7 @@ public class VehicleInformationService {
     }
 
     // 查询所有车辆信息
+    @Cacheable(cacheNames = "vehicleCache")
     public List<VehicleInformation> getAllVehicleInformation() {
         return vehicleInformationMapper.selectList(null);
     }
@@ -89,6 +96,7 @@ public class VehicleInformationService {
      * @return 车辆信息对象列表
      * @throws IllegalArgumentException 如果传入的参数为空或空字符串
      */
+    @Cacheable(cacheNames = "vehicleCache", key = "#vehicleType")
     public List<VehicleInformation> getVehicleInformationByType(String vehicleType) {
         if (vehicleType == null || vehicleType.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid vehicle type");
@@ -104,6 +112,7 @@ public class VehicleInformationService {
      * @return 车辆信息对象列表
      * @throws IllegalArgumentException 如果传入的参数为空或空字符串
      */
+    @Cacheable(cacheNames = "vehicleCache", key = "#ownerName")
     public List<VehicleInformation> getVehicleInformationByOwnerName(String ownerName) {
         if (ownerName == null || ownerName.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid owner name");
@@ -119,6 +128,7 @@ public class VehicleInformationService {
      * @return 车辆信息对象列表
      * @throws IllegalArgumentException 如果传入的参数为空或空字符串
      */
+    @Cacheable(cacheNames = "vehicleCache", key = "#currentStatus")
     public List<VehicleInformation> getVehicleInformationByStatus(String currentStatus) {
         if (currentStatus == null || currentStatus.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid current status");
@@ -130,6 +140,7 @@ public class VehicleInformationService {
 
     // 更新车辆信息
     @Transactional
+    @CachePut(cacheNames = "vehicleCache", key = "#vehicleInformation.vehicleId")
     public void updateVehicleInformation(VehicleInformation vehicleInformation) {
         try {
             // 异步发送消息到 Kafka，并处理发送结果
@@ -158,6 +169,7 @@ public class VehicleInformationService {
      * 删除车辆信息
      * @param vehicleId 车辆ID
      */
+    @CacheEvict(cacheNames = "vehicleCache", key = "#vehicleId")
     public void deleteVehicleInformation(int vehicleId) {
         try {
             vehicleInformationMapper.deleteById(vehicleId);
@@ -171,6 +183,7 @@ public class VehicleInformationService {
      * @param licensePlate 车牌号
      * @throws IllegalArgumentException 如果传入的参数为空或空字符串
      */
+    @CacheEvict(cacheNames = "vehicleCache", key = "#licensePlate")
     public void deleteVehicleInformationByLicensePlate(String licensePlate) {
         if (licensePlate == null || licensePlate.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid license plate number");
@@ -186,6 +199,7 @@ public class VehicleInformationService {
      * @return true 如果存在，false 如果不存在
      * @throws IllegalArgumentException 如果传入的参数为空或空字符串
      */
+    @Cacheable(cacheNames = "vehicleCache", key = "#licensePlate")
     public boolean isLicensePlateExists(String licensePlate) {
         QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("license_plate", licensePlate);

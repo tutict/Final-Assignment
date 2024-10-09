@@ -6,6 +6,9 @@ import com.tutict.finalassignmentbackend.entity.UserManagement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
@@ -30,6 +33,7 @@ public class UserManagementService {
 
     // 创建用户
     @Transactional
+    @CacheEvict(cacheNames = "userCache", allEntries = true, key = "#user.userId")
     public void createUser(UserManagement user) {
         try {
             // 异步发送消息到 Kafka，并处理发送结果
@@ -55,6 +59,7 @@ public class UserManagementService {
     }
 
     // 根据用户ID查询用户
+    @Cacheable(cacheNames = "userCache", key = "#userId")
     public UserManagement getUserById(int userId) {
         return userManagementMapper.selectById(userId);
     }
@@ -65,6 +70,7 @@ public class UserManagementService {
      * @return 用户对象
      * @throws IllegalArgumentException 如果用户名无效
      */
+    @Cacheable(cacheNames = "userCache", key = "#username")
     public UserManagement getUserByUsername(String username) {
         if (username == null || username.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid username");
@@ -75,6 +81,7 @@ public class UserManagementService {
     }
 
     // 查询所有用户
+    @Cacheable(cacheNames = "userCache")
     public List<UserManagement> getAllUsers() {
         UserManagement newUser = new UserManagement();
         if (userManagementMapper.selectCount(null) == 0) {
@@ -91,6 +98,7 @@ public class UserManagementService {
      * @return 用户对象列表
      * @throws IllegalArgumentException 如果用户类型无效
      */
+    @Cacheable(cacheNames = "userCache", key = "#userType")
     public List<UserManagement> getUsersByType(String userType) {
         if (userType == null || userType.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid user type");
@@ -106,6 +114,7 @@ public class UserManagementService {
      * @return 用户对象列表
      * @throws IllegalArgumentException 如果用户状态无效
      */
+    @Cacheable(cacheNames = "userCache", key = "#status")
     public List<UserManagement> getUsersByStatus(String status) {
         if (status == null || status.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid status");
@@ -117,6 +126,7 @@ public class UserManagementService {
 
     // 更新用户
     @Transactional
+    @CachePut(cacheNames = "userCache", key = "#user.userId")
     public void updateUser(UserManagement user) {
         try {
             // 异步发送消息到 Kafka，并处理发送结果
@@ -145,6 +155,7 @@ public class UserManagementService {
      * 删除用户
      * @param userId 用户ID
      */
+    @CacheEvict(cacheNames = "userCache", key = "#userId")
     public void deleteUser(int userId) {
         try {
             UserManagement userToDelete = userManagementMapper.selectById(userId);
@@ -162,6 +173,7 @@ public class UserManagementService {
      * @param username 用户名
      * @throws IllegalArgumentException 如果用户名无效
      */
+    @CacheEvict(cacheNames = "userCache", key = "#username")
     public void deleteUserByUsername(String username) {
         try {
             UserManagement userToDelete = getUserByUsername(username);
@@ -183,6 +195,7 @@ public class UserManagementService {
      * @return 如果用户名存在就true否则就false
      * @throws IllegalArgumentException 如果用户名无效
      */
+    @Cacheable(cacheNames = "userCache", key = "#username")
     public boolean isUsernameExists(String username) {
         if (username == null || username.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid username");

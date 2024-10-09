@@ -8,6 +8,9 @@ import com.tutict.finalassignmentbackend.entity.OffenseInformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
@@ -40,6 +43,7 @@ public class AppealManagementService {
 
     // 创建申诉记录
     @Transactional
+    @CacheEvict(value = "appealCache", allEntries = true, key = "#appeal.appealId")
     public void createAppeal(AppealManagement appeal) {
         try {
             // 异步发送消息到 Kafka，并处理发送结果
@@ -69,7 +73,8 @@ public class AppealManagementService {
      * @param appealId 申诉ID
      * @return 申诉记录
      */
-    public AppealManagement getAppealById(Long appealId) {
+    @Cacheable(value = "appealCache", key = "#appealId")
+    public AppealManagement getAppealById(Integer appealId) {
         return appealManagementMapper.selectById(appealId);
     }
 
@@ -77,12 +82,14 @@ public class AppealManagementService {
      * 获取所有申诉记录
      * @return 所有申诉记录列表
      */
+    @Cacheable(value = "appealCache")
     public List<AppealManagement> getAllAppeals() {
         return appealManagementMapper.selectList(null);
     }
 
     // 更新申诉记录
     @Transactional
+    @CachePut(value = "appealCache", key = "#appeal.appealId")
     public void updateAppeal(AppealManagement appeal) {
         try {
             // 异步发送消息到 Kafka，并处理发送结果
@@ -112,7 +119,8 @@ public class AppealManagementService {
      * 删除申诉记录
      * @param appealId 申诉ID
      */
-    public void deleteAppeal(Long appealId) {
+    @CacheEvict(value = "appealCache", allEntries = true, key = "#appealId")
+    public void deleteAppeal(Integer appealId) {
         try {
             AppealManagement appeal = appealManagementMapper.selectById(appealId);
             if (appeal == null) {
@@ -137,6 +145,7 @@ public class AppealManagementService {
      * @param processStatus 申诉状态
      * @return 申诉信息列表
      */
+    @Cacheable(value = "appealCache", key = "#processStatus")
     public List<AppealManagement> getAppealsByProcessStatus(String processStatus) {
         QueryWrapper<AppealManagement> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("process_status", processStatus);
@@ -148,6 +157,7 @@ public class AppealManagementService {
      * @param appealName 申诉人姓名
      * @return 申诉信息列表
      */
+    @Cacheable(value = "appealCache", key = "#appealName")
     public List<AppealManagement> getAppealsByAppealName(String appealName) {
         QueryWrapper<AppealManagement> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("appeal_name", appealName);
@@ -159,7 +169,8 @@ public class AppealManagementService {
      * @param appealId 申诉ID
      * @return 关联的违法行为信息
      */
-    public OffenseInformation getOffenseByAppealId(Long appealId) {
+    @Cacheable(value = "appealCache", key = "#appealId")
+    public OffenseInformation getOffenseByAppealId(Integer appealId) {
         AppealManagement appeal = appealManagementMapper.selectById(appealId);
         if (appeal != null) {
             return offenseInformationMapper.selectById(appeal.getOffenseId());

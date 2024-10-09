@@ -6,6 +6,9 @@ import com.tutict.finalassignmentbackend.entity.LoginLog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
@@ -38,6 +41,7 @@ public class LoginLogService {
      * @param loginLog 登录日志对象，包含要插入数据库的日志信息
      */
     @Transactional
+    @CacheEvict(value = "loginCache", allEntries = true, key = "#loginLog.logId")
     public void createLoginLog(LoginLog loginLog) {
         try {
             // 异步发送消息到 Kafka，并处理发送结果
@@ -67,6 +71,7 @@ public class LoginLogService {
      * @param logId 日志ID
      * @return 返回登录日志对象
      */
+    @Cacheable(value = "loginCache", key = "#logId")
     public LoginLog getLoginLog(int logId) {
         return loginLogMapper.selectById(logId);
     }
@@ -75,6 +80,7 @@ public class LoginLogService {
      * 获取所有登录日志
      * @return 返回登录日志列表
      */
+    @Cacheable(value = "loginCache")
     public List<LoginLog> getAllLoginLogs() {
         return loginLogMapper.selectList(null);
     }
@@ -84,6 +90,7 @@ public class LoginLogService {
      * @param loginLog 登录日志对象，包含要更新的日志信息
      */
     @Transactional
+    @CachePut(value = "loginCache", key = "#loginLog.logId")
     public void updateLoginLog(LoginLog loginLog) {
         try {
             // 异步发送消息到 Kafka，并处理发送结果
@@ -112,6 +119,7 @@ public class LoginLogService {
      * 删除登录日志
      * @param logId 日志ID
      */
+    @CacheEvict(value = "loginCache", key = "#logId")
     public void deleteLoginLog(int logId) {
         try {
             loginLogMapper.deleteById(logId);
@@ -128,6 +136,7 @@ public class LoginLogService {
      * @return 返回在指定时间范围内的登录日志列表
      * @throws IllegalArgumentException 如果时间范围无效
      */
+    @Cacheable(value = "loginCache", key = "#startTime + '-' + #endTime")
     public List<LoginLog> getLoginLogsByTimeRange(Date startTime, Date endTime) {
         if (startTime == null || endTime == null || startTime.after(endTime)) {
             throw new IllegalArgumentException("Invalid time range");
@@ -143,6 +152,7 @@ public class LoginLogService {
      * @return 返回指定用户名的登录日志列表
      * @throws IllegalArgumentException 如果用户名为空或无效
      */
+    @Cacheable(value = "loginCache", key = "#username")
     public List<LoginLog> getLoginLogsByUsername(String username) {
         if (username == null || username.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid username");
@@ -158,6 +168,7 @@ public class LoginLogService {
      * @return 返回指定登录结果的登录日志列表
      * @throws IllegalArgumentException 如果登录结果为空或无效
      */
+    @Cacheable(value = "loginCache", key = "#loginResult")
     public List<LoginLog> getLoginLogsByLoginResult(String loginResult) {
         if (loginResult == null || loginResult.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid login result");

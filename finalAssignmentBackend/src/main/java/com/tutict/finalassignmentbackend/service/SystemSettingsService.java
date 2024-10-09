@@ -5,6 +5,8 @@ import com.tutict.finalassignmentbackend.entity.SystemSettings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
@@ -33,6 +35,7 @@ public class SystemSettingsService {
 
     // 获取系统设置
     // 通过数据访问对象根据ID选择系统设置
+    @Cacheable(cacheNames = "systemSettingsCache")
     public SystemSettings getSystemSettings() {
         return systemSettingsMapper.selectById(1);
     }
@@ -40,6 +43,7 @@ public class SystemSettingsService {
     // 更新系统设置
     // 使用Spring事务管理器管理更新操作
     @Transactional
+    @CacheEvict(cacheNames = "systemSettingsCache", allEntries = true, key = "#systemSettings.systemName")
     public void updateSystemSettings(SystemSettings systemSettings) {
         try {
             // 异步发送系统设置更新消息到Kafka主题
@@ -65,6 +69,7 @@ public class SystemSettingsService {
     }
 
     // 获取系统名称
+    @Cacheable(cacheNames = "systemNameCache")
     public String getSystemName() {
         SystemSettings systemSettings = systemSettingsMapper.selectById(1);
         // 返回系统名称，若systemSettings为空则返回null
@@ -72,6 +77,7 @@ public class SystemSettingsService {
     }
 
     // 获取系统版本
+    @Cacheable(cacheNames = "systemVersionCache")
     public String getSystemVersion() {
         SystemSettings systemSettings = systemSettingsMapper.selectById(1);
         // 返回系统版本，若systemSettings为空则返回null
@@ -79,6 +85,7 @@ public class SystemSettingsService {
     }
 
     // 获取系统描述
+    @Cacheable(cacheNames = "systemDescriptionCache")
     public String getSystemDescription() {
         SystemSettings systemSettings = systemSettingsMapper.selectById(1);
         // 返回系统描述，若systemSettings为空则返回null
@@ -86,6 +93,7 @@ public class SystemSettingsService {
     }
 
     // 获取版权信息
+    @Cacheable(cacheNames = "copyrightInfoCache")
     public String getCopyrightInfo() {
         SystemSettings systemSettings = systemSettingsMapper.selectById(1);
         // 返回版权信息，若systemSettings为空则返回null
@@ -93,6 +101,7 @@ public class SystemSettingsService {
     }
 
     // 获取存储路径
+    @Cacheable(cacheNames = "storagePathCache")
     public String getStoragePath() {
         SystemSettings systemSettings = systemSettingsMapper.selectById(1);
         // 返回存储路径，若systemSettings为空则返回null
@@ -100,6 +109,7 @@ public class SystemSettingsService {
     }
 
     // 获取登录超时时间
+    @Cacheable(cacheNames = "loginTimeoutCache")
     public int getLoginTimeout() {
         SystemSettings systemSettings = systemSettingsMapper.selectById(1);
         // 返回登录超时时间，若systemSettings为空则返回0
@@ -107,6 +117,7 @@ public class SystemSettingsService {
     }
 
     // 获取会话超时时间
+    @Cacheable(cacheNames = "sessionTimeoutCache")
     public int getSessionTimeout() {
         SystemSettings systemSettings = systemSettingsMapper.selectById(1);
         // 返回会话超时时间，若systemSettings为空则返回0
@@ -114,6 +125,7 @@ public class SystemSettingsService {
     }
 
     // 获取日期格式
+    @Cacheable(cacheNames = "dateFormatCache")
     public String getDateFormat() {
         SystemSettings systemSettings = systemSettingsMapper.selectById(1);
         // 返回日期格式，若systemSettings为空则返回null
@@ -121,6 +133,7 @@ public class SystemSettingsService {
     }
 
     // 获取分页大小
+    @Cacheable(cacheNames = "dateFormatCache")
     public int getPageSize() {
         SystemSettings systemSettings = systemSettingsMapper.selectById(1);
         // 返回分页大小，若systemSettings为空则返回0
@@ -128,6 +141,7 @@ public class SystemSettingsService {
     }
 
     // 获取SMTP服务器
+    @Cacheable(cacheNames = "dateFormatCache")
     public String getSmtpServer() {
         SystemSettings systemSettings = systemSettingsMapper.selectById(1);
         // 返回SMTP服务器，若systemSettings为空则返回null
@@ -135,6 +149,7 @@ public class SystemSettingsService {
     }
 
     // 获取邮箱账号
+    @Cacheable(cacheNames = "dateFormatCache")
     public String getEmailAccount() {
         SystemSettings systemSettings = systemSettingsMapper.selectById(1);
         // 返回邮箱账号，若systemSettings为空则返回null
@@ -142,6 +157,7 @@ public class SystemSettingsService {
     }
 
     // 获取邮箱密码
+    @Cacheable(cacheNames = "dateFormatCache")
     public String getEmailPassword() {
         SystemSettings systemSettings = systemSettingsMapper.selectById(1);
         // 返回邮箱密码，若systemSettings为空则返回null

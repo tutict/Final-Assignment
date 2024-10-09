@@ -6,6 +6,9 @@ import com.tutict.finalassignmentbackend.entity.BackupRestore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
@@ -38,6 +41,7 @@ public class BackupRestoreService {
      * @param backup 要创建的备份对象，包含备份的所有相关信息
      */
     @Transactional
+    @CacheEvict(value = "backupCache", allEntries = true, key = "#backup.backupId")
     public void createBackup(BackupRestore backup) {
         try {
             // 异步发送消息到 Kafka，并处理发送结果
@@ -66,6 +70,7 @@ public class BackupRestoreService {
      * 获取所有备份列表
      * @return 包含所有备份的列表
      */
+    @Cacheable(value = "backupCache")
     public List<BackupRestore> getAllBackups() {
         return backupRestoreMapper.selectList(null);
     }
@@ -75,7 +80,8 @@ public class BackupRestoreService {
      * @param backupId 备份的唯一标识符
      * @return 指定ID的备份对象，如果不存在则返回"Invalid backup ID"
      */
-    public BackupRestore getBackupById(int backupId) {
+    @Cacheable(value = "backupCache", key = "#backupId")
+    public BackupRestore getBackupById(Integer backupId) {
         if (backupId <= 0) {
             throw new IllegalArgumentException("Invalid backup ID");
         }
@@ -86,7 +92,8 @@ public class BackupRestoreService {
      * 删除指定ID的备份
      * @param backupId 要删除的备份的ID
      */
-    public void deleteBackup(int backupId) {
+    @CacheEvict(value = "backupCache", allEntries = true, key = "#backupId")
+    public void deleteBackup(Integer backupId) {
         try {
             backupRestoreMapper.deleteById(backupId);
         } catch (Exception e) {
@@ -99,6 +106,7 @@ public class BackupRestoreService {
      * @param backup 包含更新后的备份信息的对象
      */
     @Transactional
+    @CachePut(value = "backupCache", key = "#backup.backupId")
     public void updateBackup(BackupRestore backup) {
         try {
             // 异步发送消息到 Kafka，并处理发送结果
@@ -129,6 +137,7 @@ public class BackupRestoreService {
      * @return 指定文件名的备份对象，如果不存在则返回"Invalid backup file name"
      * @throws IllegalArgumentException 如果文件名为空或为null
      */
+    @Cacheable(value = "backupCache", key = "#backupFileName")
     public BackupRestore getBackupByFileName(String backupFileName) {
         if (backupFileName == null || backupFileName.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid backup file name");
@@ -144,6 +153,7 @@ public class BackupRestoreService {
      * @return 指定时间的备份列表，如果不存在则返回"Invalid backup time"
      * @throws IllegalArgumentException 如果时间参数为空或为null
      */
+    @Cacheable(value = "backupCache", key = "#backupTime")
     public List<BackupRestore> getBackupsByTime(String backupTime) {
         if (backupTime == null || backupTime.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid backup time");

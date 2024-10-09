@@ -22,8 +22,10 @@ public class FineInformation implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
 
-    // 主键ID，采用自动增长方式
-    @TableId(value = "offense_id", type = IdType.AUTO)
+    @TableId(value = "fine_id", type = IdType.AUTO)
+    private Integer fineId;
+
+    @TableField("offense_id")
     private Integer offenseId;
 
     // 罚款金额

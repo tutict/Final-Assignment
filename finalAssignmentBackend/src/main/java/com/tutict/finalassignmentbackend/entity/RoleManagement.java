@@ -43,13 +43,6 @@ public class RoleManagement implements Serializable {
     private String roleDescription;
 
     /**
-     * 权限列表
-     * 该字段用于存储角色所拥有的权限信息
-     */
-    @TableField("permission_list")
-    private String permissionList;
-
-    /**
      * 创建时间
      * 该字段记录角色创建的时间
      */
@@ -69,4 +62,5 @@ public class RoleManagement implements Serializable {
      */
     @TableField("remarks")
     private String remarks;
+
 }

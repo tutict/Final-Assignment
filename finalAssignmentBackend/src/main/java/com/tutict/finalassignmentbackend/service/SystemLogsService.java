@@ -6,6 +6,9 @@ import com.tutict.finalassignmentbackend.entity.SystemLogs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
@@ -36,6 +39,7 @@ public class SystemLogsService {
     // 创建系统日志
     // 使用事务确保操作的原子性：如果Kafka消息发送失败或数据库插入失败，会触发事务回滚
     @Transactional
+    @CacheEvict(cacheNames = "systemLogCache", allEntries = true, key = "#systemLog.logId")
     public void createSystemLog(SystemLogs systemLog) {
         try {
             // 异步发送消息到 Kafka，并处理发送结果
@@ -61,12 +65,14 @@ public class SystemLogsService {
     }
 
     // 根据日志ID查询系统日志
+    @Cacheable(cacheNames = "systemLogCache", key = "#logId")
     public SystemLogs getSystemLogById(int logId) {
         // 通过ID查询日志详情
         return systemLogsMapper.selectById(logId);
     }
 
     // 查询所有系统日志
+    @Cacheable(cacheNames = "systemLogCache")
     public List<SystemLogs> getAllSystemLogs() {
         // 查询并返回所有系统日志
         return systemLogsMapper.selectList(null);
@@ -78,6 +84,7 @@ public class SystemLogsService {
      * @return 查询到的日志列表
      * @throws IllegalArgumentException 如果日志类型为空或空字符串，则抛出此异常
      */
+    @Cacheable(cacheNames = "systemLogCache", key = "#logType")
     public List<SystemLogs> getSystemLogsByType(String logType) {
         if (logType == null || logType.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid log type");
@@ -96,6 +103,7 @@ public class SystemLogsService {
      * @return 查询到的日志列表
      * @throws IllegalArgumentException 如果时间范围无效（开始时间大于结束时间），则抛出此异常
      */
+    @Cacheable(cacheNames = "systemLogCache", key = "#startTime + '-' + #endTime")
     public List<SystemLogs> getSystemLogsByTimeRange(Date startTime, Date endTime) {
         if (startTime == null || endTime == null || startTime.after(endTime)) {
             throw new IllegalArgumentException("Invalid time range");
@@ -113,6 +121,7 @@ public class SystemLogsService {
      * @return 查询到的日志列表
      * @throws IllegalArgumentException 如果操作用户为空或空字符串，则抛出此异常
      */
+    @Cacheable(cacheNames = "systemLogCache", key = "#operationUser")
     public List<SystemLogs> getSystemLogsByOperationUser(String operationUser) {
         if (operationUser == null || operationUser.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid operation user");
@@ -127,6 +136,7 @@ public class SystemLogsService {
     // 更新系统日志
     // 使用事务确保操作的原子性：如果Kafka消息发送失败或数据库更新失败，会触发事务回滚
     @Transactional
+    @CachePut(cacheNames = "systemLogCache", key = "#systemLog.logId")
     public void updateSystemLog(SystemLogs systemLog) {
         try {
             // 异步发送消息到 Kafka，并处理发送结果
@@ -155,6 +165,7 @@ public class SystemLogsService {
      * 删除系统日志
      * @param logId 日志ID
      */
+    @CacheEvict(cacheNames = "systemLogCache", key = "#logId")
     public void deleteSystemLog(int logId) {
         try {
             // 根据ID查询待删除的日志，确保日志存在

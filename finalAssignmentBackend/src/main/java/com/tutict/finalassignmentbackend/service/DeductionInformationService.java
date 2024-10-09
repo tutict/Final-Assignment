@@ -6,6 +6,9 @@ import com.tutict.finalassignmentbackend.entity.DeductionInformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
@@ -36,6 +39,7 @@ public class DeductionInformationService {
 
     // 创建扣款信息，使用@Transactional确保事务一致性
     @Transactional
+    @CacheEvict(value = "deductionCache", allEntries = true, key = "#deduction.deductionId")
     public void createDeduction(DeductionInformation deduction) {
         try {
             // 异步发送消息到 Kafka，并处理发送结果
@@ -66,6 +70,7 @@ public class DeductionInformationService {
      * @return 扣款信息对象
      * @throws IllegalArgumentException 如果deductionId无效
      */
+    @Cacheable(value = "deductionCache", key = "#deductionId")
     public DeductionInformation getDeductionById(int deductionId) {
         if (deductionId <= 0) {
             throw new IllegalArgumentException("Invalid deduction ID");
@@ -77,12 +82,14 @@ public class DeductionInformationService {
      * 获取所有扣款信息
      * @return 扣款信息列表
      */
+    @Cacheable(value = "deductionCache")
     public List<DeductionInformation> getAllDeductions() {
         return deductionInformationMapper.selectList(null);
     }
 
     // 更新扣款信息，使用@Transactional确保事务一致性
     @Transactional
+    @CachePut(value = "deductionCache", key = "#deduction.deductionId")
     public void updateDeduction(DeductionInformation deduction) {
         try {
             // 异步发送消息到 Kafka，并处理发送结果
@@ -111,6 +118,7 @@ public class DeductionInformationService {
      * 删除扣款信息
      * @param deductionId 扣款信息ID
      */
+    @CacheEvict(value = "deductionCache", key = "#deductionId")
     public void deleteDeduction(int deductionId) {
         try {
             deductionInformationMapper.deleteById(deductionId);
@@ -125,6 +133,7 @@ public class DeductionInformationService {
      * @return 扣款信息列表
      * @throws IllegalArgumentException 如果处理人姓名为空或无效
      */
+    @Cacheable(value = "deductionCache", key = "#handler")
     public List<DeductionInformation> getDeductionsByHandler(String handler) {
         if (handler == null || handler.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid handler");
@@ -141,6 +150,7 @@ public class DeductionInformationService {
      * @return 扣款信息列表
      * @throws IllegalArgumentException 如果时间范围无效
      */
+    @Cacheable(value = "deductionCache", key = "#startTime + '-' + #endTime")
     public List<DeductionInformation> getDeductionsByByTimeRange(Date startTime, Date endTime) {
         if (startTime == null || endTime == null || startTime.after(endTime)) {
             throw new IllegalArgumentException("Invalid time range");

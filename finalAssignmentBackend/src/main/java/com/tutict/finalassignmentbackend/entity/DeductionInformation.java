@@ -21,12 +21,13 @@ public class DeductionInformation implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
 
+    @TableId(value = "deduction_id", type = IdType.AUTO)
+    private Integer deductionId;
+
     /**
      * 违纪行为ID
-     * @value "offense_id" 数据库中的列名
-     * {@code @type} IdType.AUTO 主键自增
      */
-    @TableId(value = "offense_id", type = IdType.AUTO)
+    @TableField("offense_id")
     private Integer offenseId;
 
     /**

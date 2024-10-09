@@ -6,6 +6,9 @@ import com.tutict.finalassignmentbackend.entity.OperationLog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
@@ -38,6 +41,7 @@ public class OperationLogService {
      * @param operationLog 待创建的操作日志对象
      */
     @Transactional
+    @CacheEvict(value = "operationCache", allEntries = true, key = "#operationLog.logId")
     public void createOperationLog(OperationLog operationLog) {
         try {
             // 异步发送消息到 Kafka，并处理发送结果
@@ -67,6 +71,7 @@ public class OperationLogService {
      * @param logId 操作日志的ID
      * @return 对应ID的操作日志对象
      */
+    @Cacheable(value = "operationCache", key = "#logId")
     public OperationLog getOperationLog(int logId) {
         return operationLogMapper.selectById(logId);
     }
@@ -75,6 +80,7 @@ public class OperationLogService {
      * 获取所有操作日志
      * @return 包含所有操作日志的列表
      */
+    @Cacheable(value = "operationCache")
     public List<OperationLog> getAllOperationLogs() {
         return operationLogMapper.selectList(null);
     }
@@ -84,6 +90,7 @@ public class OperationLogService {
      * @param operationLog 待更新的操作日志对象
      */
     @Transactional
+    @CachePut(value = "operationCache", key = "#operationLog.logId")
     public void updateOperationLog(OperationLog operationLog) {
         try {
             // 异步发送消息到 Kafka，并处理发送结果
@@ -112,6 +119,7 @@ public class OperationLogService {
      * 根据日志ID删除操作日志
      * @param logId 操作日志的ID
      */
+    @CacheEvict(value = "operationCache", key = "#logId")
     public void deleteOperationLog(int logId) {
         try {
             operationLogMapper.deleteById(logId);
@@ -128,6 +136,7 @@ public class OperationLogService {
      * @return 在指定时间范围内的操作日志列表
      * @throws IllegalArgumentException 如果时间范围无效
      */
+    @Cacheable(value = "operationCache", key = "#startTime + '-' + #endTime")
     public List<OperationLog> getOperationLogsByTimeRange(Date startTime, Date endTime) {
         if (startTime == null || endTime == null || startTime.after(endTime)) {
             throw new IllegalArgumentException("Invalid time range");
@@ -143,6 +152,7 @@ public class OperationLogService {
      * @return 对应用户ID的操作日志列表
      * @throws IllegalArgumentException 如果用户ID无效
      */
+    @Cacheable(value = "operationCache", key = "#userId")
     public List<OperationLog> getOperationLogsByUserId(String userId) {
         if (userId == null || userId.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid userId");
@@ -158,6 +168,7 @@ public class OperationLogService {
      * @return 对应操作结果的操作日志列表
      * @throws IllegalArgumentException 如果操作结果无效
      */
+    @Cacheable(value = "operationCache", key = "#operationResult")
     public List<OperationLog> getOperationLogsByResult(String operationResult) {
         if (operationResult == null || operationResult.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid operation result");
