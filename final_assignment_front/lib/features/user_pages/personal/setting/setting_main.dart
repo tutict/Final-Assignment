@@ -1,5 +1,7 @@
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:final_assignment_front/config/themes/app_theme.dart';
 import 'package:flutter/material.dart';
+import 'dart:io';
 
 class SettingPage extends StatefulWidget {
   const SettingPage({super.key});
@@ -9,6 +11,7 @@ class SettingPage extends StatefulWidget {
 }
 
 class _SettingPageState extends State<SettingPage> {
+  double _cacheSize = 0.0;
   bool _isDarkMode = Config.dark;
 
   void _toggleTheme(bool value) {
@@ -17,6 +20,35 @@ class _SettingPageState extends State<SettingPage> {
       Config.dark = value;
       Config.themeData = value ? AppTheme.materialDarkTheme: AppTheme.materialLightTheme;
     });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _calculateCacheSize(); // 初始化时计算缓存大小
+  }
+
+  // 计算缓存大小
+  Future<void> _calculateCacheSize() async {
+    List<FileInfo> cacheFiles = (DefaultCacheManager().getFileFromCache) as List<FileInfo>;
+    double totalSize = 0;
+
+    for (var cacheItem in cacheFiles) {
+      File file = cacheItem.file;    // 获取文件对象
+      if (await file.exists()) {
+        totalSize += await file.length() / (1024 * 1024);    // MB
+      }
+    }
+
+    setState(() {
+      _cacheSize = totalSize;
+    });
+  }
+
+  // 清理缓存
+  Future<void> _clearCache() async {
+    await DefaultCacheManager().emptyCache();
+    _calculateCacheSize(); // 清理缓存后重新计算大小
   }
 
   @override
@@ -43,7 +75,10 @@ class _SettingPageState extends State<SettingPage> {
           ),
           ListTile(
             title: const Text('清除缓存'),
-            subtitle: const Text('1024k'),
+            subtitle: Text(
+              '${_cacheSize.toStringAsFixed(2)} MB',
+              style: const TextStyle(color: Colors.grey),
+            ),
             onTap: () {
               showDialog(
                 context: context,
@@ -61,7 +96,7 @@ class _SettingPageState extends State<SettingPage> {
                       TextButton(
                         child: const Text('确定'),
                         onPressed: () {
-                          Navigator.pop(context);
+                          _clearCache();
                         },
                       ),
                     ],
@@ -94,3 +129,4 @@ class Config {
   static bool dark = true;
   static ThemeData themeData = AppTheme.materialDarkTheme;
 }
+

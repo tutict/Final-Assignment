@@ -107,6 +107,8 @@ dependencies:
 
   flutter_baidu_mapapi_utils: ^3.7.1
 
+  flutter_cache_manager: ^3.4.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
