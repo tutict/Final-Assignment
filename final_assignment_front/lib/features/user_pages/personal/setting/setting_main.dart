@@ -1,13 +1,14 @@
-import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import 'dart:io';
+
 import 'package:final_assignment_front/config/themes/app_theme.dart';
 import 'package:flutter/material.dart';
-import 'dart:io';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
 class SettingPage extends StatefulWidget {
   const SettingPage({super.key});
 
   @override
-  _SettingPageState createState() => _SettingPageState();
+  State<SettingPage> createState() => _SettingPageState();
 }
 
 class _SettingPageState extends State<SettingPage> {
@@ -18,7 +19,8 @@ class _SettingPageState extends State<SettingPage> {
     setState(() {
       _isDarkMode = value;
       Config.dark = value;
-      Config.themeData = value ? AppTheme.materialDarkTheme: AppTheme.materialLightTheme;
+      Config.themeData =
+          value ? AppTheme.materialDarkTheme : AppTheme.materialLightTheme;
     });
   }
 
@@ -30,13 +32,14 @@ class _SettingPageState extends State<SettingPage> {
 
   // 计算缓存大小
   Future<void> _calculateCacheSize() async {
-    List<FileInfo> cacheFiles = (DefaultCacheManager().getFileFromCache) as List<FileInfo>;
+    List<FileInfo> cacheFiles =
+        (DefaultCacheManager().getFileFromCache) as List<FileInfo>;
     double totalSize = 0;
 
     for (var cacheItem in cacheFiles) {
-      File file = cacheItem.file;    // 获取文件对象
+      File file = cacheItem.file; // 获取文件对象
       if (await file.exists()) {
-        totalSize += await file.length() / (1024 * 1024);    // MB
+        totalSize += await file.length() / (1024 * 1024); // MB
       }
     }
 
@@ -115,9 +118,29 @@ class _SettingPageState extends State<SettingPage> {
                 color: Colors.red,
               ),
             ),
-            onPressed: () {
-            },
             child: const Text('删除账户'),
+            onPressed: () => {
+              showDialog(
+                  context: context,
+                  builder: (context) {
+                    return AlertDialog(
+                        title: const Text('删除账户'),
+                        content: const Text('确定要删除账户吗？'),
+                        actions: [
+                          TextButton(
+                            child: const Text('取消'),
+                            onPressed: () {
+                              Navigator.pop(context);
+                            },
+                          ),
+                          TextButton(
+                              child: const Text('确定'),
+                              onPressed: () {
+                                Navigator.pop(context);
+                              })
+                        ]);
+                  }),
+            },
           ),
         ],
       ),
@@ -125,8 +148,8 @@ class _SettingPageState extends State<SettingPage> {
   }
 }
 
+//设置夜间模式
 class Config {
   static bool dark = true;
   static ThemeData themeData = AppTheme.materialDarkTheme;
 }
-
