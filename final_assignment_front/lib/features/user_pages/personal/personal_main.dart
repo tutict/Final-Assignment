@@ -1,4 +1,4 @@
-import 'package:final_assignment_front/config/routes/user_routes/user_app_pages.dart';
+import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:flutter/material.dart';
 
 class PersonalMainPage extends StatelessWidget {
@@ -24,35 +24,35 @@ class PersonalMainPage extends StatelessWidget {
             title: const Text('我的信息'),
             leading: const Icon(Icons.person),
             onTap: () {
-              Navigator.pushNamed(context, UserRoutes.personalInfo);
+              Navigator.pushNamed(context, Routes.personalInfo);
             },
           ),
           ListTile(
             title: const Text('账号与安全'),
             leading: const Icon(Icons.settings),
             onTap: () {
-              Navigator.pushNamed(context, UserRoutes.accountAndSecurity);
+              Navigator.pushNamed(context, Routes.accountAndSecurity);
             },
           ),
           ListTile(
             title: const Text('咨询反馈'),
             leading: const Icon(Icons.logout),
             onTap: () {
-              Navigator.pushNamed(context, UserRoutes.consultation);
+              Navigator.pushNamed(context, Routes.consultation);
             },
           ),
           ListTile(
             title: const Text('智能客服'),
             leading: const Icon(Icons.chat_outlined),
             onTap: () {
-              Navigator.pushNamed(context, UserRoutes.aiChat);
+              Navigator.pushNamed(context, Routes.aiChat);
             },
           ),
           ListTile(
             title: const Text('设置'),
             leading: const Icon(Icons.settings),
             onTap: () {
-              Navigator.pushNamed(context, UserRoutes.setting);
+              Navigator.pushNamed(context, Routes.setting);
             },
           ),
         ]).toList(),

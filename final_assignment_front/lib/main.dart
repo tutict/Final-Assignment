@@ -1,4 +1,3 @@
-import 'package:final_assignment_front/config/routes/user_routes/user_app_pages.dart';
 import 'package:intl/date_symbol_data_local.dart'; // 只导入本地化日期格式化数据
 import 'config/routes/app_pages.dart';
 import 'config/themes/app_theme.dart';
@@ -22,7 +21,7 @@ class MyApp extends StatelessWidget {
     return GetMaterialApp(
       title: '管理系统',
       debugShowCheckedModeBanner: false,
-      initialRoute: UserAppPages.userInitial,
+      initialRoute: AppPages.userInitial,
       //initialRoute: AppPages.initial,
       //initialRoute: AppPages.login,
       getPages: AppPages.routes,
@@ -37,7 +36,7 @@ class MyApp extends StatelessWidget {
           );
         }
 
-        if (currentRoute == UserAppPages.userInitial) {
+        if (currentRoute == AppPages.userInitial) {
           return Theme(
             data: AppTheme.materialLightTheme,
             child: child!,

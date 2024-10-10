@@ -1,4 +1,4 @@
-import 'package:final_assignment_front/config/routes/user_routes/user_app_pages.dart';
+import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:flutter/material.dart';
 
 class PersonalInfoPage extends StatelessWidget {
@@ -29,7 +29,7 @@ class PersonalInfoPage extends StatelessWidget {
           ListTile(
             title: const Text('手机号码'),
             onTap: () {
-              Navigator.pushNamed(context, UserRoutes.changeMobilePhoneNumber);
+              Navigator.pushNamed(context, Routes.changeMobilePhoneNumber);
             },
           ),
           const ListTile(
