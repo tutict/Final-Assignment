@@ -1,6 +1,5 @@
 library app_pages;
 
-
 import 'package:final_assignment_front/features/dashboard/views/screens/manager_dashboard_screen.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 import 'package:final_assignment_front/features/user_pages/login_screen/login.dart';
@@ -18,6 +17,7 @@ import 'package:final_assignment_front/features/user_pages/personal/personal_inf
 import 'package:final_assignment_front/features/user_pages/personal/personal_main.dart';
 import 'package:final_assignment_front/features/user_pages/personal/setting/setting_main.dart';
 import 'package:final_assignment_front/features/user_pages/scaner/main_scan.dart';
+import 'package:final_assignment_front/features/dashboard/bindings/user_dashboard_binding.dart';
 
 import 'package:get/get.dart';
 
@@ -57,6 +57,7 @@ class AppPages {
     GetPage(
         name: _Paths.userDashboard,
         page: () => const UserDashboard(),
+        binding: UserDashboardBinding(),
     ),
     GetPage(
       name: _Paths.aiChat,

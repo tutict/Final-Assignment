@@ -28,32 +28,38 @@ class _Sidebar extends StatelessWidget {
                   activeIcon: EvaIcons.grid,
                   icon: EvaIcons.gridOutline,
                   label: "主页",
+                  onPressed: () {},
                 ),
                 SelectionButtonData(
                   activeIcon: EvaIcons.map,
                   icon: EvaIcons.archiveOutline,
                   label: "业务点",
+                  onPressed: () {},
                 ),
                 SelectionButtonData(
                   activeIcon: EvaIcons.calendar,
                   icon: EvaIcons.calendarOutline,
                   label: "业务办理进度",
+                  onPressed: () {},
                 ),
                 SelectionButtonData(
                   activeIcon: EvaIcons.email,
                   icon: EvaIcons.emailOutline,
                   label: "消息",
                   totalNotif: 20,
+                  onPressed: () {},
                 ),
                 SelectionButtonData(
                   activeIcon: EvaIcons.person,
                   icon: EvaIcons.personOutline,
                   label: "个人信息",
+                  onPressed: () {},
                 ),
                 SelectionButtonData(
                   activeIcon: EvaIcons.settings,
                   icon: EvaIcons.settingsOutline,
                   label: "设置",
+                  onPressed: () {},
                 ),
               ],
               onSelected: (index, value) {

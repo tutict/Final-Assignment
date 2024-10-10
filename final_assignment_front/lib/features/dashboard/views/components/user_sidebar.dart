@@ -1,10 +1,12 @@
 import 'dart:developer';
 import 'package:eva_icons_flutter/eva_icons_flutter.dart';
+import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
 import 'package:final_assignment_front/shared_components/post_card.dart';
 import 'package:final_assignment_front/shared_components/project_card.dart';
 import 'package:final_assignment_front/shared_components/selection_button.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
 class UserSidebar extends StatelessWidget {
   const UserSidebar({
@@ -35,31 +37,41 @@ class UserSidebar extends StatelessWidget {
                   activeIcon: EvaIcons.grid,
                   icon: EvaIcons.gridOutline,
                   label: "更多",
+                  onPressed: () => { },
                 ),
                 SelectionButtonData(
                   activeIcon: EvaIcons.trendingUp,
                   icon: EvaIcons.trendingUpOutline,
                   label: "网办进度",
+                  onPressed: () => {},
                 ),
                 SelectionButtonData(
                   activeIcon: EvaIcons.globe,
                   icon: EvaIcons.globe2Outline,
                   label: "网办大厅",
+                  onPressed: () => {},
                 ),
                 SelectionButtonData(
                   activeIcon: EvaIcons.pin,
                   icon: EvaIcons.pinOutline,
                   label: "线下网点",
+                  onPressed: () => {},
                 ),
                 SelectionButtonData(
                   activeIcon: EvaIcons.person,
                   icon: EvaIcons.personOutline,
                   label: "我的",
+                  onPressed: () => {
+                    Get.toNamed(AppPages.personalMain)
+                  },
                 ),
                 SelectionButtonData(
                   activeIcon: EvaIcons.settings,
                   icon: EvaIcons.settingsOutline,
                   label: "设置",
+                  onPressed: () => {
+                    Get.toNamed(AppPages.setting)
+                  },
                 ),
               ],
               onSelected: (index, value) {

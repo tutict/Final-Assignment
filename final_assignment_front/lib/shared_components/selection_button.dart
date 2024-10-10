@@ -8,12 +8,14 @@ class SelectionButtonData {
   final IconData icon;
   final String label;
   final int? totalNotif;
+  final VoidCallback onPressed;
 
   SelectionButtonData({
     required this.activeIcon,
     required this.icon,
     required this.label,
     this.totalNotif,
+    required this.onPressed,
   });
 }
 
