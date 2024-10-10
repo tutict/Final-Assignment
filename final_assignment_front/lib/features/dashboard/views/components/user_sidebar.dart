@@ -43,19 +43,24 @@ class UserSidebar extends StatelessWidget {
                   activeIcon: EvaIcons.trendingUp,
                   icon: EvaIcons.trendingUpOutline,
                   label: "网办进度",
-                  onPressed: () => {},
+                  onPressed: () => {
+                    Get.toNamed(AppPages.onlineProcessingProgress)
+                  },
                 ),
                 SelectionButtonData(
                   activeIcon: EvaIcons.globe,
                   icon: EvaIcons.globe2Outline,
                   label: "网办大厅",
-                  onPressed: () => {},
+                  onPressed: () => {
+                  },
                 ),
                 SelectionButtonData(
                   activeIcon: EvaIcons.pin,
                   icon: EvaIcons.pinOutline,
                   label: "线下网点",
-                  onPressed: () => {},
+                  onPressed: () => {
+                    Get.toNamed(AppPages.map)
+                  },
                 ),
                 SelectionButtonData(
                   activeIcon: EvaIcons.person,

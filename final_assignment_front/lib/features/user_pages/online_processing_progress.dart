@@ -16,12 +16,12 @@ class OnlineProcessingProgressState extends State<OnlineProcessingProgress>
   void initState() {
     super.initState();
     _tabController =
-        TabController(length: 2, vsync: this); // ��ʼ��TabController
+        TabController(length: 2, vsync: this);
   }
 
   @override
   void dispose() {
-    _tabController.dispose(); // �ͷ�TabController
+    _tabController.dispose();
     super.dispose();
   }
 
@@ -29,7 +29,7 @@ class OnlineProcessingProgressState extends State<OnlineProcessingProgress>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('�������'),
+        title: const Text('网办进度'),
         backgroundColor: Colors.lightBlue,
         foregroundColor: Colors.white,
       ),
@@ -40,25 +40,23 @@ class OnlineProcessingProgressState extends State<OnlineProcessingProgress>
               itemCount: 20,
               itemBuilder: (context, index) {
                 return const ListTile(
-                  title: Text('��������������'),
+                  title: Text(''),
                   trailing: Icon(Icons.arrow_forward_ios),
                 );
               },
             ),
           ),
-          // ��� TabBar
           TabBar(
             controller: _tabController,
             tabs: const [
-              Tab(text: '������'),
-              Tab(text: '�Ѱ��'),
-              Tab(text: '��ȡ��'),
-              Tab(text: 'ȫ��'),
+              Tab(text: ''),
+              Tab(text: ''),
+              Tab(text: ''),
+              Tab(text: ''),
             ],
           ),
-          // ��� TabBarView
           SizedBox(
-            height: 200, // ���� TabBarView �ĸ߶�
+            height: 200,
             child: TabBarView(
               controller: _tabController,
               children: const [
