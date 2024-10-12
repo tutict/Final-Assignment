@@ -11,7 +11,7 @@ class UserScreenSwiper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ͼƬ��URL�б�
+    // 图片URl
     final List<String> imageUrls = [
       "https://via.placeholder.com/350x150/FF0000/FFFFFF?text=Image+1",
       "https://via.placeholder.com/350x150/00FF00/FFFFFF?text=Image+2",
@@ -26,7 +26,7 @@ class UserScreenSwiper extends StatelessWidget {
             fit: BoxFit.fill,
           );
         },
-        itemCount: imageUrls.length, // ʹ��ͼƬ������ΪitemCount
+        itemCount: imageUrls.length,
         pagination: const SwiperPagination(),
         control: const SwiperControl(),
       ),
