@@ -24,6 +24,7 @@ dependencies {
     implementation 'io.quarkus:quarkus-kafka-client:3.11.3'
     implementation 'io.quarkiverse.mybatis:quarkus-mybatis-plus:2.2.3'
     implementation 'org.mindrot:jbcrypt:0.4'
+    implementation 'io.quarkus:quarkus-redis-client'
     //noinspection AnnotationProcessorOnCompilePath
     implementation 'org.projectlombok:lombok:1.18.34'
     implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
@@ -47,7 +48,7 @@ java {
 }
 
 test {
-    systemProperty "java.util.logging.manager", "org.jboss.logmanager.LogManager"
+    systemProperty 'java.util.logging.manager', 'org.jboss.logmanager.LogManager'
 }
 compileJava {
     options.encoding = 'UTF-8'

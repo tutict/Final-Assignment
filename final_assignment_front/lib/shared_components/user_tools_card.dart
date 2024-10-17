@@ -4,32 +4,20 @@ import 'package:eva_icons_flutter/eva_icons_flutter.dart';
 class UserToolsCard extends StatelessWidget {
   const UserToolsCard({
     super.key,
-    required this.title,
-    required this.icon,
     required this.onPressed,
     this.onPressedSecond,
     this.onPressedThird,
     this.onPressedFourth,
     this.onPressedFifth,
     this.onPressedSixth,
-    this.onPressedSeventh,
-    this.onPressedEighth,
-    this.onPressedNinth,
-    this.onPressedTenth,
   });
 
-  final String title;
-  final IconData icon;
-  final Function() onPressed;
+  final Function()? onPressed;
   final Function()? onPressedSecond;
   final Function()? onPressedThird;
   final Function()? onPressedFourth;
   final Function()? onPressedFifth;
   final Function()? onPressedSixth;
-  final Function()? onPressedSeventh;
-  final Function()? onPressedEighth;
-  final Function()? onPressedNinth;
-  final Function()? onPressedTenth;
 
   @override
   Widget build(BuildContext context) {
@@ -50,21 +38,12 @@ class UserToolsCard extends StatelessWidget {
 
   // 构建标题部分
   Widget _buildHeader() {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
+    return const Padding(
+      padding: EdgeInsets.all(16.0),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: <Widget>[
-          Icon(
-            icon,
-            size: 48.0,
-            color: Colors.lightBlueAccent,
-          ),
-          const SizedBox(height: 8.0),
-          Text(
-            title,
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
+          SizedBox(height: 8.0),
         ],
       ),
     );
@@ -74,62 +53,38 @@ class UserToolsCard extends StatelessWidget {
   Widget _buildButtonGrid(BuildContext context) {
     final actions = <Map<String, dynamic>>[
       {
-        'label': 'Primary Action',
+        'label': '违法处理',
         'onPressed': onPressed,
         'icon': EvaIcons.arrowForward
       },
       if (onPressedSecond != null)
         {
-          'label': 'Second Action',
+          'label': '罚款缴纳',
           'onPressed': onPressedSecond,
           'icon': EvaIcons.arrowForwardOutline
         },
       if (onPressedThird != null)
         {
-          'label': 'Third Action',
+          'label': '事故快处',
           'onPressed': onPressedThird,
           'icon': EvaIcons.arrowForwardOutline
         },
       if (onPressedFourth != null)
         {
-          'label': 'Fourth Action',
+          'label': '事故处理进度和结果',
           'onPressed': onPressedFourth,
           'icon': EvaIcons.arrowForwardOutline
         },
       if (onPressedFifth != null)
         {
-          'label': 'Fifth Action',
+          'label': '事故证据材料查阅',
           'onPressed': onPressedFifth,
           'icon': EvaIcons.arrowForwardOutline
         },
       if (onPressedSixth != null)
         {
-          'label': 'Sixth Action',
+          'label': '事故视频快处',
           'onPressed': onPressedSixth,
-          'icon': EvaIcons.arrowForwardOutline
-        },
-      if (onPressedSeventh != null)
-        {
-          'label': 'Seventh Action',
-          'onPressed': onPressedSeventh,
-          'icon': EvaIcons.arrowForwardOutline
-        },
-      if (onPressedEighth != null)
-        {
-          'label': 'Eighth Action',
-          'onPressed': onPressedEighth,
-          'icon': EvaIcons.arrowForwardOutline
-        },
-      if (onPressedNinth != null)
-        {
-          'label': 'Ninth Action',
-          'onPressed': onPressedNinth,
-          'icon': EvaIcons.arrowForwardOutline
-        },
-      if (onPressedTenth != null)
-        {
-          'label': 'Tenth Action',
-          'onPressed': onPressedTenth,
           'icon': EvaIcons.arrowForwardOutline
         },
     ];
@@ -160,18 +115,14 @@ class UserToolsCard extends StatelessWidget {
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(8.0),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8.0),
-          border: Border.all(color: Colors.lightBlueAccent),
-        ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: Colors.lightBlueAccent, size: 16),
-            const SizedBox(width: 4.0),
+            Icon(icon, color: Colors.lightBlueAccent, size: 20),
+            const SizedBox(height: 4.0, width: 4.0),
             Text(
               text,
-              style: const TextStyle(color: Colors.lightBlueAccent),
+              style: const TextStyle(color: Colors.black, fontSize: 20),
             ),
           ],
         ),

@@ -99,18 +99,12 @@ class UserDashboard extends GetView<UserDashboardController> {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: kSpacing),
         child: UserToolsCard(
-          title: 'User Tools',
-          icon: EvaIcons.person,
           onPressed: () {},
           onPressedSecond: () {},
           onPressedThird: () {},
           onPressedFourth: () {},
           onPressedFifth: () {},
           onPressedSixth: () {},
-          onPressedSeventh: () {},
-          onPressedEighth: () {},
-          onPressedNinth: () {},
-          onPressedTenth: () {},
         ),
       ),
     );
