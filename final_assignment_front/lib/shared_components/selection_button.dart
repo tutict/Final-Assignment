@@ -1,8 +1,10 @@
+// 导入所需包和库
 import 'package:chinese_font_library/chinese_font_library.dart';
 import 'package:flutter/material.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
 import 'package:get/get.dart';
 
+// 定义选择按钮的数据模型，包含图标、标签和回调函数等信息
 class SelectionButtonData {
   final IconData activeIcon;
   final IconData icon;
@@ -19,6 +21,7 @@ class SelectionButtonData {
   });
 }
 
+// 定义一个可状态化的选择按钮组件
 class SelectionButton extends StatefulWidget {
   const SelectionButton({
     this.initialSelected = 0,
@@ -35,6 +38,7 @@ class SelectionButton extends StatefulWidget {
   State<SelectionButton> createState() => _SelectionButtonState();
 }
 
+// 定义选择按钮的状态
 class _SelectionButtonState extends State<SelectionButton> {
   late int selected;
 
@@ -69,6 +73,7 @@ class _SelectionButtonState extends State<SelectionButton> {
   }
 }
 
+// 定义实际渲染的按钮组件
 class _Button extends StatelessWidget {
   const _Button({
     required this.selected,
@@ -109,6 +114,7 @@ class _Button extends StatelessWidget {
     );
   }
 
+  // 渲染按钮图标
   Widget _icon(IconData iconData) {
     return Icon(
       iconData,
@@ -119,6 +125,7 @@ class _Button extends StatelessWidget {
     );
   }
 
+  // 渲染按钮标签文本
   Widget _labelText(String data) {
     return Text(
       data,
@@ -133,6 +140,7 @@ class _Button extends StatelessWidget {
     );
   }
 
+  // 渲染通知数标记
   Widget _notif(int total) {
     return (total <= 0)
         ? Container()

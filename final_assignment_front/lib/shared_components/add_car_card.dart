@@ -1,19 +1,24 @@
+// 导入必要的包
 import 'package:chinese_font_library/chinese_font_library.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
 
+// 定义进度卡片数据类，包含未完成任务和正在进行的任务数量
 class ProgressCardData {
   final int totalUndone;
   final int totalTaskInProress;
 
+  // 构造函数
   const ProgressCardData({
     required this.totalUndone,
     required this.totalTaskInProress,
   });
 }
 
+// 定义进度卡片组件，用于展示车辆相关信息和操作按钮
 class ProgressCard extends StatelessWidget {
+  // 构造函数
   const ProgressCard({
     required this.data,
     required this.onPressedCheck,
@@ -25,6 +30,7 @@ class ProgressCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 返回一个卡片组件，包含车辆图案和相关信息
     return Card(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(kBorderRadius),
@@ -35,6 +41,7 @@ class ProgressCard extends StatelessWidget {
       ),
       child: Stack(
         children: [
+          // 车辆图案，使用SVG格式
           ClipRRect(
             borderRadius: BorderRadius.circular(kBorderRadius),
             child: Align(
@@ -52,6 +59,7 @@ class ProgressCard extends StatelessWidget {
               ),
             ),
           ),
+          // 车辆信息和操作按钮
           Padding(
             padding: const EdgeInsets.only(
               left: kSpacing,
@@ -60,6 +68,7 @@ class ProgressCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
+                // 车辆图标和名称
                 Row(
                   children: <Widget>[
                     const Icon(Icons.directions_car, size: 44.0),
@@ -71,6 +80,7 @@ class ProgressCard extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: kSpacing),
+                // 备案机动车信息的按钮
                 ElevatedButton(
                   onPressed: onPressedCheck,
                   child: Row(

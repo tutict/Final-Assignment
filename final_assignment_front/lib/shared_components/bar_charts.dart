@@ -1,9 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_chart_plus/flutter_chart.dart';
 
+/// BarChart 组件用于展示条形图。
+/// 它继承自StatelessWidget，用于在Flutter应用中展示静态的条形图表。
 class BarChart extends StatelessWidget {
   const BarChart({super.key});
 
+  /// 构建并返回一个Widget树，用于展示条形图。
+  ///
+  /// 参数:
+  /// - context: BuildContext对象，用于获取有关构建上下文的信息。
+  ///
+  /// 返回:
+  /// - 一个SizedBox widget，包含一个ChartWidget，用于实际展示条形图。
   @override
   Widget build(BuildContext context) {
     return SizedBox(

@@ -10,6 +10,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+/// 用户仪表板页面
+///
+/// UserDashboard 类继承自GetView，用于构建用户仪表板页面。
+/// 它包含了一个 Scaffold，提供了一个可选的侧边栏、头部、身体内容，
+/// 以及一个浮动操作按钮。
 class UserDashboard extends GetView<UserDashboardController> {
   const UserDashboard({super.key});
 
@@ -49,6 +54,10 @@ class UserDashboard extends GetView<UserDashboardController> {
     );
   }
 
+  /// 构建侧边栏
+  ///
+  /// 此方法根据设备类型返回不同的侧边栏构建结果。
+  /// 在桌面模式下返回 null，否则返回一个 Drawer。
   Widget? _buildDrawer(BuildContext context) {
     return ResponsiveBuilder.isDesktop(context)
         ? null
@@ -60,6 +69,10 @@ class UserDashboard extends GetView<UserDashboardController> {
     );
   }
 
+  /// 构建响应式布局
+  ///
+  /// 此方法根据设备类型选择不同的布局构建方法。
+  /// 对于移动设备和平板设备使用相同的布局，对于桌面设备使用特定的桌面布局。
   Widget _buildResponsiveLayout(BuildContext context) {
     return ResponsiveBuilder(
       mobileBuilder: (context, constraints) => _buildLayout(context),
@@ -69,6 +82,10 @@ class UserDashboard extends GetView<UserDashboardController> {
     );
   }
 
+  /// 构建用户仪表板布局
+  ///
+  /// 此方法构建用户仪表板的具体布局，包括头部、用户屏幕滑动器和用户工具卡片。
+  /// 参数 isDesktop 用于指示是否在桌面模式下构建布局。
   Widget _buildLayout(BuildContext context, {bool isDesktop = false}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -83,6 +100,9 @@ class UserDashboard extends GetView<UserDashboardController> {
     );
   }
 
+  /// 构建用户屏幕滑动器
+  ///
+  /// 此方法返回一个固定高度的用户屏幕滑动器组件。
   Widget _buildUserScreenSwiper() {
     return SizedBox(
       height: 250,
@@ -93,6 +113,10 @@ class UserDashboard extends GetView<UserDashboardController> {
     );
   }
 
+  /// 构建用户工具卡片
+  ///
+  /// 此方法返回一个固定高度的用户工具卡片组件。
+  /// 该组件包含多个 onPressed 方法，用于处理不同的工具卡片点击事件。
   Widget _buildUserToolsCard() {
     return SizedBox(
       height: 150,
@@ -110,6 +134,10 @@ class UserDashboard extends GetView<UserDashboardController> {
     );
   }
 
+  /// 构建头部组件
+  ///
+  /// 此方法根据是否提供了 onPressedMenu 方法来决定是否显示菜单按钮。
+  /// 参数 onPressedMenu 是一个可选的回调方法，用于处理菜单按钮的点击事件。
   Widget _buildHeader({Function()? onPressedMenu}) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: kSpacing),

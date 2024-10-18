@@ -1,29 +1,30 @@
-/// contains all service to get feature from native
-///
-/// Example:
-/// * Get image from gallery
-/// * Get status connection
-/// etc...
-class NativeApiServices {
-  static final NativeApiServices _nativeApiServices =
-      NativeApiServices._internal();
+/// 包含所有从本地获取数据的服务。
+/// 该类设计为单例模式，用于管理本地存储操作。
+class LocalStorageServices {
+  /// 私有构造函数确保只能通过工厂方法创建实例。
+  static final LocalStorageServices _localStorageServices =
+      LocalStorageServices._internal();
 
-  factory NativeApiServices() {
-    return _nativeApiServices;
+  /// 工厂方法提供访问以创建实例，确保只有一个实例存在。
+  factory LocalStorageServices() {
+    return _localStorageServices;
   }
 
-  NativeApiServices._internal();
+  /// 私有构造函数，防止外部直接实例化。
+  LocalStorageServices._internal();
 
-// Example
-// final _imagePicker = ImagePicker();
-// Future<File?> getImage(ImageSource source,
-//     {int maxHeight = 800, int maxWidth = 800}) async {
-//   final image = await _imagePicker.pickImage(
-//       source: source,
-//       maxHeight: maxHeight.toDouble(),
-//       maxWidth: maxWidth.toDouble());
+  /// 保存数据到本地，可以使用SharedPreferences处理简单数据，
+  /// 或者使用Sqflite处理更复杂的数据。
 
-//   if (image != null) return File(image.path);
-//   return null;
+  /// 示例方法：使用SharedPreferences保存令牌到本地存储。
+// Future<void> saveToken(String token) async {
+//   SharedPreferences prefs = await SharedPreferences.getInstance();
+//   prefs.setString('token', token);
+// }
+
+  /// 示例方法：使用SharedPreferences从本地存储中获取令牌。
+// Future<String?> getToken() async {
+//   SharedPreferences prefs = await SharedPreferences.getInstance();
+//   return prefs.getString('token');
 // }
 }

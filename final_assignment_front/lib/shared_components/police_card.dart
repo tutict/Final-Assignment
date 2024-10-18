@@ -3,6 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
 
+/// 一个表示获取高级会员卡片的 StatelessWidget。
+///
+/// 参数:
+/// - onPressed: 当用户点击卡片时的回调函数。
+/// - backgroundColor: 卡片的背景颜色，如果未提供，则使用主题的默认卡片颜色。
 class GetPremiumCard extends StatelessWidget {
   const GetPremiumCard({
     required this.onPressed,
@@ -15,6 +20,7 @@ class GetPremiumCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 返回一个Material组件，用于提供卡片的基本形状和颜色。
     return Material(
       borderRadius: BorderRadius.circular(kBorderRadius),
       color: backgroundColor ?? Theme.of(context).cardColor,
@@ -31,6 +37,7 @@ class GetPremiumCard extends StatelessWidget {
           padding: const EdgeInsets.all(10),
           child: Stack(
             children: [
+              // 在卡片的右上角放置一个SVG图片，用以装饰。
               Positioned(
                 top: -15,
                 right: -30,
@@ -41,6 +48,7 @@ class GetPremiumCard extends StatelessWidget {
                   fit: BoxFit.contain,
                 ),
               ),
+              // 在卡片的内部放置一个包含卡片信息的Padding组件。
               const Padding(
                 padding: EdgeInsets.all(15),
                 child: _Info(),
@@ -53,15 +61,18 @@ class GetPremiumCard extends StatelessWidget {
   }
 }
 
+// 一个内部使用的 StatelessWidget，用于展示卡片的信息。
 class _Info extends StatelessWidget {
   const _Info();
 
   @override
   Widget build(BuildContext context) {
+    // 返回一个Column组件，包含卡片的信息文本。
     return Column(
       mainAxisAlignment: MainAxisAlignment.end,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // 显示卡片的主要信息文本，并使用系统默认的中文字体。
         Padding(
           padding: const EdgeInsets.only(bottom: 10),
           child: Text(
@@ -71,6 +82,7 @@ class _Info extends StatelessWidget {
             ).useSystemChineseFont(),
           ),
         ),
+        // 显示卡片的次要信息文本。
         Padding(
           padding: const EdgeInsets.only(top: 10),
           child: Text(

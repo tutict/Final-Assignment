@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
 
+/// 用户聊天卡片数据类
+/// 包含用户的头像、在线状态、姓名、最后一条消息、消息是否已读以及未读消息总数
 class ChattingCardData {
   final ImageProvider image;
   final bool isOnline;
@@ -21,6 +23,8 @@ class ChattingCardData {
   });
 }
 
+/// 用户聊天卡片组件
+/// 根据传入的数据展示用户的聊天信息，并在用户点击时执行相应操作
 class ChattingCard extends StatelessWidget {
   const ChattingCard({required this.data, required this.onPressed, super.key});
 
@@ -72,6 +76,8 @@ class ChattingCard extends StatelessWidget {
     );
   }
 
+  /// 未读消息通知 widget
+  /// 当未读消息数量超过1时显示
   Widget _notif(int total) {
     return Container(
       width: 30,

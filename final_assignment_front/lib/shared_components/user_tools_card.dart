@@ -52,11 +52,7 @@ class UserToolsCard extends StatelessWidget {
   // 构建按钮网格
   Widget _buildButtonGrid(BuildContext context) {
     final actions = <Map<String, dynamic>>[
-      {
-        'label': '违法处理',
-        'onPressed': onPressed,
-        'icon': EvaIcons.arrowForward
-      },
+      {'label': '违法处理', 'onPressed': onPressed, 'icon': EvaIcons.arrowForward},
       if (onPressedSecond != null)
         {
           'label': '罚款缴纳',
@@ -115,7 +111,7 @@ class UserToolsCard extends StatelessWidget {
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(8.0),
-        child: Row(
+        child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(icon, color: Colors.lightBlueAccent, size: 20),

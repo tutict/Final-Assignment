@@ -30,7 +30,7 @@ class LocalCaptchaMainState extends State<LocalCaptchaMain> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Local Captcha Example'),
+        title: const Text('验证码'),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),

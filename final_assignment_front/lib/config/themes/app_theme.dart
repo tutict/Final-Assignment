@@ -2,26 +2,36 @@ import 'package:chinese_font_library/chinese_font_library.dart';
 import 'package:flutter/material.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
 
-/// all custom application theme
+/// AppTheme 类包含了应用的所有自定义主题样式。
 class AppTheme {
-  /// default application theme
+  /// 返回一个基本的浅色主题样式。
   static ThemeData get basicLight => ThemeData(
+        // 设置字体家族为 Poppins。
         fontFamily: Font.poppins,
+        // 设置暗色主题的主要颜色。
         primaryColorDark: const Color.fromRGBO(111, 88, 255, 1),
+        // 设置主题的主要颜色。
         primaryColor: const Color.fromRGBO(128, 109, 255, 1),
+        // 设置浅色主题的主要颜色。
         primaryColorLight: const Color.fromRGBO(159, 84, 252, 1),
+        // 设置主题的亮度为亮色。
         brightness: Brightness.light,
+        // 设置主题的主色为深紫色。
         primarySwatch: Colors.deepPurple,
+        // 设置凸起按钮的主题样式，包括背景颜色和取消阴影效果。
         elevatedButtonTheme: ElevatedButtonThemeData(
             style: ElevatedButton.styleFrom(
           backgroundColor: const Color.fromRGBO(128, 109, 255, 1),
         ).merge(
           ButtonStyle(elevation: WidgetStateProperty.all(0)),
         )),
+        // 设置画布颜色。
         canvasColor: const Color.fromRGBO(31, 29, 44, 1),
+        // 设置卡片颜色。
         cardColor: const Color.fromRGBO(38, 40, 55, 1),
       );
 
+  /// 返回一个基本的深色主题样式。
   static ThemeData get basicDark => ThemeData(
         fontFamily: Font.poppins,
         primaryColorDark: const Color.fromRGBO(111, 88, 255, 1),

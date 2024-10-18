@@ -1,8 +1,10 @@
+// 导入必要的包和库
 import 'package:chinese_font_library/chinese_font_library.dart';
 import 'package:flutter/material.dart';
 import 'package:percent_indicator/percent_indicator.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
 
+// 定义进度报告卡片数据模型
 class ProgressReportCardData {
   final double percent;
   final String title;
@@ -10,6 +12,7 @@ class ProgressReportCardData {
   final int doneTask;
   final int undoneTask;
 
+  // 构造函数，初始化进度报告卡片的数据
   const ProgressReportCardData({
     required this.percent,
     required this.title,
@@ -19,6 +22,7 @@ class ProgressReportCardData {
   });
 }
 
+// 定义进度报告卡片组件
 class ProgressReportCard extends StatelessWidget {
   const ProgressReportCard({
     required this.data,
@@ -71,6 +75,7 @@ class ProgressReportCard extends StatelessWidget {
   }
 }
 
+// 定义富文本组件，用于显示带有强调的文本
 class _RichText extends StatelessWidget {
   const _RichText({
     required this.value1,
@@ -104,6 +109,7 @@ class _RichText extends StatelessWidget {
   }
 }
 
+// 定义进度指示器组件，用于显示进度百分比
 class _Indicator extends StatelessWidget {
   const _Indicator({required this.percent});
 

@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_chart_plus/flutter_chart.dart';
 
+/// 线性图表组件
+///
+/// LineChart 组件使用 Flutter Chart Plus 库来渲染一个线性图表。该组件通过接收数据列表（dataList）和开始时间（startTime）作为参数，
+/// 来展示数据的趋势。图表包含了两个 Y 轴和一个 X 轴，分别用于展示不同的数据系列。
 class LineChart extends StatelessWidget {
   const LineChart({super.key});
 
