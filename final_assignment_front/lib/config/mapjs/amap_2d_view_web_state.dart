@@ -10,6 +10,7 @@ import 'package:final_assignment_front/config/mapjs/amap_2d_web_controller.dart'
 import 'package:final_assignment_front/config/mapjs/amapjs.dart';
 import 'package:final_assignment_front/config/mapjs/loaderjs.dart';
 
+/// 高德地图2D视图的状态类
 class AMap2DViewState extends State<AMap2DView> {
 
   /// 加载的插件
@@ -19,14 +20,16 @@ class AMap2DViewState extends State<AMap2DView> {
   late String _divId;
   late DivElement _element;
 
+  /// 当平台视图创建时调用
   void _onPlatformViewCreated() {
-
+    // 加载高德地图JS API
     final Object promise = load(LoaderOptions(
       key: Flutter2dAMap.webKey,
       version: '1.4.15', // 2.0需要修改GeolocationOptions属性
       plugins: plugins,
     )) as Object;
 
+    // 将Promise转换为Future
     promiseToFuture<dynamic>(promise).then((dynamic value){
       final MapOptions mapOptions = MapOptions(
         zoom: 11,

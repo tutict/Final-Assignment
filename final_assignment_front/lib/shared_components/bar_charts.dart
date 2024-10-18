@@ -4,7 +4,14 @@ import 'package:flutter_chart_plus/flutter_chart.dart';
 /// BarChart 组件用于展示条形图。
 /// 它继承自StatelessWidget，用于在Flutter应用中展示静态的条形图表。
 class BarChart extends StatelessWidget {
-  const BarChart({super.key});
+  final List<Map<String, dynamic>> dataList;
+  final DateTime startTime;
+
+  const BarChart({
+    super.key,
+    required this.dataList,
+    required this.startTime,
+  });
 
   /// 构建并返回一个Widget树，用于展示条形图。
   ///
@@ -27,9 +34,11 @@ class BarChart extends StatelessWidget {
               max: 30,
               zoom: true,
               formatter: (index) {
+                // 确保startTime存在，使用format来格式化日期
                 return startTime
                     .add(Duration(days: index))
-                    .toStringWithFormat(format: 'dd');
+                    .toIso8601String()
+                    .substring(8, 10); // 只获取日期中的日部分
               },
             ),
             charts: [

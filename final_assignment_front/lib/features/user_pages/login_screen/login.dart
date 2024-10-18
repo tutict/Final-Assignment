@@ -3,7 +3,7 @@ import 'package:flutter_login/flutter_login.dart';
 import 'package:get/get.dart';
 import 'dart:convert';
 import 'package:final_assignment_front/features/dashboard/views/screens/manager_dashboard_screen.dart';
-import 'package:final_assignment_front/config/websocket/login_websocket_service.dart';
+import 'package:final_assignment_front/config/websocket/websocket_service.dart';
 
 import '../../../config/routes/app_pages.dart';
 
