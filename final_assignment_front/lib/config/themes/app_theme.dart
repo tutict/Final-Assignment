@@ -50,256 +50,262 @@ class AppTheme {
       );
 
   static ThemeData get ionicLightTheme => ThemeData(
-        fontFamily: 'Helvetica',
-        primaryColor: const Color.fromRGBO(0, 122, 255, 1),
-        // Ionic primary blue color
-        primaryColorLight: const Color.fromRGBO(102, 169, 255, 1),
-        primaryColorDark: const Color.fromRGBO(0, 95, 204, 1),
-        brightness: Brightness.light,
-        primarySwatch: Colors.blue,
-        elevatedButtonTheme: ElevatedButtonThemeData(
-            style: ElevatedButton.styleFrom(
-          backgroundColor: const Color.fromRGBO(0, 122, 255, 1),
-          textStyle:
-              const TextStyle(color: Colors.white).useSystemChineseFont(),
-        ).merge(
-          ButtonStyle(elevation: WidgetStateProperty.all(0)),
-        )),
-        canvasColor: const Color.fromRGBO(242, 242, 247, 1),
-        // Ionic canvas color
-        cardColor: const Color.fromRGBO(255, 255, 255, 1),
-        // Ionic card color
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color.fromRGBO(255, 255, 255, 1),
-          foregroundColor: Colors.black,
-          elevation: 0,
+    fontFamily: 'Helvetica',
+    primaryColor: const Color.fromRGBO(0, 122, 255, 1),
+    primaryColorLight: const Color.fromRGBO(153, 204, 255, 1),
+    primaryColorDark: const Color.fromRGBO(0, 95, 204, 1),
+    brightness: Brightness.light,
+    primarySwatch: Colors.lightBlue,
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color.fromRGBO(0, 122, 255, 1),
+        textStyle: const TextStyle(color: Colors.white),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
         ),
-        bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-          backgroundColor: Color.fromRGBO(255, 255, 255, 1),
-          selectedItemColor: Color.fromRGBO(0, 122, 255, 1),
-          unselectedItemColor: Color.fromRGBO(142, 142, 147, 1),
+      ),
+    ),
+    canvasColor: const Color.fromRGBO(248, 248, 255, 1),
+    cardColor: const Color.fromRGBO(255, 255, 255, 1),
+    appBarTheme: const AppBarTheme(
+      backgroundColor: Color.fromRGBO(248, 248, 255, 1),
+      foregroundColor: Colors.black,
+      elevation: 1,
+    ),
+    bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+      backgroundColor: Color.fromRGBO(255, 255, 255, 1),
+      selectedItemColor: Color.fromRGBO(0, 122, 255, 1),
+      unselectedItemColor: Color.fromRGBO(142, 142, 147, 1),
+    ),
+    textTheme: const TextTheme(
+      displayLarge: TextStyle(
+        fontSize: 32,
+        fontWeight: FontWeight.bold,
+        color: Colors.black,
+      ),
+      titleLarge: TextStyle(
+        fontSize: 20,
+        fontWeight: FontWeight.bold,
+        color: Colors.black,
+      ),
+      bodyLarge: TextStyle(
+        fontSize: 16,
+        color: Colors.black87,
+      ),
+      bodyMedium: TextStyle(
+        fontSize: 14,
+        color: Colors.black54,
+      ),
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: const Color.fromRGBO(255, 255, 255, 1),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(
+          color: Color.fromRGBO(0, 122, 255, 1),
+          width: 2,
         ),
-        textTheme: TextTheme(
-          displayLarge: const TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black)
-              .useSystemChineseFont(),
-          titleLarge: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black)
-              .useSystemChineseFont(),
-          bodyLarge: const TextStyle(fontSize: 16, color: Colors.black)
-              .useSystemChineseFont(),
-          bodyMedium: const TextStyle(fontSize: 14, color: Colors.black)
-              .useSystemChineseFont(),
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: const Color.fromRGBO(255, 255, 255, 1),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide.none,
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(
-              color: Color.fromRGBO(0, 122, 255, 1),
-              width: 2,
-            ),
-          ),
-        ),
-      );
+      ),
+    ),
+  );
 
   static ThemeData get ionicDarkTheme => ThemeData(
-        fontFamily: 'Helvetica',
-        primaryColor: const Color.fromRGBO(0, 122, 255, 1),
-        // Ionic primary blue color
-        primaryColorLight: const Color.fromRGBO(102, 169, 255, 1),
-        primaryColorDark: const Color.fromRGBO(0, 95, 204, 1),
-        brightness: Brightness.dark,
-        primarySwatch: Colors.blue,
-        elevatedButtonTheme: ElevatedButtonThemeData(
-            style: ElevatedButton.styleFrom(
-          backgroundColor: const Color.fromRGBO(0, 122, 255, 1),
-          textStyle:
-              const TextStyle(color: Colors.white).useSystemChineseFont(),
-        ).merge(
-          ButtonStyle(elevation: WidgetStateProperty.all(0)),
-        )),
-        canvasColor: const Color.fromRGBO(18, 18, 18, 1),
-        // Dark canvas color
-        cardColor: const Color.fromRGBO(28, 28, 30, 1),
-        // Dark card color
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color.fromRGBO(28, 28, 30, 1),
-          foregroundColor: Colors.white,
-          elevation: 0,
+    fontFamily: 'Helvetica',
+    primaryColor: const Color.fromRGBO(10, 132, 255, 1),
+    primaryColorLight: const Color.fromRGBO(64, 156, 255, 1),
+    primaryColorDark: const Color.fromRGBO(0, 95, 204, 1),
+    brightness: Brightness.dark,
+    primarySwatch: Colors.blue,
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color.fromRGBO(10, 132, 255, 1),
+        textStyle: const TextStyle(color: Colors.white),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
         ),
-        bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-          backgroundColor: Color.fromRGBO(28, 28, 30, 1),
-          selectedItemColor: Color.fromRGBO(0, 122, 255, 1),
-          unselectedItemColor: Color.fromRGBO(142, 142, 147, 1),
+      ),
+    ),
+    canvasColor: const Color.fromRGBO(28, 28, 30, 1),
+    cardColor: const Color.fromRGBO(44, 44, 46, 1),
+    appBarTheme: const AppBarTheme(
+      backgroundColor: Color.fromRGBO(44, 44, 46, 1),
+      foregroundColor: Colors.white,
+      elevation: 1,
+    ),
+    bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+      backgroundColor: Color.fromRGBO(44, 44, 46, 1),
+      selectedItemColor: Color.fromRGBO(10, 132, 255, 1),
+      unselectedItemColor: Color.fromRGBO(142, 142, 147, 1),
+    ),
+    textTheme: const TextTheme(
+      displayLarge: TextStyle(
+        fontSize: 32,
+        fontWeight: FontWeight.bold,
+        color: Colors.white,
+      ),
+      titleLarge: TextStyle(
+        fontSize: 20,
+        fontWeight: FontWeight.bold,
+        color: Colors.white,
+      ),
+      bodyLarge: TextStyle(
+        fontSize: 16,
+        color: Colors.white70,
+      ),
+      bodyMedium: TextStyle(
+        fontSize: 14,
+        color: Colors.white60,
+      ),
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: const Color.fromRGBO(44, 44, 46, 1),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(
+          color: Color.fromRGBO(10, 132, 255, 1),
+          width: 2,
         ),
-        textTheme: TextTheme(
-          displayLarge: const TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white)
-              .useSystemChineseFont(),
-          titleLarge: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white)
-              .useSystemChineseFont(),
-          bodyLarge: const TextStyle(fontSize: 16, color: Colors.white)
-              .useSystemChineseFont(),
-          bodyMedium: const TextStyle(fontSize: 14, color: Colors.white)
-              .useSystemChineseFont(),
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: const Color.fromRGBO(28, 28, 30, 1),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide.none,
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(
-              color: Color.fromRGBO(0, 122, 255, 1),
-              width: 2,
-            ),
-          ),
-        ),
-      );
+      ),
+    ),
+  );
 
   static ThemeData get materialLightTheme => ThemeData(
-        fontFamily: 'Helvetica',
-        primaryColor: const Color.fromRGBO(33, 150, 243, 1),
-        // Material primary blue color
-        primaryColorLight: const Color.fromRGBO(100, 181, 246, 1),
-        primaryColorDark: const Color.fromRGBO(25, 118, 210, 1),
-        brightness: Brightness.light,
-        primarySwatch: Colors.blue,
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color.fromRGBO(33, 150, 243, 1),
-            textStyle:
-                const TextStyle(color: Colors.white).useSystemChineseFont(),
-          ).merge(
-            ButtonStyle(elevation: WidgetStateProperty.all(0)),
-          ),
+    fontFamily: 'Helvetica',
+    primaryColor: const Color.fromRGBO(25, 118, 210, 1),
+    primaryColorLight: const Color.fromRGBO(144, 202, 249, 1),
+    primaryColorDark: const Color.fromRGBO(21, 101, 192, 1),
+    brightness: Brightness.light,
+    primarySwatch: Colors.blue,
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color.fromRGBO(25, 118, 210, 1),
+        textStyle: const TextStyle(color: Colors.white),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
         ),
-        canvasColor: const Color.fromRGBO(250, 250, 250, 1),
-        // Light canvas color
-        cardColor: const Color.fromRGBO(255, 255, 255, 1),
-        // Light card color
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color.fromRGBO(255, 255, 255, 1),
-          foregroundColor: Colors.black,
-          elevation: 0,
+      ),
+    ),
+    canvasColor: const Color.fromRGBO(245, 245, 245, 1),
+    cardColor: const Color.fromRGBO(255, 255, 255, 1),
+    appBarTheme: const AppBarTheme(
+      backgroundColor: Color.fromRGBO(255, 255, 255, 1),
+      foregroundColor: Colors.black,
+      elevation: 1,
+    ),
+    bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+      backgroundColor: Color.fromRGBO(255, 255, 255, 1),
+      selectedItemColor: Color.fromRGBO(25, 118, 210, 1),
+      unselectedItemColor: Color.fromRGBO(158, 158, 158, 1),
+    ),
+    textTheme: const TextTheme(
+      displayLarge: TextStyle(
+        fontSize: 32,
+        fontWeight: FontWeight.bold,
+        color: Colors.black,
+      ),
+      titleLarge: TextStyle(
+        fontSize: 20,
+        fontWeight: FontWeight.bold,
+        color: Colors.black,
+      ),
+      bodyLarge: TextStyle(
+        fontSize: 16,
+        color: Colors.black87,
+      ),
+      bodyMedium: TextStyle(
+        fontSize: 14,
+        color: Colors.black54,
+      ),
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: const Color.fromRGBO(255, 255, 255, 1),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(
+          color: Color.fromRGBO(25, 118, 210, 1),
+          width: 2,
         ),
-        bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-          backgroundColor: Color.fromRGBO(255, 255, 255, 1),
-          selectedItemColor: Color.fromRGBO(33, 150, 243, 1),
-          unselectedItemColor: Color.fromRGBO(158, 158, 158, 1),
-        ),
-        textTheme: TextTheme(
-          displayLarge: const TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black)
-              .useSystemChineseFont(),
-          titleLarge: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black)
-              .useSystemChineseFont(),
-          bodyLarge: const TextStyle(fontSize: 16, color: Colors.black)
-              .useSystemChineseFont(),
-          bodyMedium: const TextStyle(fontSize: 14, color: Colors.black)
-              .useSystemChineseFont(),
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: const Color.fromRGBO(255, 255, 255, 1),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide.none,
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(
-              color: Color.fromRGBO(33, 150, 243, 1),
-              width: 2,
-            ),
-          ),
-        ),
-      );
+      ),
+    ),
+  );
 
   static ThemeData get materialDarkTheme => ThemeData(
-        fontFamily: 'Helvetica',
-        primaryColor: const Color.fromRGBO(33, 150, 243, 1),
-        // Material primary blue color
-        primaryColorLight: const Color.fromRGBO(100, 181, 246, 1),
-        primaryColorDark: const Color.fromRGBO(25, 118, 210, 1),
-        brightness: Brightness.dark,
-        primarySwatch: Colors.blue,
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color.fromRGBO(33, 150, 243, 1),
-            textStyle:
-                const TextStyle(color: Colors.white).useSystemChineseFont(),
-          ).merge(
-            ButtonStyle(elevation: WidgetStateProperty.all(0)),
-          ),
+    fontFamily: 'Helvetica',
+    primaryColor: const Color.fromRGBO(33, 150, 243, 1),
+    primaryColorLight: const Color.fromRGBO(100, 181, 246, 1),
+    primaryColorDark: const Color.fromRGBO(25, 118, 210, 1),
+    brightness: Brightness.dark,
+    primarySwatch: Colors.blue,
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color.fromRGBO(33, 150, 243, 1),
+        textStyle: const TextStyle(color: Colors.white),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
         ),
-        canvasColor: const Color.fromRGBO(18, 18, 18, 1),
-        // Dark canvas color
-        cardColor: const Color.fromRGBO(28, 28, 30, 1),
-        // Dark card color
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color.fromRGBO(28, 28, 30, 1),
-          foregroundColor: Colors.white,
-          elevation: 0,
+      ),
+    ),
+    canvasColor: const Color.fromRGBO(18, 18, 18, 1),
+    cardColor: const Color.fromRGBO(28, 28, 30, 1),
+    appBarTheme: const AppBarTheme(
+      backgroundColor: Color.fromRGBO(28, 28, 30, 1),
+      foregroundColor: Colors.white,
+      elevation: 1,
+    ),
+    bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+      backgroundColor: Color.fromRGBO(28, 28, 30, 1),
+      selectedItemColor: Color.fromRGBO(33, 150, 243, 1),
+      unselectedItemColor: Color.fromRGBO(142, 142, 147, 1),
+    ),
+    textTheme: const TextTheme(
+      displayLarge: TextStyle(
+        fontSize: 32,
+        fontWeight: FontWeight.bold,
+        color: Colors.white,
+      ),
+      titleLarge: TextStyle(
+        fontSize: 20,
+        fontWeight: FontWeight.bold,
+        color: Colors.white,
+      ),
+      bodyLarge: TextStyle(
+        fontSize: 16,
+        color: Colors.white70,
+      ),
+      bodyMedium: TextStyle(
+        fontSize: 14,
+        color: Colors.white60,
+      ),
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: const Color.fromRGBO(28, 28, 30, 1),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(
+          color: Color.fromRGBO(33, 150, 243, 1),
+          width: 2,
         ),
-        bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-          backgroundColor: Color.fromRGBO(28, 28, 30, 1),
-          selectedItemColor: Color.fromRGBO(33, 150, 243, 1),
-          unselectedItemColor: Color.fromRGBO(142, 142, 147, 1),
-        ),
-        textTheme: TextTheme(
-          displayLarge: const TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white)
-              .useSystemChineseFont(),
-          titleLarge: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white)
-              .useSystemChineseFont(),
-          bodyLarge: const TextStyle(fontSize: 16, color: Colors.white)
-              .useSystemChineseFont(),
-          bodyMedium: const TextStyle(fontSize: 14, color: Colors.white)
-              .useSystemChineseFont(),
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: const Color.fromRGBO(28, 28, 30, 1),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide.none,
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(
-              color: Color.fromRGBO(33, 150, 243, 1),
-              width: 2,
-            ),
-          ),
-        ),
-      );
+      ),
+    ),
+  );
 }
