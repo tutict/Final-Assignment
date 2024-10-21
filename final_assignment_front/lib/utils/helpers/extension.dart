@@ -10,11 +10,11 @@ extension TaskTypeExtension on TaskType {
   String toStringValue() {
     switch (this) {
       case TaskType.todo:
-        return "To Do";
+        return "待做";
       case TaskType.inProgress:
-        return "In Progress";
+        return "正在处理";
       case TaskType.done:
-        return "Done";
+        return "完成";
     }
   }
 

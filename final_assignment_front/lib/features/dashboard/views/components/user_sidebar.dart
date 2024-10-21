@@ -85,7 +85,7 @@ class UserSidebar extends StatelessWidget {
             ),
             const Divider(thickness: 1),
             const SizedBox(height: kSpacing * 2),
-            UpgradePremiumCard(
+            PostCard(
               backgroundColor: Theme.of(context).canvasColor.withOpacity(.4),
               onPressed: () {},
             ),

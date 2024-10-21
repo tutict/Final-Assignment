@@ -1,45 +1,47 @@
+import 'package:final_assignment_front/utils/services/app_config.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_login/flutter_login.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get/get.dart';
 import 'dart:convert';
 import 'package:final_assignment_front/features/dashboard/views/screens/manager_dashboard_screen.dart';
-import 'package:final_assignment_front/config/websocket/websocket_service.dart';
+import 'package:final_assignment_front/utils/services/rest_api_services.dart';
 
 import '../../../config/routes/app_pages.dart';
 
+/// 登录屏幕 StatefulWidget
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  _LoginScreenState createState() => _LoginScreenState();
+  State<LoginScreen> createState() => _LoginScreenState();
 }
 
+/// 登录屏幕状态管理类
 class _LoginScreenState extends State<LoginScreen> {
-  late WebSocketService webSocketService;
+  late RestApiServices restApiServices;
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
   @override
   void initState() {
     super.initState();
-    webSocketService = WebSocketService();
+    restApiServices = RestApiServices();
+    restApiServices.initWebSocket(AppConfig.userManagementEndpoint);
   }
 
-  @override
-  void dispose() {
-    webSocketService.close();
-    super.dispose();
-  }
-
+  /// 登录动画持续时间
   Duration get loginTime => const Duration(milliseconds: 2250);
 
+  /// 用户认证逻辑
   Future<String?> _authUser(LoginData data) async {
     debugPrint('用户名: ${data.name}, 密码: ${data.password}');
-    webSocketService.sendMessage(jsonEncode({
+    restApiServices.sendMessage(jsonEncode({
       'action': 'users/login',
       'username': data.name,
       'password': data.password
     }));
 
-    final response = await webSocketService.getMessages().firstWhere((message) {
+    final response = await restApiServices.getMessages().firstWhere((message) {
       final decodedMessage = jsonDecode(message);
       return decodedMessage['action'] == 'login';
     });
@@ -48,20 +50,23 @@ class _LoginScreenState extends State<LoginScreen> {
     if (decodedMessage['status'] == 'error') {
       return decodedMessage['message'];
     } else {
-      // 安全存储 JWT 令牌（例如，使用 flutter_secure_storage）
+      // 安全存储 JWT 令牌
       String token = decodedMessage['token'];
+      await _secureStorage.write(key: 'jwt_token', value: token);
+      debugPrint('JWT token saved');
       // 导航到仪表板
-      Get.toNamed(Routes.dashboard);
+      Get.toNamed(AppPages.initial);
       return null;
     }
   }
 
+  /// 用户注册逻辑
   Future<String?> _signupUser(SignupData data) async {
     debugPrint('名字: ${data.name}, 密码: ${data.password}');
-    webSocketService.sendMessage(jsonEncode(
+    restApiServices.sendMessage(jsonEncode(
         {'action': 'users', 'username': data.name, 'password': data.password}));
 
-    final response = await webSocketService.getMessages().firstWhere((message) {
+    final response = await restApiServices.getMessages().firstWhere((message) {
       final decodedMessage = jsonDecode(message);
       return decodedMessage['action'] == 'signup';
     });
@@ -74,12 +79,13 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  /// 密码恢复逻辑
   Future<String?> _recoverPassword(String name) async {
     debugPrint('名字: $name');
-    webSocketService
+    restApiServices
         .sendMessage(jsonEncode({'action': 'auth/recover', 'username': name}));
 
-    final response = await webSocketService.getMessages().firstWhere((message) {
+    final response = await restApiServices.getMessages().firstWhere((message) {
       final decodedMessage = jsonDecode(message);
       return decodedMessage['action'] == 'recover';
     });

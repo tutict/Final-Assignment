@@ -33,30 +33,38 @@ class ResponsiveBuilder extends StatelessWidget {
 
   /// 判断当前设备是否为移动设备屏幕。
   static bool isMobile(BuildContext context) =>
-      MediaQuery.of(context).size.width < 650;
+      MediaQuery.of(context).size.width < 700;
 
   /// 判断当前设备是否为平板电脑屏幕。
   static bool isTablet(BuildContext context) =>
-      MediaQuery.of(context).size.width < 1250 &&
-      MediaQuery.of(context).size.width >= 650;
+      MediaQuery.of(context).size.width < 1100 &&
+      MediaQuery.of(context).size.width >= 700;
 
   /// 判断当前设备是否为桌面屏幕。
   static bool isDesktop(BuildContext context) =>
-      MediaQuery.of(context).size.width >= 1250;
+      MediaQuery.of(context).size.width >= 1100;
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        // 根据屏幕宽度选择合适的构建器函数。
-        if (constraints.maxWidth >= 1250) {
-          return desktopBuilder(context, constraints);
-        } else if (constraints.maxWidth >= 650) {
-          return tabletBuilder(context, constraints);
-        } else {
-          return mobileBuilder(context, constraints);
-        }
-      },
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 300),
+      transitionBuilder: (child, animation) => FadeTransition(
+        opacity: animation,
+        child: child,
+      ),
+      child: LayoutBuilder(
+        key: ValueKey(MediaQuery.of(context).size.width),
+        builder: (context, constraints) {
+          // 根据屏幕宽度选择合适的构建器函数。
+          if (constraints.maxWidth >= 1100) {
+            return desktopBuilder(context, constraints);
+          } else if (constraints.maxWidth >= 700) {
+            return tabletBuilder(context, constraints);
+          } else {
+            return mobileBuilder(context, constraints);
+          }
+        },
+      ),
     );
   }
 }

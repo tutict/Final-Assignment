@@ -11,22 +11,45 @@ class TodayText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 定义一个容器来包裹整个文本内容，限制其最大宽度为200
+    // 定义一个容器来包裹整个文本内容，限制其最大宽度为200，并添加边距
     return Container(
-      constraints: const BoxConstraints(maxWidth: 200),
+      constraints: const BoxConstraints(maxWidth: 220),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black12,
+            offset: Offset(0, 4),
+            blurRadius: 8,
+          ),
+        ],
+      ),
       child: Column(
         // 设置列布局，使文本从上到下排列
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 显示地点名称，使用Flutter默认的小号文本样式
+          // 显示地点名称，使用稍大的字体和自定义样式
           Text(
             "哈尔滨",
-            style: Theme.of(context).textTheme.bodySmall,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
           ),
+          const SizedBox(height: 4),
           // 显示今天日期，格式为“年月日”，如“2023年1月1日”，并设置文本大小为14
           Text(
             DateFormat.yMMMEd('zh_CN').format(DateTime.now()),
-            style: const TextStyle(fontSize: 14).useSystemChineseFont(),
+            style: Theme.of(context)
+                .textTheme
+                .bodySmall
+                ?.copyWith(
+                  fontSize: 14,
+                  color: Colors.grey.shade700,
+                )
+                .useSystemChineseFont(),
           ),
         ],
       ),

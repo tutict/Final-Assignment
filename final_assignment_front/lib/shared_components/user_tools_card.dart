@@ -22,16 +22,21 @@ class UserToolsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      elevation: 8.0,
+      elevation: 6.0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10.0),
+        borderRadius: BorderRadius.circular(16.0),
       ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: <Widget>[
-          _buildHeader(),
-          _buildButtonGrid(context),
-        ],
+      margin: const EdgeInsets.all(16.0),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            _buildHeader(),
+            const SizedBox(height: 16.0),
+            _buildButtonGrid(context),
+          ],
+        ),
       ),
     );
   }
@@ -39,12 +44,14 @@ class UserToolsCard extends StatelessWidget {
   // 构建标题部分
   Widget _buildHeader() {
     return const Padding(
-      padding: EdgeInsets.all(16.0),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: <Widget>[
-          SizedBox(height: 8.0),
-        ],
+      padding: EdgeInsets.symmetric(horizontal: 16.0),
+      child: Text(
+        "用户工具",
+        style: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+          color: Colors.black87,
+        ),
       ),
     );
   }
@@ -67,13 +74,13 @@ class UserToolsCard extends StatelessWidget {
         },
       if (onPressedFourth != null)
         {
-          'label': '事故处理进度和结果',
+          'label': '事故处理进度',
           'onPressed': onPressedFourth,
           'icon': EvaIcons.arrowForwardOutline
         },
       if (onPressedFifth != null)
         {
-          'label': '事故证据材料查阅',
+          'label': '事故证据材料',
           'onPressed': onPressedFifth,
           'icon': EvaIcons.arrowForwardOutline
         },
@@ -86,9 +93,9 @@ class UserToolsCard extends StatelessWidget {
     ];
 
     return Wrap(
-      spacing: 8.0, // 横向间距
-      runSpacing: 8.0, // 纵向间距
-      alignment: WrapAlignment.center,
+      spacing: 16.0, // 横向间距
+      runSpacing: 16.0, // 纵向间距
+      alignment: WrapAlignment.start,
       children: actions
           .map(
             (action) => _buildButton(
@@ -109,16 +116,35 @@ class UserToolsCard extends StatelessWidget {
       required IconData icon}) {
     return InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(12.0),
+      splashColor: Theme.of(context).primaryColorLight.withOpacity(0.2),
       child: Container(
-        padding: const EdgeInsets.all(8.0),
+        width: 100,
+        height: 100,
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(12.0),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black12,
+              offset: Offset(0, 4),
+              blurRadius: 8,
+            ),
+          ],
+        ),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: Colors.lightBlueAccent, size: 20),
-            const SizedBox(height: 4.0, width: 4.0),
+            Icon(icon, color: Theme.of(context).primaryColor, size: 28),
+            const SizedBox(height: 8.0),
             Text(
               text,
-              style: const TextStyle(color: Colors.black, fontSize: 20),
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.black87,
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ],
         ),
