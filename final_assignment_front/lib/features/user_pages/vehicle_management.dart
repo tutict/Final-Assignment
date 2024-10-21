@@ -1,222 +1,155 @@
-import 'package:flutter/material.dart';
+import 'dart:convert';
 
-class VehicleManagementPage extends StatefulWidget {
-  const VehicleManagementPage({super.key});
+import 'package:final_assignment_front/utils/services/app_config.dart';
+import 'package:flutter/material.dart';
+import 'package:final_assignment_front/utils/services/rest_api_services.dart';
+
+// 车辆管理页面的 StatefulWidget
+class VehicleManagement extends StatefulWidget {
+  const VehicleManagement({super.key});
 
   @override
-  _VehicleManagementPageState createState() => _VehicleManagementPageState();
+  State<VehicleManagement> createState() => _VehicleManagementState();
 }
 
-class _VehicleManagementPageState extends State<VehicleManagementPage> {
-  // 假设的车辆列表
-  final List<Vehicle> _vehicles = [
-    Vehicle(
-        name: '奔驰C200', model: 'C-Class', brand: 'Mercedes-Benz', color: '黑色'),
-    Vehicle(name: '宝马320i', model: '3 Series', brand: 'BMW', color: '白色'),
-    // ... 更多车辆
-  ];
+// 车辆管理页面的状态类
+class _VehicleManagementState extends State<VehicleManagement> {
+  // 搜索框的控制器
+  final TextEditingController _searchController = TextEditingController();
 
+  // 存储所有车辆信息的列表
+  List<Map<String, String>> _vehicleList = [];
+
+  // 存储过滤后的车辆信息列表
+  List<Map<String, String>> _filteredVehicleList = [];
+
+  // REST API 服务的实例
+  late RestApiServices restApiServices;
+
+  // 初始化状态
+  @override
+  void initState() {
+    super.initState();
+    // 初始化 REST API 服务
+    restApiServices = RestApiServices();
+    // 初始化 WebSocket 连接
+    restApiServices.initWebSocket(AppConfig.vehicleInformationEndpoint);
+    // 加载车辆数据
+    _loadVehicleData();
+  }
+
+  // 从服务器加载车辆数据
+  Future<void> _loadVehicleData() async {
+    try {
+      // 使用 WebSocket 请求车辆信息
+      restApiServices.sendMessage(jsonEncode({'action': 'getVehicles'}));
+      final response =
+          await restApiServices.getMessages().firstWhere((message) {
+        final decodedMessage = jsonDecode(message);
+        return decodedMessage['action'] == 'getVehiclesResponse';
+      });
+
+      final decodedMessage = jsonDecode(response);
+      if (decodedMessage['status'] == 'success') {
+        // 更新车辆信息列表
+        setState(() {
+          _vehicleList = List<Map<String, String>>.from(decodedMessage['data']
+              .map((item) => item.cast<String, String>()));
+          _filteredVehicleList = _vehicleList;
+        });
+      } else {
+        // 打印加载失败的信息
+        debugPrint('加载车辆信息失败: ${decodedMessage['message']}');
+      }
+    } catch (e) {
+      // 打印异常信息
+      debugPrint('加载车辆信息失败: $e');
+    }
+  }
+
+  // 根据查询字符串过滤车辆列表
+  void _filterVehicleList(String query) {
+    setState(() {
+      if (query.isEmpty) {
+        // 如果查询为空，显示所有车辆信息
+        _filteredVehicleList = _vehicleList;
+      } else {
+        // 根据车牌号或车主姓名过滤车辆信息
+        _filteredVehicleList = _vehicleList
+            .where((vehicle) =>
+                vehicle['plateNumber']!
+                    .toString()
+                    .toLowerCase()
+                    .contains(query.toLowerCase()) ||
+                vehicle['owner']!
+                    .toString()
+                    .toLowerCase()
+                    .contains(query.toLowerCase()))
+            .toList();
+      }
+    });
+  }
+
+  // 构建车辆管理页面的 UI
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('5G 车辆管理'),
-        actions: [
-          // 添加车辆按钮
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () {
-              _showAddVehicleDialog();
-            },
-          ),
-        ],
+        title: const Text('车辆信息管理'),
       ),
-      body: VehiclesList(vehicles: _vehicles),
-    );
-  }
-
-  // 显示添加车辆对话框
-  void _showAddVehicleDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        // 返回添加车辆的表单
-        return AlertDialog(
-          title: const Text('添加车辆'),
-          content: const _VehicleForm(),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('取消'),
-              onPressed: () {
-                Navigator.of(context).pop();
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            // 搜索框
+            TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                labelText: '搜索车辆信息',
+                hintText: '输入车牌号或车主姓名',
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8.0),
+                ),
+              ),
+              onChanged: (value) {
+                // 当搜索框文本变化时，过滤车辆列表
+                _filterVehicleList(value);
               },
             ),
-            TextButton(
-              child: const Text('保存'),
-              onPressed: () {
-                // 从表单获取数据并保存
-                // 这里仅作为示例，实际应用中需要处理表单验证和数据保存逻辑
-                Navigator.of(context).pop();
-              },
+            const SizedBox(height: 16.0),
+            Expanded(
+              child: _filteredVehicleList.isEmpty
+                  ? const Center(
+                      child: Text('没有找到符合条件的车辆信息'),
+                    )
+                  : ListView.builder(
+                      itemCount: _filteredVehicleList.length,
+                      itemBuilder: (context, index) {
+                        final vehicle = _filteredVehicleList[index];
+                        return Card(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10.0),
+                          ),
+                          elevation: 4,
+                          child: ListTile(
+                            title: Text('车牌号: ${vehicle['plateNumber']}'),
+                            subtitle: Text('车辆类型: ${vehicle['vehicleType']}'
+                                '车主: ${vehicle['owner']}'),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.edit),
+                              onPressed: () {
+                                // 编辑车辆信息的逻辑
+                              },
+                            ),
+                          ),
+                        );
+                      },
+                    ),
             ),
           ],
-        );
-      },
+        ),
+      ),
     );
   }
-}
-
-// 车辆列表
-class VehiclesList extends StatelessWidget {
-  final List<Vehicle> vehicles;
-
-  const VehiclesList({super.key, required this.vehicles});
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView.builder(
-      itemCount: vehicles.length,
-      itemBuilder: (context, index) {
-        final vehicle = vehicles[index];
-        return ListTile(
-          leading: CircleAvatar(
-            child: Text(vehicle.brand[0]),
-          ),
-          title: Text(vehicle.name),
-          subtitle: Text(
-              '型号: ${vehicle.model}, 品牌: ${vehicle.brand}, 颜色: ${vehicle.color}'),
-          trailing: IconButton(
-            icon: const Icon(Icons.edit),
-            onPressed: () {
-              // 编辑车辆信息
-              showDialog(
-                context: context,
-                builder: (BuildContext context) {
-                  return AlertDialog(
-                    title: const Text('编辑车辆信息'),
-                    content: _VehicleForm(
-                      initialName: vehicle.name,
-                      initialModel: vehicle.model,
-                      initialBrand: vehicle.brand,
-                      initialColor: vehicle.color,
-                    ),
-                    actions: <Widget>[
-                      TextButton(
-                        child: const Text('取消'),
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                        },
-                      ),
-                      TextButton(
-                        child: const Text('保存'),
-                        onPressed: () {
-                          // 从表单获取数据并更新车辆信息
-                          // 这里仅作为示例，实际应用中需要处理表单验证和数据更新逻辑
-                          Navigator.of(context).pop();
-                        },
-                      ),
-                    ],
-                  );
-                },
-              );
-            },
-          ),
-        );
-      },
-    );
-  }
-}
-
-// 车辆表单
-class _VehicleForm extends StatefulWidget {
-  final String initialName;
-  final String initialModel;
-  final String initialBrand;
-  final String initialColor;
-
-  const _VehicleForm({
-    this.initialName = '',
-    this.initialModel = '',
-    this.initialBrand = '',
-    this.initialColor = '',
-  });
-
-  @override
-  __VehicleFormState createState() => __VehicleFormState();
-}
-
-class __VehicleFormState extends State<_VehicleForm> {
-  late String _name;
-  late String _model;
-  late String _brand;
-  late String _color;
-
-  @override
-  void initState() {
-    super.initState();
-    _name = widget.initialName;
-    _model = widget.initialModel;
-    _brand = widget.initialBrand;
-    _color = widget.initialColor;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
-        TextFormField(
-          decoration: const InputDecoration(labelText: '车辆名称'),
-          initialValue: _name,
-          onChanged: (value) {
-            setState(() {
-              _name = value;
-            });
-          },
-        ),
-        TextFormField(
-          decoration: const InputDecoration(labelText: '车辆型号'),
-          initialValue: _model,
-          onChanged: (value) {
-            setState(() {
-              _model = value;
-            });
-          },
-        ),
-        TextFormField(
-          decoration: const InputDecoration(labelText: '车辆品牌'),
-          initialValue: _brand,
-          onChanged: (value) {
-            setState(() {
-              _brand = value;
-            });
-          },
-        ),
-        TextFormField(
-          decoration: const InputDecoration(labelText: '车辆颜色'),
-          initialValue: _color,
-          onChanged: (value) {
-            setState(() {
-              _color = value;
-            });
-          },
-        ),
-      ],
-    );
-  }
-}
-
-// 车辆模型
-class Vehicle {
-  String name;
-  String model;
-  String brand;
-  String color;
-
-  Vehicle({
-    required this.name,
-    required this.model,
-    required this.brand,
-    required this.color,
-  });
 }

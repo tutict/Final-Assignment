@@ -1,27 +1,63 @@
+import 'dart:convert';
+
+import 'package:final_assignment_front/utils/services/app_config.dart';
+import 'package:final_assignment_front/utils/services/rest_api_services.dart';
 import 'package:flutter/material.dart';
 
-class TrafficFineRecordPage extends StatefulWidget {
-  const TrafficFineRecordPage({super.key});
+class FineInformationPage extends StatefulWidget {
+  const FineInformationPage({super.key});
 
   @override
-  _TrafficFineRecordPageState createState() => _TrafficFineRecordPageState();
+  State<FineInformationPage> createState() => _FineInformationPageState();
 }
 
-class _TrafficFineRecordPageState extends State<TrafficFineRecordPage> {
-  // 假设的罚款记录列表
-  final List<FineRecord> _fineRecords = [
-    FineRecord(
-        id: 1, plateNumber: '京A0001', fineAmount: 200, date: '2024-04-01'),
-    FineRecord(
-        id: 2, plateNumber: '京A0002', fineAmount: 500, date: '2024-04-10'),
-    // ... 更多罚款记录
-  ];
+class _FineInformationPageState extends State<FineInformationPage> {
+  late RestApiServices restApiServices;
+  List<FineRecord> _fineRecords = [];
+
+  @override
+  void initState() {
+    super.initState();
+    restApiServices = RestApiServices();
+    restApiServices.initWebSocket(AppConfig.fineInformationEndpoint);
+    _loadFineData();
+  }
+
+  Future<void> _loadFineData() async {
+    try {
+      restApiServices.sendMessage(jsonEncode({'action': 'getFineInfo'}));
+      final response = await restApiServices.getMessages().firstWhere((message) {
+        final decodedMessage = jsonDecode(message);
+        return decodedMessage['action'] == 'getFineInfoResponse';
+      });
+
+      final decodedMessage = jsonDecode(response);
+      if (decodedMessage['status'] == 'success') {
+        setState(() {
+          _fineRecords = List<FineRecord>.from(
+              decodedMessage['data'].map((item) => FineRecord.fromJson(item)));
+        });
+      } else {
+        debugPrint('加载罚款信息失败: ${decodedMessage['message']}');
+      }
+    } catch (e) {
+      debugPrint('加载罚款信息失败: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('5G 交通违法罚款记录'),
+        title: const Text('交通违法罚款记录'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
+        backgroundColor: Colors.lightBlue,
+        foregroundColor: Colors.white,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -116,9 +152,19 @@ class FineRecord {
   int fineAmount;
   String date;
 
-  FineRecord(
-      {required this.id,
-      required this.plateNumber,
-      required this.fineAmount,
-      required this.date});
+  FineRecord({
+    required this.id,
+    required this.plateNumber,
+    required this.fineAmount,
+    required this.date,
+  });
+
+  factory FineRecord.fromJson(Map<String, dynamic> json) {
+    return FineRecord(
+      id: json['id'],
+      plateNumber: json['plateNumber'],
+      fineAmount: json['fineAmount'],
+      date: json['date'],
+    );
+  }
 }
