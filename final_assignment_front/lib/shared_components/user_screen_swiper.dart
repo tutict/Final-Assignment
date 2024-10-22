@@ -26,20 +26,82 @@ class UserScreenSwiper extends StatelessWidget {
 
     // 返回一个 Scaffold，其中包含一个 Swiper，用于展示轮播图
     return Scaffold(
-      body: Swiper(
-        // 构建每个轮播图项的函数
-        itemBuilder: (BuildContext context, int index) {
-          return Image.network(
-            imageUrls[index],
-            fit: BoxFit.fill,
-          );
-        },
-        // 轮播图项的数量，基于图片URL列表的长度
-        itemCount: imageUrls.length,
-        // 轮播图的分页配置
-        pagination: const SwiperPagination(),
-        // 轮播图的控制配置，如前进后退按钮
-        control: const SwiperControl(),
+      body: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 32.0, horizontal: 16.0),
+        child: Swiper(
+          // 构建每个轮播图项的函数
+          itemBuilder: (BuildContext context, int index) {
+            return GestureDetector(
+              onTap: onPressed,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16.0),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Image.network(
+                      imageUrls[index],
+                      fit: BoxFit.cover,
+                      loadingBuilder: (context, child, progress) {
+                        if (progress == null) return child;
+                        return Center(
+                          child: CircularProgressIndicator(
+                            value: progress.expectedTotalBytes != null
+                                ? progress.cumulativeBytesLoaded /
+                                    (progress.expectedTotalBytes ?? 1)
+                                : null,
+                          ),
+                        );
+                      },
+                    ),
+                    Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.black.withOpacity(0.4),
+                            Colors.transparent,
+                          ],
+                          begin: Alignment.bottomCenter,
+                          end: Alignment.topCenter,
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      bottom: 16.0,
+                      left: 16.0,
+                      child: Text(
+                        '图片 ${index + 1}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+          // 轮播图项的数量，基于图片URL列表的长度
+          itemCount: imageUrls.length,
+          // 轮播图的分页配置
+          pagination: const SwiperPagination(
+            builder: DotSwiperPaginationBuilder(
+              activeColor: Colors.blueAccent,
+              color: Colors.grey,
+              size: 8.0,
+              activeSize: 10.0,
+            ),
+          ),
+          // 轮播图的控制配置，如前进后退按钮
+          control: const SwiperControl(
+            color: Colors.blueAccent,
+          ),
+          autoplay: true,
+          autoplayDelay: 3000,
+          viewportFraction: 0.9,
+          scale: 0.95,
+        ),
       ),
     );
   }

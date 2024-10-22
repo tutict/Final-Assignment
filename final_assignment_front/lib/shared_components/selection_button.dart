@@ -56,7 +56,7 @@ class _SelectionButtonState extends State<SelectionButton> {
         final data = e.value;
 
         return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           child: _Button(
             selected: selected == index,
             onPressed: () {
@@ -91,10 +91,14 @@ class _Button extends StatelessWidget {
       color: (!selected)
           ? Theme.of(context).cardColor
           : Theme.of(context).primaryColor.withOpacity(.1),
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(12),
+      elevation: selected ? 6.0 : 3.0,
+      shadowColor:
+          selected ? Colors.blueAccent.withOpacity(0.3) : Colors.black12,
       child: InkWell(
         onTap: onPressed,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(12),
+        splashColor: Theme.of(context).primaryColor.withOpacity(0.2),
         child: Padding(
           padding: const EdgeInsets.all(kSpacing),
           child: Row(
@@ -118,9 +122,9 @@ class _Button extends StatelessWidget {
   Widget _icon(IconData iconData) {
     return Icon(
       iconData,
-      size: 20,
+      size: 24,
       color: (!selected)
-          ? kFontColorPallets[1]
+          ? kFontColorPallets[2]
           : Theme.of(Get.context!).primaryColor,
     );
   }
@@ -133,9 +137,9 @@ class _Button extends StatelessWidget {
         color: (!selected)
             ? kFontColorPallets[1]
             : Theme.of(Get.context!).primaryColor,
-        fontWeight: FontWeight.w600,
-        letterSpacing: .8,
-        fontSize: 13,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 1.0,
+        fontSize: 15,
       ).useSystemChineseFont(),
     );
   }
@@ -150,14 +154,21 @@ class _Button extends StatelessWidget {
             decoration: BoxDecoration(
               color: kNotifColor,
               borderRadius: BorderRadius.circular(15),
+              boxShadow: const [
+                BoxShadow(
+                  color: Colors.black26,
+                  offset: Offset(0, 4),
+                  blurRadius: 8,
+                ),
+              ],
             ),
             alignment: Alignment.center,
             child: Text(
               (total >= 100) ? "99+" : "$total",
               style: const TextStyle(
                 color: Colors.white,
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
               ).useSystemChineseFont(),
               textAlign: TextAlign.center,
             ),

@@ -23,7 +23,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 import java.util.Set;
 
-import static com.tutict.finalassignmentbackend.config.login.JWT.AuthController.logger;
+import static com.tutict.finalassignmentbackend.controller.UserManagementController.logger;
+
 
 // 使用Slf4J进行日志记录
 @Slf4j
@@ -70,7 +71,7 @@ public class WebSocketServer extends AbstractVerticle {
         allowedMethods.add(HttpMethod.PUT);
 
         // 添加跨域处理器到路由器
-        router.route().handler(CorsHandler.create("http:\\\\/\\\\/localhost:8082")
+        router.route().handler(CorsHandler.create().addOrigin("http:\\\\/\\\\/localhost:8082")
                 .allowedHeaders(allowedHeaders)
                 .allowedMethods(allowedMethods));
 

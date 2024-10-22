@@ -134,7 +134,7 @@ class AppPages {
     ),
     GetPage(
       name: _Paths.personalInfo,
-      page: () => const PersonalInfoPage(),
+      page: () => const PersonalInformationPage(),
     ),
     GetPage(
       name: _Paths.setting,

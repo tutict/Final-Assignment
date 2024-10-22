@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -21,6 +22,8 @@ import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+
+import java.util.Collections;
 
 // 配置类，用于定义安全相关的配置
 @Configuration
@@ -60,7 +63,7 @@ public class SecurityConfig {
         authenticationProvider.setUserDetailsService(userDetailsService);
         authenticationProvider.setPasswordEncoder(encoder);
 
-        return authenticationProvider::authenticate;
+        return new ProviderManager(Collections.singletonList(authenticationProvider));
     }
 
     // 配置安全过滤器链
@@ -80,8 +83,7 @@ public class SecurityConfig {
 
     // 创建UserDetailsService实例，用于用户身份验证
     @Bean
-    public UserDetailsService userDetailsService() {
-        PasswordEncoder encoder = PasswordEncoderFactories.createDelegatingPasswordEncoder();
+    public UserDetailsService userDetailsService(PasswordEncoder encoder) {
         UserDetails user = User.withUsername("user")
                 .password(encoder.encode("password"))
                 .roles("USER")
