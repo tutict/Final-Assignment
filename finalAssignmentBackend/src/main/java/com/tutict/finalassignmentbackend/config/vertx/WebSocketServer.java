@@ -136,23 +136,25 @@ public class WebSocketServer extends AbstractVerticle {
      * @return 如果令牌有效则返回true，否则返回false
      */
     boolean validateToken(String token) {
+        logger.info("Attempting to validate JWT token.");
 
         try {
             // 创建密钥并解析JWT
             SecretKey key = Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
             Jwts.parser().verifyWith(key).build().parseSignedClaims(token);
+            logger.info("JWT token is valid.");
             return true; // 令牌有效
         } catch (JWTVerificationException e) {
             // JWT验证失败
-            logger.error(e, () -> "JWT签名无效,报错如下： " + e.getMessage());
+            logger.error("JWT签名无效,报错如下： {}", e.getMessage());
             return false;
         } catch (IllegalArgumentException e) {
             // JWT字符串为空
-            logger.error(e, () -> "JWT声明字符串为空,报错如下： " + e.getMessage());
+            logger.error("JWT声明字符串为空,报错如下： {}", e.getMessage());
             return false;
         } catch (Exception e) {
             // 其他异常
-            logger.error(e, () -> "解析JWT时发生意外错误,报错如下： " + e.getMessage());
+            logger.error("解析JWT时发生意外错误,报错如下： {}", e.getMessage());
             return false;
         }
     }

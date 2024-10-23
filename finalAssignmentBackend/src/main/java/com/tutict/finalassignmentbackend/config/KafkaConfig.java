@@ -11,7 +11,6 @@ import org.springframework.context.annotation.DependsOn;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Properties;
 
 // 配置类，用于设置Kafka的相关配置
 @Configuration

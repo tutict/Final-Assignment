@@ -19,8 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-// 控制器类，处理与用户管理相关的HTTP请求
-// 控制器类，处理与用户管理相关的HTTP请求
+// 控制器类，处理与用户管理相关的请求
 @RestController
 @RequestMapping("/eventbus/users")
 public class UserManagementController {
