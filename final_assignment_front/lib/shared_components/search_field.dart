@@ -20,50 +20,53 @@ class SearchField extends StatelessWidget {
   /// 构建搜索字段的UI
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black12,
-            offset: Offset(0, 4),
-            blurRadius: 8,
-          ),
-        ],
-      ),
-      child: TextField(
-        controller: controller,
-
-        /// 装饰文本字段以使其更美观
-        decoration: InputDecoration(
-          filled: true,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide.none,
-          ),
-          prefixIcon: const Icon(
-            EvaIcons.search,
-            color: Colors.grey,
-          ),
-          hintText: "搜索...",
-          hintStyle: TextStyle(color: Colors.grey.shade600),
-          isDense: true,
-          fillColor: Colors.transparent,
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black12,
+              offset: Offset(0, 4),
+              blurRadius: 8,
+            ),
+          ],
         ),
+        child: TextField(
+          controller: controller,
 
-        /// 当用户完成编辑时，取消焦点并触发搜索回调
-        onEditingComplete: () {
-          FocusScope.of(context).unfocus();
-          if (onSearch != null) onSearch!(controller.text);
-        },
-        textInputAction: TextInputAction.search,
+          /// 装饰文本字段以使其更美观
+          decoration: InputDecoration(
+            filled: true,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide.none,
+            ),
+            prefixIcon: const Icon(
+              EvaIcons.search,
+              color: Colors.grey,
+            ),
+            hintText: "搜索...",
+            hintStyle: TextStyle(color: Colors.grey.shade600),
+            isDense: true,
+            fillColor: Colors.transparent,
+          ),
 
-        /// 设置文本字段的样式，并使用系统中文字体
-        style: TextStyle(
-          color: Theme.of(context).textTheme.bodyLarge?.color,
-          fontSize: 16,
-        ).useSystemChineseFont(),
+          /// 当用户完成编辑时，取消焦点并触发搜索回调
+          onEditingComplete: () {
+            FocusScope.of(context).unfocus();
+            if (onSearch != null) onSearch!(controller.text);
+          },
+          textInputAction: TextInputAction.search,
+
+          /// 设置文本字段的样式，并使用系统中文字体
+          style: const TextStyle(
+            color: Colors.black87,
+            fontSize: 16,
+          ).useSystemChineseFont(),
+        ),
       ),
     );
   }
