@@ -9,6 +9,7 @@ import 'package:final_assignment_front/shared_components/user_tools_card.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'dart:ui';
 
 /// 用户仪表板页面
 ///
@@ -60,19 +61,26 @@ class UserDashboard extends GetView<UserDashboardController> {
     return ResponsiveBuilder.isDesktop(context)
         ? null
         : Drawer(
-            child: Padding(
-              padding: const EdgeInsets.only(top: kSpacing),
-              child: UserSidebar(data: controller.getSelectedProject()),
-            ),
+            child: UserSidebar(data: controller.getSelectedProject()),
           );
   }
 
   Widget _buildSidebar(BuildContext context) {
-    return SizedBox(
-      width: 250,
-      child: Padding(
-        padding: const EdgeInsets.only(top: kSpacing),
-        child: UserSidebar(data: controller.getSelectedProject()),
+    return Container(
+      width: 300,
+      height: double.infinity,
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            offset: const Offset(4, 0),
+            blurRadius: 8,
+          ),
+        ],
+      ),
+      child: UserSidebar(
+        data: controller.getSelectedProject(),
       ),
     );
   }
@@ -98,17 +106,17 @@ class UserDashboard extends GetView<UserDashboardController> {
               onPressedMenu: !isDesktop ? controller.openDrawer : null),
           const SizedBox(height: kSpacing / 2),
           const Divider(),
-          _buildUserScreenSwiper(),
+          _buildUserScreenSwiper(context),
           const SizedBox(height: kSpacing),
-          _buildUserToolsCard(),
+          _buildUserToolsCard(context),
         ],
       ),
     );
   }
 
-  Widget _buildUserScreenSwiper() {
+  Widget _buildUserScreenSwiper(BuildContext context) {
     return SizedBox(
-      height: 300,
+      height: MediaQuery.of(context).size.height * 0.4,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: kSpacing),
         child: UserScreenSwiper(onPressed: () {}),
@@ -116,18 +124,24 @@ class UserDashboard extends GetView<UserDashboardController> {
     );
   }
 
-  Widget _buildUserToolsCard() {
+  Widget _buildUserToolsCard(BuildContext context) {
     return SizedBox(
-      height: 200,
+      height: MediaQuery.of(context).size.height * 0.35,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: kSpacing),
-        child: UserToolsCard(
-          onPressed: () {},
-          onPressedSecond: () {},
-          onPressedThird: () {},
-          onPressedFourth: () {},
-          onPressedFifth: () {},
-          onPressedSixth: () {},
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: UserToolsCard(
+              onPressed: () {},
+              onPressedSecond: () {},
+              onPressedThird: () {},
+              onPressedFourth: () {},
+              onPressedFifth: () {},
+              onPressedSixth: () {},
+            ),
+          ),
         ),
       ),
     );
@@ -150,8 +164,7 @@ class UserDashboard extends GetView<UserDashboardController> {
           const Expanded(child: UserHeader()),
           IconButton(
             onPressed: () {},
-            icon: const Icon(Icons.chat_bubble_outline,
-                color: Colors.white),
+            icon: const Icon(Icons.chat_bubble_outline, color: Colors.white),
             tooltip: "Chat",
           ),
           IconButton(

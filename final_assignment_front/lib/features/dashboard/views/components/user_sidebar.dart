@@ -24,11 +24,8 @@ class UserSidebar extends StatelessWidget {
         controller: ScrollController(),
         child: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.all(kSpacing),
-              child: ProjectCard(
-                data: data,
-              ),
+            ProjectCard(
+              data: data,
             ),
             const Divider(thickness: 1),
             SelectionButton(
@@ -37,59 +34,49 @@ class UserSidebar extends StatelessWidget {
                   activeIcon: EvaIcons.grid,
                   icon: EvaIcons.gridOutline,
                   label: "更多",
-                  onPressed: () => { },
+                  onPressed: () => {},
                 ),
                 SelectionButtonData(
                   activeIcon: EvaIcons.trendingUp,
                   icon: EvaIcons.trendingUpOutline,
                   label: "网办进度",
-                  onPressed: () => {
-                    Get.toNamed(AppPages.onlineProcessingProgress)
-                  },
+                  onPressed: () =>
+                      {Get.toNamed(AppPages.onlineProcessingProgress)},
                 ),
                 SelectionButtonData(
                   activeIcon: EvaIcons.globe,
                   icon: EvaIcons.globe2Outline,
                   label: "网办大厅",
-                  onPressed: () => {
-                  },
+                  onPressed: () => {},
                 ),
                 SelectionButtonData(
                   activeIcon: EvaIcons.pin,
                   icon: EvaIcons.pinOutline,
                   label: "线下网点",
-                  onPressed: () => {
-                    Get.toNamed(AppPages.map)
-                  },
+                  onPressed: () => {Get.toNamed(AppPages.map)},
                 ),
                 SelectionButtonData(
                   activeIcon: EvaIcons.person,
                   icon: EvaIcons.personOutline,
                   label: "我的",
-                  onPressed: () => {
-                    Get.toNamed(AppPages.personalMain)
-                  },
+                  onPressed: () => {Get.toNamed(AppPages.personalMain)},
                 ),
                 SelectionButtonData(
                   activeIcon: EvaIcons.settings,
                   icon: EvaIcons.settingsOutline,
                   label: "设置",
-                  onPressed: () => {
-                    Get.toNamed(AppPages.setting)
-                  },
+                  onPressed: () => {Get.toNamed(AppPages.setting)},
                 ),
               ],
               onSelected: (index, value) {
-                log("index : $index | label : ${value.label}");
+                log("index : $index | label : \${value.label}");
               },
             ),
             const Divider(thickness: 1),
-            const SizedBox(height: kSpacing * 2),
             PostCard(
               backgroundColor: Theme.of(context).canvasColor.withOpacity(.4),
               onPressed: () {},
             ),
-            const SizedBox(height: kSpacing),
           ],
         ),
       ),

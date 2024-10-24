@@ -17,6 +17,7 @@ class UserToolsCard extends StatelessWidget {
 
   // 第一个按钮的回调函数，必传
   final Function()? onPressed;
+
   // 以下为可选的按钮回调函数，根据实际需要传入
   final Function()? onPressedSecond;
   final Function()? onPressedThird;
@@ -109,12 +110,12 @@ class UserToolsCard extends StatelessWidget {
       children: actions
           .map(
             (action) => _buildButton(
-          context,
-          onTap: action['onPressed'],
-          text: action['label'],
-          icon: action['icon'],
-        ),
-      )
+              context,
+              onTap: action['onPressed'],
+              text: action['label'],
+              icon: action['icon'],
+            ),
+          )
           .toList(),
     );
   }
@@ -122,8 +123,8 @@ class UserToolsCard extends StatelessWidget {
   // 构建按钮
   Widget _buildButton(BuildContext context,
       {required Function()? onTap,
-        required String text,
-        required IconData icon}) {
+      required String text,
+      required IconData icon}) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16.0),
