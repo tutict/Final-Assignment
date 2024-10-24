@@ -61,8 +61,8 @@ class UserDashboard extends GetView<UserDashboardController> {
     return ResponsiveBuilder.isDesktop(context)
         ? null
         : Drawer(
-            child: UserSidebar(data: controller.getSelectedProject()),
-          );
+      child: UserSidebar(data: controller.getSelectedProject()),
+    );
   }
 
   Widget _buildSidebar(BuildContext context) {
@@ -79,8 +79,11 @@ class UserDashboard extends GetView<UserDashboardController> {
           ),
         ],
       ),
-      child: UserSidebar(
-        data: controller.getSelectedProject(),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: kSpacing, horizontal: 16.0),
+        child: UserSidebar(
+          data: controller.getSelectedProject(),
+        ),
       ),
     );
   }
@@ -97,18 +100,26 @@ class UserDashboard extends GetView<UserDashboardController> {
   Widget _buildLayout(BuildContext context, {bool isDesktop = false}) {
     return Padding(
       padding:
-          const EdgeInsets.symmetric(horizontal: kSpacing, vertical: kSpacing),
+      const EdgeInsets.symmetric(horizontal: kSpacing, vertical: kSpacing),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(height: kSpacing * (kIsWeb || isDesktop ? 1 : 2)),
+          SizedBox(height: kSpacing * (kIsWeb || isDesktop ? 1.5 : 2.5)),
           _buildHeader(
               onPressedMenu: !isDesktop ? controller.openDrawer : null),
           const SizedBox(height: kSpacing / 2),
           const Divider(),
-          _buildUserScreenSwiper(context),
-          const SizedBox(height: kSpacing),
-          _buildUserToolsCard(context),
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  _buildUserScreenSwiper(context),
+                  const SizedBox(height: kSpacing),
+                  _buildUserToolsCard(context),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -116,7 +127,7 @@ class UserDashboard extends GetView<UserDashboardController> {
 
   Widget _buildUserScreenSwiper(BuildContext context) {
     return SizedBox(
-      height: MediaQuery.of(context).size.height * 0.4,
+      height: MediaQuery.of(context).size.height * 0.65,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: kSpacing),
         child: UserScreenSwiper(onPressed: () {}),

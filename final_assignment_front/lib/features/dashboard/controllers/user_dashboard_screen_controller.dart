@@ -37,7 +37,6 @@ class UserDashboardController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    // ���ʾ������
     caseCardDataList.addAll([
       const CaseCardData(
         title: 'Todo Task 1',
@@ -45,7 +44,6 @@ class UserDashboardController extends GetxController {
         totalComments: 10,
         totalContributors: 3,
         type: CaseType.caseManagement,
-        // ��Ϊ CaseType
         profilContributors: [],
       ),
       const CaseCardData(
@@ -54,7 +52,6 @@ class UserDashboardController extends GetxController {
         totalComments: 5,
         totalContributors: 2,
         type: CaseType.caseSearch,
-        // ��Ϊ CaseType
         profilContributors: [],
       ),
       const CaseCardData(
@@ -63,10 +60,8 @@ class UserDashboardController extends GetxController {
         totalComments: 3,
         totalContributors: 1,
         type: CaseType.caseAppeal,
-        // ��Ϊ CaseType
         profilContributors: [],
       ),
-      // ��Ӹ�������
     ]);
   }
 
@@ -74,15 +69,13 @@ class UserDashboardController extends GetxController {
     return ProjectCardData(
       percent: .3,
       projectImage: const AssetImage(ImageRasterPath.logo1),
-      projectName: "��ͨΥ����Ϊ�������ϵͳ",
+      projectName: "",
       releaseTime: DateTime.now(),
     );
   }
 
   List<ProjectCardData> getActiveProject() {
-    return [
-      // ���ػ��Ŀ���б�
-    ];
+    return [];
   }
 
   List<ImageProvider> getMember() {
@@ -102,7 +95,7 @@ class UserDashboardController extends GetxController {
         image: AssetImage(ImageRasterPath.avatar6),
         isOnline: true,
         name: "Samantha",
-        lastMessage: "�Ҵ������µ�����",
+        lastMessage: "",
         isRead: false,
         totalUnread: 1,
       ),
