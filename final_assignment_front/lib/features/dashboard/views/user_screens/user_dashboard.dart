@@ -21,11 +21,13 @@ class UserDashboard extends GetView<UserDashboardController> {
 
   @override
   Widget build(BuildContext context) {
+    // 构建用户仪表板页面的主要布局
     return Scaffold(
       key: controller.scaffoldKey,
       drawer: _buildDrawer(context),
       body: LayoutBuilder(
         builder: (context, constraints) {
+          // 根据屏幕大小构建不同的布局
           return Row(
             children: [
               if (ResponsiveBuilder.isDesktop(context)) _buildSidebar(context),
@@ -57,14 +59,20 @@ class UserDashboard extends GetView<UserDashboardController> {
     );
   }
 
+  /// 构建侧边栏
+  ///
+  /// 如果是桌面端，返回null，否则返回一个Drawer。
   Widget? _buildDrawer(BuildContext context) {
     return ResponsiveBuilder.isDesktop(context)
         ? null
         : Drawer(
-      child: UserSidebar(data: controller.getSelectedProject()),
-    );
+            child: UserSidebar(data: controller.getSelectedProject()),
+          );
   }
 
+  /// 构建侧边栏
+  ///
+  /// 返回一个包含用户侧边栏的Container。
   Widget _buildSidebar(BuildContext context) {
     return Container(
       width: 300,
@@ -80,7 +88,7 @@ class UserDashboard extends GetView<UserDashboardController> {
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: kSpacing, horizontal: 16.0),
+        padding: const EdgeInsets.fromLTRB(16.0, kSpacing * 2, 16.0, kSpacing),
         child: UserSidebar(
           data: controller.getSelectedProject(),
         ),
@@ -88,6 +96,9 @@ class UserDashboard extends GetView<UserDashboardController> {
     );
   }
 
+  /// 构建响应式布局
+  ///
+  /// 使用ResponsiveBuilder来构建不同屏幕大小的布局。
   Widget _buildResponsiveLayout(BuildContext context) {
     return ResponsiveBuilder(
       mobileBuilder: (context, constraints) => _buildLayout(context),
@@ -97,14 +108,17 @@ class UserDashboard extends GetView<UserDashboardController> {
     );
   }
 
+  /// 构建页面布局
+  ///
+  /// 根据是否是桌面端构建不同的布局。
   Widget _buildLayout(BuildContext context, {bool isDesktop = false}) {
     return Padding(
       padding:
-      const EdgeInsets.symmetric(horizontal: kSpacing, vertical: kSpacing),
+          const EdgeInsets.symmetric(horizontal: kSpacing, vertical: kSpacing),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(height: kSpacing * (kIsWeb || isDesktop ? 1.5 : 2.5)),
+          SizedBox(height: kSpacing * (kIsWeb || isDesktop ? 2.5 : 3.5)),
           _buildHeader(
               onPressedMenu: !isDesktop ? controller.openDrawer : null),
           const SizedBox(height: kSpacing / 2),
@@ -125,9 +139,12 @@ class UserDashboard extends GetView<UserDashboardController> {
     );
   }
 
+  /// 构建用户屏幕轮播
+  ///
+  /// 返回一个包含用户屏幕轮播的SizedBox。
   Widget _buildUserScreenSwiper(BuildContext context) {
     return SizedBox(
-      height: MediaQuery.of(context).size.height * 0.65,
+      height: MediaQuery.of(context).size.height * 0.55,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: kSpacing),
         child: UserScreenSwiper(onPressed: () {}),
@@ -135,9 +152,12 @@ class UserDashboard extends GetView<UserDashboardController> {
     );
   }
 
+  /// 构建用户工具卡片
+  ///
+  /// 返回一个包含用户工具卡片的SizedBox。
   Widget _buildUserToolsCard(BuildContext context) {
     return SizedBox(
-      height: MediaQuery.of(context).size.height * 0.35,
+      height: MediaQuery.of(context).size.height * 0.38,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: kSpacing),
         child: ClipRRect(
@@ -158,6 +178,9 @@ class UserDashboard extends GetView<UserDashboardController> {
     );
   }
 
+  /// 构建头部
+  ///
+  /// 包含菜单按钮、用户头像和主题切换按钮。
   Widget _buildHeader({Function()? onPressedMenu}) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: kSpacing),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:eva_icons_flutter/eva_icons_flutter.dart';
+import 'dart:ui';
 
 /// 用户工具卡片组件
 /// 此组件用于展示用户可使用的工具按钮，每个按钮代表一个功能
@@ -40,6 +41,12 @@ class UserToolsCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             _buildHeader(),
+            const Divider(
+              thickness: 2,
+              indent: 16,
+              endIndent: 16,
+              color: Colors.blueAccent,
+            ),
             const SizedBox(height: 24.0),
             _buildButtonGrid(context),
           ],
@@ -110,12 +117,12 @@ class UserToolsCard extends StatelessWidget {
       children: actions
           .map(
             (action) => _buildButton(
-              context,
-              onTap: action['onPressed'],
-              text: action['label'],
-              icon: action['icon'],
-            ),
-          )
+          context,
+          onTap: action['onPressed'],
+          text: action['label'],
+          icon: action['icon'],
+        ),
+      )
           .toList(),
     );
   }
@@ -123,41 +130,47 @@ class UserToolsCard extends StatelessWidget {
   // 构建按钮
   Widget _buildButton(BuildContext context,
       {required Function()? onTap,
-      required String text,
-      required IconData icon}) {
+        required String text,
+        required IconData icon}) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16.0),
       splashColor: Theme.of(context).primaryColorLight.withOpacity(0.3),
-      child: Container(
-        width: 110,
-        height: 110,
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(16.0),
-          boxShadow: const [
-            BoxShadow(
-              color: Colors.black12,
-              offset: Offset(0, 6),
-              blurRadius: 12,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16.0),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            width: 110,
+            height: 110,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(16.0),
+              boxShadow: const [
+                BoxShadow(
+                  color: Colors.black12,
+                  offset: Offset(0, 6),
+                  blurRadius: 12,
+                ),
+              ],
             ),
-          ],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: Theme.of(context).primaryColor, size: 32),
-            const SizedBox(height: 12.0),
-            Text(
-              text,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Colors.black87,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, color: Theme.of(context).primaryColor, size: 32),
+                const SizedBox(height: 12.0),
+                Text(
+                  text,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.black87,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
