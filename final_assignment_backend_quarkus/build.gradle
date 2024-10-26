@@ -1,10 +1,10 @@
-lugins {
+plugins {
     id 'java'
 }
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
+        languageVersion = JavaLanguageVersion.of(22)
     }
 }
 
@@ -35,7 +35,6 @@ dependencies {
     implementation 'io.quarkus:quarkus-smallrye-reactive-messaging-kafka:3.11.3'
     implementation 'io.smallrye.reactive:smallrye-reactive-messaging-api:4.21.0'
     implementation 'io.quarkiverse.langchain4j:quarkus-langchain4j-hugging-face:0.17.0'
-    implementation 'org.projectlombok:lombok:1.18.30'
     testImplementation 'io.quarkus:quarkus-junit5'
     testImplementation 'io.rest-assured:rest-assured'
 }
@@ -44,8 +43,8 @@ group 'my-groupId'
 version '1.0.0-SNAPSHOT'
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_21
-    targetCompatibility = JavaVersion.VERSION_21
+    sourceCompatibility = JavaVersion.VERSION_22
+    targetCompatibility = JavaVersion.VERSION_22
 }
 
 test {

@@ -1,7 +1,7 @@
 import 'dart:developer';
+
 import 'package:eva_icons_flutter/eva_icons_flutter.dart';
 import 'package:final_assignment_front/config/routes/app_pages.dart';
-import 'package:final_assignment_front/constants/app_constants.dart';
 import 'package:final_assignment_front/shared_components/post_card.dart';
 import 'package:final_assignment_front/shared_components/project_card.dart';
 import 'package:final_assignment_front/shared_components/selection_button.dart';
@@ -24,9 +24,7 @@ class UserSidebar extends StatelessWidget {
         controller: ScrollController(),
         child: Column(
           children: [
-            ProjectCard(
-              data: data,
-            ),
+            ProjectCard(data: data),
             const Divider(thickness: 1),
             SelectionButton(
               data: [
@@ -34,42 +32,53 @@ class UserSidebar extends StatelessWidget {
                   activeIcon: EvaIcons.grid,
                   icon: EvaIcons.gridOutline,
                   label: "更多",
-                  onPressed: () => {},
+                  onPressed: () {
+                    // 实现“更多”页面跳转逻辑
+                  },
                 ),
                 SelectionButtonData(
                   activeIcon: EvaIcons.trendingUp,
                   icon: EvaIcons.trendingUpOutline,
                   label: "网办进度",
-                  onPressed: () =>
-                      {Get.toNamed(AppPages.onlineProcessingProgress)},
+                  onPressed: () {
+                    Get.toNamed(AppPages.onlineProcessingProgress);
+                  },
                 ),
                 SelectionButtonData(
                   activeIcon: EvaIcons.globe,
                   icon: EvaIcons.globe2Outline,
                   label: "网办大厅",
-                  onPressed: () => {},
+                  onPressed: () {
+                    // 实现“网办大厅”页面跳转逻辑
+                  },
                 ),
                 SelectionButtonData(
                   activeIcon: EvaIcons.pin,
                   icon: EvaIcons.pinOutline,
                   label: "线下网点",
-                  onPressed: () => {Get.toNamed(AppPages.map)},
+                  onPressed: () {
+                    Get.toNamed(AppPages.map);
+                  },
                 ),
                 SelectionButtonData(
                   activeIcon: EvaIcons.person,
                   icon: EvaIcons.personOutline,
                   label: "我的",
-                  onPressed: () => {Get.toNamed(AppPages.personalMain)},
+                  onPressed: () {
+                    Get.toNamed(AppPages.personalMain);
+                  },
                 ),
                 SelectionButtonData(
                   activeIcon: EvaIcons.settings,
                   icon: EvaIcons.settingsOutline,
                   label: "设置",
-                  onPressed: () => {Get.toNamed(AppPages.setting)},
+                  onPressed: () {
+                    Get.toNamed(AppPages.setting);
+                  },
                 ),
               ],
               onSelected: (index, value) {
-                log("index : $index | label : \${value.label}");
+                log("index : $index | label : ${value.label}");
               },
             ),
             const Divider(thickness: 1),

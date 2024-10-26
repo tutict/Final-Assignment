@@ -1,4 +1,5 @@
-import 'package:eva_icons_flutter/eva_icons_flutter.dart';
+import 'dart:ui';
+
 import 'package:final_assignment_front/constants/app_constants.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/components/user_header.dart';
@@ -9,13 +10,12 @@ import 'package:final_assignment_front/shared_components/user_tools_card.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'dart:ui';
 
 /// 用户仪表板页面
 ///
 /// UserDashboard 类继承自GetView，用于构建用户仪表板页面。
 /// 它包含了一个 Scaffold，提供了一个可选的侧边栏、头部、身体内容，
-/// 以及一个浮动操作按钮。
+/// 以及一个浮动操作按钮，并添加了动画效果。
 class UserDashboard extends GetView<UserDashboardController> {
   const UserDashboard({super.key});
 
@@ -56,6 +56,18 @@ class UserDashboard extends GetView<UserDashboardController> {
           );
         },
       ),
+      floatingActionButton: Obx(
+        () => AnimatedScale(
+          scale: controller.isScrollingDown.value ? 0.0 : 1.0,
+          duration: const Duration(milliseconds: 300),
+          child: FloatingActionButton(
+            onPressed: () {
+              // FAB点击后的操作
+            },
+            child: const Icon(Icons.add),
+          ),
+        ),
+      ),
     );
   }
 
@@ -66,16 +78,20 @@ class UserDashboard extends GetView<UserDashboardController> {
     return ResponsiveBuilder.isDesktop(context)
         ? null
         : Drawer(
-            child: UserSidebar(data: controller.getSelectedProject()),
+            child: UserSidebar(
+              data: controller.getSelectedProject(),
+            ),
           );
   }
 
   /// 构建侧边栏
   ///
-  /// 返回一个包含用户侧边栏的Container。
+  /// 返回一个包含用户侧边栏的AnimatedContainer。
   Widget _buildSidebar(BuildContext context) {
-    return Container(
-      width: 300,
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+      width: ResponsiveBuilder.isDesktop(context) ? 300 : 0,
       height: double.infinity,
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
@@ -87,12 +103,15 @@ class UserDashboard extends GetView<UserDashboardController> {
           ),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16.0, kSpacing * 2, 16.0, kSpacing),
-        child: UserSidebar(
-          data: controller.getSelectedProject(),
-        ),
-      ),
+      child: ResponsiveBuilder.isDesktop(context)
+          ? Padding(
+              padding:
+                  const EdgeInsets.fromLTRB(16.0, kSpacing * 2, 16.0, kSpacing),
+              child: UserSidebar(
+                data: controller.getSelectedProject(),
+              ),
+            )
+          : null,
     );
   }
 
@@ -130,6 +149,7 @@ class UserDashboard extends GetView<UserDashboardController> {
                   _buildUserScreenSwiper(context),
                   const SizedBox(height: kSpacing),
                   _buildUserToolsCard(context),
+                  Obx(() => controller.buildSelectedPageContent()),
                 ],
               ),
             ),
@@ -154,7 +174,7 @@ class UserDashboard extends GetView<UserDashboardController> {
 
   /// 构建用户工具卡片
   ///
-  /// 返回一个包含用户工具卡片的SizedBox。
+  /// 返回一个包含用户工具卡片的AnimatedOpacity。
   Widget _buildUserToolsCard(BuildContext context) {
     return SizedBox(
       height: MediaQuery.of(context).size.height * 0.38,
@@ -164,13 +184,17 @@ class UserDashboard extends GetView<UserDashboardController> {
           borderRadius: BorderRadius.circular(16),
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-            child: UserToolsCard(
-              onPressed: () {},
-              onPressedSecond: () {},
-              onPressedThird: () {},
-              onPressedFourth: () {},
-              onPressedFifth: () {},
-              onPressedSixth: () {},
+            child: AnimatedOpacity(
+              opacity: 1.0, // 控制可见度的状态
+              duration: const Duration(milliseconds: 500),
+              child: UserToolsCard(
+                onPressed: () {},
+                onPressedSecond: () {},
+                onPressedThird: () {},
+                onPressedFourth: () {},
+                onPressedFifth: () {},
+                onPressedSixth: () {},
+              ),
             ),
           ),
         ),
@@ -191,7 +215,7 @@ class UserDashboard extends GetView<UserDashboardController> {
               padding: const EdgeInsets.only(right: kSpacing),
               child: IconButton(
                 onPressed: onPressedMenu,
-                icon: const Icon(EvaIcons.menu),
+                icon: const Icon(Icons.menu),
                 tooltip: "Menu",
               ),
             ),

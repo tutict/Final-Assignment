@@ -40,13 +40,13 @@ class ProjectCard extends StatelessWidget {
           percent: data.percent,
           center: _ProfilImage(image: data.projectImage),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: 15),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _TitleText(data.projectName),
-              const SizedBox(height: 5),
+              const SizedBox(height: 8),
               Row(
                 children: [
                   const _SubtitleText("更新时间: "),
@@ -77,12 +77,12 @@ class _ProgressIndicator extends StatelessWidget {
   Widget build(BuildContext context) {
     // 使用CircularPercentIndicator展示百分比进度，配置外观和颜色
     return CircularPercentIndicator(
-      radius: 55,
-      lineWidth: 2.0,
+      radius: 45,
+      lineWidth: 4.0,
       percent: percent,
       center: center,
       circularStrokeCap: CircularStrokeCap.round,
-      backgroundColor: Colors.blueGrey,
+      backgroundColor: Colors.grey.shade300,
       progressColor: Theme.of(Get.context!).primaryColor,
     );
   }
@@ -96,11 +96,17 @@ class _ProfilImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 使用CircleAvatar展示圆形项目图片，并设置图片来源和背景色
-    return CircleAvatar(
-      backgroundImage: image,
-      radius: 20,
-      backgroundColor: Colors.white,
+    // 使用ClipOval包裹Image，替代CircleAvatar，以获得更灵活的样式
+    return ClipOval(
+      child: Container(
+        width: 40,
+        height: 40,
+        color: Colors.grey.shade200,
+        child: Image(
+          image: image,
+          fit: BoxFit.cover,
+        ),
+      ),
     );
   }
 }
@@ -117,10 +123,10 @@ class _TitleText extends StatelessWidget {
     return Text(
       data.capitalize!,
       style: TextStyle(
-        fontSize: 13,
-        fontWeight: FontWeight.w600,
+        fontSize: 14,
+        fontWeight: FontWeight.w700,
         color: kFontColorPallets[0],
-        letterSpacing: 0.8,
+        letterSpacing: 1.0,
       ).useSystemChineseFont(),
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
@@ -139,7 +145,7 @@ class _SubtitleText extends StatelessWidget {
     // 使用Text组件展示项目副标题信息，配置字体和颜色
     return Text(
       data,
-      style: TextStyle(fontSize: 11, color: kFontColorPallets[2])
+      style: TextStyle(fontSize: 12, color: kFontColorPallets[1])
           .useSystemChineseFont(),
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
@@ -158,13 +164,13 @@ class _ReleaseTimeText extends StatelessWidget {
     // 使用Container组件包裹Text，展示项目发布时间，配置背景色和文本样式
     return Container(
       decoration: BoxDecoration(
-        color: kNotifColor,
-        borderRadius: BorderRadius.circular(10),
+        color: kNotifColor.withOpacity(0.8),
+        borderRadius: BorderRadius.circular(8),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2.5),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: Text(
         DateFormat.yMMMd('zh_CN').format(date),
-        style: const TextStyle(fontSize: 9, color: Colors.white),
+        style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w500),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),

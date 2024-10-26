@@ -1,42 +1,110 @@
 import 'package:final_assignment_front/constants/app_constants.dart';
 import 'package:final_assignment_front/features/dashboard/models/user_profile.dart';
+import 'package:final_assignment_front/features/user_pages/map/map.dart';
+import 'package:final_assignment_front/features/user_pages/online_processing_progress.dart';
+import 'package:final_assignment_front/features/user_pages/personal/personal_main.dart';
+import 'package:final_assignment_front/features/user_pages/personal/setting/setting_main.dart';
 import 'package:final_assignment_front/shared_components/case_card.dart';
 import 'package:final_assignment_front/shared_components/chatting_card.dart';
 import 'package:final_assignment_front/shared_components/project_card.dart';
 import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:get/get.dart';
 
 class UserDashboardController extends GetxController {
   final scaffoldKey = GlobalKey<ScaffoldState>();
-  var caseCardDataList = <CaseCardData>[].obs;
-  var selectedCaseType =
-      CaseType.caseManagement.obs; // Set default to caseManagement
-
-  void openDrawer() {
-    scaffoldKey.currentState?.openDrawer();
-  }
-
-  void onCaseTypeSelected(CaseType selectedType) {
-    selectedCaseType.value = selectedType;
-  }
-
-  List<CaseCardData> getCaseByType(CaseType type) {
-    return caseCardDataList.where((task) => task.type == type).toList();
-  }
-
-  // Data
-  UserProfile getProfil() {
-    return const UserProfile(
-      photo: AssetImage(ImageRasterPath.avatar1),
-      name: "tutict",
-      email: "tutict@163.com",
-    );
-  }
+  final caseCardDataList = <CaseCardData>[].obs;
+  final selectedCaseType = CaseType.caseManagement.obs;
+  final isScrollingDown = false.obs;
+  final isDesktop = false.obs;
+  final isSidebarOpen = false.obs;
+  final selectedPage = Rx<Widget?>(null);
 
   @override
   void onInit() {
     super.onInit();
+    _initializeCaseCardData();
+  }
+
+  void openDrawer() => isDesktop.value
+      ? isSidebarOpen.value = true
+      : scaffoldKey.currentState?.openDrawer();
+
+  void closeSidebar() => isDesktop.value ? isSidebarOpen.value = false : null;
+
+  void onCaseTypeSelected(CaseType selectedType) =>
+      selectedCaseType.value = selectedType;
+
+  List<CaseCardData> getCaseByType(CaseType type) =>
+      caseCardDataList.where((task) => task.type == type).toList();
+
+  void navigateToPage(String routeName) {
+    selectedPage.value = _getPageForRoute(routeName);
+    update();
+  }
+
+  Widget _getPageForRoute(String routeName) {
+    switch (routeName) {
+      case '网办进度':
+        return const OnlineProcessingProgress();
+      case '线下网点':
+        return const MapScreen();
+      case '我的':
+        return const PersonalMainPage();
+      case '设置':
+        return const SettingPage();
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
+  Widget buildSelectedPageContent() =>
+      Obx(() => selectedPage.value ?? const SizedBox.shrink());
+
+  UserProfile getProfil() => const UserProfile(
+        photo: AssetImage(ImageRasterPath.avatar1),
+        name: "tutict",
+        email: "tutict@163.com",
+      );
+
+  ProjectCardData getSelectedProject() => ProjectCardData(
+        percent: .3,
+        projectImage: const AssetImage(ImageRasterPath.logo1),
+        projectName: "",
+        releaseTime: DateTime.now(),
+      );
+
+  List<ProjectCardData> getActiveProject() => [];
+
+  List<ImageProvider> getMember() => const [
+        AssetImage(ImageRasterPath.avatar1),
+        AssetImage(ImageRasterPath.avatar2),
+        AssetImage(ImageRasterPath.avatar3),
+        AssetImage(ImageRasterPath.avatar4),
+        AssetImage(ImageRasterPath.avatar5),
+        AssetImage(ImageRasterPath.avatar6),
+      ];
+
+  List<ChattingCardData> getChatting() => const [
+        ChattingCardData(
+          image: AssetImage(ImageRasterPath.avatar6),
+          isOnline: true,
+          name: "Samantha",
+          lastMessage: "",
+          isRead: false,
+          totalUnread: 1,
+        ),
+      ];
+
+  void updateScrollDirection(ScrollController scrollController) {
+    scrollController.addListener(() {
+      isScrollingDown.value = scrollController.position.userScrollDirection ==
+          ScrollDirection.reverse;
+    });
+  }
+
+  void _initializeCaseCardData() {
     caseCardDataList.addAll([
       const CaseCardData(
         title: 'Todo Task 1',
@@ -63,42 +131,5 @@ class UserDashboardController extends GetxController {
         profilContributors: [],
       ),
     ]);
-  }
-
-  ProjectCardData getSelectedProject() {
-    return ProjectCardData(
-      percent: .3,
-      projectImage: const AssetImage(ImageRasterPath.logo1),
-      projectName: "",
-      releaseTime: DateTime.now(),
-    );
-  }
-
-  List<ProjectCardData> getActiveProject() {
-    return [];
-  }
-
-  List<ImageProvider> getMember() {
-    return const [
-      AssetImage(ImageRasterPath.avatar1),
-      AssetImage(ImageRasterPath.avatar2),
-      AssetImage(ImageRasterPath.avatar3),
-      AssetImage(ImageRasterPath.avatar4),
-      AssetImage(ImageRasterPath.avatar5),
-      AssetImage(ImageRasterPath.avatar6),
-    ];
-  }
-
-  List<ChattingCardData> getChatting() {
-    return const [
-      ChattingCardData(
-        image: AssetImage(ImageRasterPath.avatar6),
-        isOnline: true,
-        name: "Samantha",
-        lastMessage: "",
-        isRead: false,
-        totalUnread: 1,
-      ),
-    ];
   }
 }
