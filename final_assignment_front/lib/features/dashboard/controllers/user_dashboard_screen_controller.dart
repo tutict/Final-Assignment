@@ -41,7 +41,6 @@ class UserDashboardController extends GetxController {
 
   void navigateToPage(String routeName) {
     selectedPage.value = _getPageForRoute(routeName);
-    update();
   }
 
   Widget _getPageForRoute(String routeName) {
@@ -59,8 +58,12 @@ class UserDashboardController extends GetxController {
     }
   }
 
-  Widget buildSelectedPageContent() =>
-      Obx(() => selectedPage.value ?? const SizedBox.shrink());
+  Widget buildSelectedPageContent() {
+    return Obx(() {
+      final pageContent = selectedPage.value;
+      return pageContent ?? const SizedBox.shrink();
+    });
+  }
 
   UserProfile getProfil() => const UserProfile(
         photo: AssetImage(ImageRasterPath.avatar1),

@@ -10,14 +10,14 @@ class SelectionButtonData {
   final IconData icon;
   final String label;
   final int? totalNotif;
-  final VoidCallback onPressed;
+  final String routeName;
 
   SelectionButtonData({
     required this.activeIcon,
     required this.icon,
     required this.label,
     this.totalNotif,
-    required this.onPressed,
+    required this.routeName,
   });
 }
 
@@ -64,6 +64,7 @@ class _SelectionButtonState extends State<SelectionButton> {
               setState(() {
                 selected = index;
               });
+              Get.toNamed(data.routeName);
             },
             data: data,
           ),

@@ -46,7 +46,8 @@ class UserDashboard extends GetView<UserDashboardController> {
                             end: Alignment.bottomCenter,
                           ),
                         ),
-                        child: _buildResponsiveLayout(context),
+                        child: _buildLayout(context,
+                            isDesktop: ResponsiveBuilder.isDesktop(context)),
                       ),
                     ),
                   ],
@@ -57,7 +58,7 @@ class UserDashboard extends GetView<UserDashboardController> {
         },
       ),
       floatingActionButton: Obx(
-        () => AnimatedScale(
+            () => AnimatedScale(
           scale: controller.isScrollingDown.value ? 0.0 : 1.0,
           duration: const Duration(milliseconds: 300),
           child: FloatingActionButton(
@@ -78,10 +79,10 @@ class UserDashboard extends GetView<UserDashboardController> {
     return ResponsiveBuilder.isDesktop(context)
         ? null
         : Drawer(
-            child: UserSidebar(
-              data: controller.getSelectedProject(),
-            ),
-          );
+      child: UserSidebar(
+        data: controller.getSelectedProject(),
+      ),
+    );
   }
 
   /// 构建侧边栏
@@ -105,25 +106,13 @@ class UserDashboard extends GetView<UserDashboardController> {
       ),
       child: ResponsiveBuilder.isDesktop(context)
           ? Padding(
-              padding:
-                  const EdgeInsets.fromLTRB(16.0, kSpacing * 2, 16.0, kSpacing),
-              child: UserSidebar(
-                data: controller.getSelectedProject(),
-              ),
-            )
+        padding:
+        const EdgeInsets.fromLTRB(16.0, kSpacing * 2, 16.0, kSpacing),
+        child: UserSidebar(
+          data: controller.getSelectedProject(),
+        ),
+      )
           : null,
-    );
-  }
-
-  /// 构建响应式布局
-  ///
-  /// 使用ResponsiveBuilder来构建不同屏幕大小的布局。
-  Widget _buildResponsiveLayout(BuildContext context) {
-    return ResponsiveBuilder(
-      mobileBuilder: (context, constraints) => _buildLayout(context),
-      tabletBuilder: (context, constraints) => _buildLayout(context),
-      desktopBuilder: (context, constraints) =>
-          _buildLayout(context, isDesktop: true),
     );
   }
 
@@ -133,7 +122,7 @@ class UserDashboard extends GetView<UserDashboardController> {
   Widget _buildLayout(BuildContext context, {bool isDesktop = false}) {
     return Padding(
       padding:
-          const EdgeInsets.symmetric(horizontal: kSpacing, vertical: kSpacing),
+      const EdgeInsets.symmetric(horizontal: kSpacing, vertical: kSpacing),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -149,7 +138,10 @@ class UserDashboard extends GetView<UserDashboardController> {
                   _buildUserScreenSwiper(context),
                   const SizedBox(height: kSpacing),
                   _buildUserToolsCard(context),
-                  Obx(() => controller.buildSelectedPageContent()),
+                  Obx(() {
+                    final pageContent = controller.selectedPage.value;
+                    return pageContent ?? const SizedBox.shrink();
+                  }),
                 ],
               ),
             ),

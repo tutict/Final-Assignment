@@ -1,7 +1,7 @@
 import 'dart:developer';
 
 import 'package:eva_icons_flutter/eva_icons_flutter.dart';
-import 'package:final_assignment_front/config/routes/app_pages.dart';
+import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
 import 'package:final_assignment_front/shared_components/post_card.dart';
 import 'package:final_assignment_front/shared_components/project_card.dart';
 import 'package:final_assignment_front/shared_components/selection_button.dart';
@@ -18,6 +18,8 @@ class UserSidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final controller = Get.find<UserDashboardController>();
+
     return Container(
       color: Theme.of(context).cardColor,
       child: SingleChildScrollView(
@@ -32,53 +34,42 @@ class UserSidebar extends StatelessWidget {
                   activeIcon: EvaIcons.grid,
                   icon: EvaIcons.gridOutline,
                   label: "更多",
-                  onPressed: () {
-                    // 实现“更多”页面跳转逻辑
-                  },
+                  routeName: "morePage",
                 ),
                 SelectionButtonData(
                   activeIcon: EvaIcons.trendingUp,
                   icon: EvaIcons.trendingUpOutline,
                   label: "网办进度",
-                  onPressed: () {
-                    Get.toNamed(AppPages.onlineProcessingProgress);
-                  },
+                  routeName: "onlineProgressPage",
                 ),
                 SelectionButtonData(
                   activeIcon: EvaIcons.globe,
                   icon: EvaIcons.globe2Outline,
                   label: "网办大厅",
-                  onPressed: () {
-                    // 实现“网办大厅”页面跳转逻辑
-                  },
+                  routeName: "onlineHallPage",
                 ),
                 SelectionButtonData(
                   activeIcon: EvaIcons.pin,
                   icon: EvaIcons.pinOutline,
                   label: "线下网点",
-                  onPressed: () {
-                    Get.toNamed(AppPages.map);
-                  },
+                  routeName: "offlinePointPage",
                 ),
                 SelectionButtonData(
                   activeIcon: EvaIcons.person,
                   icon: EvaIcons.personOutline,
                   label: "我的",
-                  onPressed: () {
-                    Get.toNamed(AppPages.personalMain);
-                  },
+                  routeName: "personalPage",
                 ),
                 SelectionButtonData(
                   activeIcon: EvaIcons.settings,
                   icon: EvaIcons.settingsOutline,
                   label: "设置",
-                  onPressed: () {
-                    Get.toNamed(AppPages.setting);
-                  },
+                  routeName: "settingsPage",
                 ),
               ],
               onSelected: (index, value) {
-                log("index : $index | label : ${value.label}");
+                log("index : \$index | label : \${value.label}");
+                controller.navigateToPage(value.routeName);
               },
             ),
             const Divider(thickness: 1),
