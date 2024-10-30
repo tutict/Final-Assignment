@@ -1,5 +1,6 @@
 // 导入所需包和库
 import 'package:chinese_font_library/chinese_font_library.dart';
+import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:flutter/material.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
 import 'package:get/get.dart';
@@ -64,7 +65,13 @@ class _SelectionButtonState extends State<SelectionButton> {
               setState(() {
                 selected = index;
               });
-              Get.toNamed(data.routeName);
+              final route = AppPages.routes.firstWhere(
+                (route) => route.name == data.routeName,
+                orElse: () => GetPage(name: '/', page: () => const Scaffold()),
+              );
+              if (route.name.isNotEmpty) {
+                Get.toNamed(route.name);
+              }
             },
             data: data,
           ),

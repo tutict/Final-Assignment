@@ -16,7 +16,7 @@ class OnlineProcessingProgressState extends State<OnlineProcessingProgress>
   void initState() {
     super.initState();
     _tabController =
-        TabController(length: 2, vsync: this);
+        TabController(length: 4, vsync: this); // Updated length to 4
   }
 
   @override
@@ -39,9 +39,9 @@ class OnlineProcessingProgressState extends State<OnlineProcessingProgress>
             child: ListView.builder(
               itemCount: 20,
               itemBuilder: (context, index) {
-                return const ListTile(
-                  title: Text(''),
-                  trailing: Icon(Icons.arrow_forward_ios),
+                return ListTile(
+                  title: Text('Item $index'), // Added meaningful text for title
+                  trailing: const Icon(Icons.arrow_forward_ios),
                 );
               },
             ),
@@ -49,10 +49,10 @@ class OnlineProcessingProgressState extends State<OnlineProcessingProgress>
           TabBar(
             controller: _tabController,
             tabs: const [
-              Tab(text: ''),
-              Tab(text: ''),
-              Tab(text: ''),
-              Tab(text: ''),
+              Tab(text: 'Tab 1'),
+              Tab(text: 'Tab 2'),
+              Tab(text: 'Tab 3'),
+              Tab(text: 'Tab 4'),
             ],
           ),
           SizedBox(
@@ -62,8 +62,8 @@ class OnlineProcessingProgressState extends State<OnlineProcessingProgress>
               children: const [
                 Center(child: Text('Tab 1 Content')),
                 Center(child: Text('Tab 2 Content')),
-                Center(child: Text('Tab 2 Content')),
-                Center(child: Text('Tab 2 Content')),
+                Center(child: Text('Tab 3 Content')),
+                Center(child: Text('Tab 4 Content')),
               ],
             ),
           ),
