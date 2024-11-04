@@ -13,50 +13,54 @@ class PersonalMainPage extends StatelessWidget {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
-            Navigator.pop(context);
+            Get.back(); // Updated to use Get.back() for consistency with Get package
           },
         ),
         backgroundColor: Colors.lightBlue,
         foregroundColor: Colors.white,
       ),
       body: ListView(
-        children: ListTile.divideTiles(tiles: [
-          ListTile(
-            title: const Text('我的信息'),
-            leading: const Icon(Icons.person),
-            onTap: () {
-              Get.toNamed(AppPages.personalInfo);
-            },
-          ),
-          ListTile(
-            title: const Text('账号与安全'),
-            leading: const Icon(Icons.settings),
-            onTap: () {
-              Get.toNamed(AppPages.accountAndSecurity);
-            },
-          ),
-          ListTile(
-            title: const Text('咨询反馈'),
-            leading: const Icon(Icons.logout),
-            onTap: () {
-              Get.toNamed(AppPages.consultation);
-            },
-          ),
-          ListTile(
-            title: const Text('智能客服'),
-            leading: const Icon(Icons.chat_outlined),
-            onTap: () {
-              Get.toNamed(AppPages.aiChat);
-            },
-          ),
-          ListTile(
-            title: const Text('设置'),
-            leading: const Icon(Icons.settings),
-            onTap: () {
-              Get.toNamed(AppPages.setting);
-            },
-          ),
-        ]).toList(),
+        children: ListTile.divideTiles(
+          context: context,
+          tiles: [
+            ListTile(
+              title: const Text('我的信息'),
+              leading: const Icon(Icons.person),
+              onTap: () {
+                Get.toNamed(AppPages.personalInfo);
+              },
+            ),
+            ListTile(
+              title: const Text('账号与安全'),
+              leading: const Icon(Icons.security),
+              // Changed icon for better context
+              onTap: () {
+                Get.toNamed(AppPages.accountAndSecurity);
+              },
+            ),
+            ListTile(
+              title: const Text('咨询反馈'),
+              leading: const Icon(Icons.feedback),
+              onTap: () {
+                Get.toNamed(AppPages.consultation);
+              },
+            ),
+            ListTile(
+              title: const Text('智能客服'),
+              leading: const Icon(Icons.chat_outlined),
+              onTap: () {
+                Get.toNamed(AppPages.aiChat);
+              },
+            ),
+            ListTile(
+              title: const Text('设置'),
+              leading: const Icon(Icons.settings),
+              onTap: () {
+                Get.toNamed(AppPages.setting);
+              },
+            ),
+          ],
+        ).toList(),
       ),
     );
   }

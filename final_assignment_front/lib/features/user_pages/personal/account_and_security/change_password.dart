@@ -17,12 +17,19 @@ class ChangePassword extends StatelessWidget {
         foregroundColor: Colors.white,
       ),
       body: Center(
-          child: Container(
-        padding: const EdgeInsets.all(16.0),
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey, width: 2.0),
+        child: Container(
+          padding: const EdgeInsets.all(16.0),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey, width: 2.0),
+            color: Colors
+                .white, // Use color here, no conflict if defined within BoxDecoration
+          ),
+          child: const Text(
+            '修改密码内容', // Placeholder content
+            style: TextStyle(fontSize: 16),
+          ),
         ),
-      )),
+      ),
     );
   }
 }

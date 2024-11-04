@@ -1,6 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_chart_plus/flutter_chart.dart';
 
+/// 计算两个日期之间的天数差值
+/// 
+/// 参数:
+/// - dateTime: 要计算的日期
+/// - startTime: 起始日期
+/// 
+/// 返回:
+/// - 两个日期之间的天数差值
+double parserDateTimeToDayValue(DateTime dateTime, DateTime startTime) {
+  return dateTime.difference(startTime).inDays.toDouble();
+}
+
 /// BarChart 组件用于展示条形图。
 /// 它继承自StatelessWidget，用于在Flutter应用中展示静态的条形图表。
 class BarChart extends StatelessWidget {
@@ -36,7 +48,7 @@ class BarChart extends StatelessWidget {
               formatter: (index) {
                 // 确保startTime存在，使用format来格式化日期
                 return startTime
-                    .add(Duration(days: index))
+                    .add(Duration(days: index.toInt()))
                     .toIso8601String()
                     .substring(8, 10); // 只获取日期中的日部分
               },

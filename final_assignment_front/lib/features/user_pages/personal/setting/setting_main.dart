@@ -1,8 +1,8 @@
 import 'dart:io';
-
 import 'package:final_assignment_front/config/themes/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import 'package:path_provider/path_provider.dart';
 
 class SettingPage extends StatefulWidget {
   const SettingPage({super.key});
@@ -20,38 +20,52 @@ class _SettingPageState extends State<SettingPage> {
       _isDarkMode = value;
       Config.dark = value;
       Config.themeData =
-          value ? AppTheme.materialDarkTheme : AppTheme.materialLightTheme;
+      value ? AppTheme.materialDarkTheme : AppTheme.materialLightTheme;
     });
   }
 
   @override
   void initState() {
     super.initState();
-    _calculateCacheSize(); // 初始化时计算缓存大小
+    _calculateCacheSize(); // Initialize cache size calculation
   }
 
-  // 计算缓存大小
+  // Calculate cache size
   Future<void> _calculateCacheSize() async {
-    List<FileInfo> cacheFiles =
-        (DefaultCacheManager().getFileFromCache) as List<FileInfo>;
-    double totalSize = 0;
+    try {
+      Directory cacheDir = await getTemporaryDirectory();
+      double totalSize = await _getTotalSizeOfFilesInDir(cacheDir);
 
-    for (var cacheItem in cacheFiles) {
-      File file = cacheItem.file; // 获取文件对象
-      if (await file.exists()) {
-        totalSize += await file.length() / (1024 * 1024); // MB
-      }
+      setState(() {
+        _cacheSize = totalSize;
+      });
+    } catch (e) {
+      debugPrint('Failed to calculate cache size: $e');
     }
-
-    setState(() {
-      _cacheSize = totalSize;
-    });
   }
 
-  // 清理缓存
+  // Get the total size of files in the cache directory
+  Future<double> _getTotalSizeOfFilesInDir(final Directory directory) async {
+    double totalSize = 0;
+    try {
+      if (directory.existsSync()) {
+        List<FileSystemEntity> files = directory.listSync(recursive: true);
+        for (FileSystemEntity file in files) {
+          if (file is File) {
+            totalSize += await file.length() / (1024 * 1024); // Size in MB
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error getting size of files in directory: $e');
+    }
+    return totalSize;
+  }
+
+  // Clear cache
   Future<void> _clearCache() async {
     await DefaultCacheManager().emptyCache();
-    _calculateCacheSize(); // 清理缓存后重新计算大小
+    await _calculateCacheSize(); // Recalculate size after clearing cache
   }
 
   @override
@@ -100,6 +114,7 @@ class _SettingPageState extends State<SettingPage> {
                         child: const Text('确定'),
                         onPressed: () {
                           _clearCache();
+                          Navigator.pop(context);
                         },
                       ),
                     ],
@@ -119,27 +134,30 @@ class _SettingPageState extends State<SettingPage> {
               ),
             ),
             child: const Text('删除账户'),
-            onPressed: () => {
+            onPressed: () {
               showDialog(
-                  context: context,
-                  builder: (context) {
-                    return AlertDialog(
-                        title: const Text('删除账户'),
-                        content: const Text('确定要删除账户吗？'),
-                        actions: [
-                          TextButton(
-                            child: const Text('取消'),
-                            onPressed: () {
-                              Navigator.pop(context);
-                            },
-                          ),
-                          TextButton(
-                              child: const Text('确定'),
-                              onPressed: () {
-                                Navigator.pop(context);
-                              })
-                        ]);
-                  }),
+                context: context,
+                builder: (context) {
+                  return AlertDialog(
+                    title: const Text('删除账户'),
+                    content: const Text('确定要删除账户吗？'),
+                    actions: [
+                      TextButton(
+                        child: const Text('取消'),
+                        onPressed: () {
+                          Navigator.pop(context);
+                        },
+                      ),
+                      TextButton(
+                        child: const Text('确定'),
+                        onPressed: () {
+                          Navigator.pop(context);
+                        },
+                      ),
+                    ],
+                  );
+                },
+              );
             },
           ),
         ],
@@ -148,7 +166,7 @@ class _SettingPageState extends State<SettingPage> {
   }
 }
 
-//设置夜间模式
+// Configuration for dark mode setting
 class Config {
   static bool dark = true;
   static ThemeData themeData = AppTheme.materialDarkTheme;

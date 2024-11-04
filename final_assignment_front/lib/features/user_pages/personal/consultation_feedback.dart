@@ -6,17 +6,21 @@ class ConsultationFeedback extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(
-          title: const Text('咨询反馈'),
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () {
-              Navigator.pop(context);
-            },
-          ),
-          backgroundColor: Colors.lightBlue,
-          foregroundColor: Colors.white,
+      appBar: AppBar(
+        title: const Text('咨询反馈'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pop(context);
+          },
         ),
-        body: ListView());
+        backgroundColor: Colors.lightBlue,
+        foregroundColor: Colors.white,
+      ),
+      body: ListView(
+        children: const [
+        ],
+      ),
+    );
   }
 }

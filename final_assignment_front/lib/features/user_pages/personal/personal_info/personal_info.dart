@@ -5,18 +5,18 @@ import 'package:final_assignment_front/utils/services/rest_api_services.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-/// PersonalInformationPage 是一个 StatefulWidget，用于展示驾驶人的个人信息。
+/// PersonalInformationPage is a StatefulWidget for displaying driver's personal information.
 class PersonalInformationPage extends StatefulWidget {
   const PersonalInformationPage({super.key});
 
   @override
   State<PersonalInformationPage> createState() =>
-      _PersonalInformationPageState();
+      PersonalInformationPageState();
 }
 
-/// _PersonalInformationPageState 是 PersonalInformationPage 的状态类。
-/// 它负责管理驾驶人的信息，并通过 WebSocket 与服务器通信以加载信息。
-class _PersonalInformationPageState extends State<PersonalInformationPage> {
+/// _PersonalInformationPageState is the state class for PersonalInformationPage.
+/// Manages the driver's information and communicates with the server via WebSocket.
+class PersonalInformationPageState extends State<PersonalInformationPage> {
   late RestApiServices restApiServices;
   Map<String, String> _driverInfo = {
     'name': '加载中...',
@@ -35,9 +35,9 @@ class _PersonalInformationPageState extends State<PersonalInformationPage> {
     _loadDriverInfo();
   }
 
-  /// _loadDriverInfo 方法用于从服务器加载驾驶人的信息。
-  /// 它通过 WebSocket 发送请求，并等待服务器的响应。
-  /// 响应成功后，更新状态以显示驾驶人的信息。
+  /// Loads driver's information from the server.
+  /// Sends a request via WebSocket and waits for a response.
+  /// On success, updates the state with the driver's information.
   Future<void> _loadDriverInfo() async {
     try {
       restApiServices.sendMessage(jsonEncode({'action': 'getDriverInfo'}));
@@ -53,10 +53,10 @@ class _PersonalInformationPageState extends State<PersonalInformationPage> {
           _driverInfo = Map<String, String>.from(decodedMessage['data']);
         });
       } else {
-        debugPrint('加载驾驶人信息失败: ${decodedMessage['message']}');
+        debugPrint('Failed to load driver info: ${decodedMessage['message']}');
       }
     } catch (e) {
-      debugPrint('加载驾驶人信息失败: $e');
+      debugPrint('Failed to load driver info: $e');
     }
   }
 
@@ -75,35 +75,38 @@ class _PersonalInformationPageState extends State<PersonalInformationPage> {
         foregroundColor: Colors.white,
       ),
       body: ListView(
-        children: ListTile.divideTiles(tiles: [
-          ListTile(
-            title: const Text('姓名'),
-            subtitle: Text(_driverInfo['name'] ?? '无数据'),
-          ),
-          ListTile(
-            title: const Text('身份证号'),
-            subtitle: Text(_driverInfo['idCardNumber'] ?? '无数据'),
-          ),
-          ListTile(
-            title: const Text('驾驶证号'),
-            subtitle: Text(_driverInfo['licenseNumber'] ?? '无数据'),
-          ),
-          ListTile(
-            title: const Text('手机号码'),
-            subtitle: Text(_driverInfo['phoneNumber'] ?? '无数据'),
-            onTap: () {
-              Get.toNamed(AppPages.changeMobilePhoneNumber);
-            },
-          ),
-          ListTile(
-            title: const Text('注册时间'),
-            subtitle: Text(_driverInfo['registrationTime'] ?? '无数据'),
-          ),
-          ListTile(
-            title: const Text('注册地'),
-            subtitle: Text(_driverInfo['registrationPlace'] ?? '无数据'),
-          ),
-        ]).toList(),
+        children: ListTile.divideTiles(
+          context: context,
+          tiles: [
+            ListTile(
+              title: const Text('姓名'),
+              subtitle: Text(_driverInfo['name'] ?? '无数据'),
+            ),
+            ListTile(
+              title: const Text('身份证号'),
+              subtitle: Text(_driverInfo['idCardNumber'] ?? '无数据'),
+            ),
+            ListTile(
+              title: const Text('驾驶证号'),
+              subtitle: Text(_driverInfo['licenseNumber'] ?? '无数据'),
+            ),
+            ListTile(
+              title: const Text('手机号码'),
+              subtitle: Text(_driverInfo['phoneNumber'] ?? '无数据'),
+              onTap: () {
+                Get.toNamed(AppPages.changeMobilePhoneNumber);
+              },
+            ),
+            ListTile(
+              title: const Text('注册时间'),
+              subtitle: Text(_driverInfo['registrationTime'] ?? '无数据'),
+            ),
+            ListTile(
+              title: const Text('注册地'),
+              subtitle: Text(_driverInfo['registrationPlace'] ?? '无数据'),
+            ),
+          ],
+        ).toList(),
       ),
     );
   }

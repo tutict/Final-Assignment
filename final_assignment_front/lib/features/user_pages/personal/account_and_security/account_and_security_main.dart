@@ -13,43 +13,46 @@ class AccountAndSecurityPage extends StatelessWidget {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
-            Navigator.pop(context);
+            Get.back(); // Using Get.back() for consistency
           },
         ),
         backgroundColor: Colors.lightBlue,
         foregroundColor: Colors.white,
       ),
       body: ListView(
-        children: ListTile.divideTiles(tiles: [
-          ListTile(
-            title: const Text('修改登录密码'),
-            leading: const Icon(Icons.person),
-            onTap: () {
-              Get.toNamed(AppPages.changePassword);
-            },
-          ),
-          ListTile(
-            title: const Text('删除账号'),
-            leading: const Icon(Icons.location_on_outlined),
-            onTap: () {
-              Get.toNamed(AppPages.deleteAccount);
-            },
-          ),
-          ListTile(
-            title: const Text('信息申述'),
-            leading: const Icon(Icons.logout),
-            onTap: () {
-              Get.toNamed(AppPages.informationStatement);
-            },
-          ),
-          ListTile(
-            title: const Text('迁移账号'),
-            leading: const Icon(Icons.chat_outlined),
-            onTap: () {
-              Get.toNamed(AppPages.migrateAccount);
-            },
-          ),
-        ]).toList(),
+        children: ListTile.divideTiles(
+          context: context,
+          tiles: [
+            ListTile(
+              title: const Text('修改登录密码'),
+              leading: const Icon(Icons.person),
+              onTap: () {
+                Get.toNamed(AppPages.changePassword);
+              },
+            ),
+            ListTile(
+              title: const Text('删除账号'),
+              leading: const Icon(Icons.delete_outline),
+              onTap: () {
+                Get.toNamed(AppPages.deleteAccount);
+              },
+            ),
+            ListTile(
+              title: const Text('信息申述'),
+              leading: const Icon(Icons.report_problem_outlined),
+              onTap: () {
+                Get.toNamed(AppPages.informationStatement);
+              },
+            ),
+            ListTile(
+              title: const Text('迁移账号'),
+              leading: const Icon(Icons.transfer_within_a_station_outlined),
+              onTap: () {
+                Get.toNamed(AppPages.migrateAccount);
+              },
+            ),
+          ],
+        ).toList(),
       ),
     );
   }

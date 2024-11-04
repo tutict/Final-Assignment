@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart'; // Assuming you are using GetX for navigation
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
 
+  @override
+  State<MapScreen> createState() => _MapScreenState();
+}
+
+class _MapScreenState extends State<MapScreen> {
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -10,7 +17,7 @@ class MapScreen extends StatefulWidget {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
-            Navigator.pop(context);
+            Get.back(); // Using Get.back() for consistency if using GetX
           },
         ),
         backgroundColor: Colors.lightBlue,
@@ -31,7 +38,8 @@ class MapScreen extends StatefulWidget {
                   hintText: "搜索位置",
                   prefixIcon: Icon(Icons.search),
                   border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 15.0, vertical: 15.0),
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 15.0, vertical: 15.0),
                 ),
               ),
             ),
@@ -73,7 +81,4 @@ class MapScreen extends StatefulWidget {
       ),
     );
   }
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

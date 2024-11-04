@@ -1,6 +1,6 @@
 import 'dart:async';
+import 'dart:typed_data';
 import 'package:flutter/services.dart';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_hms_scan_kit/flutter_hms_scan_kit.dart';
 import 'package:flutter_hms_scan_kit/scan_result.dart';
@@ -24,11 +24,9 @@ class _MainScanState extends State<MainScan> {
     generateCode();
   }
 
-  // Platform messages are asynchronous, so we initialize in an async method.
+  // Initialize platform state
   Future<void> initPlatformState() async {
     String platformVersion;
-    // Platform messages may fail, so we use a try/catch PlatformException.
-    // We also handle the message potentially returning null.
     try {
       platformVersion =
           await FlutterHmsScanKit.platformVersion ?? 'Unknown platform version';
@@ -36,9 +34,6 @@ class _MainScanState extends State<MainScan> {
       platformVersion = 'Failed to get platform version.';
     }
 
-    // If the widget was removed from the tree while the asynchronous platform
-    // message was in flight, we want to discard the reply rather than calling
-    // setState to update our non-existent appearance.
     if (!mounted) return;
 
     setState(() {
@@ -46,22 +41,32 @@ class _MainScanState extends State<MainScan> {
     });
   }
 
+  // Trigger scan action
   Future<void> scan() async {
-    _scanResult = await FlutterHmsScanKit.scan;
-    setState(() {});
+    try {
+      _scanResult = await FlutterHmsScanKit.scan;
+      setState(() {});
+    } catch (e) {
+      debugPrint('Scan failed: $e');
+    }
   }
 
+  // Generate QR code
   Future<void> generateCode() async {
-    var bytes = await rootBundle.load("assets/images/ic_logo.png");
-    _code = await FlutterHmsScanKit.generateCode(
-      content: "这是条码",
-      type: ScanTypeFormat.QRCODE_SCAN_TYPE,
-      width: 300,
-      height: 300,
-      color: "#7CB342",
-      logo: bytes.buffer.asUint8List(),
-    );
-    setState(() {});
+    try {
+      var bytes = await rootBundle.load("assets/images/ic_logo.png");
+      _code = await FlutterHmsScanKit.generateCode(
+        content: "这是条码",
+        type: ScanTypeFormat.QRCODE_SCAN_TYPE,
+        width: 300,
+        height: 300,
+        color: "#7CB342",
+        logo: bytes.buffer.asUint8List(),
+      );
+      setState(() {});
+    } catch (e) {
+      debugPrint('Failed to generate QR code: $e');
+    }
   }
 
   @override
@@ -70,6 +75,8 @@ class _MainScanState extends State<MainScan> {
       home: Scaffold(
         appBar: AppBar(
           title: const Text('扫一扫'),
+          backgroundColor: Colors.lightBlue,
+          foregroundColor: Colors.white,
         ),
         body: Container(
           width: double.infinity,
@@ -78,9 +85,9 @@ class _MainScanState extends State<MainScan> {
             child: Column(
               children: [
                 Text('平台版本: $_platformVersion\n'),
-                Text('类型: ${_scanResult?.scanTypeForm}\n'),
-                Text('内容类型: ${_scanResult?.scanType}\n'),
-                Text('扫码内容: ${_scanResult?.value}\n'),
+                Text('类型: ${_scanResult?.scanTypeForm ?? '尚未扫描'}\n'),
+                Text('内容类型: ${_scanResult?.scanType ?? '尚未扫描'}\n'),
+                Text('扫码内容: ${_scanResult?.value ?? '尚未扫描'}\n'),
                 ElevatedButton(
                   onPressed: scan,
                   child: const Padding(
@@ -93,7 +100,8 @@ class _MainScanState extends State<MainScan> {
                 if (_code != null)
                   Image.memory(Uint8List.fromList(_code!))
                 else
-                  Container(height: 300, color: Colors.transparent),
+                  const CircularProgressIndicator(),
+                // Show progress indicator while generating QR code
                 ElevatedButton(
                   onPressed: generateCode,
                   child: const Padding(

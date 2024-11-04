@@ -3,6 +3,13 @@ import 'package:flutter/material.dart';
 class ChangeMobilePhoneNumber extends StatefulWidget {
   const ChangeMobilePhoneNumber({super.key});
 
+  @override
+  State<ChangeMobilePhoneNumber> createState() =>
+      ChangeMobilePhoneNumberState();
+}
+
+class ChangeMobilePhoneNumberState extends State<ChangeMobilePhoneNumber> {
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -25,14 +32,11 @@ class ChangeMobilePhoneNumber extends StatefulWidget {
               onPressed: () {
                 Navigator.pop(context);
               },
-              child: null,
+              child: const Text('返回'), // Updated the child to a non-null value
             ),
           ],
         ),
       ),
     );
   }
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
