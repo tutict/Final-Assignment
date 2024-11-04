@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart'; // Assuming you are using GetX for navigation
+import 'package:final_assignment_front/config/map/flutter_2d_amap.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -9,6 +10,9 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
+  late AMap2DController _mapController;
+  List<PoiSearch> _poiSearchResults = [];
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -25,6 +29,17 @@ class _MapScreenState extends State<MapScreen> {
       ),
       body: Stack(
         children: [
+          // 地图视图
+          AMap2DView(
+            onAMap2DViewCreated: (controller) {
+              _mapController = controller;
+            },
+            onPoiSearched: (results) {
+              setState(() {
+                _poiSearchResults = results;
+              });
+            },
+          ),
           // 顶部搜索框
           Positioned(
             top: 40.0,
@@ -33,8 +48,13 @@ class _MapScreenState extends State<MapScreen> {
             child: Material(
               elevation: 5.0,
               borderRadius: BorderRadius.circular(10.0),
-              child: const TextField(
-                decoration: InputDecoration(
+              child: TextField(
+                onSubmitted: (query) {
+                  if (query.isNotEmpty) {
+                    _mapController.search(query);
+                  }
+                },
+                decoration: const InputDecoration(
                   hintText: "搜索位置",
                   prefixIcon: Icon(Icons.search),
                   border: InputBorder.none,
@@ -55,12 +75,14 @@ class _MapScreenState extends State<MapScreen> {
                 FloatingActionButton(
                   onPressed: () {
                     // 定位到当前用户位置的功能
+                    _mapController.location();
                   },
                   child: const Icon(Icons.my_location),
                 ),
                 FloatingActionButton(
                   onPressed: () {
                     // 可以添加其他功能按钮
+                    // 示例：切换地图类型或添加标记
                   },
                   child: const Icon(Icons.layers),
                 ),

@@ -34,7 +34,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   /// 用户认证逻辑
   Future<String?> _authUser(LoginData data) async {
-    debugPrint('用户名: ${data.name}, 密码: ${data.password}');
+    debugPrint('用户名: \${data.name}, 密码: \${data.password}');
     restApiServices.sendMessage(jsonEncode({
       'action': 'users/login',
       'username': data.name,
@@ -62,7 +62,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   /// 用户注册逻辑
   Future<String?> _signupUser(SignupData data) async {
-    debugPrint('名字: ${data.name}, 密码: ${data.password}');
+    debugPrint('名字: \${data.name}, 密码: \${data.password}');
     restApiServices.sendMessage(jsonEncode(
         {'action': 'users', 'username': data.name, 'password': data.password}));
 
@@ -107,11 +107,53 @@ class _LoginScreenState extends State<LoginScreen> {
       onSignup: _signupUser,
       theme: LoginTheme(
         primaryColor: Colors.blue,
+        accentColor: Colors.amberAccent,
+        errorColor: Colors.deepOrange,
+        pageColorLight: Colors.lightBlueAccent,
+        pageColorDark: Colors.blueGrey,
+        buttonTheme: const LoginButtonTheme(
+          splashColor: Colors.lightBlueAccent,
+          backgroundColor: Colors.blue,
+          highlightColor: Colors.lightBlue,
+          elevation: 9.0,
+          highlightElevation: 6.0,
+        ),
+        cardTheme: CardTheme(
+          color: Colors.white,
+          elevation: 8.0,
+          margin: const EdgeInsets.symmetric(horizontal: 20.0),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
+        ),
         titleStyle: const TextStyle(
           color: Colors.white,
           fontFamily: 'OpenSans',
           fontWeight: FontWeight.w700,
+          fontSize: 24.0,
         ),
+        bodyStyle: const TextStyle(
+          color: Colors.white,
+        ),
+        textFieldStyle: const TextStyle(
+          color: Colors.black,
+          fontSize: 16.0,
+        ),
+        buttonStyle: const TextStyle(
+          fontWeight: FontWeight.w800,
+          color: Colors.white,
+        ),
+        inputTheme: const InputDecorationTheme(
+          filled: true,
+          fillColor: Colors.white70,
+          contentPadding: EdgeInsets.zero,
+          errorStyle: TextStyle(
+            backgroundColor: Colors.orange,
+            color: Colors.white,
+          ),
+          labelStyle: TextStyle(fontSize: 16.0),
+        ),
+        cardInitialHeight: 300.0,
+        cardTopPosition: 100.0,
       ),
       messages: LoginMessages(
         passwordHint: '密码',
