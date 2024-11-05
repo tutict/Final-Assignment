@@ -46,8 +46,8 @@ class PostCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(kBorderRadius),
             gradient: LinearGradient(
               colors: [
-                Colors.lightBlueAccent.withOpacity(0.4),
-                Colors.blue.withOpacity(0.2),
+                Colors.lightBlueAccent.withAlpha((0.4 * 255).toInt()),
+                Colors.blue.withAlpha((0.4 * 255).toInt()),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -62,7 +62,10 @@ class PostCard extends StatelessWidget {
                   ImageVectorPath.happy,
                   width: 100,
                   height: 100,
-                  color: Colors.blueAccent.withOpacity(0.6),
+                  colorFilter: ColorFilter.mode(
+                    Colors.blueAccent.withAlpha((0.4 * 255).toInt()),
+                    BlendMode.srcIn,
+                  ),
                   fit: BoxFit.contain,
                 ),
               ),

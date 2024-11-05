@@ -77,7 +77,7 @@ class _Sidebar extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(kSpacing),
             child: PostCard(
-              backgroundColor: Theme.of(context).canvasColor.withOpacity(.4),
+              backgroundColor: Theme.of(context).canvasColor.withAlpha((0.4 * 255).toInt()),
               onPressed: () {},
             ),
           ),

@@ -3,9 +3,9 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
-import './artical_news.dart';
+import 'artical_news.dart';
 import './constants.dart';
-import './list_of_country.dart';
+import 'list_of_country.dart';
 
 void main() => runApp(const MyApp());
 
@@ -239,7 +239,7 @@ class _MyAppState extends State<MyApp> {
                                               elevation: 0,
                                               color: Theme.of(context)
                                                   .primaryColor
-                                                  .withOpacity(0.8),
+                                                  .withAlpha((0.8 * 255).toInt()),
                                               child: Padding(
                                                 padding:
                                                     const EdgeInsets.symmetric(

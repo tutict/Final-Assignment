@@ -164,7 +164,7 @@ class _ReleaseTimeText extends StatelessWidget {
     // 使用Container组件包裹Text，展示项目发布时间，配置背景色和文本样式
     return Container(
       decoration: BoxDecoration(
-        color: kNotifColor.withOpacity(0.8),
+        color: kNotifColor.withAlpha((0.8 * 255).toInt()),
         borderRadius: BorderRadius.circular(8),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),

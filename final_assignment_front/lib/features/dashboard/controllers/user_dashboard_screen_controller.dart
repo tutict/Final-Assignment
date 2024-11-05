@@ -1,9 +1,9 @@
 import 'package:final_assignment_front/constants/app_constants.dart';
 import 'package:final_assignment_front/features/dashboard/models/user_profile.dart';
-import 'package:final_assignment_front/features/user_pages/map/map.dart';
-import 'package:final_assignment_front/features/user_pages/online_processing_progress.dart';
-import 'package:final_assignment_front/features/user_pages/personal/personal_main.dart';
-import 'package:final_assignment_front/features/user_pages/personal/setting/setting_main.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/map/map.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/online_processing_progress.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal/personal_main.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal/setting/setting_main.dart';
 import 'package:final_assignment_front/shared_components/case_card.dart';
 import 'package:final_assignment_front/shared_components/chatting_card.dart';
 import 'package:final_assignment_front/shared_components/project_card.dart';
@@ -16,6 +16,7 @@ class UserDashboardController extends GetxController {
   final scaffoldKey = GlobalKey<ScaffoldState>();
   final caseCardDataList = <CaseCardData>[].obs;
   final selectedCaseType = CaseType.caseManagement.obs;
+  final isShowingSidebarContent = false.obs;  // 控制是否显示侧边栏内容
   final isScrollingDown = false.obs;
   final isDesktop = false.obs;
   final isSidebarOpen = false.obs;
@@ -41,6 +42,12 @@ class UserDashboardController extends GetxController {
 
   void navigateToPage(String routeName) {
     selectedPage.value = _getPageForRoute(routeName);
+    isShowingSidebarContent.value = true;  // 点击侧边栏时，显示侧边栏内容
+  }
+
+  void exitSidebarContent() {
+    isShowingSidebarContent.value = false;  // 退出侧边栏内容时，恢复原来组件
+    selectedPage.value = null;
   }
 
   Widget _getPageForRoute(String routeName) {

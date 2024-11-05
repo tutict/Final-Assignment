@@ -27,7 +27,7 @@ class MyApp extends StatelessWidget {
       builder: (context, child) {
         return MediaQuery(
           // 确保字体大小不随系统设置而改变
-          data: MediaQuery.of(context).copyWith(textScaleFactor: 1.0),
+          data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
           child: child ?? const SizedBox.shrink(),
         );
       },

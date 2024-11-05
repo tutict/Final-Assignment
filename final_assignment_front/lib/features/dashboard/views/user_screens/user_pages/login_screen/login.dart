@@ -7,7 +7,7 @@ import 'dart:convert';
 import 'package:final_assignment_front/features/dashboard/views/screens/manager_dashboard_screen.dart';
 import 'package:final_assignment_front/utils/services/rest_api_services.dart';
 
-import '../../../config/routes/app_pages.dart';
+import 'package:final_assignment_front/config/routes/app_pages.dart';
 
 /// 登录屏幕 StatefulWidget
 class LoginScreen extends StatefulWidget {

@@ -57,18 +57,6 @@ class UserDashboard extends GetView<UserDashboardController> {
           );
         },
       ),
-      floatingActionButton: Obx(
-            () => AnimatedScale(
-          scale: controller.isScrollingDown.value ? 0.0 : 1.0,
-          duration: const Duration(milliseconds: 300),
-          child: FloatingActionButton(
-            onPressed: () {
-              // FAB点击后的操作
-            },
-            child: const Icon(Icons.add),
-          ),
-        ),
-      ),
     );
   }
 
@@ -79,10 +67,10 @@ class UserDashboard extends GetView<UserDashboardController> {
     return ResponsiveBuilder.isDesktop(context)
         ? null
         : Drawer(
-      child: UserSidebar(
-        data: controller.getSelectedProject(),
-      ),
-    );
+            child: UserSidebar(
+              data: controller.getSelectedProject(),
+            ),
+          );
   }
 
   /// 构建侧边栏
@@ -98,7 +86,7 @@ class UserDashboard extends GetView<UserDashboardController> {
         color: Theme.of(context).cardColor,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: Colors.black.withAlpha((0.2 * 255).toInt()),
             offset: const Offset(4, 0),
             blurRadius: 8,
           ),
@@ -106,12 +94,12 @@ class UserDashboard extends GetView<UserDashboardController> {
       ),
       child: ResponsiveBuilder.isDesktop(context)
           ? Padding(
-        padding:
-        const EdgeInsets.fromLTRB(16.0, kSpacing * 2, 16.0, kSpacing),
-        child: UserSidebar(
-          data: controller.getSelectedProject(),
-        ),
-      )
+              padding:
+                  const EdgeInsets.fromLTRB(16.0, kSpacing * 2, 16.0, kSpacing),
+              child: UserSidebar(
+                data: controller.getSelectedProject(),
+              ),
+            )
           : null,
     );
   }
@@ -122,7 +110,7 @@ class UserDashboard extends GetView<UserDashboardController> {
   Widget _buildLayout(BuildContext context, {bool isDesktop = false}) {
     return Padding(
       padding:
-      const EdgeInsets.symmetric(horizontal: kSpacing, vertical: kSpacing),
+          const EdgeInsets.symmetric(horizontal: kSpacing, vertical: kSpacing),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -133,17 +121,19 @@ class UserDashboard extends GetView<UserDashboardController> {
           const Divider(),
           Expanded(
             child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  _buildUserScreenSwiper(context),
-                  const SizedBox(height: kSpacing),
-                  _buildUserToolsCard(context),
-                  Obx(() {
-                    final pageContent = controller.selectedPage.value;
-                    return pageContent ?? const SizedBox.shrink();
-                  }),
-                ],
-              ),
+              child: Obx(() {
+                if (controller.isShowingSidebarContent.value) {
+                  return _buildUserScreenSidebarTools(context);
+                } else {
+                  return Column(
+                    children: [
+                      _buildUserScreenSwiper(context),
+                      const SizedBox(height: kSpacing),
+                      _buildUserToolsCard(context),
+                    ],
+                  );
+                }
+              }),
             ),
           ),
         ],
@@ -161,6 +151,20 @@ class UserDashboard extends GetView<UserDashboardController> {
         padding: const EdgeInsets.symmetric(horizontal: kSpacing),
         child: UserScreenSwiper(onPressed: () {}),
       ),
+    );
+  }
+
+  Widget _buildUserScreenSidebarTools(BuildContext context) {
+    return SizedBox(
+      height: MediaQuery.of(context).size.height * 0.80,
+      child: Column(children: [
+        Expanded(
+          child: Obx(() {
+            final pageContent = controller.selectedPage.value;
+            return pageContent ?? const SizedBox.shrink();
+          }),
+        ),
+      ]),
     );
   }
 

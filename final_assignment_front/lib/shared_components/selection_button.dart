@@ -98,15 +98,15 @@ class _Button extends StatelessWidget {
     return Material(
       color: (!selected)
           ? Theme.of(context).cardColor
-          : Theme.of(context).primaryColor.withOpacity(.1),
+          : Theme.of(context).primaryColor.withAlpha((0.1 * 255).toInt()),
       borderRadius: BorderRadius.circular(12),
       elevation: selected ? 6.0 : 3.0,
       shadowColor:
-          selected ? Colors.blueAccent.withOpacity(0.3) : Colors.black12,
+          selected ? Colors.blueAccent.withAlpha((0.3 * 255).toInt()) : Colors.black12,
       child: InkWell(
         onTap: onPressed,
         borderRadius: BorderRadius.circular(12),
-        splashColor: Theme.of(context).primaryColor.withOpacity(0.2),
+        splashColor: Theme.of(context).primaryColor.withAlpha((0.2 * 255).toInt()),
         child: Padding(
           padding: const EdgeInsets.all(kSpacing),
           child: Row(

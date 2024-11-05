@@ -56,7 +56,7 @@ class UserScreenSwiper extends StatelessWidget {
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
-                          Colors.black.withOpacity(0.4),
+                          Colors.black.withAlpha((0.4 * 255).toInt()),
                           Colors.transparent,
                         ],
                         begin: Alignment.bottomCenter,

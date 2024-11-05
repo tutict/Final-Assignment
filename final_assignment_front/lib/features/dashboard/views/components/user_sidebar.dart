@@ -74,7 +74,7 @@ class UserSidebar extends StatelessWidget {
             ),
             const Divider(thickness: 1),
             PostCard(
-              backgroundColor: Theme.of(context).canvasColor.withOpacity(.4),
+              backgroundColor: Theme.of(context).canvasColor.withAlpha((0.4 * 255).toInt()),
               onPressed: () {},
             ),
           ],

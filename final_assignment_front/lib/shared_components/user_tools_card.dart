@@ -135,7 +135,8 @@ class UserToolsCard extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16.0),
-      splashColor: Theme.of(context).primaryColorLight.withOpacity(0.3),
+      //0.3
+      splashColor: Theme.of(context).primaryColorLight.withAlpha((0.3 * 255).toInt()),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16.0),
         child: BackdropFilter(
@@ -144,7 +145,8 @@ class UserToolsCard extends StatelessWidget {
             width: 110,
             height: 110,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.3),
+              //.3
+              color: Colors.white.withAlpha((0.3 * 255).toInt()),
               borderRadius: BorderRadius.circular(16.0),
               boxShadow: const [
                 BoxShadow(
