@@ -40,7 +40,7 @@ class UserSidebar extends StatelessWidget {
                   activeIcon: EvaIcons.trendingUp,
                   icon: EvaIcons.trendingUpOutline,
                   label: "网办进度",
-                  routeName: "/OnlineProcessingProgress",
+                  routeName: "/onlineProcessingProgress",
                 ),
                 SelectionButtonData(
                   activeIcon: EvaIcons.globe,
@@ -64,7 +64,7 @@ class UserSidebar extends StatelessWidget {
                   activeIcon: EvaIcons.settings,
                   icon: EvaIcons.settingsOutline,
                   label: "设置",
-                  routeName: "/SettingPage",
+                  routeName: "/setting",
                 ),
               ],
               onSelected: (index, value) {

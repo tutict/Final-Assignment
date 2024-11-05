@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:final_assignment_front/config/mapjs/amap_2d_interface_controller.dart';
 
 // 根据不同的平台加载不同的状态类
-import 'amap_2d_view_web_state.dart'
-    if (dart.library.html) 'web/amap_2d_view_web_state.dart'
-    if (dart.library.io) 'mobile/amap_2d_view_web_state.dart';
+import 'amap_2d_view_web_state.dart';
 
 import '../map/poi_search_model.dart';
 

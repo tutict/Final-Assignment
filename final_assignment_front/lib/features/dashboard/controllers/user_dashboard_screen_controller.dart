@@ -45,13 +45,13 @@ class UserDashboardController extends GetxController {
 
   Widget _getPageForRoute(String routeName) {
     switch (routeName) {
-      case '网办进度':
+      case '/OnlineProcessingProgress':
         return const OnlineProcessingProgress();
       case '线下网点':
         return const MapScreen();
-      case '我的':
+      case '/personalMain':
         return const PersonalMainPage();
-      case '设置':
+      case '/SelectionButtonData':
         return const SettingPage();
       default:
         return const SizedBox.shrink();
