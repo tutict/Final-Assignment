@@ -124,15 +124,26 @@ class UserDashboard extends GetView<UserDashboardController> {
               child: Obx(() {
                 final pageContent = controller.selectedPage.value;
                 if (pageContent != null) {
-                  return ListView(shrinkWrap: true, children: [
-                    Container(
+                  return Padding(
                       padding: const EdgeInsets.all(kSpacing),
-                      child: _buildUserScreenSidebarTools(context),
-                    )
-                  ]);
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).cardColor,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color:
+                                  Colors.black.withAlpha((0.2 * 255).toInt()),
+                              offset: const Offset(4, 4),
+                              blurRadius: 8,
+                            ),
+                          ],
+                        ),
+                        child: _buildUserScreenSidebarTools(context),
+                      ));
                 } else {
-                  return ListView(
-                    shrinkWrap: true,
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildUserScreenSwiper(context),
                       const SizedBox(height: kSpacing),

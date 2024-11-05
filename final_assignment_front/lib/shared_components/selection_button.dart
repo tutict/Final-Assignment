@@ -65,13 +65,6 @@ class _SelectionButtonState extends State<SelectionButton> {
               setState(() {
                 selected = index;
               });
-              final route = AppPages.routes.firstWhere(
-                (route) => route.name == data.routeName,
-                orElse: () => GetPage(name: '/', page: () => const Scaffold()),
-              );
-              if (route.name.isNotEmpty) {
-                Get.toNamed(route.name);
-              }
             },
             data: data,
           ),

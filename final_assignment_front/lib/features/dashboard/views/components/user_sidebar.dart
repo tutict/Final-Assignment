@@ -1,6 +1,7 @@
 import 'dart:developer';
 
 import 'package:eva_icons_flutter/eva_icons_flutter.dart';
+import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
 import 'package:final_assignment_front/shared_components/post_card.dart';
 import 'package:final_assignment_front/shared_components/project_card.dart';
@@ -46,7 +47,7 @@ class UserSidebar extends StatelessWidget {
                   activeIcon: EvaIcons.globe,
                   icon: EvaIcons.globe2Outline,
                   label: "网办大厅",
-                  routeName: "onlineHallPage",
+                  routeName: AppPages.onlineProcessingProgress,
                 ),
                 SelectionButtonData(
                   activeIcon: EvaIcons.pin,
@@ -58,13 +59,13 @@ class UserSidebar extends StatelessWidget {
                   activeIcon: EvaIcons.person,
                   icon: EvaIcons.personOutline,
                   label: "我的",
-                  routeName: "/personalMain",
+                  routeName: AppPages.personalMain,
                 ),
                 SelectionButtonData(
                   activeIcon: EvaIcons.settings,
                   icon: EvaIcons.settingsOutline,
                   label: "设置",
-                  routeName: "/setting",
+                  routeName: AppPages.setting,
                 ),
               ],
               onSelected: (index, value) {
