@@ -21,7 +21,8 @@ class LineChart extends StatelessWidget {
       height: 200,
       child: ChartWidget(
         coordinateRender: ChartDimensionsCoordinateRender(
-          margin: const EdgeInsets.only(left: 40, top: 5, right: 30, bottom: 30),
+          margin:
+              const EdgeInsets.only(left: 40, top: 5, right: 30, bottom: 30),
           crossHair: const CrossHairStyle(
               adjustHorizontal: true, adjustVertical: true),
           yAxis: [
@@ -47,14 +48,14 @@ class LineChart extends StatelessWidget {
               color: Colors.yellow,
               data: dataList,
               yAxisPosition: 1,
-              position: (item) => parserDateTimeToDayValue(
-                  item['time'] as DateTime, startTime),
+              position: (item) =>
+                  parserDateTimeToDayValue(item['time'] as DateTime, startTime),
               value: (item) => (item['value1'] as num).toInt(), // 确保是 int 类型
             ),
             Line(
               data: dataList,
-              position: (item) => parserDateTimeToDayValue(
-                  item['time'] as DateTime, startTime),
+              position: (item) =>
+                  parserDateTimeToDayValue(item['time'] as DateTime, startTime),
               values: (item) => [
                 (item['value1'] as num), // 这里可以保持为 num，因为 Line 图表可能支持浮点数
               ],
@@ -62,8 +63,8 @@ class LineChart extends StatelessWidget {
             Line(
               colors: [Colors.green],
               data: dataList,
-              position: (item) => parserDateTimeToDayValue(
-                  item['time'] as DateTime, startTime),
+              position: (item) =>
+                  parserDateTimeToDayValue(item['time'] as DateTime, startTime),
               values: (item) => [
                 (item['value2'] as num),
               ],

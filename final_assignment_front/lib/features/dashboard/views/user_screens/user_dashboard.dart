@@ -122,10 +122,17 @@ class UserDashboard extends GetView<UserDashboardController> {
           Expanded(
             child: SingleChildScrollView(
               child: Obx(() {
-                if (controller.isShowingSidebarContent.value) {
-                  return _buildUserScreenSidebarTools(context);
+                final pageContent = controller.selectedPage.value;
+                if (pageContent != null) {
+                  return ListView(shrinkWrap: true, children: [
+                    Container(
+                      padding: const EdgeInsets.all(kSpacing),
+                      child: _buildUserScreenSidebarTools(context),
+                    )
+                  ]);
                 } else {
-                  return Column(
+                  return ListView(
+                    shrinkWrap: true,
                     children: [
                       _buildUserScreenSwiper(context),
                       const SizedBox(height: kSpacing),
@@ -161,7 +168,10 @@ class UserDashboard extends GetView<UserDashboardController> {
         Expanded(
           child: Obx(() {
             final pageContent = controller.selectedPage.value;
-            return pageContent ?? const SizedBox.shrink();
+            return Offstage(
+              offstage: pageContent == null,
+              child: pageContent ?? const SizedBox(width: 100, height: 100),
+            );
           }),
         ),
       ]),
@@ -173,7 +183,7 @@ class UserDashboard extends GetView<UserDashboardController> {
   /// 返回一个包含用户工具卡片的AnimatedOpacity。
   Widget _buildUserToolsCard(BuildContext context) {
     return SizedBox(
-      height: MediaQuery.of(context).size.height * 0.38,
+      height: MediaQuery.of(context).size.height * 0.45,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: kSpacing),
         child: ClipRRect(
