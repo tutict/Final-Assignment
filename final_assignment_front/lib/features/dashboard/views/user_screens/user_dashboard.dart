@@ -245,7 +245,7 @@ class UserDashboard extends GetView<UserDashboardController> {
               child: IconButton(
                 onPressed: onPressedMenu,
                 icon: const Icon(Icons.menu),
-                tooltip: "Menu",
+                tooltip: "菜单",
               ),
             ),
           const Expanded(child: UserHeader()),
@@ -257,7 +257,7 @@ class UserDashboard extends GetView<UserDashboardController> {
           IconButton(
             onPressed: () {},
             icon: const Icon(Icons.brightness_6, color: Colors.white),
-            tooltip: "Toggle Theme",
+            tooltip: "切换主题",
           ),
         ],
       ),
