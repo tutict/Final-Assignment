@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/utils/services/rest_api_services.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
 
 /// PersonalInformationPage is a StatefulWidget for displaying driver's personal information.
@@ -62,51 +62,88 @@ class PersonalInformationPageState extends State<PersonalInformationPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('驾驶人信息管理'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
+    return CupertinoPageScaffold(
+      navigationBar: CupertinoNavigationBar(
+        middle: const Text('驾驶人信息管理'),
+        leading: GestureDetector(
+          onTap: () {
             Navigator.pop(context);
           },
+          child: const Icon(CupertinoIcons.back),
         ),
-        backgroundColor: Colors.lightBlue,
-        foregroundColor: Colors.white,
+        backgroundColor: CupertinoColors.systemBlue,
+        brightness: Brightness.dark,
       ),
-      body: ListView(
-        children: ListTile.divideTiles(
-          context: context,
-          tiles: [
-            ListTile(
-              title: const Text('姓名'),
-              subtitle: Text(_driverInfo['name'] ?? '无数据'),
-            ),
-            ListTile(
-              title: const Text('身份证号'),
-              subtitle: Text(_driverInfo['idCardNumber'] ?? '无数据'),
-            ),
-            ListTile(
-              title: const Text('驾驶证号'),
-              subtitle: Text(_driverInfo['licenseNumber'] ?? '无数据'),
-            ),
-            ListTile(
-              title: const Text('手机号码'),
-              subtitle: Text(_driverInfo['phoneNumber'] ?? '无数据'),
-              onTap: () {
-                Get.toNamed(AppPages.changeMobilePhoneNumber);
-              },
-            ),
-            ListTile(
-              title: const Text('注册时间'),
-              subtitle: Text(_driverInfo['registrationTime'] ?? '无数据'),
-            ),
-            ListTile(
-              title: const Text('注册地'),
-              subtitle: Text(_driverInfo['registrationPlace'] ?? '无数据'),
-            ),
+      child: SafeArea(
+        child: CupertinoScrollbar(
+          child: ListView(
+            children: [
+              CupertinoListTile(
+                title: const Text('姓名'),
+                subtitle: Text(_driverInfo['name'] ?? '无数据'),
+              ),
+              CupertinoListTile(
+                title: const Text('身份证号'),
+                subtitle: Text(_driverInfo['idCardNumber'] ?? '无数据'),
+              ),
+              CupertinoListTile(
+                title: const Text('驾驶证号'),
+                subtitle: Text(_driverInfo['licenseNumber'] ?? '无数据'),
+              ),
+              CupertinoListTile(
+                title: const Text('手机号码'),
+                subtitle: Text(_driverInfo['phoneNumber'] ?? '无数据'),
+                onTap: () {
+                  Get.toNamed(AppPages.changeMobilePhoneNumber);
+                },
+              ),
+              CupertinoListTile(
+                title: const Text('注册时间'),
+                subtitle: Text(_driverInfo['registrationTime'] ?? '无数据'),
+              ),
+              CupertinoListTile(
+                title: const Text('注册地'),
+                subtitle: Text(_driverInfo['registrationPlace'] ?? '无数据'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class CupertinoListTile extends StatelessWidget {
+  final Widget title;
+  final Widget subtitle;
+  final VoidCallback? onTap;
+
+  const CupertinoListTile({
+    required this.title,
+    required this.subtitle,
+    this.onTap,
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+        decoration: const BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: CupertinoColors.separator, width: 0.5),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            title,
+            const SizedBox(height: 4.0),
+            subtitle,
           ],
-        ).toList(),
+        ),
       ),
     );
   }

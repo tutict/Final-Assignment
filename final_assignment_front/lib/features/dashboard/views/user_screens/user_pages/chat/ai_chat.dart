@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
 
 class AIChatPage extends StatefulWidget {
@@ -14,82 +14,87 @@ class _AIChatPageState extends State<AIChatPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('智慧助手'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            Get.back(); // Using GetX for consistency if applicable
+    return CupertinoPageScaffold(
+      navigationBar: CupertinoNavigationBar(
+        middle: const Text('智慧助手'),
+        leading: GestureDetector(
+          onTap: () {
+            Get.back();
           },
+          child: const Icon(CupertinoIcons.back),
         ),
-        backgroundColor: Colors.lightBlue,
-        foregroundColor: Colors.white,
+        backgroundColor: CupertinoColors.systemBlue,
+        brightness: Brightness.dark,
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(8.0),
-              itemCount: _messages.length,
-              itemBuilder: (context, index) {
-                final message = _messages[index];
-                return Align(
-                  alignment: message['isUser']
-                      ? Alignment.centerRight
-                      : Alignment.centerLeft,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 10.0, horizontal: 15.0),
-                    margin: const EdgeInsets.symmetric(vertical: 5.0),
-                    decoration: BoxDecoration(
-                      color: message['isUser']
-                          ? Colors.lightBlueAccent
-                          : Colors.grey[300],
-                      borderRadius: BorderRadius.circular(10.0),
-                    ),
-                    child: Text(
-                      message['text'],
-                      style: TextStyle(
-                        color: message['isUser'] ? Colors.white : Colors.black,
+      child: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.all(8.0),
+                itemCount: _messages.length,
+                itemBuilder: (context, index) {
+                  final message = _messages[index];
+                  return Align(
+                    alignment: message['isUser']
+                        ? Alignment.centerRight
+                        : Alignment.centerLeft,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 10.0, horizontal: 15.0),
+                      margin: const EdgeInsets.symmetric(vertical: 5.0),
+                      decoration: BoxDecoration(
+                        color: message['isUser']
+                            ? CupertinoColors.activeBlue
+                            : CupertinoColors.systemGrey6,
+                        borderRadius: BorderRadius.circular(10.0),
+                      ),
+                      child: Text(
+                        message['text'],
+                        style: TextStyle(
+                          color: message['isUser']
+                              ? CupertinoColors.white
+                              : CupertinoColors.black,
+                        ),
                       ),
                     ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
-          ),
-          Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 8.0, vertical: 10.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    decoration: InputDecoration(
-                      hintText: '输入您的消息...',
-                      filled: true,
-                      fillColor: Colors.white,
-                      border: OutlineInputBorder(
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 8.0, vertical: 10.0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: CupertinoTextField(
+                      controller: _controller,
+                      placeholder: '输入您的消息...',
+                      padding: const EdgeInsets.all(12.0),
+                      decoration: BoxDecoration(
+                        color: CupertinoColors.white,
                         borderRadius: BorderRadius.circular(20.0),
-                        borderSide: BorderSide.none,
+                        border: Border.all(
+                          color: CupertinoColors.systemGrey.withOpacity(0.5),
+                          width: 0.5,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 8.0),
-                IconButton(
-                  icon: const Icon(Icons.send),
-                  color: Colors.lightBlue,
-                  onPressed: _sendMessage,
-                ),
-              ],
+                  const SizedBox(width: 8.0),
+                  CupertinoButton(
+                    padding: EdgeInsets.zero,
+                    onPressed: _sendMessage,
+                    child: const Icon(CupertinoIcons.paperplane_fill,
+                        color: CupertinoColors.activeBlue),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-      backgroundColor: Colors.grey[200],
     );
   }
 
