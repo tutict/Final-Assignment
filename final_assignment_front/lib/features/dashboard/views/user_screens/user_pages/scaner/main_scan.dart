@@ -1,6 +1,6 @@
 import 'dart:async';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_hms_scan_kit/flutter_hms_scan_kit.dart';
 import 'package:flutter_hms_scan_kit/scan_result.dart';
 
@@ -70,46 +70,64 @@ class _MainScanState extends State<MainScan> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      home: Scaffold(
-        appBar: AppBar(
-          title: const Text('扫一扫'),
-          backgroundColor: Colors.lightBlue,
-          foregroundColor: Colors.white,
-        ),
-        body: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 50),
-          child: SingleChildScrollView(
-            child: Column(
-              children: [
-                Text('平台版本: $_platformVersion\n'),
-                Text('类型: ${_scanResult?.scanTypeForm ?? '尚未扫描'}\n'),
-                Text('内容类型: ${_scanResult?.scanType ?? '尚未扫描'}\n'),
-                Text('扫码内容: ${_scanResult?.value ?? '尚未扫描'}\n'),
-                ElevatedButton(
-                  onPressed: scan,
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 100),
-                    child: Text("扫描"),
-                  ),
-                ),
-                const SizedBox(height: 50),
-                const Text('生成条码\n'),
-                if (_code != null)
-                  Image.memory(Uint8List.fromList(_code!))
-                else
-                  const CircularProgressIndicator(),
-                // Show progress indicator while generating QR code
-                ElevatedButton(
-                  onPressed: generateCode,
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 100),
-                    child: Text("生成条码"),
-                  ),
-                ),
-              ],
-            ),
+    return CupertinoPageScaffold(
+      navigationBar: const CupertinoNavigationBar(
+        middle: Text('扫一扫'),
+        backgroundColor: CupertinoColors.systemBlue,
+        brightness: Brightness.dark,
+      ),
+      child: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text('平台版本: $_platformVersion',
+                  style: CupertinoTheme.of(context)
+                      .textTheme
+                      .textStyle
+                      .copyWith(fontSize: 16)),
+              const SizedBox(height: 20),
+              Text('类型: ${_scanResult?.scanTypeForm ?? '尚未扫描'}',
+                  style: CupertinoTheme.of(context)
+                      .textTheme
+                      .textStyle
+                      .copyWith(fontSize: 16)),
+              const SizedBox(height: 10),
+              Text('内容类型: ${_scanResult?.scanType ?? '尚未扫描'}',
+                  style: CupertinoTheme.of(context)
+                      .textTheme
+                      .textStyle
+                      .copyWith(fontSize: 16)),
+              const SizedBox(height: 10),
+              Text('扫码内容: ${_scanResult?.value ?? '尚未扫描'}',
+                  style: CupertinoTheme.of(context)
+                      .textTheme
+                      .textStyle
+                      .copyWith(fontSize: 16)),
+              const SizedBox(height: 30),
+              CupertinoButton.filled(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 80, vertical: 15),
+                onPressed: scan,
+                child: const Text("扫描"),
+              ),
+              const SizedBox(height: 40),
+              const Text('生成条码',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 20),
+              if (_code != null)
+                Image.memory(Uint8List.fromList(_code!))
+              else
+                const CupertinoActivityIndicator(),
+              const SizedBox(height: 20),
+              CupertinoButton(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 80, vertical: 15),
+                onPressed: generateCode,
+                child: const Text("生成条码"),
+              ),
+            ],
           ),
         ),
       ),

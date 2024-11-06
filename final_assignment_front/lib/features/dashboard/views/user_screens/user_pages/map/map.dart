@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart'; // Assuming you are using GetX for navigation
 import 'package:final_assignment_front/config/map/flutter_2d_amap.dart';
 
@@ -15,19 +15,19 @@ class _MapScreenState extends State<MapScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('线下网点'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            Get.back(); // Using Get.back() for consistency if using GetX
+    return CupertinoPageScaffold(
+      navigationBar: CupertinoNavigationBar(
+        middle: const Text('线下网点'),
+        leading: GestureDetector(
+          onTap: () {
+            Get.back();
           },
+          child: const Icon(CupertinoIcons.back),
         ),
-        backgroundColor: Colors.lightBlue,
-        foregroundColor: Colors.white,
+        backgroundColor: CupertinoColors.systemBlue,
+        brightness: Brightness.dark,
       ),
-      body: Stack(
+      child: Stack(
         children: [
           // 地图视图
           AMap2DView(
@@ -45,23 +45,13 @@ class _MapScreenState extends State<MapScreen> {
             top: 40.0,
             left: 20.0,
             right: 20.0,
-            child: Material(
-              elevation: 5.0,
-              borderRadius: BorderRadius.circular(10.0),
-              child: TextField(
-                onSubmitted: (query) {
-                  if (query.isNotEmpty) {
-                    _mapController.search(query);
-                  }
-                },
-                decoration: const InputDecoration(
-                  hintText: "搜索位置",
-                  prefixIcon: Icon(Icons.search),
-                  border: InputBorder.none,
-                  contentPadding:
-                      EdgeInsets.symmetric(horizontal: 15.0, vertical: 15.0),
-                ),
-              ),
+            child: CupertinoSearchTextField(
+              onSubmitted: (query) {
+                if (query.isNotEmpty) {
+                  _mapController.search(query);
+                }
+              },
+              padding: const EdgeInsets.all(12.0),
             ),
           ),
           // 底部按钮
@@ -72,19 +62,29 @@ class _MapScreenState extends State<MapScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                FloatingActionButton(
+                CupertinoButton(
+                  padding: const EdgeInsets.all(0),
+                  child: const Icon(
+                    CupertinoIcons.location_fill,
+                    size: 30.0,
+                    color: CupertinoColors.systemBlue,
+                  ),
                   onPressed: () {
                     // 定位到当前用户位置的功能
                     _mapController.location();
                   },
-                  child: const Icon(Icons.my_location),
                 ),
-                FloatingActionButton(
+                CupertinoButton(
+                  padding: const EdgeInsets.all(0),
+                  child: const Icon(
+                    CupertinoIcons.layers_alt_fill,
+                    size: 30.0,
+                    color: CupertinoColors.systemBlue,
+                  ),
                   onPressed: () {
                     // 可以添加其他功能按钮
                     // 示例：切换地图类型或添加标记
                   },
-                  child: const Icon(Icons.layers),
                 ),
               ],
             ),
@@ -94,9 +94,9 @@ class _MapScreenState extends State<MapScreen> {
             top: MediaQuery.of(context).size.height / 2 - 20,
             left: MediaQuery.of(context).size.width / 2 - 20,
             child: const Icon(
-              Icons.location_on,
+              CupertinoIcons.location_solid,
               size: 40,
-              color: Colors.red,
+              color: CupertinoColors.systemRed,
             ),
           ),
         ],

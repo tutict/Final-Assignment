@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 
 class ChangeMobilePhoneNumber extends StatefulWidget {
   const ChangeMobilePhoneNumber({super.key});
@@ -11,28 +11,32 @@ class ChangeMobilePhoneNumber extends StatefulWidget {
 class ChangeMobilePhoneNumberState extends State<ChangeMobilePhoneNumber> {
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('手机号码'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
+    return CupertinoPageScaffold(
+      navigationBar: CupertinoNavigationBar(
+        middle: const Text('手机号码'),
+        leading: GestureDetector(
+          onTap: () {
             Navigator.pop(context);
           },
+          child: const Icon(CupertinoIcons.back),
         ),
-        backgroundColor: Colors.lightBlue,
-        foregroundColor: Colors.white,
+        backgroundColor: CupertinoColors.systemBlue,
+        brightness: Brightness.dark,
       ),
-      body: Center(
+      child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text('修改手机号码'),
-            ElevatedButton(
+            const Text(
+              '修改手机号码',
+              style: TextStyle(fontSize: 18.0),
+            ),
+            const SizedBox(height: 20.0),
+            CupertinoButton.filled(
               onPressed: () {
                 Navigator.pop(context);
               },
-              child: const Text('返回'), // Updated the child to a non-null value
+              child: const Text('返回'),
             ),
           ],
         ),

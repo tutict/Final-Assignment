@@ -1,28 +1,29 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 
 class ChangePassword extends StatelessWidget {
   const ChangePassword({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('修改密码'),
-        leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () {
-              Navigator.pop(context);
-            }),
-        backgroundColor: Colors.lightBlue,
-        foregroundColor: Colors.white,
+    return CupertinoPageScaffold(
+      navigationBar: CupertinoNavigationBar(
+        middle: const Text('修改密码'),
+        leading: GestureDetector(
+          onTap: () {
+            Navigator.pop(context);
+          },
+          child: const Icon(CupertinoIcons.back),
+        ),
+        backgroundColor: CupertinoColors.systemBlue,
+        brightness: Brightness.dark,
       ),
-      body: Center(
+      child: Center(
         child: Container(
           padding: const EdgeInsets.all(16.0),
           decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey, width: 2.0),
-            color: Colors
-                .white, // Use color here, no conflict if defined within BoxDecoration
+            border: Border.all(color: CupertinoColors.systemGrey, width: 2.0),
+            borderRadius: BorderRadius.circular(12.0),
+            color: CupertinoColors.white,
           ),
           child: const Text(
             '修改密码内容', // Placeholder content

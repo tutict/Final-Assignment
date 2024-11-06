@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 class OnlineProcessingProgress extends StatefulWidget {
@@ -27,47 +28,93 @@ class OnlineProcessingProgressState extends State<OnlineProcessingProgress>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('网办进度'),
-        backgroundColor: Colors.lightBlue,
-        foregroundColor: Colors.white,
+    return CupertinoPageScaffold(
+      navigationBar: const CupertinoNavigationBar(
+        middle: Text('网办进度'),
+        backgroundColor: CupertinoColors.systemBlue,
+        brightness: Brightness.dark,
       ),
-      body: Column(
-        children: <Widget>[
-          Expanded(
-            child: ListView.builder(
-              itemCount: 20,
-              itemBuilder: (context, index) {
-                return ListTile(
-                  title: Text('Item $index'), // Added meaningful text for title
-                  trailing: const Icon(Icons.arrow_forward_ios),
-                );
+      child: SafeArea(
+        child: Column(
+          children: <Widget>[
+            Expanded(
+              child: ListView.builder(
+                itemCount: 20,
+                itemBuilder: (context, index) {
+                  return CupertinoListTile(
+                    title: Text('Item $index'),
+                    trailing: const Icon(CupertinoIcons.forward),
+                    onTap: () {
+                      // Handle item tap
+                    },
+                  );
+                },
+              ),
+            ),
+            CupertinoSlidingSegmentedControl<int>(
+              groupValue: _tabController.index,
+              onValueChanged: (int? index) {
+                if (index != null) {
+                  setState(() {
+                    _tabController.animateTo(index);
+                  });
+                }
+              },
+              children: const <int, Widget>{
+                0: Text('Tab 1'),
+                1: Text('Tab 2'),
+                2: Text('Tab 3'),
+                3: Text('Tab 4'),
               },
             ),
-          ),
-          TabBar(
-            controller: _tabController,
-            tabs: const [
-              Tab(text: 'Tab 1'),
-              Tab(text: 'Tab 2'),
-              Tab(text: 'Tab 3'),
-              Tab(text: 'Tab 4'),
-            ],
-          ),
-          SizedBox(
-            height: 200,
-            child: TabBarView(
-              controller: _tabController,
-              children: const [
-                Center(child: Text('Tab 1 Content')),
-                Center(child: Text('Tab 2 Content')),
-                Center(child: Text('Tab 3 Content')),
-                Center(child: Text('Tab 4 Content')),
-              ],
+            SizedBox(
+              height: 200,
+              child: TabBarView(
+                controller: _tabController,
+                children: const [
+                  Center(child: Text('Tab 1 Content')),
+                  Center(child: Text('Tab 2 Content')),
+                  Center(child: Text('Tab 3 Content')),
+                  Center(child: Text('Tab 4 Content')),
+                ],
+              ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class CupertinoListTile extends StatelessWidget {
+  final Widget title;
+  final Widget? trailing;
+  final VoidCallback? onTap;
+
+  const CupertinoListTile({
+    required this.title,
+    this.trailing,
+    this.onTap,
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+        decoration: const BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: CupertinoColors.separator, width: 0.5),
           ),
-        ],
+        ),
+        child: Row(
+          children: [
+            Expanded(child: title),
+            if (trailing != null) trailing!,
+          ],
+        ),
       ),
     );
   }
