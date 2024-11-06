@@ -127,20 +127,21 @@ class UserDashboard extends GetView<UserDashboardController> {
                   return Padding(
                       padding: const EdgeInsets.all(kSpacing),
                       child: Container(
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).cardColor,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color:
-                                  Colors.black.withAlpha((0.2 * 255).toInt()),
-                              offset: const Offset(4, 4),
-                              blurRadius: 8,
-                            ),
-                          ],
-                        ),
-                        child: _buildUserScreenSidebarTools(context),
-                      ));
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(18),
+                            boxShadow: [
+                              BoxShadow(
+                                color:
+                                    Colors.black.withAlpha((0.2 * 255).toInt()),
+                                offset: const Offset(4, 4),
+                                blurRadius: 8,
+                              ),
+                            ],
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: _buildUserScreenSidebarTools(context),
+                          )));
                 } else {
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -175,17 +176,28 @@ class UserDashboard extends GetView<UserDashboardController> {
   Widget _buildUserScreenSidebarTools(BuildContext context) {
     return SizedBox(
       height: MediaQuery.of(context).size.height * 0.80,
-      child: Column(children: [
-        Expanded(
-          child: Obx(() {
-            final pageContent = controller.selectedPage.value;
-            return Offstage(
-              offstage: pageContent == null,
-              child: pageContent ?? const SizedBox(width: 100, height: 100),
-            );
-          }),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Column(children: [
+            Expanded(
+              child: Obx(() {
+                final pageContent = controller.selectedPage.value;
+                return pageContent != null
+                    ? Container(
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).scaffoldBackgroundColor,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: pageContent,
+                      )
+                    : const SizedBox(width: 100, height: 100);
+              }),
+            ),
+          ]),
         ),
-      ]),
+      ),
     );
   }
 
