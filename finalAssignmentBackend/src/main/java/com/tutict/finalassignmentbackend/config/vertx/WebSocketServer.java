@@ -76,7 +76,7 @@ public class WebSocketServer extends AbstractVerticle {
                 .allowedMethods(allowedMethods));
 
         // 配置SockJS处理器选项，设置心跳间隔
-        SockJSHandlerOptions sockJSOptions = new SockJSHandlerOptions().setHeartbeatInterval(3000);
+        SockJSHandlerOptions sockJSOptions = new SockJSHandlerOptions().setHeartbeatInterval(2000);
         SockJSHandler sockJSHandler = SockJSHandler.create(vertx, sockJSOptions);
 
         // 配置SockJS桥接选项，允许的消息地址

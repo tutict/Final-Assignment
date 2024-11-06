@@ -1,9 +1,9 @@
 import 'dart:convert';
-
+import 'package:final_assignment_front/utils/services/message_provider.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:provider/provider.dart';
 import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/utils/services/rest_api_services.dart';
-import 'package:flutter/cupertino.dart';
-import 'package:get/get.dart';
 
 /// PersonalInformationPage is a StatefulWidget for displaying driver's personal information.
 class PersonalInformationPage extends StatefulWidget {
@@ -11,53 +11,33 @@ class PersonalInformationPage extends StatefulWidget {
 
   @override
   State<PersonalInformationPage> createState() =>
-      PersonalInformationPageState();
+      _PersonalInformationPageState();
 }
 
 /// _PersonalInformationPageState is the state class for PersonalInformationPage.
 /// Manages the driver's information and communicates with the server via WebSocket.
-class PersonalInformationPageState extends State<PersonalInformationPage> {
+class _PersonalInformationPageState extends State<PersonalInformationPage> {
   late RestApiServices restApiServices;
-  Map<String, String> _driverInfo = {
-    'name': '加载中...',
-    'idCardNumber': '加载中...',
-    'licenseNumber': '加载中...',
-    'phoneNumber': '加载中...',
-    'registrationTime': '加载中...',
-    'registrationPlace': '加载中...'
-  };
 
   @override
   void initState() {
     super.initState();
     restApiServices = RestApiServices();
-    restApiServices.initWebSocket(AppPages.userInitial);
-    _loadDriverInfo();
+
+    // 初始化 WebSocket 连接，并传入 MessageProvider
+    final messageProvider =
+        Provider.of<MessageProvider>(context, listen: false);
+    restApiServices.initWebSocket(AppPages.userInitial, messageProvider);
+
+    // 发送获取驾驶人信息的请求
+    restApiServices.sendMessage(jsonEncode({'action': 'getDriverInfo'}));
   }
 
-  /// Loads driver's information from the server.
-  /// Sends a request via WebSocket and waits for a response.
-  /// On success, updates the state with the driver's information.
-  Future<void> _loadDriverInfo() async {
-    try {
-      restApiServices.sendMessage(jsonEncode({'action': 'getDriverInfo'}));
-      final response =
-          await restApiServices.getMessages().firstWhere((message) {
-        final decodedMessage = jsonDecode(message);
-        return decodedMessage['action'] == 'getDriverInfoResponse';
-      });
-
-      final decodedMessage = jsonDecode(response);
-      if (decodedMessage['status'] == 'success') {
-        setState(() {
-          _driverInfo = Map<String, String>.from(decodedMessage['data']);
-        });
-      } else {
-        debugPrint('Failed to load driver info: ${decodedMessage['message']}');
-      }
-    } catch (e) {
-      debugPrint('Failed to load driver info: $e');
-    }
+  @override
+  void dispose() {
+    // 关闭 WebSocket 连接
+    restApiServices.closeWebSocket();
+    super.dispose();
   }
 
   @override
@@ -76,39 +56,63 @@ class PersonalInformationPageState extends State<PersonalInformationPage> {
       ),
       child: SafeArea(
         child: CupertinoScrollbar(
-          child: ListView(
-            children: [
-              CupertinoListTile(
-                title: const Text('姓名'),
-                subtitle: Text(_driverInfo['name'] ?? '无数据'),
-              ),
-              CupertinoListTile(
-                title: const Text('身份证号'),
-                subtitle: Text(_driverInfo['idCardNumber'] ?? '无数据'),
-              ),
-              CupertinoListTile(
-                title: const Text('驾驶证号'),
-                subtitle: Text(_driverInfo['licenseNumber'] ?? '无数据'),
-              ),
-              CupertinoListTile(
-                title: const Text('手机号码'),
-                subtitle: Text(_driverInfo['phoneNumber'] ?? '无数据'),
-                onTap: () {
-                  Get.toNamed(AppPages.changeMobilePhoneNumber);
-                },
-              ),
-              CupertinoListTile(
-                title: const Text('注册时间'),
-                subtitle: Text(_driverInfo['registrationTime'] ?? '无数据'),
-              ),
-              CupertinoListTile(
-                title: const Text('注册地'),
-                subtitle: Text(_driverInfo['registrationPlace'] ?? '无数据'),
-              ),
-            ],
+          child: Consumer<MessageProvider>(
+            builder: (context, messageProvider, child) {
+              final message = messageProvider.message;
+              if (message != null &&
+                  message.action == 'getDriverInfoResponse') {
+                if (message.data['status'] == 'success') {
+                  final driverInfo = DriverInfo.fromJson(message.data['data']);
+                  return _buildDriverInfoList(driverInfo);
+                } else {
+                  return Center(
+                    child: Text('加载驾驶人信息失败: ${message.data['message']}'),
+                  );
+                }
+              } else {
+                return const Center(
+                  child: CupertinoActivityIndicator(),
+                );
+              }
+            },
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildDriverInfoList(DriverInfo driverInfo) {
+    return ListView(
+      children: [
+        CupertinoListTile(
+          title: const Text('姓名'),
+          subtitle: Text(driverInfo.name ?? '无数据'),
+        ),
+        CupertinoListTile(
+          title: const Text('身份证号'),
+          subtitle: Text(driverInfo.idCardNumber ?? '无数据'),
+        ),
+        CupertinoListTile(
+          title: const Text('驾驶证号'),
+          subtitle: Text(driverInfo.licenseNumber ?? '无数据'),
+        ),
+        CupertinoListTile(
+          title: const Text('手机号码'),
+          subtitle: Text(driverInfo.phoneNumber ?? '无数据'),
+          onTap: () {
+            // 导航到修改手机号码的页面
+            Navigator.pushNamed(context, AppPages.changeMobilePhoneNumber);
+          },
+        ),
+        CupertinoListTile(
+          title: const Text('注册时间'),
+          subtitle: Text(driverInfo.registrationTime ?? '无数据'),
+        ),
+        CupertinoListTile(
+          title: const Text('注册地'),
+          subtitle: Text(driverInfo.registrationPlace ?? '无数据'),
+        ),
+      ],
     );
   }
 }
@@ -145,6 +149,36 @@ class CupertinoListTile extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// 驾驶人信息模型
+class DriverInfo {
+  String? name;
+  String? idCardNumber;
+  String? licenseNumber;
+  String? phoneNumber;
+  String? registrationTime;
+  String? registrationPlace;
+
+  DriverInfo({
+    this.name,
+    this.idCardNumber,
+    this.licenseNumber,
+    this.phoneNumber,
+    this.registrationTime,
+    this.registrationPlace,
+  });
+
+  factory DriverInfo.fromJson(Map<String, dynamic> json) {
+    return DriverInfo(
+      name: json['name'],
+      idCardNumber: json['idCardNumber'],
+      licenseNumber: json['licenseNumber'],
+      phoneNumber: json['phoneNumber'],
+      registrationTime: json['registrationTime'],
+      registrationPlace: json['registrationPlace'],
     );
   }
 }

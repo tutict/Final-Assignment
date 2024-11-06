@@ -1,8 +1,9 @@
 import 'dart:convert';
-
+import 'package:final_assignment_front/utils/services/message_provider.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:final_assignment_front/utils/services/app_config.dart';
 import 'package:final_assignment_front/utils/services/rest_api_services.dart';
-import 'package:flutter/material.dart';
 
 class FineInformationPage extends StatefulWidget {
   const FineInformationPage({super.key});
@@ -13,36 +14,27 @@ class FineInformationPage extends StatefulWidget {
 
 class _FineInformationPageState extends State<FineInformationPage> {
   late RestApiServices restApiServices;
-  List<FineRecord> _fineRecords = [];
 
   @override
   void initState() {
     super.initState();
     restApiServices = RestApiServices();
-    restApiServices.initWebSocket(AppConfig.fineInformationEndpoint);
-    _loadFineData();
+
+    // 初始化 WebSocket 连接，并传入 MessageProvider
+    final messageProvider =
+        Provider.of<MessageProvider>(context, listen: false);
+    restApiServices.initWebSocket(
+        AppConfig.fineInformationEndpoint, messageProvider);
+
+    // 发送获取罚款信息的请求
+    restApiServices.sendMessage(jsonEncode({'action': 'getFineInfo'}));
   }
 
-  Future<void> _loadFineData() async {
-    try {
-      restApiServices.sendMessage(jsonEncode({'action': 'getFineInfo'}));
-      final response = await restApiServices.getMessages().firstWhere((message) {
-        final decodedMessage = jsonDecode(message);
-        return decodedMessage['action'] == 'getFineInfoResponse';
-      });
-
-      final decodedMessage = jsonDecode(response);
-      if (decodedMessage['status'] == 'success') {
-        setState(() {
-          _fineRecords = List<FineRecord>.from(
-              decodedMessage['data'].map((item) => FineRecord.fromJson(item)));
-        });
-      } else {
-        debugPrint('加载罚款信息失败: ${decodedMessage['message']}');
-      }
-    } catch (e) {
-      debugPrint('加载罚款信息失败: $e');
-    }
+  @override
+  void dispose() {
+    // 关闭 WebSocket 连接
+    restApiServices.closeWebSocket();
+    super.dispose();
   }
 
   @override
@@ -68,7 +60,29 @@ class _FineInformationPageState extends State<FineInformationPage> {
             const SizedBox(height: 16),
             // 罚款记录列表
             Expanded(
-              child: FineRecordList(fineRecords: _fineRecords),
+              child: Consumer<MessageProvider>(
+                builder: (context, messageProvider, child) {
+                  final message = messageProvider.message;
+                  if (message != null &&
+                      message.action == 'getFineInfoResponse') {
+                    if (message.data['status'] == 'success') {
+                      List<FineRecord> fineRecords = List<FineRecord>.from(
+                        message.data['data']
+                            .map((item) => FineRecord.fromJson(item)),
+                      );
+                      return FineRecordList(fineRecords: fineRecords);
+                    } else {
+                      return Center(
+                        child: Text('加载罚款信息失败: ${message.data['message']}'),
+                      );
+                    }
+                  } else {
+                    return const Center(
+                      child: CircularProgressIndicator(),
+                    );
+                  }
+                },
+              ),
             ),
           ],
         ),
@@ -83,28 +97,40 @@ class SearchSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 定义文本编辑控制器
+    final plateNumberController = TextEditingController();
+    final dateController = TextEditingController();
+
     return Row(
       children: <Widget>[
         Expanded(
           child: TextField(
+            controller: plateNumberController,
             decoration: const InputDecoration(
               labelText: '请输入车牌号',
               prefixIcon: Icon(Icons.local_bar),
             ),
-            onChanged: (value) {
-              // 更新搜索的车牌号
-            },
           ),
         ),
         const SizedBox(width: 16),
         Expanded(
           child: TextField(
+            controller: dateController,
             decoration: const InputDecoration(
               labelText: '选择查询时间',
               prefixIcon: Icon(Icons.date_range),
             ),
-            onChanged: (value) {
-              // 更新搜索的时间
+            onTap: () async {
+              // 选择日期
+              DateTime? pickedDate = await showDatePicker(
+                context: context,
+                initialDate: DateTime.now(), // 初始日期
+                firstDate: DateTime(2000), // 起始日期
+                lastDate: DateTime(2101), // 结束日期
+              );
+              if (pickedDate != null) {
+                dateController.text = pickedDate.toString().split(' ')[0];
+              }
             },
           ),
         ),
@@ -112,6 +138,17 @@ class SearchSection extends StatelessWidget {
         ElevatedButton(
           onPressed: () {
             // 处理查询点击事件
+            String plateNumber = plateNumberController.text;
+            String date = dateController.text;
+
+            // 发送查询请求
+            RestApiServices().sendMessage(
+              jsonEncode({
+                'action': 'searchFineInfo',
+                'plateNumber': plateNumber,
+                'date': date,
+              }),
+            );
           },
           child: const Text('查询'),
         ),

@@ -1,12 +1,11 @@
-import 'package:final_assignment_front/utils/services/app_config.dart';
+import 'dart:convert';
+import 'package:final_assignment_front/utils/services/rest_api_services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_login/flutter_login.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:provider/provider.dart';
 import 'package:get/get.dart';
-import 'dart:convert';
-import 'package:final_assignment_front/features/dashboard/views/screens/manager_dashboard_screen.dart';
-import 'package:final_assignment_front/utils/services/rest_api_services.dart';
-
+import 'package:final_assignment_front/utils/services/app_config.dart';
+import 'package:final_assignment_front/utils/services/message_provider.dart';
 import 'package:final_assignment_front/config/routes/app_pages.dart';
 
 /// 登录屏幕 StatefulWidget
@@ -20,13 +19,26 @@ class LoginScreen extends StatefulWidget {
 /// 登录屏幕状态管理类
 class _LoginScreenState extends State<LoginScreen> {
   late RestApiServices restApiServices;
-  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+  late MessageProvider messageProvider;
 
   @override
   void initState() {
     super.initState();
     restApiServices = RestApiServices();
-    restApiServices.initWebSocket(AppConfig.userManagementEndpoint);
+
+    // 获取全局的 MessageProvider 实例
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      messageProvider = Provider.of<MessageProvider>(context, listen: false);
+      // 初始化 WebSocket 连接，并传入 MessageProvider
+      restApiServices.initWebSocket(AppConfig.userManagementEndpoint, messageProvider);
+    });
+  }
+
+  @override
+  void dispose() {
+    // 关闭 WebSocket 连接
+    restApiServices.closeWebSocket();
+    super.dispose();
   }
 
   /// 登录动画持续时间
@@ -34,67 +46,65 @@ class _LoginScreenState extends State<LoginScreen> {
 
   /// 用户认证逻辑
   Future<String?> _authUser(LoginData data) async {
-    debugPrint('用户名: \${data.name}, 密码: \${data.password}');
+    debugPrint('用户名: ${data.name}, 密码: ${data.password}');
     restApiServices.sendMessage(jsonEncode({
-      'action': 'users/login',
+      'action': 'login',
       'username': data.name,
       'password': data.password
     }));
 
-    final response = await restApiServices.getMessages().firstWhere((message) {
-      final decodedMessage = jsonDecode(message);
-      return decodedMessage['action'] == 'login';
-    });
+    // 等待登录响应
+    final responseData = await messageProvider.waitForMessage('loginResponse');
 
-    final decodedMessage = jsonDecode(response);
-    if (decodedMessage['status'] == 'error') {
-      return decodedMessage['message'];
-    } else {
-      // 安全存储 JWT 令牌
-      String token = decodedMessage['token'];
-      await _secureStorage.write(key: 'jwt_token', value: token);
+    if (responseData != null && responseData['status'] == 'success') {
+      // 存储 JWT 令牌
+      String token = responseData['token'];
+      await restApiServices.saveToken(token);
       debugPrint('JWT token saved');
+
       // 导航到仪表板
-      Get.toNamed(AppPages.initial);
+      Get.offAllNamed(AppPages.initial);
       return null;
+    } else {
+      return responseData?['message'] ?? '登录失败';
     }
   }
 
   /// 用户注册逻辑
   Future<String?> _signupUser(SignupData data) async {
-    debugPrint('名字: \${data.name}, 密码: \${data.password}');
-    restApiServices.sendMessage(jsonEncode(
-        {'action': 'users', 'username': data.name, 'password': data.password}));
+    debugPrint('名字: ${data.name}, 密码: ${data.password}');
+    restApiServices.sendMessage(jsonEncode({
+      'action': 'signup',
+      'username': data.name,
+      'password': data.password
+    }));
 
-    final response = await restApiServices.getMessages().firstWhere((message) {
-      final decodedMessage = jsonDecode(message);
-      return decodedMessage['action'] == 'signup';
-    });
 
-    final decodedMessage = jsonDecode(response);
-    if (decodedMessage['status'] == 'error') {
-      return decodedMessage['message'];
-    } else {
+    // 等待注册响应
+    final responseData = await messageProvider.waitForMessage('signupResponse');
+
+    if (responseData != null && responseData['status'] == 'success') {
       return null;
+    } else {
+      return responseData?['message'] ?? '注册失败';
     }
   }
 
   /// 密码恢复逻辑
   Future<String?> _recoverPassword(String name) async {
-    debugPrint('名字: $name');
-    restApiServices
-        .sendMessage(jsonEncode({'action': 'auth/recover', 'username': name}));
+    debugPrint('用户名: $name');
+    restApiServices.sendMessage(jsonEncode({
+      'action': 'recoverPassword',
+      'username': name
+    }));
 
-    final response = await restApiServices.getMessages().firstWhere((message) {
-      final decodedMessage = jsonDecode(message);
-      return decodedMessage['action'] == 'recover';
-    });
+    // 等待密码恢复响应
+    final responseData = await messageProvider.waitForMessage('recoverPasswordResponse');
 
-    final decodedMessage = jsonDecode(response);
-    if (decodedMessage['status'] == 'error') {
-      return decodedMessage['message'];
-    } else {
+    if (responseData != null && responseData['status'] == 'success') {
       return null;
+    } else {
+      return responseData?['message'] ?? '密码恢复失败';
     }
   }
 
@@ -123,7 +133,7 @@ class _LoginScreenState extends State<LoginScreen> {
           elevation: 8.0,
           margin: const EdgeInsets.symmetric(horizontal: 20.0),
           shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
         ),
         titleStyle: const TextStyle(
           color: Colors.white,
@@ -157,24 +167,23 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
       messages: LoginMessages(
         passwordHint: '密码',
-        userHint: '用户邮箱',
+        userHint: '用户名',
         forgotPasswordButton: '忘记密码？',
         confirmPasswordHint: '再次输入密码',
         loginButton: '登录',
         signupButton: '注册',
-        recoverPasswordButton: '修改密码',
-        recoverCodePasswordDescription: '请输入您的邮箱',
+        recoverPasswordButton: '重置密码',
+        recoverCodePasswordDescription: '请输入您的用户名',
         goBackButton: '返回',
         confirmPasswordError: '密码输入不匹配',
         confirmSignupSuccess: '注册成功',
-        confirmRecoverSuccess: '密码修改成功',
-        recoverPasswordDescription: '请输入您的邮箱,我们将确认您的邮箱是否存在',
-        recoverPasswordIntro: '重新设置密码',
+        confirmRecoverSuccess: '密码重置成功',
+        recoverPasswordDescription: '请输入您的用户名，我们将为您重置密码',
+        recoverPasswordIntro: '重置密码',
       ),
       onSubmitAnimationCompleted: () {
-        Navigator.of(context).pushReplacement(MaterialPageRoute(
-          builder: (context) => const DashboardScreen(),
-        ));
+        // 登录成功后跳转到仪表板
+        Get.offAllNamed(AppPages.initial);
       },
       onRecoverPassword: _recoverPassword,
     );
