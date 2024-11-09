@@ -15,7 +15,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 @Service
 public class UserManagementService {
@@ -33,28 +32,17 @@ public class UserManagementService {
 
     // 创建用户
     @Transactional
-    @CacheEvict(cacheNames = "userCache", allEntries = true, key = "#user.userId")
+    @CacheEvict(cacheNames = "userCache", key = "#user.userId")
     public void createUser(UserManagement user) {
         try {
-            // 异步发送消息到 Kafka，并处理发送结果
-            CompletableFuture<SendResult<String, UserManagement>> future =  kafkaTemplate.send("user_create", user);
-
-            // 处理发送成功的情况
-            future.thenAccept(sendResult -> log.info("Create message sent to Kafka successfully: {}", sendResult.toString())).exceptionally(ex -> {
-                // 处理发送失败的情况
-                log.error("Failed to send message to Kafka, triggering transaction rollback", ex);
-                // 抛出异常
-                throw new RuntimeException("Kafka message send failure", ex);
-            });
-
-            // 由于是异步发送，不需要等待发送完成，Spring事务管理器将处理事务
+            // 同步发送 Kafka 消息
+            sendKafkaMessage("user_create", user);
+            // 插入用户到数据库
             userManagementMapper.insert(user);
-
         } catch (Exception e) {
-            // 记录异常信息
-            log.error("Exception occurred while updating appeal or sending Kafka message", e);
-            // 异常将由Spring事务管理器处理，可能触发事务回滚
-            throw e;
+            // 记录异常
+            log.error("Exception occurred while creating user or sending Kafka message", e);
+            throw new RuntimeException("Failed to create user", e);
         }
     }
 
@@ -72,23 +60,15 @@ public class UserManagementService {
      */
     @Cacheable(cacheNames = "userCache", key = "#username")
     public UserManagement getUserByUsername(String username) {
-        if (username == null || username.trim().isEmpty()) {
-            throw new IllegalArgumentException("Invalid username");
-        }
+        validateInput(username, "Invalid username");
         QueryWrapper<UserManagement> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("username", username);
         return userManagementMapper.selectOne(queryWrapper);
     }
 
     // 查询所有用户
-    @Cacheable(cacheNames = "userCache")
+    @Cacheable(cacheNames = "userCache", key = "'allUsers'")
     public List<UserManagement> getAllUsers() {
-        UserManagement newUser = new UserManagement();
-        if (userManagementMapper.selectCount(null) == 0) {
-            newUser.setEmail(newUser.getEmail());
-            newUser.setPassword(newUser.getPassword());
-            createUser(newUser);
-        }
         return userManagementMapper.selectList(null);
     }
 
@@ -100,9 +80,7 @@ public class UserManagementService {
      */
     @Cacheable(cacheNames = "userCache", key = "#userType")
     public List<UserManagement> getUsersByType(String userType) {
-        if (userType == null || userType.trim().isEmpty()) {
-            throw new IllegalArgumentException("Invalid user type");
-        }
+        validateInput(userType, "Invalid user type");
         QueryWrapper<UserManagement> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("user_type", userType);
         return userManagementMapper.selectList(queryWrapper);
@@ -116,9 +94,7 @@ public class UserManagementService {
      */
     @Cacheable(cacheNames = "userCache", key = "#status")
     public List<UserManagement> getUsersByStatus(String status) {
-        if (status == null || status.trim().isEmpty()) {
-            throw new IllegalArgumentException("Invalid status");
-        }
+        validateInput(status, "Invalid status");
         QueryWrapper<UserManagement> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("status", status);
         return userManagementMapper.selectList(queryWrapper);
@@ -129,25 +105,14 @@ public class UserManagementService {
     @CachePut(cacheNames = "userCache", key = "#user.userId")
     public void updateUser(UserManagement user) {
         try {
-            // 异步发送消息到 Kafka，并处理发送结果
-            CompletableFuture<SendResult<String, UserManagement>> future = kafkaTemplate.send("user_update", user);
-
-            // 处理发送成功的情况
-            future.thenAccept(sendResult -> log.info("Update message sent to Kafka successfully: {}", sendResult.toString())).exceptionally(ex -> {
-                // 处理发送失败的情况
-                log.error("Failed to send message to Kafka, triggering transaction rollback", ex);
-                // 抛出异常
-                throw new RuntimeException("Kafka message send failure", ex);
-            });
-
-            // 由于是异步发送，不需要等待发送完成，Spring事务管理器将处理事务
+            // 同步发送 Kafka 消息
+            sendKafkaMessage("user_update", user);
+            // 更新数据库中的用户信息
             userManagementMapper.updateById(user);
-
         } catch (Exception e) {
-            // 记录异常信息
-            log.error("Exception occurred while updating appeal or sending Kafka message", e);
-            // 异常将由Spring事务管理器处理，可能触发事务回滚
-            throw e;
+            // 记录异常
+            log.error("Exception occurred while updating user or sending Kafka message", e);
+            throw new RuntimeException("Failed to update user", e);
         }
     }
 
@@ -155,6 +120,7 @@ public class UserManagementService {
      * 删除用户
      * @param userId 用户ID
      */
+    @Transactional
     @CacheEvict(cacheNames = "userCache", key = "#userId")
     public void deleteUser(int userId) {
         try {
@@ -165,6 +131,7 @@ public class UserManagementService {
         } catch (Exception e) {
             // 记录异常信息
             log.error("Exception occurred while deleting user", e);
+            throw new RuntimeException("Failed to delete user", e);
         }
     }
 
@@ -173,21 +140,22 @@ public class UserManagementService {
      * @param username 用户名
      * @throws IllegalArgumentException 如果用户名无效
      */
+    @Transactional
     @CacheEvict(cacheNames = "userCache", key = "#username")
     public void deleteUserByUsername(String username) {
+        validateInput(username, "Invalid username");
         try {
-            UserManagement userToDelete = getUserByUsername(username);
+            QueryWrapper<UserManagement> queryWrapper = new QueryWrapper<>();
+            queryWrapper.eq("username", username);
+            UserManagement userToDelete = userManagementMapper.selectOne(queryWrapper);
             if (userToDelete != null) {
-                userManagementMapper.delete(new QueryWrapper<UserManagement>().eq("username", username));
+                userManagementMapper.delete(queryWrapper);
             }
         } catch (Exception e) {
-            // 记录异常信息
             log.error("Exception occurred while deleting user", e);
-            // 抛出异常
-            throw e;
+            throw new RuntimeException("Failed to delete user", e);
         }
     }
-
 
     /**
      * 检查用户名是否存在
@@ -197,12 +165,22 @@ public class UserManagementService {
      */
     @Cacheable(cacheNames = "userCache", key = "#username")
     public boolean isUsernameExists(String username) {
-        if (username == null || username.trim().isEmpty()) {
-            throw new IllegalArgumentException("Invalid username");
-        }
+        validateInput(username, "Invalid username");
         QueryWrapper<UserManagement> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("username", username);
         return userManagementMapper.selectCount(queryWrapper) > 0;
     }
 
+    // 发送 Kafka 消息的私有方法
+    private void sendKafkaMessage(String topic, UserManagement user) throws Exception {
+        SendResult<String, UserManagement> sendResult = kafkaTemplate.send(topic, user).get();
+        log.info("Message sent to Kafka topic {} successfully: {}", topic, sendResult.toString());
+    }
+
+    // 校验输入数据
+    private void validateInput(String input, String errorMessage) {
+        if (input == null || input.trim().isEmpty()) {
+            throw new IllegalArgumentException(errorMessage);
+        }
+    }
 }

@@ -15,7 +15,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 // 备份恢复服务类，处理备份创建、更新、查询和删除操作
 @Service
@@ -41,28 +40,16 @@ public class BackupRestoreService {
      * @param backup 要创建的备份对象，包含备份的所有相关信息
      */
     @Transactional
-    @CacheEvict(value = "backupCache", allEntries = true, key = "#backup.backupId")
+    @CacheEvict(value = "backupCache", key = "#backup.backupId")
     public void createBackup(BackupRestore backup) {
         try {
-            // 异步发送消息到 Kafka，并处理发送结果
-            CompletableFuture<SendResult<String, BackupRestore>> future = kafkaTemplate.send("backup_create", backup);
-
-            // 处理发送成功的情况
-            future.thenAccept(sendResult -> log.info("Create message sent to Kafka successfully: {}", sendResult.toString())).exceptionally(ex -> {
-                // 处理发送失败的情况
-                log.error("Failed to send message to Kafka, triggering transaction rollback", ex);
-                // 抛出异常
-                throw new RuntimeException("Kafka message send failure", ex);
-            });
-
-            // 由于是异步发送，不需要等待发送完成，Spring事务管理器将处理事务
+            // 同步发送 Kafka 消息
+            sendKafkaMessage("backup_create", backup);
+            // 数据库插入
             backupRestoreMapper.insert(backup);
-
         } catch (Exception e) {
-            // 记录异常信息
-            log.error("Exception occurred while updating appeal or sending Kafka message", e);
-            // 异常将由Spring事务管理器处理，可能触发事务回滚
-            throw e;
+            log.error("Exception occurred while creating backup or sending Kafka message", e);
+            throw new RuntimeException("Failed to create backup", e);
         }
     }
 
@@ -70,7 +57,7 @@ public class BackupRestoreService {
      * 获取所有备份列表
      * @return 包含所有备份的列表
      */
-    @Cacheable(value = "backupCache")
+    @Cacheable(value = "backupCache", key = "'allBackups'")
     public List<BackupRestore> getAllBackups() {
         return backupRestoreMapper.selectList(null);
     }
@@ -92,12 +79,19 @@ public class BackupRestoreService {
      * 删除指定ID的备份
      * @param backupId 要删除的备份的ID
      */
-    @CacheEvict(value = "backupCache", allEntries = true, key = "#backupId")
+    @Transactional
+    @CacheEvict(value = "backupCache", key = "#backupId")
     public void deleteBackup(Integer backupId) {
         try {
-            backupRestoreMapper.deleteById(backupId);
+            int result = backupRestoreMapper.deleteById(backupId);
+            if (result > 0) {
+                log.info("Backup with ID {} deleted successfully", backupId);
+            } else {
+                log.error("Failed to delete backup with ID {}", backupId);
+            }
         } catch (Exception e) {
             log.error("Exception occurred while deleting backup", e);
+            throw new RuntimeException("Failed to delete backup", e);
         }
     }
 
@@ -109,25 +103,13 @@ public class BackupRestoreService {
     @CachePut(value = "backupCache", key = "#backup.backupId")
     public void updateBackup(BackupRestore backup) {
         try {
-            // 异步发送消息到 Kafka，并处理发送结果
-            CompletableFuture<SendResult<String, BackupRestore>> future =kafkaTemplate.send("backup_update", backup);
-
-            // 处理发送成功的情况
-            future.thenAccept(sendResult -> log.info("Update message sent to Kafka successfully: {}", sendResult.toString())).exceptionally(ex -> {
-                // 处理发送失败的情况
-                log.error("Failed to send message to Kafka, triggering transaction rollback", ex);
-                // 抛出异常
-                throw new RuntimeException("Kafka message send failure", ex);
-            });
-
-            // 由于是异步发送，不需要等待发送完成，Spring事务管理器将处理事务
+            // 同步发送 Kafka 消息
+            sendKafkaMessage("backup_update", backup);
+            // 更新数据库记录
             backupRestoreMapper.updateById(backup);
-
         } catch (Exception e) {
-            // 记录异常信息
-            log.error("Exception occurred while updating appeal or sending Kafka message", e);
-            // 异常将由Spring事务管理器处理，可能触发事务回滚
-            throw e;
+            log.error("Exception occurred while updating backup or sending Kafka message", e);
+            throw new RuntimeException("Failed to update backup", e);
         }
     }
 
@@ -137,7 +119,7 @@ public class BackupRestoreService {
      * @return 指定文件名的备份对象，如果不存在则返回"Invalid backup file name"
      * @throws IllegalArgumentException 如果文件名为空或为null
      */
-    @Cacheable(value = "backupCache", key = "#backupFileName")
+    @Cacheable(value = "backupCache", key = "#root.methodName + '_' + #backupFileName")
     public BackupRestore getBackupByFileName(String backupFileName) {
         if (backupFileName == null || backupFileName.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid backup file name");
@@ -153,7 +135,7 @@ public class BackupRestoreService {
      * @return 指定时间的备份列表，如果不存在则返回"Invalid backup time"
      * @throws IllegalArgumentException 如果时间参数为空或为null
      */
-    @Cacheable(value = "backupCache", key = "#backupTime")
+    @Cacheable(value = "backupCache", key = "#root.methodName + '_' + #backupTime")
     public List<BackupRestore> getBackupsByTime(String backupTime) {
         if (backupTime == null || backupTime.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid backup time");
@@ -161,5 +143,11 @@ public class BackupRestoreService {
         QueryWrapper<BackupRestore> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("backupTime", backupTime);
         return backupRestoreMapper.selectList(queryWrapper);
+    }
+
+    // 发送 Kafka 消息的私有方法
+    private void sendKafkaMessage(String topic, BackupRestore backup) throws Exception {
+        SendResult<String, BackupRestore> sendResult = kafkaTemplate.send(topic, backup).get();
+        log.info("Message sent to Kafka topic {} successfully: {}", topic, sendResult.toString());
     }
 }

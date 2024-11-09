@@ -1,46 +1,45 @@
 package com.tutict.finalassignmentbackend.config.shell;
 
+import jakarta.annotation.PostConstruct;
 import org.springframework.context.annotation.Configuration;
-
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 
 @Configuration
 public class ShellScriptConfig {
 
     public ShellScriptConfig() {
+    }
 
+    @PostConstruct
+    public void executeShellScript() {
         String os = System.getProperty("os.name");
-        // 获取当前项目路径
         String path = System.getProperty("user.dir");
-        String PowerShell = "." + path + "/finalAssignmentTools/use_docker/run.bat";
+        String PowerShell = path + "/finalAssignmentTools/use_docker/run.bat";
         String shell = path + "/finalAssignmentTools/use_docker/run.sh";
 
-        // 判断是否为Windows系统
+        ProcessBuilder builder;
         if (os != null && os.toLowerCase().startsWith("windows")) {
-
-            ProcessBuilder builder = new ProcessBuilder(PowerShell);
-
-            try {
-                Process process = builder.start();
-                process.waitFor();
-            } catch (IOException | InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-
-            // 判断是否为Linux系统
+            builder = new ProcessBuilder("cmd.exe", "/c", PowerShell);
         } else if (os != null && os.toLowerCase().startsWith("linux")) {
-
-            ProcessBuilder builder = new ProcessBuilder("sh", shell);
-
-            try {
-                Process process = builder.start();
-                process.waitFor();
-            } catch (IOException | InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-
+            builder = new ProcessBuilder("sh", shell);
         } else {
             System.out.printf("您的%s系统暂时不支持", os);
+            return;
+        }
+
+        try {
+            Process process = builder.start();
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    System.out.println(line);
+                }
+            }
+            process.waitFor();
+        } catch (IOException | InterruptedException e) {
+            throw new RuntimeException("Failed to execute shell script", e);
         }
     }
 }

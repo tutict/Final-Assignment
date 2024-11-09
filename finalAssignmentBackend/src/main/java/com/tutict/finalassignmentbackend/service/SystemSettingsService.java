@@ -5,14 +5,13 @@ import com.tutict.finalassignmentbackend.entity.SystemSettings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.concurrent.CompletableFuture;
 
 // 系统设置服务类
 @Service
@@ -34,134 +33,119 @@ public class SystemSettingsService {
     }
 
     // 获取系统设置
-    // 通过数据访问对象根据ID选择系统设置
-    @Cacheable(cacheNames = "systemSettingsCache")
+    // 通过数据访问对象根据id选择系统设置
+    @Cacheable(cacheNames = "systemSettingsCache", key = "'systemSettings'")
     public SystemSettings getSystemSettings() {
         return systemSettingsMapper.selectById(1);
     }
 
     // 更新系统设置
-    // 使用Spring事务管理器管理更新操作
+    // 使用Spring业务管理器管理更新操作
     @Transactional
-    @CacheEvict(cacheNames = "systemSettingsCache", allEntries = true, key = "#systemSettings.systemName")
-    public void updateSystemSettings(SystemSettings systemSettings) {
+    @CachePut(cacheNames = "systemSettingsCache", key = "'systemSettings'")
+    public SystemSettings updateSystemSettings(SystemSettings systemSettings) {
         try {
-            // 异步发送系统设置更新消息到Kafka主题
-            CompletableFuture<SendResult<String, SystemSettings>> future = kafkaTemplate.send("system_settings_update", systemSettings);
+            // 同步发送系统设置更新消息到Kafka主题
+            sendKafkaMessage(systemSettings);
 
-            // 处理Kafka消息发送成功的情况
-            future.thenAccept(sendResult -> log.info("Create message sent to Kafka successfully: {}", sendResult.toString()))
-                    // 处理Kafka消息发送失败的情况
-                    .exceptionally(ex -> {
-                        log.error("Failed to send message to Kafka, triggering transaction rollback", ex);
-                        throw new RuntimeException("Kafka message send failure", ex);
-                    });
-
-            // 更新系统设置，事务管理器处理事务
+            // 更新系统设置，业务管理器处理业务
             systemSettingsMapper.updateById(systemSettings);
-
+            return systemSettings;
         } catch (Exception e) {
             // 记录更新系统设置或发送Kafka消息时的异常
-            log.error("Exception occurred while updating appeal or sending Kafka message", e);
-            // 异常由Spring事务管理器处理，可能触发事务回滚
-            throw e;
+            log.error("Exception occurred while updating system settings or sending Kafka message", e);
+            // 异常由Spring业务管理器处理，可能触发业务回滚
+            throw new RuntimeException("Failed to update system settings", e);
         }
     }
 
     // 获取系统名称
-    @Cacheable(cacheNames = "systemNameCache")
+    @Cacheable(cacheNames = "systemSettingsCache", key = "'systemName'")
     public String getSystemName() {
-        SystemSettings systemSettings = systemSettingsMapper.selectById(1);
-        // 返回系统名称，若systemSettings为空则返回null
+        SystemSettings systemSettings = getSystemSettings();
         return systemSettings != null ? systemSettings.getSystemName() : null;
     }
 
     // 获取系统版本
-    @Cacheable(cacheNames = "systemVersionCache")
+    @Cacheable(cacheNames = "systemSettingsCache", key = "'systemVersion'")
     public String getSystemVersion() {
-        SystemSettings systemSettings = systemSettingsMapper.selectById(1);
-        // 返回系统版本，若systemSettings为空则返回null
+        SystemSettings systemSettings = getSystemSettings();
         return systemSettings != null ? systemSettings.getSystemVersion() : null;
     }
 
     // 获取系统描述
-    @Cacheable(cacheNames = "systemDescriptionCache")
+    @Cacheable(cacheNames = "systemSettingsCache", key = "'systemDescription'")
     public String getSystemDescription() {
-        SystemSettings systemSettings = systemSettingsMapper.selectById(1);
-        // 返回系统描述，若systemSettings为空则返回null
+        SystemSettings systemSettings = getSystemSettings();
         return systemSettings != null ? systemSettings.getSystemDescription() : null;
     }
 
     // 获取版权信息
-    @Cacheable(cacheNames = "copyrightInfoCache")
+    @Cacheable(cacheNames = "systemSettingsCache", key = "'copyrightInfo'")
     public String getCopyrightInfo() {
-        SystemSettings systemSettings = systemSettingsMapper.selectById(1);
-        // 返回版权信息，若systemSettings为空则返回null
+        SystemSettings systemSettings = getSystemSettings();
         return systemSettings != null ? systemSettings.getCopyrightInfo() : null;
     }
 
     // 获取存储路径
-    @Cacheable(cacheNames = "storagePathCache")
+    @Cacheable(cacheNames = "systemSettingsCache", key = "'storagePath'")
     public String getStoragePath() {
-        SystemSettings systemSettings = systemSettingsMapper.selectById(1);
-        // 返回存储路径，若systemSettings为空则返回null
+        SystemSettings systemSettings = getSystemSettings();
         return systemSettings != null ? systemSettings.getStoragePath() : null;
     }
 
     // 获取登录超时时间
-    @Cacheable(cacheNames = "loginTimeoutCache")
+    @Cacheable(cacheNames = "systemSettingsCache", key = "'loginTimeout'")
     public int getLoginTimeout() {
-        SystemSettings systemSettings = systemSettingsMapper.selectById(1);
-        // 返回登录超时时间，若systemSettings为空则返回0
+        SystemSettings systemSettings = getSystemSettings();
         return systemSettings != null ? systemSettings.getLoginTimeout() : 0;
     }
 
     // 获取会话超时时间
-    @Cacheable(cacheNames = "sessionTimeoutCache")
+    @Cacheable(cacheNames = "systemSettingsCache", key = "'sessionTimeout'")
     public int getSessionTimeout() {
-        SystemSettings systemSettings = systemSettingsMapper.selectById(1);
-        // 返回会话超时时间，若systemSettings为空则返回0
+        SystemSettings systemSettings = getSystemSettings();
         return systemSettings != null ? systemSettings.getSessionTimeout() : 0;
     }
 
     // 获取日期格式
-    @Cacheable(cacheNames = "dateFormatCache")
+    @Cacheable(cacheNames = "systemSettingsCache", key = "'dateFormat'")
     public String getDateFormat() {
-        SystemSettings systemSettings = systemSettingsMapper.selectById(1);
-        // 返回日期格式，若systemSettings为空则返回null
+        SystemSettings systemSettings = getSystemSettings();
         return systemSettings != null ? systemSettings.getDateFormat() : null;
     }
 
     // 获取分页大小
-    @Cacheable(cacheNames = "dateFormatCache")
+    @Cacheable(cacheNames = "systemSettingsCache", key = "'pageSize'")
     public int getPageSize() {
-        SystemSettings systemSettings = systemSettingsMapper.selectById(1);
-        // 返回分页大小，若systemSettings为空则返回0
+        SystemSettings systemSettings = getSystemSettings();
         return systemSettings != null ? systemSettings.getPageSize() : 0;
     }
 
     // 获取SMTP服务器
-    @Cacheable(cacheNames = "dateFormatCache")
+    @Cacheable(cacheNames = "systemSettingsCache", key = "'smtpServer'")
     public String getSmtpServer() {
-        SystemSettings systemSettings = systemSettingsMapper.selectById(1);
-        // 返回SMTP服务器，若systemSettings为空则返回null
+        SystemSettings systemSettings = getSystemSettings();
         return systemSettings != null ? systemSettings.getSmtpServer() : null;
     }
 
     // 获取邮箱账号
-    @Cacheable(cacheNames = "dateFormatCache")
+    @Cacheable(cacheNames = "systemSettingsCache", key = "'emailAccount'")
     public String getEmailAccount() {
-        SystemSettings systemSettings = systemSettingsMapper.selectById(1);
-        // 返回邮箱账号，若systemSettings为空则返回null
+        SystemSettings systemSettings = getSystemSettings();
         return systemSettings != null ? systemSettings.getEmailAccount() : null;
     }
 
     // 获取邮箱密码
-    @Cacheable(cacheNames = "dateFormatCache")
+    @Cacheable(cacheNames = "systemSettingsCache", key = "'emailPassword'")
     public String getEmailPassword() {
-        SystemSettings systemSettings = systemSettingsMapper.selectById(1);
-        // 返回邮箱密码，若systemSettings为空则返回null
+        SystemSettings systemSettings = getSystemSettings();
         return systemSettings != null ? systemSettings.getEmailPassword() : null;
     }
 
+    // 发送 Kafka 消息的私有方法
+    private void sendKafkaMessage(SystemSettings systemSettings) throws Exception {
+        SendResult<String, SystemSettings> sendResult = kafkaTemplate.send("system_settings_update", systemSettings).get();
+        log.info("Message sent to Kafka topic {} successfully: {}", "system_settings_update", sendResult.toString());
+    }
 }

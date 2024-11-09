@@ -15,7 +15,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 @Service
 public class DriverInformationService {
@@ -36,32 +35,20 @@ public class DriverInformationService {
     }
 
     /**
-     * 异步发送司机创建消息到 Kafka 并将司机信息插入数据库。
+     * 同步发送司机创建消息到 Kafka 并将司机信息插入数据库。
      * @param driverInformation 包含司机详细信息的 DriverInformation 对象
      */
     @Transactional
-    @CacheEvict(value = "driverCache", allEntries = true, key = "#driverInformation.driverId")
+    @CacheEvict(value = "driverCache", key = "#driverInformation.driverId")
     public void createDriver(DriverInformation driverInformation) {
         try {
-            // 异步发送消息到 Kafka 并处理发送结果
-            CompletableFuture<SendResult<String, DriverInformation>> future = kafkaTemplate.send("driver_create", driverInformation);
-
-            // 处理发送成功的情况
-            future.thenAccept(sendResult -> log.info("创建消息已成功发送到 Kafka: {}", sendResult.toString())).exceptionally(ex -> {
-                // 处理发送失败的情况
-                log.error("发送消息到 Kafka 失败，触发事务回滚", ex);
-                // 抛出异常
-                throw new RuntimeException("Kafka 消息发送失败", ex);
-            });
-
-            // 由于是异步发送，不需要等待发送完成，Spring 事务管理器将处理事务
+            // 同步发送 Kafka 消息
+            sendKafkaMessage("driver_create", driverInformation);
+            // 数据库插入
             driverInformationMapper.insert(driverInformation);
-
         } catch (Exception e) {
-            // 记录异常信息
-            log.error("更新请求或发送 Kafka 消息时发生异常", e);
-            // 异常将由 Spring 事务管理器处理，可能触发事务回滚
-            throw e;
+            log.error("Exception occurred while creating driver or sending Kafka message", e);
+            throw new RuntimeException("Failed to create driver", e);
         }
     }
 
@@ -79,38 +66,26 @@ public class DriverInformationService {
      * 获取所有司机信息。
      * @return 所有 DriverInformation 对象的列表
      */
-    @Cacheable(value = "driverCache")
+    @Cacheable(value = "driverCache", key = "'allDrivers'")
     public List<DriverInformation> getAllDrivers() {
         return driverInformationMapper.selectList(null);
     }
 
     /**
-     * 异步发送司机更新消息到 Kafka 并更新数据库中的司机信息。
+     * 同步发送司机更新消息到 Kafka 并更新数据库中的司机信息。
      * @param driverInformation 包含更新后的司机详细信息的 DriverInformation 对象
      */
     @Transactional
     @CachePut(value = "driverCache", key = "#driverInformation.driverId")
     public void updateDriver(DriverInformation driverInformation) {
         try {
-            // 异步发送消息到 Kafka 并处理发送结果
-            CompletableFuture<SendResult<String, DriverInformation>> future = kafkaTemplate.send("driver_update", driverInformation);
-
-            // 处理发送成功的情况
-            future.thenAccept(sendResult -> log.info("更新消息已成功发送到 Kafka: {}", sendResult.toString())).exceptionally(ex -> {
-                // 处理发送失败的情况
-                log.error("发送消息到 Kafka 失败，触发事务回滚", ex);
-                // 抛出异常
-                throw new RuntimeException("Kafka 消息发送失败", ex);
-            });
-
-            // 由于是异步发送，不需要等待发送完成，Spring 事务管理器将处理事务
+            // 同步发送 Kafka 消息
+            sendKafkaMessage("driver_update", driverInformation);
+            // 更新数据库记录
             driverInformationMapper.updateById(driverInformation);
-
         } catch (Exception e) {
-            // 记录异常信息
-            log.error("更新请求或发送 Kafka 消息时发生异常", e);
-            // 异常将由 Spring 事务管理器处理，可能触发事务回滚
-            throw e;
+            log.error("Exception occurred while updating driver or sending Kafka message", e);
+            throw new RuntimeException("Failed to update driver", e);
         }
     }
 
@@ -118,12 +93,19 @@ public class DriverInformationService {
      * 根据司机 ID 删除司机信息。
      * @param driverId 要删除的司机的 ID
      */
+    @Transactional
     @CacheEvict(value = "driverCache", key = "#driverId")
     public void deleteDriver(int driverId) {
         try {
-            driverInformationMapper.deleteById(driverId);
+            int result = driverInformationMapper.deleteById(driverId);
+            if (result > 0) {
+                log.info("Driver with ID {} deleted successfully", driverId);
+            } else {
+                log.error("Failed to delete driver with ID {}", driverId);
+            }
         } catch (Exception e) {
-            log.error("删除请求时发生异常", e);
+            log.error("Exception occurred while deleting driver", e);
+            throw new RuntimeException("Failed to delete driver", e);
         }
     }
 
@@ -132,7 +114,7 @@ public class DriverInformationService {
      * @param idCardNumber 司机的身份证号码
      * @return 对应于身份证号码的 DriverInformation 对象列表
      */
-    @Cacheable(value = "driverCache", key = "#idCardNumber")
+    @Cacheable(value = "driverCache", key = "#root.methodName + '_' + #idCardNumber")
     public List<DriverInformation> getDriversByIdCardNumber(String idCardNumber) {
         QueryWrapper<DriverInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("id_card_number", idCardNumber);
@@ -144,7 +126,7 @@ public class DriverInformationService {
      * @param driverLicenseNumber 司机的驾驶证号码
      * @return 对应于驾驶证号码的 DriverInformation 对象
      */
-    @Cacheable(value = "driverCache", key = "#driverLicenseNumber")
+    @Cacheable(value = "driverCache", key = "#root.methodName + '_' + #driverLicenseNumber")
     public DriverInformation getDriverByDriverLicenseNumber(String driverLicenseNumber) {
         QueryWrapper<DriverInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("driver_license_number", driverLicenseNumber);
@@ -156,10 +138,16 @@ public class DriverInformationService {
      * @param name 司机的姓名
      * @return 姓名包含指定名称的所有 DriverInformation 对象列表
      */
-    @Cacheable(value = "driverCache", key = "#name")
+    @Cacheable(value = "driverCache", key = "#root.methodName + '_' + #name")
     public List<DriverInformation> getDriversByName(String name) {
         QueryWrapper<DriverInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.like("name", name);
         return driverInformationMapper.selectList(queryWrapper);
+    }
+
+    // 发送 Kafka 消息的私有方法
+    private void sendKafkaMessage(String topic, DriverInformation driverInformation) throws Exception {
+        SendResult<String, DriverInformation> sendResult = kafkaTemplate.send(topic, driverInformation).get();
+        log.info("Message sent to Kafka topic {} successfully: {}", topic, sendResult.toString());
     }
 }

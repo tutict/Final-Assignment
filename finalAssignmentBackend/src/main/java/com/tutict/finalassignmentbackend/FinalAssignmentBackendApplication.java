@@ -4,9 +4,11 @@ import io.vertx.core.Vertx;
 import jakarta.annotation.PostConstruct;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.DependsOn;
 
 // 使用Spring Boot应用程序注解
 @SpringBootApplication
+@DependsOn("shellScriptConfig")
 // FinalAssignmentBackendApplication类负责部署Vert.x实例
 public class FinalAssignmentBackendApplication {
 

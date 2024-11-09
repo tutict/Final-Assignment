@@ -16,7 +16,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Date;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 @Service
 public class OperationLogService {
@@ -41,28 +40,16 @@ public class OperationLogService {
      * @param operationLog 待创建的操作日志对象
      */
     @Transactional
-    @CacheEvict(value = "operationCache", allEntries = true, key = "#operationLog.logId")
+    @CacheEvict(value = "operationCache", key = "#operationLog.logId")
     public void createOperationLog(OperationLog operationLog) {
         try {
-            // 异步发送消息到 Kafka，并处理发送结果
-            CompletableFuture<SendResult<String, OperationLog>> future = kafkaTemplate.send("operation_create", operationLog);
-
-            // 处理发送成功的情况
-            future.thenAccept(sendResult -> log.info("Create message sent to Kafka successfully: {}", sendResult.toString())).exceptionally(ex -> {
-                // 处理发送失败的情况
-                log.error("Failed to send message to Kafka, triggering transaction rollback", ex);
-                // 抛出异常
-                throw new RuntimeException("Kafka message send failure", ex);
-            });
-
-            // 由于是异步发送，不需要等待发送完成，Spring事务管理器将处理事务
+            // 同步发送 Kafka 消息
+            sendKafkaMessage("operation_create", operationLog);
+            // 数据库插入
             operationLogMapper.insert(operationLog);
-
         } catch (Exception e) {
-            // 记录异常信息
-            log.error("Exception occurred while updating appeal or sending Kafka message", e);
-            // 异常将由Spring事务管理器处理，可能触发事务回滚
-            throw e;
+            log.error("Exception occurred while creating operation log or sending Kafka message", e);
+            throw new RuntimeException("Failed to create operation log", e);
         }
     }
 
@@ -80,7 +67,7 @@ public class OperationLogService {
      * 获取所有操作日志
      * @return 包含所有操作日志的列表
      */
-    @Cacheable(value = "operationCache")
+    @Cacheable(value = "operationCache", key = "'allOperationLogs'")
     public List<OperationLog> getAllOperationLogs() {
         return operationLogMapper.selectList(null);
     }
@@ -93,25 +80,13 @@ public class OperationLogService {
     @CachePut(value = "operationCache", key = "#operationLog.logId")
     public void updateOperationLog(OperationLog operationLog) {
         try {
-            // 异步发送消息到 Kafka，并处理发送结果
-            CompletableFuture<SendResult<String, OperationLog>> future = kafkaTemplate.send("operation_update", operationLog);
-
-            // 处理发送成功的情况
-            future.thenAccept(sendResult -> log.info("Update message sent to Kafka successfully: {}", sendResult.toString())).exceptionally(ex -> {
-                // 处理发送失败的情况
-                log.error("Failed to send message to Kafka, triggering transaction rollback", ex);
-                // 抛出异常
-                throw new RuntimeException("Kafka message send failure", ex);
-            });
-
-            // 由于是异步发送，不需要等待发送完成，Spring事务管理器将处理事务
+            // 同步发送 Kafka 消息
+            sendKafkaMessage("operation_update", operationLog);
+            // 更新数据库记录
             operationLogMapper.updateById(operationLog);
-
         } catch (Exception e) {
-            // 记录异常信息
-            log.error("Exception occurred while updating appeal or sending Kafka message", e);
-            // 异常将由Spring事务管理器处理，可能触发事务回滚
-            throw e;
+            log.error("Exception occurred while updating operation log or sending Kafka message", e);
+            throw new RuntimeException("Failed to update operation log", e);
         }
     }
 
@@ -119,13 +94,19 @@ public class OperationLogService {
      * 根据日志ID删除操作日志
      * @param logId 操作日志的ID
      */
+    @Transactional
     @CacheEvict(value = "operationCache", key = "#logId")
     public void deleteOperationLog(int logId) {
         try {
-            operationLogMapper.deleteById(logId);
+            int result = operationLogMapper.deleteById(logId);
+            if (result > 0) {
+                log.info("Operation log with ID {} deleted successfully", logId);
+            } else {
+                log.error("Failed to delete operation log with ID {}", logId);
+            }
         } catch (Exception e) {
-            // 记录异常信息
             log.error("Exception occurred while deleting operation log", e);
+            throw new RuntimeException("Failed to delete operation log", e);
         }
     }
 
@@ -136,7 +117,7 @@ public class OperationLogService {
      * @return 在指定时间范围内的操作日志列表
      * @throws IllegalArgumentException 如果时间范围无效
      */
-    @Cacheable(value = "operationCache", key = "#startTime + '-' + #endTime")
+    @Cacheable(value = "operationCache", key = "#root.methodName + '_' + #startTime + '-' + #endTime")
     public List<OperationLog> getOperationLogsByTimeRange(Date startTime, Date endTime) {
         if (startTime == null || endTime == null || startTime.after(endTime)) {
             throw new IllegalArgumentException("Invalid time range");
@@ -152,7 +133,7 @@ public class OperationLogService {
      * @return 对应用户ID的操作日志列表
      * @throws IllegalArgumentException 如果用户ID无效
      */
-    @Cacheable(value = "operationCache", key = "#userId")
+    @Cacheable(value = "operationCache", key = "#root.methodName + '_' + #userId")
     public List<OperationLog> getOperationLogsByUserId(String userId) {
         if (userId == null || userId.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid userId");
@@ -168,7 +149,7 @@ public class OperationLogService {
      * @return 对应操作结果的操作日志列表
      * @throws IllegalArgumentException 如果操作结果无效
      */
-    @Cacheable(value = "operationCache", key = "#operationResult")
+    @Cacheable(value = "operationCache", key = "#root.methodName + '_' + #operationResult")
     public List<OperationLog> getOperationLogsByResult(String operationResult) {
         if (operationResult == null || operationResult.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid operation result");
@@ -176,5 +157,11 @@ public class OperationLogService {
         QueryWrapper<OperationLog> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("operation_result", operationResult);
         return operationLogMapper.selectList(queryWrapper);
+    }
+
+    // 发送 Kafka 消息的私有方法
+    private void sendKafkaMessage(String topic, OperationLog operationLog) throws Exception {
+        SendResult<String, OperationLog> sendResult = kafkaTemplate.send(topic, operationLog).get();
+        log.info("Message sent to Kafka topic {} successfully: {}", topic, sendResult.toString());
     }
 }

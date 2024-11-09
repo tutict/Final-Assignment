@@ -16,14 +16,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Date;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 @Service
 public class DeductionInformationService {
 
     // Logger用于记录日志信息
     private static final Logger log = LoggerFactory.getLogger(DeductionInformationService.class);
-
 
     // Mapper用于数据库操作
     private final DeductionInformationMapper deductionInformationMapper;
@@ -39,28 +37,16 @@ public class DeductionInformationService {
 
     // 创建扣款信息，使用@Transactional确保事务一致性
     @Transactional
-    @CacheEvict(value = "deductionCache", allEntries = true, key = "#deduction.deductionId")
+    @CacheEvict(value = "deductionCache", key = "#deduction.deductionId")
     public void createDeduction(DeductionInformation deduction) {
         try {
-            // 异步发送消息到 Kafka，并处理发送结果
-            CompletableFuture<SendResult<String, DeductionInformation>> future =  kafkaTemplate.send("deduction_create", deduction);
-
-            // 处理发送成功的情况
-            future.thenAccept(sendResult -> log.info("Create message sent to Kafka successfully: {}", sendResult.toString())).exceptionally(ex -> {
-                // 处理发送失败的情况
-                log.error("Failed to send message to Kafka, triggering transaction rollback", ex);
-                // 抛出异常
-                throw new RuntimeException("Kafka message send failure", ex);
-            });
-
-            // 由于是异步发送，不需要等待发送完成，Spring事务管理器将处理事务
+            // 同步发送 Kafka 消息
+            sendKafkaMessage("deduction_create", deduction);
+            // 数据库插入
             deductionInformationMapper.insert(deduction);
-
         } catch (Exception e) {
-            // 记录异常信息
-            log.error("Exception occurred while updating appeal or sending Kafka message", e);
-            // 异常将由Spring事务管理器处理，可能触发事务回滚
-            throw e;
+            log.error("Exception occurred while creating deduction or sending Kafka message", e);
+            throw new RuntimeException("Failed to create deduction", e);
         }
     }
 
@@ -82,7 +68,7 @@ public class DeductionInformationService {
      * 获取所有扣款信息
      * @return 扣款信息列表
      */
-    @Cacheable(value = "deductionCache")
+    @Cacheable(value = "deductionCache", key = "'allDeductions'")
     public List<DeductionInformation> getAllDeductions() {
         return deductionInformationMapper.selectList(null);
     }
@@ -92,25 +78,13 @@ public class DeductionInformationService {
     @CachePut(value = "deductionCache", key = "#deduction.deductionId")
     public void updateDeduction(DeductionInformation deduction) {
         try {
-            // 异步发送消息到 Kafka，并处理发送结果
-            CompletableFuture<SendResult<String, DeductionInformation>> future =kafkaTemplate.send("deduction_update", deduction);
-
-            // 处理发送成功的情况
-            future.thenAccept(sendResult -> log.info("Update message sent to Kafka successfully: {}", sendResult.toString())).exceptionally(ex -> {
-                // 处理发送失败的情况
-                log.error("Failed to send message to Kafka, triggering transaction rollback", ex);
-                // 抛出异常
-                throw new RuntimeException("Kafka message send failure", ex);
-            });
-
-            // 由于是异步发送，不需要等待发送完成，Spring事务管理器将处理事务
+            // 同步发送 Kafka 消息
+            sendKafkaMessage("deduction_update", deduction);
+            // 更新数据库记录
             deductionInformationMapper.updateById(deduction);
-
         } catch (Exception e) {
-            // 记录异常信息
-            log.error("Exception occurred while updating appeal or sending Kafka message", e);
-            // 异常将由Spring事务管理器处理，可能触发事务回滚
-            throw e;
+            log.error("Exception occurred while updating deduction or sending Kafka message", e);
+            throw new RuntimeException("Failed to update deduction", e);
         }
     }
 
@@ -118,12 +92,19 @@ public class DeductionInformationService {
      * 删除扣款信息
      * @param deductionId 扣款信息ID
      */
+    @Transactional
     @CacheEvict(value = "deductionCache", key = "#deductionId")
     public void deleteDeduction(int deductionId) {
         try {
-            deductionInformationMapper.deleteById(deductionId);
+            int result = deductionInformationMapper.deleteById(deductionId);
+            if (result > 0) {
+                log.info("Deduction with ID {} deleted successfully", deductionId);
+            } else {
+                log.error("Failed to delete deduction with ID {}", deductionId);
+            }
         } catch (Exception e) {
             log.error("Exception occurred while deleting deduction", e);
+            throw new RuntimeException("Failed to delete deduction", e);
         }
     }
 
@@ -133,7 +114,7 @@ public class DeductionInformationService {
      * @return 扣款信息列表
      * @throws IllegalArgumentException 如果处理人姓名为空或无效
      */
-    @Cacheable(value = "deductionCache", key = "#handler")
+    @Cacheable(value = "deductionCache", key = "#root.methodName + '_' + #handler")
     public List<DeductionInformation> getDeductionsByHandler(String handler) {
         if (handler == null || handler.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid handler");
@@ -150,7 +131,7 @@ public class DeductionInformationService {
      * @return 扣款信息列表
      * @throws IllegalArgumentException 如果时间范围无效
      */
-    @Cacheable(value = "deductionCache", key = "#startTime + '-' + #endTime")
+    @Cacheable(value = "deductionCache", key = "#root.methodName + '_' + #startTime + '-' + #endTime")
     public List<DeductionInformation> getDeductionsByByTimeRange(Date startTime, Date endTime) {
         if (startTime == null || endTime == null || startTime.after(endTime)) {
             throw new IllegalArgumentException("Invalid time range");
@@ -158,5 +139,11 @@ public class DeductionInformationService {
         QueryWrapper<DeductionInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.between("deductionTime", startTime, endTime);
         return deductionInformationMapper.selectList(queryWrapper);
+    }
+
+    // 发送 Kafka 消息的私有方法
+    private void sendKafkaMessage(String topic, DeductionInformation deduction) throws Exception {
+        SendResult<String, DeductionInformation> sendResult = kafkaTemplate.send(topic, deduction).get();
+        log.info("Message sent to Kafka topic {} successfully: {}", topic, sendResult.toString());
     }
 }

@@ -17,7 +17,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 // 申诉管理服务类
 @Service
@@ -43,28 +42,16 @@ public class AppealManagementService {
 
     // 创建申诉记录
     @Transactional
-    @CacheEvict(value = "appealCache", allEntries = true, key = "#appeal.appealId")
+    @CacheEvict(value = "appealCache", key = "#appeal.appealId")
     public void createAppeal(AppealManagement appeal) {
         try {
-            // 异步发送消息到 Kafka，并处理发送结果
-            CompletableFuture<SendResult<String, AppealManagement>> future = kafkaTemplate.send("appeal_create", appeal);
-
-            // 处理发送成功的情况
-            future.thenAccept(sendResult -> log.info("Create message sent to Kafka successfully: {}", sendResult.toString())).exceptionally(ex -> {
-                // 处理发送失败的情况
-                log.error("Failed to send message to Kafka, triggering transaction rollback", ex);
-                // 抛出异常
-                throw new RuntimeException("Kafka message send failure", ex);
-            });
-
-            // 由于是异步发送，不需要等待发送完成，Spring事务管理器将处理事务
+            // 同步发送 Kafka 消息
+            sendKafkaMessage("appeal_create", appeal);
+            // 数据库插入
             appealManagementMapper.insert(appeal);
-
         } catch (Exception e) {
-            // 记录异常信息
-            log.error("Exception occurred while updating appeal or sending Kafka message", e);
-            // 异常将由Spring事务管理器处理，可能触发事务回滚
-            throw e;
+            log.error("Exception occurred while creating appeal or sending Kafka message", e);
+            throw new RuntimeException("Failed to create appeal", e);
         }
     }
 
@@ -82,7 +69,7 @@ public class AppealManagementService {
      * 获取所有申诉记录
      * @return 所有申诉记录列表
      */
-    @Cacheable(value = "appealCache")
+    @Cacheable(value = "appealCache", key = "'allAppeals'")
     public List<AppealManagement> getAllAppeals() {
         return appealManagementMapper.selectList(null);
     }
@@ -92,34 +79,22 @@ public class AppealManagementService {
     @CachePut(value = "appealCache", key = "#appeal.appealId")
     public void updateAppeal(AppealManagement appeal) {
         try {
-            // 异步发送消息到 Kafka，并处理发送结果
-            CompletableFuture<SendResult<String, AppealManagement>> future = kafkaTemplate.send("appeal_updated", appeal);
-
-            // 处理发送成功的情况
-            future.thenAccept(sendResult -> log.info("Update message sent to Kafka successfully: {}", sendResult.toString())).exceptionally(ex -> {
-                // 处理发送失败的情况
-                log.error("Failed to send message to Kafka, triggering transaction rollback", ex);
-                // 抛出异常
-                throw new RuntimeException("Kafka message send failure", ex);
-            });
-
-            // 由于是异步发送，不需要等待发送完成，Spring事务管理器将处理事务
+            // 同步发送 Kafka 消息
+            sendKafkaMessage("appeal_updated", appeal);
+            // 更新数据库记录
             appealManagementMapper.updateById(appeal);
-
         } catch (Exception e) {
-            // 记录异常信息
             log.error("Exception occurred while updating appeal or sending Kafka message", e);
-            // 异常将由Spring事务管理器处理，可能触发事务回滚
-            throw e;
+            throw new RuntimeException("Failed to update appeal", e);
         }
     }
-
 
     /**
      * 删除申诉记录
      * @param appealId 申诉ID
      */
-    @CacheEvict(value = "appealCache", allEntries = true, key = "#appealId")
+    @Transactional
+    @CacheEvict(value = "appealCache", key = "#appealId")
     public void deleteAppeal(Integer appealId) {
         try {
             AppealManagement appeal = appealManagementMapper.selectById(appealId);
@@ -136,16 +111,16 @@ public class AppealManagementService {
             }
         } catch (Exception e) {
             log.error("Exception occurred while deleting appeal", e);
+            throw new RuntimeException("Failed to delete appeal", e);
         }
     }
-
 
     /**
      * 根据申诉状态查询申诉信息
      * @param processStatus 申诉状态
      * @return 申诉信息列表
      */
-    @Cacheable(value = "appealCache", key = "#processStatus")
+    @Cacheable(value = "appealCache", key = "#root.methodName + '_' + #processStatus")
     public List<AppealManagement> getAppealsByProcessStatus(String processStatus) {
         QueryWrapper<AppealManagement> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("process_status", processStatus);
@@ -157,7 +132,7 @@ public class AppealManagementService {
      * @param appealName 申诉人姓名
      * @return 申诉信息列表
      */
-    @Cacheable(value = "appealCache", key = "#appealName")
+    @Cacheable(value = "appealCache", key = "#root.methodName + '_' + #appealName")
     public List<AppealManagement> getAppealsByAppealName(String appealName) {
         QueryWrapper<AppealManagement> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("appeal_name", appealName);
@@ -169,7 +144,7 @@ public class AppealManagementService {
      * @param appealId 申诉ID
      * @return 关联的违法行为信息
      */
-    @Cacheable(value = "appealCache", key = "#appealId")
+    @Cacheable(value = "appealCache", key = "#root.methodName + '_' + #appealId")
     public OffenseInformation getOffenseByAppealId(Integer appealId) {
         AppealManagement appeal = appealManagementMapper.selectById(appealId);
         if (appeal != null) {
@@ -178,5 +153,11 @@ public class AppealManagementService {
             log.warn("No appeal found with ID: {}", appealId);
             return null;
         }
+    }
+
+    // 发送 Kafka 消息的私有方法
+    private void sendKafkaMessage(String topic, AppealManagement appeal) throws Exception {
+        SendResult<String, AppealManagement> sendResult = kafkaTemplate.send(topic, appeal).get();
+        log.info("Message sent to Kafka topic {} successfully: {}", topic, sendResult.toString());
     }
 }

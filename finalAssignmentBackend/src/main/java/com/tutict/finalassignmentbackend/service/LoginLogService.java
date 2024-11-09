@@ -16,7 +16,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Date;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 @Service
 public class LoginLogService {
@@ -41,28 +40,16 @@ public class LoginLogService {
      * @param loginLog 登录日志对象，包含要插入数据库的日志信息
      */
     @Transactional
-    @CacheEvict(value = "loginCache", allEntries = true, key = "#loginLog.logId")
+    @CacheEvict(value = "loginCache", key = "#loginLog.logId")
     public void createLoginLog(LoginLog loginLog) {
         try {
-            // 异步发送消息到 Kafka，并处理发送结果
-            CompletableFuture<SendResult<String, LoginLog>> future = kafkaTemplate.send("login_create", loginLog);
-
-            // 处理发送成功的情况
-            future.thenAccept(sendResult -> log.info("Create message sent to Kafka successfully: {}", sendResult.toString())).exceptionally(ex -> {
-                // 处理发送失败的情况
-                log.error("Failed to send message to Kafka, triggering transaction rollback", ex);
-                // 抛出异常
-                throw new RuntimeException("Kafka message send failure", ex);
-            });
-
-            // 由于是异步发送，不需要等待发送完成，Spring事务管理器将处理事务
+            // 同步发送 Kafka 消息
+            sendKafkaMessage("login_create", loginLog);
+            // 数据库插入
             loginLogMapper.insert(loginLog);
-
         } catch (Exception e) {
-            // 记录异常信息
-            log.error("Exception occurred while updating appeal or sending Kafka message", e);
-            // 异常将由Spring事务管理器处理，可能触发事务回滚
-            throw e;
+            log.error("Exception occurred while creating login log or sending Kafka message", e);
+            throw new RuntimeException("Failed to create login log", e);
         }
     }
 
@@ -80,7 +67,7 @@ public class LoginLogService {
      * 获取所有登录日志
      * @return 返回登录日志列表
      */
-    @Cacheable(value = "loginCache")
+    @Cacheable(value = "loginCache", key = "'allLoginLogs'")
     public List<LoginLog> getAllLoginLogs() {
         return loginLogMapper.selectList(null);
     }
@@ -93,25 +80,13 @@ public class LoginLogService {
     @CachePut(value = "loginCache", key = "#loginLog.logId")
     public void updateLoginLog(LoginLog loginLog) {
         try {
-            // 异步发送消息到 Kafka，并处理发送结果
-            CompletableFuture<SendResult<String, LoginLog>> future = kafkaTemplate.send("login_update", loginLog);
-
-            // 处理发送成功的情况
-            future.thenAccept(sendResult -> log.info("Update message sent to Kafka successfully: {}", sendResult.toString())).exceptionally(ex -> {
-                // 处理发送失败的情况
-                log.error("Failed to send message to Kafka, triggering transaction rollback", ex);
-                // 抛出异常
-                throw new RuntimeException("Kafka message send failure", ex);
-            });
-
-            // 由于是异步发送，不需要等待发送完成，Spring事务管理器将处理事务
+            // 同步发送 Kafka 消息
+            sendKafkaMessage("login_update", loginLog);
+            // 更新数据库记录
             loginLogMapper.updateById(loginLog);
-
         } catch (Exception e) {
-            // 记录异常信息
-            log.error("Exception occurred while updating appeal or sending Kafka message", e);
-            // 异常将由Spring事务管理器处理，可能触发事务回滚
-            throw e;
+            log.error("Exception occurred while updating login log or sending Kafka message", e);
+            throw new RuntimeException("Failed to update login log", e);
         }
     }
 
@@ -119,13 +94,19 @@ public class LoginLogService {
      * 删除登录日志
      * @param logId 日志ID
      */
+    @Transactional
     @CacheEvict(value = "loginCache", key = "#logId")
     public void deleteLoginLog(int logId) {
         try {
-            loginLogMapper.deleteById(logId);
+            int result = loginLogMapper.deleteById(logId);
+            if (result > 0) {
+                log.info("Login log with ID {} deleted successfully", logId);
+            } else {
+                log.error("Failed to delete login log with ID {}", logId);
+            }
         } catch (Exception e) {
-            // 记录异常信息
             log.error("Exception occurred while deleting login log", e);
+            throw new RuntimeException("Failed to delete login log", e);
         }
     }
 
@@ -136,7 +117,7 @@ public class LoginLogService {
      * @return 返回在指定时间范围内的登录日志列表
      * @throws IllegalArgumentException 如果时间范围无效
      */
-    @Cacheable(value = "loginCache", key = "#startTime + '-' + #endTime")
+    @Cacheable(value = "loginCache", key = "#root.methodName + '_' + #startTime + '-' + #endTime")
     public List<LoginLog> getLoginLogsByTimeRange(Date startTime, Date endTime) {
         if (startTime == null || endTime == null || startTime.after(endTime)) {
             throw new IllegalArgumentException("Invalid time range");
@@ -152,7 +133,7 @@ public class LoginLogService {
      * @return 返回指定用户名的登录日志列表
      * @throws IllegalArgumentException 如果用户名为空或无效
      */
-    @Cacheable(value = "loginCache", key = "#username")
+    @Cacheable(value = "loginCache", key = "#root.methodName + '_' + #username")
     public List<LoginLog> getLoginLogsByUsername(String username) {
         if (username == null || username.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid username");
@@ -168,7 +149,7 @@ public class LoginLogService {
      * @return 返回指定登录结果的登录日志列表
      * @throws IllegalArgumentException 如果登录结果为空或无效
      */
-    @Cacheable(value = "loginCache", key = "#loginResult")
+    @Cacheable(value = "loginCache", key = "#root.methodName + '_' + #loginResult")
     public List<LoginLog> getLoginLogsByLoginResult(String loginResult) {
         if (loginResult == null || loginResult.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid login result");
@@ -176,5 +157,11 @@ public class LoginLogService {
         QueryWrapper<LoginLog> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("login_result", loginResult);
         return loginLogMapper.selectList(queryWrapper);
+    }
+
+    // 发送 Kafka 消息的私有方法
+    private void sendKafkaMessage(String topic, LoginLog loginLog) throws Exception {
+        SendResult<String, LoginLog> sendResult = kafkaTemplate.send(topic, loginLog).get();
+        log.info("Message sent to Kafka topic {} successfully: {}", topic, sendResult.toString());
     }
 }

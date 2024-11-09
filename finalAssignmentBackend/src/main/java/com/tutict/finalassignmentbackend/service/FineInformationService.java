@@ -14,7 +14,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Date;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 @Service
 public class FineInformationService {
@@ -39,28 +38,16 @@ public class FineInformationService {
      * @param fineInformation 罚款信息对象
      */
     @Transactional
-    @CacheEvict(value = "fineCache", allEntries = true, key = "#fineInformation.fineId")
+    @CacheEvict(value = "fineCache", key = "#fineInformation.fineId")
     public void createFine(FineInformation fineInformation) {
         try {
-            // 异步发送消息到 Kafka，并处理发送结果
-            CompletableFuture<SendResult<String, FineInformation>> future =kafkaTemplate.send("fine_create", fineInformation);
-
-            // 处理发送成功的情况
-            future.thenAccept(sendResult -> log.info("Create message sent to Kafka successfully: {}", sendResult.toString())).exceptionally(ex -> {
-                // 处理发送失败的情况
-                log.error("Failed to send message to Kafka, triggering transaction rollback", ex);
-                // 抛出异常
-                throw new RuntimeException("Kafka message send failure", ex);
-            });
-
-            // 由于是异步发送，不需要等待发送完成，Spring事务管理器将处理事务
+            // 同步发送 Kafka 消息
+            sendKafkaMessage("fine_create", fineInformation);
+            // 数据库插入
             fineInformationMapper.insert(fineInformation);
-
         } catch (Exception e) {
-            // 记录异常信息
-            log.error("Exception occurred while updating appeal or sending Kafka message", e);
-            // 异常将由Spring事务管理器处理，可能触发事务回滚
-            throw e;
+            log.error("Exception occurred while creating fine or sending Kafka message", e);
+            throw new RuntimeException("Failed to create fine", e);
         }
     }
 
@@ -82,7 +69,7 @@ public class FineInformationService {
      * 获取所有罚款信息
      * @return 罚款信息列表
      */
-    @Cacheable(value = "fineCache")
+    @Cacheable(value = "fineCache", key = "'allFines'")
     public List<FineInformation> getAllFines() {
         return fineInformationMapper.selectList(null);
     }
@@ -95,25 +82,13 @@ public class FineInformationService {
     @CachePut(value = "fineCache", key = "#fineInformation.fineId")
     public void updateFine(FineInformation fineInformation) {
         try {
-            // 异步发送消息到 Kafka，并处理发送结果
-            CompletableFuture<SendResult<String, FineInformation>> future =kafkaTemplate.send("fine_update", fineInformation);
-
-            // 处理发送成功的情况
-            future.thenAccept(sendResult -> log.info("Update message sent to Kafka successfully: {}", sendResult.toString())).exceptionally(ex -> {
-                // 处理发送失败的情况
-                log.error("Failed to send message to Kafka, triggering transaction rollback", ex);
-                // 抛出异常
-                throw new RuntimeException("Kafka message send failure", ex);
-            });
-
-            // 由于是异步发送，不需要等待发送完成，Spring事务管理器将处理事务
+            // 同步发送 Kafka 消息
+            sendKafkaMessage("fine_update", fineInformation);
+            // 更新数据库记录
             fineInformationMapper.updateById(fineInformation);
-
         } catch (Exception e) {
-            // 记录异常信息
-            log.error("Exception occurred while updating appeal or sending Kafka message", e);
-            // 异常将由Spring事务管理器处理，可能触发事务回滚
-            throw e;
+            log.error("Exception occurred while updating fine or sending Kafka message", e);
+            throw new RuntimeException("Failed to update fine", e);
         }
     }
 
@@ -121,13 +96,19 @@ public class FineInformationService {
      * 删除罚款信息
      * @param fineId 罚款ID
      */
+    @Transactional
     @CacheEvict(value = "fineCache", key = "#fineId")
     public void deleteFine(int fineId) {
         try {
-            fineInformationMapper.deleteById(fineId);
+            int result = fineInformationMapper.deleteById(fineId);
+            if (result > 0) {
+                log.info("Fine with ID {} deleted successfully", fineId);
+            } else {
+                log.error("Failed to delete fine with ID {}", fineId);
+            }
         } catch (Exception e) {
-            // 记录异常信息
             log.error("Exception occurred while deleting fine", e);
+            throw new RuntimeException("Failed to delete fine", e);
         }
     }
 
@@ -137,7 +118,7 @@ public class FineInformationService {
      * @return 罚款信息列表
      * @throws IllegalArgumentException 如果提供的付款人无效
      */
-    @Cacheable(value = "fineCache", key = "#payee")
+    @Cacheable(value = "fineCache", key = "#root.methodName + '_' + #payee")
     public List<FineInformation> getFinesByPayee(String payee) {
         if (payee == null || payee.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid payee");
@@ -154,7 +135,7 @@ public class FineInformationService {
      * @return 罚款信息列表
      * @throws IllegalArgumentException 如果提供的时间范围无效
      */
-    @Cacheable(value = "fineCache", key = "#startTime + '-' + #endTime")
+    @Cacheable(value = "fineCache", key = "#root.methodName + '_' + #startTime + '-' + #endTime")
     public List<FineInformation> getFinesByTimeRange(Date startTime, Date endTime) {
         if (startTime == null || endTime == null || startTime.after(endTime)) {
             throw new IllegalArgumentException("Invalid time range");
@@ -170,7 +151,7 @@ public class FineInformationService {
      * @return 罚款信息对象
      * @throws IllegalArgumentException 如果提供的收据编号无效
      */
-    @Cacheable(value = "fineCache", key = "#receiptNumber")
+    @Cacheable(value = "fineCache", key = "#root.methodName + '_' + #receiptNumber")
     public FineInformation getFineByReceiptNumber(String receiptNumber) {
         if (receiptNumber == null || receiptNumber.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid receipt number");
@@ -178,5 +159,11 @@ public class FineInformationService {
         QueryWrapper<FineInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("receiptNumber", receiptNumber);
         return fineInformationMapper.selectOne(queryWrapper);
+    }
+
+    // 发送 Kafka 消息的私有方法
+    private void sendKafkaMessage(String topic, FineInformation fineInformation) throws Exception {
+        SendResult<String, FineInformation> sendResult = kafkaTemplate.send(topic, fineInformation).get();
+        log.info("Message sent to Kafka topic {} successfully: {}", topic, sendResult.toString());
     }
 }

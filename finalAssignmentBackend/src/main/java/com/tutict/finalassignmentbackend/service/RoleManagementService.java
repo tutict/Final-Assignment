@@ -15,14 +15,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 @Service
 public class RoleManagementService {
 
     // 日志记录器
     private static final Logger log = LoggerFactory.getLogger(RoleManagementService.class);
-
 
     // RoleManagement的Mapper，用于数据库操作
     private final RoleManagementMapper roleManagementMapper;
@@ -41,28 +39,17 @@ public class RoleManagementService {
      * @param role 要创建的角色对象
      */
     @Transactional
-    @CacheEvict(cacheNames = "roleCache", allEntries = true, key = "#role.roleId")
+    @CacheEvict(cacheNames = "roleCache", key = "#role.roleId")
     public void createRole(RoleManagement role) {
         try {
-            // 异步发送创建角色消息到Kafka
-            CompletableFuture<SendResult<String, RoleManagement>> future = kafkaTemplate.send("role_create", role);
-
-            // 处理消息发送成功的情况
-            future.thenAccept(sendResult -> log.info("Create message sent to Kafka successfully: {}", sendResult.toString()))
-                    // 处理消息发送失败的情况
-                    .exceptionally(ex -> {
-                        log.error("Failed to send message to Kafka, triggering transaction rollback", ex);
-                        throw new RuntimeException("Kafka message send failure", ex);
-                    });
-
-            // 插入角色到数据库，Spring事务管理器管理整个过程
+            // 同步发送 Kafka 消息
+            sendKafkaMessage("role_create", role);
+            // 插入角色到数据库
             roleManagementMapper.insert(role);
-
         } catch (Exception e) {
             // 记录异常
-            log.error("Exception occurred while updating appeal or sending Kafka message", e);
-            // 抛出异常，可能触发事务回滚
-            throw e;
+            log.error("Exception occurred while creating role or sending Kafka message", e);
+            throw new RuntimeException("Failed to create role", e);
         }
     }
 
@@ -80,7 +67,7 @@ public class RoleManagementService {
      * 查询所有角色
      * @return 所有角色的列表
      */
-    @Cacheable(cacheNames = "roleCache")
+    @Cacheable(cacheNames = "roleCache", key = "'allRoles'")
     public List<RoleManagement> getAllRoles() {
         return roleManagementMapper.selectList(null);
     }
@@ -91,7 +78,7 @@ public class RoleManagementService {
      * @return 查询到的角色对象，如果没有找到则返回null
      * @throws IllegalArgumentException 如果角色名称为空或空字符串
      */
-    @Cacheable(cacheNames = "roleCache", key = "#roleName")
+    @Cacheable(cacheNames = "roleCache", key = "#root.methodName + '_' + #roleName")
     public RoleManagement getRoleByName(String roleName) {
         if (roleName == null || roleName.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid role name");
@@ -107,7 +94,7 @@ public class RoleManagementService {
      * @return 模糊查询到的角色列表
      * @throws IllegalArgumentException 如果角色名称为空或空字符串
      */
-    @Cacheable(cacheNames = "roleCache", key = "#roleName")
+    @Cacheable(cacheNames = "roleCache", key = "#root.methodName + '_' + #roleName")
     public List<RoleManagement> getRolesByNameLike(String roleName) {
         if (roleName == null || roleName.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid role name");
@@ -125,25 +112,14 @@ public class RoleManagementService {
     @CachePut(cacheNames = "roleCache", key = "#role.roleId")
     public void updateRole(RoleManagement role) {
         try {
-            // 异步发送更新角色消息到Kafka
-            CompletableFuture<SendResult<String, RoleManagement>> future = kafkaTemplate.send("role_update", role);
-
-            // 处理消息发送成功的情况
-            future.thenAccept(sendResult -> log.info("Update message sent to Kafka successfully: {}", sendResult.toString()))
-                    // 处理消息发送失败的情况
-                    .exceptionally(ex -> {
-                        log.error("Failed to send message to Kafka, triggering transaction rollback", ex);
-                        throw new RuntimeException("Kafka message send failure", ex);
-                    });
-
+            // 同步发送 Kafka 消息
+            sendKafkaMessage("role_update", role);
             // 更新数据库中的角色信息
             roleManagementMapper.updateById(role);
-
         } catch (Exception e) {
             // 记录异常
-            log.error("Exception occurred while updating appeal or sending Kafka message", e);
-            // 抛出异常，可能触发事务回滚
-            throw e;
+            log.error("Exception occurred while updating role or sending Kafka message", e);
+            throw new RuntimeException("Failed to update role", e);
         }
     }
 
@@ -151,16 +127,23 @@ public class RoleManagementService {
      * 删除角色
      * @param roleId 角色ID
      */
+    @Transactional
     @CacheEvict(cacheNames = "roleCache", key = "#roleId")
     public void deleteRole(int roleId) {
         try {
             RoleManagement roleToDelete = roleManagementMapper.selectById(roleId);
             if (roleToDelete != null) {
-                roleManagementMapper.deleteById(roleId);
+                int result = roleManagementMapper.deleteById(roleId);
+                if (result > 0) {
+                    log.info("Role with ID {} deleted successfully", roleId);
+                } else {
+                    log.error("Failed to delete role with ID {}", roleId);
+                }
             }
         } catch (Exception e) {
             // 记录异常信息
             log.error("Exception occurred while deleting role", e);
+            throw new RuntimeException("Failed to delete role", e);
         }
     }
 
@@ -169,6 +152,7 @@ public class RoleManagementService {
      * @param roleName 角色名称
      * @throws IllegalArgumentException 如果角色名称为空或空字符串
      */
+    @Transactional
     @CacheEvict(cacheNames = "roleCache", key = "#roleName")
     public void deleteRoleByName(String roleName) {
         if (roleName == null || roleName.trim().isEmpty()) {
@@ -178,7 +162,18 @@ public class RoleManagementService {
         queryWrapper.eq("role_name", roleName);
         RoleManagement roleToDelete = roleManagementMapper.selectOne(queryWrapper);
         if (roleToDelete != null) {
-            roleManagementMapper.delete(queryWrapper);
+            int result = roleManagementMapper.delete(queryWrapper);
+            if (result > 0) {
+                log.info("Role with name '{}' deleted successfully", roleName);
+            } else {
+                log.error("Failed to delete role with name '{}'", roleName);
+            }
         }
+    }
+
+    // 发送 Kafka 消息的私有方法
+    private void sendKafkaMessage(String topic, RoleManagement role) throws Exception {
+        SendResult<String, RoleManagement> sendResult = kafkaTemplate.send(topic, role).get();
+        log.info("Message sent to Kafka topic {} successfully: {}", topic, sendResult.toString());
     }
 }

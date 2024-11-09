@@ -15,7 +15,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 @Service
 public class VehicleInformationService {
@@ -37,28 +36,17 @@ public class VehicleInformationService {
 
     // 创建车辆信息
     @Transactional
-    @CacheEvict(cacheNames = "vehicleCache", allEntries = true, key = "#vehicleInformation.vehicleId")
+    @CacheEvict(cacheNames = "vehicleCache", key = "#vehicleInformation.vehicleId")
     public void createVehicleInformation(VehicleInformation vehicleInformation) {
         try {
-            // 异步发送消息到 Kafka，并处理发送结果
-            CompletableFuture<SendResult<String, VehicleInformation>> future = kafkaTemplate.send("vehicle_create", vehicleInformation);
-
-            // 处理发送成功的情况
-            future.thenAccept(sendResult -> log.info("Create message sent to Kafka successfully: {}", sendResult.toString())).exceptionally(ex -> {
-                // 处理发送失败的情况
-                log.error("Failed to send message to Kafka, triggering transaction rollback", ex);
-                // 抛出异常
-                throw new RuntimeException("Kafka message send failure", ex);
-            });
-
-            // 由于是异步发送，不需要等待发送完成，Spring事务管理器将处理事务
+            // 同步发送 Kafka 消息
+            sendKafkaMessage("vehicle_create", vehicleInformation);
+            // 插入车辆信息到数据库
             vehicleInformationMapper.insert(vehicleInformation);
-
         } catch (Exception e) {
             // 记录异常信息
-            log.error("Exception occurred while updating appeal or sending Kafka message", e);
-            // 异常将由Spring事务管理器处理，可能触发事务回滚
-            throw e;
+            log.error("Exception occurred while creating vehicle information or sending Kafka message", e);
+            throw new RuntimeException("Failed to create vehicle information", e);
         }
     }
 
@@ -72,20 +60,17 @@ public class VehicleInformationService {
      * 根据车牌号查询车辆信息
      * @param licensePlate 车牌号
      * @return 车辆信息对象
-     * @throws IllegalArgumentException 如果传入的参数为空或空字符串
      */
-    @Cacheable(cacheNames = "vehicleCache", key = "#licensePlate")
+    @Cacheable(cacheNames = "vehicleCache", key = "#root.methodName + '_' + #licensePlate")
     public VehicleInformation getVehicleInformationByLicensePlate(String licensePlate) {
-        if (licensePlate == null || licensePlate.trim().isEmpty()) {
-            throw new IllegalArgumentException("Invalid license plate number");
-        }
+        validateInput(licensePlate, "Invalid license plate number");
         QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("license_plate", licensePlate);
         return vehicleInformationMapper.selectOne(queryWrapper);
     }
 
     // 查询所有车辆信息
-    @Cacheable(cacheNames = "vehicleCache")
+    @Cacheable(cacheNames = "vehicleCache", key = "'allVehicles'")
     public List<VehicleInformation> getAllVehicleInformation() {
         return vehicleInformationMapper.selectList(null);
     }
@@ -94,13 +79,10 @@ public class VehicleInformationService {
      * 根据车辆类型查询车辆信息
      * @param vehicleType 车辆类型
      * @return 车辆信息对象列表
-     * @throws IllegalArgumentException 如果传入的参数为空或空字符串
      */
-    @Cacheable(cacheNames = "vehicleCache", key = "#vehicleType")
+    @Cacheable(cacheNames = "vehicleCache", key = "#root.methodName + '_' + #vehicleType")
     public List<VehicleInformation> getVehicleInformationByType(String vehicleType) {
-        if (vehicleType == null || vehicleType.trim().isEmpty()) {
-            throw new IllegalArgumentException("Invalid vehicle type");
-        }
+        validateInput(vehicleType, "Invalid vehicle type");
         QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("vehicle_type", vehicleType);
         return vehicleInformationMapper.selectList(queryWrapper);
@@ -110,31 +92,12 @@ public class VehicleInformationService {
      * 根据车主姓名查询车辆信息
      * @param ownerName 车主姓名
      * @return 车辆信息对象列表
-     * @throws IllegalArgumentException 如果传入的参数为空或空字符串
      */
-    @Cacheable(cacheNames = "vehicleCache", key = "#ownerName")
+    @Cacheable(cacheNames = "vehicleCache", key = "#root.methodName + '_' + #ownerName")
     public List<VehicleInformation> getVehicleInformationByOwnerName(String ownerName) {
-        if (ownerName == null || ownerName.trim().isEmpty()) {
-            throw new IllegalArgumentException("Invalid owner name");
-        }
+        validateInput(ownerName, "Invalid owner name");
         QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("owner_name", ownerName);
-        return vehicleInformationMapper.selectList(queryWrapper);
-    }
-
-    /**
-     * 根据车辆状态查询车辆信息
-     * @param currentStatus 车辆状态
-     * @return 车辆信息对象列表
-     * @throws IllegalArgumentException 如果传入的参数为空或空字符串
-     */
-    @Cacheable(cacheNames = "vehicleCache", key = "#currentStatus")
-    public List<VehicleInformation> getVehicleInformationByStatus(String currentStatus) {
-        if (currentStatus == null || currentStatus.trim().isEmpty()) {
-            throw new IllegalArgumentException("Invalid current status");
-        }
-        QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("current_status", currentStatus);
         return vehicleInformationMapper.selectList(queryWrapper);
     }
 
@@ -143,25 +106,14 @@ public class VehicleInformationService {
     @CachePut(cacheNames = "vehicleCache", key = "#vehicleInformation.vehicleId")
     public void updateVehicleInformation(VehicleInformation vehicleInformation) {
         try {
-            // 异步发送消息到 Kafka，并处理发送结果
-            CompletableFuture<SendResult<String, VehicleInformation>> future = kafkaTemplate.send("vehicle_update", vehicleInformation);
-
-            // 处理发送成功的情况
-            future.thenAccept(sendResult -> log.info("Update message sent to Kafka successfully: {}", sendResult.toString())).exceptionally(ex -> {
-                // 处理发送失败的情况
-                log.error("Failed to send message to Kafka, triggering transaction rollback", ex);
-                // 抛出异常
-                throw new RuntimeException("Kafka message send failure", ex);
-            });
-
-            // 由于是异步发送，不需要等待发送完成，Spring事务管理器将处理事务
+            // 同步发送 Kafka 消息
+            sendKafkaMessage("vehicle_update", vehicleInformation);
+            // 更新数据库中的车辆信息
             vehicleInformationMapper.updateById(vehicleInformation);
-
         } catch (Exception e) {
-            // 记录异常信息
-            log.error("Exception occurred while updating appeal or sending Kafka message", e);
-            // 异常将由Spring事务管理器处理，可能触发事务回滚
-            throw e;
+            // 记录异常
+            log.error("Exception occurred while updating vehicle information or sending Kafka message", e);
+            throw new RuntimeException("Failed to update vehicle information", e);
         }
     }
 
@@ -169,41 +121,44 @@ public class VehicleInformationService {
      * 删除车辆信息
      * @param vehicleId 车辆ID
      */
+    @Transactional
     @CacheEvict(cacheNames = "vehicleCache", key = "#vehicleId")
     public void deleteVehicleInformation(int vehicleId) {
         try {
-            vehicleInformationMapper.deleteById(vehicleId);
+            VehicleInformation vehicleToDelete = vehicleInformationMapper.selectById(vehicleId);
+            if (vehicleToDelete != null) {
+                vehicleInformationMapper.deleteById(vehicleId);
+            }
         } catch (Exception e) {
+            // 记录异常信息
             log.error("Exception occurred while deleting vehicle information", e);
+            throw new RuntimeException("Failed to delete vehicle information", e);
         }
-    }
-
-    /**
-     * 根据车牌号删除车辆信息
-     * @param licensePlate 车牌号
-     * @throws IllegalArgumentException 如果传入的参数为空或空字符串
-     */
-    @CacheEvict(cacheNames = "vehicleCache", key = "#licensePlate")
-    public void deleteVehicleInformationByLicensePlate(String licensePlate) {
-        if (licensePlate == null || licensePlate.trim().isEmpty()) {
-            throw new IllegalArgumentException("Invalid license plate number");
-        }
-        QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("license_plate", licensePlate);
-        vehicleInformationMapper.delete(queryWrapper);
     }
 
     /**
      * 检查车牌号是否存在
      * @param licensePlate 车牌号
      * @return true 如果存在，false 如果不存在
-     * @throws IllegalArgumentException 如果传入的参数为空或空字符串
      */
-    @Cacheable(cacheNames = "vehicleCache", key = "#licensePlate")
+    @Cacheable(cacheNames = "vehicleCache", key = "#root.methodName + '_' + #licensePlate")
     public boolean isLicensePlateExists(String licensePlate) {
+        validateInput(licensePlate, "Invalid license plate number");
         QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("license_plate", licensePlate);
         return vehicleInformationMapper.selectCount(queryWrapper) > 0;
     }
 
+    // 发送 Kafka 消息的私有方法
+    private void sendKafkaMessage(String topic, VehicleInformation vehicleInformation) throws Exception {
+        SendResult<String, VehicleInformation> sendResult = kafkaTemplate.send(topic, vehicleInformation).get();
+        log.info("Message sent to Kafka topic {} successfully: {}", topic, sendResult.toString());
+    }
+
+    // 校验输入数据的私有方法
+    private void validateInput(String input, String errorMessage) {
+        if (input == null || input.trim().isEmpty()) {
+            throw new IllegalArgumentException(errorMessage);
+        }
+    }
 }
