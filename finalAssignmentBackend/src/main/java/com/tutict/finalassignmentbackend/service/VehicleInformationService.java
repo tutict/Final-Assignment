@@ -133,6 +133,7 @@ public class VehicleInformationService {
             // 记录异常信息
             log.error("Exception occurred while deleting vehicle information", e);
             throw new RuntimeException("Failed to delete vehicle information", e);
+
         }
     }
 
@@ -149,6 +150,37 @@ public class VehicleInformationService {
         return vehicleInformationMapper.selectCount(queryWrapper) > 0;
     }
 
+    /**
+     * 根据车辆状态查询车辆信息
+     * @param currentStatus 车辆状态
+     * @return 车辆信息对象列表
+     * @throws IllegalArgumentException 如果传入的参数为空或空字符串
+     */
+    @Cacheable(cacheNames = "vehicleCache", key = "#currentStatus")
+    public List<VehicleInformation> getVehicleInformationByStatus(String currentStatus) {
+        if (currentStatus == null || currentStatus.trim().isEmpty()) {
+            throw new IllegalArgumentException("Invalid current status");
+        }
+        QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("current_status", currentStatus);
+        return vehicleInformationMapper.selectList(queryWrapper);
+    }
+
+    /**
+     * 根据车牌号删除车辆信息
+     * @param licensePlate 车牌号
+     * @throws IllegalArgumentException 如果传入的参数为空或空字符串
+     */
+    @Transactional
+    @CacheEvict(cacheNames = "vehicleCache", key = "#licensePlate")
+    public void deleteVehicleInformationByLicensePlate(String licensePlate) {
+        if (licensePlate == null || licensePlate.trim().isEmpty()) {
+            throw new IllegalArgumentException("Invalid license plate number");
+        }
+        QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("license_plate", licensePlate);
+        vehicleInformationMapper.delete(queryWrapper);
+    }
     // 发送 Kafka 消息的私有方法
     private void sendKafkaMessage(String topic, VehicleInformation vehicleInformation) throws Exception {
         SendResult<String, VehicleInformation> sendResult = kafkaTemplate.send(topic, vehicleInformation).get();
