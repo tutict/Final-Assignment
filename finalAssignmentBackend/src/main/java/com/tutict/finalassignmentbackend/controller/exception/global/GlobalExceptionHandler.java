@@ -40,7 +40,10 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<String> handleMethodArgumentNotValidException(MethodArgumentNotValidException ex) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("请求参数验证失败: " + ex.getBindingResult().toString());
+        if (ex.getBindingResult() != null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("请求参数验证失败: " + ex.getBindingResult().toString());
+        }
+        return null;
     }
 
     @ExceptionHandler(Exception.class)
