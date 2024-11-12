@@ -7,6 +7,7 @@ import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Promise;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpMethod;
+import io.vertx.core.http.HttpServerOptions;
 import io.vertx.ext.bridge.PermittedOptions;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.handler.CorsHandler;
@@ -18,7 +19,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
-
 import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 import java.util.Set;
@@ -55,12 +55,11 @@ public class WebSocketServer extends AbstractVerticle {
 
         // 设置跨域处理器
         Set<String> allowedHeaders = new HashSet<>();
-        allowedHeaders.add("x-requested-with");
-        allowedHeaders.add("Access-Control-Allow-Origin");
-        allowedHeaders.add("origin");
-        allowedHeaders.add("Content-Type");
-        allowedHeaders.add("accept");
-        allowedHeaders.add("X-PINGARUNER");
+        allowedHeaders.add("Authorization");
+        allowedHeaders.add("X-Requested-With");
+        allowedHeaders.add("Sec-WebSocket-Key");
+        allowedHeaders.add("Sec-WebSocket-Version");
+        allowedHeaders.add("Sec-WebSocket-Protocol");
 
         Set<HttpMethod> allowedMethods = new HashSet<>();
         allowedMethods.add(HttpMethod.GET);
@@ -71,7 +70,7 @@ public class WebSocketServer extends AbstractVerticle {
         allowedMethods.add(HttpMethod.PUT);
 
         // 添加跨域处理器到路由器
-        router.route().handler(CorsHandler.create().addOrigin("http:\\\\/\\\\/localhost:8082")
+        router.route().handler(CorsHandler.create().addOrigin("http://localhost:8082")
                 .allowedHeaders(allowedHeaders)
                 .allowedMethods(allowedMethods));
 
@@ -91,7 +90,11 @@ public class WebSocketServer extends AbstractVerticle {
         sockJSHandler.bridge(bridgeOptions);
 
         // 创建HTTP服务器，配置请求处理器和WebSocket处理器
-        vertx.createHttpServer()
+        HttpServerOptions options = new HttpServerOptions()
+                .setMaxWebSocketFrameSize(1000000)
+                .setTcpKeepAlive(true);
+
+        vertx.createHttpServer(options)
                 .requestHandler(router)
                 .webSocketHandler(ws -> {
                     // 提取并验证JWT令牌
@@ -100,11 +103,20 @@ public class WebSocketServer extends AbstractVerticle {
                         String jwtToken = token.substring(7);
                         if (validateToken(jwtToken)) {
                             // 处理WebSocket消息
-                            ws.handler(buffer -> vertx.eventBus().publish("chat.to.server", buffer));
+                            ws.handler(buffer -> {
+                                try {
+                                    vertx.eventBus().publish("chat.to.server", buffer);
+                                } catch (Exception e) {
+                                    log.error("Failed to handle WebSocket message: {}", e.getMessage());
+                                    ws.reject();
+                                }
+                            });
                         } else {
+                            log.warn("Invalid token received, rejecting WebSocket connection");
                             ws.reject();
                         }
                     } else {
+                        log.warn("Authorization header missing or does not start with Bearer, rejecting WebSocket connection");
                         ws.reject();
                     }
                 })

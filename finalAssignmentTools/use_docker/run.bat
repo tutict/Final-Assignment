@@ -56,29 +56,11 @@ IF NOT EXIST "%LOG_DIR%" (
 
 REM 启动 Kafka 容器（KRaft 模式）
 echo 启动 Kafka 容器（KRaft 模式）...
-docker run -d --name kafka -p 9092:9092 -p 9093:9093 ^
-    -e KAFKA_NODE_ID=1 ^
-    -e KAFKA_PROCESS_ROLES="broker,controller" ^
-    -e KAFKA_CONTROLLER_QUORUM_VOTERS="1@localhost:9093" ^
-    -e KAFKA_LISTENERS="PLAINTEXT://:9092,CONTROLLER://:9093" ^
-    -e KAFKA_LISTENER_SECURITY_PROTOCOL_MAP="PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT" ^
-    -e KAFKA_INTER_BROKER_LISTENER_NAME="PLAINTEXT" ^
-    -e KAFKA_CONTROLLER_LISTENER_NAMES="CONTROLLER" ^
-    -e KAFKA_LOG_DIRS="/var/lib/kraft-combined-logs" ^
-    -v "%LOG_DIR%":/var/lib/kraft-combined-logs ^
-    %KAFKA_IMAGE%
+docker run -d --name kafka -p 9092:9092 %KAFKA_IMAGE%
 
 echo Kafka 和 Redis 容器已启动。
 echo 按 Ctrl+C 停止容器...
 
-REM 等待用户按下 Ctrl+C
-:wait
-timeout /t 5 >nul
-IF ERRORLEVEL 1 (
-    goto cleanup
-) ELSE (
-    goto wait
-)
 
 :end
 exit /b 0
