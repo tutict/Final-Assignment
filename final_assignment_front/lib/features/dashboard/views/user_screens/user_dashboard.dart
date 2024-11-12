@@ -1,5 +1,6 @@
 import 'dart:ui';
 
+import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/components/user_header.dart';
@@ -84,13 +85,7 @@ class UserDashboard extends GetView<UserDashboardController> {
       height: double.infinity,
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha((0.2 * 255).toInt()),
-            offset: const Offset(4, 0),
-            blurRadius: 8,
-          ),
-        ],
+        boxShadow: kBoxShadows, // 使用全局阴影效果
       ),
       child: ResponsiveBuilder.isDesktop(context)
           ? Padding(
@@ -128,15 +123,8 @@ class UserDashboard extends GetView<UserDashboardController> {
                       padding: const EdgeInsets.all(kSpacing),
                       child: Container(
                           decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(18),
-                            boxShadow: [
-                              BoxShadow(
-                                color:
-                                    Colors.black.withAlpha((0.2 * 255).toInt()),
-                                offset: const Offset(4, 4),
-                                blurRadius: 8,
-                              ),
-                            ],
+                            borderRadius: BorderRadius.circular(kBorderRadius),
+                            boxShadow: kBoxShadows, // 使用全局阴影效果
                           ),
                           child: Padding(
                             padding: const EdgeInsets.all(8.0),
@@ -250,7 +238,9 @@ class UserDashboard extends GetView<UserDashboardController> {
             ),
           const Expanded(child: UserHeader()),
           IconButton(
-            onPressed: () {},
+            onPressed: () {
+              controller.navigateToPage(AppPages.aiChat);
+            },
             icon: const Icon(Icons.chat_bubble_outline, color: Colors.white),
             tooltip: "Chat",
           ),
