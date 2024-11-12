@@ -10,6 +10,7 @@ part 'app_dialog.dart';
 // 导入处理SnackBar的文件
 part 'app_snackbar.dart';
 
+class UiUtils {}
 // 在本文件中，我们将专注于为某些小部件添加扩展方法
 // 例如，下面是一个为TextStyle类添加扩展方法的示例
 // 此扩展方法主要用于创建一个适用于输入表头的文本样式

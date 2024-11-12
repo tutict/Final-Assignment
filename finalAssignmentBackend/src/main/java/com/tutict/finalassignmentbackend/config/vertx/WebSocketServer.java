@@ -3,6 +3,7 @@ package com.tutict.finalassignmentbackend.config.vertx;
 import com.auth0.jwt.exceptions.JWTVerificationException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import io.jsonwebtoken.SignatureAlgorithm;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Promise;
 import io.vertx.core.buffer.Buffer;
@@ -20,6 +21,7 @@ import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -36,9 +38,9 @@ public class WebSocketServer extends AbstractVerticle {
     @Value("${server.port}")
     private int port;
 
-    // 注入JWT密钥配置
-    @Value("${jwt.secret-key}")
-    private String secretKey;
+    // 生成并注入JWT密钥
+    private final String secretKey = Base64.getEncoder()
+            .encodeToString(Keys.hmacShaKeyFor(SignatureAlgorithm.HS256.getJcaName().getBytes()).getEncoded());
 
     /**
      * 在Verticle启动时执行

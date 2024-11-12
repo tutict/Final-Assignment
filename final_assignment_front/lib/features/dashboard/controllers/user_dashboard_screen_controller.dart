@@ -1,29 +1,15 @@
-import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
 import 'package:final_assignment_front/features/dashboard/models/user_profile.dart';
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/chat/ai_chat.dart';
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/map/map.dart';
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/online_processing_progress.dart';
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal/account_and_security/account_and_security_main.dart';
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal/account_and_security/change_password.dart';
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal/account_and_security/delete_account.dart';
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal/account_and_security/information_statement.dart';
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal/account_and_security/migrate_account.dart';
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal/consultation_feedback.dart';
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal/personal_info/change_mobile_phone_number.dart';
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal/personal_info/personal_info.dart';
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal/personal_main.dart';
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal/setting/setting_main.dart';
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/scaner/main_scan.dart';
 import 'package:final_assignment_front/shared_components/case_card.dart';
 import 'package:final_assignment_front/shared_components/chatting_card.dart';
 import 'package:final_assignment_front/shared_components/project_card.dart';
 import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
+import 'package:final_assignment_front/utils/mixins/app_mixins.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:get/get.dart';
 
-class UserDashboardController extends GetxController {
+class UserDashboardController extends GetxController with NavigationMixin {
   final scaffoldKey = GlobalKey<ScaffoldState>();
   final caseCardDataList = <CaseCardData>[].obs;
   final selectedCaseType = CaseType.caseManagement.obs;
@@ -52,48 +38,13 @@ class UserDashboardController extends GetxController {
       caseCardDataList.where((task) => task.type == type).toList();
 
   void navigateToPage(String routeName) {
-    selectedPage.value = _getPageForRoute(routeName);
+    selectedPage.value = getPageForRoute(routeName);
     isShowingSidebarContent.value = true;  // 点击侧边栏时，显示侧边栏内容
   }
 
   void exitSidebarContent() {
     isShowingSidebarContent.value = false;  // 退出侧边栏内容时，恢复原来组件
     selectedPage.value = null;
-  }
-
-  Widget _getPageForRoute(String routeName) {
-    switch (routeName) {
-      case AppPages.onlineProcessingProgress:
-        return const OnlineProcessingProgress();
-      case AppPages.map:
-        return const MapScreen();
-      case AppPages.personalMain:
-        return const PersonalMainPage();
-      case AppPages.setting:
-        return const SettingPage();
-      case AppPages.aiChat:
-        return const AIChatPage();
-      case AppPages.accountAndSecurity:
-        return const AccountAndSecurityPage();
-      case AppPages.changePassword:
-        return const ChangePassword();
-      case AppPages.deleteAccount:
-        return const DeleteAccount();
-      case AppPages.informationStatement:
-        return const InformationStatementPage();
-      case AppPages.migrateAccount:
-        return const MigrateAccount();
-      case AppPages.changeMobilePhoneNumber:
-        return const ChangeMobilePhoneNumber();
-      case AppPages.personalInfo:
-        return const PersonalInformationPage();
-      case AppPages.consultation:
-        return const ConsultationFeedback();
-      case AppPages.mainScan:
-        return const MainScan();
-      default:
-        return const SizedBox.shrink();
-    }
   }
 
   Widget buildSelectedPageContent() {

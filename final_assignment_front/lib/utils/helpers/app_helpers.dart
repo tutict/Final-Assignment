@@ -7,3 +7,5 @@ part 'string_helper.dart';
 part 'type.dart';
 
 part 'extension.dart';
+
+class AppHelper {}

@@ -3,12 +3,39 @@ part of 'app_mixins.dart';
 /// 包含所有实例路由的方法。
 /// 该 mixin 提供了在应用内导航到不同屏幕或路由的方法。
 mixin NavigationMixin {
-  /// 示例方法：
-  // void goToDetailProduct(int id) {
-  //   Get.toNamed(Routes.product, parameters: {"id": "$id"});
-  // }
-  //
-  // 此示例方法展示了如何导航到产品详情页面。
-  // 使用GetX框架的Get.toNamed方法导航到命名路由（本例中为 'Routes.product'），
-  // 并将产品ID作为参数传递。
+  /// 根据路由名称返回对应的页面小部件。
+  Widget? getPageForRoute(String routeName) {
+    switch (routeName) {
+      case AppPages.onlineProcessingProgress:
+        return const OnlineProcessingProgress();
+      case AppPages.map:
+        return const MapScreen();
+      case AppPages.personalMain:
+        return const PersonalMainPage();
+      case AppPages.setting:
+        return const SettingPage();
+      case AppPages.aiChat:
+        return const AIChatPage();
+      case AppPages.accountAndSecurity:
+        return const AccountAndSecurityPage();
+      case AppPages.changePassword:
+        return const ChangePassword();
+      case AppPages.deleteAccount:
+        return const DeleteAccount();
+      case AppPages.informationStatement:
+        return const InformationStatementPage();
+      case AppPages.migrateAccount:
+        return const MigrateAccount();
+      case AppPages.changeMobilePhoneNumber:
+        return const ChangeMobilePhoneNumber();
+      case AppPages.personalInfo:
+        return const PersonalInformationPage();
+      case AppPages.consultation:
+        return const ConsultationFeedback();
+      case AppPages.mainScan:
+        return const MainScan();
+      default:
+        return const SizedBox.shrink();
+    }
+  }
 }
