@@ -196,7 +196,7 @@ class DashboardScreen extends GetView<DashboardController> {
   Widget _buildPremiumCard() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: kSpacing),
-      child: GetPremiumCard(onPressed: () {}),
+      child: PoliceCard(onPressed: () {}),
     );
   }
 

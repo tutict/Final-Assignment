@@ -3,13 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
 
-/// 一个表示获取高级会员卡片的 StatelessWidget。
-///
 /// 参数:
 /// - onPressed: 当用户点击卡片时的回调函数。
 /// - backgroundColor: 卡片的背景颜色，如果未提供，则使用主题的默认卡片颜色。
-class GetPremiumCard extends StatelessWidget {
-  const GetPremiumCard({
+class PoliceCard extends StatelessWidget {
+  const PoliceCard({
     required this.onPressed,
     this.backgroundColor,
     super.key,
