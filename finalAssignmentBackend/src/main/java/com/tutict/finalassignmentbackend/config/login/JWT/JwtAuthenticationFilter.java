@@ -1,19 +1,17 @@
 package com.tutict.finalassignmentbackend.config.login.JWT;
 
-import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
-@Component
-public class JwtAuthenticationFilter implements Filter {
+public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final TokenProvider tokenProvider;
 
@@ -21,55 +19,30 @@ public class JwtAuthenticationFilter implements Filter {
         this.tokenProvider = tokenProvider;
     }
 
-    /**
-     * 执行过滤操作
-     * 从请求中提取JWT令牌，验证令牌并设置认证信息
-     *
-     * @param request  请求对象
-     * @param response 响应对象
-     * @param chain    过滤器链
-     * @throws IOException      如果在读取或写入过程中发生I/O错误
-     * @throws ServletException 如果发生Servlet异常
-     */
     @Override
-    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
-        // 将ServletRequest转换为HttpServletRequest
-        HttpServletRequest httpRequest = (HttpServletRequest) request;
-        // 从请求中提取JWT令牌
-        String jwtToken = extractToken(httpRequest);
+    protected void doFilterInternal(@NotNull HttpServletRequest request,
+                                    @NotNull HttpServletResponse response,
+                                    @NotNull FilterChain filterChain) throws ServletException, IOException {
+        // 从Authorization头中提取令牌
+        String token = extractToken(request);
 
-        // 如果令牌存在且有效
-        if (jwtToken != null && tokenProvider.validateToken(jwtToken)) {
-            // 从令牌中获取用户名
-            String username = tokenProvider.getUsernameFromToken(jwtToken);
-
-            // 如果用户名存在且上下文中的认证信息为空
-            if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                // 创建认证对象并设置到上下文中
-                Authentication authentication = tokenProvider.getAuthentication(username);
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-            }
+        if (token != null && tokenProvider.validateToken(token)) {
+            // 在上下文中设置认证信息
+            Authentication authentication = tokenProvider.getAuthentication(token);
+            SecurityContextHolder.getContext().setAuthentication(authentication);
         }
 
-        // 继续执行过滤器链中的下一个过滤器
-        chain.doFilter(request, response);
+        // 继续过滤链
+        filterChain.doFilter(request, response);
     }
 
-    /**
-     * 从请求头中提取JWT令牌
-     *
-     * @param request HTTP请求对象
-     * @return 提取到的JWT令牌字符串，如果请求头不存在或不以"Bearer "开头，则返回null
-     */
     private String extractToken(HttpServletRequest request) {
-        // 获取请求头中的Authorization信息
+        // 获取Authorization头
         String authHeader = request.getHeader("Authorization");
-        // 如果请求头存在且以"Bearer "开头
+        // 验证头并提取令牌
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            // 返回令牌字符串，去除"Bearer "部分
             return authHeader.substring(7);
         }
-        // 不满足条件时返回null
         return null;
     }
 }

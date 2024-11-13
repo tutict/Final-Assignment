@@ -1,5 +1,6 @@
 package com.tutict.finalassignmentbackend.config.vertx;
 
+import com.tutict.finalassignmentbackend.config.login.JWT.TokenProvider;
 import io.vertx.core.Vertx;
 import io.vertx.core.VertxOptions;
 import org.springframework.context.annotation.Bean;
@@ -10,6 +11,12 @@ import org.springframework.context.annotation.Configuration;
  */
 @Configuration
 public class VertxConfig {
+
+    private final TokenProvider tokenProvider;
+
+    public VertxConfig(TokenProvider tokenProvider) {
+        this.tokenProvider = tokenProvider;
+    }
 
     /**
      * 创建并配置Vert.x实例
@@ -26,7 +33,7 @@ public class VertxConfig {
         Vertx vertx = Vertx.vertx(vertxOptions);
 
         // 部署WebSocket服务器Verticle，增加回调函数以处理部署成功和失败
-        vertx.deployVerticle(new WebSocketServer(), res -> {
+        vertx.deployVerticle(new WebSocketServer(tokenProvider), res -> {
             if (res.succeeded()) {
                 System.out.println("WebSocketServer deployed successfully: " + res.result());
             } else {

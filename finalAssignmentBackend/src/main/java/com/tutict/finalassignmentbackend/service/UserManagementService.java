@@ -103,7 +103,7 @@ public class UserManagementService {
     // 更新用户
     @Transactional
     @CachePut(cacheNames = "userCache", key = "#user.userId")
-    public void updateUser(UserManagement user) {
+    public UserManagement updateUser(UserManagement user) {
         try {
             // 同步发送 Kafka 消息
             sendKafkaMessage("user_update", user);
@@ -114,6 +114,7 @@ public class UserManagementService {
             log.error("Exception occurred while updating user or sending Kafka message", e);
             throw new RuntimeException("Failed to update user", e);
         }
+        return user;
     }
 
     /**
