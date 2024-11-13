@@ -6,10 +6,10 @@ class LocalCaptchaMain extends StatefulWidget {
   const LocalCaptchaMain({super.key});
 
   @override
-  LocalCaptchaMainState createState() => LocalCaptchaMainState();
+  State<LocalCaptchaMain> createState() => _LocalCaptchaMainState();
 }
 
-class LocalCaptchaMainState extends State<LocalCaptchaMain> {
+class _LocalCaptchaMainState extends State<LocalCaptchaMain> {
   static final _captchaFormKey = GlobalKey<FormState>();
   static final _localCaptchaController = LocalCaptchaController();
   static final _configFormData = ConfigFormData();

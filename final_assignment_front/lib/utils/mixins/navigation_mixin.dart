@@ -34,6 +34,8 @@ mixin NavigationMixin {
         return const ConsultationFeedback();
       case AppPages.mainScan:
         return const MainScan();
+      case AppPages.newsDetailScreen:
+        return const NewsDetailScreen();
       default:
         return const SizedBox.shrink();
     }

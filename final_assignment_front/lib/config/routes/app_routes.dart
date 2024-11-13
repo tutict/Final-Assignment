@@ -52,6 +52,9 @@ class Routes {
 
   /// 主扫描页面路由
   static const mainScan = _Paths.mainScan;
+
+  /// 新闻详情页面路由
+  static const newsDetailScreen = _Paths.newsDetailScreen;
 }
 
 /// 包含路由名称列表。
@@ -108,6 +111,8 @@ class _Paths {
   /// 主扫描路由
   static const mainScan = '/mainScan';
 
+  /// 新闻详情路由
+  static const newsDetailScreen = '/newsDetailScreen';
 // 示例：
 // static const index = '/';
 // static const splash = '/splash';

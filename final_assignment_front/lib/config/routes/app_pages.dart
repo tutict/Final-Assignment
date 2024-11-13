@@ -7,6 +7,7 @@ import 'package:final_assignment_front/features/dashboard/views/user_screens/use
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/chat/ai_chat.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/login_screen/login.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/map/map.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/news/news_detail_screen.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/online_processing_progress.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal/account_and_security/account_and_security_main.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal/account_and_security/change_password.dart';
@@ -80,6 +81,9 @@ class AppPages {
   // 扫描页面路由
   static const mainScan = Routes.mainScan;
 
+  /// 新闻详情页
+  static const newsDetailScreen = Routes.newsDetailScreen;
+
   // 配置应用中的所有页面路由
   static final routes = [
     GetPage(
@@ -151,6 +155,10 @@ class AppPages {
     GetPage(
       name: _Paths.mainScan,
       page: () => const MainScan(),
+    ),
+    GetPage(
+        name: _Paths.newsDetailScreen,
+        page: () => const NewsDetailScreen(),
     ),
   ];
 }
