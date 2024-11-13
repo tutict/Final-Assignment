@@ -17,7 +17,6 @@ class UserHeader extends StatelessWidget {
             decoration: BoxDecoration(
               border: Border.all(
                 color: Colors.grey, // Border color
-                width: 1.0, // Border width
               ),
               borderRadius:
                   BorderRadius.circular(8.0), // Optional: Rounded corners
