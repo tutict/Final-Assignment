@@ -45,11 +45,11 @@ public class TokenProvider {
                 .collect(Collectors.joining(","));
 
         return Jwts.builder()
-                .setSubject(authentication.getName())
+                .subject(authentication.getName())
                 .claim("authorities", authorities)
-                .setIssuedAt(new Date(now))
-                .setExpiration(validity)
-                .signWith(key, SignatureAlgorithm.HS512)
+                .issuedAt(new Date(now))
+                .expiration(validity)
+                .signWith(key)
                 .compact();
     }
 
