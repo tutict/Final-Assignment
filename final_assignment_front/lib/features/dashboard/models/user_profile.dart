@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+part of '../views/user_screens/user_dashboard.dart';
 
 /// 用户个人资料类
 ///

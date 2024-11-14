@@ -1,10 +1,11 @@
 package com.tutict.finalassignmentbackend.config.login.JWT;
 
-import io.jsonwebtoken.*;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -13,7 +14,11 @@ import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.security.Key;
-import java.util.*;
+import java.security.SecureRandom;
+import java.util.Arrays;
+import java.util.Base64;
+import java.util.Collection;
+import java.util.Date;
 import java.util.stream.Collectors;
 
 @Component
@@ -23,8 +28,7 @@ public class TokenProvider {
     private static final long JWT_TOKEN_VALIDITY = 24 * 60 * 60 * 1000;
 
     // Secret key for JWT
-    @Value("${jwt.secret-key}")
-    private String secretKeyBase64;
+    private final String secretKeyBase64 = Base64.getEncoder().encodeToString(new SecureRandom().generateSeed(32));
 
     private Key key;
 

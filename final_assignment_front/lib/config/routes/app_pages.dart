@@ -2,7 +2,7 @@
 library app_pages;
 
 // 导入各种页面相关的库和绑定
-import 'package:final_assignment_front/features/dashboard/views/screens/manager_dashboard_screen.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_dashboard_screen.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/chat/ai_chat.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/login_screen/login.dart';
@@ -20,8 +20,6 @@ import 'package:final_assignment_front/features/dashboard/views/user_screens/use
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/setting/setting_main.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/process_pages/online_processing_progress.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/scaner/main_scan.dart';
-import 'package:final_assignment_front/features/dashboard/bindings/user_dashboard_binding.dart';
-
 // 导入Get库，用于页面路由管理
 import 'package:get/get.dart';
 
@@ -157,8 +155,8 @@ class AppPages {
       page: () => const MainScan(),
     ),
     GetPage(
-        name: _Paths.newsDetailScreen,
-        page: () => const NewsDetailScreen(),
+      name: _Paths.newsDetailScreen,
+      page: () => const NewsDetailScreen(),
     ),
   ];
 }

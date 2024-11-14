@@ -1,4 +1,4 @@
-part of '../views/screens/manager_dashboard_screen.dart';
+part of '../views/manager_screens/manager_dashboard_screen.dart';
 
 class DashboardController extends GetxController {
   final scaffoldKey = GlobalKey<ScaffoldState>();

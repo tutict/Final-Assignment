@@ -1,4 +1,4 @@
-part of '../screens/manager_dashboard_screen.dart';
+part of '../manager_screens/manager_dashboard_screen.dart';
 
 class _TeamMember extends StatelessWidget {
   const _TeamMember({

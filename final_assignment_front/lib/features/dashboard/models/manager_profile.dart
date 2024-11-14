@@ -1,6 +1,6 @@
-// 预先定义的用户信息类，用于管理用户头像、姓名和邮箱
-part of '../views/screens/manager_dashboard_screen.dart';
+part of '../views/manager_screens/manager_dashboard_screen.dart';
 
+// 预先定义的用户信息类，用于管理用户头像、姓名和邮箱
 class _Profile {
   // 用户头像，类型为ImageProvider，以便在用户界面中显示
   final ImageProvider photo;

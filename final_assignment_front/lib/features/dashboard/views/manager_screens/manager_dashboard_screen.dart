@@ -1,4 +1,4 @@
-library dashboard;
+library manager_dashboard;
 
 import 'dart:developer';
 

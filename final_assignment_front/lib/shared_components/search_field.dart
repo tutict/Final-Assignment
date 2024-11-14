@@ -21,16 +21,16 @@ class SearchField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(8.0),
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: const [
+          borderRadius: BorderRadius.circular(32),
+          boxShadow: [
             BoxShadow(
-              color: Colors.black12,
-              offset: Offset(0, 4),
-              blurRadius: 8,
+              color: Colors.black.withAlpha((0.1 * 255).toInt()),
+              offset: const Offset(0, 6),
+              blurRadius: 12,
             ),
           ],
         ),
@@ -41,17 +41,19 @@ class SearchField extends StatelessWidget {
           decoration: InputDecoration(
             filled: true,
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(32),
               borderSide: BorderSide.none,
             ),
             prefixIcon: const Icon(
               EvaIcons.search,
               color: Colors.grey,
             ),
-            hintText: "搜索...",
-            hintStyle: TextStyle(color: Colors.grey.shade600),
+            hintText: "请输入...",
+            hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 16),
             isDense: true,
             fillColor: Colors.transparent,
+            contentPadding:
+            const EdgeInsets.symmetric(vertical: 14.0, horizontal: 20.0),
           ),
 
           /// 当用户完成编辑时，取消焦点并触发搜索回调
@@ -64,7 +66,8 @@ class SearchField extends StatelessWidget {
           /// 设置文本字段的样式，并使用系统中文字体
           style: const TextStyle(
             color: Colors.black87,
-            fontSize: 16,
+            fontSize: 18,
+            fontWeight: FontWeight.w500,
           ).useSystemChineseFont(),
         ),
       ),

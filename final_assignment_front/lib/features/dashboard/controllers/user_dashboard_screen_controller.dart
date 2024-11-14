@@ -1,13 +1,4 @@
-import 'package:final_assignment_front/constants/app_constants.dart';
-import 'package:final_assignment_front/features/dashboard/models/user_profile.dart';
-import 'package:final_assignment_front/shared_components/case_card.dart';
-import 'package:final_assignment_front/shared_components/chatting_card.dart';
-import 'package:final_assignment_front/shared_components/project_card.dart';
-import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
-import 'package:final_assignment_front/utils/mixins/app_mixins.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
-import 'package:get/get.dart';
+part of '../views/user_screens/user_dashboard.dart';
 
 class UserDashboardController extends GetxController with NavigationMixin {
   final scaffoldKey = GlobalKey<ScaffoldState>();

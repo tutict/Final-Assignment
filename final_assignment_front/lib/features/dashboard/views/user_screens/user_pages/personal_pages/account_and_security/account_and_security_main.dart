@@ -1,5 +1,5 @@
 import 'package:final_assignment_front/config/routes/app_pages.dart';
-import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
 

@@ -1,5 +1,4 @@
-import 'package:get/get.dart';
-import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
+part of '../views/user_screens/user_dashboard.dart';
 
 /// 用户仪表盘绑定类，用于管理用户仪表盘屏幕的控制器依赖。
 class UserDashboardBinding extends Bindings {

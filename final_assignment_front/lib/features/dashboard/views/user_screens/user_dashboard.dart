@@ -1,16 +1,37 @@
+library user_dashboard;
+
+import 'dart:developer';
 import 'dart:ui';
 
+import 'package:eva_icons_flutter/eva_icons_flutter.dart';
 import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
-import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
-import 'package:final_assignment_front/features/dashboard/views/components/user_header.dart';
-import 'package:final_assignment_front/features/dashboard/views/components/user_sidebar.dart';
+import 'package:final_assignment_front/shared_components/case_card.dart';
+import 'package:final_assignment_front/shared_components/chatting_card.dart';
+import 'package:final_assignment_front/shared_components/post_card.dart';
+import 'package:final_assignment_front/shared_components/project_card.dart';
 import 'package:final_assignment_front/shared_components/responsive_builder.dart';
+import 'package:final_assignment_front/shared_components/search_field.dart';
+import 'package:final_assignment_front/shared_components/selection_button.dart';
+import 'package:final_assignment_front/shared_components/today_text.dart';
 import 'package:final_assignment_front/shared_components/user_screen_swiper.dart';
 import 'package:final_assignment_front/shared_components/user_tools_card.dart';
+import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
+import 'package:final_assignment_front/utils/mixins/app_mixins.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:get/get.dart';
+
+part '../../bindings/user_dashboard_binding.dart';
+
+part '../../controllers/user_dashboard_screen_controller.dart';
+
+part '../components/user_header.dart';
+
+part '../components/user_sidebar.dart';
+
+part '../../models/user_profile.dart';
 
 /// 用户仪表板页面
 ///

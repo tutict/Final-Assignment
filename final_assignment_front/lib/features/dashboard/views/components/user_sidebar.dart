@@ -1,13 +1,4 @@
-import 'dart:developer';
-
-import 'package:eva_icons_flutter/eva_icons_flutter.dart';
-import 'package:final_assignment_front/config/routes/app_pages.dart';
-import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
-import 'package:final_assignment_front/shared_components/post_card.dart';
-import 'package:final_assignment_front/shared_components/project_card.dart';
-import 'package:final_assignment_front/shared_components/selection_button.dart';
-import 'package:flutter/material.dart';
-import 'package:get/get.dart';
+part of '../user_screens/user_dashboard.dart';
 
 class UserSidebar extends StatelessWidget {
   const UserSidebar({
