@@ -1,7 +1,8 @@
 import 'dart:convert';
+
 import 'package:final_assignment_front/utils/services/app_config.dart';
+import 'package:final_assignment_front/utils/services/local_storage_services.dart';
 import 'package:final_assignment_front/utils/services/message_provider.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:logging/logging.dart';
 import 'package:web_socket_channel/io.dart';
 import 'package:web_socket_channel/status.dart' as status;
@@ -14,7 +15,6 @@ class MessageModel {
   MessageModel({required this.action, required this.data});
 }
 
-
 /// 包含所有从服务器获取数据的服务。
 class RestApiServices {
   // RestApiServices 的单例实例。
@@ -25,15 +25,13 @@ class RestApiServices {
     return _restApiServices;
   }
 
-  // 私有构造函数，防止直接实例化。
+  // 私有构造函数，阻止直接实例化。
   RestApiServices._internal();
-
-  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
   // 日志记录器，用于记录操作信息
   final Logger logger = Logger('RestApiServices');
 
-  // WebSocket 通道，用于建立和维护 WebSocket 连接
+  // WebSocket 通道，用于建立和维持 WebSocket 连接
   late IOWebSocketChannel _channel;
 
   // MessageProvider 的引用
@@ -43,9 +41,9 @@ class RestApiServices {
   void initWebSocket(String endpoint, MessageProvider messageProvider) async {
     _messageProvider = messageProvider;
 
-    String? token = await getToken();
+    String? token = await LocalStorageServices().getToken();
     if (token == null) {
-      logger.warning('未找到 JWT 令牌，无法建立 WebSocket 连接');
+      logger.warning('JWT 令牌未找到，无法建立 WebSocket 连接');
       return;
     }
 
@@ -118,22 +116,5 @@ class RestApiServices {
     } catch (e) {
       logger.severe('处理消息时发生错误: $e');
     }
-  }
-
-  // 存储 JWT 令牌
-  Future<void> saveToken(String token) async {
-    await _secureStorage.write(key: 'jwt_token', value: token);
-    logger.info('JWT 令牌已保存');
-  }
-
-  // 获取 JWT 令牌
-  Future<String?> getToken() async {
-    return await _secureStorage.read(key: 'jwt_token');
-  }
-
-  // 删除 JWT 令牌
-  Future<void> deleteToken() async {
-    await _secureStorage.delete(key: 'jwt_token');
-    logger.info('JWT 令牌已删除');
   }
 }

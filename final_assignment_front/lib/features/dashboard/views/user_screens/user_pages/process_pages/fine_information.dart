@@ -1,9 +1,10 @@
 import 'dart:convert';
+
+import 'package:final_assignment_front/utils/services/app_config.dart';
 import 'package:final_assignment_front/utils/services/message_provider.dart';
+import 'package:final_assignment_front/utils/services/rest_api_services.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:final_assignment_front/utils/services/app_config.dart';
-import 'package:final_assignment_front/utils/services/rest_api_services.dart';
 
 class FineInformationPage extends StatefulWidget {
   const FineInformationPage({super.key});
@@ -12,7 +13,8 @@ class FineInformationPage extends StatefulWidget {
   State<FineInformationPage> createState() => _FineInformationPageState();
 }
 
-class _FineInformationPageState extends State<FineInformationPage> {
+class _FineInformationPageState extends State<FineInformationPage>
+    with SearchMixin, FineRecordListMixin {
   late RestApiServices restApiServices;
 
   @override
@@ -27,7 +29,9 @@ class _FineInformationPageState extends State<FineInformationPage> {
         AppConfig.fineInformationEndpoint, messageProvider);
 
     // 发送获取罚款信息的请求
-    restApiServices.sendMessage(jsonEncode({'action': 'getFineInfo'}));
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      restApiServices.sendMessage(jsonEncode({'action': 'getFineInfo'}));
+    });
   }
 
   @override
@@ -56,7 +60,7 @@ class _FineInformationPageState extends State<FineInformationPage> {
         child: Column(
           children: <Widget>[
             // 搜索区域
-            const SearchSection(),
+            buildSearchSection(restApiServices),
             const SizedBox(height: 16),
             // 罚款记录列表
             Expanded(
@@ -70,7 +74,7 @@ class _FineInformationPageState extends State<FineInformationPage> {
                         message.data['data']
                             .map((item) => FineRecord.fromJson(item)),
                       );
-                      return FineRecordList(fineRecords: fineRecords);
+                      return buildFineRecordList(fineRecords: fineRecords);
                     } else {
                       return Center(
                         child: Text('加载罚款信息失败: ${message.data['message']}'),
@@ -91,12 +95,8 @@ class _FineInformationPageState extends State<FineInformationPage> {
   }
 }
 
-// 搜索区域
-class SearchSection extends StatelessWidget {
-  const SearchSection({super.key});
-
-  @override
-  Widget build(BuildContext context) {
+mixin SearchMixin<T extends StatefulWidget> on State<T> {
+  Widget buildSearchSection(RestApiServices restApiServices) {
     // 定义文本编辑控制器
     final plateNumberController = TextEditingController();
     final dateController = TextEditingController();
@@ -142,7 +142,7 @@ class SearchSection extends StatelessWidget {
             String date = dateController.text;
 
             // 发送查询请求
-            RestApiServices().sendMessage(
+            restApiServices.sendMessage(
               jsonEncode({
                 'action': 'searchFineInfo',
                 'plateNumber': plateNumber,
@@ -157,14 +157,8 @@ class SearchSection extends StatelessWidget {
   }
 }
 
-// 罚款记录列表
-class FineRecordList extends StatelessWidget {
-  final List<FineRecord> fineRecords;
-
-  const FineRecordList({super.key, required this.fineRecords});
-
-  @override
-  Widget build(BuildContext context) {
+mixin FineRecordListMixin<T extends StatefulWidget> on State<T> {
+  Widget buildFineRecordList({required List<FineRecord> fineRecords}) {
     return ListView.builder(
       itemCount: fineRecords.length,
       itemBuilder: (context, index) {

@@ -1,9 +1,10 @@
 import 'dart:convert';
+
+import 'package:final_assignment_front/utils/services/app_config.dart';
 import 'package:final_assignment_front/utils/services/message_provider.dart';
+import 'package:final_assignment_front/utils/services/rest_api_services.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:final_assignment_front/utils/services/app_config.dart';
-import 'package:final_assignment_front/utils/services/rest_api_services.dart';
 
 /// 用户申诉页面 StatefulWidget
 class UserAppealPage extends StatefulWidget {
@@ -14,7 +15,8 @@ class UserAppealPage extends StatefulWidget {
 }
 
 /// 用户申诉页面状态管理
-class _UserAppealPageState extends State<UserAppealPage> {
+class _UserAppealPageState extends State<UserAppealPage>
+    with SearchSectionMixin, AppealRecordListMixin {
   late RestApiServices restApiServices;
 
   // 定义文本编辑控制器，用于搜索
@@ -32,7 +34,9 @@ class _UserAppealPageState extends State<UserAppealPage> {
         AppConfig.appealManagementEndpoint, messageProvider);
 
     // 发送获取申诉信息的请求
-    restApiServices.sendMessage(jsonEncode({'action': 'getAppeals'}));
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      restApiServices.sendMessage(jsonEncode({'action': 'getAppeals'}));
+    });
   }
 
   @override
@@ -62,9 +66,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
         child: Column(
           children: <Widget>[
             // 搜索区域
-            SearchSection(
-              searchController: _searchController,
-            ),
+            buildSection(restApiServices),
             const SizedBox(height: 16),
             // 申述记录列表
             Expanded(
@@ -80,7 +82,8 @@ class _UserAppealPageState extends State<UserAppealPage> {
                         message.data['data']
                             .map((item) => AppealRecord.fromJson(item)),
                       );
-                      return AppealRecordList(appealRecords: appealRecords);
+                      return buildAppealRecordList(
+                          appealRecords: appealRecords);
                     } else {
                       return Center(
                         child: Text('加载申诉信息失败: ${message.data['message']}'),
@@ -109,14 +112,11 @@ class _UserAppealPageState extends State<UserAppealPage> {
   }
 }
 
-/// 搜索区域组件
-class SearchSection extends StatelessWidget {
-  final TextEditingController searchController;
+/// 搜索区域组件 Mixin
+mixin SearchSectionMixin<T extends StatefulWidget> on State<T> {
+  Widget buildSection(RestApiServices restApiServices) {
+    final searchController = TextEditingController();
 
-  const SearchSection({super.key, required this.searchController});
-
-  @override
-  Widget build(BuildContext context) {
     return Row(
       children: <Widget>[
         Expanded(
@@ -149,14 +149,9 @@ class SearchSection extends StatelessWidget {
   }
 }
 
-/// 申述记录列表组件
-class AppealRecordList extends StatelessWidget {
-  final List<AppealRecord> appealRecords;
-
-  const AppealRecordList({super.key, required this.appealRecords});
-
-  @override
-  Widget build(BuildContext context) {
+/// 申述记录列表组件 Mixin
+mixin AppealRecordListMixin<T extends StatefulWidget> on State<T> {
+  Widget buildAppealRecordList({required List<AppealRecord> appealRecords}) {
     if (appealRecords.isEmpty) {
       return const Center(
         child: Text('没有找到申诉记录'),

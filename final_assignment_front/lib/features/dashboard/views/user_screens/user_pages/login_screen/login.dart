@@ -1,12 +1,14 @@
 import 'dart:convert';
+
+import 'package:final_assignment_front/config/routes/app_pages.dart';
+import 'package:final_assignment_front/utils/services/app_config.dart';
+import 'package:final_assignment_front/utils/services/local_storage_services.dart';
+import 'package:final_assignment_front/utils/services/message_provider.dart';
 import 'package:final_assignment_front/utils/services/rest_api_services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_login/flutter_login.dart';
-import 'package:provider/provider.dart';
 import 'package:get/get.dart';
-import 'package:final_assignment_front/utils/services/app_config.dart';
-import 'package:final_assignment_front/utils/services/message_provider.dart';
-import 'package:final_assignment_front/config/routes/app_pages.dart';
+import 'package:provider/provider.dart';
 
 /// 登录屏幕 StatefulWidget
 class LoginScreen extends StatefulWidget {
@@ -30,7 +32,8 @@ class _LoginScreenState extends State<LoginScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       messageProvider = Provider.of<MessageProvider>(context, listen: false);
       // 初始化 WebSocket 连接，并传入 MessageProvider
-      restApiServices.initWebSocket(AppConfig.userManagementEndpoint, messageProvider);
+      restApiServices.initWebSocket(
+          AppConfig.userManagementEndpoint, messageProvider);
     });
   }
 
@@ -47,11 +50,8 @@ class _LoginScreenState extends State<LoginScreen> {
   /// 用户认证逻辑
   Future<String?> _authUser(LoginData data) async {
     debugPrint('用户名: ${data.name}, 密码: ${data.password}');
-    restApiServices.sendMessage(jsonEncode({
-      'action': 'login',
-      'username': data.name,
-      'password': data.password
-    }));
+    restApiServices.sendMessage(jsonEncode(
+        {'action': 'login', 'username': data.name, 'password': data.password}));
 
     // 等待登录响应
     final responseData = await messageProvider.waitForMessage('loginResponse');
@@ -59,7 +59,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (responseData != null && responseData['status'] == 'success') {
       // 存储 JWT 令牌
       String token = responseData['token'];
-      await restApiServices.saveToken(token);
+      await LocalStorageServices().saveToken(token);
       debugPrint('JWT token saved');
 
       // 导航到仪表板
@@ -79,7 +79,6 @@ class _LoginScreenState extends State<LoginScreen> {
       'password': data.password
     }));
 
-
     // 等待注册响应
     final responseData = await messageProvider.waitForMessage('signupResponse');
 
@@ -93,13 +92,12 @@ class _LoginScreenState extends State<LoginScreen> {
   /// 密码恢复逻辑
   Future<String?> _recoverPassword(String name) async {
     debugPrint('用户名: $name');
-    restApiServices.sendMessage(jsonEncode({
-      'action': 'recoverPassword',
-      'username': name
-    }));
+    restApiServices.sendMessage(
+        jsonEncode({'action': 'recoverPassword', 'username': name}));
 
     // 等待密码恢复响应
-    final responseData = await messageProvider.waitForMessage('recoverPasswordResponse');
+    final responseData =
+        await messageProvider.waitForMessage('recoverPasswordResponse');
 
     if (responseData != null && responseData['status'] == 'success') {
       return null;
@@ -133,7 +131,7 @@ class _LoginScreenState extends State<LoginScreen> {
           elevation: 8.0,
           margin: const EdgeInsets.symmetric(horizontal: 20.0),
           shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
         ),
         titleStyle: const TextStyle(
           color: Colors.white,
