@@ -1,4 +1,4 @@
-package com.tutict.finalassignmentbackend.KafkaListener.view;
+package com.tutict.finalassignmentbackend.kafkaListener.view;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.entity.view.OffenseDetails;

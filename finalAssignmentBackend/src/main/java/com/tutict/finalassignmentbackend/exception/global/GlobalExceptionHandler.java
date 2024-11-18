@@ -1,4 +1,4 @@
-package com.tutict.finalassignmentbackend.controller.exception.global;
+package com.tutict.finalassignmentbackend.exception.global;
 
 import com.github.dockerjava.api.exception.UnauthorizedException;
 import jakarta.ws.rs.ForbiddenException;

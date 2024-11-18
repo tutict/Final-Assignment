@@ -1,4 +1,4 @@
-package com.tutict.finalassignmentbackend.KafkaListener;
+package com.tutict.finalassignmentbackend.kafkaListener;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.entity.UserManagement;
