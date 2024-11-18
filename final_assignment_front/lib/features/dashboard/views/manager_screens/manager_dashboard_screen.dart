@@ -48,16 +48,6 @@ part '../components/sidebar.dart';
 
 part '../components/team_member.dart';
 
-/// for test
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-
-  // 初始化指定语言环境的日期格式
-  await initializeDateFormatting('zh_CN', null);
-
-  runApp(const DashboardScreen());
-}
-
 class DashboardScreen extends GetView<DashboardController> {
   const DashboardScreen({super.key});
 

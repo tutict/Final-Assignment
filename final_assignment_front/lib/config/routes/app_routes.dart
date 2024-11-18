@@ -15,7 +15,7 @@ class Routes {
   static const aiChat = _Paths.aiChat;
 
   /// 地图页面路由
-  static const map = _Paths.map;
+  // static const map = _Paths.map;
 
   /// 在线处理进度页面路由
   static const onlineProcessingProgress = _Paths.onlineProcessingProgress;

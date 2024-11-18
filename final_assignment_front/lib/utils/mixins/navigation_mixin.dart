@@ -8,8 +8,8 @@ mixin NavigationMixin {
     switch (routeName) {
       case AppPages.onlineProcessingProgress:
         return const OnlineProcessingProgress();
-      case AppPages.map:
-        return const MapScreen();
+      // case AppPages.map:
+      //   return const MapScreen();
       case AppPages.personalMain:
         return const PersonalMainPage();
       case AppPages.setting:
