@@ -8,6 +8,7 @@ import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
 import 'package:final_assignment_front/shared_components/case_card.dart';
 import 'package:final_assignment_front/shared_components/chatting_card.dart';
+import 'package:final_assignment_front/shared_components/floating_window.dart';
 import 'package:final_assignment_front/shared_components/post_card.dart';
 import 'package:final_assignment_front/shared_components/project_card.dart';
 import 'package:final_assignment_front/shared_components/responsive_builder.dart';
@@ -226,12 +227,18 @@ class UserDashboard extends GetView<UserDashboardController> {
               opacity: 1.0, // 控制可见度的状态
               duration: const Duration(milliseconds: 500),
               child: UserToolsCard(
-                onPressed: () {},
-                onPressedSecond: () {},
-                onPressedThird: () {},
-                onPressedFourth: () {},
-                onPressedFifth: () {},
-                onPressedSixth: () {},
+                onPressed: () {
+                },
+                onPressedSecond: () {
+                },
+                onPressedThird: () {
+                },
+                onPressedFourth: () {
+                },
+                onPressedFifth: () {
+                },
+                onPressedSixth: () {
+                },
               ),
             ),
           ),
