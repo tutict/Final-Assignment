@@ -36,6 +36,8 @@ mixin NavigationMixin {
         return const MainScan();
       case AppPages.newsDetailScreen:
         return const NewsDetailScreen();
+      case AppPages.changeThemes:
+        return const ChangeThemes();
       default:
         return const Placeholder();
     }

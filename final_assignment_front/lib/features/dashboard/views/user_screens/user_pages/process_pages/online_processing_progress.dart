@@ -61,10 +61,10 @@ class OnlineProcessingProgressState extends State<OnlineProcessingProgress>
                 }
               },
               children: const <int, Widget>{
-                0: Text('Tab 1'),
-                1: Text('Tab 2'),
-                2: Text('Tab 3'),
-                3: Text('Tab 4'),
+                0: Text('受理中'),
+                1: Text(''),
+                2: Text(''),
+                3: Text(''),
               },
             ),
             SizedBox(

@@ -2,6 +2,7 @@
 library app_pages;
 
 // 导入各种页面相关的库和绑定
+import 'package:final_assignment_front/features/dashboard/views/components/change_themes.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_dashboard_screen.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/appeal_management.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/backup_and_restore.dart';
@@ -124,13 +125,13 @@ class AppPages {
   // 车辆详情
   static const vehicleManagement = Routes.vehicleManagement;
 
+  // 主题切换
+  static const changeThemes = Routes.changeThemes;
+
   // 配置应用中的所有页面路由
   static final routes = [
 
-    GetPage
-
-      (
-
+    GetPage (
       name: _Paths.login,
       page: () => const LoginScreen(),
     ),
@@ -243,6 +244,10 @@ class AppPages {
     GetPage(
         name: _Paths.vehicleManagement,
         page: () => const VehicleManagement()
+    ),
+    GetPage(
+        name: _Paths.changeThemes,
+        page: () => const ChangeThemes()
     ),
   ];
 }

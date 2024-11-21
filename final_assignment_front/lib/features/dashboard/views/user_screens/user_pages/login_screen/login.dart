@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:final_assignment_front/config/routes/app_pages.dart';
+import 'package:final_assignment_front/utils/mixins/app_mixins.dart';
 import 'package:final_assignment_front/utils/services/app_config.dart';
 import 'package:final_assignment_front/utils/services/local_storage_services.dart';
 import 'package:final_assignment_front/utils/services/message_provider.dart';
@@ -11,7 +12,7 @@ import 'package:get/get.dart';
 import 'package:provider/provider.dart';
 
 /// 登录屏幕 StatefulWidget
-class LoginScreen extends StatefulWidget {
+class LoginScreen extends StatefulWidget with ValidatorMixin {
   const LoginScreen({super.key});
 
   @override

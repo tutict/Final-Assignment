@@ -91,6 +91,9 @@ class Routes {
 
   // 车辆详情页面路由
   static const vehicleManagement = _Paths.vehicleManagement;
+
+  // 切换主题
+  static const changeThemes = _Paths.changeThemes;
 }
 
 /// 包含路由名称列表。
@@ -185,6 +188,9 @@ class _Paths {
 
  // 车辆详情路由
  static const vehicleManagement = '/vehicleManagement';
+
+ // 切换主题
+ static const changeThemes = '/changeThemes';
 // 示例：
 // static const index = '/';
 // static const splash = '/splash';
