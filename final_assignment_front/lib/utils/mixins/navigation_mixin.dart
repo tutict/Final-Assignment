@@ -37,7 +37,7 @@ mixin NavigationMixin {
       case AppPages.newsDetailScreen:
         return const NewsDetailScreen();
       default:
-        return const SizedBox.shrink();
+        return const Placeholder();
     }
   }
 }

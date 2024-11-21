@@ -3,6 +3,13 @@ library app_pages;
 
 // 导入各种页面相关的库和绑定
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_dashboard_screen.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/appeal_management.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/backup_and_restore.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/driver_list.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/manager_personal_page.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/manager_setting.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/offense_list.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/vehicle_list.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/chat/ai_chat.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/login_screen/login.dart';
@@ -18,7 +25,9 @@ import 'package:final_assignment_front/features/dashboard/views/user_screens/use
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/personal_info/personal_info.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/personal_main.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/setting/setting_main.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/process_pages/fine_information.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/process_pages/online_processing_progress.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/process_pages/vehicle_management.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/scaner/main_scan.dart';
 // 导入Get库，用于页面路由管理
 import 'package:get/get.dart';
@@ -82,9 +91,46 @@ class AppPages {
   /// 新闻详情页
   static const newsDetailScreen = Routes.newsDetailScreen;
 
+  // 申诉管理
+  static const appealManagement = Routes.appealManagement;
+
+  // 备份与恢复
+  static const backupAndRestore = Routes.backupAndRestore;
+
+  // 司机列表
+  static const driverList = Routes.driverList;
+
+  // 管理员个人主页
+  static const managerPersonalPage = Routes.managerPersonalPage;
+
+  // 管理员设置
+  static const managerSetting = Routes.managerSetting;
+
+  // 处罚列表
+  static const offenseList = Routes.offenseList;
+
+  // 车辆列表
+  static const vehicleList = Routes.vehicleList;
+
+  // 罚款信息
+  static const fineInformation = Routes.fineInformation;
+
+  // 在线办理
+  static const onlineProcessing = Routes.onlineProcessing;
+
+  // 用户申诉
+  static const userAppeal = Routes.userAppeal;
+
+  // 车辆详情
+  static const vehicleManagement = Routes.vehicleManagement;
+
   // 配置应用中的所有页面路由
   static final routes = [
-    GetPage(
+
+    GetPage
+
+      (
+
       name: _Paths.login,
       page: () => const LoginScreen(),
     ),
@@ -157,6 +203,46 @@ class AppPages {
     GetPage(
       name: _Paths.newsDetailScreen,
       page: () => const NewsDetailScreen(),
+    ),
+    GetPage(
+        name: _Paths.appealManagement,
+        page: () => const AppealManagementAdmin()
+    ),
+    GetPage(
+        name: _Paths.backupAndRestore,
+        page: () => const BackupAndRestore()
+    ),
+    GetPage(
+        name: _Paths.driverList,
+        page: () => const DriverList()
+    ),
+    GetPage(
+        name: _Paths.managerPersonalPage,
+        page: () => const ManagerPersonalPage()
+    ),
+    GetPage(
+        name: _Paths.managerSetting,
+        page: () => const ManageSetting()
+    ),
+    GetPage(
+        name: _Paths.offenseList,
+        page: () => const OffenseList()
+    ),
+    GetPage(
+        name: _Paths.vehicleList,
+        page: () => const VehicleList()
+    ),
+    GetPage(
+        name: _Paths.fineInformation,
+        page: () => const FineInformationPage()
+    ),
+    GetPage(
+        name: _Paths.onlineProcessingProgress,
+        page: () => const OnlineProcessingProgress()
+    ),
+    GetPage(
+        name: _Paths.vehicleManagement,
+        page: () => const VehicleManagement()
     ),
   ];
 }

@@ -55,6 +55,42 @@ class Routes {
 
   /// 新闻详情页面路由
   static const newsDetailScreen = _Paths.newsDetailScreen;
+
+  // 申诉管理页面路由
+  static const appealManagement = _Paths.appealManagement;
+
+  // 备份与恢复页面路由
+  static const backupAndRestore = _Paths.backupAndRestore;
+
+  // 驾驶证列表页面路由
+  static const driverList = _Paths.driverList;
+
+  // 罚款列表页面路由
+  static const fineList = _Paths.fineList;
+
+  // 管理员个人主页页面路由
+  static const managerPersonalPage = _Paths.managerPersonalPage;
+
+  // 管理员设置页面路由
+  static const managerSetting = _Paths.managerSetting;
+
+  // 违章列表页面路由
+  static const offenseList = _Paths.offenseList;
+
+  // 车辆列表页面路由
+  static const vehicleList = _Paths.vehicleList;
+
+  // 罚款信息页面路由
+  static const fineInformation = _Paths.fineInformation;
+
+  // 用户申诉页面路由
+  static const userAppeal = _Paths.userAppeal;
+
+  // 在线处理页面路由
+  static const onlineProcessing = _Paths.onlineProcessing;
+
+  // 车辆详情页面路由
+  static const vehicleManagement = _Paths.vehicleManagement;
 }
 
 /// 包含路由名称列表。
@@ -69,8 +105,8 @@ class _Paths {
   /// AI聊天路由
   static const aiChat = '/aiChat';
 
-  /// 地图路由
-  static const map = '/map';
+  // /// 地图路由
+  // static const map = '/map';
 
   /// 用户仪表盘路由
   static const userDashboard = '/userDashboard';
@@ -113,6 +149,42 @@ class _Paths {
 
   /// 新闻详情路由
   static const newsDetailScreen = '/newsDetailScreen';
+
+  // 申诉管理路由
+  static const appealManagement = '/appealManagement';
+
+ // 备份与恢复路由
+ static const backupAndRestore = '/backupAndRestore';
+
+ // 驾驶证列表路由
+ static const driverList = '/driverList';
+
+ // 罚款列表路由
+ static const fineList = '/fineList';
+
+ // 管理员个人主页路由
+ static const managerPersonalPage = '/managerPersonalPage';
+
+ // 管理员设置路由
+ static const managerSetting = '/managerSetting';
+
+ // 违章列表路由
+ static const offenseList = '/offenseList';
+
+ // 车辆列表路由
+ static const vehicleList = '/vehicleList';
+
+ // 罚款信息路由
+ static const fineInformation = '/fineInformation';
+
+ // 在线处理路由
+ static const onlineProcessing = '/onlineProcessing';
+
+ // 用户申诉路由
+ static const userAppeal = '/userAppeal';
+
+ // 车辆详情路由
+ static const vehicleManagement = '/vehicleManagement';
 // 示例：
 // static const index = '/';
 // static const splash = '/splash';

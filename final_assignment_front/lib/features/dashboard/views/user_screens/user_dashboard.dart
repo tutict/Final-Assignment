@@ -39,7 +39,7 @@ part '../../models/user_profile.dart';
 /// UserDashboard 类继承自GetView，用于构建用户仪表板页面。
 /// 它包含了一个 Scaffold，提供了一个可选的侧边栏、头部、身体内容，
 /// 以及一个浮动操作按钮，并添加了动画效果。
-class UserDashboard extends GetView<UserDashboardController> {
+class UserDashboard extends GetView<UserDashboardController> with FloatingBase, NavigationMixin {
   const UserDashboard({super.key});
 
   @override
@@ -228,16 +228,22 @@ class UserDashboard extends GetView<UserDashboardController> {
               duration: const Duration(milliseconds: 500),
               child: UserToolsCard(
                 onPressed: () {
+                  initializeFloating(context, getPageForRoute('fineInformation')!);
                 },
                 onPressedSecond: () {
+                  initializeFloating(context, getPageForRoute('onlineProcessingProgress')!);
                 },
                 onPressedThird: () {
+                  initializeFloating(context, getPageForRoute('userAppeal')!);
                 },
                 onPressedFourth: () {
+                  initializeFloating(context, getPageForRoute('vehicleManagement')!);
                 },
                 onPressedFifth: () {
+                  initializeFloating(context, getPageForRoute('managerPersonalPage')!);
                 },
                 onPressedSixth: () {
+                  initializeFloating(context, getPageForRoute('managerSetting')!);
                 },
               ),
             ),

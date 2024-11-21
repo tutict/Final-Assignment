@@ -19,7 +19,6 @@ class _FloatingWindowState extends State<FloatingWindow> {
     super.initState();
   }
 
-
   @override
   Widget build(BuildContext context) {
     return StatefulBuilder(
@@ -39,27 +38,15 @@ class _FloatingWindowState extends State<FloatingWindow> {
               ],
             ),
             width: isFullScreen
-                ? MediaQueryData
-                .fromView(
-                WidgetsBinding.instance.platformDispatcher.views.first)
-                .size
-                .width
-                : MediaQueryData
-                .fromView(
-                WidgetsBinding.instance.platformDispatcher.views.first)
-                .size
-                .width * 0.8,
+                ? MediaQueryData.fromView(
+                        WidgetsBinding.instance.platformDispatcher.views.first) .size .width
+                : MediaQueryData.fromView(
+                        WidgetsBinding .instance.platformDispatcher.views.first) .size .width * 0.8,
             height: isFullScreen
-                ? MediaQueryData
-                .fromView(
-                WidgetsBinding.instance.platformDispatcher.views.first)
-                .size
-                .height
-                : MediaQueryData
-                .fromView(
-                WidgetsBinding.instance.platformDispatcher.views.first)
-                .size
-                .height * 0.6,
+                ? MediaQueryData.fromView(
+                        WidgetsBinding.instance.platformDispatcher.views.first) .size .height
+                : MediaQueryData.fromView(
+                        WidgetsBinding .instance.platformDispatcher.views.first) .size .height * 0.6,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -82,8 +69,8 @@ class _FloatingWindowState extends State<FloatingWindow> {
                       Row(
                         children: [
                           IconButton(
-                            icon: const Icon(
-                                Icons.crop_square, color: Colors.white),
+                            icon: const Icon(Icons.crop_square,
+                                color: Colors.white),
                             onPressed: () {
                               setState(() {
                                 isFullScreen = !isFullScreen;
@@ -117,32 +104,27 @@ class _FloatingWindowState extends State<FloatingWindow> {
 }
 
 mixin FloatingBase {
-
   void initializeFloating(BuildContext context, Widget content) {
-   final floating = Floating(
-      context as Widget ,
+    final floating = Floating(
+      context as Widget,
       slideType: FloatingSlideType.onPoint,
       point: Point(
-        MediaQueryData
-            .fromView(WidgetsBinding.instance.platformDispatcher.views.first)
-            .size
-            .width / 2 -
-            (MediaQueryData
-                .fromView(
-                WidgetsBinding.instance.platformDispatcher.views.first)
-                .size
-                .width * 0.4),
-        MediaQueryData
-            .fromView(WidgetsBinding.instance.platformDispatcher.views.first)
-            .size
-            .height / 2 -
-            (MediaQueryData
-                .fromView(
-                WidgetsBinding.instance.platformDispatcher.views.first)
-                .size
-                .height * 0.3),
+        MediaQueryData.fromView(
+                        WidgetsBinding.instance.platformDispatcher.views.first)
+                    .size .width / 2 -
+            (MediaQueryData.fromView(
+                        WidgetsBinding.instance.platformDispatcher.views.first)
+                    .size .width * 0.4),
+        MediaQueryData.fromView(
+                        WidgetsBinding.instance.platformDispatcher.views.first)
+                    .size .height / 2 -
+            (MediaQueryData.fromView(
+                        WidgetsBinding.instance.platformDispatcher.views.first)
+                    .size .height * 0.3),
       ),
-      isSnapToEdge: false,   /// 是否自动吸附到屏幕边缘
+      isSnapToEdge: false,
+
+      /// 是否自动吸附到屏幕边缘
     );
 
     floating.open(context);
