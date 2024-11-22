@@ -1,18 +1,27 @@
 package finalassignmentbackend.controller;
 
+import com.oracle.svm.core.annotate.Inject;
 import finalassignmentbackend.entity.OperationLog;
 import finalassignmentbackend.service.OperationLogService;
-import jakarta.inject.Inject;
-import jakarta.ws.rs.*;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.DefaultValue;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
-import java.time.LocalDate;
+import java.util.Date;
 import java.util.List;
 
 @Path("/eventbus/operationLogs")
-@Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
+@Consumes(MediaType.APPLICATION_JSON)
 public class OperationLogController {
 
     @Inject
@@ -61,25 +70,12 @@ public class OperationLogController {
         return Response.noContent().build();
     }
 
-
     @GET
     @Path("/timeRange")
-    public Response getDeductionsByTimeRange(
-            @QueryParam("startTime") @DefaultValue("1970-01-01") String startTimeStr,
-            @QueryParam("endTime") @DefaultValue("2100-12-31") String endTimeStr) {
-        try {
-            LocalDate startDate = LocalDate.parse(startTimeStr);
-            LocalDate endDate = LocalDate.parse(endTimeStr);
-
-            // Convert LocalDate to java.util.Date
-            java.sql.Date startTime = java.sql.Date.valueOf(startDate);
-            java.sql.Date endTime = java.sql.Date.valueOf(endDate);
-
-            List<OperationLog> operationLogs = operationLogService.getOperationLogsByTimeRange(startTime, endTime);
-            return Response.ok(operationLogs).build();
-        } catch (Exception e) {
-            return Response.status(Response.Status.BAD_REQUEST).entity("Invalid date format").build();
-        }
+    public Response getOperationLogsByTimeRange(@QueryParam("startTime") @DefaultValue("1970-01-01") Date startTime,
+                                                @QueryParam("endTime") @DefaultValue("2100-01-01") Date endTime) {
+        List<OperationLog> operationLogs = operationLogService.getOperationLogsByTimeRange(startTime, endTime);
+        return Response.ok(operationLogs).build();
     }
 
     @GET

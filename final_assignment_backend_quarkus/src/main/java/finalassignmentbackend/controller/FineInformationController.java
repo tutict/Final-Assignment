@@ -1,9 +1,8 @@
 package finalassignmentbackend.controller;
 
-
+import com.oracle.svm.core.annotate.Inject;
 import finalassignmentbackend.entity.FineInformation;
 import finalassignmentbackend.service.FineInformationService;
-import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.DefaultValue;
@@ -17,8 +16,7 @@ import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
-import java.time.LocalDate;
-import java.sql.Date;
+import java.util.Date;
 import java.util.List;
 
 @Path("/eventbus/fines")
@@ -57,16 +55,7 @@ public class FineInformationController {
     public Response updateFine(@PathParam("fineId") int fineId, FineInformation updatedFineInformation) {
         FineInformation existingFineInformation = fineInformationService.getFineById(fineId);
         if (existingFineInformation != null) {
-
-            existingFineInformation.setBank(updatedFineInformation.getBank());
-            existingFineInformation.setReceiptNumber(updatedFineInformation.getReceiptNumber());
-            existingFineInformation.setPayee(updatedFineInformation.getPayee());
-            existingFineInformation.setRemarks(updatedFineInformation.getRemarks());
-            existingFineInformation.setFineAmount(updatedFineInformation.getFineAmount());
-            existingFineInformation.setFineTime(updatedFineInformation.getFineTime());
-            existingFineInformation.setAccountNumber(updatedFineInformation.getAccountNumber());
-
-
+            updatedFineInformation.setFineId(fineId);
             fineInformationService.updateFine(updatedFineInformation);
             return Response.ok().build();
         } else {
@@ -90,22 +79,10 @@ public class FineInformationController {
 
     @GET
     @Path("/timeRange")
-    public Response getDeductionsByTimeRange(
-            @QueryParam("startTime") @DefaultValue("1970-01-01") String startTimeStr,
-            @QueryParam("endTime") @DefaultValue("9999-12-31") String endTimeStr) {
-        try {
-            LocalDate startDate = LocalDate.parse(startTimeStr);
-            LocalDate endDate = LocalDate.parse(endTimeStr);
-
-            // Convert LocalDate to java.util.Date
-            Date startTime = Date.valueOf(startDate);
-            Date endTime = Date.valueOf(endDate);
-
-            List<FineInformation> fines = fineInformationService.getFinesByTimeRange(startTime, endTime);
-            return Response.ok(fines).build();
-        } catch (Exception e) {
-            return Response.status(Response.Status.BAD_REQUEST).entity("Invalid date format").build();
-        }
+    public Response getFinesByTimeRange(@QueryParam("startTime") @DefaultValue("1970-01-01") Date startTime,
+                                        @QueryParam("endTime") @DefaultValue("2100-01-01") Date endTime) {
+        List<FineInformation> fines = fineInformationService.getFinesByTimeRange(startTime, endTime);
+        return Response.ok(fines).build();
     }
 
     @GET

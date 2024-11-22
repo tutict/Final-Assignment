@@ -1,12 +1,15 @@
 package finalassignmentbackend.controller.view;
 
-
+import com.oracle.svm.core.annotate.Inject;
 import finalassignmentbackend.entity.view.OffenseDetails;
-import finalassignmentbackend.mapper.view.OffenseDetailsMapper;
 import finalassignmentbackend.service.view.OffenseDetailsService;
-import jakarta.inject.Inject;
-import jakarta.ws.rs.*;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 
 import java.util.List;
 
@@ -16,32 +19,51 @@ import java.util.List;
 public class OffenseDetailsController {
 
     @Inject
-    OffenseDetailsMapper offenseDetailsMapper;
-
-    @Inject
     OffenseDetailsService offenseDetailsService;
 
+    /**
+     * 获取所有违规详情记录
+     *
+     * @return 包含所有违规详情的列表
+     */
     @GET
-    public List<OffenseDetails> getAllOffenseDetails() {
-        return offenseDetailsMapper.selectList(null);
+    public Response getAllOffenseDetails() {
+        List<OffenseDetails> offenseDetailsList = offenseDetailsService.getAllOffenseDetails();
+        return Response.ok(offenseDetailsList).build();
     }
 
+    /**
+     * 根据 ID 获取违规详情
+     *
+     * @param id 违规详情的ID
+     * @return 包含违规详情的响应或NotFound状态
+     */
     @GET
     @Path("/{id}")
-    public OffenseDetails getOffenseDetailsById(@PathParam("id") Integer id) {
-        return offenseDetailsMapper.selectById(id);
+    public Response getOffenseDetailsById(@PathParam("id") Integer id) {
+        OffenseDetails offenseDetails = offenseDetailsService.getOffenseDetailsById(id);
+        if (offenseDetails != null) {
+            return Response.ok(offenseDetails).build();
+        } else {
+            return Response.status(Response.Status.NOT_FOUND).build();
+        }
     }
 
-    // 创建方法，用于发送 OffenseDetails 对象到 Kafka 主题
+    /**
+     * 创建方法，用于发送 OffenseDetails 对象到 Kafka 主题
+     *
+     * @param id 违规详情的ID
+     * @return 成功或失败的消息
+     */
     @GET
     @Path("/send-to-kafka/{id}")
-    public String sendOffenseDetailsToKafka(@PathParam("id") Integer id) {
-        OffenseDetails offenseDetails = offenseDetailsMapper.selectById(id);
+    public Response sendOffenseDetailsToKafka(@PathParam("id") Integer id) {
+        OffenseDetails offenseDetails = offenseDetailsService.getOffenseDetailsById(id);
         if (offenseDetails != null) {
             offenseDetailsService.sendOffenseDetailsToKafka(offenseDetails);
-            return "OffenseDetails sent to Kafka topic successfully!";
+            return Response.ok("OffenseDetails sent to Kafka topic successfully!").build();
         } else {
-            return "OffenseDetails not found for id: " + id;
+            return Response.status(Response.Status.NOT_FOUND).entity("OffenseDetails not found for id: " + id).build();
         }
     }
 }

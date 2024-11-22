@@ -1,14 +1,21 @@
 package finalassignmentbackend.controller;
 
-
+import com.oracle.svm.core.annotate.Inject;
 import finalassignmentbackend.entity.SystemLogs;
 import finalassignmentbackend.service.SystemLogsService;
-import jakarta.inject.Inject;
-import jakarta.ws.rs.*;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
-import java.time.LocalDate;
+import java.util.Date;
 import java.util.List;
 
 @Path("/eventbus/systemLogs")
@@ -51,22 +58,11 @@ public class SystemLogsController {
 
     @GET
     @Path("/timeRange")
-    public Response getDeductionsByTimeRange(
-            @QueryParam("startTime") @DefaultValue("1970-01-01") String startTimeStr,
-            @QueryParam("endTime") @DefaultValue("2100-12-31") String endTimeStr) {
-        try {
-            LocalDate startDate = LocalDate.parse(startTimeStr);
-            LocalDate endDate = LocalDate.parse(endTimeStr);
-
-            // Convert LocalDate to java.util.Date
-            java.sql.Date startTime = java.sql.Date.valueOf(startDate);
-            java.sql.Date endTime = java.sql.Date.valueOf(endDate);
-
-            List<SystemLogs> systemLogs = systemLogsService.getSystemLogsByTimeRange(startTime, endTime);
-            return Response.ok(systemLogs).build();
-        } catch (Exception e) {
-            return Response.status(Response.Status.BAD_REQUEST).entity("Invalid date format").build();
-        }
+    public Response getSystemLogsByTimeRange(
+            @QueryParam("startTime") Date startTime,
+            @QueryParam("endTime") Date endTime) {
+        List<SystemLogs> systemLogs = systemLogsService.getSystemLogsByTimeRange(startTime, endTime);
+        return Response.ok(systemLogs).build();
     }
 
     @GET

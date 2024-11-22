@@ -1,14 +1,21 @@
 package finalassignmentbackend.controller;
 
+import com.oracle.svm.core.annotate.Inject;
 import finalassignmentbackend.entity.DeductionInformation;
 import finalassignmentbackend.service.DeductionInformationService;
-import jakarta.inject.Inject;
-import jakarta.ws.rs.*;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
-import java.sql.Date;
-import java.time.LocalDate;
+import java.util.Date;
 import java.util.List;
 
 @Path("/eventbus/deductions")
@@ -25,7 +32,7 @@ public class DeductionInformationController {
         return Response.status(Response.Status.CREATED).build();
     }
 
-    @PUT
+    @GET
     @Path("/{deductionId}")
     public Response getDeductionById(@PathParam("deductionId") int deductionId) {
         DeductionInformation deduction = deductionInformationService.getDeductionById(deductionId);
@@ -47,14 +54,13 @@ public class DeductionInformationController {
     public Response updateDeduction(@PathParam("deductionId") int deductionId, DeductionInformation updatedDeduction) {
         DeductionInformation existingDeduction = deductionInformationService.getDeductionById(deductionId);
         if (existingDeduction != null) {
-            // Update the existing deduction
             existingDeduction.setRemarks(updatedDeduction.getRemarks());
             existingDeduction.setHandler(updatedDeduction.getHandler());
             existingDeduction.setDeductedPoints(updatedDeduction.getDeductedPoints());
             existingDeduction.setDeductionTime(updatedDeduction.getDeductionTime());
             existingDeduction.setApprover(updatedDeduction.getApprover());
 
-            deductionInformationService.updateDeduction(updatedDeduction);
+            deductionInformationService.updateDeduction(existingDeduction);
             return Response.ok().build();
         } else {
             return Response.status(Response.Status.NOT_FOUND).build();
@@ -77,21 +83,8 @@ public class DeductionInformationController {
 
     @GET
     @Path("/timeRange")
-    public Response getDeductionsByTimeRange(
-            @QueryParam("startTime") @DefaultValue("1970-01-01") String startTimeStr,
-            @QueryParam("endTime") @DefaultValue("2100-12-31") String endTimeStr) {
-        try {
-            LocalDate startDate = LocalDate.parse(startTimeStr);
-            LocalDate endDate = LocalDate.parse(endTimeStr);
-
-            // Convert LocalDate to java.util.Date
-            Date startTime = Date.valueOf(startDate);
-            Date endTime = Date.valueOf(endDate);
-
-            List<DeductionInformation> deductions = deductionInformationService.getDeductionsByByTimeRange(startTime, endTime);
-            return Response.ok(deductions).build();
-        } catch (Exception e) {
-            return Response.status(Response.Status.BAD_REQUEST).entity("Invalid date format").build();
-        }
+    public Response getDeductionsByTimeRange(@QueryParam("startTime") Date startTime, @QueryParam("endTime") Date endTime) {
+        List<DeductionInformation> deductions = deductionInformationService.getDeductionsByByTimeRange(startTime, endTime);
+        return Response.ok(deductions).build();
     }
 }

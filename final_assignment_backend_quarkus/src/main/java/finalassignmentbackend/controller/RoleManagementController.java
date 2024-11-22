@@ -1,18 +1,25 @@
 package finalassignmentbackend.controller;
 
-
+import com.oracle.svm.core.annotate.Inject;
 import finalassignmentbackend.entity.RoleManagement;
 import finalassignmentbackend.service.RoleManagementService;
-import jakarta.inject.Inject;
-import jakarta.ws.rs.*;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
 import java.util.List;
 
 @Path("/eventbus/roles")
-@Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
+@Consumes(MediaType.APPLICATION_JSON)
 public class RoleManagementController {
 
     @Inject
@@ -84,16 +91,5 @@ public class RoleManagementController {
     public Response deleteRoleByName(@PathParam("roleName") String roleName) {
         roleManagementService.deleteRoleByName(roleName);
         return Response.noContent().build();
-    }
-
-    @GET
-    @Path("/{roleId}/permissions")
-    public Response getPermissionListByRoleId(@PathParam("roleId") int roleId) {
-        String permissionList = roleManagementService.getPermissionListByRoleId(roleId);
-        if (permissionList != null) {
-            return Response.ok(permissionList).build();
-        } else {
-            return Response.status(Response.Status.NOT_FOUND).build();
-        }
     }
 }
