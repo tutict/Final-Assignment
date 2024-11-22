@@ -1,101 +1,110 @@
 package finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import finalassignmentbackend.mapper.BackupRestoreMapper;
 import finalassignmentbackend.entity.BackupRestore;
+import finalassignmentbackend.mapper.BackupRestoreMapper;
+import io.quarkus.cache.CacheInvalidate;
+import io.quarkus.cache.CacheResult;
+import io.smallrye.reactive.messaging.kafka.KafkaRecord;
+import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Emitter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.jboss.logging.Logger;
 
 import java.util.List;
 
 @ApplicationScoped
 public class BackupRestoreService {
 
-    private static final Logger log = LoggerFactory.getLogger(BackupRestoreService.class);
+    private static final Logger log = Logger.getLogger(BackupRestoreService.class);
 
     @Inject
     BackupRestoreMapper backupRestoreMapper;
 
     @Inject
-    @Channel("backup_create")
-    Emitter<BackupRestore> backupRestoreCreateEmitter;
-
-    @Inject
-    @Channel("backup_update")
-    Emitter<BackupRestore> backupRestoreUpdateEmitter;
+    @Channel("backup-events-out")
+    Emitter<BackupRestore> backupEmitter;
 
     @Transactional
+    @CacheInvalidate(cacheName = "backupCache")
     public void createBackup(BackupRestore backup) {
         try {
-            // 异步发送消息到 Kafka，并处理发送结果
-            backupRestoreCreateEmitter.send(backup).toCompletableFuture().exceptionally(ex -> {
-
-                // 处理发送失败的情况
-                log.error("Failed to send message to Kafka, triggering transaction rollback", ex);
-                // 抛出异常
-                throw new RuntimeException("Kafka message send failure", ex);
-            });
-
-            // 由于是异步发送，不需要等待发送完成，Spring事务管理器将处理事务
+            sendKafkaMessage("backup_create", backup);
             backupRestoreMapper.insert(backup);
-
         } catch (Exception e) {
-            // 记录异常信息
-            log.error("Exception occurred while updating appeal or sending Kafka message", e);
-            // 异常将由Spring事务管理器处理，可能触发事务回滚
-            throw e;
+            log.error("Exception occurred while creating backup or sending Kafka message", e);
+            throw new RuntimeException("Failed to create backup", e);
         }
     }
 
+    @CacheResult(cacheName = "backupCache")
     public List<BackupRestore> getAllBackups() {
         return backupRestoreMapper.selectList(null);
     }
 
-    public BackupRestore getBackupById(int backupId) {
+    @CacheResult(cacheName = "backupCache")
+    public BackupRestore getBackupById(Integer backupId) {
+        if (backupId <= 0) {
+            throw new IllegalArgumentException("Invalid backup ID");
+        }
         return backupRestoreMapper.selectById(backupId);
     }
 
-    public void deleteBackup(int backupId) {
-        backupRestoreMapper.deleteById(backupId);
-    }
-
     @Transactional
-    public void updateBackup(BackupRestore backup) {
+    @CacheInvalidate(cacheName = "backupCache")
+    public void deleteBackup(Integer backupId) {
         try {
-            // 异步发送消息到 Kafka，并处理发送结果
-            backupRestoreUpdateEmitter.send(backup).toCompletableFuture().exceptionally(ex -> {
-
-                // 处理发送失败的情况
-                log.error("Failed to send message to Kafka, triggering transaction rollback", ex);
-                // 抛出异常
-                throw new RuntimeException("Kafka message send failure", ex);
-            });
-
-            // 由于是异步发送，不需要等待发送完成，Spring事务管理器将处理事务
-            backupRestoreMapper.updateById(backup);
-
+            int result = backupRestoreMapper.deleteById(backupId);
+            if (result > 0) {
+                log.info("Backup with ID {} deleted successfully");
+            } else {
+                log.error("Failed to delete backup with ID {}");
+            }
         } catch (Exception e) {
-            // 记录异常信息
-            log.error("Exception occurred while updating appeal or sending Kafka message", e);
-            // 异常将由Spring事务管理器处理，可能触发事务回滚
-            throw e;
+            log.error("Exception occurred while deleting backup", e);
+            throw new RuntimeException("Failed to delete backup", e);
         }
     }
 
-    public BackupRestore getupByFileName(String backupFileName) {
+    @Transactional
+    @CacheInvalidate(cacheName = "backupCache")
+    public void updateBackup(BackupRestore backup) {
+        try {
+            sendKafkaMessage("backup_update", backup);
+            backupRestoreMapper.updateById(backup);
+        } catch (Exception e) {
+            log.error("Exception occurred while updating backup or sending Kafka message", e);
+            throw new RuntimeException("Failed to update backup", e);
+        }
+    }
+
+    @CacheResult(cacheName = "backupCache")
+    public BackupRestore getBackupByFileName(String backupFileName) {
+        if (backupFileName == null || backupFileName.trim().isEmpty()) {
+            throw new IllegalArgumentException("Invalid backup file name");
+        }
         QueryWrapper<BackupRestore> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("backupFileName", backupFileName);
         return backupRestoreMapper.selectOne(queryWrapper);
     }
 
+    @CacheResult(cacheName = "backupCache")
     public List<BackupRestore> getBackupsByTime(String backupTime) {
+        if (backupTime == null || backupTime.trim().isEmpty()) {
+            throw new IllegalArgumentException("Invalid backup time");
+        }
         QueryWrapper<BackupRestore> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("backupTime", backupTime);
         return backupRestoreMapper.selectList(queryWrapper);
+    }
+
+    private void sendKafkaMessage(String topic, BackupRestore backup) {
+        var metadata = OutgoingKafkaRecordMetadata.<String>builder().withTopic(topic).build();
+        KafkaRecord<String, BackupRestore> record = (KafkaRecord<String, BackupRestore>) KafkaRecord.of(backup.getBackupId().toString(), backup).addMetadata(metadata);
+        backupEmitter.send(record);
+        log.info("Message sent to Kafka topic {} successfully");
     }
 }

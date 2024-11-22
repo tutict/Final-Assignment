@@ -3,108 +3,105 @@ package finalassignmentbackend.service;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import finalassignmentbackend.mapper.DriverInformationMapper;
 import finalassignmentbackend.entity.DriverInformation;
+import io.quarkus.cache.CacheInvalidate;
+import io.quarkus.cache.CacheResult;
+import io.smallrye.reactive.messaging.kafka.KafkaRecord;
+import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
+import org.jboss.logging.Logger;
+import org.eclipse.microprofile.reactive.messaging.Channel;
+import org.eclipse.microprofile.reactive.messaging.Emitter;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
-import org.eclipse.microprofile.reactive.messaging.Channel;
-import org.eclipse.microprofile.reactive.messaging.Emitter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.List;
 
 @ApplicationScoped
 public class DriverInformationService {
 
-    private static final Logger log = LoggerFactory.getLogger(DriverInformationService.class);
+    private static final Logger log = Logger.getLogger(DriverInformationService.class);
 
     @Inject
     DriverInformationMapper driverInformationMapper;
 
     @Inject
-    @Channel("driver_create")
-    Emitter<DriverInformation> driverCreateEmitter;
-
-    @Inject
-    @Channel("driver_update")
-    Emitter<DriverInformation> driverUpdateEmitter;
+    @Channel("driver-events-out")
+    Emitter<DriverInformation> driverEmitter;
 
     @Transactional
+    @CacheInvalidate(cacheName = "driverCache")
     public void createDriver(DriverInformation driverInformation) {
         try {
-            // 异步发送消息到 Kafka，并处理发送结果
-            driverCreateEmitter.send(driverInformation).toCompletableFuture().exceptionally(ex -> {
-
-                // 处理发送失败的情况
-                log.error("Failed to send message to Kafka, triggering transaction rollback", ex);
-                // 抛出异常
-                throw new RuntimeException("Kafka message send failure", ex);
-            });
-
-            // 由于是异步发送，不需要等待发送完成，事务管理器将处理事务
+            sendKafkaMessage("driver_create", driverInformation);
             driverInformationMapper.insert(driverInformation);
-
         } catch (Exception e) {
-            // 记录异常信息
-            log.error("Exception occurred while updating appeal or sending Kafka message", e);
-            // 异常将由事务管理器处理，可能触发事务回滚
-            throw e;
+            log.error("Exception occurred while creating driver or sending Kafka message", e);
+            throw new RuntimeException("Failed to create driver", e);
         }
     }
 
+    @CacheResult(cacheName = "driverCache")
     public DriverInformation getDriverById(int driverId) {
         return driverInformationMapper.selectById(driverId);
     }
 
+    @CacheResult(cacheName = "driverCache")
     public List<DriverInformation> getAllDrivers() {
         return driverInformationMapper.selectList(null);
     }
 
     @Transactional
+    @CacheInvalidate(cacheName = "driverCache")
     public void updateDriver(DriverInformation driverInformation) {
         try {
-            // 异步发送消息到 Kafka，并处理发送结果
-            driverUpdateEmitter.send(driverInformation).toCompletableFuture().exceptionally(ex -> {
-
-                // 处理发送失败的情况
-                log.error("Failed to send message to Kafka, triggering transaction rollback", ex);
-                // 抛出异常
-                throw new RuntimeException("Kafka message send failure", ex);
-            });
-
-            // 由于是异步发送，不需要等待发送完成，事务管理器将处理事务
+            sendKafkaMessage("driver_update", driverInformation);
             driverInformationMapper.updateById(driverInformation);
-
         } catch (Exception e) {
-            // 记录异常信息
-            log.error("Exception occurred while updating appeal or sending Kafka message", e);
-            // 异常将由事务管理器处理，可能触发事务回滚
-            throw e;
+            log.error("Exception occurred while updating driver or sending Kafka message", e);
+            throw new RuntimeException("Failed to update driver", e);
         }
     }
 
+    @Transactional
+    @CacheInvalidate(cacheName = "driverCache")
     public void deleteDriver(int driverId) {
-        driverInformationMapper.deleteById(driverId);
+        try {
+            int result = driverInformationMapper.deleteById(driverId);
+            if (result > 0) {
+                log.info("Driver with ID {} deleted successfully");
+            } else {
+                log.error("Failed to delete driver with ID {}");
+            }
+        } catch (Exception e) {
+            log.error("Exception occurred while deleting driver", e);
+            throw new RuntimeException("Failed to delete driver", e);
+        }
     }
 
-    // get driver by id card number
+    @CacheResult(cacheName = "driverCache")
     public List<DriverInformation> getDriversByIdCardNumber(String idCardNumber) {
         QueryWrapper<DriverInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("id_card_number", idCardNumber);
         return driverInformationMapper.selectList(queryWrapper);
     }
 
-    // get driver by driver license number
+    @CacheResult(cacheName = "driverCache")
     public DriverInformation getDriverByDriverLicenseNumber(String driverLicenseNumber) {
         QueryWrapper<DriverInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("driver_license_number", driverLicenseNumber);
         return driverInformationMapper.selectOne(queryWrapper);
     }
 
-    // get driver by name
-    public List<DriverInformation> getDriversByName(String Name) {
+    @CacheResult(cacheName = "driverCache")
+    public List<DriverInformation> getDriversByName(String name) {
         QueryWrapper<DriverInformation> queryWrapper = new QueryWrapper<>();
-        queryWrapper.like("name", Name);
+        queryWrapper.like("name", name);
         return driverInformationMapper.selectList(queryWrapper);
+    }
+
+    private void sendKafkaMessage(String topic, DriverInformation driverInformation) {
+        var metadata = OutgoingKafkaRecordMetadata.<String>builder().withTopic(topic).build();
+        KafkaRecord<String, DriverInformation> record = (KafkaRecord<String, DriverInformation>) KafkaRecord.of(driverInformation.getDriverId().toString(), driverInformation).addMetadata(metadata);
+        driverEmitter.send(record);
+        log.info("Message sent to Kafka topic {} successfully");
     }
 }

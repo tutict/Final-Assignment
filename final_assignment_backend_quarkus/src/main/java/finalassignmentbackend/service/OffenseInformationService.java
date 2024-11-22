@@ -3,116 +3,128 @@ package finalassignmentbackend.service;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import finalassignmentbackend.mapper.OffenseInformationMapper;
 import finalassignmentbackend.entity.OffenseInformation;
+import io.quarkus.cache.CacheInvalidate;
+import io.quarkus.cache.CacheResult;
+import io.smallrye.reactive.messaging.kafka.KafkaRecord;
+import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
+import org.jboss.logging.Logger;
+import org.eclipse.microprofile.reactive.messaging.Channel;
+import org.eclipse.microprofile.reactive.messaging.Emitter;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
-import org.eclipse.microprofile.reactive.messaging.Channel;
-import org.eclipse.microprofile.reactive.messaging.Emitter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.Date;
 import java.util.List;
 
 @ApplicationScoped
 public class OffenseInformationService {
 
-    private static final Logger log = LoggerFactory.getLogger(OffenseInformationService.class);
+    private static final Logger log = Logger.getLogger(OffenseInformationService.class);
 
     @Inject
     OffenseInformationMapper offenseInformationMapper;
 
     @Inject
-    @Channel("offense_create")
-    Emitter<OffenseInformation> offenseCreateEmitter;
-
-    @Inject
-    @Channel("offense_update")
-    Emitter<OffenseInformation> offenseUpdateEmitter;
+    @Channel("offense-events-out")
+    Emitter<OffenseInformation> offenseEmitter;
 
     @Transactional
+    @CacheInvalidate(cacheName = "offenseCache")
     public void createOffense(OffenseInformation offenseInformation) {
         try {
-            // 异步发送消息到 Kafka，并处理发送结果
-            offenseCreateEmitter.send(offenseInformation).toCompletableFuture().exceptionally(ex -> {
-
-                // 处理发送失败的情况
-                log.error("Failed to send message to Kafka, triggering transaction rollback", ex);
-                // 抛出异常
-                throw new RuntimeException("Kafka message send failure", ex);
-            });
-
-            // 由于是异步发送，不需要等待发送完成，Spring事务管理器将处理事务
+            sendKafkaMessage("offense_create", offenseInformation);
             offenseInformationMapper.insert(offenseInformation);
-
         } catch (Exception e) {
-            // 记录异常信息
-            log.error("Exception occurred while updating appeal or sending Kafka message", e);
-            // 异常将由Spring事务管理器处理，可能触发事务回滚
-            throw e;
+            log.error("Exception occurred while creating offense or sending Kafka message", e);
+            throw new RuntimeException("Failed to create offense", e);
         }
     }
 
+    @CacheResult(cacheName = "offenseCache")
     public OffenseInformation getOffenseByOffenseId(int offenseId) {
         return offenseInformationMapper.selectById(offenseId);
     }
 
+    @CacheResult(cacheName = "offenseCache")
     public List<OffenseInformation> getOffensesInformation() {
         return offenseInformationMapper.selectList(null);
     }
 
     @Transactional
+    @CacheInvalidate(cacheName = "offenseCache")
     public void updateOffense(OffenseInformation offenseInformation) {
         try {
-            // 异步发送消息到 Kafka，并处理发送结果
-            offenseUpdateEmitter.send(offenseInformation).toCompletableFuture().exceptionally(ex -> {
-
-                // 处理发送失败的情况
-                log.error("Failed to send message to Kafka, triggering transaction rollback", ex);
-                // 抛出异常
-                throw new RuntimeException("Kafka message send failure", ex);
-            });
-
-            // 由于是异步发送，不需要等待发送完成，Spring事务管理器将处理事务
+            sendKafkaMessage("offense_update", offenseInformation);
             offenseInformationMapper.updateById(offenseInformation);
-
         } catch (Exception e) {
-            // 记录异常信息
-            log.error("Exception occurred while updating appeal or sending Kafka message", e);
-            // 异常将由Spring事务管理器处理，可能触发事务回滚
-            throw e;
+            log.error("Exception occurred while updating offense or sending Kafka message", e);
+            throw new RuntimeException("Failed to update offense", e);
         }
     }
 
+    @Transactional
+    @CacheInvalidate(cacheName = "offenseCache")
     public void deleteOffense(int offenseId) {
-        offenseInformationMapper.deleteById(offenseId);
+        try {
+            if (offenseId <= 0) {
+                throw new IllegalArgumentException("Invalid offense ID");
+            }
+            int result = offenseInformationMapper.deleteById(offenseId);
+            if (result > 0) {
+                log.info("Offense with ID {} deleted successfully");
+            } else {
+                log.error("Failed to delete offense with ID {}");
+            }
+        } catch (Exception e) {
+            log.error("Exception occurred while deleting offense", e);
+            throw new RuntimeException("Failed to delete offense", e);
+        }
     }
 
-    // 根据时间范围查询
+    @CacheResult(cacheName = "offenseCache")
     public List<OffenseInformation> getOffensesByTimeRange(Date startTime, Date endTime) {
+        if (startTime == null || endTime == null || startTime.after(endTime)) {
+            throw new IllegalArgumentException("Invalid time range");
+        }
         QueryWrapper<OffenseInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.between("offense_time", startTime, endTime);
         return offenseInformationMapper.selectList(queryWrapper);
     }
 
-    // 根据处理状态查询
+    @CacheResult(cacheName = "offenseCache")
     public List<OffenseInformation> getOffensesByProcessState(String processState) {
+        if (processState == null || processState.trim().isEmpty()) {
+            throw new IllegalArgumentException("Invalid process state");
+        }
         QueryWrapper<OffenseInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("process_status", processState);
         return offenseInformationMapper.selectList(queryWrapper);
     }
 
-    // 根据驾驶员姓名查询
+    @CacheResult(cacheName = "offenseCache")
     public List<OffenseInformation> getOffensesByDriverName(String driverName) {
+        if (driverName == null || driverName.trim().isEmpty()) {
+            throw new IllegalArgumentException("Invalid driver name");
+        }
         QueryWrapper<OffenseInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("driver_name", driverName);
         return offenseInformationMapper.selectList(queryWrapper);
     }
 
-    // 根据车牌号查询
+    @CacheResult(cacheName = "offenseCache")
     public List<OffenseInformation> getOffensesByLicensePlate(String offenseLicensePlate) {
+        if (offenseLicensePlate == null || offenseLicensePlate.trim().isEmpty()) {
+            throw new IllegalArgumentException("Invalid license plate");
+        }
         QueryWrapper<OffenseInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("license_plate", offenseLicensePlate);
         return offenseInformationMapper.selectList(queryWrapper);
+    }
+
+    private void sendKafkaMessage(String topic, OffenseInformation offenseInformation) {
+        var metadata = OutgoingKafkaRecordMetadata.<String>builder().withTopic(topic).build();
+        KafkaRecord<String, OffenseInformation> record = (KafkaRecord<String, OffenseInformation>) KafkaRecord.of(offenseInformation.getOffenseId().toString(), offenseInformation).addMetadata(metadata);
+        offenseEmitter.send(record);
+        log.info("Message sent to Kafka topic {} successfully");
     }
 }

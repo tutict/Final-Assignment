@@ -3,120 +3,126 @@ package finalassignmentbackend.service;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import finalassignmentbackend.mapper.PermissionManagementMapper;
 import finalassignmentbackend.entity.PermissionManagement;
+import io.quarkus.cache.CacheInvalidate;
+import io.quarkus.cache.CacheResult;
+import io.smallrye.reactive.messaging.kafka.KafkaRecord;
+import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
+import org.jboss.logging.Logger;
+import org.eclipse.microprofile.reactive.messaging.Channel;
+import org.eclipse.microprofile.reactive.messaging.Emitter;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
-import org.eclipse.microprofile.reactive.messaging.Channel;
-import org.eclipse.microprofile.reactive.messaging.Emitter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.List;
 
 @ApplicationScoped
 public class PermissionManagementService {
 
-    private static final Logger log = LoggerFactory.getLogger(PermissionManagementService.class);
+    private static final Logger log = Logger.getLogger(PermissionManagementService.class);
 
     @Inject
     PermissionManagementMapper permissionManagementMapper;
 
     @Inject
-    @Channel("permission_create")
-    Emitter<PermissionManagement> permissionCreateEmitter;
+    @Channel("permission-events-out")
+    Emitter<PermissionManagement> permissionEmitter;
 
-    @Inject
-    @Channel("permission_update")
-    Emitter<PermissionManagement> permissionUpdateEmitter;
-
-
-    // 创建权限
     @Transactional
+    @CacheInvalidate(cacheName = "permissionCache")
     public void createPermission(PermissionManagement permission) {
         try {
-            // 异步发送消息到 Kafka，并处理发送结果
-            permissionCreateEmitter.send(permission).toCompletableFuture().exceptionally(ex -> {
-
-                // 处理发送失败的情况
-                log.error("Failed to send message to Kafka, triggering transaction rollback", ex);
-                // 抛出异常
-                throw new RuntimeException("Kafka message send failure", ex);
-            });
-
-            // 由于是异步发送，不需要等待发送完成，事务管理器将处理事务
+            sendKafkaMessage("permission_create", permission);
             permissionManagementMapper.insert(permission);
-
         } catch (Exception e) {
-            // 记录异常信息
-            log.error("Exception occurred while updating appeal or sending Kafka message", e);
-            // 异常将由事务管理器处理，可能触发事务回滚
-            throw e;
+            log.error("Exception occurred while creating permission or sending Kafka message", e);
+            throw new RuntimeException("Failed to create permission", e);
         }
     }
 
-    // 根据权限ID查询权限
+    @CacheResult(cacheName = "permissionCache")
     public PermissionManagement getPermissionById(int permissionId) {
         return permissionManagementMapper.selectById(permissionId);
     }
 
-    // 查询所有权限
+    @CacheResult(cacheName = "permissionCache")
     public List<PermissionManagement> getAllPermissions() {
         return permissionManagementMapper.selectList(null);
     }
 
-    // 根据权限名称查询权限
+    @CacheResult(cacheName = "permissionCache")
     public PermissionManagement getPermissionByName(String permissionName) {
+        if (permissionName == null || permissionName.trim().isEmpty()) {
+            throw new IllegalArgumentException("Invalid permission name");
+        }
         QueryWrapper<PermissionManagement> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("permission_name", permissionName);
         return permissionManagementMapper.selectOne(queryWrapper);
     }
 
-    // 根据权限名称模糊查询权限
+    @CacheResult(cacheName = "permissionCache")
     public List<PermissionManagement> getPermissionsByNameLike(String permissionName) {
+        if (permissionName == null || permissionName.trim().isEmpty()) {
+            throw new IllegalArgumentException("Invalid permission name");
+        }
         QueryWrapper<PermissionManagement> queryWrapper = new QueryWrapper<>();
         queryWrapper.like("permission_name", permissionName);
         return permissionManagementMapper.selectList(queryWrapper);
     }
 
-    // 更新权限
     @Transactional
+    @CacheInvalidate(cacheName = "permissionCache")
     public void updatePermission(PermissionManagement permission) {
         try {
-            // 异步发送消息到 Kafka，并处理发送结果
-            permissionUpdateEmitter.send(permission).toCompletableFuture().exceptionally(ex -> {
-
-                // 处理发送失败的情况
-                log.error("Failed to send message to Kafka, triggering transaction rollback", ex);
-                // 抛出异常
-                throw new RuntimeException("Kafka message send failure", ex);
-            });
-
-            // 由于是异步发送，不需要等待发送完成，事务管理器将处理事务
+            sendKafkaMessage("permission_update", permission);
             permissionManagementMapper.updateById(permission);
-
         } catch (Exception e) {
-            // 记录异常信息
-            log.error("Exception occurred while updating appeal or sending Kafka message", e);
-            // 异常将由事务管理器处理，可能触发事务回滚
-            throw e;
+            log.error("Exception occurred while updating permission or sending Kafka message", e);
+            throw new RuntimeException("Failed to update permission", e);
         }
     }
 
-    // 删除权限
+    @Transactional
+    @CacheInvalidate(cacheName = "permissionCache")
     public void deletePermission(int permissionId) {
-        PermissionManagement permissionToDelete = permissionManagementMapper.selectById(permissionId);
-        if (permissionToDelete != null) {
-            permissionManagementMapper.deleteById(permissionId);
+        try {
+            PermissionManagement permissionToDelete = permissionManagementMapper.selectById(permissionId);
+            if (permissionToDelete != null) {
+                int result = permissionManagementMapper.deleteById(permissionId);
+                if (result > 0) {
+                    log.info("Permission with ID {} deleted successfully");
+                } else {
+                    log.error("Failed to delete permission with ID {}");
+                }
+            }
+        } catch (Exception e) {
+            log.error("Exception occurred while deleting permission", e);
+            throw new RuntimeException("Failed to delete permission", e);
         }
     }
 
-    // 根据权限名称删除权限
+    @Transactional
+    @CacheInvalidate(cacheName = "permissionCache")
     public void deletePermissionByName(String permissionName) {
+        if (permissionName == null || permissionName.trim().isEmpty()) {
+            throw new IllegalArgumentException("Invalid permission name");
+        }
         QueryWrapper<PermissionManagement> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("permission_name", permissionName);
         PermissionManagement permissionToDelete = permissionManagementMapper.selectOne(queryWrapper);
         if (permissionToDelete != null) {
-            permissionManagementMapper.delete(queryWrapper);
+            int result = permissionManagementMapper.delete(queryWrapper);
+            if (result > 0) {
+                log.info("Permission with name '{}' deleted successfully");
+            } else {
+                log.error("Failed to delete permission with name '{}'");
+            }
         }
+    }
+
+    private void sendKafkaMessage(String topic, PermissionManagement permission) {
+        var metadata = OutgoingKafkaRecordMetadata.<String>builder().withTopic(topic).build();
+        KafkaRecord<String, PermissionManagement> record = (KafkaRecord<String, PermissionManagement>) KafkaRecord.of(permission.getPermissionId().toString(), permission).addMetadata(metadata);
+        permissionEmitter.send(record);
+        log.info("Message sent to Kafka topic {} successfully");
     }
 }
