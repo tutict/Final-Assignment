@@ -1,20 +1,40 @@
 package finalassignmentbackend.controller.ai;
-import jakarta.ws.rs.Consumes;
+
+import com.oracle.svm.core.annotate.Inject;
+import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
+import org.eclipse.microprofile.openapi.annotations.Operation;
+import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
+import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
+import org.eclipse.microprofile.openapi.annotations.tags.Tag;
+import org.jboss.logging.Logger;
+import org.springframework.ai.chat.client.ChatClient;
 
-@Path("/eventbus/")
-@Consumes(MediaType.APPLICATION_JSON)
+@Path("/ai")
 @Produces(MediaType.APPLICATION_JSON)
+@Tag(name = "AI Chat", description = "Chat Controller for AI interactions")
 public class ChatController {
 
-    BedrockTitanChatClient bedrockTitanChatClient;
+    private static final Logger logger = Logger.getLogger(ChatController.class);
 
-    @GetMapping("/chat")
-    public Flux<ChatResponse> chat(@RequestParam String message) {
-        UserMessage userMessage = new UserMessage(message);
-        Prompt prompt = new Prompt(userMessage);
-        return bedrockTitanChatClient.stream(prompt);
+    @Inject
+    ChatClient chatClient;
+
+    @GET
+    @Path("/chat")
+    @Operation(summary = "Chat with AI", description = "Provides an AI response based on user input")
+    @APIResponses({
+            @APIResponse(responseCode = "200", description = "Successful AI response"),
+            @APIResponse(responseCode = "400", description = "Invalid input")
+    })
+    public String chat(@QueryParam("input") String input) {
+        logger.infof("User input: %s", input);
+        return this.chatClient.prompt()
+                .user(input)
+                .call()
+                .content();
     }
 }
