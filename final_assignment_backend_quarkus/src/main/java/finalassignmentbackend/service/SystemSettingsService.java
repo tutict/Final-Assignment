@@ -1,5 +1,6 @@
 package finalassignmentbackend.service;
 
+import com.oracle.svm.core.annotate.Inject;
 import finalassignmentbackend.mapper.SystemSettingsMapper;
 import finalassignmentbackend.entity.SystemSettings;
 import io.quarkus.cache.CacheInvalidate;
@@ -10,7 +11,6 @@ import org.jboss.logging.Logger;
 import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Emitter;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 
 @ApplicationScoped

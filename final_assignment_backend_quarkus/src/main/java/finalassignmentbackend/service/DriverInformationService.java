@@ -1,6 +1,7 @@
 package finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.oracle.svm.core.annotate.Inject;
 import finalassignmentbackend.mapper.DriverInformationMapper;
 import finalassignmentbackend.entity.DriverInformation;
 import io.quarkus.cache.CacheInvalidate;
@@ -11,7 +12,6 @@ import org.jboss.logging.Logger;
 import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Emitter;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import java.util.List;
 

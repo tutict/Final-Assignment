@@ -1,32 +1,32 @@
 package finalassignmentbackend.config;
 
-import io.vertx.core.Vertx;
 import io.vertx.kafka.client.consumer.KafkaConsumer;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Produces;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
-import org.eclipse.microprofile.config.inject.ConfigProperties;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
+import io.vertx.mutiny.core.Vertx;
 
-import java.util.Properties;
+import java.util.HashMap;
+import java.util.Map;
 
-@ConfigProperties(prefix = "kafka")
+@ApplicationScoped
 public class KafkaConfig {
 
-    @ConfigProperty(name = "quarkus.kafka.servers")
+    @ConfigProperty(name = "kafka.bootstrap.servers")
     String bootstrapServers;
-
 
     @Produces
     @ApplicationScoped
     public KafkaConsumer<String, String> kafkaConsumer(Vertx vertx) {
-        Properties props = new Properties();
-        props.put("bootstrap.servers", bootstrapServers);
-        props.put("group.id", "my-group");
-        props.put("key.deserializer", StringDeserializer.class.getName());
-        props.put("value.deserializer", StringDeserializer.class.getName());
+        Map<String, String> config = new HashMap<>();
+        config.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        config.put(ConsumerConfig.GROUP_ID_CONFIG, "my-group");
+        config.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+        config.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+        config.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
 
-        // 使用Vert.x的KafkaConsumer创建方法
-        return KafkaConsumer.create(vertx, props, String.class, String.class);
+        return KafkaConsumer.create((io.vertx.core.Vertx) vertx, config, String.class, String.class);
     }
 }
