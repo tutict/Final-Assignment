@@ -1,5 +1,6 @@
 package finalassignmentbackend.interceptor;
 
+import com.oracle.svm.core.annotate.Inject;
 import finalassignmentbackend.mapper.AppealManagementMapper;
 import finalassignmentbackend.mapper.BackupRestoreMapper;
 import finalassignmentbackend.mapper.DeductionInformationMapper;
@@ -17,7 +18,6 @@ import finalassignmentbackend.mapper.VehicleInformationMapper;
 import finalassignmentbackend.mapper.view.OffenseDetailsMapper;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Produces;
-import jakarta.inject.Inject;
 import org.apache.ibatis.session.SqlSession;
 import org.apache.ibatis.session.SqlSessionFactory;
 

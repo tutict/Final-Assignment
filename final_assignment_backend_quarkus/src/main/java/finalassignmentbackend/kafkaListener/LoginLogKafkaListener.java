@@ -1,0 +1,66 @@
+package finalassignmentbackend.kafkaListener;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.oracle.svm.core.annotate.Inject;
+import finalassignmentbackend.entity.LoginLog;
+import finalassignmentbackend.service.LoginLogService;
+import io.vertx.core.Future;
+import jakarta.enterprise.context.ApplicationScoped;
+import org.eclipse.microprofile.reactive.messaging.Incoming;
+import org.jboss.logging.Logger;
+
+@ApplicationScoped
+public class LoginLogKafkaListener {
+
+    private static final Logger log = Logger.getLogger(LoginLogKafkaListener.class);
+
+    @Inject
+    LoginLogService loginLogService;
+
+    @Inject
+    ObjectMapper objectMapper;
+
+    @Incoming("login_create")
+    public void onLoginLogCreateReceived(String message) {
+        Future.<Void>future(promise -> {
+            try {
+                LoginLog loginLog = deserializeMessage(message);
+                loginLogService.createLoginLog(loginLog);
+                promise.complete();
+            } catch (Exception e) {
+                log.errorf("Error processing create login log message: %s", message, e);
+                promise.fail(e);
+            }
+        }).onComplete(res -> {
+            if (res.failed()) {
+                log.errorf("Error processing create login log message: %s", message, res.cause());
+            }
+        });
+    }
+
+    @Incoming("login_update")
+    public void onLoginLogUpdateReceived(String message) {
+        Future.<Void>future(promise -> {
+            try {
+                LoginLog loginLog = deserializeMessage(message);
+                loginLogService.updateLoginLog(loginLog);
+                promise.complete();
+            } catch (Exception e) {
+                log.errorf("Error processing update login log message: %s", message, e);
+                promise.fail(e);
+            }
+        }).onComplete(res -> {
+            if (res.failed()) {
+                log.errorf("Error processing update login log message: %s", message, res.cause());
+            }
+        });
+    }
+
+    private LoginLog deserializeMessage(String message) {
+        try {
+            return objectMapper.readValue(message, LoginLog.class);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+}

@@ -1,28 +1,25 @@
-package finalassignmentbackend.KafkaListener;
+package finalassignmentbackend.kafkaListener;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.oracle.svm.core.annotate.Inject;
 import finalassignmentbackend.entity.BackupRestore;
 import finalassignmentbackend.service.BackupRestoreService;
 import io.smallrye.reactive.messaging.annotations.Blocking;
 import io.vertx.core.Future;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.jboss.logging.Logger;
 
 @ApplicationScoped
 public class BackupRestoreKafkaListener {
 
-    private static final Logger log = LoggerFactory.getLogger(BackupRestoreKafkaListener.class);
-    private final BackupRestoreService backupRestoreService;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private static final Logger log = Logger.getLogger(BackupRestoreKafkaListener.class);
 
     @Inject
-    public BackupRestoreKafkaListener(BackupRestoreService backupRestoreService) {
-        this.backupRestoreService = backupRestoreService;
-    }
+    BackupRestoreService backupRestoreService;
+
+    @Inject
+    ObjectMapper objectMapper;
 
     @Incoming("backup_create")
     @Blocking
@@ -33,14 +30,12 @@ public class BackupRestoreKafkaListener {
                 backupRestoreService.createBackup(backupRestore);
                 promise.complete();
             } catch (Exception e) {
-                log.error("Error processing backup create message: {}", message, e);
+                log.errorf("Error processing backup create message: %s", message, e);
                 promise.fail(e);
             }
         }).onComplete(res -> {
-            if (res.succeeded()) {
-                log.info("Successfully create backup message: {}", message);
-            } else {
-                log.error("Error processing backup create message: {}", message, res.cause());
+            if (res.failed()) {
+                log.errorf("Error processing backup create message: %s", message, res.cause());
             }
         });
     }
@@ -54,19 +49,21 @@ public class BackupRestoreKafkaListener {
                 backupRestoreService.updateBackup(backupRestore);
                 promise.complete();
             } catch (Exception e) {
-                log.error("Error processing backup update message: {}", message, e);
+                log.errorf("Error processing backup update message: %s", message, e);
                 promise.fail(e);
             }
         }).onComplete(res -> {
-            if (res.succeeded()) {
-                log.info("Successfully update backup message: {}", message);
-            } else {
-                log.error("Error processing backup update message: {}", message, res.cause());
+            if (res.failed()) {
+                log.errorf("Error processing backup update message: %s", message, res.cause());
             }
         });
     }
 
-    private BackupRestore deserializeMessage(String message) throws JsonProcessingException {
-        return objectMapper.readValue(message, BackupRestore.class);
+    private BackupRestore deserializeMessage(String message) {
+        try {
+            return objectMapper.readValue(message, BackupRestore.class);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }
