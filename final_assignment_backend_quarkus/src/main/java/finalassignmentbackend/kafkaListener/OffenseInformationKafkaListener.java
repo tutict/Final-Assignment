@@ -7,12 +7,14 @@ import finalassignmentbackend.service.OffenseInformationService;
 import io.vertx.core.Future;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
-import org.jboss.logging.Logger;
+
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 @ApplicationScoped
 public class OffenseInformationKafkaListener {
 
-    private static final Logger log = Logger.getLogger(OffenseInformationKafkaListener.class);
+    private static final Logger log = Logger.getLogger(String.valueOf(OffenseInformationKafkaListener.class));
 
     @Inject
     OffenseInformationService offenseInformationService;
@@ -28,12 +30,11 @@ public class OffenseInformationKafkaListener {
                 offenseInformationService.createOffense(offenseInformation);
                 promise.complete();
             } catch (Exception e) {
-                log.errorf("Error processing create offense message: %s", message, e);
-                promise.fail(e);
+                log.log(Level.SEVERE, String.format("Error processing create offense message: %s", message), e);
             }
         }).onComplete(res -> {
             if (res.failed()) {
-                log.errorf("Error processing create offense message: %s", message, res.cause());
+                log.log(Level.SEVERE, String.format("Error processing create offense message: %s", message), res.cause());
             }
         });
     }
@@ -46,12 +47,11 @@ public class OffenseInformationKafkaListener {
                 offenseInformationService.updateOffense(offenseInformation);
                 promise.complete();
             } catch (Exception e) {
-                log.errorf("Error processing update offense message: %s", message, e);
-                promise.fail(e);
+                log.log(Level.SEVERE, String.format("Error processing update offense message: %s", message), e);
             }
         }).onComplete(res -> {
             if (res.failed()) {
-                log.errorf("Error processing update offense message: %s", message, res.cause());
+                log.log(Level.SEVERE, String.format("Error processing update offense message: %s", message), res.cause());
             }
         });
     }

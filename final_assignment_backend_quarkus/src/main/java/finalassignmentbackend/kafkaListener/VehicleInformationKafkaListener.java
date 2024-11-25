@@ -7,12 +7,14 @@ import finalassignmentbackend.service.VehicleInformationService;
 import io.vertx.core.Future;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
-import org.jboss.logging.Logger;
+
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 @ApplicationScoped
 public class VehicleInformationKafkaListener {
 
-    private static final Logger log = Logger.getLogger(VehicleInformationKafkaListener.class);
+    private static final Logger log = Logger.getLogger(String.valueOf(VehicleInformationKafkaListener.class));
 
     @Inject
     VehicleInformationService vehicleInformationService;
@@ -28,12 +30,11 @@ public class VehicleInformationKafkaListener {
                 vehicleInformationService.createVehicleInformation(vehicleInformation);
                 promise.complete();
             } catch (Exception e) {
-                log.errorf("Error processing create vehicle information message: %s", message, e);
-                promise.fail(e);
+                log.log(Level.SEVERE, String.format("Error processing create vehicle information message: %s", message), e);
             }
         }).onComplete(res -> {
             if (res.failed()) {
-                log.errorf("Error processing create vehicle information message: %s", message, res.cause());
+                log.log(Level.SEVERE, String.format("Error processing create vehicle information message: %s", message), res.cause());
             }
         });
     }
@@ -46,12 +47,11 @@ public class VehicleInformationKafkaListener {
                 vehicleInformationService.updateVehicleInformation(vehicleInformation);
                 promise.complete();
             } catch (Exception e) {
-                log.errorf("Error processing update vehicle information message: %s", message, e);
-                promise.fail(e);
+                log.log(Level.SEVERE, String.format("Error processing update vehicle information message: %s", message), e);
             }
         }).onComplete(res -> {
             if (res.failed()) {
-                log.errorf("Error processing update vehicle information message: %s", message, res.cause());
+                log.log(Level.SEVERE, String.format("Error processing update vehicle information message: %s", message), res.cause());
             }
         });
     }

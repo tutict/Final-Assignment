@@ -8,12 +8,14 @@ import io.smallrye.reactive.messaging.annotations.Blocking;
 import io.vertx.core.Future;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
-import org.jboss.logging.Logger;
+
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 @ApplicationScoped
 public class BackupRestoreKafkaListener {
 
-    private static final Logger log = Logger.getLogger(BackupRestoreKafkaListener.class);
+    private static final Logger log = Logger.getLogger(String.valueOf(BackupRestoreKafkaListener.class));
 
     @Inject
     BackupRestoreService backupRestoreService;
@@ -30,12 +32,11 @@ public class BackupRestoreKafkaListener {
                 backupRestoreService.createBackup(backupRestore);
                 promise.complete();
             } catch (Exception e) {
-                log.errorf("Error processing backup create message: %s", message, e);
-                promise.fail(e);
+                log.log(Level.SEVERE, String.format("Error processing backup create message: %s", message), e);
             }
         }).onComplete(res -> {
             if (res.failed()) {
-                log.errorf("Error processing backup create message: %s", message, res.cause());
+                log.log(Level.SEVERE, String.format("Error processing backup create message: %s", message), res.cause());
             }
         });
     }
@@ -49,12 +50,11 @@ public class BackupRestoreKafkaListener {
                 backupRestoreService.updateBackup(backupRestore);
                 promise.complete();
             } catch (Exception e) {
-                log.errorf("Error processing backup update message: %s", message, e);
-                promise.fail(e);
+                log.log(Level.SEVERE, String.format("Error processing backup update message: %s", message), e);
             }
         }).onComplete(res -> {
             if (res.failed()) {
-                log.errorf("Error processing backup update message: %s", message, res.cause());
+                log.log(Level.SEVERE, String.format("Error processing backup update message: %s", message), res.cause());
             }
         });
     }

@@ -7,12 +7,14 @@ import finalassignmentbackend.service.RoleManagementService;
 import io.vertx.core.Future;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
-import org.jboss.logging.Logger;
+
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 @ApplicationScoped
 public class RoleManagementKafkaListener {
 
-    private static final Logger log = Logger.getLogger(RoleManagementKafkaListener.class);
+    private static final Logger log = Logger.getLogger(String.valueOf(RoleManagementKafkaListener.class));
 
     @Inject
     RoleManagementService roleManagementService;
@@ -28,12 +30,11 @@ public class RoleManagementKafkaListener {
                 roleManagementService.createRole(role);
                 promise.complete();
             } catch (Exception e) {
-                log.errorf("Error processing create role message: %s", message, e);
-                promise.fail(e);
+                log.log(Level.SEVERE, String.format("Error processing create role message: %s", message), e);
             }
         }).onComplete(res -> {
             if (res.failed()) {
-                log.errorf("Error processing create role message: %s", message, res.cause());
+                log.log(Level.SEVERE, String.format("Error processing create role message: %s", message), res.cause());
             }
         });
     }
@@ -46,12 +47,11 @@ public class RoleManagementKafkaListener {
                 roleManagementService.updateRole(role);
                 promise.complete();
             } catch (Exception e) {
-                log.errorf("Error processing update role message: %s", message, e);
-                promise.fail(e);
+                log.log(Level.SEVERE, String.format("Error processing update role message: %s", message), e);
             }
         }).onComplete(res -> {
             if (res.failed()) {
-                log.errorf("Error processing update role message: %s", message, res.cause());
+                log.log(Level.SEVERE, String.format("Error processing update role message: %s", message), res.cause());
             }
         });
     }

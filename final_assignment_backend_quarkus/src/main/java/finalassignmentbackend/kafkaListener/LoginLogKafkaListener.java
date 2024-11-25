@@ -7,12 +7,14 @@ import finalassignmentbackend.service.LoginLogService;
 import io.vertx.core.Future;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
-import org.jboss.logging.Logger;
+
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 @ApplicationScoped
 public class LoginLogKafkaListener {
 
-    private static final Logger log = Logger.getLogger(LoginLogKafkaListener.class);
+    private static final Logger log = Logger.getLogger(String.valueOf(LoginLogKafkaListener.class));
 
     @Inject
     LoginLogService loginLogService;
@@ -28,12 +30,11 @@ public class LoginLogKafkaListener {
                 loginLogService.createLoginLog(loginLog);
                 promise.complete();
             } catch (Exception e) {
-                log.errorf("Error processing create login log message: %s", message, e);
-                promise.fail(e);
+                log.log(Level.SEVERE, String.format("Error processing create login log message: %s", message), e);
             }
         }).onComplete(res -> {
             if (res.failed()) {
-                log.errorf("Error processing create login log message: %s", message, res.cause());
+                log.log(Level.SEVERE, String.format("Error processing create login log message: %s", message), res.cause());
             }
         });
     }
@@ -46,12 +47,11 @@ public class LoginLogKafkaListener {
                 loginLogService.updateLoginLog(loginLog);
                 promise.complete();
             } catch (Exception e) {
-                log.errorf("Error processing update login log message: %s", message, e);
-                promise.fail(e);
+                log.log(Level.SEVERE, String.format("Error processing update login log message: %s", message), e);
             }
         }).onComplete(res -> {
             if (res.failed()) {
-                log.errorf("Error processing update login log message: %s", message, res.cause());
+                log.log(Level.SEVERE, String.format("Error processing update login log message: %s", message), res.cause());
             }
         });
     }

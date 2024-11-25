@@ -7,12 +7,14 @@ import finalassignmentbackend.service.DriverInformationService;
 import io.vertx.core.Future;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
-import org.jboss.logging.Logger;
+
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 @ApplicationScoped
 public class DriverInformationKafkaListener {
 
-    private static final Logger log = Logger.getLogger(DriverInformationKafkaListener.class);
+    private static final Logger log = Logger.getLogger(String.valueOf(DriverInformationKafkaListener.class));
 
     @Inject
     DriverInformationService driverInformationService;
@@ -28,12 +30,11 @@ public class DriverInformationKafkaListener {
                 driverInformationService.createDriver(driverInformation);
                 promise.complete();
             } catch (Exception e) {
-                log.errorf("Error processing create driver message: %s", message, e);
-                promise.fail(e);
+                log.log(Level.SEVERE, String.format("Error processing create driver message: %s", message), e);
             }
         }).onComplete(res -> {
             if (res.failed()) {
-                log.errorf("Error processing create driver message: %s", message, res.cause());
+                log.log(Level.SEVERE, String.format("Error processing create driver message: %s", message), res.cause());
             }
         });
     }
@@ -46,12 +47,11 @@ public class DriverInformationKafkaListener {
                 driverInformationService.updateDriver(driverInformation);
                 promise.complete();
             } catch (Exception e) {
-                log.errorf("Error processing update driver message: %s", message, e);
-                promise.fail(e);
+                log.log(Level.SEVERE, String.format("Error processing update driver message: %s", message), e);
             }
         }).onComplete(res -> {
             if (res.failed()) {
-                log.errorf("Error processing update driver message: %s", message, res.cause());
+                log.log(Level.SEVERE, String.format("Error processing update driver message: %s", message), res.cause());
             }
         });
     }

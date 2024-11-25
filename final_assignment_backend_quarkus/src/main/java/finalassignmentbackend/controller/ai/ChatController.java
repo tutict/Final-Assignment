@@ -3,22 +3,23 @@ package finalassignmentbackend.controller.ai;
 import com.oracle.svm.core.annotate.Inject;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
-import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
-import org.jboss.logging.Logger;
 import org.springframework.ai.chat.client.ChatClient;
+
+import java.util.logging.Logger;
 
 @Path("/ai")
 @Produces(MediaType.APPLICATION_JSON)
 @Tag(name = "AI Chat", description = "Chat Controller for AI interactions")
 public class ChatController {
 
-    private static final Logger logger = Logger.getLogger(ChatController.class);
+    private static final Logger logger = Logger.getLogger(String.valueOf(ChatController.class));
 
     @Inject
     ChatClient chatClient;
@@ -31,7 +32,7 @@ public class ChatController {
             @APIResponse(responseCode = "400", description = "Invalid input")
     })
     public String chat(@QueryParam("input") String input) {
-        logger.infof("User input: %s", input);
+        logger.info(String.format("User input: %s", input));
         return this.chatClient.prompt()
                 .user(input)
                 .call()

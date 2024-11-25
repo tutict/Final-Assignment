@@ -7,12 +7,14 @@ import finalassignmentbackend.service.DeductionInformationService;
 import io.vertx.core.Future;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
-import org.jboss.logging.Logger;
+
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 @ApplicationScoped
 public class DeductionInformationKafkaListener {
 
-    private static final Logger log = Logger.getLogger(DeductionInformationKafkaListener.class);
+    private static final Logger log = Logger.getLogger(String.valueOf(DeductionInformationKafkaListener.class));
 
     @Inject
     DeductionInformationService deductionInformationService;
@@ -28,12 +30,11 @@ public class DeductionInformationKafkaListener {
                 deductionInformationService.createDeduction(deductionInformation);
                 promise.complete();
             } catch (Exception e) {
-                log.errorf("Error processing create deduction message: %s", message, e);
-                promise.fail(e);
+                log.log(Level.SEVERE, String.format("Error processing create deduction message: %s", message), e);
             }
         }).onComplete(res -> {
             if (res.failed()) {
-                log.errorf("Error processing create deduction message: %s", message, res.cause());
+                log.log(Level.SEVERE, String.format("Error processing create deduction message: %s", message), res.cause());
             }
         });
     }
@@ -46,12 +47,11 @@ public class DeductionInformationKafkaListener {
                 deductionInformationService.updateDeduction(deductionInformation);
                 promise.complete();
             } catch (Exception e) {
-                log.errorf("Error processing update deduction message: %s", message, e);
-                promise.fail(e);
+                log.log(Level.SEVERE, String.format("Error processing update deduction message: %s", message), e);
             }
         }).onComplete(res -> {
             if (res.failed()) {
-                log.errorf("Error processing update deduction message: %s", message, res.cause());
+                log.log(Level.SEVERE, String.format("Error processing update deduction message: %s", message), res.cause());
             }
         });
     }

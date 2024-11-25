@@ -7,12 +7,14 @@ import io.smallrye.reactive.messaging.annotations.Blocking;
 import io.vertx.core.Future;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
-import org.jboss.logging.Logger;
+
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 @ApplicationScoped
 public class AppealManagementKafkaListener {
 
-    private static final Logger log = Logger.getLogger(AppealManagementKafkaListener.class);
+    private static final Logger log = Logger.getLogger(String.valueOf(AppealManagementKafkaListener.class));
     private final AppealManagementService appealManagementService;
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
@@ -29,12 +31,12 @@ public class AppealManagementKafkaListener {
                 appealManagementService.createAppeal(appealManagement);
                 promise.complete();
             } catch (Exception e) {
-                log.errorf("Error processing create appeal message: %s", message, e);
+                log.log(Level.SEVERE, String.format("Error processing create appeal message: %s", message), e);
                 promise.fail(e);
             }
         }).onComplete(res -> {
             if (res.failed()) {
-                log.errorf("Error processing create appeal message: %s", message, res.cause());
+                log.log(Level.SEVERE, String.format("Error processing create appeal message: %s", message), res.cause());
             }
         });
     }
@@ -48,12 +50,11 @@ public class AppealManagementKafkaListener {
                 appealManagementService.updateAppeal(appealManagement);
                 promise.complete();
             } catch (Exception e) {
-                log.errorf("Error processing update appeal message: %s", message, e);
-                promise.fail(e);
+                log.log(Level.SEVERE, String.format("Error processing update appeal message: %s", message), e);
             }
         }).onComplete(res -> {
             if (res.failed()) {
-                log.errorf("Error processing update appeal message: %s", message, res.cause());
+                log.log(Level.SEVERE, String.format("Error processing update appeal message: %s", message), res.cause());
             }
         });
     }

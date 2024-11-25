@@ -11,10 +11,11 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import lombok.Getter;
 import lombok.Setter;
-import org.jboss.logging.Logger;
 
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 @Path("/auth")
 @Produces(MediaType.APPLICATION_JSON)
@@ -24,13 +25,13 @@ public class AuthController {
     @Inject
     TokenProvider tokenProvider;
 
-    private static final Logger logger = Logger.getLogger(AuthController.class);
+    private static final Logger logger = Logger.getLogger(String.valueOf(AuthController.class));
 
     @POST
     @Path("/login")
     @PermitAll
     public Response login(LoginRequest loginRequest) {
-        logger.infof("Attempting to authenticate user: %s", loginRequest.getUsername());
+        logger.info(String.format("Attempting to authenticate user: %s", loginRequest.getUsername()));
         try {
             // 使用自己实现的认证逻辑
             boolean isAuthenticated = authenticateUser(loginRequest.getUsername(), loginRequest.getPassword());
@@ -42,14 +43,14 @@ public class AuthController {
                 // 创建JWT Token
                 String token = tokenProvider.createToken(loginRequest.getUsername(), roles);
 
-                logger.infof("User authenticated successfully: %s", loginRequest.getUsername());
+                logger.info(String.format("User authenticated successfully: %s", loginRequest.getUsername()));
                 return Response.ok(Map.of("token", token)).build();
             } else {
-                logger.warnf("Authentication failed for user: %s", loginRequest.getUsername());
+                logger.severe(String.format("Authentication failed for user: %s", loginRequest.getUsername()));
                 return Response.status(Response.Status.UNAUTHORIZED).build();
             }
         } catch (Exception e) {
-            logger.errorf("Authentication failed for user: %s", loginRequest.getUsername(), e);
+            logger.log(Level.SEVERE, String.format("Authentication failed for user: %s", loginRequest.getUsername()), e);
             return Response.status(Response.Status.UNAUTHORIZED).build();
         }
     }

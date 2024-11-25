@@ -7,12 +7,14 @@ import finalassignmentbackend.service.FineInformationService;
 import io.vertx.core.Future;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
-import org.jboss.logging.Logger;
+
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 @ApplicationScoped
 public class FineInformationKafkaListener {
 
-    private static final Logger log = Logger.getLogger(FineInformationKafkaListener.class);
+    private static final Logger log = Logger.getLogger(String.valueOf(FineInformationKafkaListener.class));
 
     @Inject
     FineInformationService fineInformationService;
@@ -28,12 +30,11 @@ public class FineInformationKafkaListener {
                 fineInformationService.createFine(fineInformation);
                 promise.complete();
             } catch (Exception e) {
-                log.errorf("Error processing create fine message: %s", message, e);
-                promise.fail(e);
+                log.log(Level.SEVERE, String.format("Error processing create fine message: %s", message), e);
             }
         }).onComplete(res -> {
             if (res.failed()) {
-                log.errorf("Error processing create fine message: %s", message, res.cause());
+                log.log(Level.SEVERE, String.format("Error processing create fine message: %s", message), res.cause());
             }
         });
     }
@@ -46,12 +47,11 @@ public class FineInformationKafkaListener {
                 fineInformationService.updateFine(fineInformation);
                 promise.complete();
             } catch (Exception e) {
-                log.errorf("Error processing update fine message: %s", message, e);
-                promise.fail(e);
+                log.log(Level.SEVERE, String.format("Error processing update fine message: %s", message), e);
             }
         }).onComplete(res -> {
             if (res.failed()) {
-                log.errorf("Error processing update fine message: %s", message, res.cause());
+                log.log(Level.SEVERE, String.format("Error processing update fine message: %s", message), res.cause());
             }
         });
     }

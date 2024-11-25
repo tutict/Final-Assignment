@@ -2,17 +2,19 @@ package finalassignmentbackend.config.shell;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
-import org.jboss.logging.Logger;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.logging.Logger;
 
 @ApplicationScoped
 public class ShellScriptConfig {
 
-    private static final Logger logger = Logger.getLogger(ShellScriptConfig.class);
+    private static final Logger logger = Logger.getLogger(String.valueOf(ShellScriptConfig.class));
 
-    public ShellScriptConfig() { }
+    public ShellScriptConfig() {
+    }
 
     @PostConstruct
     public void executeShellScript() {
@@ -27,7 +29,7 @@ public class ShellScriptConfig {
         } else if (os != null && os.toLowerCase().startsWith("linux")) {
             builder = new ProcessBuilder("sh", shell);
         } else {
-            logger.warnf("您的%s系统暂时不支持", os);
+            logger.warning(String.format("您的%s系统暂时不支持", os));
             return;
         }
 

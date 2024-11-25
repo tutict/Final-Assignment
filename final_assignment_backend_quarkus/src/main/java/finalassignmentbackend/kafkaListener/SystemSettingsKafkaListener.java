@@ -7,12 +7,14 @@ import finalassignmentbackend.service.SystemSettingsService;
 import io.vertx.core.Future;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
-import org.jboss.logging.Logger;
+
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 @ApplicationScoped
 public class SystemSettingsKafkaListener {
 
-    private static final Logger log = Logger.getLogger(SystemSettingsKafkaListener.class);
+    private static final Logger log = Logger.getLogger(String.valueOf(SystemSettingsKafkaListener.class));
 
     @Inject
     SystemSettingsService systemSettingsService;
@@ -28,12 +30,11 @@ public class SystemSettingsKafkaListener {
                 systemSettingsService.updateSystemSettings(systemSettings);
                 promise.complete();
             } catch (Exception e) {
-                log.errorf("Error processing update system settings message: %s", message, e);
-                promise.fail(e);
+                log.log(Level.SEVERE, String.format("Error processing update system settings message: %s", message), e);
             }
         }).onComplete(res -> {
             if (res.failed()) {
-                log.errorf("Error processing update system settings message: %s", message, res.cause());
+                log.log(Level.SEVERE, String.format("Error processing update system settings message: %s", message), res.cause());
             }
         });
     }
