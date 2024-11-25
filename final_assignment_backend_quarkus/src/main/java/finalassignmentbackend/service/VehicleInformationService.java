@@ -2,24 +2,24 @@ package finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.oracle.svm.core.annotate.Inject;
-import finalassignmentbackend.mapper.VehicleInformationMapper;
 import finalassignmentbackend.entity.VehicleInformation;
+import finalassignmentbackend.mapper.VehicleInformationMapper;
 import io.quarkus.cache.CacheInvalidate;
 import io.quarkus.cache.CacheResult;
-import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
 import io.smallrye.reactive.messaging.kafka.KafkaRecord;
+import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
-import org.jboss.logging.Logger;
 import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Emitter;
 
 import java.util.List;
+import java.util.logging.Logger;
 
 @ApplicationScoped
 public class VehicleInformationService {
 
-    private static final Logger log = Logger.getLogger(VehicleInformationService.class);
+    private static final Logger log = Logger.getLogger(String.valueOf(VehicleInformationService.class));
 
     @Inject
     VehicleInformationMapper vehicleInformationMapper;
@@ -35,7 +35,7 @@ public class VehicleInformationService {
             sendKafkaMessage("vehicle_create", vehicleInformation);
             vehicleInformationMapper.insert(vehicleInformation);
         } catch (Exception e) {
-            log.error("Exception occurred while creating vehicle information or sending Kafka message", e);
+            log.warning("Exception occurred while creating vehicle information or sending Kafka message");
             throw new RuntimeException("Failed to create vehicle information", e);
         }
     }
@@ -81,7 +81,7 @@ public class VehicleInformationService {
             sendKafkaMessage("vehicle_update", vehicleInformation);
             vehicleInformationMapper.updateById(vehicleInformation);
         } catch (Exception e) {
-            log.error("Exception occurred while updating vehicle information or sending Kafka message", e);
+            log.warning("Exception occurred while updating vehicle information or sending Kafka message");
             throw new RuntimeException("Failed to update vehicle information", e);
         }
     }
@@ -95,7 +95,7 @@ public class VehicleInformationService {
                 vehicleInformationMapper.deleteById(vehicleId);
             }
         } catch (Exception e) {
-            log.error("Exception occurred while deleting vehicle information", e);
+            log.warning("Exception occurred while deleting vehicle information");
             throw new RuntimeException("Failed to delete vehicle information", e);
         }
     }
@@ -133,7 +133,7 @@ public class VehicleInformationService {
         var metadata = OutgoingKafkaRecordMetadata.<String>builder().withTopic(topic).build();
         KafkaRecord<String, VehicleInformation> record = (KafkaRecord<String, VehicleInformation>) KafkaRecord.of(vehicleInformation.getVehicleId().toString(), vehicleInformation).addMetadata(metadata);
         vehicleEmitter.send(record);
-        log.info("Message sent to Kafka topic {} successfully");
+        log.info(String.format("Message sent to Kafka topic %s successfully", topic));
     }
 
     private void validateInput(String input, String errorMessage) {

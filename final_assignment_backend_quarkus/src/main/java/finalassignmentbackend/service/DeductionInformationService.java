@@ -12,15 +12,15 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
 import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Emitter;
-import org.jboss.logging.Logger;
 
 import java.util.Date;
 import java.util.List;
+import java.util.logging.Logger;
 
 @ApplicationScoped
 public class DeductionInformationService {
 
-    private static final Logger log = Logger.getLogger(DeductionInformationService.class);
+    private static final Logger log = Logger.getLogger(String.valueOf(DeductionInformationService.class));
 
     @Inject
     DeductionInformationMapper deductionInformationMapper;
@@ -36,7 +36,7 @@ public class DeductionInformationService {
             sendKafkaMessage("deduction_create", deduction);
             deductionInformationMapper.insert(deduction);
         } catch (Exception e) {
-            log.error("Exception occurred while creating deduction or sending Kafka message", e);
+            log.warning("Exception occurred while creating deduction or sending Kafka message");
             throw new RuntimeException("Failed to create deduction", e);
         }
     }
@@ -61,7 +61,7 @@ public class DeductionInformationService {
             sendKafkaMessage("deduction_update", deduction);
             deductionInformationMapper.updateById(deduction);
         } catch (Exception e) {
-            log.error("Exception occurred while updating deduction or sending Kafka message", e);
+            log.warning("Exception occurred while updating deduction or sending Kafka message");
             throw new RuntimeException("Failed to update deduction", e);
         }
     }
@@ -72,12 +72,12 @@ public class DeductionInformationService {
         try {
             int result = deductionInformationMapper.deleteById(deductionId);
             if (result > 0) {
-                log.info("Deduction with ID {} deleted successfully");
+                log.info(String.format("Deduction with ID %s deleted successfully", deductionId));
             } else {
-                log.error("Failed to delete deduction with ID {}");
+                log.severe(String.format("Failed to delete deduction with ID %s", deductionId));
             }
         } catch (Exception e) {
-            log.error("Exception occurred while deleting deduction", e);
+            log.warning("Exception occurred while deleting deduction");
             throw new RuntimeException("Failed to delete deduction", e);
         }
     }
@@ -106,6 +106,6 @@ public class DeductionInformationService {
         var metadata = OutgoingKafkaRecordMetadata.<String>builder().withTopic(topic).build();
         KafkaRecord<String, DeductionInformation> record = (KafkaRecord<String, DeductionInformation>) KafkaRecord.of(deduction.getDeductionId().toString(), deduction).addMetadata(metadata);
         deductionEmitter.send(record);
-        log.info("Message sent to Kafka topic {} successfully");
+        log.info(String.format("Message sent to Kafka topic %s successfully", topic));
     }
 }

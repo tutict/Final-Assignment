@@ -2,23 +2,24 @@ package finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.oracle.svm.core.annotate.Inject;
-import finalassignmentbackend.mapper.PermissionManagementMapper;
 import finalassignmentbackend.entity.PermissionManagement;
+import finalassignmentbackend.mapper.PermissionManagementMapper;
 import io.quarkus.cache.CacheInvalidate;
 import io.quarkus.cache.CacheResult;
 import io.smallrye.reactive.messaging.kafka.KafkaRecord;
 import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
-import org.jboss.logging.Logger;
-import org.eclipse.microprofile.reactive.messaging.Channel;
-import org.eclipse.microprofile.reactive.messaging.Emitter;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
+import org.eclipse.microprofile.reactive.messaging.Channel;
+import org.eclipse.microprofile.reactive.messaging.Emitter;
+
 import java.util.List;
+import java.util.logging.Logger;
 
 @ApplicationScoped
 public class PermissionManagementService {
 
-    private static final Logger log = Logger.getLogger(PermissionManagementService.class);
+    private static final Logger log = Logger.getLogger(String.valueOf(PermissionManagementService.class));
 
     @Inject
     PermissionManagementMapper permissionManagementMapper;
@@ -34,7 +35,7 @@ public class PermissionManagementService {
             sendKafkaMessage("permission_create", permission);
             permissionManagementMapper.insert(permission);
         } catch (Exception e) {
-            log.error("Exception occurred while creating permission or sending Kafka message", e);
+            log.warning("Exception occurred while creating permission or sending Kafka message");
             throw new RuntimeException("Failed to create permission", e);
         }
     }
@@ -76,7 +77,7 @@ public class PermissionManagementService {
             sendKafkaMessage("permission_update", permission);
             permissionManagementMapper.updateById(permission);
         } catch (Exception e) {
-            log.error("Exception occurred while updating permission or sending Kafka message", e);
+            log.warning("Exception occurred while updating permission or sending Kafka message");
             throw new RuntimeException("Failed to update permission", e);
         }
     }
@@ -89,13 +90,13 @@ public class PermissionManagementService {
             if (permissionToDelete != null) {
                 int result = permissionManagementMapper.deleteById(permissionId);
                 if (result > 0) {
-                    log.info("Permission with ID {} deleted successfully");
+                    log.info(String.format("Permission with ID %s deleted successfully", permissionId));
                 } else {
-                    log.error("Failed to delete permission with ID {}");
+                    log.severe(String.format("Failed to delete permission with ID %s", permissionId));
                 }
             }
         } catch (Exception e) {
-            log.error("Exception occurred while deleting permission", e);
+            log.warning("Exception occurred while deleting permission");
             throw new RuntimeException("Failed to delete permission", e);
         }
     }
@@ -112,9 +113,9 @@ public class PermissionManagementService {
         if (permissionToDelete != null) {
             int result = permissionManagementMapper.delete(queryWrapper);
             if (result > 0) {
-                log.info("Permission with name '{}' deleted successfully");
+                log.info(String.format("Permission with name '%s' deleted successfully", permissionName));
             } else {
-                log.error("Failed to delete permission with name '{}'");
+                log.severe(String.format("Failed to delete permission with name '%s'", permissionName));
             }
         }
     }
@@ -123,6 +124,6 @@ public class PermissionManagementService {
         var metadata = OutgoingKafkaRecordMetadata.<String>builder().withTopic(topic).build();
         KafkaRecord<String, PermissionManagement> record = (KafkaRecord<String, PermissionManagement>) KafkaRecord.of(permission.getPermissionId().toString(), permission).addMetadata(metadata);
         permissionEmitter.send(record);
-        log.info("Message sent to Kafka topic {} successfully");
+        log.info(String.format("Message sent to Kafka topic %s successfully", topic));
     }
 }

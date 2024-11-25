@@ -2,24 +2,24 @@ package finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.oracle.svm.core.annotate.Inject;
-import finalassignmentbackend.mapper.UserManagementMapper;
 import finalassignmentbackend.entity.UserManagement;
+import finalassignmentbackend.mapper.UserManagementMapper;
 import io.quarkus.cache.CacheInvalidate;
 import io.quarkus.cache.CacheResult;
-import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
 import io.smallrye.reactive.messaging.kafka.KafkaRecord;
+import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
-import org.jboss.logging.Logger;
 import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Emitter;
 
 import java.util.List;
+import java.util.logging.Logger;
 
 @ApplicationScoped
 public class UserManagementService {
 
-    private static final Logger log = Logger.getLogger(UserManagementService.class);
+    private static final Logger log = Logger.getLogger(String.valueOf(UserManagementService.class));
 
     @Inject
     UserManagementMapper userManagementMapper;
@@ -35,7 +35,7 @@ public class UserManagementService {
             sendKafkaMessage("user_create", user);
             userManagementMapper.insert(user);
         } catch (Exception e) {
-            log.error("Exception occurred while creating user or sending Kafka message", e);
+            log.warning("Exception occurred while creating user or sending Kafka message");
             throw new RuntimeException("Failed to create user", e);
         }
     }
@@ -81,7 +81,7 @@ public class UserManagementService {
             sendKafkaMessage("user_update", user);
             userManagementMapper.updateById(user);
         } catch (Exception e) {
-            log.error("Exception occurred while updating user or sending Kafka message", e);
+            log.warning("Exception occurred while updating user or sending Kafka message");
             throw new RuntimeException("Failed to update user", e);
         }
         return user;
@@ -96,7 +96,7 @@ public class UserManagementService {
                 userManagementMapper.deleteById(userId);
             }
         } catch (Exception e) {
-            log.error("Exception occurred while deleting user", e);
+            log.warning("Exception occurred while deleting user");
             throw new RuntimeException("Failed to delete user", e);
         }
     }
@@ -113,7 +113,7 @@ public class UserManagementService {
                 userManagementMapper.delete(queryWrapper);
             }
         } catch (Exception e) {
-            log.error("Exception occurred while deleting user", e);
+            log.warning("Exception occurred while deleting user");
             throw new RuntimeException("Failed to delete user", e);
         }
     }
@@ -130,7 +130,7 @@ public class UserManagementService {
         var metadata = OutgoingKafkaRecordMetadata.<String>builder().withTopic(topic).build();
         KafkaRecord<String, UserManagement> record = (KafkaRecord<String, UserManagement>) KafkaRecord.of(user.getUserId().toString(), user).addMetadata(metadata);
         userEmitter.send(record);
-        log.info("Message sent to Kafka topic {} successfully");
+        log.info(String.format("Message sent to Kafka topic %s successfully", topic));
     }
 
     private void validateInput(String input, String errorMessage) {

@@ -17,9 +17,9 @@ dependencies {
     implementation 'io.quarkus:quarkus-arc:3.17.0.CR1'
     implementation 'io.vertx:vertx-kafka-client:4.5.11'
     implementation 'io.vertx:vertx-core:4.5.11'
-    implementation 'io.quarkus:quarkus-vertx-http:3.11.3'
-    implementation 'io.quarkus:quarkus-vertx-http-parent:3.11.3'
-    implementation 'io.quarkus:quarkus-kafka-client:3.11.3'
+    implementation 'io.quarkus:quarkus-vertx-http:3.17.0.CR1'
+    implementation 'io.quarkus:quarkus-vertx-http-parent:3.17.0.CR1'
+    implementation 'io.quarkus:quarkus-kafka-client:3.17.0.CR1'
     implementation 'io.quarkiverse.mybatis:quarkus-mybatis-plus:2.2.4'
     implementation 'org.mindrot:jbcrypt:0.4'
     implementation 'io.quarkus:quarkus-cache:3.17.0.CR1'
@@ -28,7 +28,6 @@ dependencies {
     implementation 'io.quarkus:quarkus-smallrye-openapi:3.17.0.CR1'
     implementation 'io.quarkus:quarkus-resteasy:3.17.0.CR1'
     implementation 'io.quarkus:quarkus-resteasy-jsonb:3.17.0.CR1'
-    //noinspection AnnotationProcessorOnCompilePath
     implementation 'org.projectlombok:lombok:1.18.34'
     implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
     implementation 'io.jsonwebtoken:jjwt-impl:0.11.5'
@@ -40,6 +39,7 @@ dependencies {
     implementation 'io.quarkus:quarkus-rest:3.17.0.CR1'
     implementation 'io.quarkus:quarkus-rest-jackson:3.17.0.CR1'
     implementation 'com.alibaba.cloud.ai:spring-ai-alibaba-starter:1.0.0-M3.1'
+    implementation 'org.jboss.logmanager:log4j2-jboss-logmanager:2.0.1.Final'
     testImplementation 'io.quarkus:quarkus-junit5:3.17.0'
     testImplementation 'io.rest-assured:rest-assured:5.5.0'
 }
@@ -55,11 +55,27 @@ java {
 test {
     systemProperty 'java.util.logging.manager', 'org.jboss.logmanager.LogManager'
 }
+
 compileJava {
     options.encoding = 'UTF-8'
-    options.compilerArgs << '-parameters'
+    options.compilerArgs.addAll(['-parameters', '--release', '22'])
 }
 
 compileTestJava {
     options.encoding = 'UTF-8'
+    options.compilerArgs.addAll(['--release', '22'])
+}
+
+tasks.withType(JavaExec).configureEach {
+    systemProperty 'java.util.logging.manager', 'org.jboss.logmanager.LogManager'
+}
+
+configurations.configureEach {
+    exclude group: 'ch.qos.logback'
+    exclude group: 'org.slf4j', module: 'slf4j-simple'
+    exclude group: 'org.slf4j', module: 'slf4j-jdk14'
+}
+
+tasks.withType(JavaExec).configureEach {
+    jvmArgs '-Djava.util.logging.manager=org.jboss.logmanager.LogManager'
 }

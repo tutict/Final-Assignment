@@ -1,22 +1,23 @@
 package finalassignmentbackend.service;
 
 import com.oracle.svm.core.annotate.Inject;
-import finalassignmentbackend.mapper.SystemSettingsMapper;
 import finalassignmentbackend.entity.SystemSettings;
+import finalassignmentbackend.mapper.SystemSettingsMapper;
 import io.quarkus.cache.CacheInvalidate;
 import io.quarkus.cache.CacheResult;
 import io.smallrye.reactive.messaging.kafka.KafkaRecord;
 import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
-import org.jboss.logging.Logger;
-import org.eclipse.microprofile.reactive.messaging.Channel;
-import org.eclipse.microprofile.reactive.messaging.Emitter;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
+import org.eclipse.microprofile.reactive.messaging.Channel;
+import org.eclipse.microprofile.reactive.messaging.Emitter;
+
+import java.util.logging.Logger;
 
 @ApplicationScoped
 public class SystemSettingsService {
 
-    private static final Logger log = Logger.getLogger(SystemSettingsService.class);
+    private static final Logger log = Logger.getLogger(String.valueOf(SystemSettingsService.class));
 
     @Inject
     SystemSettingsMapper systemSettingsMapper;
@@ -38,7 +39,7 @@ public class SystemSettingsService {
             systemSettingsMapper.updateById(systemSettings);
             return systemSettings;
         } catch (Exception e) {
-            log.error("Exception occurred while updating system settings or sending Kafka message", e);
+            log.warning("Exception occurred while updating system settings or sending Kafka message");
             throw new RuntimeException("Failed to update system settings", e);
         }
     }
@@ -120,9 +121,9 @@ public class SystemSettingsService {
             var metadata = OutgoingKafkaRecordMetadata.<String>builder().withTopic("system_settings_update").build();
             KafkaRecord<String, SystemSettings> record = (KafkaRecord<String, SystemSettings>) KafkaRecord.of(systemSettings.getSystemName(), systemSettings).addMetadata(metadata);
             systemSettingsEmitter.send(record);
-            log.info("Message sent to Kafka topic {} successfully");
+            log.info(String.format("Message sent to Kafka topic %s successfully", record.getMetadata().toString()));
         } catch (Exception e) {
-            log.error("Exception occurred while sending Kafka message", e);
+            log.warning("Exception occurred while sending Kafka message");
             throw new RuntimeException("Failed to send Kafka message", e);
         }
     }

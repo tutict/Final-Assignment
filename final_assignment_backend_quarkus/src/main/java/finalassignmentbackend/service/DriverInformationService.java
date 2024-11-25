@@ -2,23 +2,24 @@ package finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.oracle.svm.core.annotate.Inject;
-import finalassignmentbackend.mapper.DriverInformationMapper;
 import finalassignmentbackend.entity.DriverInformation;
+import finalassignmentbackend.mapper.DriverInformationMapper;
 import io.quarkus.cache.CacheInvalidate;
 import io.quarkus.cache.CacheResult;
 import io.smallrye.reactive.messaging.kafka.KafkaRecord;
 import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
-import org.jboss.logging.Logger;
-import org.eclipse.microprofile.reactive.messaging.Channel;
-import org.eclipse.microprofile.reactive.messaging.Emitter;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
+import org.eclipse.microprofile.reactive.messaging.Channel;
+import org.eclipse.microprofile.reactive.messaging.Emitter;
+
 import java.util.List;
+import java.util.logging.Logger;
 
 @ApplicationScoped
 public class DriverInformationService {
 
-    private static final Logger log = Logger.getLogger(DriverInformationService.class);
+    private static final Logger log = Logger.getLogger(String.valueOf(DriverInformationService.class));
 
     @Inject
     DriverInformationMapper driverInformationMapper;
@@ -34,7 +35,7 @@ public class DriverInformationService {
             sendKafkaMessage("driver_create", driverInformation);
             driverInformationMapper.insert(driverInformation);
         } catch (Exception e) {
-            log.error("Exception occurred while creating driver or sending Kafka message", e);
+            log.warning("Exception occurred while creating driver or sending Kafka message");
             throw new RuntimeException("Failed to create driver", e);
         }
     }
@@ -56,7 +57,7 @@ public class DriverInformationService {
             sendKafkaMessage("driver_update", driverInformation);
             driverInformationMapper.updateById(driverInformation);
         } catch (Exception e) {
-            log.error("Exception occurred while updating driver or sending Kafka message", e);
+            log.warning("Exception occurred while updating driver or sending Kafka message");
             throw new RuntimeException("Failed to update driver", e);
         }
     }
@@ -67,12 +68,12 @@ public class DriverInformationService {
         try {
             int result = driverInformationMapper.deleteById(driverId);
             if (result > 0) {
-                log.info("Driver with ID {} deleted successfully");
+                log.info(String.format("Driver with ID %s deleted successfully", driverId));
             } else {
-                log.error("Failed to delete driver with ID {}");
+                log.severe(String.format("Failed to delete driver with ID %s", driverId));
             }
         } catch (Exception e) {
-            log.error("Exception occurred while deleting driver", e);
+            log.warning("Exception occurred while deleting driver");
             throw new RuntimeException("Failed to delete driver", e);
         }
     }
@@ -102,6 +103,6 @@ public class DriverInformationService {
         var metadata = OutgoingKafkaRecordMetadata.<String>builder().withTopic(topic).build();
         KafkaRecord<String, DriverInformation> record = (KafkaRecord<String, DriverInformation>) KafkaRecord.of(driverInformation.getDriverId().toString(), driverInformation).addMetadata(metadata);
         driverEmitter.send(record);
-        log.info("Message sent to Kafka topic {} successfully");
+        log.info(String.format("Message sent to Kafka topic %s successfully", topic));
     }
 }

@@ -10,17 +10,17 @@ import io.quarkus.cache.CacheInvalidate;
 import io.quarkus.cache.CacheResult;
 import io.smallrye.reactive.messaging.kafka.KafkaRecord;
 import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
-import org.jboss.logging.Logger;
 import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Emitter;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
 import java.util.List;
+import java.util.logging.Logger;
 
 @ApplicationScoped
 public class AppealManagementService {
 
-    private static final Logger log = Logger.getLogger(AppealManagementService.class);
+    private static final Logger log = Logger.getLogger(String.valueOf(AppealManagementService.class));
 
     @Inject
     AppealManagementMapper appealManagementMapper;
@@ -39,7 +39,7 @@ public class AppealManagementService {
             sendKafkaMessage("appeal_create", appeal);
             appealManagementMapper.insert(appeal);
         } catch (Exception e) {
-            log.error("Exception occurred while creating appeal or sending Kafka message", e);
+            log.warning("Exception occurred while creating appeal or sending Kafka message");
             throw new RuntimeException("Failed to create appeal", e);
         }
     }
@@ -61,7 +61,7 @@ public class AppealManagementService {
             sendKafkaMessage("appeal_updated", appeal);
             appealManagementMapper.updateById(appeal);
         } catch (Exception e) {
-            log.error("Exception occurred while updating appeal or sending Kafka message", e);
+            log.warning("Exception occurred while updating appeal or sending Kafka message");
             throw new RuntimeException("Failed to update appeal", e);
         }
     }
@@ -72,17 +72,17 @@ public class AppealManagementService {
         try {
             AppealManagement appeal = appealManagementMapper.selectById(appealId);
             if (appeal == null) {
-                log.warn("Appeal with ID {} not found, cannot delete");
+                log.warning(String.format("Appeal with ID %s not found, cannot delete", appealId));
                 return;
             }
             int result = appealManagementMapper.deleteById(appealId);
             if (result > 0) {
-                log.info("Appeal with ID {} deleted successfully");
+                log.info(String.format("Appeal with ID %s deleted successfully", appealId));
             } else {
-                log.error("Failed to delete appeal with ID {}");
+                log.severe(String.format("Failed to delete appeal with ID %s", appealId));
             }
         } catch (Exception e) {
-            log.error("Exception occurred while deleting appeal", e);
+            log.warning("Exception occurred while deleting appeal");
             throw new RuntimeException("Failed to delete appeal", e);
         }
     }
@@ -107,7 +107,7 @@ public class AppealManagementService {
         if (appeal != null) {
             return offenseInformationMapper.selectById(appeal.getOffenseId());
         } else {
-            log.warn("No appeal found with ID: {}");
+            log.warning(String.format("No appeal found with ID: %s", appealId));
             return null;
         }
     }
@@ -116,6 +116,6 @@ public class AppealManagementService {
         var metadata = OutgoingKafkaRecordMetadata.<String>builder().withTopic(topic).build();
         KafkaRecord<String, AppealManagement> record = (KafkaRecord<String, AppealManagement>) KafkaRecord.of(topic, appeal).addMetadata(metadata);
         appealEmitter.send(record);
-        log.info("Message sent to Kafka topic {} successfully");
+        log.info(String.format("Message sent to Kafka topic %s successfully", topic));
     }
 }

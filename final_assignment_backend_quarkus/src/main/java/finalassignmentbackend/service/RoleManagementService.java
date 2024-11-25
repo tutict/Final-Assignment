@@ -2,23 +2,24 @@ package finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.oracle.svm.core.annotate.Inject;
-import finalassignmentbackend.mapper.RoleManagementMapper;
 import finalassignmentbackend.entity.RoleManagement;
+import finalassignmentbackend.mapper.RoleManagementMapper;
 import io.quarkus.cache.CacheInvalidate;
 import io.quarkus.cache.CacheResult;
 import io.smallrye.reactive.messaging.kafka.KafkaRecord;
 import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
-import org.jboss.logging.Logger;
-import org.eclipse.microprofile.reactive.messaging.Channel;
-import org.eclipse.microprofile.reactive.messaging.Emitter;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
+import org.eclipse.microprofile.reactive.messaging.Channel;
+import org.eclipse.microprofile.reactive.messaging.Emitter;
+
 import java.util.List;
+import java.util.logging.Logger;
 
 @ApplicationScoped
 public class RoleManagementService {
 
-    private static final Logger log = Logger.getLogger(RoleManagementService.class);
+    private static final Logger log = Logger.getLogger(String.valueOf(RoleManagementService.class));
 
     @Inject
     RoleManagementMapper roleManagementMapper;
@@ -34,7 +35,7 @@ public class RoleManagementService {
             sendKafkaMessage("role_create", role);
             roleManagementMapper.insert(role);
         } catch (Exception e) {
-            log.error("Exception occurred while creating role or sending Kafka message", e);
+            log.warning("Exception occurred while creating role or sending Kafka message");
             throw new RuntimeException("Failed to create role", e);
         }
     }
@@ -76,7 +77,7 @@ public class RoleManagementService {
             sendKafkaMessage("role_update", role);
             roleManagementMapper.updateById(role);
         } catch (Exception e) {
-            log.error("Exception occurred while updating role or sending Kafka message", e);
+            log.warning("Exception occurred while updating role or sending Kafka message");
             throw new RuntimeException("Failed to update role", e);
         }
     }
@@ -89,13 +90,13 @@ public class RoleManagementService {
             if (roleToDelete != null) {
                 int result = roleManagementMapper.deleteById(roleId);
                 if (result > 0) {
-                    log.info("Role with ID {} deleted successfully");
+                    log.info(String.format("Role with ID %s deleted successfully", roleId));
                 } else {
-                    log.error("Failed to delete role with ID {}");
+                    log.severe(String.format("Failed to delete role with ID %s", roleId));
                 }
             }
         } catch (Exception e) {
-            log.error("Exception occurred while deleting role", e);
+            log.warning("Exception occurred while deleting role");
             throw new RuntimeException("Failed to delete role", e);
         }
     }
@@ -114,7 +115,7 @@ public class RoleManagementService {
             if (result > 0) {
                 log.info("Role with name '{}' deleted successfully");
             } else {
-                log.error("Failed to delete role with name '{}'");
+                log.severe(String.format("Failed to delete role with name '%s'", roleName));
             }
         }
     }
@@ -123,6 +124,6 @@ public class RoleManagementService {
         var metadata = OutgoingKafkaRecordMetadata.<String>builder().withTopic(topic).build();
         KafkaRecord<String, RoleManagement> record = (KafkaRecord<String, RoleManagement>) KafkaRecord.of(role.getRoleId().toString(), role).addMetadata(metadata);
         roleEmitter.send(record);
-        log.info("Message sent to Kafka topic {} successfully");
+        log.info(String.format("Message sent to Kafka topic %s successfully", topic));
     }
 }

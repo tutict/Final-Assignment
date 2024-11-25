@@ -2,24 +2,25 @@ package finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.oracle.svm.core.annotate.Inject;
-import finalassignmentbackend.mapper.LoginLogMapper;
 import finalassignmentbackend.entity.LoginLog;
+import finalassignmentbackend.mapper.LoginLogMapper;
 import io.quarkus.cache.CacheInvalidate;
 import io.quarkus.cache.CacheResult;
 import io.smallrye.reactive.messaging.kafka.KafkaRecord;
 import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
-import org.jboss.logging.Logger;
-import org.eclipse.microprofile.reactive.messaging.Channel;
-import org.eclipse.microprofile.reactive.messaging.Emitter;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
+import org.eclipse.microprofile.reactive.messaging.Channel;
+import org.eclipse.microprofile.reactive.messaging.Emitter;
+
 import java.util.Date;
 import java.util.List;
+import java.util.logging.Logger;
 
 @ApplicationScoped
 public class LoginLogService {
 
-    private static final Logger log = Logger.getLogger(LoginLogService.class);
+    private static final Logger log = Logger.getLogger(String.valueOf(LoginLogService.class));
 
     @Inject
     LoginLogMapper loginLogMapper;
@@ -35,7 +36,7 @@ public class LoginLogService {
             sendKafkaMessage("login_create", loginLog);
             loginLogMapper.insert(loginLog);
         } catch (Exception e) {
-            log.error("Exception occurred while creating login log or sending Kafka message", e);
+            log.info("Exception occurred while creating login log or sending Kafka message");
             throw new RuntimeException("Failed to create login log", e);
         }
     }
@@ -57,7 +58,7 @@ public class LoginLogService {
             sendKafkaMessage("login_update", loginLog);
             loginLogMapper.updateById(loginLog);
         } catch (Exception e) {
-            log.error("Exception occurred while updating login log or sending Kafka message", e);
+            log.warning("Exception occurred while updating login log or sending Kafka message");
             throw new RuntimeException("Failed to update login log", e);
         }
     }
@@ -68,12 +69,12 @@ public class LoginLogService {
         try {
             int result = loginLogMapper.deleteById(logId);
             if (result > 0) {
-                log.info("Login log with ID {} deleted successfully");
+                log.info(String.format("Login log with ID %s deleted successfully", logId));
             } else {
-                log.error("Failed to delete login log with ID {}");
+                log.severe(String.format("Failed to delete login log with ID %s", logId));
             }
         } catch (Exception e) {
-            log.error("Exception occurred while deleting login log", e);
+            log.warning("Exception occurred while deleting login log");
             throw new RuntimeException("Failed to delete login log", e);
         }
     }
@@ -112,6 +113,6 @@ public class LoginLogService {
         var metadata = OutgoingKafkaRecordMetadata.<String>builder().withTopic(topic).build();
         KafkaRecord<String, LoginLog> record = (KafkaRecord<String, LoginLog>) KafkaRecord.of(loginLog.getLogId().toString(), loginLog).addMetadata(metadata);
         loginEmitter.send(record);
-        log.info("Message sent to Kafka topic {} successfully");
+        log.info(String.format("Message sent to Kafka topic %s successfully", topic));
     }
 }

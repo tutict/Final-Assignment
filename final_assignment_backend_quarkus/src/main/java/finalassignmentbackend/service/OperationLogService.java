@@ -2,24 +2,25 @@ package finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.oracle.svm.core.annotate.Inject;
-import finalassignmentbackend.mapper.OperationLogMapper;
 import finalassignmentbackend.entity.OperationLog;
+import finalassignmentbackend.mapper.OperationLogMapper;
 import io.quarkus.cache.CacheInvalidate;
 import io.quarkus.cache.CacheResult;
 import io.smallrye.reactive.messaging.kafka.KafkaRecord;
 import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
-import org.jboss.logging.Logger;
-import org.eclipse.microprofile.reactive.messaging.Channel;
-import org.eclipse.microprofile.reactive.messaging.Emitter;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
+import org.eclipse.microprofile.reactive.messaging.Channel;
+import org.eclipse.microprofile.reactive.messaging.Emitter;
+
 import java.util.Date;
 import java.util.List;
+import java.util.logging.Logger;
 
 @ApplicationScoped
 public class OperationLogService {
 
-    private static final Logger log = Logger.getLogger(OperationLogService.class);
+    private static final Logger log = Logger.getLogger(String.valueOf(OperationLogService.class));
 
     @Inject
     OperationLogMapper operationLogMapper;
@@ -35,7 +36,7 @@ public class OperationLogService {
             sendKafkaMessage("operation_create", operationLog);
             operationLogMapper.insert(operationLog);
         } catch (Exception e) {
-            log.error("Exception occurred while creating operation log or sending Kafka message", e);
+            log.warning("Exception occurred while creating operation log or sending Kafka message");
             throw new RuntimeException("Failed to create operation log", e);
         }
     }
@@ -57,7 +58,7 @@ public class OperationLogService {
             sendKafkaMessage("operation_update", operationLog);
             operationLogMapper.updateById(operationLog);
         } catch (Exception e) {
-            log.error("Exception occurred while updating operation log or sending Kafka message", e);
+            log.warning("Exception occurred while updating operation log or sending Kafka message");
             throw new RuntimeException("Failed to update operation log", e);
         }
     }
@@ -68,12 +69,12 @@ public class OperationLogService {
         try {
             int result = operationLogMapper.deleteById(logId);
             if (result > 0) {
-                log.info("Operation log with ID {} deleted successfully");
+                log.info(String.format("Operation log with ID %s deleted successfully", logId));
             } else {
-                log.error("Failed to delete operation log with ID {}");
+                log.severe(String.format("Failed to delete operation log with ID %s", logId));
             }
         } catch (Exception e) {
-            log.error("Exception occurred while deleting operation log", e);
+            log.warning("Exception occurred while deleting operation log");
             throw new RuntimeException("Failed to delete operation log", e);
         }
     }
@@ -112,6 +113,6 @@ public class OperationLogService {
         var metadata = OutgoingKafkaRecordMetadata.<String>builder().withTopic(topic).build();
         KafkaRecord<String, OperationLog> record = (KafkaRecord<String, OperationLog>) KafkaRecord.of(operationLog.getLogId().toString(), operationLog).addMetadata(metadata);
         operationEmitter.send(record);
-        log.info("Message sent to Kafka topic {} successfully");
+        log.info(String.format("Message sent to Kafka topic %s successfully", topic));
     }
 }

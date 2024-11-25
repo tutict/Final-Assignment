@@ -9,14 +9,14 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
 import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Emitter;
-import org.jboss.logging.Logger;
 
 import java.util.List;
+import java.util.logging.Logger;
 
 @ApplicationScoped
 public class OffenseDetailsService {
 
-    private static final Logger log = Logger.getLogger(OffenseDetailsService.class);
+    private static final Logger log = Logger.getLogger(String.valueOf(OffenseDetailsService.class));
 
     @Inject
     OffenseDetailsMapper offenseDetailsMapper;
@@ -45,7 +45,7 @@ public class OffenseDetailsService {
             offenseDetailsEmitter.send(record);
             log.info("Message sent to Kafka successfully");
         } catch (Exception e) {
-            log.error("Exception occurred while sending message to Kafka", e);
+            log.warning("Exception occurred while sending message to Kafka");
             throw new RuntimeException("Failed to send message to Kafka", e);
         }
     }
@@ -59,7 +59,7 @@ public class OffenseDetailsService {
             // 同步发送 Kafka 消息
             sendOffenseDetailsToKafka(offenseDetails);
         } catch (Exception e) {
-            log.error("Exception occurred while saving offense details or sending Kafka message", e);
+            log.warning("Exception occurred while saving offense details or sending Kafka message");
             throw new RuntimeException("Failed to save offense details", e);
         }
     }

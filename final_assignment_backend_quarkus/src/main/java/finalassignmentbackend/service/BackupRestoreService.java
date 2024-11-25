@@ -12,14 +12,14 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
 import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Emitter;
-import org.jboss.logging.Logger;
 
 import java.util.List;
+import java.util.logging.Logger;
 
 @ApplicationScoped
 public class BackupRestoreService {
 
-    private static final Logger log = Logger.getLogger(BackupRestoreService.class);
+    private static final Logger log = Logger.getLogger(String.valueOf(BackupRestoreService.class));
 
     @Inject
     BackupRestoreMapper backupRestoreMapper;
@@ -35,7 +35,7 @@ public class BackupRestoreService {
             sendKafkaMessage("backup_create", backup);
             backupRestoreMapper.insert(backup);
         } catch (Exception e) {
-            log.error("Exception occurred while creating backup or sending Kafka message", e);
+            log.warning("Exception occurred while creating backup or sending Kafka message");
             throw new RuntimeException("Failed to create backup", e);
         }
     }
@@ -61,10 +61,10 @@ public class BackupRestoreService {
             if (result > 0) {
                 log.info("Backup with ID {} deleted successfully");
             } else {
-                log.error("Failed to delete backup with ID {}");
+                log.severe(String.format("Failed to delete backup with ID %s", backupId));
             }
         } catch (Exception e) {
-            log.error("Exception occurred while deleting backup", e);
+            log.warning("Exception occurred while deleting backup");
             throw new RuntimeException("Failed to delete backup", e);
         }
     }
@@ -76,7 +76,7 @@ public class BackupRestoreService {
             sendKafkaMessage("backup_update", backup);
             backupRestoreMapper.updateById(backup);
         } catch (Exception e) {
-            log.error("Exception occurred while updating backup or sending Kafka message", e);
+            log.warning("Exception occurred while updating backup or sending Kafka message");
             throw new RuntimeException("Failed to update backup", e);
         }
     }
@@ -105,6 +105,6 @@ public class BackupRestoreService {
         var metadata = OutgoingKafkaRecordMetadata.<String>builder().withTopic(topic).build();
         KafkaRecord<String, BackupRestore> record = (KafkaRecord<String, BackupRestore>) KafkaRecord.of(backup.getBackupId().toString(), backup).addMetadata(metadata);
         backupEmitter.send(record);
-        log.info("Message sent to Kafka topic {} successfully");
+        log.info(String.format("Message sent to Kafka topic %s successfully", topic));
     }
 }

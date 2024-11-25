@@ -2,24 +2,25 @@ package finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.oracle.svm.core.annotate.Inject;
-import finalassignmentbackend.mapper.SystemLogsMapper;
 import finalassignmentbackend.entity.SystemLogs;
+import finalassignmentbackend.mapper.SystemLogsMapper;
 import io.quarkus.cache.CacheInvalidate;
 import io.quarkus.cache.CacheResult;
 import io.smallrye.reactive.messaging.kafka.KafkaRecord;
 import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
-import org.jboss.logging.Logger;
-import org.eclipse.microprofile.reactive.messaging.Channel;
-import org.eclipse.microprofile.reactive.messaging.Emitter;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
+import org.eclipse.microprofile.reactive.messaging.Channel;
+import org.eclipse.microprofile.reactive.messaging.Emitter;
+
 import java.util.Date;
 import java.util.List;
+import java.util.logging.Logger;
 
 @ApplicationScoped
 public class SystemLogsService {
 
-    private static final Logger log = Logger.getLogger(SystemLogsService.class);
+    private static final Logger log = Logger.getLogger(String.valueOf(SystemLogsService.class));
 
     @Inject
     SystemLogsMapper systemLogsMapper;
@@ -35,7 +36,7 @@ public class SystemLogsService {
             sendKafkaMessage("system_create", systemLog);
             systemLogsMapper.insert(systemLog);
         } catch (Exception e) {
-            log.error("Exception occurred while creating system log or sending Kafka message", e);
+            log.warning("Exception occurred while creating system log or sending Kafka message");
             throw new RuntimeException("Failed to create system log", e);
         }
     }
@@ -87,7 +88,7 @@ public class SystemLogsService {
             sendKafkaMessage("system_update", systemLog);
             systemLogsMapper.updateById(systemLog);
         } catch (Exception e) {
-            log.error("Exception occurred while updating system log or sending Kafka message", e);
+            log.warning("Exception occurred while updating system log or sending Kafka message");
             throw new RuntimeException("Failed to update system log", e);
         }
     }
@@ -101,7 +102,7 @@ public class SystemLogsService {
                 systemLogsMapper.deleteById(logId);
             }
         } catch (Exception e) {
-            log.error("Exception occurred while deleting system log", e);
+            log.warning("Exception occurred while deleting system log");
             throw new RuntimeException("Failed to delete system log", e);
         }
     }
@@ -110,6 +111,6 @@ public class SystemLogsService {
         var metadata = OutgoingKafkaRecordMetadata.<String>builder().withTopic(topic).build();
         KafkaRecord<String, SystemLogs> record = (KafkaRecord<String, SystemLogs>) KafkaRecord.of(systemLog.getLogId().toString(), systemLog).addMetadata(metadata);
         systemLogsEmitter.send(record);
-        log.info("Message sent to Kafka topic {} successfully");
+        log.info(String.format("Message sent to Kafka topic %s successfully", topic));
     }
 }
