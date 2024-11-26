@@ -1,12 +1,16 @@
 package finalassignmentbackend;
 
+import io.quarkus.runtime.Quarkus;
+import io.quarkus.runtime.QuarkusApplication;
+import io.quarkus.runtime.annotations.QuarkusMain;
 import io.vertx.core.Vertx;
 import jakarta.annotation.PostConstruct;
 import jakarta.inject.Inject;
-import org.jboss.logging.Logger;
-import io.quarkus.runtime.Quarkus;
-import io.quarkus.runtime.annotations.QuarkusMain;
-import io.quarkus.runtime.QuarkusApplication;
+
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import static io.vertx.codegen.CodeGenProcessor.log;
 
 // 使用Quarkus应用程序注解
 @QuarkusMain
@@ -14,10 +18,11 @@ public class FinalAssignmentBackendMain implements QuarkusApplication {
 
     // 定义一个Vertx实例，作为部署Verticles的基础
     private final Vertx vertx;
-    private static final Logger logger = Logger.getLogger(FinalAssignmentBackendMain.class);
+    private static final Logger logger = Logger.getLogger(String.valueOf(FinalAssignmentBackendMain.class));
 
     /**
      * FinalAssignmentBackendApplication的构造函数
+     *
      * @param vertx Vertx实例，用于部署和运行Verticle
      */
     @Inject
@@ -37,13 +42,14 @@ public class FinalAssignmentBackendMain implements QuarkusApplication {
                 logger.info("WebSocket server deployed successfully.");
             } else {
                 // 部署失败时打印错误信息
-                logger.error("Failed to deploy WebSocket server: " + res.cause().getMessage());
+                log.log(Level.SEVERE, String.format("Failed to deploy WebSocket server: %s", res.cause().getMessage()));
             }
         });
     }
 
     /**
      * 实现run方法以启动Quarkus应用程序
+     *
      * @param args 命令行参数
      * @return 返回状态码
      */
@@ -56,6 +62,7 @@ public class FinalAssignmentBackendMain implements QuarkusApplication {
 
     /**
      * 主函数，启动Quarkus应用程序
+     *
      * @param args 命令行参数
      */
     public static void main(String... args) {
