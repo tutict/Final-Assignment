@@ -12,7 +12,6 @@ import io.vertx.ext.web.handler.CorsHandler;
 import io.vertx.ext.web.handler.sockjs.SockJSBridgeOptions;
 import io.vertx.ext.web.handler.sockjs.SockJSHandler;
 import io.vertx.ext.web.handler.sockjs.SockJSHandlerOptions;
-import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import lombok.extern.slf4j.Slf4j;
@@ -24,6 +23,7 @@ import java.util.Set;
 @Slf4j
 @ApplicationScoped
 public class WebSocketServer {
+
 
     @ConfigProperty(name = "server.port", defaultValue = "8080")
     int port;
@@ -37,15 +37,20 @@ public class WebSocketServer {
         this.tokenProvider = tokenProvider;
     }
 
-    public void init(@Observes StartupEvent event) {
+    /**
+     * 启动 WebSocket 服务
+     */
+    public void onStart(@Observes StartupEvent event) {
         start();
     }
 
-    @PostConstruct
+    /**
+     * 初始化 WebSocket 服务器
+     */
     public void start() {
         Router router = Router.router(vertx);
 
-        // Configure CORS
+        // 配置 CORS
         Set<String> allowedHeaders = new HashSet<>();
         allowedHeaders.add("Authorization");
         allowedHeaders.add("X-Requested-With");
@@ -61,23 +66,25 @@ public class WebSocketServer {
         allowedMethods.add(HttpMethod.OPTIONS);
         allowedMethods.add(HttpMethod.PUT);
 
-        router.route().handler(CorsHandler.create().addOrigin("http://localhost:8082")
+        router.route().handler(CorsHandler.create()
+                .addOrigin("http://localhost:8082")
                 .allowedHeaders(allowedHeaders)
                 .allowedMethods(allowedMethods));
 
-        // Configure SockJS
+        // 配置 SockJS
         SockJSHandlerOptions sockJSOptions = new SockJSHandlerOptions().setHeartbeatInterval(2000);
         SockJSHandler sockJSHandler = SockJSHandler.create(vertx, sockJSOptions);
 
+        // 设置桥接选项
         SockJSBridgeOptions bridgeOptions = new SockJSBridgeOptions()
                 .addInboundPermitted(new PermittedOptions().setAddress("chat.to.server"))
                 .addOutboundPermitted(new PermittedOptions().setAddress("chat.to.client"));
 
-        // Add SockJS handler to router
+        // 将 SockJS 处理程序添加到路由
         router.route("/eventbus/*").handler(sockJSHandler);
         sockJSHandler.bridge(bridgeOptions);
 
-        // Create HTTP server
+        // 配置 HTTP 服务器
         HttpServerOptions options = new HttpServerOptions()
                 .setMaxWebSocketFrameSize(1000000)
                 .setTcpKeepAlive(true);
@@ -93,24 +100,24 @@ public class WebSocketServer {
                                 try {
                                     vertx.eventBus().publish("chat.to.server", buffer);
                                 } catch (Exception e) {
-                                    log.error("Failed to handle WebSocket message: {}", e.getMessage());
+                                    log.error("处理 WebSocket 消息失败: {}", e.getMessage(), e);
                                     ws.close();
                                 }
                             });
                         } else {
-                            log.warn("Invalid token received, closing WebSocket connection");
+                            log.warn("无效的令牌，关闭 WebSocket 连接");
                             ws.close();
                         }
                     } else {
-                        log.warn("Authorization header missing or does not start with Bearer, closing WebSocket connection");
+                        log.warn("缺少 Authorization header 或其格式不正确，关闭 WebSocket 连接");
                         ws.close();
                     }
                 })
                 .listen(port, res -> {
                     if (res.succeeded()) {
-                        log.info("WebSocket server started on port {}", res.result().actualPort());
+                        log.info("WebSocket 服务器已在端口 {} 启动", res.result().actualPort());
                     } else {
-                        log.error("Failed to start WebSocket server on port {}", port, res.cause());
+                        log.error("WebSocket 服务器启动失败, 错误信息: {}", res.cause().getMessage(), res.cause());
                     }
                 });
     }

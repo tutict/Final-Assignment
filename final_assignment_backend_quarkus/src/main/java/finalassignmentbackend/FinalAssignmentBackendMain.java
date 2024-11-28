@@ -16,29 +16,15 @@ import static io.vertx.codegen.CodeGenProcessor.log;
 @QuarkusMain
 public class FinalAssignmentBackendMain implements QuarkusApplication {
 
-    // 定义一个Vertx实例，作为部署Verticles的基础
-    private final Vertx vertx;
+    @Inject
+    Vertx vertx; // 或者使用 @Named("customVertx") 来区分
+
     private static final Logger logger = Logger.getLogger(String.valueOf(FinalAssignmentBackendMain.class));
 
-    /**
-     * FinalAssignmentBackendApplication的构造函数
-     *
-     * @param vertx Vertx实例，用于部署和运行Verticle
-     */
-    @Inject
-    public FinalAssignmentBackendMain(Vertx vertx) {
-        this.vertx = vertx;
-    }
-
-    /**
-     * 在应用程序上下文初始化后调用此方法以部署Verticles
-     */
     @PostConstruct
     public void deployVerticles() {
-        // 部署WebSocket服务器Verticle
         vertx.deployVerticle("com.tutict.finalassignmentbackend.config.vertx.WebSocketServer", res -> {
             if (res.succeeded()) {
-                // 部署成功时打印消息
                 logger.info("WebSocket server deployed successfully.");
             } else {
                 // 部署失败时打印错误信息
@@ -47,12 +33,6 @@ public class FinalAssignmentBackendMain implements QuarkusApplication {
         });
     }
 
-    /**
-     * 实现run方法以启动Quarkus应用程序
-     *
-     * @param args 命令行参数
-     * @return 返回状态码
-     */
     @Override
     public int run(String... args) {
         logger.info("Quarkus application is running...");
@@ -60,11 +40,6 @@ public class FinalAssignmentBackendMain implements QuarkusApplication {
         return 0;
     }
 
-    /**
-     * 主函数，启动Quarkus应用程序
-     *
-     * @param args 命令行参数
-     */
     public static void main(String[] args) {
         Quarkus.run(FinalAssignmentBackendMain.class, args);
     }
