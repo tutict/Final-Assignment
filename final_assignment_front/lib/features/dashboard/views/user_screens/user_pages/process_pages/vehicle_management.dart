@@ -6,7 +6,6 @@ import 'package:final_assignment_front/utils/services/rest_api_services.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-/// 车辆管理页面的 StatefulWidget
 class VehicleManagement extends StatefulWidget {
   const VehicleManagement({super.key});
 
@@ -14,7 +13,6 @@ class VehicleManagement extends StatefulWidget {
   State<VehicleManagement> createState() => _VehicleManagementState();
 }
 
-/// 车辆管理页面的状态类
 class _VehicleManagementState extends State<VehicleManagement> {
   // 搜索框的控制器
   final TextEditingController _searchController = TextEditingController();
@@ -115,9 +113,9 @@ class _VehicleManagementState extends State<VehicleManagement> {
                 restApiServices.sendMessage(
                   jsonEncode({
                     'action': 'addOrUpdateVehicle',
-                    'plateNumber': plateNumber,
+                    'licensePlate': plateNumber,
                     'vehicleType': vehicleType,
-                    'owner': owner,
+                    'ownerName': owner, // 确保字段名与后端一致
                   }),
                 );
               },
@@ -156,7 +154,7 @@ class _VehicleManagementState extends State<VehicleManagement> {
                             child: ListTile(
                               title: Text('车牌号: ${vehicle.plateNumber}'),
                               subtitle: Text(
-                                  '车辆类型: ${vehicle.vehicleType}\n车主: ${vehicle.owner}'),
+                                  '车辆类型: ${vehicle.vehicleType}\n车主: ${vehicle.ownerName}'),
                               trailing: IconButton(
                                 icon: const Icon(Icons.edit),
                                 onPressed: () {
@@ -165,7 +163,7 @@ class _VehicleManagementState extends State<VehicleManagement> {
                                       vehicle.plateNumber;
                                   _vehicleTypeController.text =
                                       vehicle.vehicleType;
-                                  _ownerController.text = vehicle.owner;
+                                  _ownerController.text = vehicle.ownerName;
                                 },
                               ),
                             ),
@@ -194,21 +192,46 @@ class _VehicleManagementState extends State<VehicleManagement> {
 
 /// 车辆信息模型
 class Vehicle {
+  int vehicleId;
   String plateNumber;
   String vehicleType;
-  String owner;
+  String ownerName;
+  String idCardNumber;
+  String contactNumber;
+  String engineNumber;
+  String frameNumber;
+  String vehicleColor;
+  String firstRegistrationDate;
+  String currentStatus;
 
   Vehicle({
+    required this.vehicleId,
     required this.plateNumber,
     required this.vehicleType,
-    required this.owner,
+    required this.ownerName,
+    required this.idCardNumber,
+    required this.contactNumber,
+    required this.engineNumber,
+    required this.frameNumber,
+    required this.vehicleColor,
+    required this.firstRegistrationDate,
+    required this.currentStatus,
   });
 
   factory Vehicle.fromJson(Map<String, dynamic> json) {
     return Vehicle(
-      plateNumber: json['plateNumber'],
-      vehicleType: json['vehicleType'],
-      owner: json['owner'],
+      vehicleId: json['vehicleId'] ?? 0,
+      // Assuming 'vehicleId' is an integer
+      plateNumber: json['licensePlate'] ?? '',
+      vehicleType: json['vehicleType'] ?? '',
+      ownerName: json['ownerName'] ?? '',
+      idCardNumber: json['idCardNumber'] ?? '',
+      contactNumber: json['contactNumber'] ?? '',
+      engineNumber: json['engineNumber'] ?? '',
+      frameNumber: json['frameNumber'] ?? '',
+      vehicleColor: json['vehicleColor'] ?? '',
+      firstRegistrationDate: json['firstRegistrationDate'] ?? '',
+      currentStatus: json['currentStatus'] ?? '',
     );
   }
 }

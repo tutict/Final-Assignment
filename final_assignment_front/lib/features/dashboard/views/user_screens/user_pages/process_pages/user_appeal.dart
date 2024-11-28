@@ -16,7 +16,7 @@ class UserAppealPage extends StatefulWidget {
 
 /// 用户申诉页面状态管理
 class _UserAppealPageState extends State<UserAppealPage>
-    with SearchSectionMixin, AppealRecordListMixin {
+    with SearchSectionMixin, AppealRecordListMixin, AppealFormMixin {
   late RestApiServices restApiServices;
 
   // 定义文本编辑控制器，用于搜索
@@ -103,6 +103,7 @@ class _UserAppealPageState extends State<UserAppealPage>
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           // 处理添加申诉的逻辑
+          Navigator.pop(context);
           // 您可以导航到添加申诉的页面
         },
         backgroundColor: Colors.lightBlue,
@@ -167,10 +168,10 @@ mixin AppealRecordListMixin<T extends StatefulWidget> on State<T> {
           ),
           elevation: 4,
           child: ListTile(
-            title: Text('申述ID: ${record.id}'),
-            subtitle:
-                Text('车牌号: ${record.plateNumber}\n申述理由: ${record.reason}'),
-            trailing: Text(record.status),
+            title: Text('申述ID: ${record.appealId}'),
+            subtitle: Text(
+                '车牌号: ${record.plateNumber}\n申述理由: ${record.appealReason}'),
+            trailing: Text(record.processStatus),
             onTap: () {
               // 您可以在这里处理点击事件，例如查看申诉详情
             },
@@ -181,26 +182,128 @@ mixin AppealRecordListMixin<T extends StatefulWidget> on State<T> {
   }
 }
 
-/// 申述记录模型
+/// 申述表单逻辑 Mixin
+mixin AppealFormMixin<T extends StatefulWidget> on State<T> {
+  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _idCardController = TextEditingController();
+  final _contactController = TextEditingController();
+  final _reasonController = TextEditingController();
+
+  Widget buildAppealForm(BuildContext appealContext) {
+    return Form(
+      key: _formKey,
+      child: Column(
+        children: <Widget>[
+          TextFormField(
+            controller: _nameController,
+            decoration: const InputDecoration(labelText: '申述人姓名'),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return '请输入姓名';
+              }
+              return null;
+            },
+          ),
+          TextFormField(
+            controller: _idCardController,
+            decoration: const InputDecoration(labelText: '身份证号'),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return '请输入身份证号';
+              }
+              return null;
+            },
+          ),
+          TextFormField(
+            controller: _contactController,
+            decoration: const InputDecoration(labelText: '联系电话'),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return '请输入联系电话';
+              }
+              return null;
+            },
+          ),
+          TextFormField(
+            controller: _reasonController,
+            decoration: const InputDecoration(labelText: '申述理由'),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return '请输入申述理由';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton(
+            onPressed: () {
+              if (_formKey.currentState?.validate() ?? false) {
+                // 提交申诉数据
+                final newAppeal = AppealRecord(
+                  appealId: 0,
+                  // 新建申述时，ID为0或空
+                  plateNumber: "",
+                  // 车牌号可能需要另外提供
+                  appellantName: _nameController.text,
+                  idCardNumber: _idCardController.text,
+                  contactNumber: _contactController.text,
+                  appealReason: _reasonController.text,
+                  appealTime: DateTime.now().toString(),
+                  processStatus: '待处理',
+                  // 初始状态
+                  processResult: '', // 初始为空
+                );
+
+                // 发送提交请求
+                // 提交代码逻辑可以根据后端API实现
+
+                Navigator.pop(context); // 提交后返回
+              }
+            },
+            child: const Text('提交申述'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 用户申述记录模型
 class AppealRecord {
-  int id;
+  int appealId;
   String plateNumber;
-  String reason;
-  String status;
+  String appellantName;
+  String idCardNumber;
+  String contactNumber;
+  String appealReason;
+  String appealTime;
+  String processStatus;
+  String processResult;
 
   AppealRecord({
-    required this.id,
+    required this.appealId,
     required this.plateNumber,
-    required this.reason,
-    required this.status,
+    required this.appellantName,
+    required this.idCardNumber,
+    required this.contactNumber,
+    required this.appealReason,
+    required this.appealTime,
+    required this.processStatus,
+    required this.processResult,
   });
 
   factory AppealRecord.fromJson(Map<String, dynamic> json) {
     return AppealRecord(
-      id: json['id'],
+      appealId: json['appealId'],
       plateNumber: json['plateNumber'],
-      reason: json['reason'],
-      status: json['status'],
+      appellantName: json['appellantName'],
+      idCardNumber: json['idCardNumber'],
+      contactNumber: json['contactNumber'],
+      appealReason: json['appealReason'],
+      appealTime: json['appealTime'],
+      processStatus: json['processStatus'],
+      processResult: json['processResult'],
     );
   }
 }

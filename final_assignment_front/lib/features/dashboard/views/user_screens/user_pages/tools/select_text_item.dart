@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
 class SelectTextItem extends StatelessWidget {
-  const SelectTextItem({super.key,
+  const SelectTextItem({
+    super.key,
     required this.title,
     required this.onTap,
     this.content = "",

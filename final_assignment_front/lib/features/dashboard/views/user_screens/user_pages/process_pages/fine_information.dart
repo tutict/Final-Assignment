@@ -176,26 +176,42 @@ mixin FineRecordListMixin<T extends StatefulWidget> on State<T> {
   }
 }
 
-// 罚款记录模型
+// 用户罚款记录模型
 class FineRecord {
   int id;
   String plateNumber;
-  int fineAmount;
+  double fineAmount;
+  String payee;
+  String accountNumber;
+  String bank;
+  String receiptNumber;
+  String remarks;
   String date;
+
 
   FineRecord({
     required this.id,
     required this.plateNumber,
     required this.fineAmount,
+    required this.payee,
+    required this.accountNumber,
+    required this.bank,
+    required this.receiptNumber,
+    required this.remarks,
     required this.date,
   });
 
   factory FineRecord.fromJson(Map<String, dynamic> json) {
     return FineRecord(
-      id: json['id'],
+      id: json['fineId'],
       plateNumber: json['plateNumber'],
       fineAmount: json['fineAmount'],
-      date: json['date'],
+      payee: json['payee'],
+      accountNumber: json['accountNumber'],
+      bank: json['bank'],
+      receiptNumber: json['receiptNumber'],
+      remarks: json['remarks'],
+      date: json['fineTime'],
     );
   }
 }
