@@ -24,6 +24,8 @@ dependencies {
     implementation 'io.quarkus:quarkus-kafka-client:3.17.0.CR1'
     implementation 'io.quarkiverse.mybatis:quarkus-mybatis-plus:2.2.4'
     implementation 'org.mindrot:jbcrypt:0.4'
+    implementation 'io.quarkus:quarkus-spring-boot-properties:3.17.0.CR1'
+    implementation 'io.quarkus:quarkus-config-yaml:3.17.0.CR1'
     implementation 'io.quarkus:quarkus-cache:3.17.0.CR1'
     implementation 'io.quarkus:quarkus-redis-cache:3.17.0.CR1'
     implementation 'io.quarkus:quarkus-redis-client:3.17.0.CR1'
@@ -40,6 +42,7 @@ dependencies {
     implementation 'io.quarkus:quarkus-rest:3.17.0.CR1'
     implementation 'io.quarkus:quarkus-rest-jackson:3.17.0.CR1'
     implementation 'com.alibaba.cloud.ai:spring-ai-alibaba-starter:1.0.0-M3.1'
+    implementation(enforcedPlatform("io.quarkus.platform:quarkus-bom:3.17.0.CR1"))
     compileOnly 'org.projectlombok:lombok:1.18.34'
     annotationProcessor 'org.projectlombok:lombok:1.18.34'
     testRuntimeOnly 'org.jboss.logmanager:log4j2-jboss-logmanager:2.0.1.Final'
@@ -70,7 +73,10 @@ compileTestJava {
 }
 
 configurations.configureEach {
-    exclude group: 'ch.qos.logback'
-    exclude group: 'org.slf4j', module: 'slf4j-simple'
+    exclude group: 'ch.qos.logback', module: 'logback-classic'
+    exclude group: 'ch.qos.logback', module: 'logback-core'
+    exclude group: 'org.slf4j', module: 'slf4j-log4j12'
+    exclude group: 'org.slf4j', module: 'log4j-over-slf4j'
     exclude group: 'org.slf4j', module: 'slf4j-jdk14'
+    exclude group: 'org.slf4j', module: 'slf4j-simple'
 }
