@@ -2,10 +2,11 @@ package finalassignmentbackend.config.vertx;
 
 import finalassignmentbackend.config.login.jwt.TokenProvider;
 import io.quarkus.runtime.Startup;
-import io.vertx.core.Vertx;
 import io.vertx.core.VertxOptions;
+import io.vertx.mutiny.core.Vertx;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.annotation.PostConstruct;
+import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -13,7 +14,11 @@ import lombok.extern.slf4j.Slf4j;
 @ApplicationScoped
 public class VertxConfig {
 
-    private final TokenProvider tokenProvider;
+    @Inject
+    WebSocketServer webSocketServer;
+
+    @Inject
+    TokenProvider tokenProvider;
 
     public VertxConfig(TokenProvider tokenProvider) {
         this.tokenProvider = tokenProvider;
@@ -27,8 +32,12 @@ public class VertxConfig {
 
         Vertx vertx = Vertx.vertx(vertxOptions);
 
-        vertx.deployVerticle(new WebSocketServer(tokenProvider).toString())
-                .onSuccess(id -> log.info("WebSocketServer deployed successfully: {}", id))
-                .onFailure(t -> log.error("Failed to deploy WebSocketServer: {}", t.getMessage()));
+        webSocketServer.start();
+
+        vertx.deployVerticle(webSocketServer)
+                .subscribe().with(
+                        id -> log.info("WebSocketServer deployed successfully: {}", id),
+                        failure -> log.error("Failed to deploy WebSocketServer", failure)
+                );
     }
 }

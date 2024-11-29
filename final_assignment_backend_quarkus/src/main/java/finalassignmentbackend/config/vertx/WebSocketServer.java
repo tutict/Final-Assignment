@@ -1,18 +1,21 @@
 package finalassignmentbackend.config.vertx;
 
 import finalassignmentbackend.config.login.jwt.TokenProvider;
-import io.quarkus.runtime.StartupEvent;
-import io.vertx.core.Vertx;
+import io.netty.handler.codec.http.QueryStringDecoder;
+import io.smallrye.mutiny.vertx.core.AbstractVerticle;
+import io.vertx.core.MultiMap;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.ext.bridge.PermittedOptions;
-import io.vertx.ext.web.Router;
-import io.vertx.ext.web.handler.CorsHandler;
 import io.vertx.ext.web.handler.sockjs.SockJSBridgeOptions;
-import io.vertx.ext.web.handler.sockjs.SockJSHandler;
 import io.vertx.ext.web.handler.sockjs.SockJSHandlerOptions;
+import io.vertx.mutiny.core.Vertx;
+import io.vertx.mutiny.core.http.HttpServerRequest;
+import io.vertx.mutiny.core.http.ServerWebSocket;
+import io.vertx.mutiny.ext.web.Router;
+import io.vertx.mutiny.ext.web.handler.CorsHandler;
+import io.vertx.mutiny.ext.web.handler.sockjs.SockJSHandler;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -22,31 +25,21 @@ import java.util.Set;
 
 @Slf4j
 @ApplicationScoped
-public class WebSocketServer {
+public class WebSocketServer extends AbstractVerticle {
 
+    private final Vertx vertx;
+    private final TokenProvider tokenProvider;
 
-    @ConfigProperty(name = "server.port", defaultValue = "8080")
+    @ConfigProperty(name = "server.port", defaultValue = "8082")
     int port;
 
     @Inject
-    Vertx vertx;
-
-    private final TokenProvider tokenProvider;
-
-    public WebSocketServer(TokenProvider tokenProvider) {
+    public WebSocketServer(Vertx vertx, TokenProvider tokenProvider) {
+        this.vertx = vertx;
         this.tokenProvider = tokenProvider;
     }
 
-    /**
-     * 启动 WebSocket 服务
-     */
-    public void onStart(@Observes StartupEvent event) {
-        start();
-    }
-
-    /**
-     * 初始化 WebSocket 服务器
-     */
+    @Override
     public void start() {
         Router router = Router.router(vertx);
 
@@ -57,21 +50,17 @@ public class WebSocketServer {
         allowedHeaders.add("Sec-WebSocket-Key");
         allowedHeaders.add("Sec-WebSocket-Version");
         allowedHeaders.add("Sec-WebSocket-Protocol");
-
-        Set<HttpMethod> allowedMethods = new HashSet<>();
-        allowedMethods.add(HttpMethod.GET);
-        allowedMethods.add(HttpMethod.POST);
-        allowedMethods.add(HttpMethod.DELETE);
-        allowedMethods.add(HttpMethod.PATCH);
-        allowedMethods.add(HttpMethod.OPTIONS);
-        allowedMethods.add(HttpMethod.PUT);
+        allowedHeaders.add("Content-Type");
+        allowedHeaders.add("Accept");
 
         router.route().handler(CorsHandler.create()
-                .addOrigin("http://localhost:8082")
+                .addOrigin("*")  // 根据需要设置允许的来源
                 .allowedHeaders(allowedHeaders)
-                .allowedMethods(allowedMethods));
+                .allowedMethod(HttpMethod.GET)
+                .allowedMethod(HttpMethod.POST)
+                .allowedMethod(HttpMethod.OPTIONS));
 
-        // 配置 SockJS
+        // 配置 SockJS 处理程序
         SockJSHandlerOptions sockJSOptions = new SockJSHandlerOptions().setHeartbeatInterval(2000);
         SockJSHandler sockJSHandler = SockJSHandler.create(vertx, sockJSOptions);
 
@@ -80,9 +69,27 @@ public class WebSocketServer {
                 .addInboundPermitted(new PermittedOptions().setAddress("chat.to.server"))
                 .addOutboundPermitted(new PermittedOptions().setAddress("chat.to.client"));
 
-        // 将 SockJS 处理程序添加到路由
-        router.route("/eventbus/*").handler(sockJSHandler);
-        sockJSHandler.bridge(bridgeOptions);
+        // 将 SockJS 处理程序挂载到 /chat/* 路径
+        router.route("/chat/*").handler(ctx -> {
+            HttpServerRequest request = ctx.request();
+            String useSockJS = request.getParam("useSockJS");
+            if ("true".equals(useSockJS)) {
+                // 使用 SockJS 处理连接
+                sockJSHandler.bridge(bridgeOptions).handle(request);
+            } else {
+                // 尝试升级为 WebSocket
+                if (request.headers().contains("Upgrade", "websocket", true)) {
+                    // 让请求继续，以便 webSocketHandler 处理
+                    ctx.next();
+                } else {
+                    request.response().setStatusCode(400).end("需要 WebSocket 连接")
+                            .subscribe().with(
+                                    success -> log.info("响应结束成功：{}", (success)),
+                                    failure -> log.error("响应结束失败：{}", failure.getMessage(), failure)
+                            );
+                }
+            }
+        });
 
         // 配置 HTTP 服务器
         HttpServerOptions options = new HttpServerOptions()
@@ -92,33 +99,53 @@ public class WebSocketServer {
         vertx.createHttpServer(options)
                 .requestHandler(router)
                 .webSocketHandler(ws -> {
-                    String token = ws.headers().get("Authorization");
-                    if (token != null && token.startsWith("Bearer ")) {
-                        String jwtToken = token.substring(7);
-                        if (tokenProvider.validateToken(jwtToken)) {
-                            ws.handler(buffer -> {
-                                try {
-                                    vertx.eventBus().publish("chat.to.server", buffer);
-                                } catch (Exception e) {
-                                    log.error("处理 WebSocket 消息失败: {}", e.getMessage(), e);
-                                    ws.close();
-                                }
-                            });
-                        } else {
-                            log.warn("无效的令牌，关闭 WebSocket 连接");
-                            ws.close();
-                        }
+                    // 只处理 /chat 路径上的 WebSocket 连接
+                    if (ws.path().equals("/chat")) {
+                        handleWebSocketConnection(ws);
                     } else {
-                        log.warn("缺少 Authorization header 或其格式不正确，关闭 WebSocket 连接");
-                        ws.close();
+                        ws.closeReason();
                     }
                 })
-                .listen(port, res -> {
-                    if (res.succeeded()) {
-                        log.info("WebSocket 服务器已在端口 {} 启动", res.result().actualPort());
-                    } else {
-                        log.error("WebSocket 服务器启动失败, 错误信息: {}", res.cause().getMessage(), res.cause());
+                .listen(port)
+                .subscribe().with(
+                        server -> log.info("服务器已在端口 {} 启动", server.actualPort()),
+                        failure -> log.error("服务器启动失败: {}", failure.getMessage(), failure)
+                );
+    }
+
+    private void handleWebSocketConnection(ServerWebSocket ws) {
+        // 获取查询字符串
+        String query = ws.query();
+        if (query != null) {
+            // 使用 QueryStringDecoder 解析查询参数
+            QueryStringDecoder decoder = new QueryStringDecoder("?" + query);
+            MultiMap params = MultiMap.caseInsensitiveMultiMap();
+            decoder.parameters().forEach((key, values) -> {
+                if (values != null && !values.isEmpty()) {
+                    params.add(key, values.getFirst());
+                }
+            });
+
+            // 获取 token 参数
+            String token = params.get("token");
+            if (token != null && tokenProvider.validateToken(token)) {
+                ws.frameHandler(frame -> {
+                    if (frame.isText()) {
+                        String message = frame.textData();
+                        // 处理消息
+                        vertx.eventBus().publish("chat.to.server", message);
+                        log.info("收到来自 WebSocket 客户端的消息: {}", message);
                     }
                 });
+                // 添加关闭处理程序
+                ws.closeHandler(() -> log.info("WebSocket 连接已关闭"));
+            } else {
+                log.warn("无效的令牌，关闭 WebSocket 连接");
+                ws.closeReason();
+            }
+        } else {
+            log.warn("缺少查询参数，关闭 WebSocket 连接");
+            ws.closeReason();
+        }
     }
 }

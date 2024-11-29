@@ -18,9 +18,8 @@ repositories {
 dependencies {
     implementation 'io.quarkus:quarkus-arc:3.17.0.CR1'
     implementation 'io.vertx:vertx-kafka-client:4.5.11'
-    implementation 'io.vertx:vertx-core:4.5.11'
-    implementation 'io.quarkus:quarkus-vertx-http:3.17.0.CR1'
-    implementation 'io.quarkus:quarkus-vertx-http-parent:3.17.0.CR1'
+    implementation 'io.vertx:vertx-web:4.5.11'
+    implementation 'io.quarkus:quarkus-vertx:3.17.0'
     implementation 'io.quarkus:quarkus-kafka-client:3.17.0.CR1'
     implementation 'io.quarkiverse.mybatis:quarkus-mybatis-plus:2.2.4'
     implementation 'org.mindrot:jbcrypt:0.4'
