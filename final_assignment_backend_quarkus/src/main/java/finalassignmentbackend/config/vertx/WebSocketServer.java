@@ -1,6 +1,5 @@
 package finalassignmentbackend.config.vertx;
 
-import com.oracle.svm.core.annotate.Inject;
 import finalassignmentbackend.config.login.jwt.TokenProvider;
 import io.quarkus.runtime.StartupEvent;
 import io.vertx.core.Vertx;
@@ -14,6 +13,7 @@ import io.vertx.ext.web.handler.sockjs.SockJSHandler;
 import io.vertx.ext.web.handler.sockjs.SockJSHandlerOptions;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
+import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 

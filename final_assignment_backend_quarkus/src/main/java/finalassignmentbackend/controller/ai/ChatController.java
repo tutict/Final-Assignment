@@ -1,41 +1,68 @@
 package finalassignmentbackend.controller.ai;
 
-import jakarta.inject.Inject;
+import com.alibaba.dashscope.aigc.generation.Generation;
+import com.alibaba.dashscope.aigc.generation.GenerationParam;
+import com.alibaba.dashscope.aigc.generation.GenerationResult;
+import com.alibaba.dashscope.common.Message;
+import com.alibaba.dashscope.common.Role;
+import com.alibaba.dashscope.exception.ApiException;
+import com.alibaba.dashscope.exception.InputRequiredException;
+import com.alibaba.dashscope.exception.NoApiKeyException;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
-import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
-import org.eclipse.microprofile.openapi.annotations.Operation;
-import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
-import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
+import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
-import org.springframework.ai.chat.client.ChatClient;
 
-import java.util.logging.Logger;
+import java.util.Arrays;
+import java.lang.System;
 
 @Path("/ai")
 @Produces(MediaType.APPLICATION_JSON)
 @Tag(name = "AI Chat", description = "Chat Controller for AI interactions")
 public class ChatController {
 
-    private static final Logger logger = Logger.getLogger(String.valueOf(ChatController.class));
+    // 调用AI接口生成结果
+    public static GenerationResult callWithMessage() throws ApiException, NoApiKeyException, InputRequiredException {
+        Generation gen = new Generation();
+        Message systemMsg = Message.builder()
+                .role(Role.SYSTEM.getValue())
+                .content("You are a helpful assistant.")
+                .build();
+        Message userMsg = Message.builder()
+                .role(Role.USER.getValue())
+                .content("你是谁？")
+                .build();
+        GenerationParam param = GenerationParam.builder()
+                // 获取环境变量中的API Key
+                .apiKey(System.getenv("DASHSCOPE_API_KEY"))
+                // 设置模型为 qwen-plus
+                .model("qwen-plus")
+                // 设置消息列表
+                .messages(Arrays.asList(systemMsg, userMsg))
+                .resultFormat(GenerationParam.ResultFormat.MESSAGE)
+                .build();
+        return gen.call(param);  // 执行AI生成调用
+    }
 
-    @Inject
-    ChatClient chatClient;
-
+    // 为AI聊天提供RESTful接口
     @GET
     @Path("/chat")
-    @Operation(summary = "Chat with AI", description = "Provides an AI response based on user input")
-    @APIResponses({
-            @APIResponse(responseCode = "200", description = "Successful AI response"),
-            @APIResponse(responseCode = "400", description = "Invalid input")
-    })
-    public String chat(@QueryParam("input") String input) {
-        logger.info(String.format("User input: %s", input));
-        return this.chatClient.prompt()
-                .user(input)
-                .call()
-                .content();
+    public Response getChatResponse() {
+        try {
+            // 调用 AI 生成方法
+            GenerationResult result = callWithMessage();
+            // 返回AI响应内容
+            String aiResponse = result.getOutput().getChoices().getFirst().getMessage().getContent();
+
+            // 返回 HTTP 200 OK 状态以及 AI 响应
+            return Response.ok(aiResponse).build();
+        } catch (ApiException | NoApiKeyException | InputRequiredException e) {
+            // 捕获异常，返回HTTP 400 Bad Request并提供错误信息
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("Error: " + e.getMessage() + ". Please refer to the documentation for error codes.")
+                    .build();
+        }
     }
 }
