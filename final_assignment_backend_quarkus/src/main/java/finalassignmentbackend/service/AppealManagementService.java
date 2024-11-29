@@ -1,7 +1,6 @@
 package finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.oracle.svm.core.annotate.Inject;
 import finalassignmentbackend.mapper.AppealManagementMapper;
 import finalassignmentbackend.mapper.OffenseInformationMapper;
 import finalassignmentbackend.entity.AppealManagement;
@@ -10,6 +9,8 @@ import io.quarkus.cache.CacheInvalidate;
 import io.quarkus.cache.CacheResult;
 import io.smallrye.reactive.messaging.kafka.KafkaRecord;
 import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
+import jakarta.inject.Inject;
+import jakarta.inject.Named;
 import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Emitter;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -23,9 +24,11 @@ public class AppealManagementService {
     private static final Logger log = Logger.getLogger(String.valueOf(AppealManagementService.class));
 
     @Inject
+    @Named("AppealManagementMapper")
     AppealManagementMapper appealManagementMapper;
 
     @Inject
+    @Named("OffenseInformationMapper")
     OffenseInformationMapper offenseInformationMapper;
 
     @Inject

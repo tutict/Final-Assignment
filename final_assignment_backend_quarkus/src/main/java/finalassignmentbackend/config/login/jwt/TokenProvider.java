@@ -1,6 +1,5 @@
 package finalassignmentbackend.config.login.jwt;
 
-import com.oracle.svm.core.annotate.Inject;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import io.smallrye.jwt.auth.principal.JWTParser;
@@ -9,6 +8,7 @@ import io.smallrye.jwt.build.Jwt;
 import io.smallrye.jwt.build.JwtClaimsBuilder;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 
 import javax.crypto.SecretKey;
 import java.security.SecureRandom;

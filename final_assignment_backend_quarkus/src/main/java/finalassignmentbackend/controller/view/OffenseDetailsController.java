@@ -1,8 +1,8 @@
 package finalassignmentbackend.controller.view;
 
-import com.oracle.svm.core.annotate.Inject;
 import finalassignmentbackend.entity.view.OffenseDetails;
 import finalassignmentbackend.service.view.OffenseDetailsService;
+import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;

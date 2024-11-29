@@ -1,8 +1,8 @@
 package finalassignmentbackend.controller;
 
-import com.oracle.svm.core.annotate.Inject;
 import finalassignmentbackend.entity.DeductionInformation;
 import finalassignmentbackend.service.DeductionInformationService;
+import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;

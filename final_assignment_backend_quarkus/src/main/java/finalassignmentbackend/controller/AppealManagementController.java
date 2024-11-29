@@ -1,9 +1,9 @@
 package finalassignmentbackend.controller;
 
-import com.oracle.svm.core.annotate.Inject;
 import finalassignmentbackend.entity.AppealManagement;
 import finalassignmentbackend.entity.OffenseInformation;
 import finalassignmentbackend.service.AppealManagementService;
+import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;

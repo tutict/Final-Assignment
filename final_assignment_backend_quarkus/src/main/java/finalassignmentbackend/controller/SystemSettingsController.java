@@ -1,8 +1,8 @@
 package finalassignmentbackend.controller;
 
-import com.oracle.svm.core.annotate.Inject;
 import finalassignmentbackend.entity.SystemSettings;
 import finalassignmentbackend.service.SystemSettingsService;
+import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.PUT;

@@ -1,7 +1,6 @@
 package finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.oracle.svm.core.annotate.Inject;
 import finalassignmentbackend.entity.DeductionInformation;
 import finalassignmentbackend.mapper.DeductionInformationMapper;
 import io.quarkus.cache.CacheInvalidate;
@@ -9,6 +8,8 @@ import io.quarkus.cache.CacheResult;
 import io.smallrye.reactive.messaging.kafka.KafkaRecord;
 import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import jakarta.inject.Named;
 import jakarta.transaction.Transactional;
 import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Emitter;
@@ -23,6 +24,7 @@ public class DeductionInformationService {
     private static final Logger log = Logger.getLogger(String.valueOf(DeductionInformationService.class));
 
     @Inject
+    @Named("DeductionInformationMapper")
     DeductionInformationMapper deductionInformationMapper;
 
     @Inject

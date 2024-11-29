@@ -1,6 +1,5 @@
 package finalassignmentbackend.service;
 
-import com.oracle.svm.core.annotate.Inject;
 import finalassignmentbackend.entity.SystemSettings;
 import finalassignmentbackend.mapper.SystemSettingsMapper;
 import io.quarkus.cache.CacheInvalidate;
@@ -8,6 +7,8 @@ import io.quarkus.cache.CacheResult;
 import io.smallrye.reactive.messaging.kafka.KafkaRecord;
 import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import jakarta.inject.Named;
 import jakarta.transaction.Transactional;
 import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Emitter;
@@ -20,6 +21,7 @@ public class SystemSettingsService {
     private static final Logger log = Logger.getLogger(String.valueOf(SystemSettingsService.class));
 
     @Inject
+    @Named("SystemSettingsMapper")
     SystemSettingsMapper systemSettingsMapper;
 
     @Inject

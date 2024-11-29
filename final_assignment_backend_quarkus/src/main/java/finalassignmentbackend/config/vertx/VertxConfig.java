@@ -1,27 +1,26 @@
 package finalassignmentbackend.config.vertx;
 
-import com.oracle.svm.core.annotate.Inject;
 import finalassignmentbackend.config.login.jwt.TokenProvider;
 import io.quarkus.runtime.Startup;
 import io.vertx.core.Vertx;
 import io.vertx.core.VertxOptions;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.enterprise.inject.Produces;
+import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
 
-import java.util.logging.Logger;
-
+@Slf4j
 @Startup
 @ApplicationScoped
 public class VertxConfig {
 
-    private static final Logger log = Logger.getLogger(String.valueOf(VertxConfig.class));
+    private final TokenProvider tokenProvider;
 
-    @Inject
-    TokenProvider tokenProvider;
+    public VertxConfig(TokenProvider tokenProvider) {
+        this.tokenProvider = tokenProvider;
+    }
 
-    @Produces
-    @ApplicationScoped
-    public Vertx vertx() {
+    @PostConstruct
+    public void start() {
         VertxOptions vertxOptions = new VertxOptions()
                 .setWorkerPoolSize(10)
                 .setBlockedThreadCheckInterval(2000);
@@ -29,9 +28,7 @@ public class VertxConfig {
         Vertx vertx = Vertx.vertx(vertxOptions);
 
         vertx.deployVerticle(new WebSocketServer(tokenProvider).toString())
-                .onSuccess(id -> log.info("WebSocketServer deployed successfully: " + id))
-                .onFailure(t -> log.severe(String.format("Failed to deploy WebSocketServer: %s", t)));
-
-        return vertx;
+                .onSuccess(id -> log.info("WebSocketServer deployed successfully: {}", id))
+                .onFailure(t -> log.error("Failed to deploy WebSocketServer: {}", t.getMessage()));
     }
 }

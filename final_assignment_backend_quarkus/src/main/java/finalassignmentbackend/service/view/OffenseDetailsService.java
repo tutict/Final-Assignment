@@ -1,11 +1,12 @@
 package finalassignmentbackend.service.view;
 
-import com.oracle.svm.core.annotate.Inject;
 import finalassignmentbackend.mapper.view.OffenseDetailsMapper;
 import finalassignmentbackend.entity.view.OffenseDetails;
 import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
 import io.smallrye.reactive.messaging.kafka.KafkaRecord;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import jakarta.inject.Named;
 import jakarta.transaction.Transactional;
 import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Emitter;
@@ -19,6 +20,7 @@ public class OffenseDetailsService {
     private static final Logger log = Logger.getLogger(String.valueOf(OffenseDetailsService.class));
 
     @Inject
+    @Named("OffenseDetailsMapper")
     OffenseDetailsMapper offenseDetailsMapper;
 
     @Inject

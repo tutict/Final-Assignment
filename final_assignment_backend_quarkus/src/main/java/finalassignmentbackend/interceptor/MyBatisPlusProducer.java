@@ -1,6 +1,5 @@
 package finalassignmentbackend.interceptor;
 
-import com.oracle.svm.core.annotate.Inject;
 import finalassignmentbackend.mapper.AppealManagementMapper;
 import finalassignmentbackend.mapper.BackupRestoreMapper;
 import finalassignmentbackend.mapper.DeductionInformationMapper;
@@ -18,8 +17,11 @@ import finalassignmentbackend.mapper.VehicleInformationMapper;
 import finalassignmentbackend.mapper.view.OffenseDetailsMapper;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Produces;
+import jakarta.inject.Inject;
+import jakarta.inject.Named;
 import org.apache.ibatis.session.SqlSession;
 import org.apache.ibatis.session.SqlSessionFactory;
+
 
 @ApplicationScoped
 public class MyBatisPlusProducer {
@@ -28,6 +30,7 @@ public class MyBatisPlusProducer {
     SqlSessionFactory sqlSessionFactory;
 
     @Produces
+    @Named("OffenseDetailsMapper")
     @ApplicationScoped
     public OffenseDetailsMapper produceOffenseDetailsMapper() {
         try (SqlSession session = sqlSessionFactory.openSession()) {
@@ -36,6 +39,7 @@ public class MyBatisPlusProducer {
     }
 
     @Produces
+    @Named("AppealManagementMapper")
     @ApplicationScoped
     public AppealManagementMapper produceAppealManagementMapper() {
         try (SqlSession session = sqlSessionFactory.openSession()) {
@@ -44,6 +48,7 @@ public class MyBatisPlusProducer {
     }
 
     @Produces
+    @Named("BackupRestoreMapper")
     @ApplicationScoped
     public BackupRestoreMapper produceBackupRestoreMapper() {
         try (SqlSession session = sqlSessionFactory.openSession()) {
@@ -52,6 +57,7 @@ public class MyBatisPlusProducer {
     }
 
     @Produces
+    @Named("DeductionInformationMapper")
     @ApplicationScoped
     public DeductionInformationMapper produceDeductionInformationMapper() {
         try (SqlSession session = sqlSessionFactory.openSession()) {
@@ -60,6 +66,7 @@ public class MyBatisPlusProducer {
     }
 
     @Produces
+    @Named("DriverInformationMapper")
     @ApplicationScoped
     public DriverInformationMapper produceDriverInformationMapper() {
         try (SqlSession session = sqlSessionFactory.openSession()) {
@@ -68,6 +75,7 @@ public class MyBatisPlusProducer {
     }
 
     @Produces
+    @Named("FineInformationMapper")
     @ApplicationScoped
     public FineInformationMapper produceFineInformationMapper() {
         try (SqlSession session = sqlSessionFactory.openSession()) {
@@ -76,6 +84,7 @@ public class MyBatisPlusProducer {
     }
 
     @Produces
+    @Named("LoginLogMapper")
     @ApplicationScoped
     public LoginLogMapper produceLoginLogMapper() {
         try (SqlSession session = sqlSessionFactory.openSession()) {
@@ -84,6 +93,7 @@ public class MyBatisPlusProducer {
     }
 
     @Produces
+    @Named("OffenseInformationMapper")
     @ApplicationScoped
     public OffenseInformationMapper produceOffenseInformationMapper() {
         try (SqlSession session = sqlSessionFactory.openSession()) {
@@ -92,6 +102,7 @@ public class MyBatisPlusProducer {
     }
 
     @Produces
+    @Named("OperationLogMapper")
     @ApplicationScoped
     public OperationLogMapper produceOperationLogMapper() {
         try (SqlSession session = sqlSessionFactory.openSession()) {
@@ -100,6 +111,7 @@ public class MyBatisPlusProducer {
     }
 
     @Produces
+    @Named("PermissionManagementMapper")
     @ApplicationScoped
     public PermissionManagementMapper producePermissionManagementMapper() {
         try (SqlSession session = sqlSessionFactory.openSession()) {
@@ -108,6 +120,7 @@ public class MyBatisPlusProducer {
     }
 
     @Produces
+    @Named("RoleManagementMapper")
     @ApplicationScoped
     public RoleManagementMapper produceRoleManagementMapper() {
         try (SqlSession session = sqlSessionFactory.openSession()) {
@@ -116,6 +129,7 @@ public class MyBatisPlusProducer {
     }
 
     @Produces
+    @Named("SystemLogsMapper")
     @ApplicationScoped
     public SystemLogsMapper produceSystemLogsMapper() {
         try (SqlSession session = sqlSessionFactory.openSession()) {
@@ -124,6 +138,7 @@ public class MyBatisPlusProducer {
     }
 
     @Produces
+    @Named("SystemSettingsMapper")
     @ApplicationScoped
     public SystemSettingsMapper produceSystemSettingsMapper() {
         try (SqlSession session = sqlSessionFactory.openSession()) {
@@ -132,6 +147,7 @@ public class MyBatisPlusProducer {
     }
 
     @Produces
+    @Named("UserManagementMapper")
     @ApplicationScoped
     public UserManagementMapper produceUserManagementMapper() {
         try (SqlSession session = sqlSessionFactory.openSession()) {
@@ -140,6 +156,7 @@ public class MyBatisPlusProducer {
     }
 
     @Produces
+    @Named("VehicleInformationMapper")
     @ApplicationScoped
     public VehicleInformationMapper produceVehicleInformationMapper() {
         try (SqlSession session = sqlSessionFactory.openSession()) {
