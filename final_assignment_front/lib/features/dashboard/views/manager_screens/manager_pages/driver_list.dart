@@ -1,6 +1,6 @@
 import 'dart:convert';
-import 'dart:developer' as develop;
-
+import 'dart:developer' as developer;
+import 'package:final_assignment_front/utils/services/app_config.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
@@ -21,9 +21,10 @@ class _DriverListPage extends State<DriverList>
     _driversFuture = _fetchDrivers();
   }
 
-  Future<List<Driver>> _fetchDrivers() async {
+  // Updated fetch method to accept search parameters if any
+  Future<List<Driver>> _fetchDrivers({String? query}) async {
     final url = Uri.parse(
-        '\${AppConfig.baseUrl}\${AppConfig.driverInformationEndpoint}');
+        '${AppConfig.baseUrl}${AppConfig.driverInformationEndpoint}${query != null ? '/name/$query' : ''}');
     try {
       final response = await http.get(url);
       if (response.statusCode == 200) {
@@ -33,14 +34,15 @@ class _DriverListPage extends State<DriverList>
         throw Exception('Failed to load drivers');
       }
     } catch (e) {
-      develop.log('Error: \$e');
-      throw Exception('Failed to load drivers: \$e');
+      developer.log('Error: $e');
+      throw Exception('Failed to load drivers: $e');
     }
   }
 
+  // Delete driver
   Future<void> _deleteDriver(int driverId) async {
     final url = Uri.parse(
-        '\${AppConfig.baseUrl}\${AppConfig.driverInformationEndpoint}/\$driverId');
+        '${AppConfig.baseUrl}${AppConfig.driverInformationEndpoint}/$driverId');
     try {
       final response = await http.delete(url);
       if (response.statusCode == 204) {
@@ -49,7 +51,7 @@ class _DriverListPage extends State<DriverList>
           const SnackBar(content: Text('删除司机信息成功！')),
         );
         setState(() {
-          _driversFuture = _fetchDrivers(); // 刷新司机信息列表
+          _driversFuture = _fetchDrivers(); // Refresh list after delete
         });
       } else {
         if (!mounted) return;
@@ -63,6 +65,13 @@ class _DriverListPage extends State<DriverList>
         const SnackBar(content: Text('发生错误，请检查网络连接。')),
       );
     }
+  }
+
+  // Search drivers by name
+  void _searchDrivers(String query) {
+    setState(() {
+      _driversFuture = _fetchDrivers(query: query);
+    });
   }
 
   @override
@@ -81,7 +90,8 @@ class _DriverListPage extends State<DriverList>
               ).then((value) {
                 if (value == true) {
                   setState(() {
-                    _driversFuture = _fetchDrivers();
+                    _driversFuture =
+                        _fetchDrivers(); // Refresh list after adding
                   });
                 }
               });
@@ -90,47 +100,64 @@ class _DriverListPage extends State<DriverList>
           ),
         ],
       ),
-      body: FutureBuilder<List<Driver>>(
-        future: _driversFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return const Center(child: Text('加载司机信息时发生错误: \${snapshot.error}'));
-          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('没有找到司机信息'));
-          } else {
-            final drivers = snapshot.data!;
-            return ListView.builder(
-              itemCount: drivers.length,
-              itemBuilder: (context, index) {
-                final driver = drivers[index];
-                return Card(
-                  margin: const EdgeInsets.symmetric(
-                      vertical: 8.0, horizontal: 16.0),
-                  child: ListTile(
-                    title: const Text('司机姓名: \${driver.name}'),
-                    subtitle: const Text(
-                        '驾驶证号: \${driver.driverLicenseNumber}\n联系电话: \${driver.contactNumber}'),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.delete),
-                      onPressed: () => _deleteDriver(driver.driverId),
-                      tooltip: '删除此司机',
-                    ),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) =>
-                                buildDriverDetailPage(context, driver)),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: TextField(
+              onChanged: _searchDrivers,
+              decoration: const InputDecoration(
+                labelText: '按姓名搜索',
+                prefixIcon: Icon(Icons.search),
+              ),
+            ),
+          ),
+          Expanded(
+            child: FutureBuilder<List<Driver>>(
+              future: _driversFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                } else if (snapshot.hasError) {
+                  return Center(child: Text('加载司机信息时发生错误: ${snapshot.error}'));
+                } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return const Center(child: Text('没有找到司机信息'));
+                } else {
+                  final drivers = snapshot.data!;
+                  return ListView.builder(
+                    itemCount: drivers.length,
+                    itemBuilder: (context, index) {
+                      final driver = drivers[index];
+                      return Card(
+                        margin: const EdgeInsets.symmetric(
+                            vertical: 8.0, horizontal: 16.0),
+                        child: ListTile(
+                          title: Text('司机姓名: ${driver.name}'),
+                          subtitle: Text(
+                            '驾驶证号: ${driver.driverLicenseNumber}\n联系电话: ${driver.contactNumber}',
+                          ),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.delete),
+                            onPressed: () => _deleteDriver(driver.driverId),
+                            tooltip: '删除此司机',
+                          ),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (context) =>
+                                      buildDriverDetailPage(context, driver)),
+                            );
+                          },
+                        ),
                       );
                     },
-                  ),
-                );
+                  );
+                }
               },
-            );
-          }
-        },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -160,16 +187,16 @@ mixin DriverDetailPage {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('姓名: \${driver.name}',
+            Text('姓名: ${driver.name}',
                 style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 8.0),
-            Text('身份证号: \${driver.idCardNumber}',
+            Text('身份证号: ${driver.idCardNumber}',
                 style: Theme.of(context).textTheme.bodyLarge),
             const SizedBox(height: 8.0),
-            Text('联系电话: \${driver.contactNumber}',
+            Text('联系电话: ${driver.contactNumber}',
                 style: Theme.of(context).textTheme.bodyLarge),
             const SizedBox(height: 8.0),
-            Text('驾驶证号: \${driver.driverLicenseNumber}',
+            Text('驾驶证号: ${driver.driverLicenseNumber}',
                 style: Theme.of(context).textTheme.bodyLarge),
           ],
         ),

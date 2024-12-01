@@ -6,19 +6,16 @@ import 'package:final_assignment_front/utils/services/rest_api_services.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-class VehicleManagement extends StatefulWidget {
-  const VehicleManagement({super.key});
+class VehicleManagementUser extends StatefulWidget {
+  const VehicleManagementUser({super.key});
 
   @override
-  State<VehicleManagement> createState() => _VehicleManagementState();
+  State<VehicleManagementUser> createState() => _VehicleManagementUserState();
 }
 
-class _VehicleManagementState extends State<VehicleManagement> {
+class _VehicleManagementUserState extends State<VehicleManagementUser> {
   // 搜索框的控制器
   final TextEditingController _searchController = TextEditingController();
-  final TextEditingController _plateNumberController = TextEditingController();
-  final TextEditingController _vehicleTypeController = TextEditingController();
-  final TextEditingController _ownerController = TextEditingController();
 
   // REST API 服务的实例
   late RestApiServices restApiServices;
@@ -29,10 +26,8 @@ class _VehicleManagementState extends State<VehicleManagement> {
     restApiServices = RestApiServices();
 
     // 初始化 WebSocket 连接，并传入 MessageProvider
-    final messageProvider =
-        Provider.of<MessageProvider>(context, listen: false);
-    restApiServices.initWebSocket(
-        AppConfig.vehicleInformationEndpoint, messageProvider);
+    final messageProvider = Provider.of<MessageProvider>(context, listen: false);
+    restApiServices.initWebSocket(AppConfig.vehicleInformationEndpoint, messageProvider);
 
     // 发送获取车辆信息的请求
     restApiServices.sendMessage(jsonEncode({'action': 'getVehicles'}));
@@ -43,9 +38,6 @@ class _VehicleManagementState extends State<VehicleManagement> {
     // 关闭 WebSocket 连接
     restApiServices.closeWebSocket();
     _searchController.dispose();
-    _plateNumberController.dispose();
-    _vehicleTypeController.dispose();
-    _ownerController.dispose();
     super.dispose();
   }
 
@@ -54,7 +46,7 @@ class _VehicleManagementState extends State<VehicleManagement> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('车辆信息管理'),
+        title: const Text('我的车辆信息'),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -73,53 +65,13 @@ class _VehicleManagementState extends State<VehicleManagement> {
               ),
               onChanged: (value) {
                 // 当搜索框文本变化时，过滤车辆列表
-                // 这里的过滤将在 Consumer 中处理
-              },
-            ),
-            const SizedBox(height: 16.0),
-            // 车辆信息表单
-            TextField(
-              controller: _plateNumberController,
-              decoration: const InputDecoration(
-                labelText: '车牌号',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16.0),
-            TextField(
-              controller: _vehicleTypeController,
-              decoration: const InputDecoration(
-                labelText: '车辆类型',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16.0),
-            TextField(
-              controller: _ownerController,
-              decoration: const InputDecoration(
-                labelText: '车主姓名',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16.0),
-            ElevatedButton(
-              onPressed: () {
-                // 处理添加或更新车辆信息的逻辑
-                String plateNumber = _plateNumberController.text;
-                String vehicleType = _vehicleTypeController.text;
-                String owner = _ownerController.text;
-
-                // 发送添加或更新车辆信息的请求
                 restApiServices.sendMessage(
                   jsonEncode({
-                    'action': 'addOrUpdateVehicle',
-                    'licensePlate': plateNumber,
-                    'vehicleType': vehicleType,
-                    'ownerName': owner, // 确保字段名与后端一致
+                    'action': 'searchVehicles',
+                    'query': value,
                   }),
                 );
               },
-              child: const Text('保存车辆信息'),
             ),
             const SizedBox(height: 16.0),
             // 使用 Consumer 监听 MessageProvider 的变化
@@ -127,8 +79,7 @@ class _VehicleManagementState extends State<VehicleManagement> {
               child: Consumer<MessageProvider>(
                 builder: (context, messageProvider, child) {
                   final message = messageProvider.message;
-                  if (message != null &&
-                      message.action == 'getVehiclesResponse') {
+                  if (message != null && message.action == 'getVehiclesResponse') {
                     if (message.data['status'] == 'success') {
                       // 解析车辆数据
                       List<Vehicle> vehicleList = List<Vehicle>.from(
@@ -155,17 +106,13 @@ class _VehicleManagementState extends State<VehicleManagement> {
                               title: Text('车牌号: ${vehicle.plateNumber}'),
                               subtitle: Text(
                                   '车辆类型: ${vehicle.vehicleType}\n车主: ${vehicle.ownerName}'),
-                              trailing: IconButton(
-                                icon: const Icon(Icons.edit),
-                                onPressed: () {
-                                  // 编辑车辆信息的逻辑
-                                  _plateNumberController.text =
-                                      vehicle.plateNumber;
-                                  _vehicleTypeController.text =
-                                      vehicle.vehicleType;
-                                  _ownerController.text = vehicle.ownerName;
-                                },
-                              ),
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (context) => VehicleDetailPage(vehicle: vehicle)),
+                                );
+                              },
                             ),
                           );
                         },
@@ -183,6 +130,41 @@ class _VehicleManagementState extends State<VehicleManagement> {
                 },
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 车辆信息详情页面
+class VehicleDetailPage extends StatelessWidget {
+  final Vehicle vehicle;
+
+  const VehicleDetailPage({required this.vehicle, super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('车辆详细信息'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('车辆类型: ${vehicle.vehicleType}',
+                style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 8.0),
+            Text('车牌号: ${vehicle.plateNumber}',
+                style: Theme.of(context).textTheme.bodyLarge),
+            const SizedBox(height: 8.0),
+            Text('车主: ${vehicle.ownerName}',
+                style: Theme.of(context).textTheme.bodyLarge),
+            const SizedBox(height: 8.0),
+            Text('车辆状态: ${vehicle.currentStatus}',
+                style: Theme.of(context).textTheme.bodyLarge),
           ],
         ),
       ),
@@ -221,7 +203,6 @@ class Vehicle {
   factory Vehicle.fromJson(Map<String, dynamic> json) {
     return Vehicle(
       vehicleId: json['vehicleId'] ?? 0,
-      // Assuming 'vehicleId' is an integer
       plateNumber: json['licensePlate'] ?? '',
       vehicleType: json['vehicleType'] ?? '',
       ownerName: json['ownerName'] ?? '',

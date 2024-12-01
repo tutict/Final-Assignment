@@ -69,8 +69,8 @@ public class WebSocketServer extends AbstractVerticle {
                 .addInboundPermitted(new PermittedOptions().setAddress("chat.to.server"))
                 .addOutboundPermitted(new PermittedOptions().setAddress("chat.to.client"));
 
-        // 将 SockJS 处理程序挂载到 /chat/* 路径
-        router.route("/chat/*").handler(ctx -> {
+        // 将 SockJS 处理程序挂载到 /eventbus/* 路径
+        router.route("/eventbus/*").handler(ctx -> {
             HttpServerRequest request = ctx.request();
             String useSockJS = request.getParam("useSockJS");
             if ("true".equals(useSockJS)) {
@@ -99,8 +99,8 @@ public class WebSocketServer extends AbstractVerticle {
         vertx.createHttpServer(options)
                 .requestHandler(router)
                 .webSocketHandler(ws -> {
-                    // 只处理 /chat 路径上的 WebSocket 连接
-                    if (ws.path().equals("/chat")) {
+                    // 只处理 /eventbus 路径上的 WebSocket 连接
+                    if (ws.path().equals("/eventbus")) {
                         handleWebSocketConnection(ws);
                     } else {
                         ws.closeReason();

@@ -13,9 +13,20 @@ class FineInformationPage extends StatefulWidget {
   State<FineInformationPage> createState() => _FineInformationPageState();
 }
 
-class _FineInformationPageState extends State<FineInformationPage>
-    with SearchMixin, FineRecordListMixin {
+class _FineInformationPageState extends State<FineInformationPage> {
   late RestApiServices restApiServices;
+
+  // 控制器
+  final TextEditingController _plateNumberController = TextEditingController();
+  final TextEditingController _fineAmountController = TextEditingController();
+  final TextEditingController _payeeController = TextEditingController();
+  final TextEditingController _accountNumberController =
+      TextEditingController();
+  final TextEditingController _bankController = TextEditingController();
+  final TextEditingController _receiptNumberController =
+      TextEditingController();
+  final TextEditingController _remarksController = TextEditingController();
+  final TextEditingController _dateController = TextEditingController();
 
   @override
   void initState() {
@@ -36,9 +47,43 @@ class _FineInformationPageState extends State<FineInformationPage>
 
   @override
   void dispose() {
-    // 关闭 WebSocket 连接
     restApiServices.closeWebSocket();
     super.dispose();
+  }
+
+  // 提交罚款信息的函数
+  void submitFineInfo() {
+    String plateNumber = _plateNumberController.text;
+    double fineAmount = double.tryParse(_fineAmountController.text) ?? 0.0;
+    String payee = _payeeController.text;
+    String accountNumber = _accountNumberController.text;
+    String bank = _bankController.text;
+    String receiptNumber = _receiptNumberController.text;
+    String remarks = _remarksController.text;
+    String date = _dateController.text;
+
+    // 发送罚款记录
+    restApiServices.sendMessage(jsonEncode({
+      'action': 'submitFineInfo',
+      'plateNumber': plateNumber,
+      'fineAmount': fineAmount,
+      'payee': payee,
+      'accountNumber': accountNumber,
+      'bank': bank,
+      'receiptNumber': receiptNumber,
+      'remarks': remarks,
+      'fineTime': date,
+    }));
+
+    // 清空表单
+    _plateNumberController.clear();
+    _fineAmountController.clear();
+    _payeeController.clear();
+    _accountNumberController.clear();
+    _bankController.clear();
+    _receiptNumberController.clear();
+    _remarksController.clear();
+    _dateController.clear();
   }
 
   @override
@@ -60,7 +105,10 @@ class _FineInformationPageState extends State<FineInformationPage>
         child: Column(
           children: <Widget>[
             // 搜索区域
-            buildSearchSection(restApiServices),
+            buildSearchSection(),
+            const SizedBox(height: 16),
+            // 罚款记录输入表单
+            buildFineInfoForm(),
             const SizedBox(height: 16),
             // 罚款记录列表
             Expanded(
@@ -93,11 +141,8 @@ class _FineInformationPageState extends State<FineInformationPage>
       ),
     );
   }
-}
 
-mixin SearchMixin<T extends StatefulWidget> on State<T> {
-  Widget buildSearchSection(RestApiServices restApiServices) {
-    // 定义文本编辑控制器
+  Widget buildSearchSection() {
     final plateNumberController = TextEditingController();
     final dateController = TextEditingController();
 
@@ -121,12 +166,11 @@ mixin SearchMixin<T extends StatefulWidget> on State<T> {
               prefixIcon: Icon(Icons.date_range),
             ),
             onTap: () async {
-              // 选择日期
               DateTime? pickedDate = await showDatePicker(
                 context: context,
-                initialDate: DateTime.now(), // 初始日期
-                firstDate: DateTime(2000), // 起始日期
-                lastDate: DateTime(2101), // 结束日期
+                initialDate: DateTime.now(),
+                firstDate: DateTime(2000),
+                lastDate: DateTime(2101),
               );
               if (pickedDate != null) {
                 dateController.text = pickedDate.toString().split(' ')[0];
@@ -137,11 +181,9 @@ mixin SearchMixin<T extends StatefulWidget> on State<T> {
         const SizedBox(width: 16),
         ElevatedButton(
           onPressed: () {
-            // 处理查询点击事件
             String plateNumber = plateNumberController.text;
             String date = dateController.text;
 
-            // 发送查询请求
             restApiServices.sendMessage(
               jsonEncode({
                 'action': 'searchFineInfo',
@@ -155,9 +197,93 @@ mixin SearchMixin<T extends StatefulWidget> on State<T> {
       ],
     );
   }
-}
 
-mixin FineRecordListMixin<T extends StatefulWidget> on State<T> {
+  Widget buildFineInfoForm() {
+    return Column(
+      children: [
+        TextField(
+          controller: _plateNumberController,
+          decoration: const InputDecoration(
+            labelText: '车牌号',
+            prefixIcon: Icon(Icons.local_bar),
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _fineAmountController,
+          decoration: const InputDecoration(
+            labelText: '罚款金额',
+            prefixIcon: Icon(Icons.money),
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _payeeController,
+          decoration: const InputDecoration(
+            labelText: '收款人',
+            prefixIcon: Icon(Icons.person),
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _accountNumberController,
+          decoration: const InputDecoration(
+            labelText: '账户号码',
+            prefixIcon: Icon(Icons.account_balance),
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _bankController,
+          decoration: const InputDecoration(
+            labelText: '银行',
+            prefixIcon: Icon(Icons.account_balance),
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _receiptNumberController,
+          decoration: const InputDecoration(
+            labelText: '收据号码',
+            prefixIcon: Icon(Icons.receipt),
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _remarksController,
+          decoration: const InputDecoration(
+            labelText: '备注',
+            prefixIcon: Icon(Icons.notes),
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _dateController,
+          decoration: const InputDecoration(
+            labelText: '罚款日期',
+            prefixIcon: Icon(Icons.date_range),
+          ),
+          onTap: () async {
+            DateTime? pickedDate = await showDatePicker(
+              context: context,
+              initialDate: DateTime.now(),
+              firstDate: DateTime(2000),
+              lastDate: DateTime(2101),
+            );
+            if (pickedDate != null) {
+              _dateController.text = pickedDate.toString().split(' ')[0];
+            }
+          },
+        ),
+        const SizedBox(height: 16),
+        ElevatedButton(
+          onPressed: submitFineInfo,
+          child: const Text('提交罚款信息'),
+        ),
+      ],
+    );
+  }
+
   Widget buildFineRecordList({required List<FineRecord> fineRecords}) {
     return ListView.builder(
       itemCount: fineRecords.length,
@@ -187,7 +313,6 @@ class FineRecord {
   String receiptNumber;
   String remarks;
   String date;
-
 
   FineRecord({
     required this.id,

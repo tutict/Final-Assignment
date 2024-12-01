@@ -1,5 +1,4 @@
 import 'dart:convert';
-
 import 'package:final_assignment_front/utils/services/app_config.dart';
 import 'package:final_assignment_front/utils/services/local_storage_services.dart';
 import 'package:final_assignment_front/utils/services/message_provider.dart';
@@ -7,38 +6,20 @@ import 'package:logging/logging.dart';
 import 'package:web_socket_channel/io.dart';
 import 'package:web_socket_channel/status.dart' as status;
 
-/// 定义消息模型
-class MessageModel {
-  final String action;
-  final dynamic data;
-
-  MessageModel({required this.action, required this.data});
-}
-
 /// 包含所有从服务器获取数据的服务。
 class RestApiServices {
-  // RestApiServices 的单例实例。
   static final RestApiServices _restApiServices = RestApiServices._internal();
 
-  // 工厂方法，用于获取 RestApiServices 的单例实例。
-  factory RestApiServices() {
-    return _restApiServices;
-  }
+  factory RestApiServices() => _restApiServices;
 
-  // 私有构造函数，阻止直接实例化。
   RestApiServices._internal();
 
-  // 日志记录器，用于记录操作信息
   final Logger logger = Logger('RestApiServices');
-
-  // WebSocket 通道，用于建立和维持 WebSocket 连接
   late IOWebSocketChannel _channel;
-
-  // MessageProvider 的引用
   MessageProvider? _messageProvider;
 
-  // 初始化 WebSocket 连接
-  void initWebSocket(String endpoint, MessageProvider messageProvider) async {
+  void initWebSocket(String endpoint, MessageProvider messageProvider,
+      {bool useSockJS = false}) async {
     _messageProvider = messageProvider;
 
     String? token = await LocalStorageServices().getToken();
@@ -47,13 +28,10 @@ class RestApiServices {
       return;
     }
 
-    // 构建 WebSocket URL
-    final uri = getWsUrl(endpoint);
+    final uri = getWsUrl(endpoint, token: token, useSockJS: useSockJS);
 
     // 设置请求头，包含 JWT 令牌
-    final headers = {
-      'Authorization': 'Bearer $token',
-    };
+    final headers = {'Authorization': 'Bearer $token'};
 
     // 创建 WebSocket 连接
     _channel = IOWebSocketChannel.connect(uri, headers: headers);
@@ -73,31 +51,37 @@ class RestApiServices {
     );
   }
 
-  // 构建 WebSocket 服务的 URL 地址
-  Uri getWsUrl(String endpoint) {
-    // 检查是否使用了 HTTPS 协议，以决定使用 ws:// 或 wss://
+  Uri getWsUrl(String endpoint,
+      {required String token, bool useSockJS = false}) {
     final isSecure = AppConfig.baseUrl.startsWith('https');
     final protocol = isSecure ? 'wss://' : 'ws://';
-
-    // 去除 baseUrl 中的协议部分
     final baseUrl = AppConfig.baseUrl.replaceFirst(RegExp(r'^https?://'), '');
 
-    return Uri.parse('$protocol$baseUrl$endpoint');
+    // 拼接 WebSocket URL，添加 token 参数和 SockJS 选项
+    final Map<String, String> queryParameters = {'token': token};
+    if (useSockJS) {
+      queryParameters['useSockJS'] = 'true';
+    }
+
+    return Uri(
+      scheme: protocol.startsWith('wss') ? 'wss' : 'ws',
+      host: baseUrl.split(':')[0],
+      port: int.tryParse(baseUrl.split(':')[1]) ?? (isSecure ? 443 : 80),
+      path: endpoint,
+      queryParameters: queryParameters,
+    );
   }
 
-  // 关闭 WebSocket 连接
   void closeWebSocket() {
     _channel.sink.close(status.normalClosure);
     logger.info('WebSocket 连接已关闭');
   }
 
-  // 发送消息到 WebSocket
   void sendMessage(String message) {
     _channel.sink.add(message);
     logger.info('发送 WebSocket 消息: $message');
   }
 
-  // 处理接收到的消息
   void _handleMessage(dynamic message) {
     try {
       final Map<String, dynamic> decodedMessage = jsonDecode(message);
@@ -117,4 +101,12 @@ class RestApiServices {
       logger.severe('处理消息时发生错误: $e');
     }
   }
+}
+
+/// 定义消息模型
+class MessageModel {
+  final String action;
+  final dynamic data;
+
+  MessageModel({required this.action, required this.data});
 }

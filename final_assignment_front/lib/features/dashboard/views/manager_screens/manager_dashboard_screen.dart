@@ -22,7 +22,6 @@ import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:intl/date_symbol_data_local.dart';
 
 // binding
 part '../../bindings/manager_dashboard_binding.dart';

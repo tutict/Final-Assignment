@@ -25,10 +25,11 @@ class _AppealManagementAdminPageState extends State<AppealManagementAdmin> {
     super.initState();
     _apiServices = RestApiServices();
     _messageProvider = MessageProvider();
-    _appealsFuture = _fetchAppeals();
+    _appealsFuture = _fetchAllAppeals();
 
     // Initialize WebSocket for real-time updates
-    _apiServices.initWebSocket('/eventbus/appeals/ws', _messageProvider);
+    _apiServices.initWebSocket(
+        AppConfig.appealManagementEndpoint, _messageProvider);
   }
 
   @override
@@ -37,7 +38,7 @@ class _AppealManagementAdminPageState extends State<AppealManagementAdmin> {
     super.dispose();
   }
 
-  Future<List<Appeal>> _fetchAppeals() async {
+  Future<List<Appeal>> _fetchAllAppeals() async {
     final url =
         Uri.parse('${AppConfig.baseUrl}${AppConfig.appealManagementEndpoint}');
     try {
@@ -53,7 +54,26 @@ class _AppealManagementAdminPageState extends State<AppealManagementAdmin> {
     }
   }
 
-  Future<void> _updateAppealStatus(int appealId, String newStatus) async {
+  Future<void> _fetchAppealsByStatus(String status) async {
+    final url = Uri.parse(
+        '${AppConfig.baseUrl}${AppConfig.appealManagementEndpoint}/status/$status');
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        List<dynamic> appealsJson = jsonDecode(response.body);
+        setState(() {
+          _appealsFuture = Future.value(
+              appealsJson.map((json) => Appeal.fromJson(json)).toList());
+        });
+      } else {
+        _showSnackBar('获取申诉记录失败');
+      }
+    } catch (e) {
+      _showSnackBar('发生错误，请检查网络连接');
+    }
+  }
+
+  Future<void> _updateAppeal(int appealId, Appeal updatedAppeal) async {
     final url = Uri.parse(
         '${AppConfig.baseUrl}${AppConfig.appealManagementEndpoint}/$appealId');
     try {
@@ -62,17 +82,31 @@ class _AppealManagementAdminPageState extends State<AppealManagementAdmin> {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: jsonEncode({
-          'processStatus': newStatus,
-        }),
+        body: jsonEncode(updatedAppeal.toJson()),
       );
 
       if (response.statusCode == 200) {
-        // Refresh data after successfully updating the status
+        // Refresh data after successfully updating the appeal
         _refreshAppeals();
-        _showSnackBar('申诉状态更新成功！');
+        _showSnackBar('申诉信息更新成功！');
       } else {
-        _showSnackBar('更新申诉状态失败，请稍后重试。');
+        _showSnackBar('更新申诉信息失败，请稍后重试。');
+      }
+    } catch (e) {
+      _showSnackBar('发生错误，请检查网络连接。');
+    }
+  }
+
+  Future<void> _deleteAppeal(int appealId) async {
+    final url = Uri.parse(
+        '${AppConfig.baseUrl}${AppConfig.appealManagementEndpoint}/$appealId');
+    try {
+      final response = await http.delete(url);
+      if (response.statusCode == 204) {
+        _refreshAppeals();
+        _showSnackBar('申诉删除成功！');
+      } else {
+        _showSnackBar('删除申诉失败，请稍后重试。');
       }
     } catch (e) {
       _showSnackBar('发生错误，请检查网络连接。');
@@ -88,7 +122,7 @@ class _AppealManagementAdminPageState extends State<AppealManagementAdmin> {
 
   void _refreshAppeals() {
     setState(() {
-      _appealsFuture = _fetchAppeals();
+      _appealsFuture = _fetchAllAppeals();
     });
   }
 
@@ -97,7 +131,25 @@ class _AppealManagementAdminPageState extends State<AppealManagementAdmin> {
     return ChangeNotifierProvider(
       create: (_) => _messageProvider,
       child: Scaffold(
-        appBar: AppBar(title: const Text('管理员端交通违法申诉管理')),
+        appBar: AppBar(
+          title: const Text('管理员端交通违法申诉管理'),
+          actions: [
+            PopupMenuButton<String>(
+              onSelected: (value) {
+                // 根据选中的状态获取申诉列表
+                _fetchAppealsByStatus(value);
+              },
+              itemBuilder: (context) {
+                return ['全部', '处理中', '已批准', '已拒绝'].map((String choice) {
+                  return PopupMenuItem<String>(
+                    value: choice,
+                    child: Text(choice),
+                  );
+                }).toList();
+              },
+            ),
+          ],
+        ),
         body: FutureBuilder<List<Appeal>>(
           future: _appealsFuture,
           builder: (context, snapshot) {
@@ -123,14 +175,18 @@ class _AppealManagementAdminPageState extends State<AppealManagementAdmin> {
                       trailing: PopupMenuButton<String>(
                         onSelected: (value) {
                           if (value == '批准' || value == '拒绝') {
-                            // Show a snack bar to indicate the operation is in progress
                             _showSnackBar('正在更新申诉状态...');
-                            // Update the appeal status
-                            _updateAppealStatus(appeal.appealId, value);
+                            _updateAppeal(
+                                appeal.appealId,
+                                appeal.copyWith(
+                                  processStatus: value,
+                                ));
+                          } else if (value == '删除') {
+                            _deleteAppeal(appeal.appealId);
                           }
                         },
                         itemBuilder: (BuildContext context) {
-                          return ['批准', '拒绝'].map((String choice) {
+                          return ['批准', '拒绝', '删除'].map((String choice) {
                             return PopupMenuItem<String>(
                               value: choice,
                               child: Text(choice),
@@ -138,6 +194,15 @@ class _AppealManagementAdminPageState extends State<AppealManagementAdmin> {
                           }).toList();
                         },
                       ),
+                      onTap: () {
+                        // 打开申诉详细信息页面
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) =>
+                                  AppealDetailPage(appeal: appeal)),
+                        );
+                      },
                     ),
                   );
                 },
@@ -169,6 +234,60 @@ class Appeal {
       appellantName: json['appellantName'],
       appealReason: json['appealReason'],
       processStatus: json['processStatus'],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'appealId': appealId,
+      'appellantName': appellantName,
+      'appealReason': appealReason,
+      'processStatus': processStatus,
+    };
+  }
+
+  Appeal copyWith({
+    int? appealId,
+    String? appellantName,
+    String? appealReason,
+    String? processStatus,
+  }) {
+    return Appeal(
+      appealId: appealId ?? this.appealId,
+      appellantName: appellantName ?? this.appellantName,
+      appealReason: appealReason ?? this.appealReason,
+      processStatus: processStatus ?? this.processStatus,
+    );
+  }
+}
+
+class AppealDetailPage extends StatelessWidget {
+  final Appeal appeal;
+
+  const AppealDetailPage({super.key, required this.appeal});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('申诉详细信息'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('申诉人: ${appeal.appellantName}',
+                style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 8.0),
+            Text('原因: ${appeal.appealReason}',
+                style: Theme.of(context).textTheme.bodyLarge),
+            const SizedBox(height: 8.0),
+            Text('状态: ${appeal.processStatus}',
+                style: Theme.of(context).textTheme.bodyLarge),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -5,7 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 class LocalStorageServices {
   /// 私有构造函数确保只能通过工厂方法创建实例。
   static final LocalStorageServices _localStorageServices =
-  LocalStorageServices._internal();
+      LocalStorageServices._internal();
 
   /// 工厂方法提供访问以创建实例，确保只有一个实例存在。
   factory LocalStorageServices() {
