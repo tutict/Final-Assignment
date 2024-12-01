@@ -33,9 +33,9 @@ class _UserAppealPageState extends State<UserAppealPage>
     restApiServices.initWebSocket(
         AppConfig.appealManagementEndpoint, messageProvider);
 
-    // 发送获取申诉信息的请求
+    // 发送获取所有申诉信息的请求
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      restApiServices.sendMessage(jsonEncode({'action': 'getAppeals'}));
+      restApiServices.sendMessage(jsonEncode({'action': 'getAllAppeals'}));
     });
   }
 
@@ -51,7 +51,7 @@ class _UserAppealPageState extends State<UserAppealPage>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('用户申述管理'),
+        title: const Text('用户申诉管理'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
@@ -68,13 +68,13 @@ class _UserAppealPageState extends State<UserAppealPage>
             // 搜索区域
             buildSection(restApiServices),
             const SizedBox(height: 16),
-            // 申述记录列表
+            // 申诉记录列表
             Expanded(
               child: Consumer<MessageProvider>(
                 builder: (context, messageProvider, child) {
                   final message = messageProvider.message;
                   if (message != null &&
-                      (message.action == 'getAppealsResponse' ||
+                      (message.action == 'getAllAppealsResponse' ||
                           message.action == 'searchAppealsResponse')) {
                     if (message.data['status'] == 'success') {
                       List<AppealRecord> appealRecords =
@@ -83,7 +83,9 @@ class _UserAppealPageState extends State<UserAppealPage>
                             .map((item) => AppealRecord.fromJson(item)),
                       );
                       return buildAppealRecordList(
-                          appealRecords: appealRecords);
+                        appealRecords: appealRecords,
+                        restApiServices: restApiServices, // 传递 restApiServices
+                      );
                     } else {
                       return Center(
                         child: Text('加载申诉信息失败: ${message.data['message']}'),
@@ -102,9 +104,17 @@ class _UserAppealPageState extends State<UserAppealPage>
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          // 处理添加申诉的逻辑
-          Navigator.pop(context);
-          // 您可以导航到添加申诉的页面
+          // 打开申诉添加页面
+          showDialog(
+            context: context,
+            builder: (context) {
+              return AlertDialog(
+                title: const Text('添加新的申诉'),
+                content:
+                    buildAppealForm(context, restApiServices: restApiServices),
+              );
+            },
+          );
         },
         backgroundColor: Colors.lightBlue,
         child: const Icon(Icons.add),
@@ -124,7 +134,7 @@ mixin SearchSectionMixin<T extends StatefulWidget> on State<T> {
           child: TextField(
             controller: searchController,
             decoration: const InputDecoration(
-              labelText: '请输入申述ID或车牌号',
+              labelText: '请输入申诉ID或车牌号',
               prefixIcon: Icon(Icons.search),
             ),
           ),
@@ -136,7 +146,7 @@ mixin SearchSectionMixin<T extends StatefulWidget> on State<T> {
             String query = searchController.text;
 
             // 发送查询请求
-            RestApiServices().sendMessage(
+            restApiServices.sendMessage(
               jsonEncode({
                 'action': 'searchAppeals',
                 'query': query,
@@ -150,9 +160,12 @@ mixin SearchSectionMixin<T extends StatefulWidget> on State<T> {
   }
 }
 
-/// 申述记录列表组件 Mixin
+/// 申诉记录列表组件 Mixin
 mixin AppealRecordListMixin<T extends StatefulWidget> on State<T> {
-  Widget buildAppealRecordList({required List<AppealRecord> appealRecords}) {
+  Widget buildAppealRecordList({
+    required List<AppealRecord> appealRecords,
+    required RestApiServices restApiServices, // 传递 restApiServices 以便使用
+  }) {
     if (appealRecords.isEmpty) {
       return const Center(
         child: Text('没有找到申诉记录'),
@@ -168,13 +181,50 @@ mixin AppealRecordListMixin<T extends StatefulWidget> on State<T> {
           ),
           elevation: 4,
           child: ListTile(
-            title: Text('申述ID: ${record.appealId}'),
+            title: Text('申诉ID: ${record.appealId}'),
             subtitle: Text(
-                '车牌号: ${record.plateNumber}\n申述理由: ${record.appealReason}'),
-            trailing: Text(record.processStatus),
-            onTap: () {
-              // 您可以在这里处理点击事件，例如查看申诉详情
-            },
+                '车牌号: ${record.plateNumber}\n申诉理由: ${record.appealReason}'),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.edit),
+                  onPressed: () {
+                    // 打开编辑申诉表单
+                    showDialog(
+                      context: context,
+                      builder: (context) {
+                        return AlertDialog(
+                          title: const Text('编辑申诉信息'),
+                          content: (this as AppealFormMixin).buildAppealForm(
+                            context,
+                            restApiServices: restApiServices,
+                            // 传递 restApiServices
+                            existingRecord: record,
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete),
+                  onPressed: () {
+                    // 删除申诉信息
+                    restApiServices.sendMessage(
+                      jsonEncode({
+                        'action': 'deleteAppeal',
+                        'appealId': record.appealId,
+                      }),
+                    );
+
+                    // 刷新数据
+                    restApiServices
+                        .sendMessage(jsonEncode({'action': 'getAllAppeals'}));
+                  },
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -182,94 +232,121 @@ mixin AppealRecordListMixin<T extends StatefulWidget> on State<T> {
   }
 }
 
-/// 申述表单逻辑 Mixin
+/// 申诉表单逻辑 Mixin
 mixin AppealFormMixin<T extends StatefulWidget> on State<T> {
   final _formKey = GlobalKey<FormState>();
+  final _plateNumberController = TextEditingController();
   final _nameController = TextEditingController();
   final _idCardController = TextEditingController();
   final _contactController = TextEditingController();
   final _reasonController = TextEditingController();
 
-  Widget buildAppealForm(BuildContext appealContext) {
+  Widget buildAppealForm(
+    BuildContext appealContext, {
+    required RestApiServices restApiServices,
+    AppealRecord? existingRecord,
+  }) {
+    // 如果是编辑已有记录，填充控制器中的内容
+    if (existingRecord != null) {
+      _plateNumberController.text = existingRecord.plateNumber;
+      _nameController.text = existingRecord.appellantName;
+      _idCardController.text = existingRecord.idCardNumber;
+      _contactController.text = existingRecord.contactNumber;
+      _reasonController.text = existingRecord.appealReason;
+    }
+
     return Form(
       key: _formKey,
-      child: Column(
-        children: <Widget>[
-          TextFormField(
-            controller: _nameController,
-            decoration: const InputDecoration(labelText: '申述人姓名'),
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return '请输入姓名';
-              }
-              return null;
-            },
-          ),
-          TextFormField(
-            controller: _idCardController,
-            decoration: const InputDecoration(labelText: '身份证号'),
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return '请输入身份证号';
-              }
-              return null;
-            },
-          ),
-          TextFormField(
-            controller: _contactController,
-            decoration: const InputDecoration(labelText: '联系电话'),
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return '请输入联系电话';
-              }
-              return null;
-            },
-          ),
-          TextFormField(
-            controller: _reasonController,
-            decoration: const InputDecoration(labelText: '申述理由'),
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return '请输入申述理由';
-              }
-              return null;
-            },
-          ),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: () {
-              if (_formKey.currentState?.validate() ?? false) {
-                // 提交申诉数据
-                final newAppeal = AppealRecord(
-                  appealId: 0,
-                  // 新建申述时，ID为0或空
-                  plateNumber: "",
-                  // 车牌号可能需要另外提供
-                  appellantName: _nameController.text,
-                  idCardNumber: _idCardController.text,
-                  contactNumber: _contactController.text,
-                  appealReason: _reasonController.text,
-                  appealTime: DateTime.now().toString(),
-                  processStatus: '待处理',
-                  // 初始状态
-                  processResult: '', // 初始为空
-                );
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            TextFormField(
+              controller: _plateNumberController,
+              decoration: const InputDecoration(labelText: '车牌号'),
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return '请输入车牌号';
+                }
+                return null;
+              },
+            ),
+            TextFormField(
+              controller: _nameController,
+              decoration: const InputDecoration(labelText: '申诉人姓名'),
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return '请输入姓名';
+                }
+                return null;
+              },
+            ),
+            TextFormField(
+              controller: _idCardController,
+              decoration: const InputDecoration(labelText: '身份证号'),
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return '请输入身份证号';
+                }
+                return null;
+              },
+            ),
+            TextFormField(
+              controller: _contactController,
+              decoration: const InputDecoration(labelText: '联系电话'),
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return '请输入联系电话';
+                }
+                return null;
+              },
+            ),
+            TextFormField(
+              controller: _reasonController,
+              decoration: const InputDecoration(labelText: '申诉理由'),
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return '请输入申诉理由';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                if (_formKey.currentState?.validate() ?? false) {
+                  final appealId = existingRecord?.appealId ?? 0;
 
-                // 发送提交请求
-                // 提交代码逻辑可以根据后端API实现
+                  // 创建或更新申诉
+                  restApiServices.sendMessage(
+                    jsonEncode({
+                      'action': appealId == 0 ? 'createAppeal' : 'updateAppeal',
+                      'appealId': appealId,
+                      'plateNumber': _plateNumberController.text,
+                      'appellantName': _nameController.text,
+                      'idCardNumber': _idCardController.text,
+                      'contactNumber': _contactController.text,
+                      'appealReason': _reasonController.text,
+                    }),
+                  );
 
-                Navigator.pop(context); // 提交后返回
-              }
-            },
-            child: const Text('提交申述'),
-          ),
-        ],
+                  Navigator.pop(context); // 提交后关闭表单
+
+                  // 刷新数据
+                  restApiServices
+                      .sendMessage(jsonEncode({'action': 'getAllAppeals'}));
+                }
+              },
+              child: Text(existingRecord == null ? '提交申诉' : '更新申诉'),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-/// 用户申述记录模型
+/// 用户申诉记录模型
 class AppealRecord {
   int appealId;
   String plateNumber;

@@ -6,14 +6,14 @@ import 'package:final_assignment_front/utils/services/rest_api_services.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-class VehicleManagementUser extends StatefulWidget {
-  const VehicleManagementUser({super.key});
+class VehicleManagement extends StatefulWidget {
+  const VehicleManagement({super.key});
 
   @override
-  State<VehicleManagementUser> createState() => _VehicleManagementUserState();
+  State<VehicleManagement> createState() => _VehicleManagementState();
 }
 
-class _VehicleManagementUserState extends State<VehicleManagementUser> {
+class _VehicleManagementState extends State<VehicleManagement> {
   // 搜索框的控制器
   final TextEditingController _searchController = TextEditingController();
 
@@ -26,8 +26,10 @@ class _VehicleManagementUserState extends State<VehicleManagementUser> {
     restApiServices = RestApiServices();
 
     // 初始化 WebSocket 连接，并传入 MessageProvider
-    final messageProvider = Provider.of<MessageProvider>(context, listen: false);
-    restApiServices.initWebSocket(AppConfig.vehicleInformationEndpoint, messageProvider);
+    final messageProvider =
+        Provider.of<MessageProvider>(context, listen: false);
+    restApiServices.initWebSocket(
+        AppConfig.vehicleInformationEndpoint, messageProvider);
 
     // 发送获取车辆信息的请求
     restApiServices.sendMessage(jsonEncode({'action': 'getVehicles'}));
@@ -79,7 +81,8 @@ class _VehicleManagementUserState extends State<VehicleManagementUser> {
               child: Consumer<MessageProvider>(
                 builder: (context, messageProvider, child) {
                   final message = messageProvider.message;
-                  if (message != null && message.action == 'getVehiclesResponse') {
+                  if (message != null &&
+                      message.action == 'getVehiclesResponse') {
                     if (message.data['status'] == 'success') {
                       // 解析车辆数据
                       List<Vehicle> vehicleList = List<Vehicle>.from(
@@ -110,7 +113,8 @@ class _VehicleManagementUserState extends State<VehicleManagementUser> {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                      builder: (context) => VehicleDetailPage(vehicle: vehicle)),
+                                      builder: (context) =>
+                                          VehicleDetailPage(vehicle: vehicle)),
                                 );
                               },
                             ),
