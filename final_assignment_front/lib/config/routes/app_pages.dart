@@ -13,7 +13,7 @@ import 'package:final_assignment_front/features/dashboard/views/manager_screens/
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/vehicle_list.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/chat/ai_chat.dart';
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/login_screen/login.dart';
+
 //import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/map/map.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/news/news_detail_screen.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/account_and_security/account_and_security_main.dart';
@@ -30,6 +30,8 @@ import 'package:final_assignment_front/features/dashboard/views/user_screens/use
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/process_pages/online_processing_progress.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/process_pages/vehicle_management.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/scaner/main_scan.dart';
+import 'package:final_assignment_front/features/login_screen/login.dart';
+
 // 导入Get库，用于页面路由管理
 import 'package:get/get.dart';
 
@@ -130,8 +132,7 @@ class AppPages {
 
   // 配置应用中的所有页面路由
   static final routes = [
-
-    GetPage (
+    GetPage(
       name: _Paths.login,
       page: () => const LoginScreen(),
     ),
@@ -207,47 +208,23 @@ class AppPages {
     ),
     GetPage(
         name: _Paths.appealManagement,
-        page: () => const AppealManagementAdmin()
-    ),
+        page: () => const AppealManagementAdmin()),
     GetPage(
-        name: _Paths.backupAndRestore,
-        page: () => const BackupAndRestore()
-    ),
-    GetPage(
-        name: _Paths.driverList,
-        page: () => const DriverList()
-    ),
+        name: _Paths.backupAndRestore, page: () => const BackupAndRestore()),
+    GetPage(name: _Paths.driverList, page: () => const DriverList()),
     GetPage(
         name: _Paths.managerPersonalPage,
-        page: () => const ManagerPersonalPage()
-    ),
+        page: () => const ManagerPersonalPage()),
+    GetPage(name: _Paths.managerSetting, page: () => const ManageSetting()),
+    GetPage(name: _Paths.offenseList, page: () => const OffenseList()),
+    GetPage(name: _Paths.vehicleList, page: () => const VehicleList()),
     GetPage(
-        name: _Paths.managerSetting,
-        page: () => const ManageSetting()
-    ),
-    GetPage(
-        name: _Paths.offenseList,
-        page: () => const OffenseList()
-    ),
-    GetPage(
-        name: _Paths.vehicleList,
-        page: () => const VehicleList()
-    ),
-    GetPage(
-        name: _Paths.fineInformation,
-        page: () => const FineInformationPage()
-    ),
+        name: _Paths.fineInformation, page: () => const FineInformationPage()),
     GetPage(
         name: _Paths.onlineProcessingProgress,
-        page: () => const OnlineProcessingProgress()
-    ),
+        page: () => const OnlineProcessingProgress()),
     GetPage(
-        name: _Paths.vehicleManagement,
-        page: () => const VehicleManagement()
-    ),
-    GetPage(
-        name: _Paths.changeThemes,
-        page: () => const ChangeThemes()
-    ),
+        name: _Paths.vehicleManagement, page: () => const VehicleManagement()),
+    GetPage(name: _Paths.changeThemes, page: () => const ChangeThemes()),
   ];
 }
