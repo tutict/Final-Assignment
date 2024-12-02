@@ -18,7 +18,6 @@ import io.vertx.mutiny.ext.web.handler.sockjs.SockJSHandler;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -30,8 +29,7 @@ public class WebSocketServer extends AbstractVerticle {
     private final Vertx vertx;
     private final TokenProvider tokenProvider;
 
-    @ConfigProperty(name = "server.port", defaultValue = "8082")
-    int port;
+    int port = 8082; // 保持 8082 为默认值，确保服务器在该端口上运行
 
     @Inject
     public WebSocketServer(Vertx vertx, TokenProvider tokenProvider) {
@@ -103,12 +101,15 @@ public class WebSocketServer extends AbstractVerticle {
                     if (ws.path().equals("/eventbus")) {
                         handleWebSocketConnection(ws);
                     } else {
-                        ws.closeReason();
+                        ws.close().subscribe().with(
+                                success -> log.info("关闭 WebSocket 成功 {}", success),
+                                failure -> log.error("关闭 WebSocket 失败: {}", failure.getMessage(), failure)
+                        );
                     }
                 })
-                .listen(port)
+                .listen(port)  // 确保这里使用了指定的端口
                 .subscribe().with(
-                        server -> log.info("服务器已在端口 {} 启动", server.actualPort()),
+                        server -> log.info("WebSocket 服务器已在端口 {} 启动", server.actualPort()),
                         failure -> log.error("服务器启动失败: {}", failure.getMessage(), failure)
                 );
     }
@@ -141,11 +142,17 @@ public class WebSocketServer extends AbstractVerticle {
                 ws.closeHandler(() -> log.info("WebSocket 连接已关闭"));
             } else {
                 log.warn("无效的令牌，关闭 WebSocket 连接");
-                ws.closeReason();
+                ws.close().subscribe().with(
+                        success -> log.info("关闭 WebSocket 成功 {}", success),
+                        failure -> log.error("关闭 WebSocket 失败: {}", failure.getMessage(), failure)
+                );
             }
         } else {
             log.warn("缺少查询参数，关闭 WebSocket 连接");
-            ws.closeReason();
+            ws.close().subscribe().with(
+                    success -> log.info("关闭 WebSocket 成功 {}", success),
+                    failure -> log.error("关闭 WebSocket 失败: {}", failure.getMessage(), failure)
+            );
         }
     }
 }

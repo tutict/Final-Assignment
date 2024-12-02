@@ -4,6 +4,11 @@ class AppConfig {
   /// 基础URL用于构建完整的API请求地址。
   static const String baseUrl = 'http://localhost:8082';
 
+  /// 获取完整的API请求地址
+  static String getFullUrl(String endpoint) {
+    return '$baseUrl$endpoint';
+  }
+
   /// 上诉管理模块的API端点。
   static const String appealManagementEndpoint = '/eventbus/appeals';
 

@@ -3,6 +3,7 @@ package com.tutict.finalassignmentbackend.config.vertx;
 import com.tutict.finalassignmentbackend.config.login.JWT.TokenProvider;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Promise;
+import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerOptions;
@@ -13,7 +14,7 @@ import io.vertx.ext.web.handler.sockjs.SockJSBridgeOptions;
 import io.vertx.ext.web.handler.sockjs.SockJSHandler;
 import io.vertx.ext.web.handler.sockjs.SockJSHandlerOptions;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.HashSet;
@@ -23,12 +24,14 @@ import java.util.Set;
 @Component
 public class WebSocketServer extends AbstractVerticle {
 
-    @Value("${server.port}")
-    private int port;
-
+    private final Vertx vertx;
     private final TokenProvider tokenProvider;
 
-    public WebSocketServer(TokenProvider tokenProvider) {
+    int port = 8082; // 保持 8082 为默认值，确保服务器在该端口上运行
+
+    @Autowired
+    public WebSocketServer(Vertx vertx, TokenProvider tokenProvider) {
+        this.vertx = vertx;
         this.tokenProvider = tokenProvider;
     }
 

@@ -22,19 +22,22 @@ class LoginScreen extends StatefulWidget with ValidatorMixin {
 /// 登录屏幕状态管理类
 class _LoginScreenState extends State<LoginScreen> {
   late RestApiServices restApiServices;
-  late MessageProvider messageProvider;
+  MessageProvider? messageProvider;
 
   @override
   void initState() {
     super.initState();
     restApiServices = RestApiServices();
 
-    // 获取全局的 MessageProvider 实例
+    // 尝试初始化 WebSocket 连接
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      messageProvider = Provider.of<MessageProvider>(context, listen: false);
-      // 初始化 WebSocket 连接，并传入 MessageProvider
-      restApiServices.initWebSocket(
-          AppConfig.userManagementEndpoint, messageProvider);
+      try {
+        messageProvider = Provider.of<MessageProvider>(context, listen: false);
+        String fullUrl = AppConfig.getFullUrl(AppConfig.userManagementEndpoint);
+        restApiServices.initWebSocket(fullUrl, messageProvider!);
+      } catch (e) {
+        debugPrint('WebSocket 连接初始化失败: $e');
+      }
     });
   }
 
@@ -52,20 +55,27 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<String?> _authUser(LoginData data) async {
     debugPrint('用户名: ${data.name}, 密码: ${data.password}');
 
-    // Send login message
-    restApiServices.sendMessage(jsonEncode(
-        {'action': 'login', 'username': data.name, 'password': data.password}));
+    // 检查 WebSocket 是否初始化
+    if (messageProvider == null) {
+      return 'WebSocket connection is not ready. Please wait and try again.';
+    }
 
-    // Wait for login response
-    final responseData = await messageProvider.waitForMessage('loginResponse');
+    restApiServices.sendMessage(jsonEncode({
+      'action': 'login',
+      'username': data.name,
+      'password': data.password,
+    }));
+
+    // 等待登录响应
+    final responseData = await messageProvider!.waitForMessage('loginResponse');
 
     if (responseData != null && responseData['status'] == 'success') {
-      // Store JWT token
+      // 存储 JWT 令牌
       String token = responseData['token'];
       await LocalStorageServices().saveToken(token);
       debugPrint('JWT token saved');
 
-      // Navigate to dashboard
+      // 导航到仪表板
       Get.offAllNamed(AppPages.initial);
       return null;
     } else {
@@ -75,15 +85,19 @@ class _LoginScreenState extends State<LoginScreen> {
 
   /// 用户注册逻辑
   Future<String?> _signupUser(SignupData data) async {
-    debugPrint('名字: ${data.name}, 密码: ${data.password}');
+    if (messageProvider == null) {
+      return 'WebSocket connection is not ready. Please wait and try again.';
+    }
+
     restApiServices.sendMessage(jsonEncode({
       'action': 'signup',
       'username': data.name,
-      'password': data.password
+      'password': data.password,
     }));
 
     // 等待注册响应
-    final responseData = await messageProvider.waitForMessage('signupResponse');
+    final responseData =
+        await messageProvider!.waitForMessage('signupResponse');
 
     if (responseData != null && responseData['status'] == 'success') {
       return null;
@@ -94,13 +108,16 @@ class _LoginScreenState extends State<LoginScreen> {
 
   /// 密码恢复逻辑
   Future<String?> _recoverPassword(String name) async {
-    debugPrint('用户名: $name');
+    if (messageProvider == null) {
+      return 'WebSocket connection is not ready. Please wait and try again.';
+    }
+
     restApiServices.sendMessage(
         jsonEncode({'action': 'recoverPassword', 'username': name}));
 
     // 等待密码恢复响应
     final responseData =
-        await messageProvider.waitForMessage('recoverPasswordResponse');
+        await messageProvider!.waitForMessage('recoverPasswordResponse');
 
     if (responseData != null && responseData['status'] == 'success') {
       return null;

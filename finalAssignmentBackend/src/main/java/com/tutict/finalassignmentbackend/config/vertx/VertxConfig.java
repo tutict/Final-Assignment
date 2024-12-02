@@ -3,43 +3,48 @@ package com.tutict.finalassignmentbackend.config.vertx;
 import com.tutict.finalassignmentbackend.config.login.JWT.TokenProvider;
 import io.vertx.core.Vertx;
 import io.vertx.core.VertxOptions;
+import io.vertx.core.DeploymentOptions;
+import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-/**
- * 配置Vert.x框架的相关设置
- */
+@Slf4j
 @Configuration
 public class VertxConfig {
 
-    private final TokenProvider tokenProvider;
+    TokenProvider tokenProvider;
 
-    public VertxConfig(TokenProvider tokenProvider) {
-        this.tokenProvider = tokenProvider;
-    }
-
-    /**
-     * 创建并配置Vert.x实例
-     *
-     * @return 配置好的Vertx实例
-     */
     @Bean
     public Vertx vertx() {
-        // 创建Vertx实例，设置工作线程池大小为10，并启用阻塞线程检查
         VertxOptions vertxOptions = new VertxOptions()
                 .setWorkerPoolSize(10)
-                .setBlockedThreadCheckInterval(2000); // 设置阻塞线程检查间隔，默认单位为毫秒
+                .setBlockedThreadCheckInterval(2000);
+        return Vertx.vertx(vertxOptions);
+    }
 
-        Vertx vertx = Vertx.vertx(vertxOptions);
+    @PostConstruct
+    public void deployWebSocketServer() {
+        log.info("Starting Vert.x instance...");
+        try {
+            Vertx vertx = vertx();
+            log.debug("Vert.x instance started successfully.");
 
-        // 部署WebSocket服务器Verticle，增加回调函数以处理部署成功和失败
-        vertx.deployVerticle(new WebSocketServer(tokenProvider), res -> {
-            if (res.succeeded()) {
-                System.out.println("WebSocketServer deployed successfully: " + res.result());
-            } else {
-                System.err.println("Failed to deploy WebSocketServer: " + res.cause());
-            }
-        });
-        return vertx;
+            // 手动实例化 WebSocketServer
+            WebSocketServer server = new WebSocketServer(vertx, tokenProvider);
+
+            // 使用 Vert.x 管理 Verticle 部署
+            DeploymentOptions deploymentOptions = new DeploymentOptions().setInstances(1);
+            vertx.deployVerticle(server, deploymentOptions, res -> {
+                if (res.succeeded()) {
+                    log.info("WebSocketServer deployed successfully: {}", res.result());
+                } else {
+                    log.error("Failed to deploy WebSocketServer: {}", res.cause().getMessage(), res.cause());
+                }
+            });
+        } catch (Exception e) {
+            log.error("WebSocketServer 启动过程中出现异常：{}", e.getMessage(), e);
+            throw e;
+        }
     }
 }
