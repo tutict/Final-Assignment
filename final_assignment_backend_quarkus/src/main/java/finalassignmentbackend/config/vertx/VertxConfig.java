@@ -15,29 +15,32 @@ import lombok.extern.slf4j.Slf4j;
 public class VertxConfig {
 
     @Inject
-    WebSocketServer webSocketServer;
-
-    @Inject
     TokenProvider tokenProvider;
-
-    public VertxConfig(TokenProvider tokenProvider) {
-        this.tokenProvider = tokenProvider;
-    }
 
     @PostConstruct
     public void start() {
-        VertxOptions vertxOptions = new VertxOptions()
-                .setWorkerPoolSize(10)
-                .setBlockedThreadCheckInterval(2000);
+        log.info("Starting Vert.x instance...");
+        try {
+            VertxOptions vertxOptions = new VertxOptions()
+                    .setWorkerPoolSize(10)
+                    .setBlockedThreadCheckInterval(2000);
 
-        Vertx vertx = Vertx.vertx(vertxOptions);
+            // 创建并启动 Vert.x 实例
+            Vertx vertx = Vertx.vertx(vertxOptions);
+            log.debug("Vert.x instance started successfully.");
 
-        webSocketServer.start();
+            // 手动实例化 WebSocketServer
+            WebSocketServer server = new WebSocketServer(vertx, tokenProvider);
+            server.start();
 
-        vertx.deployVerticle(webSocketServer)
-                .subscribe().with(
-                        id -> log.info("WebSocketServer deployed successfully: {}", id),
-                        failure -> log.error("Failed to deploy WebSocketServer", failure)
-                );
+            vertx.deployVerticle(server)
+                    .subscribe().with(
+                            id -> log.info("WebSocketServer deployed successfully: {}", id),
+                            failure -> log.error("Failed to deploy WebSocketServer: {}", failure.getMessage(), failure)
+                    );
+        } catch (Exception e) {
+            log.error("WebSocketServer 启动过程中出现异常：{}", e.getMessage(), e);
+            throw e;
+        }
     }
 }

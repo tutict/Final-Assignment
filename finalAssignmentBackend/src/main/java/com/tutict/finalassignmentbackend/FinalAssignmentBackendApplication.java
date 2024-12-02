@@ -8,7 +8,7 @@ import org.springframework.context.annotation.DependsOn;
 
 // 使用Spring Boot应用程序注解
 @SpringBootApplication
-@DependsOn("shellScriptConfig")
+//@DependsOn("shellScriptConfig")
 // FinalAssignmentBackendApplication类负责部署Vert.x实例
 public class FinalAssignmentBackendApplication {
 

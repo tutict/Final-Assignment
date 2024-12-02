@@ -51,19 +51,21 @@ class _LoginScreenState extends State<LoginScreen> {
   /// 用户认证逻辑
   Future<String?> _authUser(LoginData data) async {
     debugPrint('用户名: ${data.name}, 密码: ${data.password}');
+
+    // Send login message
     restApiServices.sendMessage(jsonEncode(
         {'action': 'login', 'username': data.name, 'password': data.password}));
 
-    // 等待登录响应
+    // Wait for login response
     final responseData = await messageProvider.waitForMessage('loginResponse');
 
     if (responseData != null && responseData['status'] == 'success') {
-      // 存储 JWT 令牌
+      // Store JWT token
       String token = responseData['token'];
       await LocalStorageServices().saveToken(token);
       debugPrint('JWT token saved');
 
-      // 导航到仪表板
+      // Navigate to dashboard
       Get.offAllNamed(AppPages.initial);
       return null;
     } else {
