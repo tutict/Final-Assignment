@@ -18,7 +18,7 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import java.util.Arrays;
 import java.lang.System;
 
-@Path("/ai")
+@Path("/eventbus/ai")
 @Produces(MediaType.APPLICATION_JSON)
 @Tag(name = "AI Chat", description = "Chat Controller for AI interactions")
 public class ChatController {

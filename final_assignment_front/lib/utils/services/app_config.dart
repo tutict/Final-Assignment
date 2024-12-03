@@ -2,7 +2,7 @@
 /// 包括API的基础URL和各个功能模块的API端点。
 class AppConfig {
   /// 基础URL用于构建完整的API请求地址。
-  static const String baseUrl = 'http://localhost:8082';
+  static const String baseUrl = 'ws://localhost:8082';
 
   /// 获取完整的API请求地址
   static String getFullUrl(String endpoint) {

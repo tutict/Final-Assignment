@@ -6,7 +6,6 @@ import 'package:logging/logging.dart';
 import 'package:web_socket_channel/io.dart';
 import 'package:web_socket_channel/status.dart' as status;
 
-/// 管理所有服务器通信的服务类。
 class RestApiServices {
   static final RestApiServices _instance = RestApiServices._internal();
 
@@ -15,30 +14,28 @@ class RestApiServices {
   RestApiServices._internal();
 
   final Logger _logger = Logger('RestApiServices');
-  IOWebSocketChannel? _channel; // WebSocket channel，支持延迟初始化
+  IOWebSocketChannel? _channel;
   MessageProvider? _messageProvider;
 
   /// 初始化 WebSocket 连接
-  Future<void> initWebSocket(String endpoint, MessageProvider messageProvider,
-      {bool useSockJS = false}) async {
+  Future<bool> initWebSocket(String endpoint, MessageProvider messageProvider) async {
     _messageProvider = messageProvider;
 
     try {
-      // 获取 Token，确保是有效的 Token
       String? token = await LocalStorageServices().getToken();
       if (token == null) {
         _logger.warning('JWT 令牌未找到，无法建立 WebSocket 连接');
-        return;
+        return false;
       }
 
-      final uri = _buildWebSocketUri(endpoint, token, useSockJS);
+      final uri = _buildWebSocketUri(endpoint, token);
 
-      // 创建 WebSocket 连接并 assign to global _channel
+      // 创建 WebSocket 连接
       _channel = IOWebSocketChannel.connect(uri);
+      _logger.info('WebSocket 连接成功');
 
-      // 监听消息
       _channel?.stream.listen(
-        (message) {
+            (message) {
           _logger.info('收到 WebSocket 消息: $message');
           _handleMessage(message);
         },
@@ -50,26 +47,22 @@ class RestApiServices {
         },
         cancelOnError: true,
       );
+
+      return true;
     } catch (e) {
       _logger.severe('WebSocket 初始化过程中发生错误: $e');
+      return false;
     }
   }
 
-  /// 构建 WebSocket 的 URI，包含 token 和 SockJS 参数
-  Uri _buildWebSocketUri(String endpoint, String token, bool useSockJS) {
+  /// 构建 WebSocket 的 URI
+  Uri _buildWebSocketUri(String endpoint, String token) {
     final isSecure = AppConfig.baseUrl.startsWith('https');
     final protocol = isSecure ? 'wss' : 'ws';
-
-    // 使用 Uri.parse 解析 baseUrl
     final baseUri = Uri.parse(AppConfig.baseUrl);
 
-    // 构建查询参数
-    final queryParameters = {
-      'token': token,
-      if (useSockJS) 'useSockJS': 'true',
-    };
+    final queryParameters = {'token': token};
 
-    // 构建完整的 URI
     return Uri(
       scheme: protocol,
       host: baseUri.host,
@@ -110,8 +103,7 @@ class RestApiServices {
 
       if (decodedMessage.containsKey('action')) {
         final String action = decodedMessage['action'];
-        final Map<String, dynamic> data =
-            Map<String, dynamic>.from(decodedMessage)..remove('action');
+        final Map<String, dynamic> data = Map<String, dynamic>.from(decodedMessage)..remove('action');
 
         final messageModel = MessageModel(action: action, data: data);
         _messageProvider?.updateMessage(messageModel);

@@ -1,4 +1,5 @@
 package finalassignmentbackend.controller;
+
 import finalassignmentbackend.config.login.jwt.TokenProvider;
 import finalassignmentbackend.entity.LoginLog;
 import finalassignmentbackend.entity.RoleManagement;
@@ -65,13 +66,6 @@ public class AuthController {
 
                     // Create JWT Token
                     String token = tokenProvider.createToken(loginRequest.getUsername(), roles);
-
-                    // 记录登录日志
-                    LoginLog loginLog = new LoginLog();
-                    loginLog.setUsername(loginRequest.getUsername());
-                    loginLog.setLoginTime(LocalDateTime.now());
-                    loginLog.setLoginResult("SUCCESS");
-                    loginLogService.createLoginLog(loginLog);
 
                     logger.info(String.format("User authenticated successfully: %s", loginRequest.getUsername()));
                     return Response.ok(Map.of("token", token)).build();

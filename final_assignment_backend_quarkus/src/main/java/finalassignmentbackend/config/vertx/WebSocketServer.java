@@ -7,12 +7,14 @@ import io.vertx.core.MultiMap;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.ext.bridge.PermittedOptions;
+import io.vertx.ext.web.client.WebClient;
 import io.vertx.ext.web.handler.sockjs.SockJSBridgeOptions;
 import io.vertx.ext.web.handler.sockjs.SockJSHandlerOptions;
 import io.vertx.mutiny.core.Vertx;
 import io.vertx.mutiny.core.http.HttpServerRequest;
 import io.vertx.mutiny.core.http.ServerWebSocket;
 import io.vertx.mutiny.ext.web.Router;
+import io.vertx.mutiny.ext.web.RoutingContext;
 import io.vertx.mutiny.ext.web.handler.CorsHandler;
 import io.vertx.mutiny.ext.web.handler.sockjs.SockJSHandler;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -67,25 +69,36 @@ public class WebSocketServer extends AbstractVerticle {
                 .addInboundPermitted(new PermittedOptions().setAddress("chat.to.server"))
                 .addOutboundPermitted(new PermittedOptions().setAddress("chat.to.client"));
 
-        // 将 SockJS 处理程序挂载到 /eventbus/* 路径
-        router.route("/eventbus/*").handler(ctx -> {
+        router.route().handler(ctx -> {
             HttpServerRequest request = ctx.request();
-            String useSockJS = request.getParam("useSockJS");
-            if ("true".equals(useSockJS)) {
-                // 使用 SockJS 处理连接
-                sockJSHandler.bridge(bridgeOptions).handle(request);
-            } else {
-                // 尝试升级为 WebSocket
-                if (request.headers().contains("Upgrade", "websocket", true)) {
-                    // 让请求继续，以便 webSocketHandler 处理
-                    ctx.next();
+            String path = request.path();
+
+            // 如果路径以 /eventbus 开头
+            if (path.startsWith("/eventbus")) {
+                String useSockJS = request.getParam("useSockJS");
+
+                if ("true".equals(useSockJS)) {
+                    // 使用 SockJS 处理连接
+                    sockJSHandler.bridge(bridgeOptions).handle(request);
                 } else {
-                    request.response().setStatusCode(400).end("需要 WebSocket 连接")
-                            .subscribe().with(
-                                    success -> log.info("响应结束成功：{}", (success)),
-                                    failure -> log.error("响应结束失败：{}", failure.getMessage(), failure)
-                            );
+                    // 尝试升级为 WebSocket
+                    if (request.headers().contains("Upgrade", "websocket", true)) {
+                        // 处理 WebSocket 连接
+                        // WebSocket 连接成功后
+                        ctx.request().toWebSocket()
+                                .subscribe()
+                                .with(this::handleWebSocketConnection, t -> {
+                                    // 处理连接失败的情况
+                                    log.error("WebSocket 连接失败", t);
+                                    ctx.response().setStatusCode(500);
+                                });
+                    } else {
+                        // 转发 POST 请求
+                        forwardPostRequest(ctx);
+                    }
                 }
+            } else {
+                ctx.next(); // 如果路径不匹配，继续执行下一个处理器
             }
         });
 
@@ -98,11 +111,11 @@ public class WebSocketServer extends AbstractVerticle {
                 .requestHandler(router)
                 .webSocketHandler(ws -> {
                     // 只处理 /eventbus 路径上的 WebSocket 连接
-                    if (ws.path().equals("/eventbus")) {
+                    if (ws.path().startsWith("/eventbus")) {
                         handleWebSocketConnection(ws);
                     } else {
                         ws.close().subscribe().with(
-                                success -> log.info("关闭 WebSocket 成功 {}", success),
+                                success -> log.info("1:关闭 WebSocket 成功 {}", success),
                                 failure -> log.error("关闭 WebSocket 失败: {}", failure.getMessage(), failure)
                         );
                     }
@@ -143,16 +156,36 @@ public class WebSocketServer extends AbstractVerticle {
             } else {
                 log.warn("无效的令牌，关闭 WebSocket 连接");
                 ws.close().subscribe().with(
-                        success -> log.info("关闭 WebSocket 成功 {}", success),
+                        success -> log.info("2:关闭 WebSocket 成功 {}", success),
                         failure -> log.error("关闭 WebSocket 失败: {}", failure.getMessage(), failure)
                 );
             }
         } else {
             log.warn("缺少查询参数，关闭 WebSocket 连接");
             ws.close().subscribe().with(
-                    success -> log.info("关闭 WebSocket 成功 {}", success),
+                    success -> log.info("3:关闭 WebSocket 成功 {}", success),
                     failure -> log.error("关闭 WebSocket 失败: {}", failure.getMessage(), failure)
             );
         }
+    }
+
+    private void forwardPostRequest(@Deprecated RoutingContext ctx) {
+
+        WebClient webClient = WebClient.create((io.vertx.core.Vertx) vertx);  // 通过 Vertx 创建 WebClient
+        String path = ctx.request().path();
+        String targetUrl = "http:/" + path;  // 目标服务的基础 URL
+
+        // 使用 WebClient 转发请求
+        webClient.postAbs(targetUrl)
+                .sendJson(ctx.getBodyAsJson())  // 将请求体转发
+                .onSuccess(response -> {
+                    // 转发成功后，将响应传回客户端
+                    ctx.response().setStatusCode(response.statusCode())
+                            .headers().setAll(io.vertx.mutiny.core.MultiMap.newInstance(response.headers()));
+                }).onFailure(failure -> {
+                    // 转发请求失败，返回错误信息
+                    log.error("转发 POST 请求失败", failure);
+                    ctx.response().setStatusCode(500);
+                });
     }
 }

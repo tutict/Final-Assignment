@@ -19,6 +19,7 @@ dependencies {
     implementation 'io.quarkus:quarkus-arc:3.17.0.CR1'
     implementation 'io.vertx:vertx-kafka-client:4.5.11'
     implementation 'io.vertx:vertx-web:4.5.11'
+    implementation 'io.vertx:vertx-web-client:4.5.9'
     implementation 'io.quarkus:quarkus-vertx:3.17.0'
     implementation 'io.quarkus:quarkus-kafka-client:3.17.0.CR1'
     implementation 'io.quarkiverse.mybatis:quarkus-mybatis-plus:2.2.4'

@@ -1,5 +1,4 @@
 import 'dart:convert';
-
 import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/utils/mixins/app_mixins.dart';
 import 'package:final_assignment_front/utils/services/app_config.dart';
@@ -24,22 +23,38 @@ class _LoginScreenState extends State<LoginScreen> {
   late RestApiServices restApiServices;
   MessageProvider? messageProvider;
 
+  // 尝试初始化 WebSocket 连接
   @override
   void initState() {
     super.initState();
     restApiServices = RestApiServices();
 
-    // 尝试初始化 WebSocket 连接
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       try {
+        // 获取全局的 MessageProvider 实例
         messageProvider = Provider.of<MessageProvider>(context, listen: false);
-        String fullUrl = AppConfig.getFullUrl(AppConfig.authControllerEndpoint);
-        restApiServices.initWebSocket(fullUrl, messageProvider!);
-      } catch (e) {
-        debugPrint('WebSocket 连接初始化失败: $e');
+
+        if (messageProvider != null) {
+          String fullUrl = AppConfig.getFullUrl(AppConfig.authControllerEndpoint);
+          debugPrint('尝试连接 WebSocket，URL: $fullUrl');
+
+          // 初始化 WebSocket 连接
+          bool isConnected = await restApiServices.initWebSocket(fullUrl, messageProvider!);
+
+          if (isConnected) {
+            debugPrint('WebSocket 连接初始化成功');
+          } else {
+            debugPrint('WebSocket 连接初始化失败，无法建立连接');
+          }
+        } else {
+          debugPrint('MessageProvider 未初始化，无法建立 WebSocket 连接');
+        }
+      } catch (e, stacktrace) {
+        debugPrint('WebSocket 连接初始化过程中发生错误: $e\n$stacktrace');
       }
     });
   }
+
 
   @override
   void dispose() {
@@ -55,7 +70,6 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<String?> _authUser(LoginData data) async {
     debugPrint('用户名: ${data.name}, 密码: ${data.password}');
 
-    // 检查 WebSocket 是否初始化
     if (messageProvider == null) {
       return 'WebSocket connection is not ready. Please wait and try again.';
     }
@@ -96,8 +110,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }));
 
     // 等待注册响应
-    final responseData =
-        await messageProvider!.waitForMessage('signupResponse');
+    final responseData = await messageProvider!.waitForMessage('signupResponse');
 
     if (responseData != null && responseData['status'] == 'success') {
       return null;
@@ -112,12 +125,10 @@ class _LoginScreenState extends State<LoginScreen> {
       return 'WebSocket connection is not ready. Please wait and try again.';
     }
 
-    restApiServices.sendMessage(
-        jsonEncode({'action': 'recoverPassword', 'username': name}));
+    restApiServices.sendMessage(jsonEncode({'action': 'recoverPassword', 'username': name}));
 
     // 等待密码恢复响应
-    final responseData =
-        await messageProvider!.waitForMessage('recoverPasswordResponse');
+    final responseData = await messageProvider!.waitForMessage('recoverPasswordResponse');
 
     if (responseData != null && responseData['status'] == 'success') {
       return null;
@@ -150,8 +161,7 @@ class _LoginScreenState extends State<LoginScreen> {
           color: Colors.white,
           elevation: 8.0,
           margin: const EdgeInsets.symmetric(horizontal: 20.0),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
         ),
         titleStyle: const TextStyle(
           color: Colors.white,
