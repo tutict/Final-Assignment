@@ -33,7 +33,7 @@ class _LoginScreenState extends State<LoginScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       try {
         messageProvider = Provider.of<MessageProvider>(context, listen: false);
-        String fullUrl = AppConfig.getFullUrl(AppConfig.userManagementEndpoint);
+        String fullUrl = AppConfig.getFullUrl(AppConfig.authControllerEndpoint);
         restApiServices.initWebSocket(fullUrl, messageProvider!);
       } catch (e) {
         debugPrint('WebSocket 连接初始化失败: $e');

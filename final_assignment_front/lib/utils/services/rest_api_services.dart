@@ -9,6 +9,7 @@ import 'package:web_socket_channel/status.dart' as status;
 /// 管理所有服务器通信的服务类。
 class RestApiServices {
   static final RestApiServices _instance = RestApiServices._internal();
+
   factory RestApiServices() => _instance;
 
   RestApiServices._internal();
@@ -37,7 +38,7 @@ class RestApiServices {
 
       // 监听消息
       _channel?.stream.listen(
-            (message) {
+        (message) {
           _logger.info('收到 WebSocket 消息: $message');
           _handleMessage(message);
         },
@@ -58,18 +59,22 @@ class RestApiServices {
   Uri _buildWebSocketUri(String endpoint, String token, bool useSockJS) {
     final isSecure = AppConfig.baseUrl.startsWith('https');
     final protocol = isSecure ? 'wss' : 'ws';
-    final baseUrl = AppConfig.baseUrl.replaceFirst(RegExp(r'^https?://'), '');
 
-    final Map<String, String> queryParameters = {'token': token};
-    if (useSockJS) {
-      queryParameters['useSockJS'] = 'true';
-    }
+    // 使用 Uri.parse 解析 baseUrl
+    final baseUri = Uri.parse(AppConfig.baseUrl);
 
+    // 构建查询参数
+    final queryParameters = {
+      'token': token,
+      if (useSockJS) 'useSockJS': 'true',
+    };
+
+    // 构建完整的 URI
     return Uri(
       scheme: protocol,
-      host: baseUrl.split(':')[0],
-      port: int.tryParse(baseUrl.split(':')[1]) ?? (isSecure ? 443 : 80),
-      path: endpoint,
+      host: baseUri.host,
+      port: baseUri.hasPort ? baseUri.port : (isSecure ? 443 : 80),
+      path: '${baseUri.path}$endpoint',
       queryParameters: queryParameters,
     );
   }
@@ -106,7 +111,7 @@ class RestApiServices {
       if (decodedMessage.containsKey('action')) {
         final String action = decodedMessage['action'];
         final Map<String, dynamic> data =
-        Map<String, dynamic>.from(decodedMessage)..remove('action');
+            Map<String, dynamic>.from(decodedMessage)..remove('action');
 
         final messageModel = MessageModel(action: action, data: data);
         _messageProvider?.updateMessage(messageModel);

@@ -12,6 +12,9 @@ class AppConfig {
   /// 上诉管理模块的API端点。
   static const String appealManagementEndpoint = '/eventbus/appeals';
 
+  // 认证模块的API端点。
+  static const String authControllerEndpoint = '/eventbus/auth';
+
   /// 备份与恢复模块的API端点。
   static const String backupRestoreEndpoint = '/eventbus/backup';
 
