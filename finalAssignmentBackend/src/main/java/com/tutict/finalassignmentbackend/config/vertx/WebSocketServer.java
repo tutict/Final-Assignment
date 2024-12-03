@@ -7,6 +7,7 @@ import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerOptions;
+import io.vertx.core.http.HttpServerRequest;
 import io.vertx.ext.bridge.PermittedOptions;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.handler.CorsHandler;
@@ -64,15 +65,28 @@ public class WebSocketServer extends AbstractVerticle {
         SockJSHandlerOptions sockJSOptions = new SockJSHandlerOptions().setHeartbeatInterval(2000);
         SockJSHandler sockJSHandler = SockJSHandler.create(vertx, sockJSOptions);
 
+        // 设置桥接选项
         SockJSBridgeOptions bridgeOptions = new SockJSBridgeOptions()
                 .addInboundPermitted(new PermittedOptions().setAddress("chat.to.server"))
                 .addOutboundPermitted(new PermittedOptions().setAddress("chat.to.client"));
 
-        // 将SockJS处理器添加到路由器的特定路径
-        router.route("/eventbus/*").handler(sockJSHandler);
-
-        // 为SockJS处理器配置桥接选项
-        sockJSHandler.bridge(bridgeOptions);
+        // 将 SockJS 处理程序挂载到 /eventbus/* 路径
+        router.route("/eventbus/*").handler(ctx -> {
+            HttpServerRequest request = ctx.request();
+            String useSockJS = request.getParam("useSockJS");
+            if ("true".equals(useSockJS)) {
+                // 使用 SockJS 处理连接
+                sockJSHandler.bridge(bridgeOptions).handle(request);
+            } else {
+                // 尝试升级为 WebSocket
+                if (request.headers().contains("Upgrade", "websocket", true)) {
+                    // 让请求继续，以便 webSocketHandler 处理
+                    ctx.next();
+                } else {
+                    request.response().setStatusCode(400).end("需要 WebSocket 连接");
+                }
+            }
+        });
 
         // 创建HTTP服务器
         HttpServerOptions options = new HttpServerOptions()
