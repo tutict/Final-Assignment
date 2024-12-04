@@ -13,8 +13,8 @@ class MessageProvider with ChangeNotifier {
   }
 
   /// 等待指定 action 的消息
-  Future<Map<String, dynamic>?> waitForMessage(String action) async {
-    // 创建一个 Completer，用于等待特定的消息
+  Future<Map<String, dynamic>?> waitForMessage(String action,
+      {Duration timeout = const Duration(seconds: 10)}) async {
     Completer<Map<String, dynamic>?> completer = Completer();
 
     // 定义一个监听器，当消息更新时检查 action 是否匹配
@@ -25,14 +25,20 @@ class MessageProvider with ChangeNotifier {
       }
     }
 
-    addListener(listener); // 添加监听器
+    // 添加监听器
+    addListener(listener);
 
     // 超时处理，防止无限等待
-    Future.delayed(const Duration(seconds: 10), () {
+    Future.delayed(timeout, () {
       if (!completer.isCompleted) {
         completer.complete(null);
         removeListener(listener); // 超时后移除监听器
       }
+    });
+
+    // 确保在 completer 完成后始终移除监听器，防止内存泄漏
+    completer.future.whenComplete(() {
+      removeListener(listener);
     });
 
     return completer.future;

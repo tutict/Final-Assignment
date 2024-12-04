@@ -169,23 +169,38 @@ public class WebSocketServer extends AbstractVerticle {
         }
     }
 
-    private void forwardPostRequest(@Deprecated RoutingContext ctx) {
+    private void forwardPostRequest(RoutingContext ctx) {
+        // 获取 Vert.x 实例
+        io.vertx.core.Vertx coreVertx = this.vertx.getDelegate(); // 使用正确的 Vertx 类型
 
-        WebClient webClient = WebClient.create((io.vertx.core.Vertx) vertx);  // 通过 Vertx 创建 WebClient
+        WebClient webClient = WebClient.create(coreVertx);  // 通过 coreVertx 创建 WebClient
         String path = ctx.request().path();
-        String targetUrl = "http:/" + path;  // 目标服务的基础 URL
+        String targetUrl = "http://localhost:8081" + path;  // 目标服务的基础 URL，请确保这是你需要转发的完整服务地址
 
         // 使用 WebClient 转发请求
         webClient.postAbs(targetUrl)
-                .sendJson(ctx.getBodyAsJson())  // 将请求体转发
+                .sendJson(ctx.body().asJsonObject())  // 将请求体转发，使用 body().asJsonObject() 获取 JSON 对象
                 .onSuccess(response -> {
                     // 转发成功后，将响应传回客户端
-                    ctx.response().setStatusCode(response.statusCode())
-                            .headers().setAll(io.vertx.mutiny.core.MultiMap.newInstance(response.headers()));
-                }).onFailure(failure -> {
+                    ctx.response().setStatusCode(response.statusCode());
+                    response.headers().forEach(header -> ctx.response().putHeader(header.getKey(), header.getValue()));
+
+                    // 订阅并处理结束事件
+                    ctx.response().end(response.bodyAsString())
+                            .subscribe().with(
+                                    success -> log.info("响应成功发送1: {}", success),
+                                    failure -> log.error("响应发送失败", failure)
+                            );
+                })
+                .onFailure(failure -> {
                     // 转发请求失败，返回错误信息
                     log.error("转发 POST 请求失败", failure);
-                    ctx.response().setStatusCode(500);
+                    ctx.response().setStatusCode(500)
+                            .end("转发失败")
+                            .subscribe().with(
+                                    success -> log.info("响应成功发送2: {}", success),
+                                    error -> log.error("错误响应发送失败", error)
+                            );
                 });
     }
 }
