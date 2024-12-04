@@ -24,7 +24,6 @@ public class TokenProvider {
 
     // Secret key for JWT
     private final String secretKeyBase64 = Base64.getEncoder().encodeToString(new SecureRandom().generateSeed(32));
-
     private SecretKey key;
 
     @PostConstruct
@@ -40,8 +39,13 @@ public class TokenProvider {
         claimsBuilder.groups(roles); // 设置用户角色
         claimsBuilder.issuedAt(System.currentTimeMillis() / 1000);
         claimsBuilder.expiresAt(System.currentTimeMillis() / 1000 + Duration.ofHours(24).getSeconds());
-        claimsBuilder.sign(key);
-        return claimsBuilder.sign();
+        claimsBuilder.upn(username); // 设置 upn（用户主名，可以是用户名）
+
+        // 使用当前实例的密钥进行签名，而不是依赖全局配置
+        return claimsBuilder
+                .issuer("tutict")  // 设置 issuer（可以根据你的需求自定义）
+                .audience("tutict_client") // 设置 audience（根据你的应用需求设置）
+                .sign(key); // 使用当前的密钥对 JWT 进行签名
     }
 
     public boolean validateToken(String token) {

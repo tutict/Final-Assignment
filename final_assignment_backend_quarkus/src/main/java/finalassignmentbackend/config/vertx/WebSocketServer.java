@@ -1,9 +1,10 @@
 package finalassignmentbackend.config.vertx;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import finalassignmentbackend.config.login.jwt.TokenProvider;
-import io.netty.handler.codec.http.QueryStringDecoder;
 import io.smallrye.mutiny.vertx.core.AbstractVerticle;
-import io.vertx.core.MultiMap;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.ext.bridge.PermittedOptions;
@@ -128,45 +129,47 @@ public class WebSocketServer extends AbstractVerticle {
     }
 
     private void handleWebSocketConnection(ServerWebSocket ws) {
-        // 获取查询字符串
-        String query = ws.query();
-        if (query != null) {
-            // 使用 QueryStringDecoder 解析查询参数
-            QueryStringDecoder decoder = new QueryStringDecoder("?" + query);
-            MultiMap params = MultiMap.caseInsensitiveMultiMap();
-            decoder.parameters().forEach((key, values) -> {
-                if (values != null && !values.isEmpty()) {
-                    params.add(key, values.getFirst());
-                }
-            });
+        ws.frameHandler(frame -> {
+            if (frame.isText()) {
+                String message = frame.textData();
+                try {
+                    // 使用 Jackson 或 Gson 解析 JSON
+                    ObjectMapper objectMapper = new ObjectMapper();
+                    JsonNode jsonNode = objectMapper.readTree(message);
 
-            // 获取 token 参数
-            String token = params.get("token");
-            if (token != null && tokenProvider.validateToken(token)) {
-                ws.frameHandler(frame -> {
-                    if (frame.isText()) {
-                        String message = frame.textData();
+                    // 提取 token
+                    String token = jsonNode.has("token") ? jsonNode.get("token").asText() : null;
+
+                    // 验证 token
+                    if (token != null && tokenProvider.validateToken(token)) {
                         // 处理消息
+                        String action = jsonNode.has("action") ? jsonNode.get("action").asText() : null;
+                        JsonNode data = jsonNode.has("data") ? jsonNode.get("data") : null;
+
+                        // 根据 action 或 data 做一些操作
+                        log.info("Received action: {}, with data: {}", action, data);
+
+                        // 将消息发布到事件总线
                         vertx.eventBus().publish("chat.to.server", message);
-                        log.info("收到来自 WebSocket 客户端的消息: {}", message);
+
+                    } else {
+                        // 如果 token 无效，关闭连接
+                        log.warn("无效的令牌，关闭 WebSocket 连接");
+                        ws.closeAndForget((short) 1000, "Invalid token");
                     }
-                });
-                // 添加关闭处理程序
-                ws.closeHandler(() -> log.info("WebSocket 连接已关闭"));
+                } catch (JsonProcessingException e) {
+                    // 如果解析 JSON 失败，关闭连接
+                    log.error("无效的 JSON 消息，关闭 WebSocket 连接", e);
+                    ws.closeAndForget((short) 1000, "Invalid JSON format");
+                }
             } else {
-                log.warn("无效的令牌，关闭 WebSocket 连接");
-                ws.close().subscribe().with(
-                        success -> log.info("2:关闭 WebSocket 成功 {}", success),
-                        failure -> log.error("关闭 WebSocket 失败: {}", failure.getMessage(), failure)
-                );
+                // 如果不是文本消息，忽略
+                log.warn("不支持的 WebSocket 消息类型");
             }
-        } else {
-            log.warn("缺少查询参数，关闭 WebSocket 连接");
-            ws.close().subscribe().with(
-                    success -> log.info("3:关闭 WebSocket 成功 {}", success),
-                    failure -> log.error("关闭 WebSocket 失败: {}", failure.getMessage(), failure)
-            );
-        }
+        });
+
+        // 添加关闭处理程序
+        ws.closeHandler(() -> log.info("WebSocket 连接已关闭"));
     }
 
     private void forwardPostRequest(RoutingContext ctx) {
