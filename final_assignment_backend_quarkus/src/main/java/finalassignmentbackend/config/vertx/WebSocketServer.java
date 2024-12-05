@@ -67,8 +67,8 @@ public class WebSocketServer extends AbstractVerticle {
 
         // 设置桥接选项
         SockJSBridgeOptions bridgeOptions = new SockJSBridgeOptions()
-                .addInboundPermitted(new PermittedOptions().setAddress("chat.to.server"))
-                .addOutboundPermitted(new PermittedOptions().setAddress("chat.to.client"));
+                .addInboundPermitted(new PermittedOptions().setAddress("client.to.server"))
+                .addOutboundPermitted(new PermittedOptions().setAddress("server.to.client"));
 
         router.route().handler(ctx -> {
             HttpServerRequest request = ctx.request();
@@ -150,7 +150,7 @@ public class WebSocketServer extends AbstractVerticle {
                         log.info("Received action: {}, with data: {}", action, data);
 
                         // 将消息发布到事件总线
-                        vertx.eventBus().publish("chat.to.server", message);
+                        vertx.eventBus().publish("client.to.server", message);
 
                     } else {
                         // 如果 token 无效，关闭连接

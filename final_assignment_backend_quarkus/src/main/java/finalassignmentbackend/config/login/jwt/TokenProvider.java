@@ -2,6 +2,8 @@ package finalassignmentbackend.config.login.jwt;
 
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import io.smallrye.jwt.algorithm.SignatureAlgorithm;
+import io.smallrye.jwt.auth.principal.JWTAuthContextInfo;
 import io.smallrye.jwt.auth.principal.JWTParser;
 import io.smallrye.jwt.auth.principal.ParseException;
 import io.smallrye.jwt.build.Jwt;
@@ -14,6 +16,10 @@ import org.eclipse.microprofile.jwt.JsonWebToken;
 
 import javax.crypto.SecretKey;
 import java.time.Duration;
+import java.time.Instant;
+import java.util.Collections;
+import java.util.Set;
+
 @ApplicationScoped
 public class TokenProvider {
 
@@ -41,25 +47,30 @@ public class TokenProvider {
         JwtClaimsBuilder claimsBuilder = Jwt.claims();
         claimsBuilder.subject(username);
         claimsBuilder.groups(roles);
-        claimsBuilder.issuedAt(System.currentTimeMillis() / 1000);
-        claimsBuilder.expiresAt(System.currentTimeMillis() / 1000 + Duration.ofHours(24).getSeconds());
+        claimsBuilder.issuedAt(Instant.now()); // 设置签发时间为当前时间
+        claimsBuilder.expiresIn(Duration.ofHours(24)); // 设置过期时间为 24 小时后
         claimsBuilder.issuer("tutict");
         claimsBuilder.audience("tutict_client");
 
-        // Use the correct key to sign the JWT
+        // 签名并生成 JWT
         return claimsBuilder.sign(key);
     }
 
     public boolean validateToken(String token) {
         try {
-            JsonWebToken jwt = jwtParser.parse(token);
-            // Validate issuer, audience, and expiration time
+            Set<SignatureAlgorithm> permittedAlgorithms = Collections.singleton(SignatureAlgorithm.HS256);
+            JWTAuthContextInfo contextInfo = new JWTAuthContextInfo(key, "tutict");
+            contextInfo.setExpectedAudience(Collections.singleton("tutict_client"));
+            contextInfo.setSignatureAlgorithm(permittedAlgorithms);
+
+            JsonWebToken jwt = jwtParser.parse(token, contextInfo);
+
             return jwt.getIssuer().equals("tutict")
                     && jwt.getAudience().contains("tutict_client")
                     && jwt.getExpirationTime() > (System.currentTimeMillis() / 1000);
         } catch (ParseException e) {
-            // Log invalid token or specific error
             System.err.println("Invalid token: " + e.getMessage());
+            e.printStackTrace();
             return false;
         }
     }
