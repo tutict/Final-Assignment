@@ -1,6 +1,6 @@
 plugins {
     id 'java'
-    id 'io.quarkus' version '3.17.0.CR1'
+    id 'io.quarkus' version '3.17.3'
 }
 
 java {
@@ -16,36 +16,36 @@ repositories {
 }
 
 dependencies {
-    implementation 'io.quarkus:quarkus-arc:3.17.0.CR1'
+    implementation 'io.quarkus:quarkus-arc:3.17.3'
     implementation 'io.vertx:vertx-kafka-client:4.5.11'
     implementation 'io.vertx:vertx-web:4.5.11'
     implementation 'io.vertx:vertx-web-client:4.5.9'
-    implementation 'io.quarkus:quarkus-vertx:3.17.0'
-    implementation 'io.quarkus:quarkus-kafka-client:3.17.0.CR1'
+    implementation 'io.quarkus:quarkus-vertx:3.17.3'
+    implementation 'io.quarkus:quarkus-kafka-client:3.17.3'
     implementation 'io.quarkiverse.mybatis:quarkus-mybatis-plus:2.2.4'
     implementation 'org.mindrot:jbcrypt:0.4'
-    implementation 'io.quarkus:quarkus-jdbc-mysql:3.17.0'
-    implementation 'io.quarkus:quarkus-cache:3.17.0.CR1'
-    implementation 'io.quarkus:quarkus-redis-cache:3.17.0.CR1'
-    implementation 'io.quarkus:quarkus-redis-client:3.17.0.CR1'
-    implementation 'io.quarkus:quarkus-smallrye-openapi:3.17.0.CR1'
-    implementation 'io.quarkus:quarkus-resteasy:3.17.0.CR1'
-    implementation 'io.quarkus:quarkus-resteasy-jsonb:3.17.0.CR1'
+    implementation 'io.quarkus:quarkus-jdbc-mysql:3.17.3'
+    implementation 'io.quarkus:quarkus-cache:3.17.3'
+    implementation 'io.quarkus:quarkus-redis-cache:3.17.3'
+    implementation 'io.quarkus:quarkus-redis-client:3.17.3'
+    implementation 'io.quarkus:quarkus-smallrye-openapi:3.17.3'
+    implementation 'io.quarkus:quarkus-resteasy:3.17.3'
+    implementation 'io.quarkus:quarkus-resteasy-jsonb:3.17.3'
     //noinspection AnnotationProcessorOnCompilePath
     implementation 'org.projectlombok:lombok:1.18.34'
     implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
     implementation 'io.jsonwebtoken:jjwt-impl:0.11.5'
-    implementation 'io.quarkus:quarkus-smallrye-jwt:3.17.0.CR1'
-    implementation 'io.quarkus:quarkus-smallrye-jwt-build:3.17.0.CR1'
-    implementation 'io.quarkus:quarkus-security:3.17.0.CR1'
-    implementation 'io.quarkus:quarkus-messaging-kafka:3.17.0.CR1'
+    implementation 'io.quarkus:quarkus-smallrye-jwt:3.17.3'
+    implementation 'io.quarkus:quarkus-smallrye-jwt-build:3.17.3'
+    implementation 'io.quarkus:quarkus-security:3.17.3'
+    implementation 'io.quarkus:quarkus-messaging-kafka:3.17.3'
     implementation 'io.smallrye.reactive:smallrye-reactive-messaging-api:4.21.0'
     implementation 'com.alibaba:dashscope-sdk-java:2.16.9'
-    implementation 'io.quarkus.platform:quarkus-bom:3.17.0.CR1'
+    implementation 'io.quarkus.platform:quarkus-bom:3.17.3'
     compileOnly 'org.projectlombok:lombok:1.18.34'
     annotationProcessor 'org.projectlombok:lombok:1.18.34'
     testRuntimeOnly 'org.jboss.logmanager:log4j2-jboss-logmanager:2.0.1.Final'
-    testImplementation 'io.quarkus:quarkus-junit5:3.17.0'
+    testImplementation 'io.quarkus:quarkus-junit5:3.17.3'
 }
 
 group 'my-groupId'

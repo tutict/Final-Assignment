@@ -23,7 +23,6 @@ import lombok.Setter;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -62,7 +61,7 @@ public class AuthController {
 
                 if (role != null) {
                     // Add the user's role to a set for JWT token creation
-                    Set<String> roles = Set.of(role.getRoleName());
+                    String roles = role.getRoleName();
 
                     // Create JWT Token
                     String token = tokenProvider.createToken(loginRequest.getUsername(), roles);

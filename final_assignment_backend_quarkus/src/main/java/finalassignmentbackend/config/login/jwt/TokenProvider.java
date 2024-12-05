@@ -9,51 +9,57 @@ import io.smallrye.jwt.build.JwtClaimsBuilder;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import org.eclipse.microprofile.config.ConfigProvider;
+import org.eclipse.microprofile.jwt.JsonWebToken;
 
 import javax.crypto.SecretKey;
-import java.security.SecureRandom;
 import java.time.Duration;
-import java.util.Base64;
-import java.util.Set;
-
 @ApplicationScoped
 public class TokenProvider {
 
     @Inject
     JWTParser jwtParser;
 
-    // Secret key for JWT
-    private final String secretKeyBase64 = Base64.getEncoder().encodeToString(new SecureRandom().generateSeed(32));
     private SecretKey key;
 
     @PostConstruct
     public void init() {
+        // 使用 ConfigProvider 来读取配置
+        String keyFromConfig = ConfigProvider.getConfig().getValue("jwt.secret.key", String.class);
+        if (keyFromConfig == null || keyFromConfig.isEmpty()) {
+            throw new IllegalArgumentException("Secret key is not properly configured");
+        }
+
+        System.out.println("Loaded secret key from ConfigProvider: " + keyFromConfig);
+
         // Decode the base64-encoded secret key
-        byte[] keyBytes = Decoders.BASE64.decode(secretKeyBase64);
+        byte[] keyBytes = Decoders.BASE64.decode(keyFromConfig);
         this.key = Keys.hmacShaKeyFor(keyBytes);
     }
 
-    public String createToken(String username, Set<String> roles) {
+    public String createToken(String username, String roles) {
         JwtClaimsBuilder claimsBuilder = Jwt.claims();
         claimsBuilder.subject(username);
-        claimsBuilder.groups(roles); // 设置用户角色
+        claimsBuilder.groups(roles);
         claimsBuilder.issuedAt(System.currentTimeMillis() / 1000);
         claimsBuilder.expiresAt(System.currentTimeMillis() / 1000 + Duration.ofHours(24).getSeconds());
-        claimsBuilder.upn(username); // 设置 upn（用户主名，可以是用户名）
+        claimsBuilder.issuer("tutict");
+        claimsBuilder.audience("tutict_client");
 
-        // 使用当前实例的密钥进行签名，而不是依赖全局配置
-        return claimsBuilder
-                .issuer("tutict")  // 设置 issuer（可以根据你的需求自定义）
-                .audience("tutict_client") // 设置 audience（根据你的应用需求设置）
-                .sign(key); // 使用当前的密钥对 JWT 进行签名
+        // Use the correct key to sign the JWT
+        return claimsBuilder.sign(key);
     }
 
     public boolean validateToken(String token) {
         try {
-            jwtParser.parse(token);
-            return true;
+            JsonWebToken jwt = jwtParser.parse(token);
+            // Validate issuer, audience, and expiration time
+            return jwt.getIssuer().equals("tutict")
+                    && jwt.getAudience().contains("tutict_client")
+                    && jwt.getExpirationTime() > (System.currentTimeMillis() / 1000);
         } catch (ParseException e) {
-            // 无效的 JWT 令牌
+            // Log invalid token or specific error
+            System.err.println("Invalid token: " + e.getMessage());
             return false;
         }
     }
