@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
 
 import java.io.Serial;
@@ -46,6 +47,8 @@ public class RoleManagement implements Serializable {
      * 创建时间
      * 该字段记录角色创建的时间
      */
+
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     @TableField("created_time")
     private LocalDateTime createdTime;
 
