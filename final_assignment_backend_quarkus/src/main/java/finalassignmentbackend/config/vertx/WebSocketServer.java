@@ -7,6 +7,7 @@ import finalassignmentbackend.config.login.jwt.TokenProvider;
 import io.smallrye.mutiny.vertx.core.AbstractVerticle;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerOptions;
+import io.vertx.core.json.JsonObject;
 import io.vertx.ext.bridge.PermittedOptions;
 import io.vertx.ext.web.client.WebClient;
 import io.vertx.ext.web.handler.sockjs.SockJSBridgeOptions;
@@ -15,7 +16,6 @@ import io.vertx.mutiny.core.Vertx;
 import io.vertx.mutiny.core.http.HttpServerRequest;
 import io.vertx.mutiny.core.http.ServerWebSocket;
 import io.vertx.mutiny.ext.web.Router;
-import io.vertx.mutiny.ext.web.RoutingContext;
 import io.vertx.mutiny.ext.web.handler.CorsHandler;
 import io.vertx.mutiny.ext.web.handler.sockjs.SockJSHandler;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -94,12 +94,12 @@ public class WebSocketServer extends AbstractVerticle {
                                     ctx.response().setStatusCode(500);
                                 });
                     } else {
-                        // 转发 POST 请求
-                        forwardPostRequest(ctx);
+                        // 转发http请求
+                        forwardHttpRequest(request);
                     }
                 }
             } else {
-                ctx.next(); // 如果路径不匹配，继续执行下一个处理器
+                ctx.failed();
             }
         });
 
@@ -172,38 +172,57 @@ public class WebSocketServer extends AbstractVerticle {
         ws.closeHandler(() -> log.info("WebSocket 连接已关闭"));
     }
 
-    private void forwardPostRequest(RoutingContext ctx) {
+    private void forwardHttpRequest(HttpServerRequest ctx) {
         // 获取 Vert.x 实例
         io.vertx.core.Vertx coreVertx = this.vertx.getDelegate(); // 使用正确的 Vertx 类型
 
         WebClient webClient = WebClient.create(coreVertx);  // 通过 coreVertx 创建 WebClient
-        String path = ctx.request().path();
+        String path = ctx.path();
+
+        System.out.println("path:"+path);
+
         String targetUrl = "http://localhost:8081" + path;  // 目标服务的基础 URL，请确保这是你需要转发的完整服务地址
 
-        // 使用 WebClient 转发请求
-        webClient.postAbs(targetUrl)
-                .sendJson(ctx.body().asJsonObject())  // 将请求体转发，使用 body().asJsonObject() 获取 JSON 对象
-                .onSuccess(response -> {
-                    // 转发成功后，将响应传回客户端
-                    ctx.response().setStatusCode(response.statusCode());
-                    response.headers().forEach(header -> ctx.response().putHeader(header.getKey(), header.getValue()));
+        // 确保在读取请求体之前设置了 bodyHandler
+        ctx.bodyHandler(body -> {
+            // 检查请求体是否为空
+            if (body == null || body.length() == 0) {
+                log.error("请求体为空，无法发送 JSON 数据");
+                ctx.response().setStatusCode(400);
+                return;
+            }
 
-                    // 订阅并处理结束事件
-                    ctx.response().end(response.bodyAsString())
-                            .subscribe().with(
-                                    success -> log.info("响应成功发送1: {}", success),
-                                    failure -> log.error("响应发送失败", failure)
-                            );
-                })
-                .onFailure(failure -> {
-                    // 转发请求失败，返回错误信息
-                    log.error("转发 POST 请求失败", failure);
-                    ctx.response().setStatusCode(500)
-                            .end("转发失败")
-                            .subscribe().with(
-                                    success -> log.info("响应成功发送2: {}", success),
-                                    error -> log.error("错误响应发送失败", error)
-                            );
-                });
+            try {
+                // 转换请求体为 JsonObject
+                JsonObject jsonBody = body.toJsonObject();
+
+                // 使用 WebClient 转发请求
+                webClient.postAbs(targetUrl)
+                        .sendJson(jsonBody)
+                        .onSuccess(response -> {
+                            log.info("转发 http 请求成功: {}", response.statusMessage());
+                            log.info("发送的 JSON 数据: {}", jsonBody.encodePrettily());
+                            ctx.response().setStatusCode(response.statusCode());
+                            response.headers().forEach(header -> ctx.response().putHeader(header.getKey(), header.getValue()));
+                            ctx.response().end(response.bodyAsString())
+                                    .subscribe().with(
+                                            success -> log.info("响应成功发送1: {}", success),
+                                            failure -> log.error("响应发送失败", failure)
+                                    );
+                        })
+                        .onFailure(failure -> {
+                            log.error("转发 http 请求失败", failure);
+                            ctx.response().setStatusCode(500)
+                                    .end("转发失败")
+                                    .subscribe().with(
+                                            success -> log.info("响应成功发送2: {}", success),
+                                            error -> log.error("错误响应发送失败", error)
+                                    );
+                        });
+            } catch (Exception e) {
+                log.error("请求体解析失败", e);
+                ctx.response().setStatusCode(400);
+            }
+        });
     }
 }
