@@ -5,30 +5,30 @@ import finalassignmentbackend.entity.BackupRestore;
 import finalassignmentbackend.mapper.BackupRestoreMapper;
 import io.quarkus.cache.CacheInvalidate;
 import io.quarkus.cache.CacheResult;
-import io.smallrye.reactive.messaging.kafka.KafkaRecord;
+import io.smallrye.mutiny.Uni;
+import io.smallrye.reactive.messaging.MutinyEmitter;
 import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import jakarta.inject.Named;
 import jakarta.transaction.Transactional;
 import org.eclipse.microprofile.reactive.messaging.Channel;
-import org.eclipse.microprofile.reactive.messaging.Emitter;
+import org.eclipse.microprofile.reactive.messaging.Message;
 
 import java.util.List;
+import java.util.concurrent.CompletionStage;
 import java.util.logging.Logger;
 
 @ApplicationScoped
 public class BackupRestoreService {
 
-    private static final Logger log = Logger.getLogger(String.valueOf(BackupRestoreService.class));
+    private static final Logger log = Logger.getLogger(BackupRestoreService.class.getName());
 
     @Inject
-    @Named("BackupRestoreMapper")
     BackupRestoreMapper backupRestoreMapper;
 
     @Inject
     @Channel("backup-events-out")
-    Emitter<BackupRestore> backupEmitter;
+    MutinyEmitter<BackupRestore> backupEmitter;
 
     @Transactional
     @CacheInvalidate(cacheName = "backupCache")
@@ -49,7 +49,7 @@ public class BackupRestoreService {
 
     @CacheResult(cacheName = "backupCache")
     public BackupRestore getBackupById(Integer backupId) {
-        if (backupId <= 0) {
+        if (backupId == null || backupId <= 0) {
             throw new IllegalArgumentException("Invalid backup ID");
         }
         return backupRestoreMapper.selectById(backupId);
@@ -61,7 +61,7 @@ public class BackupRestoreService {
         try {
             int result = backupRestoreMapper.deleteById(backupId);
             if (result > 0) {
-                log.info("Backup with ID {} deleted successfully");
+                log.info(String.format("Backup with ID %s deleted successfully", backupId));
             } else {
                 log.severe(String.format("Failed to delete backup with ID %s", backupId));
             }
@@ -104,9 +104,26 @@ public class BackupRestoreService {
     }
 
     private void sendKafkaMessage(String topic, BackupRestore backup) {
-        var metadata = OutgoingKafkaRecordMetadata.<String>builder().withTopic(topic).build();
-        KafkaRecord<String, BackupRestore> record = (KafkaRecord<String, BackupRestore>) KafkaRecord.of(backup.getBackupId().toString(), backup).addMetadata(metadata);
-        backupEmitter.send(record);
-        log.info(String.format("Message sent to Kafka topic %s successfully", topic));
+        // 创建包含目标主题的元数据
+        OutgoingKafkaRecordMetadata<String> metadata = OutgoingKafkaRecordMetadata.<String>builder()
+                .withTopic(topic)
+                .build();
+
+        // 创建包含负载和元数据的消息
+        Message<BackupRestore> message = Message.of(backup).addMetadata(metadata);
+
+        // 使用 MutinyEmitter 的 sendMessage 方法返回 Uni<Void>
+        Uni<Void> uni = backupEmitter.sendMessage(message);
+
+        // 将 Uni<Void> 转换为 CompletionStage<Void>
+        CompletionStage<Void> sendStage = uni.subscribe().asCompletionStage();
+
+        sendStage.whenComplete((ignored, throwable) -> {
+            if (throwable != null) {
+                log.severe(String.format("Failed to send message to Kafka topic %s: %s", topic, throwable.getMessage()));
+            } else {
+                log.info(String.format("Message sent to Kafka topic %s successfully", topic));
+            }
+        });
     }
 }

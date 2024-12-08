@@ -5,31 +5,31 @@ import finalassignmentbackend.entity.FineInformation;
 import finalassignmentbackend.mapper.FineInformationMapper;
 import io.quarkus.cache.CacheInvalidate;
 import io.quarkus.cache.CacheResult;
-import io.smallrye.reactive.messaging.kafka.KafkaRecord;
+import io.smallrye.mutiny.Uni;
+import io.smallrye.reactive.messaging.MutinyEmitter;
 import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import jakarta.inject.Named;
 import jakarta.transaction.Transactional;
 import org.eclipse.microprofile.reactive.messaging.Channel;
-import org.eclipse.microprofile.reactive.messaging.Emitter;
+import org.eclipse.microprofile.reactive.messaging.Message;
 
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.CompletionStage;
 import java.util.logging.Logger;
 
 @ApplicationScoped
 public class FineInformationService {
 
-    private static final Logger log = Logger.getLogger(String.valueOf(FineInformationService.class));
+    private static final Logger log = Logger.getLogger(FineInformationService.class.getName());
 
     @Inject
-    @Named("FineInformationMapper")
     FineInformationMapper fineInformationMapper;
 
     @Inject
     @Channel("fine-events-out")
-    Emitter<FineInformation> fineEmitter;
+    MutinyEmitter<FineInformation> fineEmitter;
 
     @Transactional
     @CacheInvalidate(cacheName = "fineCache")
@@ -115,9 +115,26 @@ public class FineInformationService {
     }
 
     private void sendKafkaMessage(String topic, FineInformation fineInformation) {
-        var metadata = OutgoingKafkaRecordMetadata.<String>builder().withTopic(topic).build();
-        KafkaRecord<String, FineInformation> record = (KafkaRecord<String, FineInformation>) KafkaRecord.of(fineInformation.getFineId().toString(), fineInformation).addMetadata(metadata);
-        fineEmitter.send(record);
-        log.info(String.format("Message sent to Kafka topic %s successfully", topic));
+        // 创建包含目标主题的元数据
+        OutgoingKafkaRecordMetadata<String> metadata = OutgoingKafkaRecordMetadata.<String>builder()
+                .withTopic(topic)
+                .build();
+
+        // 创建包含负载和元数据的消息
+        Message<FineInformation> message = Message.of(fineInformation).addMetadata(metadata);
+
+        // 使用 MutinyEmitter 的 sendMessage 方法返回 Uni<Void>
+        Uni<Void> uni = fineEmitter.sendMessage(message);
+
+        // 将 Uni<Void> 转换为 CompletionStage<Void>
+        CompletionStage<Void> sendStage = uni.subscribe().asCompletionStage();
+
+        sendStage.whenComplete((ignored, throwable) -> {
+            if (throwable != null) {
+                log.severe(String.format("Failed to send message to Kafka topic %s: %s", topic, throwable.getMessage()));
+            } else {
+                log.info(String.format("Message sent to Kafka topic %s successfully", topic));
+            }
+        });
     }
 }

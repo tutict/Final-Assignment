@@ -5,30 +5,30 @@ import finalassignmentbackend.entity.UserManagement;
 import finalassignmentbackend.mapper.UserManagementMapper;
 import io.quarkus.cache.CacheInvalidate;
 import io.quarkus.cache.CacheResult;
-import io.smallrye.reactive.messaging.kafka.KafkaRecord;
+import io.smallrye.mutiny.Uni;
+import io.smallrye.reactive.messaging.MutinyEmitter;
 import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import jakarta.inject.Named;
 import jakarta.transaction.Transactional;
 import org.eclipse.microprofile.reactive.messaging.Channel;
-import org.eclipse.microprofile.reactive.messaging.Emitter;
+import org.eclipse.microprofile.reactive.messaging.Message;
 
 import java.util.List;
+import java.util.concurrent.CompletionStage;
 import java.util.logging.Logger;
 
 @ApplicationScoped
 public class UserManagementService {
 
-    private static final Logger log = Logger.getLogger(String.valueOf(UserManagementService.class));
+    private static final Logger log = Logger.getLogger(UserManagementService.class.getName());
 
     @Inject
-    @Named("UserManagementMapper")
     UserManagementMapper userManagementMapper;
 
     @Inject
     @Channel("user-events-out")
-    Emitter<UserManagement> userEmitter;
+    MutinyEmitter<UserManagement> userEmitter;
 
     @Transactional
     @CacheInvalidate(cacheName = "userCache")
@@ -129,10 +129,22 @@ public class UserManagementService {
     }
 
     private void sendKafkaMessage(String topic, UserManagement user) {
-        var metadata = OutgoingKafkaRecordMetadata.<String>builder().withTopic(topic).build();
-        KafkaRecord<String, UserManagement> record = (KafkaRecord<String, UserManagement>) KafkaRecord.of(user.getUserId().toString(), user).addMetadata(metadata);
-        userEmitter.send(record);
-        log.info(String.format("Message sent to Kafka topic %s successfully", topic));
+        var metadata = OutgoingKafkaRecordMetadata.<String>builder()
+                .withTopic(topic)
+                .build();
+
+        Message<UserManagement> message = Message.of(user).addMetadata(metadata);
+
+        Uni<Void> uni = userEmitter.sendMessage(message);
+
+        CompletionStage<Void> sendStage = uni.subscribe().asCompletionStage();
+        sendStage.whenComplete((ignored, throwable) -> {
+            if (throwable != null) {
+                log.severe(String.format("Failed to send message to Kafka topic %s: %s", topic, throwable.getMessage()));
+            } else {
+                log.info(String.format("Message sent to Kafka topic %s successfully", topic));
+            }
+        });
     }
 
     private void validateInput(String input, String errorMessage) {

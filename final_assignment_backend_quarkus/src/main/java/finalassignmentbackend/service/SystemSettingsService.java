@@ -4,29 +4,29 @@ import finalassignmentbackend.entity.SystemSettings;
 import finalassignmentbackend.mapper.SystemSettingsMapper;
 import io.quarkus.cache.CacheInvalidate;
 import io.quarkus.cache.CacheResult;
-import io.smallrye.reactive.messaging.kafka.KafkaRecord;
+import io.smallrye.mutiny.Uni;
+import io.smallrye.reactive.messaging.MutinyEmitter;
 import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import jakarta.inject.Named;
 import jakarta.transaction.Transactional;
 import org.eclipse.microprofile.reactive.messaging.Channel;
-import org.eclipse.microprofile.reactive.messaging.Emitter;
+import org.eclipse.microprofile.reactive.messaging.Message;
 
 import java.util.logging.Logger;
+import java.util.concurrent.CompletionStage;
 
 @ApplicationScoped
 public class SystemSettingsService {
 
-    private static final Logger log = Logger.getLogger(String.valueOf(SystemSettingsService.class));
+    private static final Logger log = Logger.getLogger(SystemSettingsService.class.getName());
 
     @Inject
-    @Named("SystemSettingsMapper")
     SystemSettingsMapper systemSettingsMapper;
 
     @Inject
     @Channel("system-settings-out")
-    Emitter<SystemSettings> systemSettingsEmitter;
+    MutinyEmitter<SystemSettings> systemSettingsEmitter;
 
     @CacheResult(cacheName = "systemSettingsCache")
     public SystemSettings getSystemSettings() {
@@ -119,14 +119,26 @@ public class SystemSettingsService {
     }
 
     private void sendKafkaMessage(SystemSettings systemSettings) {
-        try {
-            var metadata = OutgoingKafkaRecordMetadata.<String>builder().withTopic("system_settings_update").build();
-            KafkaRecord<String, SystemSettings> record = (KafkaRecord<String, SystemSettings>) KafkaRecord.of(systemSettings.getSystemName(), systemSettings).addMetadata(metadata);
-            systemSettingsEmitter.send(record);
-            log.info(String.format("Message sent to Kafka topic %s successfully", record.getMetadata().toString()));
-        } catch (Exception e) {
-            log.warning("Exception occurred while sending Kafka message");
-            throw new RuntimeException("Failed to send Kafka message", e);
-        }
+        var metadata = OutgoingKafkaRecordMetadata.<String>builder()
+                .withTopic("system_settings_update")
+                .build();
+
+        // 使用 Message 构建消息
+        Message<SystemSettings> message = Message.of(systemSettings).addMetadata(metadata);
+
+        // 使用 MutinyEmitter 发送消息
+        Uni<Void> uni = systemSettingsEmitter.sendMessage(message);
+
+        // 转换为 CompletionStage<Void> 并处理结果
+        CompletionStage<Void> sendStage = uni.subscribe().asCompletionStage();
+
+        sendStage.whenComplete((ignored, throwable) -> {
+            if (throwable != null) {
+                log.severe(String.format("Failed to send message to Kafka topic %s: %s",
+                        "system_settings_update", throwable.getMessage()));
+            } else {
+                log.info("Message sent to Kafka topic system_settings_update successfully");
+            }
+        });
     }
 }

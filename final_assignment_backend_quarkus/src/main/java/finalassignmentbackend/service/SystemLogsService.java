@@ -5,31 +5,31 @@ import finalassignmentbackend.entity.SystemLogs;
 import finalassignmentbackend.mapper.SystemLogsMapper;
 import io.quarkus.cache.CacheInvalidate;
 import io.quarkus.cache.CacheResult;
-import io.smallrye.reactive.messaging.kafka.KafkaRecord;
+import io.smallrye.mutiny.Uni;
+import io.smallrye.reactive.messaging.MutinyEmitter;
 import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import jakarta.inject.Named;
 import jakarta.transaction.Transactional;
 import org.eclipse.microprofile.reactive.messaging.Channel;
-import org.eclipse.microprofile.reactive.messaging.Emitter;
+import org.eclipse.microprofile.reactive.messaging.Message;
 
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.CompletionStage;
 import java.util.logging.Logger;
 
 @ApplicationScoped
 public class SystemLogsService {
 
-    private static final Logger log = Logger.getLogger(String.valueOf(SystemLogsService.class));
+    private static final Logger log = Logger.getLogger(SystemLogsService.class.getName());
 
     @Inject
-    @Named("SystemLogsMapper")
     SystemLogsMapper systemLogsMapper;
 
     @Inject
     @Channel("system-logs-out")
-    Emitter<SystemLogs> systemLogsEmitter;
+    MutinyEmitter<SystemLogs> systemLogsEmitter;
 
     @Transactional
     @CacheInvalidate(cacheName = "systemLogCache")
@@ -110,9 +110,26 @@ public class SystemLogsService {
     }
 
     private void sendKafkaMessage(String topic, SystemLogs systemLog) {
-        var metadata = OutgoingKafkaRecordMetadata.<String>builder().withTopic(topic).build();
-        KafkaRecord<String, SystemLogs> record = (KafkaRecord<String, SystemLogs>) KafkaRecord.of(systemLog.getLogId().toString(), systemLog).addMetadata(metadata);
-        systemLogsEmitter.send(record);
-        log.info(String.format("Message sent to Kafka topic %s successfully", topic));
+        // 创建包含目标主题的元数据
+        OutgoingKafkaRecordMetadata<String> metadata = OutgoingKafkaRecordMetadata.<String>builder()
+                .withTopic(topic)
+                .build();
+
+        // 创建包含负载和元数据的消息
+        Message<SystemLogs> message = Message.of(systemLog).addMetadata(metadata);
+
+        // 使用 MutinyEmitter 的 sendMessage 方法返回 Uni<Void>
+        Uni<Void> uni = systemLogsEmitter.sendMessage(message);
+
+        // 将 Uni<Void> 转换为 CompletionStage<Void>
+        CompletionStage<Void> sendStage = uni.subscribe().asCompletionStage();
+
+        sendStage.whenComplete((ignored, throwable) -> {
+            if (throwable != null) {
+                log.severe(String.format("Failed to send message to Kafka topic %s: %s", topic, throwable.getMessage()));
+            } else {
+                log.info(String.format("Message sent to Kafka topic %s successfully", topic));
+            }
+        });
     }
 }

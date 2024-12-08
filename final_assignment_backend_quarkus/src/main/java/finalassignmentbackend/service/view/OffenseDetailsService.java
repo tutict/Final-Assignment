@@ -2,30 +2,30 @@ package finalassignmentbackend.service.view;
 
 import finalassignmentbackend.mapper.view.OffenseDetailsMapper;
 import finalassignmentbackend.entity.view.OffenseDetails;
+import io.smallrye.mutiny.Uni;
+import io.smallrye.reactive.messaging.MutinyEmitter;
 import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
-import io.smallrye.reactive.messaging.kafka.KafkaRecord;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import jakarta.inject.Named;
 import jakarta.transaction.Transactional;
 import org.eclipse.microprofile.reactive.messaging.Channel;
-import org.eclipse.microprofile.reactive.messaging.Emitter;
+import org.eclipse.microprofile.reactive.messaging.Message;
 
 import java.util.List;
+import java.util.concurrent.CompletionStage;
 import java.util.logging.Logger;
 
 @ApplicationScoped
 public class OffenseDetailsService {
 
-    private static final Logger log = Logger.getLogger(String.valueOf(OffenseDetailsService.class));
+    private static final Logger log = Logger.getLogger(OffenseDetailsService.class.getName());
 
     @Inject
-    @Named("OffenseDetailsMapper")
     OffenseDetailsMapper offenseDetailsMapper;
 
     @Inject
     @Channel("offense-details-out")
-    Emitter<OffenseDetails> offenseDetailsEmitter;
+    MutinyEmitter<OffenseDetails> offenseDetailsEmitter;
 
     // 获取所有违规详情记录
     @Transactional
@@ -42,10 +42,24 @@ public class OffenseDetailsService {
     // 创建方法，用于发送 OffenseDetails 对象到 Kafka 主题
     public void sendOffenseDetailsToKafka(OffenseDetails offenseDetails) {
         try {
-            var metadata = OutgoingKafkaRecordMetadata.<String>builder().withTopic("offense_details_topic").build();
-            KafkaRecord<String, OffenseDetails> record = (KafkaRecord<String, OffenseDetails>) KafkaRecord.of(offenseDetails.getOffenseId().toString(), offenseDetails).addMetadata(metadata);
-            offenseDetailsEmitter.send(record);
-            log.info("Message sent to Kafka successfully");
+            var metadata = OutgoingKafkaRecordMetadata.<String>builder()
+                    .withTopic("offense_details_topic")
+                    .build();
+
+            Message<OffenseDetails> message = Message.of(offenseDetails).addMetadata(metadata);
+
+            // 使用 MutinyEmitter 发送消息
+            Uni<Void> uni = offenseDetailsEmitter.sendMessage(message);
+
+            // 将 Uni<Void> 转换为 CompletionStage<Void> 并处理结果
+            CompletionStage<Void> sendStage = uni.subscribe().asCompletionStage();
+            sendStage.whenComplete((ignored, throwable) -> {
+                if (throwable != null) {
+                    log.severe(String.format("Failed to send message to Kafka topic %s: %s", "offense_details_topic", throwable.getMessage()));
+                } else {
+                    log.info("Message sent to Kafka topic offense_details_topic successfully");
+                }
+            });
         } catch (Exception e) {
             log.warning("Exception occurred while sending message to Kafka");
             throw new RuntimeException("Failed to send message to Kafka", e);
