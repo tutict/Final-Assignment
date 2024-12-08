@@ -5,30 +5,30 @@ import finalassignmentbackend.entity.VehicleInformation;
 import finalassignmentbackend.mapper.VehicleInformationMapper;
 import io.quarkus.cache.CacheInvalidate;
 import io.quarkus.cache.CacheResult;
-import io.smallrye.reactive.messaging.kafka.KafkaRecord;
+import io.smallrye.mutiny.Uni;
+import io.smallrye.reactive.messaging.MutinyEmitter;
 import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import jakarta.inject.Named;
 import jakarta.transaction.Transactional;
 import org.eclipse.microprofile.reactive.messaging.Channel;
-import org.eclipse.microprofile.reactive.messaging.Emitter;
+import org.eclipse.microprofile.reactive.messaging.Message;
 
 import java.util.List;
+import java.util.concurrent.CompletionStage;
 import java.util.logging.Logger;
 
 @ApplicationScoped
 public class VehicleInformationService {
 
-    private static final Logger log = Logger.getLogger(String.valueOf(VehicleInformationService.class));
+    private static final Logger log = Logger.getLogger(VehicleInformationService.class.getName());
 
     @Inject
-    @Named("VehicleInformationMapper")
     VehicleInformationMapper vehicleInformationMapper;
 
     @Inject
     @Channel("vehicle-events-out")
-    Emitter<VehicleInformation> vehicleEmitter;
+    MutinyEmitter<VehicleInformation> vehicleEmitter;
 
     @Transactional
     @CacheInvalidate(cacheName = "vehicleCache")
@@ -123,19 +123,29 @@ public class VehicleInformationService {
     @Transactional
     @CacheInvalidate(cacheName = "vehicleCache")
     public void deleteVehicleInformationByLicensePlate(String licensePlate) {
-        if (licensePlate == null || licensePlate.trim().isEmpty()) {
-            throw new IllegalArgumentException("Invalid license plate number");
-        }
+        validateInput(licensePlate, "Invalid license plate number");
         QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("license_plate", licensePlate);
         vehicleInformationMapper.delete(queryWrapper);
     }
 
     private void sendKafkaMessage(String topic, VehicleInformation vehicleInformation) {
-        var metadata = OutgoingKafkaRecordMetadata.<String>builder().withTopic(topic).build();
-        KafkaRecord<String, VehicleInformation> record = (KafkaRecord<String, VehicleInformation>) KafkaRecord.of(vehicleInformation.getVehicleId().toString(), vehicleInformation).addMetadata(metadata);
-        vehicleEmitter.send(record);
-        log.info(String.format("Message sent to Kafka topic %s successfully", topic));
+        var metadata = OutgoingKafkaRecordMetadata.<String>builder()
+                .withTopic(topic)
+                .build();
+
+        Message<VehicleInformation> message = Message.of(vehicleInformation).addMetadata(metadata);
+
+        Uni<Void> uni = vehicleEmitter.sendMessage(message);
+
+        CompletionStage<Void> sendStage = uni.subscribe().asCompletionStage();
+        sendStage.whenComplete((ignored, throwable) -> {
+            if (throwable != null) {
+                log.severe(String.format("Failed to send message to Kafka topic %s: %s", topic, throwable.getMessage()));
+            } else {
+                log.info(String.format("Message sent to Kafka topic %s successfully", topic));
+            }
+        });
     }
 
     private void validateInput(String input, String errorMessage) {
