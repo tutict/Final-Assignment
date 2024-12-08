@@ -1,5 +1,6 @@
 package finalassignmentbackend.exception.global;
 
+import com.baomidou.mybatisplus.core.exceptions.MybatisPlusException;
 import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.NotAuthorizedException;
 import jakarta.ws.rs.core.Response;
@@ -58,7 +59,17 @@ public class GlobalExceptionHandler {
         }
     }
 
-    // 处理其他异常
+    @Provider
+    public static class MyBatisExceptionHandle implements ExceptionMapper<MybatisPlusException> {
+        @Override
+        public Response toResponse(MybatisPlusException ex) {
+            ex.printStackTrace();
+            logger.warning("MyBatis Plus exception occurred");
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("MyBatis Plus 异常: " + ex.getMessage()).build();
+        }
+    }
+
+    // 其他错误
     @Provider
     public static class GenericExceptionHandler implements ExceptionMapper<Exception> {
         @Override
