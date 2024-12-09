@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import finalassignmentbackend.config.login.jwt.TokenProvider;
 import io.smallrye.mutiny.vertx.core.AbstractVerticle;
+import io.vertx.core.Promise;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.json.JsonObject;
@@ -38,6 +39,12 @@ public class NetWorkHandler extends AbstractVerticle {
     public NetWorkHandler(Vertx vertx, TokenProvider tokenProvider) {
         this.vertx = vertx;
         this.tokenProvider = tokenProvider;
+    }
+
+    @Override
+    public void start(Promise<Void> startPromise) {
+        // 初始化WebSocket逻辑
+        startPromise.complete();
     }
 
     @Override
@@ -181,7 +188,7 @@ public class NetWorkHandler extends AbstractVerticle {
 
         System.out.println("path:"+path);
 
-        String targetUrl = "http://localhost:8081" + path;  // 目标服务的基础 URL，请确保这是你需要转发的完整服务地址
+        String targetUrl = "http://localhost:8080" + path;  // 目标服务的基础 URL，请确保这是你需要转发的完整服务地址
 
         // 确保在读取请求体之前设置了 bodyHandler
         ctx.bodyHandler(body -> {

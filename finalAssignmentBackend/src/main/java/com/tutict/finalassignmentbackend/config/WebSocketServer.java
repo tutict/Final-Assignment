@@ -1,4 +1,4 @@
-package com.tutict.finalassignmentbackend.config.vertx;
+package com.tutict.finalassignmentbackend.config;
 
 import com.tutict.finalassignmentbackend.config.login.JWT.TokenProvider;
 import io.vertx.core.AbstractVerticle;

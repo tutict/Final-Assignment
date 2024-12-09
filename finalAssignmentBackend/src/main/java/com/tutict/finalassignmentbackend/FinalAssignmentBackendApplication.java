@@ -29,7 +29,7 @@ public class FinalAssignmentBackendApplication {
     @PostConstruct
     public void deployVerticles() {
         // 部署WebSocket服务器Verticle
-        vertx.deployVerticle("com.tutict.finalassignmentbackend.config.vertx.WebSocketServer", res -> {
+        vertx.deployVerticle("com.tutict.finalassignmentbackend.config.WebSocketServer", res -> {
             if (res.succeeded()) {
                 // 部署成功时打印消息
                 System.out.println("WebSocket server deployed successfully.");

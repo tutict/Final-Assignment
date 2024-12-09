@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentbackend.config.vertx;
 
 import com.tutict.finalassignmentbackend.config.login.JWT.TokenProvider;
+import com.tutict.finalassignmentbackend.config.WebSocketServer;
 import io.vertx.core.Vertx;
 import io.vertx.core.VertxOptions;
 import io.vertx.core.DeploymentOptions;
