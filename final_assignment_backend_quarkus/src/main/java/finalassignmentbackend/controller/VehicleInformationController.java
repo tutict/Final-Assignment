@@ -2,6 +2,7 @@ package finalassignmentbackend.controller;
 
 import finalassignmentbackend.entity.VehicleInformation;
 import finalassignmentbackend.service.VehicleInformationService;
+import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
@@ -34,6 +35,7 @@ public class VehicleInformationController {
      * @return HTTP响应状态码201 Created
      */
     @POST
+    @RunOnVirtualThread
     public Response createVehicleInformation(VehicleInformation vehicleInformation) {
         vehicleInformationService.createVehicleInformation(vehicleInformation);
         return Response.status(Response.Status.CREATED).build();
@@ -47,6 +49,7 @@ public class VehicleInformationController {
      */
     @GET
     @Path("/{vehicleId}")
+    @RunOnVirtualThread
     public Response getVehicleInformationById(@PathParam("vehicleId") int vehicleId) {
         VehicleInformation vehicleInformation = vehicleInformationService.getVehicleInformationById(vehicleId);
         if (vehicleInformation != null) {
@@ -64,6 +67,7 @@ public class VehicleInformationController {
      */
     @GET
     @Path("/license-plate/{licensePlate}")
+    @RunOnVirtualThread
     public Response getVehicleInformationByLicensePlate(@PathParam("licensePlate") String licensePlate) {
         VehicleInformation vehicleInformation = vehicleInformationService.getVehicleInformationByLicensePlate(licensePlate);
         if (vehicleInformation != null) {
@@ -79,6 +83,7 @@ public class VehicleInformationController {
      * @return 包含所有车辆信息列表的HTTP响应
      */
     @GET
+    @RunOnVirtualThread
     public Response getAllVehicleInformation() {
         List<VehicleInformation> vehicleInformationList = vehicleInformationService.getAllVehicleInformation();
         return Response.ok(vehicleInformationList).build();
@@ -92,6 +97,7 @@ public class VehicleInformationController {
      */
     @GET
     @Path("/type/{vehicleType}")
+    @RunOnVirtualThread
     public Response getVehicleInformationByType(@PathParam("vehicleType") String vehicleType) {
         List<VehicleInformation> vehicleInformationList = vehicleInformationService.getVehicleInformationByType(vehicleType);
         return Response.ok(vehicleInformationList).build();
@@ -105,6 +111,7 @@ public class VehicleInformationController {
      */
     @GET
     @Path("/owner/{ownerName}")
+    @RunOnVirtualThread
     public Response getVehicleInformationByOwnerName(@PathParam("ownerName") String ownerName) {
         List<VehicleInformation> vehicleInformationList = vehicleInformationService.getVehicleInformationByOwnerName(ownerName);
         return Response.ok(vehicleInformationList).build();
@@ -118,6 +125,7 @@ public class VehicleInformationController {
      */
     @GET
     @Path("/status/{currentStatus}")
+    @RunOnVirtualThread
     public Response getVehicleInformationByStatus(@PathParam("currentStatus") String currentStatus) {
         List<VehicleInformation> vehicleInformationList = vehicleInformationService.getVehicleInformationByStatus(currentStatus);
         return Response.ok(vehicleInformationList).build();
@@ -132,6 +140,7 @@ public class VehicleInformationController {
      */
     @PUT
     @Path("/{vehicleId}")
+    @RunOnVirtualThread
     public Response updateVehicleInformation(@PathParam("vehicleId") int vehicleId, VehicleInformation vehicleInformation) {
         vehicleInformation.setVehicleId(vehicleId);
         vehicleInformationService.updateVehicleInformation(vehicleInformation);
@@ -146,6 +155,7 @@ public class VehicleInformationController {
      */
     @DELETE
     @Path("/{vehicleId}")
+    @RunOnVirtualThread
     public Response deleteVehicleInformation(@PathParam("vehicleId") int vehicleId) {
         vehicleInformationService.deleteVehicleInformation(vehicleId);
         return Response.noContent().build();
@@ -159,6 +169,7 @@ public class VehicleInformationController {
      */
     @DELETE
     @Path("/license-plate/{licensePlate}")
+    @RunOnVirtualThread
     public Response deleteVehicleInformationByLicensePlate(@PathParam("licensePlate") String licensePlate) {
         vehicleInformationService.deleteVehicleInformationByLicensePlate(licensePlate);
         return Response.noContent().build();
@@ -172,6 +183,7 @@ public class VehicleInformationController {
      */
     @GET
     @Path("/exists/{licensePlate}")
+    @RunOnVirtualThread
     public Response isLicensePlateExists(@PathParam("licensePlate") String licensePlate) {
         boolean exists = vehicleInformationService.isLicensePlateExists(licensePlate);
         return Response.ok(exists).build();

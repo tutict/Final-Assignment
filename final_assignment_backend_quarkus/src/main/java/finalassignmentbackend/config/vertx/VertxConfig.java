@@ -1,5 +1,6 @@
 package finalassignmentbackend.config.vertx;
 
+import finalassignmentbackend.config.NetWorkHandler;
 import finalassignmentbackend.config.login.jwt.TokenProvider;
 import io.quarkus.runtime.Startup;
 import io.vertx.core.DeploymentOptions;
@@ -31,7 +32,7 @@ public class VertxConfig {
             log.debug("Vert.x instance started successfully.");
 
             // 手动实例化 WebSocketServer
-            WebSocketServer server = new WebSocketServer(vertx, tokenProvider);
+            NetWorkHandler server = new NetWorkHandler(vertx, tokenProvider);
 
             // 使用 Vert.x 管理 Verticle 部署
             DeploymentOptions deploymentOptions = new DeploymentOptions().setInstances(1);

@@ -2,6 +2,7 @@ package finalassignmentbackend.controller.view;
 
 import finalassignmentbackend.entity.view.OffenseDetails;
 import finalassignmentbackend.service.view.OffenseDetailsService;
+import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
@@ -28,6 +29,7 @@ public class OffenseDetailsController {
      * @return 包含所有违规详情的列表
      */
     @GET
+    @RunOnVirtualThread
     public Response getAllOffenseDetails() {
         List<OffenseDetails> offenseDetailsList = offenseDetailsService.getAllOffenseDetails();
         return Response.ok(offenseDetailsList).build();
@@ -41,6 +43,7 @@ public class OffenseDetailsController {
      */
     @GET
     @Path("/{id}")
+    @RunOnVirtualThread
     public Response getOffenseDetailsById(@PathParam("id") Integer id) {
         OffenseDetails offenseDetails = offenseDetailsService.getOffenseDetailsById(id);
         if (offenseDetails != null) {
@@ -58,6 +61,7 @@ public class OffenseDetailsController {
      */
     @POST
     @Path("/send-to-kafka/{id}")
+    @RunOnVirtualThread
     public Response updateOffenseDetailsToKafka(@PathParam("id") Integer id) {
         OffenseDetails offenseDetails = offenseDetailsService.getOffenseDetailsById(id);
         if (offenseDetails != null) {

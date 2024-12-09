@@ -2,6 +2,7 @@ package finalassignmentbackend.controller;
 
 import finalassignmentbackend.entity.SystemLogs;
 import finalassignmentbackend.service.SystemLogsService;
+import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
@@ -27,6 +28,7 @@ public class SystemLogsController {
     SystemLogsService systemLogsService;
 
     @POST
+    @RunOnVirtualThread
     public Response createSystemLog(SystemLogs systemLog) {
         systemLogsService.createSystemLog(systemLog);
         return Response.status(Response.Status.CREATED).build();
@@ -34,6 +36,7 @@ public class SystemLogsController {
 
     @GET
     @Path("/{logId}")
+    @RunOnVirtualThread
     public Response getSystemLogById(@PathParam("logId") int logId) {
         SystemLogs systemLog = systemLogsService.getSystemLogById(logId);
         if (systemLog != null) {
@@ -44,6 +47,7 @@ public class SystemLogsController {
     }
 
     @GET
+    @RunOnVirtualThread
     public Response getAllSystemLogs() {
         List<SystemLogs> systemLogs = systemLogsService.getAllSystemLogs();
         return Response.ok(systemLogs).build();
@@ -51,6 +55,7 @@ public class SystemLogsController {
 
     @GET
     @Path("/type/{logType}")
+    @RunOnVirtualThread
     public Response getSystemLogsByType(@PathParam("logType") String logType) {
         List<SystemLogs> systemLogs = systemLogsService.getSystemLogsByType(logType);
         return Response.ok(systemLogs).build();
@@ -58,6 +63,7 @@ public class SystemLogsController {
 
     @GET
     @Path("/timeRange")
+    @RunOnVirtualThread
     public Response getSystemLogsByTimeRange(
             @QueryParam("startTime") Date startTime,
             @QueryParam("endTime") Date endTime) {
@@ -67,6 +73,7 @@ public class SystemLogsController {
 
     @GET
     @Path("/operationUser/{operationUser}")
+    @RunOnVirtualThread
     public Response getSystemLogsByOperationUser(@PathParam("operationUser") String operationUser) {
         List<SystemLogs> systemLogs = systemLogsService.getSystemLogsByOperationUser(operationUser);
         return Response.ok(systemLogs).build();
@@ -74,6 +81,7 @@ public class SystemLogsController {
 
     @PUT
     @Path("/{logId}")
+    @RunOnVirtualThread
     public Response updateSystemLog(@PathParam("logId") int logId, SystemLogs updatedSystemLog) {
         SystemLogs existingSystemLog = systemLogsService.getSystemLogById(logId);
         if (existingSystemLog != null) {
@@ -87,6 +95,7 @@ public class SystemLogsController {
 
     @DELETE
     @Path("/{logId}")
+    @RunOnVirtualThread
     public Response deleteSystemLog(@PathParam("logId") int logId) {
         systemLogsService.deleteSystemLog(logId);
         return Response.noContent().build();

@@ -2,6 +2,7 @@ package finalassignmentbackend.controller;
 
 import finalassignmentbackend.entity.OffenseInformation;
 import finalassignmentbackend.service.OffenseInformationService;
+import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
@@ -28,11 +29,9 @@ public class OffenseInformationController {
 
     /**
      * 创建新的违法行为信息。
-     *
-     * @param offenseInformation 新创建的违法行为信息对象
-     * @return HTTP响应状态码201 Created
      */
     @POST
+    @RunOnVirtualThread
     public Response createOffense(OffenseInformation offenseInformation) {
         offenseInformationService.createOffense(offenseInformation);
         return Response.status(Response.Status.CREATED).build();
@@ -40,12 +39,10 @@ public class OffenseInformationController {
 
     /**
      * 根据违法行为ID获取违法行为信息。
-     *
-     * @param offenseId 违法行为ID
-     * @return 包含违法行为信息的HTTP响应或NotFound状态
      */
     @GET
     @Path("/{offenseId}")
+    @RunOnVirtualThread
     public Response getOffenseByOffenseId(@PathParam("offenseId") int offenseId) {
         OffenseInformation offenseInformation = offenseInformationService.getOffenseByOffenseId(offenseId);
         if (offenseInformation != null) {
@@ -57,10 +54,9 @@ public class OffenseInformationController {
 
     /**
      * 获取所有违法行为的信息。
-     *
-     * @return 包含所有违法行为信息列表的HTTP响应
      */
     @GET
+    @RunOnVirtualThread
     public Response getOffensesInformation() {
         List<OffenseInformation> offensesInformation = offenseInformationService.getOffensesInformation();
         return Response.ok(offensesInformation).build();
@@ -68,13 +64,10 @@ public class OffenseInformationController {
 
     /**
      * 更新指定违法行为的信息。
-     *
-     * @param offenseId 违法行为ID
-     * @param updatedOffenseInformation 更新后的违法行为信息对象
-     * @return HTTP响应状态码200 OK或404 Not Found
      */
     @PUT
     @Path("/{offenseId}")
+    @RunOnVirtualThread
     public Response updateOffense(@PathParam("offenseId") int offenseId, OffenseInformation updatedOffenseInformation) {
         OffenseInformation existingOffenseInformation = offenseInformationService.getOffenseByOffenseId(offenseId);
         if (existingOffenseInformation != null) {
@@ -88,12 +81,10 @@ public class OffenseInformationController {
 
     /**
      * 删除指定违法行为的信息。
-     *
-     * @param offenseId 违法行为ID
-     * @return HTTP响应状态码204 No Content
      */
     @DELETE
     @Path("/{offenseId}")
+    @RunOnVirtualThread
     public Response deleteOffense(@PathParam("offenseId") int offenseId) {
         offenseInformationService.deleteOffense(offenseId);
         return Response.noContent().build();
@@ -101,13 +92,10 @@ public class OffenseInformationController {
 
     /**
      * 根据时间范围获取违法行为信息。
-     *
-     * @param startTime 开始时间
-     * @param endTime 结束时间
-     * @return 包含在指定时间范围内的违法行为信息列表的HTTP响应
      */
     @GET
     @Path("/timeRange")
+    @RunOnVirtualThread
     public Response getOffensesByTimeRange(@QueryParam("startTime") Date startTime,
                                            @QueryParam("endTime") Date endTime) {
         List<OffenseInformation> offenses = offenseInformationService.getOffensesByTimeRange(startTime, endTime);
@@ -116,12 +104,10 @@ public class OffenseInformationController {
 
     /**
      * 根据处理状态获取违法行为信息。
-     *
-     * @param processState 处理状态
-     * @return 包含指定处理状态的违法行为信息列表的HTTP响应
      */
     @GET
     @Path("/processState/{processState}")
+    @RunOnVirtualThread
     public Response getOffensesByProcessState(@PathParam("processState") String processState) {
         List<OffenseInformation> offenses = offenseInformationService.getOffensesByProcessState(processState);
         return Response.ok(offenses).build();
@@ -129,12 +115,10 @@ public class OffenseInformationController {
 
     /**
      * 根据司机姓名获取违法行为信息。
-     *
-     * @param driverName 司机姓名
-     * @return 包含指定司机姓名的违法行为信息列表的HTTP响应
      */
     @GET
     @Path("/driverName/{driverName}")
+    @RunOnVirtualThread
     public Response getOffensesByDriverName(@PathParam("driverName") String driverName) {
         List<OffenseInformation> offenses = offenseInformationService.getOffensesByDriverName(driverName);
         return Response.ok(offenses).build();
@@ -142,12 +126,10 @@ public class OffenseInformationController {
 
     /**
      * 根据车牌号获取违法行为信息。
-     *
-     * @param licensePlate 车牌号
-     * @return 包含指定车牌号的违法行为信息列表的HTTP响应
      */
     @GET
     @Path("/licensePlate/{licensePlate}")
+    @RunOnVirtualThread
     public Response getOffensesByLicensePlate(@PathParam("licensePlate") String licensePlate) {
         List<OffenseInformation> offenses = offenseInformationService.getOffensesByLicensePlate(licensePlate);
         return Response.ok(offenses).build();

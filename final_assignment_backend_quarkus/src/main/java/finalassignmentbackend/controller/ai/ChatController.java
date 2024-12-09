@@ -14,6 +14,7 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
+import io.smallrye.common.annotation.RunOnVirtualThread;
 
 import java.util.Arrays;
 import java.lang.System;
@@ -35,31 +36,23 @@ public class ChatController {
                 .content("你是谁？")
                 .build();
         GenerationParam param = GenerationParam.builder()
-                // 获取环境变量中的API Key
                 .apiKey(System.getenv("DASHSCOPE_API_KEY"))
-                // 设置模型为 qwen-plus
                 .model("qwen-plus")
-                // 设置消息列表
                 .messages(Arrays.asList(systemMsg, userMsg))
                 .resultFormat(GenerationParam.ResultFormat.MESSAGE)
                 .build();
         return gen.call(param);  // 执行AI生成调用
     }
 
-    // 为AI聊天提供RESTful接口
     @GET
     @Path("/chat")
+    @RunOnVirtualThread
     public Response getChatResponse() {
         try {
-            // 调用 AI 生成方法
             GenerationResult result = callWithMessage();
-            // 返回AI响应内容
             String aiResponse = result.getOutput().getChoices().getFirst().getMessage().getContent();
-
-            // 返回 HTTP 200 OK 状态以及 AI 响应
             return Response.ok(aiResponse).build();
         } catch (ApiException | NoApiKeyException | InputRequiredException e) {
-            // 捕获异常，返回HTTP 400 Bad Request并提供错误信息
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity("Error: " + e.getMessage() + ". Please refer to the documentation for error codes.")
                     .build();

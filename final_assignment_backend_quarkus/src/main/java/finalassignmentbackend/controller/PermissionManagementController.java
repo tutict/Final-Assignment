@@ -2,6 +2,7 @@ package finalassignmentbackend.controller;
 
 import finalassignmentbackend.entity.PermissionManagement;
 import finalassignmentbackend.service.PermissionManagementService;
+import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
@@ -26,6 +27,7 @@ public class PermissionManagementController {
     PermissionManagementService permissionManagementService;
 
     @POST
+    @RunOnVirtualThread
     public Response createPermission(PermissionManagement permission) {
         permissionManagementService.createPermission(permission);
         return Response.status(Response.Status.CREATED).build();
@@ -33,6 +35,7 @@ public class PermissionManagementController {
 
     @GET
     @Path("/{permissionId}")
+    @RunOnVirtualThread
     public Response getPermissionById(@PathParam("permissionId") int permissionId) {
         PermissionManagement permission = permissionManagementService.getPermissionById(permissionId);
         if (permission != null) {
@@ -43,6 +46,7 @@ public class PermissionManagementController {
     }
 
     @GET
+    @RunOnVirtualThread
     public Response getAllPermissions() {
         List<PermissionManagement> permissions = permissionManagementService.getAllPermissions();
         return Response.ok(permissions).build();
@@ -50,6 +54,7 @@ public class PermissionManagementController {
 
     @GET
     @Path("/name/{permissionName}")
+    @RunOnVirtualThread
     public Response getPermissionByName(@PathParam("permissionName") String permissionName) {
         PermissionManagement permission = permissionManagementService.getPermissionByName(permissionName);
         if (permission != null) {
@@ -61,6 +66,7 @@ public class PermissionManagementController {
 
     @GET
     @Path("/search")
+    @RunOnVirtualThread
     public Response getPermissionsByNameLike(@QueryParam("name") String permissionName) {
         List<PermissionManagement> permissions = permissionManagementService.getPermissionsByNameLike(permissionName);
         return Response.ok(permissions).build();
@@ -68,6 +74,7 @@ public class PermissionManagementController {
 
     @PUT
     @Path("/{permissionId}")
+    @RunOnVirtualThread
     public Response updatePermission(@PathParam("permissionId") int permissionId, PermissionManagement updatedPermission) {
         PermissionManagement existingPermission = permissionManagementService.getPermissionById(permissionId);
         if (existingPermission != null) {
@@ -81,6 +88,7 @@ public class PermissionManagementController {
 
     @DELETE
     @Path("/{permissionId}")
+    @RunOnVirtualThread
     public Response deletePermission(@PathParam("permissionId") int permissionId) {
         permissionManagementService.deletePermission(permissionId);
         return Response.noContent().build();
@@ -88,6 +96,7 @@ public class PermissionManagementController {
 
     @DELETE
     @Path("/name/{permissionName}")
+    @RunOnVirtualThread
     public Response deletePermissionByName(@PathParam("permissionName") String permissionName) {
         permissionManagementService.deletePermissionByName(permissionName);
         return Response.noContent().build();

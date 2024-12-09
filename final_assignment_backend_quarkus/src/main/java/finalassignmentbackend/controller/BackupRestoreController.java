@@ -2,6 +2,7 @@ package finalassignmentbackend.controller;
 
 import finalassignmentbackend.entity.BackupRestore;
 import finalassignmentbackend.service.BackupRestoreService;
+import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
@@ -28,6 +29,7 @@ public class BackupRestoreController {
     // 创建一个新备份
     // 接受一个BackupRestore对象作为请求体，创建备份并返回201状态码
     @POST
+    @RunOnVirtualThread
     public Response createBackup(BackupRestore backup) {
         backupRestoreService.createBackup(backup);
         return Response.status(Response.Status.CREATED).build();
@@ -36,6 +38,7 @@ public class BackupRestoreController {
     // 获取所有备份列表
     // 返回备份列表和200状态码
     @GET
+    @RunOnVirtualThread
     public Response getAllBackups() {
         List<BackupRestore> backups = backupRestoreService.getAllBackups();
         return Response.ok(backups).build();
@@ -45,6 +48,7 @@ public class BackupRestoreController {
     // 如果找到对应ID的备份，返回该备份和200状态码；否则返回404状态码
     @GET
     @Path("/{backupId}")
+    @RunOnVirtualThread
     public Response getBackupById(@PathParam("backupId") int backupId) {
         BackupRestore backup = backupRestoreService.getBackupById(backupId);
         if (backup != null) {
@@ -58,6 +62,7 @@ public class BackupRestoreController {
     // 删除备份后返回204状态码
     @DELETE
     @Path("/{backupId}")
+    @RunOnVirtualThread
     public Response deleteBackup(@PathParam("backupId") int backupId) {
         backupRestoreService.deleteBackup(backupId);
         return Response.noContent().build();
@@ -67,6 +72,7 @@ public class BackupRestoreController {
     // 如果找到对应ID的备份，更新备份信息并返回200状态码；否则返回404状态码
     @PUT
     @Path("/{backupId}")
+    @RunOnVirtualThread
     public Response updateBackup(@PathParam("backupId") int backupId, BackupRestore updatedBackup) {
         BackupRestore existingBackup = backupRestoreService.getBackupById(backupId);
         if (existingBackup != null) {
@@ -82,6 +88,7 @@ public class BackupRestoreController {
     // 如果找到对应文件名的备份，返回该备份和200状态码；否则返回404状态码
     @GET
     @Path("/filename/{backupFileName}")
+    @RunOnVirtualThread
     public Response getBackupByFileName(@PathParam("backupFileName") String backupFileName) {
         BackupRestore backup = backupRestoreService.getBackupByFileName(backupFileName);
         if (backup != null) {
@@ -95,6 +102,7 @@ public class BackupRestoreController {
     // 返回匹配指定时间的备份列表和200状态码
     @GET
     @Path("/time/{backupTime}")
+    @RunOnVirtualThread
     public Response getBackupsByTime(@PathParam("backupTime") String backupTime) {
         List<BackupRestore> backups = backupRestoreService.getBackupsByTime(backupTime);
         return Response.ok(backups).build();

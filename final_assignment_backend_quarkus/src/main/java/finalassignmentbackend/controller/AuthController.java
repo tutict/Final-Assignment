@@ -7,6 +7,7 @@ import finalassignmentbackend.entity.UserManagement;
 import finalassignmentbackend.service.LoginLogService;
 import finalassignmentbackend.service.RoleManagementService;
 import finalassignmentbackend.service.UserManagementService;
+import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.annotation.security.PermitAll;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
@@ -49,6 +50,7 @@ public class AuthController {
     @POST
     @Path("/login")
     @PermitAll
+    @RunOnVirtualThread
     public Response login(LoginRequest loginRequest) {
         logger.info(String.format("Attempting to authenticate user: %s", loginRequest.getUsername()));
         try {
@@ -88,6 +90,7 @@ public class AuthController {
     @POST
     @Path("/register")
     @PermitAll
+    @RunOnVirtualThread
     public Response registerUser(RegisterRequest registerRequest) {
         logger.info(String.format("Attempting to register user: %s", registerRequest.getUsername()));
         try {
@@ -114,6 +117,7 @@ public class AuthController {
     @GET
     @Path("/users")
     @RolesAllowed("ADMIN")
+    @RunOnVirtualThread
     public Response getAllUsers() {
         logger.info("Fetching all users");
         try {

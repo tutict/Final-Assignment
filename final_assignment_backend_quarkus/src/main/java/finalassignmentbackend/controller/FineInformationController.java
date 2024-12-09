@@ -2,6 +2,7 @@ package finalassignmentbackend.controller;
 
 import finalassignmentbackend.entity.FineInformation;
 import finalassignmentbackend.service.FineInformationService;
+import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
@@ -28,6 +29,7 @@ public class FineInformationController {
     FineInformationService fineInformationService;
 
     @POST
+    @RunOnVirtualThread
     public Response createFine(FineInformation fineInformation) {
         fineInformationService.createFine(fineInformation);
         return Response.status(Response.Status.CREATED).build();
@@ -35,6 +37,7 @@ public class FineInformationController {
 
     @GET
     @Path("/{fineId}")
+    @RunOnVirtualThread
     public Response getFineById(@PathParam("fineId") int fineId) {
         FineInformation fineInformation = fineInformationService.getFineById(fineId);
         if (fineInformation != null) {
@@ -45,6 +48,7 @@ public class FineInformationController {
     }
 
     @GET
+    @RunOnVirtualThread
     public Response getAllFines() {
         List<FineInformation> fines = fineInformationService.getAllFines();
         return Response.ok(fines).build();
@@ -52,6 +56,7 @@ public class FineInformationController {
 
     @PUT
     @Path("/{fineId}")
+    @RunOnVirtualThread
     public Response updateFine(@PathParam("fineId") int fineId, FineInformation updatedFineInformation) {
         FineInformation existingFineInformation = fineInformationService.getFineById(fineId);
         if (existingFineInformation != null) {
@@ -65,6 +70,7 @@ public class FineInformationController {
 
     @DELETE
     @Path("/{fineId}")
+    @RunOnVirtualThread
     public Response deleteFine(@PathParam("fineId") int fineId) {
         fineInformationService.deleteFine(fineId);
         return Response.noContent().build();
@@ -72,6 +78,7 @@ public class FineInformationController {
 
     @GET
     @Path("/payee/{payee}")
+    @RunOnVirtualThread
     public Response getFinesByPayee(@PathParam("payee") String payee) {
         List<FineInformation> fines = fineInformationService.getFinesByPayee(payee);
         return Response.ok(fines).build();
@@ -79,6 +86,7 @@ public class FineInformationController {
 
     @GET
     @Path("/timeRange")
+    @RunOnVirtualThread
     public Response getFinesByTimeRange(@QueryParam("startTime") @DefaultValue("1970-01-01") Date startTime,
                                         @QueryParam("endTime") @DefaultValue("2100-01-01") Date endTime) {
         List<FineInformation> fines = fineInformationService.getFinesByTimeRange(startTime, endTime);
@@ -87,6 +95,7 @@ public class FineInformationController {
 
     @GET
     @Path("/receiptNumber/{receiptNumber}")
+    @RunOnVirtualThread
     public Response getFineByReceiptNumber(@PathParam("receiptNumber") String receiptNumber) {
         FineInformation fineInformation = fineInformationService.getFineByReceiptNumber(receiptNumber);
         if (fineInformation != null) {

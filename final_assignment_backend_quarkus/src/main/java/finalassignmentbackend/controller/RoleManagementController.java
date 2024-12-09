@@ -2,6 +2,7 @@ package finalassignmentbackend.controller;
 
 import finalassignmentbackend.entity.RoleManagement;
 import finalassignmentbackend.service.RoleManagementService;
+import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
@@ -26,6 +27,7 @@ public class RoleManagementController {
     RoleManagementService roleManagementService;
 
     @POST
+    @RunOnVirtualThread
     public Response createRole(RoleManagement role) {
         roleManagementService.createRole(role);
         return Response.status(Response.Status.CREATED).build();
@@ -33,6 +35,7 @@ public class RoleManagementController {
 
     @GET
     @Path("/{roleId}")
+    @RunOnVirtualThread
     public Response getRoleById(@PathParam("roleId") int roleId) {
         RoleManagement role = roleManagementService.getRoleById(roleId);
         if (role != null) {
@@ -43,6 +46,7 @@ public class RoleManagementController {
     }
 
     @GET
+    @RunOnVirtualThread
     public Response getAllRoles() {
         List<RoleManagement> roles = roleManagementService.getAllRoles();
         return Response.ok(roles).build();
@@ -50,6 +54,7 @@ public class RoleManagementController {
 
     @GET
     @Path("/name/{roleName}")
+    @RunOnVirtualThread
     public Response getRoleByName(@PathParam("roleName") String roleName) {
         RoleManagement role = roleManagementService.getRoleByName(roleName);
         if (role != null) {
@@ -61,6 +66,7 @@ public class RoleManagementController {
 
     @GET
     @Path("/search")
+    @RunOnVirtualThread
     public Response getRolesByNameLike(@QueryParam("name") String roleName) {
         List<RoleManagement> roles = roleManagementService.getRolesByNameLike(roleName);
         return Response.ok(roles).build();
@@ -68,6 +74,7 @@ public class RoleManagementController {
 
     @PUT
     @Path("/{roleId}")
+    @RunOnVirtualThread
     public Response updateRole(@PathParam("roleId") int roleId, RoleManagement updatedRole) {
         RoleManagement existingRole = roleManagementService.getRoleById(roleId);
         if (existingRole != null) {
@@ -81,6 +88,7 @@ public class RoleManagementController {
 
     @DELETE
     @Path("/{roleId}")
+    @RunOnVirtualThread
     public Response deleteRole(@PathParam("roleId") int roleId) {
         roleManagementService.deleteRole(roleId);
         return Response.noContent().build();
@@ -88,6 +96,7 @@ public class RoleManagementController {
 
     @DELETE
     @Path("/name/{roleName}")
+    @RunOnVirtualThread
     public Response deleteRoleByName(@PathParam("roleName") String roleName) {
         roleManagementService.deleteRoleByName(roleName);
         return Response.noContent().build();

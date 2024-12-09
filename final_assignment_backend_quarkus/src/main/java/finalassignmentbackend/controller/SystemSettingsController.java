@@ -2,6 +2,7 @@ package finalassignmentbackend.controller;
 
 import finalassignmentbackend.entity.SystemSettings;
 import finalassignmentbackend.service.SystemSettingsService;
+import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
@@ -20,6 +21,7 @@ public class SystemSettingsController {
     SystemSettingsService systemSettingsService;
 
     @GET
+    @RunOnVirtualThread
     public Response getSystemSettings() {
         SystemSettings systemSettings = systemSettingsService.getSystemSettings();
         if (systemSettings != null) {
@@ -30,6 +32,7 @@ public class SystemSettingsController {
     }
 
     @PUT
+    @RunOnVirtualThread
     public Response updateSystemSettings(SystemSettings systemSettings) {
         systemSettingsService.updateSystemSettings(systemSettings);
         return Response.ok().build();
@@ -37,6 +40,7 @@ public class SystemSettingsController {
 
     @GET
     @Path("/systemName")
+    @RunOnVirtualThread
     public Response getSystemName() {
         String systemName = systemSettingsService.getSystemName();
         if (systemName != null) {
@@ -48,6 +52,7 @@ public class SystemSettingsController {
 
     @GET
     @Path("/systemVersion")
+    @RunOnVirtualThread
     public Response getSystemVersion() {
         String systemVersion = systemSettingsService.getSystemVersion();
         if (systemVersion != null) {
@@ -59,6 +64,7 @@ public class SystemSettingsController {
 
     @GET
     @Path("/systemDescription")
+    @RunOnVirtualThread
     public Response getSystemDescription() {
         String systemDescription = systemSettingsService.getSystemDescription();
         if (systemDescription != null) {
@@ -70,6 +76,7 @@ public class SystemSettingsController {
 
     @GET
     @Path("/copyrightInfo")
+    @RunOnVirtualThread
     public Response getCopyrightInfo() {
         String copyrightInfo = systemSettingsService.getCopyrightInfo();
         if (copyrightInfo != null) {
@@ -81,6 +88,7 @@ public class SystemSettingsController {
 
     @GET
     @Path("/storagePath")
+    @RunOnVirtualThread
     public Response getStoragePath() {
         String storagePath = systemSettingsService.getStoragePath();
         if (storagePath != null) {
@@ -92,6 +100,7 @@ public class SystemSettingsController {
 
     @GET
     @Path("/loginTimeout")
+    @RunOnVirtualThread
     public Response getLoginTimeout() {
         int loginTimeout = systemSettingsService.getLoginTimeout();
         return Response.ok(loginTimeout).build();
@@ -99,6 +108,7 @@ public class SystemSettingsController {
 
     @GET
     @Path("/sessionTimeout")
+    @RunOnVirtualThread
     public Response getSessionTimeout() {
         int sessionTimeout = systemSettingsService.getSessionTimeout();
         return Response.ok(sessionTimeout).build();
@@ -106,6 +116,7 @@ public class SystemSettingsController {
 
     @GET
     @Path("/dateFormat")
+    @RunOnVirtualThread
     public Response getDateFormat() {
         String dateFormat = systemSettingsService.getDateFormat();
         if (dateFormat != null) {
@@ -117,6 +128,7 @@ public class SystemSettingsController {
 
     @GET
     @Path("/pageSize")
+    @RunOnVirtualThread
     public Response getPageSize() {
         int pageSize = systemSettingsService.getPageSize();
         return Response.ok(pageSize).build();
@@ -124,6 +136,7 @@ public class SystemSettingsController {
 
     @GET
     @Path("/smtpServer")
+    @RunOnVirtualThread
     public Response getSmtpServer() {
         String smtpServer = systemSettingsService.getSmtpServer();
         if (smtpServer != null) {
@@ -135,6 +148,7 @@ public class SystemSettingsController {
 
     @GET
     @Path("/emailAccount")
+    @RunOnVirtualThread
     public Response getEmailAccount() {
         String emailAccount = systemSettingsService.getEmailAccount();
         if (emailAccount != null) {
@@ -146,6 +160,7 @@ public class SystemSettingsController {
 
     @GET
     @Path("/emailPassword")
+    @RunOnVirtualThread
     public Response getEmailPassword() {
         String emailPassword = systemSettingsService.getEmailPassword();
         if (emailPassword != null) {

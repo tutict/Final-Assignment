@@ -1,4 +1,4 @@
-package finalassignmentbackend.config.vertx;
+package finalassignmentbackend.config;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -27,7 +27,7 @@ import java.util.Set;
 
 @Slf4j
 @ApplicationScoped
-public class WebSocketServer extends AbstractVerticle {
+public class NetWorkHandler extends AbstractVerticle {
 
     private final Vertx vertx;
     private final TokenProvider tokenProvider;
@@ -35,7 +35,7 @@ public class WebSocketServer extends AbstractVerticle {
     int port = 8082; // 保持 8082 为默认值，确保服务器在该端口上运行
 
     @Inject
-    public WebSocketServer(Vertx vertx, TokenProvider tokenProvider) {
+    public NetWorkHandler(Vertx vertx, TokenProvider tokenProvider) {
         this.vertx = vertx;
         this.tokenProvider = tokenProvider;
     }

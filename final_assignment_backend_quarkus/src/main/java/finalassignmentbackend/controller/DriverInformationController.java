@@ -2,6 +2,7 @@ package finalassignmentbackend.controller;
 
 import finalassignmentbackend.entity.DriverInformation;
 import finalassignmentbackend.service.DriverInformationService;
+import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
@@ -25,6 +26,7 @@ public class DriverInformationController {
     DriverInformationService driverInformationService;
 
     @POST
+    @RunOnVirtualThread
     public Response createDriver(DriverInformation driverInformation) {
         driverInformationService.createDriver(driverInformation);
         return Response.status(Response.Status.CREATED).build();
@@ -32,6 +34,7 @@ public class DriverInformationController {
 
     @GET
     @Path("/{driverId}")
+    @RunOnVirtualThread
     public Response getDriverById(@PathParam("driverId") int driverId) {
         DriverInformation driverInformation = driverInformationService.getDriverById(driverId);
         if (driverInformation != null) {
@@ -42,6 +45,7 @@ public class DriverInformationController {
     }
 
     @GET
+    @RunOnVirtualThread
     public Response getAllDrivers() {
         List<DriverInformation> drivers = driverInformationService.getAllDrivers();
         return Response.ok(drivers).build();
@@ -49,6 +53,7 @@ public class DriverInformationController {
 
     @PUT
     @Path("/{driverId}")
+    @RunOnVirtualThread
     public Response updateDriver(@PathParam("driverId") int driverId, DriverInformation updatedDriverInformation) {
         DriverInformation existingDriverInformation = driverInformationService.getDriverById(driverId);
         if (existingDriverInformation != null) {
@@ -62,6 +67,7 @@ public class DriverInformationController {
 
     @DELETE
     @Path("/{driverId}")
+    @RunOnVirtualThread
     public Response deleteDriver(@PathParam("driverId") int driverId) {
         driverInformationService.deleteDriver(driverId);
         return Response.noContent().build();
@@ -69,6 +75,7 @@ public class DriverInformationController {
 
     @GET
     @Path("/idCardNumber/{idCardNumber}")
+    @RunOnVirtualThread
     public Response getDriversByIdCardNumber(@PathParam("idCardNumber") String idCardNumber) {
         List<DriverInformation> drivers = driverInformationService.getDriversByIdCardNumber(idCardNumber);
         return Response.ok(drivers).build();
@@ -76,6 +83,7 @@ public class DriverInformationController {
 
     @GET
     @Path("/driverLicenseNumber/{driverLicenseNumber}")
+    @RunOnVirtualThread
     public Response getDriverByDriverLicenseNumber(@PathParam("driverLicenseNumber") String driverLicenseNumber) {
         DriverInformation driverInformation = driverInformationService.getDriverByDriverLicenseNumber(driverLicenseNumber);
         if (driverInformation != null) {
@@ -87,6 +95,7 @@ public class DriverInformationController {
 
     @GET
     @Path("/name/{name}")
+    @RunOnVirtualThread
     public Response getDriversByName(@PathParam("name") String name) {
         List<DriverInformation> drivers = driverInformationService.getDriversByName(name);
         return Response.ok(drivers).build();

@@ -3,6 +3,7 @@ package finalassignmentbackend.controller;
 import finalassignmentbackend.entity.AppealManagement;
 import finalassignmentbackend.entity.OffenseInformation;
 import finalassignmentbackend.service.AppealManagementService;
+import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
@@ -30,6 +31,7 @@ public class AppealManagementController {
     // 创建新的申诉
     // [POST] 请求，创建并存储新的申诉信息
     @POST
+    @RunOnVirtualThread
     public Response createAppeal(AppealManagement appeal) {
         appealManagementService.createAppeal(appeal);
         return Response.status(Response.Status.CREATED).build();
@@ -39,6 +41,7 @@ public class AppealManagementController {
     // [GET] 请求，通过申诉ID检索申诉信息
     @GET
     @Path("/{appealId}")
+    @RunOnVirtualThread
     public Response getAppealById(@PathParam("appealId") Integer appealId) {
         AppealManagement appeal = appealManagementService.getAppealById(appealId);
         if (appeal != null) {
@@ -51,6 +54,7 @@ public class AppealManagementController {
     // 获取所有申诉
     // [GET] 请求，检索并返回所有申诉的列表
     @GET
+    @RunOnVirtualThread
     public Response getAllAppeals() {
         List<AppealManagement> appeals = appealManagementService.getAllAppeals();
         return Response.ok(appeals).build();
@@ -60,6 +64,7 @@ public class AppealManagementController {
     // [PUT] 请求，根据ID检索并更新现有申诉的信息
     @PUT
     @Path("/{appealId}")
+    @RunOnVirtualThread
     public Response updateAppeal(@PathParam("appealId") Integer appealId, AppealManagement updatedAppeal) {
         AppealManagement existingAppeal = appealManagementService.getAppealById(appealId);
         if (existingAppeal != null) {
@@ -85,6 +90,7 @@ public class AppealManagementController {
     // [DELETE] 请求，根据ID删除申诉信息
     @DELETE
     @Path("/{appealId}")
+    @RunOnVirtualThread
     public Response deleteAppeal(@PathParam("appealId") Integer appealId) {
         appealManagementService.deleteAppeal(appealId);
         return Response.noContent().build();
@@ -94,6 +100,7 @@ public class AppealManagementController {
     // [GET] 请求，通过处理状态检索申诉列表
     @GET
     @Path("/status/{processStatus}")
+    @RunOnVirtualThread
     public Response getAppealsByProcessStatus(@PathParam("processStatus") String processStatus) {
         List<AppealManagement> appeals = appealManagementService.getAppealsByProcessStatus(processStatus);
         return Response.ok(appeals).build();
@@ -103,6 +110,7 @@ public class AppealManagementController {
     // [GET] 请求，通过申诉人姓名检索申诉列表
     @GET
     @Path("/name/{appealName}")
+    @RunOnVirtualThread
     public Response getAppealsByAppealName(@PathParam("appealName") String appealName) {
         List<AppealManagement> appeals = appealManagementService.getAppealsByAppealName(appealName);
         return Response.ok(appeals).build();
@@ -112,6 +120,7 @@ public class AppealManagementController {
     // [GET] 请求，通过申诉ID检索关联的违规信息
     @GET
     @Path("/{appealId}/offense")
+    @RunOnVirtualThread
     public Response getOffenseByAppealId(@PathParam("appealId") Integer appealId) {
         OffenseInformation offense = appealManagementService.getOffenseByAppealId(appealId);
         if (offense != null) {

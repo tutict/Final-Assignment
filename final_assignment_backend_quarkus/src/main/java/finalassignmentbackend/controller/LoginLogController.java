@@ -2,6 +2,7 @@ package finalassignmentbackend.controller;
 
 import finalassignmentbackend.entity.LoginLog;
 import finalassignmentbackend.service.LoginLogService;
+import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
@@ -28,6 +29,7 @@ public class LoginLogController {
     LoginLogService loginLogService;
 
     @POST
+    @RunOnVirtualThread
     public Response createLoginLog(LoginLog loginLog) {
         loginLogService.createLoginLog(loginLog);
         return Response.status(Response.Status.CREATED).build();
@@ -35,6 +37,7 @@ public class LoginLogController {
 
     @GET
     @Path("/{logId}")
+    @RunOnVirtualThread
     public Response getLoginLog(@PathParam("logId") int logId) {
         LoginLog loginLog = loginLogService.getLoginLog(logId);
         if (loginLog != null) {
@@ -45,6 +48,7 @@ public class LoginLogController {
     }
 
     @GET
+    @RunOnVirtualThread
     public Response getAllLoginLogs() {
         List<LoginLog> loginLogs = loginLogService.getAllLoginLogs();
         return Response.ok(loginLogs).build();
@@ -52,6 +56,7 @@ public class LoginLogController {
 
     @PUT
     @Path("/{logId}")
+    @RunOnVirtualThread
     public Response updateLoginLog(@PathParam("logId") int logId, LoginLog updatedLoginLog) {
         LoginLog existingLoginLog = loginLogService.getLoginLog(logId);
         if (existingLoginLog != null) {
@@ -65,6 +70,7 @@ public class LoginLogController {
 
     @DELETE
     @Path("/{logId}")
+    @RunOnVirtualThread
     public Response deleteLoginLog(@PathParam("logId") int logId) {
         loginLogService.deleteLoginLog(logId);
         return Response.noContent().build();
@@ -72,6 +78,7 @@ public class LoginLogController {
 
     @GET
     @Path("/timeRange")
+    @RunOnVirtualThread
     public Response getLoginLogsByTimeRange(@QueryParam("startTime") @DefaultValue("1970-01-01") Date startTime,
                                             @QueryParam("endTime") @DefaultValue("2100-01-01") Date endTime) {
         List<LoginLog> loginLogs = loginLogService.getLoginLogsByTimeRange(startTime, endTime);
@@ -80,6 +87,7 @@ public class LoginLogController {
 
     @GET
     @Path("/username/{username}")
+    @RunOnVirtualThread
     public Response getLoginLogsByUsername(@PathParam("username") String username) {
         List<LoginLog> loginLogs = loginLogService.getLoginLogsByUsername(username);
         return Response.ok(loginLogs).build();
@@ -87,6 +95,7 @@ public class LoginLogController {
 
     @GET
     @Path("/loginResult/{loginResult}")
+    @RunOnVirtualThread
     public Response getLoginLogsByLoginResult(@PathParam("loginResult") String loginResult) {
         List<LoginLog> loginLogs = loginLogService.getLoginLogsByLoginResult(loginResult);
         return Response.ok(loginLogs).build();

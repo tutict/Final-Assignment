@@ -2,6 +2,7 @@ package finalassignmentbackend.controller;
 
 import finalassignmentbackend.entity.UserManagement;
 import finalassignmentbackend.service.UserManagementService;
+import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
@@ -33,6 +34,7 @@ public class UserManagementController {
 
     @POST
     @RolesAllowed("ADMIN")
+    @RunOnVirtualThread
     public Response createUser(UserManagement user) {
         logger.info(String.format("Attempting to create user: %s", user.getUsername()));
         if (userManagementService.isUsernameExists(user.getUsername())) {
@@ -53,6 +55,7 @@ public class UserManagementController {
     @GET
     @Path("/me")
     @RolesAllowed({"USER", "ADMIN"})
+    @RunOnVirtualThread
     public Response getCurrentUser(@Context SecurityContext securityContext) {
         String username = securityContext.getUserPrincipal().getName();
         logger.info(String.format("fetching current user by username: %s", username));
@@ -65,6 +68,7 @@ public class UserManagementController {
             return Response.status(Response.Status.NOT_FOUND).build();
         }
     }
+
     /**
      * 更新当前用户信息
      *
@@ -75,6 +79,7 @@ public class UserManagementController {
     @PUT
     @Path("/me")
     @RolesAllowed({"USER", "ADMIN"})
+    @RunOnVirtualThread
     public Response updateCurrentUser(@Context SecurityContext securityContext, UserManagement updatedUser) {
         String username = securityContext.getUserPrincipal().getName();
         logger.info(String.format("Attempting to update current user: %s", username));
@@ -92,6 +97,7 @@ public class UserManagementController {
 
     @GET
     @RolesAllowed("ADMIN")
+    @RunOnVirtualThread
     public Response getAllUsers() {
         logger.info("Fetching all users");
         List<UserManagement> users = userManagementService.getAllUsers();
@@ -102,6 +108,7 @@ public class UserManagementController {
     @GET
     @Path("/{userId}")
     @RolesAllowed({"USER", "ADMIN"})
+    @RunOnVirtualThread
     public Response getUserById(@PathParam("userId") int userId) {
         logger.info(String.format("Fetching user by ID: %d", userId));
         UserManagement user = userManagementService.getUserById(userId);
@@ -117,6 +124,7 @@ public class UserManagementController {
     @GET
     @Path("/username/{username}")
     @RolesAllowed({"USER", "ADMIN"})
+    @RunOnVirtualThread
     public Response getUserByUsername(@PathParam("username") String username) {
         logger.info(String.format("Fetching user by username: %s", username));
         UserManagement user = userManagementService.getUserByUsername(username);
@@ -132,6 +140,7 @@ public class UserManagementController {
     @GET
     @Path("/type/{userType}")
     @RolesAllowed("ADMIN")
+    @RunOnVirtualThread
     public Response getUsersByType(@PathParam("userType") String userType) {
         logger.info(String.format("Fetching users by type: %s", userType));
         List<UserManagement> users = userManagementService.getUsersByType(userType);
@@ -142,6 +151,7 @@ public class UserManagementController {
     @GET
     @Path("/status/{status}")
     @RolesAllowed("ADMIN")
+    @RunOnVirtualThread
     public Response getUsersByStatus(@PathParam("status") String status) {
         logger.info(String.format("Fetching users by status: %s", status));
         List<UserManagement> users = userManagementService.getUsersByStatus(status);
@@ -152,6 +162,7 @@ public class UserManagementController {
     @PUT
     @Path("/{userId}")
     @RolesAllowed({"USER", "ADMIN"})
+    @RunOnVirtualThread
     public Response updateUser(@PathParam("userId") int userId, UserManagement updatedUser) {
         logger.info(String.format("Attempting to update user: %d", userId));
         UserManagement existingUser = userManagementService.getUserById(userId);
@@ -169,6 +180,7 @@ public class UserManagementController {
     @DELETE
     @Path("/{userId}")
     @RolesAllowed("ADMIN")
+    @RunOnVirtualThread
     public Response deleteUser(@PathParam("userId") int userId) {
         logger.info(String.format("Attempting to delete user: %d", userId));
         try {
@@ -189,6 +201,7 @@ public class UserManagementController {
     @DELETE
     @Path("/username/{username}")
     @RolesAllowed("ADMIN")
+    @RunOnVirtualThread
     public Response deleteUserByUsername(@PathParam("username") String username) {
         logger.info(String.format("Attempting to delete user by username: %s", username));
         try {

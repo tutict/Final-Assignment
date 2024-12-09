@@ -2,6 +2,7 @@ package finalassignmentbackend.controller;
 
 import finalassignmentbackend.entity.OperationLog;
 import finalassignmentbackend.service.OperationLogService;
+import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
@@ -28,6 +29,7 @@ public class OperationLogController {
     OperationLogService operationLogService;
 
     @POST
+    @RunOnVirtualThread
     public Response createOperationLog(OperationLog operationLog) {
         operationLogService.createOperationLog(operationLog);
         return Response.status(Response.Status.CREATED).build();
@@ -35,6 +37,7 @@ public class OperationLogController {
 
     @GET
     @Path("/{logId}")
+    @RunOnVirtualThread
     public Response getOperationLog(@PathParam("logId") int logId) {
         OperationLog operationLog = operationLogService.getOperationLog(logId);
         if (operationLog != null) {
@@ -45,6 +48,7 @@ public class OperationLogController {
     }
 
     @GET
+    @RunOnVirtualThread
     public Response getAllOperationLogs() {
         List<OperationLog> operationLogs = operationLogService.getAllOperationLogs();
         return Response.ok(operationLogs).build();
@@ -52,6 +56,7 @@ public class OperationLogController {
 
     @PUT
     @Path("/{logId}")
+    @RunOnVirtualThread
     public Response updateOperationLog(@PathParam("logId") int logId, OperationLog updatedOperationLog) {
         OperationLog existingOperationLog = operationLogService.getOperationLog(logId);
         if (existingOperationLog != null) {
@@ -65,6 +70,7 @@ public class OperationLogController {
 
     @DELETE
     @Path("/{logId}")
+    @RunOnVirtualThread
     public Response deleteOperationLog(@PathParam("logId") int logId) {
         operationLogService.deleteOperationLog(logId);
         return Response.noContent().build();
@@ -72,6 +78,7 @@ public class OperationLogController {
 
     @GET
     @Path("/timeRange")
+    @RunOnVirtualThread
     public Response getOperationLogsByTimeRange(@QueryParam("startTime") @DefaultValue("1970-01-01") Date startTime,
                                                 @QueryParam("endTime") @DefaultValue("2100-01-01") Date endTime) {
         List<OperationLog> operationLogs = operationLogService.getOperationLogsByTimeRange(startTime, endTime);
@@ -80,6 +87,7 @@ public class OperationLogController {
 
     @GET
     @Path("/userId/{userId}")
+    @RunOnVirtualThread
     public Response getOperationLogsByUserId(@PathParam("userId") String userId) {
         List<OperationLog> operationLogs = operationLogService.getOperationLogsByUserId(userId);
         return Response.ok(operationLogs).build();
@@ -87,6 +95,7 @@ public class OperationLogController {
 
     @GET
     @Path("/result/{result}")
+    @RunOnVirtualThread
     public Response getOperationLogsByResult(@PathParam("result") String result) {
         List<OperationLog> operationLogs = operationLogService.getOperationLogsByResult(result);
         return Response.ok(operationLogs).build();
