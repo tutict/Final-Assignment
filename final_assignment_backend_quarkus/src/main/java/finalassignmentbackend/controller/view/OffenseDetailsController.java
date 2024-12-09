@@ -5,6 +5,7 @@ import finalassignmentbackend.service.view.OffenseDetailsService;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
@@ -55,12 +56,12 @@ public class OffenseDetailsController {
      * @param id 违规详情的ID
      * @return 成功或失败的消息
      */
-    @GET
+    @POST
     @Path("/send-to-kafka/{id}")
-    public Response sendOffenseDetailsToKafka(@PathParam("id") Integer id) {
+    public Response updateOffenseDetailsToKafka(@PathParam("id") Integer id) {
         OffenseDetails offenseDetails = offenseDetailsService.getOffenseDetailsById(id);
         if (offenseDetails != null) {
-            offenseDetailsService.sendOffenseDetailsToKafka(offenseDetails);
+            offenseDetailsService.saveOffenseDetails(offenseDetails);
             return Response.ok("OffenseDetails sent to Kafka topic successfully!").build();
         } else {
             return Response.status(Response.Status.NOT_FOUND).entity("OffenseDetails not found for id: " + id).build();

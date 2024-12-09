@@ -4,17 +4,19 @@ import finalassignmentbackend.entity.SystemSettings;
 import finalassignmentbackend.mapper.SystemSettingsMapper;
 import io.quarkus.cache.CacheInvalidate;
 import io.quarkus.cache.CacheResult;
-import io.smallrye.mutiny.Uni;
 import io.smallrye.reactive.messaging.MutinyEmitter;
 import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Event;
+import jakarta.enterprise.event.Observes;
+import jakarta.enterprise.event.TransactionPhase;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import lombok.Getter;
 import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Message;
 
 import java.util.logging.Logger;
-import java.util.concurrent.CompletionStage;
 
 @ApplicationScoped
 public class SystemSettingsService {
@@ -25,8 +27,20 @@ public class SystemSettingsService {
     SystemSettingsMapper systemSettingsMapper;
 
     @Inject
+    Event<SystemSettingsEvent> systemSettingsEvent;
+
+    @Inject
     @Channel("system-settings-out")
     MutinyEmitter<SystemSettings> systemSettingsEmitter;
+
+    @Getter
+    public static class SystemSettingsEvent {
+        private final SystemSettings systemSettings;
+
+        public SystemSettingsEvent(SystemSettings systemSettings) {
+            this.systemSettings = systemSettings;
+        }
+    }
 
     @CacheResult(cacheName = "systemSettingsCache")
     public SystemSettings getSystemSettings() {
@@ -37,13 +51,33 @@ public class SystemSettingsService {
     @CacheInvalidate(cacheName = "systemSettingsCache")
     public SystemSettings updateSystemSettings(SystemSettings systemSettings) {
         try {
-            sendKafkaMessage(systemSettings);
             systemSettingsMapper.updateById(systemSettings);
+            systemSettingsEvent.fire(new SystemSettingsEvent(systemSettings));
             return systemSettings;
         } catch (Exception e) {
-            log.warning("Exception occurred while updating system settings or sending Kafka message");
+            log.warning("Exception occurred while updating system settings or firing event");
             throw new RuntimeException("Failed to update system settings", e);
         }
+    }
+
+    // 监听事务提交事件
+    public void onSystemSettingsUpdated(@Observes(during = TransactionPhase.AFTER_SUCCESS) SystemSettingsEvent event) {
+        sendKafkaMessage(event.getSystemSettings());
+    }
+
+    private void sendKafkaMessage(SystemSettings systemSettings) {
+        var metadata = OutgoingKafkaRecordMetadata.<String>builder()
+                .withTopic("system_settings_update")
+                .build();
+
+        // 使用 Message 构建消息
+        Message<SystemSettings> message = Message.of(systemSettings).addMetadata(metadata);
+
+        // 使用 MutinyEmitter 发送消息
+        systemSettingsEmitter.sendMessage(message)
+                .await().indefinitely();
+
+        log.info("Message sent to Kafka topic system_settings_update successfully");
     }
 
     @CacheResult(cacheName = "systemSettingsCache")
@@ -116,29 +150,5 @@ public class SystemSettingsService {
     public String getEmailPassword() {
         SystemSettings systemSettings = getSystemSettings();
         return systemSettings != null ? systemSettings.getEmailPassword() : null;
-    }
-
-    private void sendKafkaMessage(SystemSettings systemSettings) {
-        var metadata = OutgoingKafkaRecordMetadata.<String>builder()
-                .withTopic("system_settings_update")
-                .build();
-
-        // 使用 Message 构建消息
-        Message<SystemSettings> message = Message.of(systemSettings).addMetadata(metadata);
-
-        // 使用 MutinyEmitter 发送消息
-        Uni<Void> uni = systemSettingsEmitter.sendMessage(message);
-
-        // 转换为 CompletionStage<Void> 并处理结果
-        CompletionStage<Void> sendStage = uni.subscribe().asCompletionStage();
-
-        sendStage.whenComplete((ignored, throwable) -> {
-            if (throwable != null) {
-                log.severe(String.format("Failed to send message to Kafka topic %s: %s",
-                        "system_settings_update", throwable.getMessage()));
-            } else {
-                log.info("Message sent to Kafka topic system_settings_update successfully");
-            }
-        });
     }
 }

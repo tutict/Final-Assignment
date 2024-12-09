@@ -5,17 +5,19 @@ import finalassignmentbackend.entity.VehicleInformation;
 import finalassignmentbackend.mapper.VehicleInformationMapper;
 import io.quarkus.cache.CacheInvalidate;
 import io.quarkus.cache.CacheResult;
-import io.smallrye.mutiny.Uni;
 import io.smallrye.reactive.messaging.MutinyEmitter;
 import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Event;
+import jakarta.enterprise.event.Observes;
+import jakarta.enterprise.event.TransactionPhase;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import lombok.Getter;
 import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Message;
 
 import java.util.List;
-import java.util.concurrent.CompletionStage;
 import java.util.logging.Logger;
 
 @ApplicationScoped
@@ -27,17 +29,31 @@ public class VehicleInformationService {
     VehicleInformationMapper vehicleInformationMapper;
 
     @Inject
+    Event<VehicleEvent> vehicleEvent;
+
+    @Inject
     @Channel("vehicle-events-out")
     MutinyEmitter<VehicleInformation> vehicleEmitter;
+
+    @Getter
+    public static class VehicleEvent {
+        private final VehicleInformation vehicleInformation;
+        private final String action; // "create" or "update"
+
+        public VehicleEvent(VehicleInformation vehicleInformation, String action) {
+            this.vehicleInformation = vehicleInformation;
+            this.action = action;
+        }
+    }
 
     @Transactional
     @CacheInvalidate(cacheName = "vehicleCache")
     public void createVehicleInformation(VehicleInformation vehicleInformation) {
         try {
-            sendKafkaMessage("vehicle_create", vehicleInformation);
             vehicleInformationMapper.insert(vehicleInformation);
+            vehicleEvent.fire(new VehicleEvent(vehicleInformation, "create"));
         } catch (Exception e) {
-            log.warning("Exception occurred while creating vehicle information or sending Kafka message");
+            log.warning("Exception occurred while creating vehicle information or firing event");
             throw new RuntimeException("Failed to create vehicle information", e);
         }
     }
@@ -78,12 +94,13 @@ public class VehicleInformationService {
 
     @Transactional
     @CacheInvalidate(cacheName = "vehicleCache")
-    public void updateVehicleInformation(VehicleInformation vehicleInformation) {
+    public VehicleInformation updateVehicleInformation(VehicleInformation vehicleInformation) {
         try {
-            sendKafkaMessage("vehicle_update", vehicleInformation);
             vehicleInformationMapper.updateById(vehicleInformation);
+            vehicleEvent.fire(new VehicleEvent(vehicleInformation, "update"));
+            return vehicleInformation;
         } catch (Exception e) {
-            log.warning("Exception occurred while updating vehicle information or sending Kafka message");
+            log.warning("Exception occurred while updating vehicle information or firing event");
             throw new RuntimeException("Failed to update vehicle information", e);
         }
     }
@@ -102,6 +119,15 @@ public class VehicleInformationService {
         }
     }
 
+    @Transactional
+    @CacheInvalidate(cacheName = "vehicleCache")
+    public void deleteVehicleInformationByLicensePlate(String licensePlate) {
+        validateInput(licensePlate, "Invalid license plate number");
+        QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("license_plate", licensePlate);
+        vehicleInformationMapper.delete(queryWrapper);
+    }
+
     @CacheResult(cacheName = "vehicleCache")
     public boolean isLicensePlateExists(String licensePlate) {
         validateInput(licensePlate, "Invalid license plate number");
@@ -112,21 +138,15 @@ public class VehicleInformationService {
 
     @CacheResult(cacheName = "vehicleCache")
     public List<VehicleInformation> getVehicleInformationByStatus(String currentStatus) {
-        if (currentStatus == null || currentStatus.trim().isEmpty()) {
-            throw new IllegalArgumentException("Invalid current status");
-        }
+        validateInput(currentStatus, "Invalid current status");
         QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("current_status", currentStatus);
         return vehicleInformationMapper.selectList(queryWrapper);
     }
 
-    @Transactional
-    @CacheInvalidate(cacheName = "vehicleCache")
-    public void deleteVehicleInformationByLicensePlate(String licensePlate) {
-        validateInput(licensePlate, "Invalid license plate number");
-        QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("license_plate", licensePlate);
-        vehicleInformationMapper.delete(queryWrapper);
+    public void onVehicleEvent(@Observes(during = TransactionPhase.AFTER_SUCCESS) VehicleEvent event) {
+        String topic = event.getAction().equals("create") ? "vehicle_create" : "vehicle_update";
+        sendKafkaMessage(topic, event.getVehicleInformation());
     }
 
     private void sendKafkaMessage(String topic, VehicleInformation vehicleInformation) {
@@ -136,16 +156,10 @@ public class VehicleInformationService {
 
         Message<VehicleInformation> message = Message.of(vehicleInformation).addMetadata(metadata);
 
-        Uni<Void> uni = vehicleEmitter.sendMessage(message);
+        vehicleEmitter.sendMessage(message)
+                .await().indefinitely();
 
-        CompletionStage<Void> sendStage = uni.subscribe().asCompletionStage();
-        sendStage.whenComplete((ignored, throwable) -> {
-            if (throwable != null) {
-                log.severe(String.format("Failed to send message to Kafka topic %s: %s", topic, throwable.getMessage()));
-            } else {
-                log.info(String.format("Message sent to Kafka topic %s successfully", topic));
-            }
-        });
+        log.info(String.format("Message sent to Kafka topic %s successfully", topic));
     }
 
     private void validateInput(String input, String errorMessage) {

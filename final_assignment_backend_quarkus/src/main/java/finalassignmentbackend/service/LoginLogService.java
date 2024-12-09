@@ -5,18 +5,20 @@ import finalassignmentbackend.entity.LoginLog;
 import finalassignmentbackend.mapper.LoginLogMapper;
 import io.quarkus.cache.CacheInvalidate;
 import io.quarkus.cache.CacheResult;
-import io.smallrye.mutiny.Uni;
 import io.smallrye.reactive.messaging.MutinyEmitter;
 import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Event;
+import jakarta.enterprise.event.Observes;
+import jakarta.enterprise.event.TransactionPhase;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import lombok.Getter;
 import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Message;
 
 import java.util.Date;
 import java.util.List;
-import java.util.concurrent.CompletionStage;
 import java.util.logging.Logger;
 
 @ApplicationScoped
@@ -28,57 +30,72 @@ public class LoginLogService {
     LoginLogMapper loginLogMapper;
 
     @Inject
+    Event<LoginLogEvent> loginLogEvent;
+
+    @Inject
     @Channel("login-events-out")
     MutinyEmitter<LoginLog> loginEmitter;
+
+    @Getter
+    public static class LoginLogEvent {
+        private final LoginLog loginLog;
+        private final String action; // "create" or "update"
+
+        public LoginLogEvent(LoginLog loginLog, String action) {
+            this.loginLog = loginLog;
+            this.action = action;
+        }
+    }
 
     @Transactional
     @CacheInvalidate(cacheName = "loginCache")
     public void createLoginLog(LoginLog loginLog) {
-        try {
-            sendKafkaMessage("login_create", loginLog);
+        LoginLog existingLog = loginLogMapper.selectById(loginLog.getLogId());
+        if (existingLog == null) {
             loginLogMapper.insert(loginLog);
-        } catch (Exception e) {
-            log.info("Exception occurred while creating login log or sending Kafka message");
-            throw new RuntimeException("Failed to create login log", e);
+        } else {
+            loginLogMapper.updateById(loginLog);
+        }
+        loginLogEvent.fire(new LoginLogEvent(loginLog, "create"));
+    }
+
+    @Transactional
+    @CacheInvalidate(cacheName = "loginCache")
+    public void updateLoginLog(LoginLog loginLog) {
+        LoginLog existingLog = loginLogMapper.selectById(loginLog.getLogId());
+        if (existingLog == null) {
+            loginLogMapper.insert(loginLog);
+        } else {
+            loginLogMapper.updateById(loginLog);
+        }
+        loginLogEvent.fire(new LoginLogEvent(loginLog, "update"));
+    }
+
+    @Transactional
+    @CacheInvalidate(cacheName = "loginCache")
+    public void deleteLoginLog(int logId) {
+        if (logId <= 0) {
+            throw new IllegalArgumentException("Invalid log ID");
+        }
+        int result = loginLogMapper.deleteById(logId);
+        if (result > 0) {
+            log.info(String.format("Login log with ID %s deleted successfully", logId));
+        } else {
+            log.severe(String.format("Failed to delete login log with ID %s", logId));
         }
     }
 
     @CacheResult(cacheName = "loginCache")
     public LoginLog getLoginLog(int logId) {
+        if (logId <= 0) {
+            throw new IllegalArgumentException("Invalid log ID");
+        }
         return loginLogMapper.selectById(logId);
     }
 
     @CacheResult(cacheName = "loginCache")
     public List<LoginLog> getAllLoginLogs() {
         return loginLogMapper.selectList(null);
-    }
-
-    @Transactional
-    @CacheInvalidate(cacheName = "loginCache")
-    public void updateLoginLog(LoginLog loginLog) {
-        try {
-            sendKafkaMessage("login_update", loginLog);
-            loginLogMapper.updateById(loginLog);
-        } catch (Exception e) {
-            log.warning("Exception occurred while updating login log or sending Kafka message");
-            throw new RuntimeException("Failed to update login log", e);
-        }
-    }
-
-    @Transactional
-    @CacheInvalidate(cacheName = "loginCache")
-    public void deleteLoginLog(int logId) {
-        try {
-            int result = loginLogMapper.deleteById(logId);
-            if (result > 0) {
-                log.info(String.format("Login log with ID %s deleted successfully", logId));
-            } else {
-                log.severe(String.format("Failed to delete login log with ID %s", logId));
-            }
-        } catch (Exception e) {
-            log.warning("Exception occurred while deleting login log");
-            throw new RuntimeException("Failed to delete login log", e);
-        }
     }
 
     @CacheResult(cacheName = "loginCache")
@@ -111,27 +128,21 @@ public class LoginLogService {
         return loginLogMapper.selectList(queryWrapper);
     }
 
+    public void onLoginLogEvent(@Observes(during = TransactionPhase.AFTER_SUCCESS) LoginLogEvent event) {
+        String topic = event.getAction().equals("create") ? "login_processed_create" : "login_processed_update";
+        sendKafkaMessage(topic, event.getLoginLog());
+    }
+
     private void sendKafkaMessage(String topic, LoginLog loginLog) {
-        // 创建包含目标主题的元数据
         OutgoingKafkaRecordMetadata<String> metadata = OutgoingKafkaRecordMetadata.<String>builder()
                 .withTopic(topic)
                 .build();
 
-        // 创建包含负载和元数据的消息
         Message<LoginLog> message = Message.of(loginLog).addMetadata(metadata);
 
-        // 使用 MutinyEmitter 的 sendMessage 方法返回 Uni<Void>
-        Uni<Void> uni = loginEmitter.sendMessage(message);
+        loginEmitter.sendMessage(message)
+                .await().indefinitely();
 
-        // 将 Uni<Void> 转换为 CompletionStage<Void>
-        CompletionStage<Void> sendStage = uni.subscribe().asCompletionStage();
-
-        sendStage.whenComplete((ignored, throwable) -> {
-            if (throwable != null) {
-                log.severe(String.format("Failed to send message to Kafka topic %s: %s", topic, throwable.getMessage()));
-            } else {
-                log.info(String.format("Message sent to Kafka topic %s successfully", topic));
-            }
-        });
+        log.info(String.format("Message sent to Kafka topic %s successfully", topic));
     }
 }

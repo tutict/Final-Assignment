@@ -84,7 +84,7 @@ public class DeductionInformationController {
     @GET
     @Path("/timeRange")
     public Response getDeductionsByTimeRange(@QueryParam("startTime") Date startTime, @QueryParam("endTime") Date endTime) {
-        List<DeductionInformation> deductions = deductionInformationService.getDeductionsByByTimeRange(startTime, endTime);
+        List<DeductionInformation> deductions = deductionInformationService.getDeductionsByTimeRange(startTime, endTime);
         return Response.ok(deductions).build();
     }
 }

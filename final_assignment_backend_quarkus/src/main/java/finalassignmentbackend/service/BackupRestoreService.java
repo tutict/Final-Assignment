@@ -5,17 +5,19 @@ import finalassignmentbackend.entity.BackupRestore;
 import finalassignmentbackend.mapper.BackupRestoreMapper;
 import io.quarkus.cache.CacheInvalidate;
 import io.quarkus.cache.CacheResult;
-import io.smallrye.mutiny.Uni;
 import io.smallrye.reactive.messaging.MutinyEmitter;
 import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Event;
+import jakarta.enterprise.event.Observes;
+import jakarta.enterprise.event.TransactionPhase;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import lombok.Getter;
 import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Message;
 
 import java.util.List;
-import java.util.concurrent.CompletionStage;
 import java.util.logging.Logger;
 
 @ApplicationScoped
@@ -27,24 +29,59 @@ public class BackupRestoreService {
     BackupRestoreMapper backupRestoreMapper;
 
     @Inject
+    Event<BackupEvent> backupEvent;
+
+    @Inject
     @Channel("backup-events-out")
     MutinyEmitter<BackupRestore> backupEmitter;
+
+    @Getter
+    public static class BackupEvent {
+        private final BackupRestore backupRestore;
+        private final String action; // "create" or "update"
+
+        public BackupEvent(BackupRestore backupRestore, String action) {
+            this.backupRestore = backupRestore;
+            this.action = action;
+        }
+    }
 
     @Transactional
     @CacheInvalidate(cacheName = "backupCache")
     public void createBackup(BackupRestore backup) {
-        try {
-            sendKafkaMessage("backup_create", backup);
+        BackupRestore existingBackup = backupRestoreMapper.selectById(backup.getBackupId());
+        if (existingBackup == null) {
             backupRestoreMapper.insert(backup);
-        } catch (Exception e) {
-            log.warning("Exception occurred while creating backup or sending Kafka message");
-            throw new RuntimeException("Failed to create backup", e);
+        } else {
+            backupRestoreMapper.updateById(backup);
         }
+        backupEvent.fire(new BackupEvent(backup, "create"));
     }
 
-    @CacheResult(cacheName = "backupCache")
-    public List<BackupRestore> getAllBackups() {
-        return backupRestoreMapper.selectList(null);
+    @Transactional
+    @CacheInvalidate(cacheName = "backupCache")
+    public void updateBackup(BackupRestore backup) {
+        BackupRestore existingBackup = backupRestoreMapper.selectById(backup.getBackupId());
+        if (existingBackup == null) {
+            backupRestoreMapper.insert(backup);
+        } else {
+            backupRestoreMapper.updateById(backup);
+        }
+        backupEvent.fire(new BackupEvent(backup, "update"));
+    }
+
+    @Transactional
+    @CacheInvalidate(cacheName = "backupCache")
+    public void deleteBackup(Integer backupId) {
+        if (backupId == null || backupId <= 0) {
+            throw new IllegalArgumentException("Invalid backup ID");
+        }
+        int result = backupRestoreMapper.deleteById(backupId);
+        if (result > 0) {
+            log.info(String.format("Backup with ID %s deleted successfully", backupId));
+        } else {
+            log.severe(String.format("Failed to delete backup with ID %s", backupId));
+        }
     }
 
     @CacheResult(cacheName = "backupCache")
@@ -55,32 +92,9 @@ public class BackupRestoreService {
         return backupRestoreMapper.selectById(backupId);
     }
 
-    @Transactional
-    @CacheInvalidate(cacheName = "backupCache")
-    public void deleteBackup(Integer backupId) {
-        try {
-            int result = backupRestoreMapper.deleteById(backupId);
-            if (result > 0) {
-                log.info(String.format("Backup with ID %s deleted successfully", backupId));
-            } else {
-                log.severe(String.format("Failed to delete backup with ID %s", backupId));
-            }
-        } catch (Exception e) {
-            log.warning("Exception occurred while deleting backup");
-            throw new RuntimeException("Failed to delete backup", e);
-        }
-    }
-
-    @Transactional
-    @CacheInvalidate(cacheName = "backupCache")
-    public void updateBackup(BackupRestore backup) {
-        try {
-            sendKafkaMessage("backup_update", backup);
-            backupRestoreMapper.updateById(backup);
-        } catch (Exception e) {
-            log.warning("Exception occurred while updating backup or sending Kafka message");
-            throw new RuntimeException("Failed to update backup", e);
-        }
+    @CacheResult(cacheName = "backupCache")
+    public List<BackupRestore> getAllBackups() {
+        return backupRestoreMapper.selectList(null);
     }
 
     @CacheResult(cacheName = "backupCache")
@@ -89,7 +103,7 @@ public class BackupRestoreService {
             throw new IllegalArgumentException("Invalid backup file name");
         }
         QueryWrapper<BackupRestore> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("backupFileName", backupFileName);
+        queryWrapper.eq("backup_file_name", backupFileName);
         return backupRestoreMapper.selectOne(queryWrapper);
     }
 
@@ -99,31 +113,25 @@ public class BackupRestoreService {
             throw new IllegalArgumentException("Invalid backup time");
         }
         QueryWrapper<BackupRestore> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("backupTime", backupTime);
+        queryWrapper.eq("backup_time", backupTime);
         return backupRestoreMapper.selectList(queryWrapper);
     }
 
+    public void onBackupEvent(@Observes(during = TransactionPhase.AFTER_SUCCESS) BackupEvent event) {
+        String topic = event.getAction().equals("create") ? "backup_processed_create" : "backup_processed_update";
+        sendKafkaMessage(topic, event.getBackupRestore());
+    }
+
     private void sendKafkaMessage(String topic, BackupRestore backup) {
-        // 创建包含目标主题的元数据
         OutgoingKafkaRecordMetadata<String> metadata = OutgoingKafkaRecordMetadata.<String>builder()
                 .withTopic(topic)
                 .build();
 
-        // 创建包含负载和元数据的消息
         Message<BackupRestore> message = Message.of(backup).addMetadata(metadata);
 
-        // 使用 MutinyEmitter 的 sendMessage 方法返回 Uni<Void>
-        Uni<Void> uni = backupEmitter.sendMessage(message);
+        backupEmitter.sendMessage(message)
+                .await().indefinitely();
 
-        // 将 Uni<Void> 转换为 CompletionStage<Void>
-        CompletionStage<Void> sendStage = uni.subscribe().asCompletionStage();
-
-        sendStage.whenComplete((ignored, throwable) -> {
-            if (throwable != null) {
-                log.severe(String.format("Failed to send message to Kafka topic %s: %s", topic, throwable.getMessage()));
-            } else {
-                log.info(String.format("Message sent to Kafka topic %s successfully", topic));
-            }
-        });
+        log.info(String.format("Message sent to Kafka topic %s successfully", topic));
     }
 }

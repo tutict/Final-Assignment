@@ -5,18 +5,20 @@ import finalassignmentbackend.entity.FineInformation;
 import finalassignmentbackend.mapper.FineInformationMapper;
 import io.quarkus.cache.CacheInvalidate;
 import io.quarkus.cache.CacheResult;
-import io.smallrye.mutiny.Uni;
 import io.smallrye.reactive.messaging.MutinyEmitter;
 import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Event;
+import jakarta.enterprise.event.Observes;
+import jakarta.enterprise.event.TransactionPhase;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import lombok.Getter;
 import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Message;
 
 import java.util.Date;
 import java.util.List;
-import java.util.concurrent.CompletionStage;
 import java.util.logging.Logger;
 
 @ApplicationScoped
@@ -28,18 +30,58 @@ public class FineInformationService {
     FineInformationMapper fineInformationMapper;
 
     @Inject
+    Event<FineEvent> fineEvent;
+
+    @Inject
     @Channel("fine-events-out")
     MutinyEmitter<FineInformation> fineEmitter;
+
+    @Getter
+    public static class FineEvent {
+        private final FineInformation fineInformation;
+        private final String action; // "create" or "update"
+
+        public FineEvent(FineInformation fineInformation, String action) {
+            this.fineInformation = fineInformation;
+            this.action = action;
+        }
+    }
 
     @Transactional
     @CacheInvalidate(cacheName = "fineCache")
     public void createFine(FineInformation fineInformation) {
-        try {
-            sendKafkaMessage("fine_create", fineInformation);
+        FineInformation existingFine = fineInformationMapper.selectById(fineInformation.getFineId());
+        if (existingFine == null) {
             fineInformationMapper.insert(fineInformation);
-        } catch (Exception e) {
-            log.warning("Exception occurred while creating fine or sending Kafka message");
-            throw new RuntimeException("Failed to create fine", e);
+        } else {
+            fineInformationMapper.updateById(fineInformation);
+        }
+        fineEvent.fire(new FineEvent(fineInformation, "create"));
+    }
+
+    @Transactional
+    @CacheInvalidate(cacheName = "fineCache")
+    public void updateFine(FineInformation fineInformation) {
+        FineInformation existingFine = fineInformationMapper.selectById(fineInformation.getFineId());
+        if (existingFine == null) {
+            fineInformationMapper.insert(fineInformation);
+        } else {
+            fineInformationMapper.updateById(fineInformation);
+        }
+        fineEvent.fire(new FineEvent(fineInformation, "update"));
+    }
+
+    @Transactional
+    @CacheInvalidate(cacheName = "fineCache")
+    public void deleteFine(int fineId) {
+        if (fineId <= 0) {
+            throw new IllegalArgumentException("Invalid fine ID");
+        }
+        int result = fineInformationMapper.deleteById(fineId);
+        if (result > 0) {
+            log.info(String.format("Fine with ID %s deleted successfully", fineId));
+        } else {
+            log.severe(String.format("Failed to delete fine with ID %s", fineId));
         }
     }
 
@@ -54,34 +96,6 @@ public class FineInformationService {
     @CacheResult(cacheName = "fineCache")
     public List<FineInformation> getAllFines() {
         return fineInformationMapper.selectList(null);
-    }
-
-    @Transactional
-    @CacheInvalidate(cacheName = "fineCache")
-    public void updateFine(FineInformation fineInformation) {
-        try {
-            sendKafkaMessage("fine_update", fineInformation);
-            fineInformationMapper.updateById(fineInformation);
-        } catch (Exception e) {
-            log.warning("Exception occurred while updating fine or sending Kafka message");
-            throw new RuntimeException("Failed to update fine", e);
-        }
-    }
-
-    @Transactional
-    @CacheInvalidate(cacheName = "fineCache")
-    public void deleteFine(int fineId) {
-        try {
-            int result = fineInformationMapper.deleteById(fineId);
-            if (result > 0) {
-                log.info(String.format("Fine with ID %s deleted successfully", fineId));
-            } else {
-                log.severe(String.format("Failed to delete fine with ID %s", fineId));
-            }
-        } catch (Exception e) {
-            log.warning("Exception occurred while deleting fine");
-            throw new RuntimeException("Failed to delete fine", e);
-        }
     }
 
     @CacheResult(cacheName = "fineCache")
@@ -114,27 +128,21 @@ public class FineInformationService {
         return fineInformationMapper.selectOne(queryWrapper);
     }
 
+    public void onFineEvent(@Observes(during = TransactionPhase.AFTER_SUCCESS) FineEvent event) {
+        String topic = event.getAction().equals("create") ? "fine_processed_create" : "fine_processed_update";
+        sendKafkaMessage(topic, event.getFineInformation());
+    }
+
     private void sendKafkaMessage(String topic, FineInformation fineInformation) {
-        // 创建包含目标主题的元数据
         OutgoingKafkaRecordMetadata<String> metadata = OutgoingKafkaRecordMetadata.<String>builder()
                 .withTopic(topic)
                 .build();
 
-        // 创建包含负载和元数据的消息
         Message<FineInformation> message = Message.of(fineInformation).addMetadata(metadata);
 
-        // 使用 MutinyEmitter 的 sendMessage 方法返回 Uni<Void>
-        Uni<Void> uni = fineEmitter.sendMessage(message);
+        fineEmitter.sendMessage(message)
+                .await().indefinitely();
 
-        // 将 Uni<Void> 转换为 CompletionStage<Void>
-        CompletionStage<Void> sendStage = uni.subscribe().asCompletionStage();
-
-        sendStage.whenComplete((ignored, throwable) -> {
-            if (throwable != null) {
-                log.severe(String.format("Failed to send message to Kafka topic %s: %s", topic, throwable.getMessage()));
-            } else {
-                log.info(String.format("Message sent to Kafka topic %s successfully", topic));
-            }
-        });
+        log.info(String.format("Message sent to Kafka topic %s successfully", topic));
     }
 }

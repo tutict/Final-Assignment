@@ -1,23 +1,25 @@
 package finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import finalassignmentbackend.mapper.AppealManagementMapper;
-import finalassignmentbackend.mapper.OffenseInformationMapper;
 import finalassignmentbackend.entity.AppealManagement;
 import finalassignmentbackend.entity.OffenseInformation;
+import finalassignmentbackend.mapper.AppealManagementMapper;
+import finalassignmentbackend.mapper.OffenseInformationMapper;
 import io.quarkus.cache.CacheInvalidate;
 import io.quarkus.cache.CacheResult;
-import io.smallrye.mutiny.Uni;
 import io.smallrye.reactive.messaging.MutinyEmitter;
 import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
-import jakarta.inject.Inject;
-import org.eclipse.microprofile.reactive.messaging.Channel;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Event;
+import jakarta.enterprise.event.Observes;
+import jakarta.enterprise.event.TransactionPhase;
+import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import lombok.Getter;
+import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Message;
 
 import java.util.List;
-import java.util.concurrent.CompletionStage;
 import java.util.logging.Logger;
 
 @ApplicationScoped
@@ -32,18 +34,58 @@ public class AppealManagementService {
     OffenseInformationMapper offenseInformationMapper;
 
     @Inject
+    Event<AppealEvent> appealEvent;
+
+    @Inject
     @Channel("appeal-events-out")
     MutinyEmitter<AppealManagement> appealEmitter;
+
+    @Getter
+    public static class AppealEvent {
+        private final AppealManagement appealManagement;
+        private final String action; // "create" or "update"
+
+        public AppealEvent(AppealManagement appealManagement, String action) {
+            this.appealManagement = appealManagement;
+            this.action = action;
+        }
+    }
 
     @Transactional
     @CacheInvalidate(cacheName = "appealCache")
     public void createAppeal(AppealManagement appeal) {
-        try {
+        AppealManagement existingAppeal = appealManagementMapper.selectById(appeal.getAppealId());
+        if (existingAppeal == null) {
             appealManagementMapper.insert(appeal);
-            sendKafkaMessage("appeal_create", appeal);
-        } catch (Exception e) {
-            log.warning("Exception occurred while creating appeal or sending Kafka message");
-            throw new RuntimeException("Failed to create appeal", e);
+        } else {
+            appealManagementMapper.updateById(appeal);
+        }
+        appealEvent.fire(new AppealEvent(appeal, "create"));
+    }
+
+    @Transactional
+    @CacheInvalidate(cacheName = "appealCache")
+    public void updateAppeal(AppealManagement appeal) {
+        AppealManagement existingAppeal = appealManagementMapper.selectById(appeal.getAppealId());
+        if (existingAppeal == null) {
+            appealManagementMapper.insert(appeal);
+        } else {
+            appealManagementMapper.updateById(appeal);
+        }
+        appealEvent.fire(new AppealEvent(appeal, "update"));
+    }
+
+    @Transactional
+    @CacheInvalidate(cacheName = "appealCache")
+    public void deleteAppeal(Integer appealId) {
+        if (appealId == null || appealId <= 0) {
+            throw new IllegalArgumentException("Invalid appeal ID");
+        }
+        int result = appealManagementMapper.deleteById(appealId);
+        if (result > 0) {
+            log.info(String.format("Appeal with ID %s deleted successfully", appealId));
+        } else {
+            log.severe(String.format("Failed to delete appeal with ID %s", appealId));
         }
     }
 
@@ -57,41 +99,11 @@ public class AppealManagementService {
         return appealManagementMapper.selectList(null);
     }
 
-    @Transactional
-    @CacheInvalidate(cacheName = "appealCache")
-    public void updateAppeal(AppealManagement appeal) {
-        try {
-            appealManagementMapper.updateById(appeal);
-            sendKafkaMessage("appeal_updated", appeal);
-        } catch (Exception e) {
-            log.warning("Exception occurred while updating appeal or sending Kafka message");
-            throw new RuntimeException("Failed to update appeal", e);
-        }
-    }
-
-    @Transactional
-    @CacheInvalidate(cacheName = "appealCache")
-    public void deleteAppeal(Integer appealId) {
-        try {
-            AppealManagement appeal = appealManagementMapper.selectById(appealId);
-            if (appeal == null) {
-                log.warning(String.format("Appeal with ID %s not found, cannot delete", appealId));
-                return;
-            }
-            int result = appealManagementMapper.deleteById(appealId);
-            if (result > 0) {
-                log.info(String.format("Appeal with ID %s deleted successfully", appealId));
-            } else {
-                log.severe(String.format("Failed to delete appeal with ID %s", appealId));
-            }
-        } catch (Exception e) {
-            log.warning("Exception occurred while deleting appeal");
-            throw new RuntimeException("Failed to delete appeal", e);
-        }
-    }
-
     @CacheResult(cacheName = "appealCache")
     public List<AppealManagement> getAppealsByProcessStatus(String processStatus) {
+        if (processStatus == null || processStatus.trim().isEmpty()) {
+            throw new IllegalArgumentException("Invalid process status");
+        }
         QueryWrapper<AppealManagement> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("process_status", processStatus);
         return appealManagementMapper.selectList(queryWrapper);
@@ -99,6 +111,9 @@ public class AppealManagementService {
 
     @CacheResult(cacheName = "appealCache")
     public List<AppealManagement> getAppealsByAppealName(String appealName) {
+        if (appealName == null || appealName.trim().isEmpty()) {
+            throw new IllegalArgumentException("Invalid appeal name");
+        }
         QueryWrapper<AppealManagement> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("appeal_name", appealName);
         return appealManagementMapper.selectList(queryWrapper);
@@ -115,6 +130,11 @@ public class AppealManagementService {
         }
     }
 
+    public void onAppealEvent(@Observes(during = TransactionPhase.AFTER_SUCCESS) AppealEvent event) {
+        String topic = event.getAction().equals("create") ? "appeal_processed_create" : "appeal_processed_update";
+        sendKafkaMessage(topic, event.getAppealManagement());
+    }
+
     private void sendKafkaMessage(String topic, AppealManagement appeal) {
         OutgoingKafkaRecordMetadata<String> metadata = OutgoingKafkaRecordMetadata.<String>builder()
                 .withTopic(topic)
@@ -122,18 +142,9 @@ public class AppealManagementService {
 
         Message<AppealManagement> message = Message.of(appeal).addMetadata(metadata);
 
-        // 使用 MutinyEmitter 的 sendMessage 方法返回 Uni<Void>
-        Uni<Void> uni = appealEmitter.sendMessage(message);
+        appealEmitter.sendMessage(message)
+                .await().indefinitely();
 
-        // 将 Uni<Void> 转换为 CompletionStage<Void>
-        CompletionStage<Void> sendStage = uni.subscribe().asCompletionStage();
-
-        sendStage.whenComplete((ignored, throwable) -> {
-            if (throwable != null) {
-                log.severe(String.format("Failed to send message to Kafka topic %s: %s", topic, throwable.getMessage()));
-            } else {
-                log.info(String.format("Message sent to Kafka topic %s successfully", topic));
-            }
-        });
+        log.info(String.format("Message sent to Kafka topic %s successfully", topic));
     }
 }

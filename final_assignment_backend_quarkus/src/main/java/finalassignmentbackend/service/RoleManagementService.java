@@ -5,17 +5,19 @@ import finalassignmentbackend.entity.RoleManagement;
 import finalassignmentbackend.mapper.RoleManagementMapper;
 import io.quarkus.cache.CacheInvalidate;
 import io.quarkus.cache.CacheResult;
-import io.smallrye.mutiny.Uni;
 import io.smallrye.reactive.messaging.MutinyEmitter;
 import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Event;
+import jakarta.enterprise.event.Observes;
+import jakarta.enterprise.event.TransactionPhase;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import lombok.Getter;
 import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Message;
 
 import java.util.List;
-import java.util.concurrent.CompletionStage;
 import java.util.logging.Logger;
 
 @ApplicationScoped
@@ -27,23 +29,85 @@ public class RoleManagementService {
     RoleManagementMapper roleManagementMapper;
 
     @Inject
+    Event<RoleEvent> roleEvent;
+
+    @Inject
     @Channel("role-events-out")
     MutinyEmitter<RoleManagement> roleEmitter;
+
+    @Getter
+    public static class RoleEvent {
+        private final RoleManagement role;
+        private final String action; // "create" or "update"
+
+        public RoleEvent(RoleManagement role, String action) {
+            this.role = role;
+            this.action = action;
+        }
+    }
 
     @Transactional
     @CacheInvalidate(cacheName = "roleCache")
     public void createRole(RoleManagement role) {
-        try {
-            sendKafkaMessage("role_create", role);
+        RoleManagement existingRole = roleManagementMapper.selectById(role.getRoleId());
+        if (existingRole == null) {
             roleManagementMapper.insert(role);
-        } catch (Exception e) {
-            log.warning("Exception occurred while creating role or sending Kafka message");
-            throw new RuntimeException("Failed to create role", e);
+        } else {
+            roleManagementMapper.updateById(role);
+        }
+        roleEvent.fire(new RoleEvent(role, "create"));
+    }
+
+    @Transactional
+    @CacheInvalidate(cacheName = "roleCache")
+    public void updateRole(RoleManagement role) {
+        RoleManagement existingRole = roleManagementMapper.selectById(role.getRoleId());
+        if (existingRole == null) {
+            roleManagementMapper.insert(role);
+        } else {
+            roleManagementMapper.updateById(role);
+        }
+        roleEvent.fire(new RoleEvent(role, "update"));
+    }
+
+    @Transactional
+    @CacheInvalidate(cacheName = "roleCache")
+    public void deleteRole(int roleId) {
+        if (roleId <= 0) {
+            throw new IllegalArgumentException("Invalid role ID");
+        }
+        int result = roleManagementMapper.deleteById(roleId);
+        if (result > 0) {
+            log.info(String.format("Role with ID %s deleted successfully", roleId));
+        } else {
+            log.severe(String.format("Failed to delete role with ID %s", roleId));
+        }
+    }
+
+    @Transactional
+    @CacheInvalidate(cacheName = "roleCache")
+    public void deleteRoleByName(String roleName) {
+        if (roleName == null || roleName.trim().isEmpty()) {
+            throw new IllegalArgumentException("Invalid role name");
+        }
+        QueryWrapper<RoleManagement> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("role_name", roleName);
+        RoleManagement roleToDelete = roleManagementMapper.selectOne(queryWrapper);
+        if (roleToDelete != null) {
+            int result = roleManagementMapper.delete(queryWrapper);
+            if (result > 0) {
+                log.info(String.format("Role with name '%s' deleted successfully", roleName));
+            } else {
+                log.severe(String.format("Failed to delete role with name '%s'", roleName));
+            }
         }
     }
 
     @CacheResult(cacheName = "roleCache")
     public RoleManagement getRoleById(int roleId) {
+        if (roleId <= 0) {
+            throw new IllegalArgumentException("Invalid role ID");
+        }
         return roleManagementMapper.selectById(roleId);
     }
 
@@ -72,77 +136,21 @@ public class RoleManagementService {
         return roleManagementMapper.selectList(queryWrapper);
     }
 
-    @Transactional
-    @CacheInvalidate(cacheName = "roleCache")
-    public void updateRole(RoleManagement role) {
-        try {
-            sendKafkaMessage("role_update", role);
-            roleManagementMapper.updateById(role);
-        } catch (Exception e) {
-            log.warning("Exception occurred while updating role or sending Kafka message");
-            throw new RuntimeException("Failed to update role", e);
-        }
-    }
-
-    @Transactional
-    @CacheInvalidate(cacheName = "roleCache")
-    public void deleteRole(int roleId) {
-        try {
-            RoleManagement roleToDelete = roleManagementMapper.selectById(roleId);
-            if (roleToDelete != null) {
-                int result = roleManagementMapper.deleteById(roleId);
-                if (result > 0) {
-                    log.info(String.format("Role with ID %s deleted successfully", roleId));
-                } else {
-                    log.severe(String.format("Failed to delete role with ID %s", roleId));
-                }
-            }
-        } catch (Exception e) {
-            log.warning("Exception occurred while deleting role");
-            throw new RuntimeException("Failed to delete role", e);
-        }
-    }
-
-    @Transactional
-    @CacheInvalidate(cacheName = "roleCache")
-    public void deleteRoleByName(String roleName) {
-        if (roleName == null || roleName.trim().isEmpty()) {
-            throw new IllegalArgumentException("Invalid role name");
-        }
-        QueryWrapper<RoleManagement> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("role_name", roleName);
-        RoleManagement roleToDelete = roleManagementMapper.selectOne(queryWrapper);
-        if (roleToDelete != null) {
-            int result = roleManagementMapper.delete(queryWrapper);
-            if (result > 0) {
-                log.info(String.format("Role with name '%s' deleted successfully", roleName));
-            } else {
-                log.severe(String.format("Failed to delete role with name '%s'", roleName));
-            }
-        }
+    public void onRoleEvent(@Observes(during = TransactionPhase.AFTER_SUCCESS) RoleEvent event) {
+        String topic = event.getAction().equals("create") ? "role_processed_create" : "role_processed_update";
+        sendKafkaMessage(topic, event.getRole());
     }
 
     private void sendKafkaMessage(String topic, RoleManagement role) {
-        // 创建包含目标主题的元数据
         OutgoingKafkaRecordMetadata<String> metadata = OutgoingKafkaRecordMetadata.<String>builder()
                 .withTopic(topic)
                 .build();
 
-        // 创建包含负载和元数据的消息
         Message<RoleManagement> message = Message.of(role).addMetadata(metadata);
 
-        // 使用 MutinyEmitter 的 sendMessage 方法返回 Uni<Void>
-        Uni<Void> uni = roleEmitter.sendMessage(message);
+        roleEmitter.sendMessage(message)
+                .await().indefinitely();
 
-        // 将 Uni<Void> 转换为 CompletionStage<Void>
-        CompletionStage<Void> sendStage = uni.subscribe().asCompletionStage();
-
-        sendStage.whenComplete((ignored, throwable) -> {
-            if (throwable != null) {
-                log.severe(String.format("Failed to send message to Kafka topic %s: %s", topic, throwable.getMessage()));
-            } else {
-                log.info(String.format("Message sent to Kafka topic %s successfully", topic));
-            }
-        });
+        log.info(String.format("Message sent to Kafka topic %s successfully", topic));
     }
 }

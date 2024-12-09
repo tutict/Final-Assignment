@@ -3,9 +3,10 @@ package finalassignmentbackend.kafkaListener;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import finalassignmentbackend.entity.AppealManagement;
 import finalassignmentbackend.service.AppealManagementService;
-import io.smallrye.reactive.messaging.annotations.Blocking;
-import io.vertx.core.Future;
+import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import jakarta.transaction.Transactional;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
 
 import java.util.logging.Level;
@@ -14,56 +15,50 @@ import java.util.logging.Logger;
 @ApplicationScoped
 public class AppealManagementKafkaListener {
 
-    private static final Logger log = Logger.getLogger(String.valueOf(AppealManagementKafkaListener.class));
-    private final AppealManagementService appealManagementService;
-    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
+    private static final Logger log = Logger.getLogger(AppealManagementKafkaListener.class.getName());
 
-    public AppealManagementKafkaListener(AppealManagementService appealManagementService) {
-        this.appealManagementService = appealManagementService;
-    }
+    @Inject
+    AppealManagementService appealManagementService;
+
+    @Inject
+    ObjectMapper objectMapper;
 
     @Incoming("appeal_create")
-    @Blocking
+    @Transactional
+    @RunOnVirtualThread
     public void onAppealCreateReceived(String message) {
-        Future.<Void>future(promise -> {
-            try {
-                AppealManagement appealManagement = deserializeMessage(message);
-                appealManagementService.createAppeal(appealManagement);
-                promise.complete();
-            } catch (Exception e) {
-                log.log(Level.SEVERE, String.format("Error processing create appeal message: %s", message), e);
-                promise.fail(e);
-            }
-        }).onComplete(res -> {
-            if (res.failed()) {
-                log.log(Level.SEVERE, String.format("Error processing create appeal message: %s", message), res.cause());
-            }
-        });
+        processMessage(message, "create", appealManagementService::createAppeal);
     }
 
     @Incoming("appeal_updated")
-    @Blocking
+    @Transactional
+    @RunOnVirtualThread
     public void onAppealUpdateReceived(String message) {
-        Future.<Void>future(promise -> {
-            try {
-                AppealManagement appealManagement = deserializeMessage(message);
-                appealManagementService.updateAppeal(appealManagement);
-                promise.complete();
-            } catch (Exception e) {
-                log.log(Level.SEVERE, String.format("Error processing update appeal message: %s", message), e);
-            }
-        }).onComplete(res -> {
-            if (res.failed()) {
-                log.log(Level.SEVERE, String.format("Error processing update appeal message: %s", message), res.cause());
-            }
-        });
+        processMessage(message, "update", appealManagementService::updateAppeal);
+    }
+
+    private void processMessage(String message, String action, MessageProcessor<AppealManagement> processor) {
+        try {
+            AppealManagement appealManagement = deserializeMessage(message);
+            processor.process(appealManagement);
+            log.info(String.format("Appeal %s action processed successfully: %s", action, message));
+        } catch (Exception e) {
+            log.log(Level.SEVERE, String.format("Error processing %s appeal message: %s", action, message), e);
+            throw new RuntimeException(String.format("Failed to process %s appeal message", action), e);
+        }
     }
 
     private AppealManagement deserializeMessage(String message) {
         try {
             return objectMapper.readValue(message, AppealManagement.class);
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            log.log(Level.SEVERE, "Failed to deserialize message: " + message, e);
+            throw new RuntimeException("Failed to deserialize message", e);
         }
+    }
+
+    @FunctionalInterface
+    private interface MessageProcessor<T> {
+        void process(T t) throws Exception;
     }
 }

@@ -5,18 +5,20 @@ import finalassignmentbackend.entity.SystemLogs;
 import finalassignmentbackend.mapper.SystemLogsMapper;
 import io.quarkus.cache.CacheInvalidate;
 import io.quarkus.cache.CacheResult;
-import io.smallrye.mutiny.Uni;
 import io.smallrye.reactive.messaging.MutinyEmitter;
 import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Event;
+import jakarta.enterprise.event.Observes;
+import jakarta.enterprise.event.TransactionPhase;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import lombok.Getter;
 import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Message;
 
 import java.util.Date;
 import java.util.List;
-import java.util.concurrent.CompletionStage;
 import java.util.logging.Logger;
 
 @ApplicationScoped
@@ -28,18 +30,54 @@ public class SystemLogsService {
     SystemLogsMapper systemLogsMapper;
 
     @Inject
+    Event<SystemLogEvent> systemLogEvent;
+
+    @Inject
     @Channel("system-logs-out")
     MutinyEmitter<SystemLogs> systemLogsEmitter;
+
+    @Getter
+    public static class SystemLogEvent {
+        private final SystemLogs systemLog;
+        private final String action; // "create" or "update"
+
+        public SystemLogEvent(SystemLogs systemLog, String action) {
+            this.systemLog = systemLog;
+            this.action = action;
+        }
+    }
 
     @Transactional
     @CacheInvalidate(cacheName = "systemLogCache")
     public void createSystemLog(SystemLogs systemLog) {
-        try {
-            sendKafkaMessage("system_create", systemLog);
-            systemLogsMapper.insert(systemLog);
-        } catch (Exception e) {
-            log.warning("Exception occurred while creating system log or sending Kafka message");
-            throw new RuntimeException("Failed to create system log", e);
+        systemLogsMapper.insert(systemLog);
+        systemLogEvent.fire(new SystemLogEvent(systemLog, "create"));
+    }
+
+    @Transactional
+    @CacheInvalidate(cacheName = "systemLogCache")
+    public void updateSystemLog(SystemLogs systemLog) {
+        SystemLogs existingLog = systemLogsMapper.selectById(systemLog.getLogId());
+        if (existingLog != null) {
+            systemLogsMapper.updateById(systemLog);
+            systemLogEvent.fire(new SystemLogEvent(systemLog, "update"));
+        } else {
+            log.warning(String.format("System log with ID %d not found. Cannot update.", systemLog.getLogId()));
+        }
+    }
+
+    @Transactional
+    @CacheInvalidate(cacheName = "systemLogCache")
+    public void deleteSystemLog(int logId) {
+        if (logId <= 0) {
+            throw new IllegalArgumentException("Invalid log ID");
+        }
+        SystemLogs systemLogToDelete = systemLogsMapper.selectById(logId);
+        if (systemLogToDelete != null) {
+            systemLogsMapper.deleteById(logId);
+            log.info(String.format("System log with ID %d deleted successfully", logId));
+        } else {
+            log.warning(String.format("System log with ID %d not found. Cannot delete.", logId));
         }
     }
 
@@ -83,53 +121,21 @@ public class SystemLogsService {
         return systemLogsMapper.selectList(queryWrapper);
     }
 
-    @Transactional
-    @CacheInvalidate(cacheName = "systemLogCache")
-    public void updateSystemLog(SystemLogs systemLog) {
-        try {
-            sendKafkaMessage("system_update", systemLog);
-            systemLogsMapper.updateById(systemLog);
-        } catch (Exception e) {
-            log.warning("Exception occurred while updating system log or sending Kafka message");
-            throw new RuntimeException("Failed to update system log", e);
-        }
-    }
-
-    @Transactional
-    @CacheInvalidate(cacheName = "systemLogCache")
-    public void deleteSystemLog(int logId) {
-        try {
-            SystemLogs systemLogToDelete = systemLogsMapper.selectById(logId);
-            if (systemLogToDelete != null) {
-                systemLogsMapper.deleteById(logId);
-            }
-        } catch (Exception e) {
-            log.warning("Exception occurred while deleting system log");
-            throw new RuntimeException("Failed to delete system log", e);
-        }
+    public void onSystemLogEvent(@Observes(during = TransactionPhase.AFTER_SUCCESS) SystemLogEvent event) {
+        String topic = event.getAction().equals("create") ? "system_log_processed_create" : "system_log_processed_update";
+        sendKafkaMessage(topic, event.getSystemLog());
     }
 
     private void sendKafkaMessage(String topic, SystemLogs systemLog) {
-        // 创建包含目标主题的元数据
         OutgoingKafkaRecordMetadata<String> metadata = OutgoingKafkaRecordMetadata.<String>builder()
                 .withTopic(topic)
                 .build();
 
-        // 创建包含负载和元数据的消息
         Message<SystemLogs> message = Message.of(systemLog).addMetadata(metadata);
 
-        // 使用 MutinyEmitter 的 sendMessage 方法返回 Uni<Void>
-        Uni<Void> uni = systemLogsEmitter.sendMessage(message);
+        systemLogsEmitter.sendMessage(message)
+                .await().indefinitely();
 
-        // 将 Uni<Void> 转换为 CompletionStage<Void>
-        CompletionStage<Void> sendStage = uni.subscribe().asCompletionStage();
-
-        sendStage.whenComplete((ignored, throwable) -> {
-            if (throwable != null) {
-                log.severe(String.format("Failed to send message to Kafka topic %s: %s", topic, throwable.getMessage()));
-            } else {
-                log.info(String.format("Message sent to Kafka topic %s successfully", topic));
-            }
-        });
+        log.info(String.format("Message sent to Kafka topic %s successfully", topic));
     }
 }

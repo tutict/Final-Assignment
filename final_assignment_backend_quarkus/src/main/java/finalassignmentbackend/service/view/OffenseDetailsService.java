@@ -2,17 +2,19 @@ package finalassignmentbackend.service.view;
 
 import finalassignmentbackend.mapper.view.OffenseDetailsMapper;
 import finalassignmentbackend.entity.view.OffenseDetails;
-import io.smallrye.mutiny.Uni;
-import io.smallrye.reactive.messaging.MutinyEmitter;
-import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Event;
+import jakarta.enterprise.event.Observes;
+import jakarta.enterprise.event.TransactionPhase;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import lombok.Getter;
 import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Message;
+import io.smallrye.reactive.messaging.MutinyEmitter;
+import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
 
 import java.util.List;
-import java.util.concurrent.CompletionStage;
 import java.util.logging.Logger;
 
 @ApplicationScoped
@@ -24,46 +26,31 @@ public class OffenseDetailsService {
     OffenseDetailsMapper offenseDetailsMapper;
 
     @Inject
+    Event<OffenseDetailsEvent> offenseDetailsEvent;
+
+    @Inject
     @Channel("offense-details-out")
     MutinyEmitter<OffenseDetails> offenseDetailsEmitter;
 
+    @Getter
+    public static class OffenseDetailsEvent {
+        private final OffenseDetails offenseDetails;
+        private final String action; // "create"
+
+        public OffenseDetailsEvent(OffenseDetails offenseDetails, String action) {
+            this.offenseDetails = offenseDetails;
+            this.action = action;
+        }
+    }
+
     // 获取所有违规详情记录
-    @Transactional
     public List<OffenseDetails> getAllOffenseDetails() {
         return offenseDetailsMapper.selectList(null);
     }
 
     // 根据 ID 获取违规详情
-    @Transactional
     public OffenseDetails getOffenseDetailsById(Integer id) {
         return offenseDetailsMapper.selectById(id);
-    }
-
-    // 创建方法，用于发送 OffenseDetails 对象到 Kafka 主题
-    public void sendOffenseDetailsToKafka(OffenseDetails offenseDetails) {
-        try {
-            var metadata = OutgoingKafkaRecordMetadata.<String>builder()
-                    .withTopic("offense_details_topic")
-                    .build();
-
-            Message<OffenseDetails> message = Message.of(offenseDetails).addMetadata(metadata);
-
-            // 使用 MutinyEmitter 发送消息
-            Uni<Void> uni = offenseDetailsEmitter.sendMessage(message);
-
-            // 将 Uni<Void> 转换为 CompletionStage<Void> 并处理结果
-            CompletionStage<Void> sendStage = uni.subscribe().asCompletionStage();
-            sendStage.whenComplete((ignored, throwable) -> {
-                if (throwable != null) {
-                    log.severe(String.format("Failed to send message to Kafka topic %s: %s", "offense_details_topic", throwable.getMessage()));
-                } else {
-                    log.info("Message sent to Kafka topic offense_details_topic successfully");
-                }
-            });
-        } catch (Exception e) {
-            log.warning("Exception occurred while sending message to Kafka");
-            throw new RuntimeException("Failed to send message to Kafka", e);
-        }
     }
 
     // 保存违规详情到数据库
@@ -72,11 +59,32 @@ public class OffenseDetailsService {
         try {
             offenseDetailsMapper.insert(offenseDetails);
             log.info("Offense details saved to database successfully");
-            // 同步发送 Kafka 消息
-            sendOffenseDetailsToKafka(offenseDetails);
+            // 发布事件
+            offenseDetailsEvent.fire(new OffenseDetailsEvent(offenseDetails, "create"));
         } catch (Exception e) {
-            log.warning("Exception occurred while saving offense details or sending Kafka message");
+            log.warning("Exception occurred while saving offense details or firing event");
             throw new RuntimeException("Failed to save offense details", e);
         }
+    }
+
+    // 监听事件并发送 Kafka 消息
+    public void onOffenseDetailsEvent(@Observes(during = TransactionPhase.AFTER_SUCCESS) OffenseDetailsEvent event) {
+        if ("create".equals(event.getAction())) {
+            sendKafkaMessage(event.getOffenseDetails());
+        }
+    }
+
+    // 发送 Kafka 消息
+    private void sendKafkaMessage(OffenseDetails offenseDetails) {
+        var metadata = OutgoingKafkaRecordMetadata.<String>builder()
+                .withTopic("offense_details_topic")
+                .build();
+
+        Message<OffenseDetails> message = Message.of(offenseDetails).addMetadata(metadata);
+
+        offenseDetailsEmitter.sendMessage(message)
+                .await().indefinitely();
+
+        log.info(String.format("Message sent to Kafka topic %s successfully", "offense_details_topic"));
     }
 }

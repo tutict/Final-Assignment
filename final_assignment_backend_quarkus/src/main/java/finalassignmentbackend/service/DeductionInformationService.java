@@ -5,18 +5,20 @@ import finalassignmentbackend.entity.DeductionInformation;
 import finalassignmentbackend.mapper.DeductionInformationMapper;
 import io.quarkus.cache.CacheInvalidate;
 import io.quarkus.cache.CacheResult;
-import io.smallrye.mutiny.Uni;
 import io.smallrye.reactive.messaging.MutinyEmitter;
 import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Event;
+import jakarta.enterprise.event.Observes;
+import jakarta.enterprise.event.TransactionPhase;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import lombok.Getter;
 import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Message;
 
 import java.util.Date;
 import java.util.List;
-import java.util.concurrent.CompletionStage;
 import java.util.logging.Logger;
 
 @ApplicationScoped
@@ -28,18 +30,58 @@ public class DeductionInformationService {
     DeductionInformationMapper deductionInformationMapper;
 
     @Inject
+    Event<DeductionEvent> deductionEvent;
+
+    @Inject
     @Channel("deduction-events-out")
     MutinyEmitter<DeductionInformation> deductionEmitter;
+
+    @Getter
+    public static class DeductionEvent {
+        private final DeductionInformation deductionInformation;
+        private final String action; // "create" or "update"
+
+        public DeductionEvent(DeductionInformation deductionInformation, String action) {
+            this.deductionInformation = deductionInformation;
+            this.action = action;
+        }
+    }
 
     @Transactional
     @CacheInvalidate(cacheName = "deductionCache")
     public void createDeduction(DeductionInformation deduction) {
-        try {
-            sendKafkaMessage("deduction_create", deduction);
+        DeductionInformation existingDeduction = deductionInformationMapper.selectById(deduction.getDeductionId());
+        if (existingDeduction == null) {
             deductionInformationMapper.insert(deduction);
-        } catch (Exception e) {
-            log.warning("Exception occurred while creating deduction or sending Kafka message");
-            throw new RuntimeException("Failed to create deduction", e);
+        } else {
+            deductionInformationMapper.updateById(deduction);
+        }
+        deductionEvent.fire(new DeductionEvent(deduction, "create"));
+    }
+
+    @Transactional
+    @CacheInvalidate(cacheName = "deductionCache")
+    public void updateDeduction(DeductionInformation deduction) {
+        DeductionInformation existingDeduction = deductionInformationMapper.selectById(deduction.getDeductionId());
+        if (existingDeduction == null) {
+            deductionInformationMapper.insert(deduction);
+        } else {
+            deductionInformationMapper.updateById(deduction);
+        }
+        deductionEvent.fire(new DeductionEvent(deduction, "update"));
+    }
+
+    @Transactional
+    @CacheInvalidate(cacheName = "deductionCache")
+    public void deleteDeduction(int deductionId) {
+        if (deductionId <= 0) {
+            throw new IllegalArgumentException("Invalid deduction ID");
+        }
+        int result = deductionInformationMapper.deleteById(deductionId);
+        if (result > 0) {
+            log.info(String.format("Deduction with ID %s deleted successfully", deductionId));
+        } else {
+            log.severe(String.format("Failed to delete deduction with ID %s", deductionId));
         }
     }
 
@@ -56,34 +98,6 @@ public class DeductionInformationService {
         return deductionInformationMapper.selectList(null);
     }
 
-    @Transactional
-    @CacheInvalidate(cacheName = "deductionCache")
-    public void updateDeduction(DeductionInformation deduction) {
-        try {
-            sendKafkaMessage("deduction_update", deduction);
-            deductionInformationMapper.updateById(deduction);
-        } catch (Exception e) {
-            log.warning("Exception occurred while updating deduction or sending Kafka message");
-            throw new RuntimeException("Failed to update deduction", e);
-        }
-    }
-
-    @Transactional
-    @CacheInvalidate(cacheName = "deductionCache")
-    public void deleteDeduction(int deductionId) {
-        try {
-            int result = deductionInformationMapper.deleteById(deductionId);
-            if (result > 0) {
-                log.info(String.format("Deduction with ID %s deleted successfully", deductionId));
-            } else {
-                log.severe(String.format("Failed to delete deduction with ID %s", deductionId));
-            }
-        } catch (Exception e) {
-            log.warning("Exception occurred while deleting deduction");
-            throw new RuntimeException("Failed to delete deduction", e);
-        }
-    }
-
     @CacheResult(cacheName = "deductionCache")
     public List<DeductionInformation> getDeductionsByHandler(String handler) {
         if (handler == null || handler.trim().isEmpty()) {
@@ -95,36 +109,30 @@ public class DeductionInformationService {
     }
 
     @CacheResult(cacheName = "deductionCache")
-    public List<DeductionInformation> getDeductionsByByTimeRange(Date startTime, Date endTime) {
+    public List<DeductionInformation> getDeductionsByTimeRange(Date startTime, Date endTime) {
         if (startTime == null || endTime == null || startTime.after(endTime)) {
             throw new IllegalArgumentException("Invalid time range");
         }
         QueryWrapper<DeductionInformation> queryWrapper = new QueryWrapper<>();
-        queryWrapper.between("deductionTime", startTime, endTime);
+        queryWrapper.between("deduction_time", startTime, endTime);
         return deductionInformationMapper.selectList(queryWrapper);
     }
 
+    public void onDeductionEvent(@Observes(during = TransactionPhase.AFTER_SUCCESS) DeductionEvent event) {
+        String topic = event.getAction().equals("create") ? "deduction_processed_create" : "deduction_processed_update";
+        sendKafkaMessage(topic, event.getDeductionInformation());
+    }
+
     private void sendKafkaMessage(String topic, DeductionInformation deduction) {
-        // 创建包含目标主题的元数据
         OutgoingKafkaRecordMetadata<String> metadata = OutgoingKafkaRecordMetadata.<String>builder()
                 .withTopic(topic)
                 .build();
 
-        // 创建包含负载和元数据的消息
         Message<DeductionInformation> message = Message.of(deduction).addMetadata(metadata);
 
-        // 使用 MutinyEmitter 的 sendMessage 方法返回 Uni<Void>
-        Uni<Void> uni = deductionEmitter.sendMessage(message);
+        deductionEmitter.sendMessage(message)
+                .await().indefinitely();
 
-        // 将 Uni<Void> 转换为 CompletionStage<Void>
-        CompletionStage<Void> sendStage = uni.subscribe().asCompletionStage();
-
-        sendStage.whenComplete((ignored, throwable) -> {
-            if (throwable != null) {
-                log.severe(String.format("Failed to send message to Kafka topic %s: %s", topic, throwable.getMessage()));
-            } else {
-                log.info(String.format("Message sent to Kafka topic %s successfully", topic));
-            }
-        });
+        log.info(String.format("Message sent to Kafka topic %s successfully", topic));
     }
 }

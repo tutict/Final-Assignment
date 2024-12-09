@@ -5,17 +5,19 @@ import finalassignmentbackend.entity.UserManagement;
 import finalassignmentbackend.mapper.UserManagementMapper;
 import io.quarkus.cache.CacheInvalidate;
 import io.quarkus.cache.CacheResult;
-import io.smallrye.mutiny.Uni;
 import io.smallrye.reactive.messaging.MutinyEmitter;
 import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Event;
+import jakarta.enterprise.event.Observes;
+import jakarta.enterprise.event.TransactionPhase;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import lombok.Getter;
 import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Message;
 
 import java.util.List;
-import java.util.concurrent.CompletionStage;
 import java.util.logging.Logger;
 
 @ApplicationScoped
@@ -27,17 +29,31 @@ public class UserManagementService {
     UserManagementMapper userManagementMapper;
 
     @Inject
+    Event<UserEvent> userEvent;
+
+    @Inject
     @Channel("user-events-out")
     MutinyEmitter<UserManagement> userEmitter;
+
+    @Getter
+    public static class UserEvent {
+        private final UserManagement user;
+        private final String action; // "create" or "update"
+
+        public UserEvent(UserManagement user, String action) {
+            this.user = user;
+            this.action = action;
+        }
+    }
 
     @Transactional
     @CacheInvalidate(cacheName = "userCache")
     public void createUser(UserManagement user) {
         try {
-            sendKafkaMessage("user_create", user);
             userManagementMapper.insert(user);
+            userEvent.fire(new UserEvent(user, "create"));
         } catch (Exception e) {
-            log.warning("Exception occurred while creating user or sending Kafka message");
+            log.warning("Exception occurred while creating user or firing event");
             throw new RuntimeException("Failed to create user", e);
         }
     }
@@ -80,13 +96,13 @@ public class UserManagementService {
     @CacheInvalidate(cacheName = "userCache")
     public UserManagement updateUser(UserManagement user) {
         try {
-            sendKafkaMessage("user_update", user);
             userManagementMapper.updateById(user);
+            userEvent.fire(new UserEvent(user, "update"));
+            return user;
         } catch (Exception e) {
-            log.warning("Exception occurred while updating user or sending Kafka message");
+            log.warning("Exception occurred while updating user or firing event");
             throw new RuntimeException("Failed to update user", e);
         }
-        return user;
     }
 
     @Transactional
@@ -128,6 +144,11 @@ public class UserManagementService {
         return userManagementMapper.selectCount(queryWrapper) > 0;
     }
 
+    public void onUserEvent(@Observes(during = TransactionPhase.AFTER_SUCCESS) UserEvent event) {
+        String topic = event.getAction().equals("create") ? "user_create" : "user_update";
+        sendKafkaMessage(topic, event.getUser());
+    }
+
     private void sendKafkaMessage(String topic, UserManagement user) {
         var metadata = OutgoingKafkaRecordMetadata.<String>builder()
                 .withTopic(topic)
@@ -135,16 +156,10 @@ public class UserManagementService {
 
         Message<UserManagement> message = Message.of(user).addMetadata(metadata);
 
-        Uni<Void> uni = userEmitter.sendMessage(message);
+        userEmitter.sendMessage(message)
+                .await().indefinitely();
 
-        CompletionStage<Void> sendStage = uni.subscribe().asCompletionStage();
-        sendStage.whenComplete((ignored, throwable) -> {
-            if (throwable != null) {
-                log.severe(String.format("Failed to send message to Kafka topic %s: %s", topic, throwable.getMessage()));
-            } else {
-                log.info(String.format("Message sent to Kafka topic %s successfully", topic));
-            }
-        });
+        log.info(String.format("Message sent to Kafka topic %s successfully", topic));
     }
 
     private void validateInput(String input, String errorMessage) {

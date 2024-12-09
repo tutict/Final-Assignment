@@ -5,17 +5,19 @@ import finalassignmentbackend.entity.DriverInformation;
 import finalassignmentbackend.mapper.DriverInformationMapper;
 import io.quarkus.cache.CacheInvalidate;
 import io.quarkus.cache.CacheResult;
-import io.smallrye.mutiny.Uni;
 import io.smallrye.reactive.messaging.MutinyEmitter;
 import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Event;
+import jakarta.enterprise.event.Observes;
+import jakarta.enterprise.event.TransactionPhase;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import lombok.Getter;
 import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Message;
 
 import java.util.List;
-import java.util.concurrent.CompletionStage;
 import java.util.logging.Logger;
 
 @ApplicationScoped
@@ -27,23 +29,66 @@ public class DriverInformationService {
     DriverInformationMapper driverInformationMapper;
 
     @Inject
+    Event<DriverEvent> driverEvent;
+
+    @Inject
     @Channel("driver-events-out")
     MutinyEmitter<DriverInformation> driverEmitter;
+
+    @Getter
+    public static class DriverEvent {
+        private final DriverInformation driverInformation;
+        private final String action; // "create" or "update"
+
+        public DriverEvent(DriverInformation driverInformation, String action) {
+            this.driverInformation = driverInformation;
+            this.action = action;
+        }
+    }
 
     @Transactional
     @CacheInvalidate(cacheName = "driverCache")
     public void createDriver(DriverInformation driverInformation) {
-        try {
-            sendKafkaMessage("driver_create", driverInformation);
+        DriverInformation existingDriver = driverInformationMapper.selectById(driverInformation.getDriverId());
+        if (existingDriver == null) {
             driverInformationMapper.insert(driverInformation);
-        } catch (Exception e) {
-            log.warning("Exception occurred while creating driver or sending Kafka message");
-            throw new RuntimeException("Failed to create driver", e);
+        } else {
+            driverInformationMapper.updateById(driverInformation);
+        }
+        driverEvent.fire(new DriverEvent(driverInformation, "create"));
+    }
+
+    @Transactional
+    @CacheInvalidate(cacheName = "driverCache")
+    public void updateDriver(DriverInformation driverInformation) {
+        DriverInformation existingDriver = driverInformationMapper.selectById(driverInformation.getDriverId());
+        if (existingDriver == null) {
+            driverInformationMapper.insert(driverInformation);
+        } else {
+            driverInformationMapper.updateById(driverInformation);
+        }
+        driverEvent.fire(new DriverEvent(driverInformation, "update"));
+    }
+
+    @Transactional
+    @CacheInvalidate(cacheName = "driverCache")
+    public void deleteDriver(int driverId) {
+        if (driverId <= 0) {
+            throw new IllegalArgumentException("Invalid driver ID");
+        }
+        int result = driverInformationMapper.deleteById(driverId);
+        if (result > 0) {
+            log.info(String.format("Driver with ID %s deleted successfully", driverId));
+        } else {
+            log.severe(String.format("Failed to delete driver with ID %s", driverId));
         }
     }
 
     @CacheResult(cacheName = "driverCache")
     public DriverInformation getDriverById(int driverId) {
+        if (driverId <= 0) {
+            throw new IllegalArgumentException("Invalid driver ID");
+        }
         return driverInformationMapper.selectById(driverId);
     }
 
@@ -52,36 +97,11 @@ public class DriverInformationService {
         return driverInformationMapper.selectList(null);
     }
 
-    @Transactional
-    @CacheInvalidate(cacheName = "driverCache")
-    public void updateDriver(DriverInformation driverInformation) {
-        try {
-            sendKafkaMessage("driver_update", driverInformation);
-            driverInformationMapper.updateById(driverInformation);
-        } catch (Exception e) {
-            log.warning("Exception occurred while updating driver or sending Kafka message");
-            throw new RuntimeException("Failed to update driver", e);
-        }
-    }
-
-    @Transactional
-    @CacheInvalidate(cacheName = "driverCache")
-    public void deleteDriver(int driverId) {
-        try {
-            int result = driverInformationMapper.deleteById(driverId);
-            if (result > 0) {
-                log.info(String.format("Driver with ID %s deleted successfully", driverId));
-            } else {
-                log.severe(String.format("Failed to delete driver with ID %s", driverId));
-            }
-        } catch (Exception e) {
-            log.warning("Exception occurred while deleting driver");
-            throw new RuntimeException("Failed to delete driver", e);
-        }
-    }
-
     @CacheResult(cacheName = "driverCache")
     public List<DriverInformation> getDriversByIdCardNumber(String idCardNumber) {
+        if (idCardNumber == null || idCardNumber.trim().isEmpty()) {
+            throw new IllegalArgumentException("Invalid ID card number");
+        }
         QueryWrapper<DriverInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("id_card_number", idCardNumber);
         return driverInformationMapper.selectList(queryWrapper);
@@ -89,6 +109,9 @@ public class DriverInformationService {
 
     @CacheResult(cacheName = "driverCache")
     public DriverInformation getDriverByDriverLicenseNumber(String driverLicenseNumber) {
+        if (driverLicenseNumber == null || driverLicenseNumber.trim().isEmpty()) {
+            throw new IllegalArgumentException("Invalid driver license number");
+        }
         QueryWrapper<DriverInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("driver_license_number", driverLicenseNumber);
         return driverInformationMapper.selectOne(queryWrapper);
@@ -96,32 +119,29 @@ public class DriverInformationService {
 
     @CacheResult(cacheName = "driverCache")
     public List<DriverInformation> getDriversByName(String name) {
+        if (name == null || name.trim().isEmpty()) {
+            throw new IllegalArgumentException("Invalid name");
+        }
         QueryWrapper<DriverInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.like("name", name);
         return driverInformationMapper.selectList(queryWrapper);
     }
 
+    public void onDriverEvent(@Observes(during = TransactionPhase.AFTER_SUCCESS) DriverEvent event) {
+        String topic = event.getAction().equals("create") ? "driver_processed_create" : "driver_processed_update";
+        sendKafkaMessage(topic, event.getDriverInformation());
+    }
+
     private void sendKafkaMessage(String topic, DriverInformation driverInformation) {
-        // 创建包含目标主题的元数据
         OutgoingKafkaRecordMetadata<String> metadata = OutgoingKafkaRecordMetadata.<String>builder()
                 .withTopic(topic)
                 .build();
 
-        // 创建包含负载和元数据的消息
         Message<DriverInformation> message = Message.of(driverInformation).addMetadata(metadata);
 
-        // 使用 MutinyEmitter 的 sendMessage 方法返回 Uni<Void>
-        Uni<Void> uni = driverEmitter.sendMessage(message);
+        driverEmitter.sendMessage(message)
+                .await().indefinitely();
 
-        // 将 Uni<Void> 转换为 CompletionStage<Void>
-        CompletionStage<Void> sendStage = uni.subscribe().asCompletionStage();
-
-        sendStage.whenComplete((ignored, throwable) -> {
-            if (throwable != null) {
-                log.severe(String.format("Failed to send message to Kafka topic %s: %s", topic, throwable.getMessage()));
-            } else {
-                log.info(String.format("Message sent to Kafka topic %s successfully", topic));
-            }
-        });
+        log.info(String.format("Message sent to Kafka topic %s successfully", topic));
     }
 }

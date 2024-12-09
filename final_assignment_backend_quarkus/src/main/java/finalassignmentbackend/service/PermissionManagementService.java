@@ -5,17 +5,19 @@ import finalassignmentbackend.entity.PermissionManagement;
 import finalassignmentbackend.mapper.PermissionManagementMapper;
 import io.quarkus.cache.CacheInvalidate;
 import io.quarkus.cache.CacheResult;
-import io.smallrye.mutiny.Uni;
 import io.smallrye.reactive.messaging.MutinyEmitter;
 import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Event;
+import jakarta.enterprise.event.Observes;
+import jakarta.enterprise.event.TransactionPhase;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import lombok.Getter;
 import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Message;
 
 import java.util.List;
-import java.util.concurrent.CompletionStage;
 import java.util.logging.Logger;
 
 @ApplicationScoped
@@ -27,23 +29,85 @@ public class PermissionManagementService {
     PermissionManagementMapper permissionManagementMapper;
 
     @Inject
+    Event<PermissionEvent> permissionEvent;
+
+    @Inject
     @Channel("permission-events-out")
     MutinyEmitter<PermissionManagement> permissionEmitter;
+
+    @Getter
+    public static class PermissionEvent {
+        private final PermissionManagement permission;
+        private final String action; // "create" or "update"
+
+        public PermissionEvent(PermissionManagement permission, String action) {
+            this.permission = permission;
+            this.action = action;
+        }
+    }
 
     @Transactional
     @CacheInvalidate(cacheName = "permissionCache")
     public void createPermission(PermissionManagement permission) {
-        try {
-            sendKafkaMessage("permission_create", permission);
+        PermissionManagement existingPermission = permissionManagementMapper.selectById(permission.getPermissionId());
+        if (existingPermission == null) {
             permissionManagementMapper.insert(permission);
-        } catch (Exception e) {
-            log.warning("Exception occurred while creating permission or sending Kafka message");
-            throw new RuntimeException("Failed to create permission", e);
+        } else {
+            permissionManagementMapper.updateById(permission);
+        }
+        permissionEvent.fire(new PermissionEvent(permission, "create"));
+    }
+
+    @Transactional
+    @CacheInvalidate(cacheName = "permissionCache")
+    public void updatePermission(PermissionManagement permission) {
+        PermissionManagement existingPermission = permissionManagementMapper.selectById(permission.getPermissionId());
+        if (existingPermission == null) {
+            permissionManagementMapper.insert(permission);
+        } else {
+            permissionManagementMapper.updateById(permission);
+        }
+        permissionEvent.fire(new PermissionEvent(permission, "update"));
+    }
+
+    @Transactional
+    @CacheInvalidate(cacheName = "permissionCache")
+    public void deletePermission(int permissionId) {
+        if (permissionId <= 0) {
+            throw new IllegalArgumentException("Invalid permission ID");
+        }
+        int result = permissionManagementMapper.deleteById(permissionId);
+        if (result > 0) {
+            log.info(String.format("Permission with ID %s deleted successfully", permissionId));
+        } else {
+            log.severe(String.format("Failed to delete permission with ID %s", permissionId));
+        }
+    }
+
+    @Transactional
+    @CacheInvalidate(cacheName = "permissionCache")
+    public void deletePermissionByName(String permissionName) {
+        if (permissionName == null || permissionName.trim().isEmpty()) {
+            throw new IllegalArgumentException("Invalid permission name");
+        }
+        QueryWrapper<PermissionManagement> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("permission_name", permissionName);
+        PermissionManagement permissionToDelete = permissionManagementMapper.selectOne(queryWrapper);
+        if (permissionToDelete != null) {
+            int result = permissionManagementMapper.delete(queryWrapper);
+            if (result > 0) {
+                log.info(String.format("Permission with name '%s' deleted successfully", permissionName));
+            } else {
+                log.severe(String.format("Failed to delete permission with name '%s'", permissionName));
+            }
         }
     }
 
     @CacheResult(cacheName = "permissionCache")
     public PermissionManagement getPermissionById(int permissionId) {
+        if (permissionId <= 0) {
+            throw new IllegalArgumentException("Invalid permission ID");
+        }
         return permissionManagementMapper.selectById(permissionId);
     }
 
@@ -72,77 +136,21 @@ public class PermissionManagementService {
         return permissionManagementMapper.selectList(queryWrapper);
     }
 
-    @Transactional
-    @CacheInvalidate(cacheName = "permissionCache")
-    public void updatePermission(PermissionManagement permission) {
-        try {
-            sendKafkaMessage("permission_update", permission);
-            permissionManagementMapper.updateById(permission);
-        } catch (Exception e) {
-            log.warning("Exception occurred while updating permission or sending Kafka message");
-            throw new RuntimeException("Failed to update permission", e);
-        }
-    }
-
-    @Transactional
-    @CacheInvalidate(cacheName = "permissionCache")
-    public void deletePermission(int permissionId) {
-        try {
-            PermissionManagement permissionToDelete = permissionManagementMapper.selectById(permissionId);
-            if (permissionToDelete != null) {
-                int result = permissionManagementMapper.deleteById(permissionId);
-                if (result > 0) {
-                    log.info(String.format("Permission with ID %s deleted successfully", permissionId));
-                } else {
-                    log.severe(String.format("Failed to delete permission with ID %s", permissionId));
-                }
-            }
-        } catch (Exception e) {
-            log.warning("Exception occurred while deleting permission");
-            throw new RuntimeException("Failed to delete permission", e);
-        }
-    }
-
-    @Transactional
-    @CacheInvalidate(cacheName = "permissionCache")
-    public void deletePermissionByName(String permissionName) {
-        if (permissionName == null || permissionName.trim().isEmpty()) {
-            throw new IllegalArgumentException("Invalid permission name");
-        }
-        QueryWrapper<PermissionManagement> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("permission_name", permissionName);
-        PermissionManagement permissionToDelete = permissionManagementMapper.selectOne(queryWrapper);
-        if (permissionToDelete != null) {
-            int result = permissionManagementMapper.delete(queryWrapper);
-            if (result > 0) {
-                log.info(String.format("Permission with name '%s' deleted successfully", permissionName));
-            } else {
-                log.severe(String.format("Failed to delete permission with name '%s'", permissionName));
-            }
-        }
+    public void onPermissionEvent(@Observes(during = TransactionPhase.AFTER_SUCCESS) PermissionEvent event) {
+        String topic = event.getAction().equals("create") ? "permission_processed_create" : "permission_processed_update";
+        sendKafkaMessage(topic, event.getPermission());
     }
 
     private void sendKafkaMessage(String topic, PermissionManagement permission) {
-        // 创建包含目标主题的元数据
         OutgoingKafkaRecordMetadata<String> metadata = OutgoingKafkaRecordMetadata.<String>builder()
                 .withTopic(topic)
                 .build();
 
-        // 创建包含负载和元数据的消息
         Message<PermissionManagement> message = Message.of(permission).addMetadata(metadata);
 
-        // 使用 MutinyEmitter 的 sendMessage 方法返回 Uni<Void>
-        Uni<Void> uni = permissionEmitter.sendMessage(message);
+        permissionEmitter.sendMessage(message)
+                .await().indefinitely();
 
-        // 将 Uni<Void> 转换为 CompletionStage<Void>
-        CompletionStage<Void> sendStage = uni.subscribe().asCompletionStage();
-
-        sendStage.whenComplete((ignored, throwable) -> {
-            if (throwable != null) {
-                log.severe(String.format("Failed to send message to Kafka topic %s: %s", topic, throwable.getMessage()));
-            } else {
-                log.info(String.format("Message sent to Kafka topic %s successfully", topic));
-            }
-        });
+        log.info(String.format("Message sent to Kafka topic %s successfully", topic));
     }
 }

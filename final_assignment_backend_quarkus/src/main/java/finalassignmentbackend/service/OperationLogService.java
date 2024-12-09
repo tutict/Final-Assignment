@@ -5,18 +5,20 @@ import finalassignmentbackend.entity.OperationLog;
 import finalassignmentbackend.mapper.OperationLogMapper;
 import io.quarkus.cache.CacheInvalidate;
 import io.quarkus.cache.CacheResult;
-import io.smallrye.mutiny.Uni;
 import io.smallrye.reactive.messaging.MutinyEmitter;
 import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Event;
+import jakarta.enterprise.event.Observes;
+import jakarta.enterprise.event.TransactionPhase;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import lombok.Getter;
 import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Message;
 
 import java.util.Date;
 import java.util.List;
-import java.util.concurrent.CompletionStage;
 import java.util.logging.Logger;
 
 @ApplicationScoped
@@ -28,57 +30,72 @@ public class OperationLogService {
     OperationLogMapper operationLogMapper;
 
     @Inject
+    Event<OperationLogEvent> operationLogEvent;
+
+    @Inject
     @Channel("operation-events-out")
     MutinyEmitter<OperationLog> operationEmitter;
+
+    @Getter
+    public static class OperationLogEvent {
+        private final OperationLog operationLog;
+        private final String action; // "create" or "update"
+
+        public OperationLogEvent(OperationLog operationLog, String action) {
+            this.operationLog = operationLog;
+            this.action = action;
+        }
+    }
 
     @Transactional
     @CacheInvalidate(cacheName = "operationCache")
     public void createOperationLog(OperationLog operationLog) {
-        try {
-            sendKafkaMessage("operation_create", operationLog);
+        OperationLog existingLog = operationLogMapper.selectById(operationLog.getLogId());
+        if (existingLog == null) {
             operationLogMapper.insert(operationLog);
-        } catch (Exception e) {
-            log.warning("Exception occurred while creating operation log or sending Kafka message");
-            throw new RuntimeException("Failed to create operation log", e);
+        } else {
+            operationLogMapper.updateById(operationLog);
+        }
+        operationLogEvent.fire(new OperationLogEvent(operationLog, "create"));
+    }
+
+    @Transactional
+    @CacheInvalidate(cacheName = "operationCache")
+    public void updateOperationLog(OperationLog operationLog) {
+        OperationLog existingLog = operationLogMapper.selectById(operationLog.getLogId());
+        if (existingLog == null) {
+            operationLogMapper.insert(operationLog);
+        } else {
+            operationLogMapper.updateById(operationLog);
+        }
+        operationLogEvent.fire(new OperationLogEvent(operationLog, "update"));
+    }
+
+    @Transactional
+    @CacheInvalidate(cacheName = "operationCache")
+    public void deleteOperationLog(int logId) {
+        if (logId <= 0) {
+            throw new IllegalArgumentException("Invalid log ID");
+        }
+        int result = operationLogMapper.deleteById(logId);
+        if (result > 0) {
+            log.info(String.format("Operation log with ID %s deleted successfully", logId));
+        } else {
+            log.severe(String.format("Failed to delete operation log with ID %s", logId));
         }
     }
 
     @CacheResult(cacheName = "operationCache")
     public OperationLog getOperationLog(int logId) {
+        if (logId <= 0) {
+            throw new IllegalArgumentException("Invalid log ID");
+        }
         return operationLogMapper.selectById(logId);
     }
 
     @CacheResult(cacheName = "operationCache")
     public List<OperationLog> getAllOperationLogs() {
         return operationLogMapper.selectList(null);
-    }
-
-    @Transactional
-    @CacheInvalidate(cacheName = "operationCache")
-    public void updateOperationLog(OperationLog operationLog) {
-        try {
-            sendKafkaMessage("operation_update", operationLog);
-            operationLogMapper.updateById(operationLog);
-        } catch (Exception e) {
-            log.warning("Exception occurred while updating operation log or sending Kafka message");
-            throw new RuntimeException("Failed to update operation log", e);
-        }
-    }
-
-    @Transactional
-    @CacheInvalidate(cacheName = "operationCache")
-    public void deleteOperationLog(int logId) {
-        try {
-            int result = operationLogMapper.deleteById(logId);
-            if (result > 0) {
-                log.info(String.format("Operation log with ID %s deleted successfully", logId));
-            } else {
-                log.severe(String.format("Failed to delete operation log with ID %s", logId));
-            }
-        } catch (Exception e) {
-            log.warning("Exception occurred while deleting operation log");
-            throw new RuntimeException("Failed to delete operation log", e);
-        }
     }
 
     @CacheResult(cacheName = "operationCache")
@@ -111,27 +128,21 @@ public class OperationLogService {
         return operationLogMapper.selectList(queryWrapper);
     }
 
+    public void onOperationLogEvent(@Observes(during = TransactionPhase.AFTER_SUCCESS) OperationLogEvent event) {
+        String topic = event.getAction().equals("create") ? "operation_processed_create" : "operation_processed_update";
+        sendKafkaMessage(topic, event.getOperationLog());
+    }
+
     private void sendKafkaMessage(String topic, OperationLog operationLog) {
-        // 创建包含目标主题的元数据
         OutgoingKafkaRecordMetadata<String> metadata = OutgoingKafkaRecordMetadata.<String>builder()
                 .withTopic(topic)
                 .build();
 
-        // 创建包含负载和元数据的消息
         Message<OperationLog> message = Message.of(operationLog).addMetadata(metadata);
 
-        // 使用 MutinyEmitter 的 sendMessage 方法返回 Uni<Void>
-        Uni<Void> uni = operationEmitter.sendMessage(message);
+        operationEmitter.sendMessage(message)
+                .await().indefinitely();
 
-        // 将 Uni<Void> 转换为 CompletionStage<Void>
-        CompletionStage<Void> sendStage = uni.subscribe().asCompletionStage();
-
-        sendStage.whenComplete((ignored, throwable) -> {
-            if (throwable != null) {
-                log.severe(String.format("Failed to send message to Kafka topic %s: %s", topic, throwable.getMessage()));
-            } else {
-                log.info(String.format("Message sent to Kafka topic %s successfully", topic));
-            }
-        });
+        log.info(String.format("Message sent to Kafka topic %s successfully", topic));
     }
 }

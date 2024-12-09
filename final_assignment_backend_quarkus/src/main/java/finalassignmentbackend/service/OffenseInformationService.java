@@ -5,18 +5,20 @@ import finalassignmentbackend.entity.OffenseInformation;
 import finalassignmentbackend.mapper.OffenseInformationMapper;
 import io.quarkus.cache.CacheInvalidate;
 import io.quarkus.cache.CacheResult;
-import io.smallrye.mutiny.Uni;
 import io.smallrye.reactive.messaging.MutinyEmitter;
 import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Event;
+import jakarta.enterprise.event.Observes;
+import jakarta.enterprise.event.TransactionPhase;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import lombok.Getter;
 import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Message;
 
 import java.util.Date;
 import java.util.List;
-import java.util.concurrent.CompletionStage;
 import java.util.logging.Logger;
 
 @ApplicationScoped
@@ -28,18 +30,59 @@ public class OffenseInformationService {
     OffenseInformationMapper offenseInformationMapper;
 
     @Inject
+    Event<OffenseEvent> offenseEvent;
+
+    @Inject
     @Channel("offense-events-out")
     MutinyEmitter<OffenseInformation> offenseEmitter;
+
+    @Getter
+    public static class OffenseEvent {
+        private final OffenseInformation offenseInformation;
+        private final String action; // "create" or "update"
+
+        public OffenseEvent(OffenseInformation offenseInformation, String action) {
+            this.offenseInformation = offenseInformation;
+            this.action = action;
+        }
+
+    }
 
     @Transactional
     @CacheInvalidate(cacheName = "offenseCache")
     public void createOffense(OffenseInformation offenseInformation) {
-        try {
-            sendKafkaMessage("offense_create", offenseInformation);
+        OffenseInformation existingOffense = offenseInformationMapper.selectById(offenseInformation.getOffenseId());
+        if (existingOffense == null) {
             offenseInformationMapper.insert(offenseInformation);
-        } catch (Exception e) {
-            log.warning("Exception occurred while creating offense or sending Kafka message");
-            throw new RuntimeException("Failed to create offense", e);
+        } else {
+            offenseInformationMapper.updateById(offenseInformation);
+        }
+        offenseEvent.fire(new OffenseEvent(offenseInformation, "create"));
+    }
+
+    @Transactional
+    @CacheInvalidate(cacheName = "offenseCache")
+    public void updateOffense(OffenseInformation offenseInformation) {
+        OffenseInformation existingOffense = offenseInformationMapper.selectById(offenseInformation.getOffenseId());
+        if (existingOffense == null) {
+            offenseInformationMapper.insert(offenseInformation);
+        } else {
+            offenseInformationMapper.updateById(offenseInformation);
+        }
+        offenseEvent.fire(new OffenseEvent(offenseInformation, "update"));
+    }
+
+    @Transactional
+    @CacheInvalidate(cacheName = "offenseCache")
+    public void deleteOffense(int offenseId) {
+        if (offenseId <= 0) {
+            throw new IllegalArgumentException("Invalid offense ID");
+        }
+        int result = offenseInformationMapper.deleteById(offenseId);
+        if (result > 0) {
+            log.info(String.format("Offense with ID %s deleted successfully", offenseId));
+        } else {
+            log.severe(String.format("Failed to delete offense with ID %s", offenseId));
         }
     }
 
@@ -51,37 +94,6 @@ public class OffenseInformationService {
     @CacheResult(cacheName = "offenseCache")
     public List<OffenseInformation> getOffensesInformation() {
         return offenseInformationMapper.selectList(null);
-    }
-
-    @Transactional
-    @CacheInvalidate(cacheName = "offenseCache")
-    public void updateOffense(OffenseInformation offenseInformation) {
-        try {
-            sendKafkaMessage("offense_update", offenseInformation);
-            offenseInformationMapper.updateById(offenseInformation);
-        } catch (Exception e) {
-            log.warning("Exception occurred while updating offense or sending Kafka message");
-            throw new RuntimeException("Failed to update offense", e);
-        }
-    }
-
-    @Transactional
-    @CacheInvalidate(cacheName = "offenseCache")
-    public void deleteOffense(int offenseId) {
-        try {
-            if (offenseId <= 0) {
-                throw new IllegalArgumentException("Invalid offense ID");
-            }
-            int result = offenseInformationMapper.deleteById(offenseId);
-            if (result > 0) {
-                log.info(String.format("Offense with ID %s deleted successfully", offenseId));
-            } else {
-                log.severe(String.format("Failed to delete offense with ID %s", offenseId));
-            }
-        } catch (Exception e) {
-            log.warning("Exception occurred while deleting offense");
-            throw new RuntimeException("Failed to delete offense", e);
-        }
     }
 
     @CacheResult(cacheName = "offenseCache")
@@ -124,27 +136,24 @@ public class OffenseInformationService {
         return offenseInformationMapper.selectList(queryWrapper);
     }
 
+    // 不使用 @RunOnVirtualThread 这里，因为是事件观察器方法，不是入口点
+    public void onOffenseEvent(@Observes(during = TransactionPhase.AFTER_SUCCESS) OffenseEvent event) {
+        // 发往不同主题，避免回环
+        String topic = event.getAction().equals("create") ? "offense_processed_create" : "offense_processed_update";
+        sendKafkaMessage(topic, event.getOffenseInformation());
+    }
+
     private void sendKafkaMessage(String topic, OffenseInformation offenseInformation) {
-        // 创建包含目标主题的元数据
         OutgoingKafkaRecordMetadata<String> metadata = OutgoingKafkaRecordMetadata.<String>builder()
                 .withTopic(topic)
                 .build();
 
-        // 创建包含负载和元数据的消息
         Message<OffenseInformation> message = Message.of(offenseInformation).addMetadata(metadata);
 
-        // 使用 MutinyEmitter 的 sendMessage 方法返回 Uni<Void>
-        Uni<Void> uni = offenseEmitter.sendMessage(message);
+        // 同步等待发送完成（此时无事务竞争问题）
+        offenseEmitter.sendMessage(message)
+                .await().indefinitely();
 
-        // 将 Uni<Void> 转换为 CompletionStage<Void>
-        CompletionStage<Void> sendStage = uni.subscribe().asCompletionStage();
-
-        sendStage.whenComplete((ignored, throwable) -> {
-            if (throwable != null) {
-                log.severe(String.format("Failed to send message to Kafka topic %s: %s", topic, throwable.getMessage()));
-            } else {
-                log.info(String.format("Message sent to Kafka topic %s successfully", topic));
-            }
-        });
+        log.info(String.format("Message sent to Kafka topic %s successfully", topic));
     }
 }
