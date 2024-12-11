@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import finalassignmentbackend.config.login.jwt.TokenProvider;
 import finalassignmentbackend.config.route.EventBusAddress;
+import finalassignmentbackend.config.route.NetWorkRoute;
 import io.smallrye.mutiny.vertx.core.AbstractVerticle;
 import io.vertx.core.Promise;
 import io.vertx.core.http.HttpMethod;
@@ -45,7 +46,7 @@ public class NetWorkHandler extends AbstractVerticle {
     @Inject
     Vertx vertx;
 
-    @ConfigProperty(name = "server.port", defaultValue = "8080")
+    @ConfigProperty(name = "server.port", defaultValue = "8081")
     int port;
 
     @ConfigProperty(name = "backend.url")
@@ -169,7 +170,9 @@ public class NetWorkHandler extends AbstractVerticle {
 
                         log.info("Received action: {}, with data: {}", action, data);
 
-                        producerTemplate.sendBody(EventBusAddress.WEBSOCKET_CONNECTION, data);
+                        System.out.println(ws.path());
+
+                        producerTemplate.sendBodyAndHeader(EventBusAddress.CLIENT_TO_SERVER, data, "RequestPath", ws.path());
 
                     } else {
                         log.warn("无效的令牌，关闭 WebSocket 连接");
