@@ -27,8 +27,8 @@ public class FinalAssignmentBackendMain implements QuarkusApplication {
     public void deployVerticles() {
         vertx.deployVerticle(netWorkHandler)
                 .subscribe().with(
-                        id -> logger.info("WebSocket server deployed successfully."),
-                        failure -> logger.severe("Failed to deploy WebSocket server: " + failure.getMessage())
+                        id -> logger.info("Network server deployed successfully."),
+                        failure -> logger.severe("Failed to deploy network server: " + failure.getMessage())
                 );
     }
 
