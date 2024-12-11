@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import finalassignmentbackend.config.login.jwt.TokenProvider;
 import finalassignmentbackend.config.route.EventBusAddress;
-import finalassignmentbackend.config.route.NetWorkRoute;
 import io.smallrye.mutiny.vertx.core.AbstractVerticle;
 import io.vertx.core.Promise;
 import io.vertx.core.http.HttpMethod;
