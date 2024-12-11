@@ -31,7 +31,7 @@ public class NetWorkRoute extends RouteBuilder {
                 .log("收到来自 WebSocket 的消息: ${body}")
                 .setHeader("WebSocketUrl", simple(finalUrl + "${header.RequestPath}"))
                 // 使用动态端点发送消息
-                .to("${header.WebSocketUrl}")
+                .toD("${header.WebSocketUrl}")
                 .log("消息已转发到后端RESTful");
 
         // SockJS 客户端接收消息并转发到后端 HTTP 控制器
@@ -39,7 +39,7 @@ public class NetWorkRoute extends RouteBuilder {
                 .log("收到来自 SockJS 客户端的消息: ${body}")
                 .setHeader("WebSocketUrl", simple(finalUrl + "${header.RequestPath}"))
                 // 使用动态端点发送消息
-                .to("${header.WebSocketUrl}")
+                .toD("${header.WebSocketUrl}")
                 .log("消息已转发到后端 HTTP 控制器");
 
         // 后端控制器响应并发送回 SockJS 客户端
