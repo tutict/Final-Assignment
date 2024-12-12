@@ -32,7 +32,8 @@ public class AppealManagementController {
     // [POST] 请求，创建并存储新的申诉信息
     @POST
     @RunOnVirtualThread
-    public Response createAppeal(AppealManagement appeal) {
+    public Response
+    createAppeal(AppealManagement appeal) {
         appealManagementService.createAppeal(appeal);
         return Response.status(Response.Status.CREATED).build();
     }

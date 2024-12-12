@@ -45,7 +45,7 @@ public class NetWorkHandler extends AbstractVerticle {
     @Inject
     Vertx vertx;
 
-    @ConfigProperty(name = "server.port", defaultValue = "8081")
+    @ConfigProperty(name = "network.server.port", defaultValue = "8081")
     int port;
 
     @ConfigProperty(name = "backend.url")
@@ -64,7 +64,7 @@ public class NetWorkHandler extends AbstractVerticle {
         Router router = Router.router(vertx);
 
         configureCors(router);
-        configureSockJS(router);
+        configureSockJS();
         configureHttpRouting(router);
 
         setupHttpServer(router, startPromise);
@@ -90,7 +90,10 @@ public class NetWorkHandler extends AbstractVerticle {
                 .allowedMethod(HttpMethod.OPTIONS));
     }
 
-    private void configureSockJS(Router router) {
+    private void configureSockJS() {
+        // 创建子路由
+        Router sockJSRouter = Router.router(vertx);
+
         SockJSHandlerOptions sockJSOptions = new SockJSHandlerOptions().setHeartbeatInterval(2000);
         SockJSHandler sockJSHandler = SockJSHandler.create(vertx, sockJSOptions);
 
@@ -100,7 +103,8 @@ public class NetWorkHandler extends AbstractVerticle {
 
         sockJSHandler.bridge(bridgeOptions);
 
-        router.route("/eventbus/*").handler(sockJSHandler);
+        // 将 SockJSHandler 挂载到子路由
+        sockJSRouter.route("/*").handler(sockJSHandler);
     }
 
     private void configureHttpRouting(Router router) {
@@ -197,40 +201,49 @@ public class NetWorkHandler extends AbstractVerticle {
 
     private void forwardHttpRequest(HttpServerRequest request) {
         String path = request.path();
-        String targetUrl = backendUrl + path;
+        String targetUrl = backendUrl + ':' + port + path;
 
-        request.bodyHandler(body -> {
-            if (body == null || body.length() == 0) {
-                log.error("请求体为空，无法发送 JSON 数据");
-                request.response().setStatusCode(400).setStatusMessage("请求体为空").closed();
-                return;
-            }
+        try {
+            request.bodyHandler(body -> {
+                System.out.println("body1: " + body);
+                if (body == null || body.length() == 0) {
+                    log.error("请求体为空，无法发送 JSON 数据");
+                    request.response().setStatusCode(400).setStatusMessage("请求体为空").closed();
+                    return;
+                }
 
-            try {
-                JsonObject jsonBody = body.toJsonObject();
+                try {
+                    JsonObject jsonBody = body.toJsonObject();
 
-                webClient.postAbs(targetUrl)
-                        .sendJsonObject(jsonBody)
-                        .onSuccess(response -> {
-                            log.info("转发 HTTP 请求成功: {}", response.statusMessage());
+                    System.out.println("body2: " + body);
+                    webClient.postAbs(targetUrl)
+                            .sendJsonObject(jsonBody)
+                            .onSuccess(response -> {
+                                System.out.println("response: " + response);
+                                log.info("转发 HTTP 请求成功: {}", response.statusMessage());
 
-                            // 设置状态码
-                            request.response().setStatusCode(response.statusCode());
+                                // 设置状态码
+                                request.response().setStatusCode(response.statusCode());
 
-                            // 复制所有响应头
-                            response.headers().forEach(entry -> request.response().putHeader(entry.getKey(), entry.getValue()));
+                                // 复制所有响应头
+                                response.headers().forEach(entry -> request.response().putHeader(entry.getKey(), entry.getValue()));
 
-                            // 结束响应并发送消息体
-                            request.response().setStatusMessage(response.bodyAsString()).closed();
-                        })
-                        .onFailure(failure -> {
-                            log.error("转发 HTTP 请求失败", failure);
-                            request.response().setStatusCode(500).setStatusMessage("转发失败").closed();
-                        });
-            } catch (Exception e) {
-                log.error("请求体解析失败", e);
-                request.response().setStatusCode(400).setStatusMessage("请求体解析失败").closed();
-            }
-        });
+                                // 结束响应并发送消息体
+                                request.response().setStatusMessage(response.bodyAsString()).closed();
+                            })
+                            .onFailure(failure -> {
+                                System.out.println("failure: " + failure);
+                                log.error("转发 HTTP 请求失败", failure);
+                                request.response().setStatusCode(500).setStatusMessage("转发失败").closed();
+                            });
+                } catch (Exception e) {
+                    log.error("请求体解析失败", e);
+                    request.response().setStatusCode(400).setStatusMessage("请求体解析失败").closed();
+                }
+            });
+        } catch (Exception e) {
+            e.printStackTrace();
+            log.error("处理请求失败", e);
+        }
     }
 }

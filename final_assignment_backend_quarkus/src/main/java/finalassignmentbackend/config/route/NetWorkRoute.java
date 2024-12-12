@@ -7,7 +7,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 @ApplicationScoped
 public class NetWorkRoute extends RouteBuilder {
 
-    @ConfigProperty(name = "server.port", defaultValue = "8080")
+    @ConfigProperty(name = "route.server.port", defaultValue = "8080")
     int port;
 
     @ConfigProperty(name = "backend.url")
