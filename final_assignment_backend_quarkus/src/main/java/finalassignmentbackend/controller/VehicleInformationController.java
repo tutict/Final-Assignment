@@ -17,7 +17,7 @@ import jakarta.ws.rs.core.Response;
 
 import java.util.List;
 
-@Path("/eventbus/vehicles")
+@Path("/api/vehicles")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 /*

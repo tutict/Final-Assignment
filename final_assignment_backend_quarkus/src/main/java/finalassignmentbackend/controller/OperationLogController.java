@@ -20,7 +20,7 @@ import jakarta.ws.rs.core.Response;
 import java.util.Date;
 import java.util.List;
 
-@Path("/eventbus/operationLogs")
+@Path("/api/operationLogs")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class OperationLogController {

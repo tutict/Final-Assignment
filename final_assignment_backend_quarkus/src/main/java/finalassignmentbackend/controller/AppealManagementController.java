@@ -19,7 +19,7 @@ import jakarta.ws.rs.core.Response;
 import java.util.List;
 
 // 控制器类，处理与申诉管理相关的HTTP请求
-@Path("/eventbus/appeals")
+@Path("/api/appeals")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class AppealManagementController {

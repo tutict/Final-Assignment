@@ -19,7 +19,7 @@ import jakarta.ws.rs.core.Response;
 import java.util.Date;
 import java.util.List;
 
-@Path("/eventbus/offenses")
+@Path("/api/offenses")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class OffenseInformationController {

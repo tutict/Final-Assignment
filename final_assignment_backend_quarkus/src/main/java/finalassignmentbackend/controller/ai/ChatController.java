@@ -19,7 +19,7 @@ import io.smallrye.common.annotation.RunOnVirtualThread;
 import java.util.Arrays;
 import java.lang.System;
 
-@Path("/eventbus/ai")
+@Path("/api/ai")
 @Produces(MediaType.APPLICATION_JSON)
 @Tag(name = "AI Chat", description = "Chat Controller for AI interactions")
 public class ChatController {
