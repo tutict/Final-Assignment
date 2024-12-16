@@ -117,7 +117,7 @@ public class NetWorkHandler extends AbstractVerticle {
         });
 
         // 处理未匹配的路由
-        router.route().handler(ctx -> ctx.response().setStatusCode(404).setStatusMessage("未找到资源").end());
+        router.route().handler(ctx -> ctx.response().setStatusCode(404).setStatusMessage("未找到资源").closed());
     }
 
     private void setupHttpServer(Router router) {
@@ -125,6 +125,7 @@ public class NetWorkHandler extends AbstractVerticle {
                 .setMaxWebSocketFrameSize(1000000)
                 .setTcpKeepAlive(true);
 
+        // 启动 WebSocket 服务
         vertx.createHttpServer(options)
                 .requestHandler(router)
                 .webSocketHandler(ws -> {
@@ -196,7 +197,7 @@ public class NetWorkHandler extends AbstractVerticle {
             request.response()
                     .setStatusCode(500)
                     .setStatusMessage("循环转发")
-                    .end();
+                    .closed();
             return;
         }
 
@@ -210,7 +211,7 @@ public class NetWorkHandler extends AbstractVerticle {
                 request.response()
                         .setStatusCode(400)
                         .setStatusMessage("请求体为空")
-                        .end();
+                        .closed();
                 return;
             }
 
@@ -240,28 +241,29 @@ public class NetWorkHandler extends AbstractVerticle {
                             // 设置响应内容类型并发送响应体
                             request.response()
                                     .putHeader("Content-Type", "application/json")
-                                    .end(response.bodyAsString());
+                                    .setStatusMessage(response.bodyAsString())
+                                    .closed();
                         })
                         .onFailure(failure -> {
                             log.error("[{}] 转发 HTTP 请求失败", requestId, failure);
                             request.response()
                                     .setStatusCode(500)
                                     .setStatusMessage("转发失败")
-                                    .end();
+                                    .closed();
                         });
             } catch (Exception e) {
                 log.error("[{}] 请求体解析失败", requestId, e);
                 request.response()
                         .setStatusCode(400)
                         .setStatusMessage("请求体解析失败")
-                        .end();
+                        .closed();
             }
         }).exceptionHandler(e -> {
             log.error("[{}] 处理请求体时发生异常", requestId, e);
             request.response()
                     .setStatusCode(500)
                     .setStatusMessage("服务器内部错误")
-                    .end();
+                    .closed();
         });
     }
 }

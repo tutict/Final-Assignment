@@ -11,15 +11,15 @@ public class NetWorkRoute extends RouteBuilder {
     @ConfigProperty(name = "backend.url")
     String backendUrl;
 
-    @ConfigProperty(name = "backend.port")
-    int backendPort;
+    @ConfigProperty(name = "route.server.port")
+    int serverPort;
 
     private String finalUrl;
 
     @PostConstruct
     public void init() {
         // 初始化 finalUrl，确保不带尾随的冒号
-        finalUrl = backendUrl + ":" + backendPort;
+        finalUrl = backendUrl + ":" + serverPort;
     }
 
     @Override
