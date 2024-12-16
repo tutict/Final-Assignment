@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_login/flutter_login.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
+import 'package:http/http.dart' as http;
 
 /// 登录屏幕 StatefulWidget
 class LoginScreen extends StatefulWidget with ValidatorMixin {
@@ -55,7 +56,6 @@ class _LoginScreenState extends State<LoginScreen> {
     });
   }
 
-
   @override
   void dispose() {
     // 关闭 WebSocket 连接
@@ -71,7 +71,30 @@ class _LoginScreenState extends State<LoginScreen> {
     debugPrint('用户名: ${data.name}, 密码: ${data.password}');
 
     if (messageProvider == null) {
-      return 'WebSocket connection is not ready. Please wait and try again.';
+      // 使用 HTTP 请求进行登录
+      final response = await http.post(
+        Uri.parse('${AppConfig.baseUrl}${AppConfig.authControllerEndpoint}/login'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'username': data.name,
+          'password': data.password,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        if (responseData['status'] == 'success') {
+          String token = responseData['token'];
+          await LocalStorageServices().saveToken(token);
+          debugPrint('JWT token saved');
+          Get.offAllNamed(AppPages.initial);
+          return null;
+        } else {
+          return responseData['message'] ?? '登录失败';
+        }
+      } else {
+        return 'HTTP 请求失败，状态码: ${response.statusCode}';
+      }
     }
 
     restApiServices.sendMessage(jsonEncode({
@@ -100,7 +123,26 @@ class _LoginScreenState extends State<LoginScreen> {
   /// 用户注册逻辑
   Future<String?> _signupUser(SignupData data) async {
     if (messageProvider == null) {
-      return 'WebSocket connection is not ready. Please wait and try again.';
+      // 使用 HTTP 请求进行注册
+      final response = await http.post(
+        Uri.parse('${AppConfig.baseUrl}${AppConfig.authControllerEndpoint}/signup'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'username': data.name,
+          'password': data.password,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        if (responseData['status'] == 'success') {
+          return null;
+        } else {
+          return responseData['message'] ?? '注册失败';
+        }
+      } else {
+        return 'HTTP 请求失败，状态码: ${response.statusCode}';
+      }
     }
 
     restApiServices.sendMessage(jsonEncode({
@@ -122,7 +164,23 @@ class _LoginScreenState extends State<LoginScreen> {
   /// 密码恢复逻辑
   Future<String?> _recoverPassword(String name) async {
     if (messageProvider == null) {
-      return 'WebSocket connection is not ready. Please wait and try again.';
+      // 使用 HTTP 请求进行密码恢复
+      final response = await http.post(
+        Uri.parse('${AppConfig.baseUrl}${AppConfig.authControllerEndpoint}/recoverPassword'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'username': name}),
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        if (responseData['status'] == 'success') {
+          return null;
+        } else {
+          return responseData['message'] ?? '密码恢复失败';
+        }
+      } else {
+        return 'HTTP 请求失败，状态码: ${response.statusCode}';
+      }
     }
 
     restApiServices.sendMessage(jsonEncode({'action': 'recoverPassword', 'username': name}));

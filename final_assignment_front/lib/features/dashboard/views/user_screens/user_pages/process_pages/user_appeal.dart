@@ -20,6 +20,7 @@ class _UserAppealPageState extends State<UserAppealPage>
   late RestApiServices restApiServices;
 
   // 定义文本编辑控制器，用于搜索
+
   final TextEditingController _searchController = TextEditingController();
 
   @override
@@ -146,6 +147,7 @@ mixin SearchSectionMixin<T extends StatefulWidget> on State<T> {
             String query = searchController.text;
 
             // 发送查询请求
+
             restApiServices.sendMessage(
               jsonEncode({
                 'action': 'searchAppeals',
