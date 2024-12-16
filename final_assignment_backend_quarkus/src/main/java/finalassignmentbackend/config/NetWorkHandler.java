@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import finalassignmentbackend.config.login.jwt.TokenProvider;
 import finalassignmentbackend.config.route.EventBusAddress;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import io.smallrye.mutiny.vertx.core.AbstractVerticle;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerOptions;
@@ -18,7 +19,6 @@ import io.vertx.mutiny.core.http.HttpServerRequest;
 import io.vertx.mutiny.core.http.ServerWebSocket;
 import io.vertx.mutiny.ext.web.Router;
 import io.vertx.mutiny.ext.web.handler.CorsHandler;
-//import io.vertx.mutiny.ext.web.handler.sockjs.SockJSHandler;
 import io.vertx.mutiny.ext.web.handler.sockjs.SockJSHandler;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -187,7 +187,7 @@ public class NetWorkHandler extends AbstractVerticle {
 
     private void forwardHttpRequest(HttpServerRequest request) {
         String path = request.path(); // e.g., /api/appeals
-        String targetUrl = backendUrl + ":" + backendPort + path; // e.g., http://localhost:8082/api/appeals
+        String targetUrl = backendUrl + ":" + backendPort + path; // e.g., http://localhost:8080/api/appeals
         UUID requestId = UUID.randomUUID();
         log.info("[{}] Forwarding request from path: {} to targetUrl: {}", requestId, path, targetUrl);
 
@@ -226,10 +226,26 @@ public class NetWorkHandler extends AbstractVerticle {
                             log.info("[{}] response: {}", requestId, response);
                             log.info("[{}] 转发 HTTP 请求成功: {}", requestId, response.statusMessage());
 
-                            // 设置响应状态码和状态消息
+                            // 设置响应状态码
                             request.response()
-                                    .setStatusCode(response.statusCode())
-                                    .setStatusMessage(response.statusMessage());
+                                    .setStatusCode(response.statusCode());
+
+                            // 仅在 statusMessage 不为 null 时设置
+                            String statusMessage = response.statusMessage();
+                            if (statusMessage != null) {
+                                request.response().setStatusMessage(statusMessage);
+                            } else {
+                                log.warn("[{}] 后端响应的 statusMessage 为 null，使用默认消息", requestId);
+                                // 根据 statusCode 设置默认的 reasonPhrase
+                                try {
+                                    HttpResponseStatus defaultReason = HttpResponseStatus.valueOf(response.statusCode());
+                                    request.response().setStatusMessage(defaultReason.reasonPhrase());
+                                } catch (IllegalArgumentException e) {
+                                    log.error("[{}] 无法获取 statusMessage 的默认值: {}", requestId, e.getMessage());
+                                    // 可以选择设置一个通用的默认消息
+                                    request.response().setStatusMessage("Unknown Status");
+                                }
+                            }
 
                             // 复制所有响应头，避免复制保留头（如 Transfer-Encoding）
                             response.headers().forEach(entry -> {
@@ -239,9 +255,10 @@ public class NetWorkHandler extends AbstractVerticle {
                             });
 
                             // 设置响应内容类型并发送响应体
+                            HttpResponseStatus defaultReason = HttpResponseStatus.valueOf(response.statusCode());
                             request.response()
                                     .putHeader("Content-Type", "application/json")
-                                    .setStatusMessage(response.bodyAsString())
+                                    .setStatusMessage(defaultReason.reasonPhrase())
                                     .closed();
                         })
                         .onFailure(failure -> {

@@ -44,8 +44,8 @@ dependencies {
     implementation 'org.apache.camel.quarkus:camel-quarkus-http:3.17.0'
     implementation 'org.apache.camel.quarkus:camel-quarkus-vertx:3.17.0'
     implementation 'org.apache.camel.quarkus:camel-quarkus-bean:3.17.0'
-    compileOnly 'org.projectlombok:lombok:1.18.34'
-    annotationProcessor 'org.projectlombok:lombok:1.18.34'
+    compileOnly 'org.projectlombok:lombok:1.18.36'
+    annotationProcessor 'org.projectlombok:lombok:1.18.36'
     testRuntimeOnly 'org.jboss.logmanager:log4j2-jboss-logmanager:2.0.1.Final'
     testImplementation 'io.quarkus:quarkus-junit5:3.17.3'
 }
