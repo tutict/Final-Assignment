@@ -17,7 +17,10 @@ class BackupRestore {
   /* 备注 记录关于备份与恢复操作的额外信息 */
   String? remarks;
 
-  BackupRestore();
+  BackupRestore(
+      {required int? backupId,
+      required String? backupFileName,
+      required String? backupTime});
 
   @override
   String toString() {

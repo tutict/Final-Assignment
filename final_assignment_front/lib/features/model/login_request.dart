@@ -3,7 +3,7 @@ class LoginRequest {
 
   String? password;
 
-  LoginRequest();
+  LoginRequest({required String? username, required String? password});
 
   @override
   String toString() {
@@ -34,7 +34,7 @@ class LoginRequest {
     var map = <String, LoginRequest>{};
     if (json.isNotEmpty) {
       json.forEach((String key, dynamic value) =>
-          map[key] = LoginRequest.fromJson(value));
+      map[key] = LoginRequest.fromJson(value));
     }
     return map;
   }

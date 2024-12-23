@@ -5,7 +5,7 @@ class RegisterRequest {
 
   bool? admin;
 
-  RegisterRequest();
+  RegisterRequest({required String? username, required String? password});
 
   @override
   String toString() {

@@ -1,4 +1,4 @@
-import 'package:final_assignment_front/utils/auth/authentication.dart';
+import 'package:final_assignment_front/utils/services/authentication.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
 

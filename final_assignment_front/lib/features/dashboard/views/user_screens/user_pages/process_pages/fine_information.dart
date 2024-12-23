@@ -1,10 +1,6 @@
-import 'dart:convert';
-
-import 'package:final_assignment_front/utils/services/app_config.dart';
-import 'package:final_assignment_front/utils/services/message_provider.dart';
-import 'package:final_assignment_front/utils/services/rest_api_services.dart';
+import 'package:final_assignment_front/features/api/fine_information_controller_api.dart';
+import 'package:final_assignment_front/features/model/fine_information.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
 class FineInformationPage extends StatefulWidget {
   const FineInformationPage({super.key});
@@ -14,9 +10,13 @@ class FineInformationPage extends StatefulWidget {
 }
 
 class _FineInformationPageState extends State<FineInformationPage> {
-  late RestApiServices restApiServices;
+  // 用于与后端交互的API
+  late FineInformationControllerApi fineApi;
 
-  // 控制器
+  // 用于存储从服务器获取的罚款信息列表
+  late Future<List<FineInformation>> _finesFuture;
+
+  // 控制器：用于输入表单
   final TextEditingController _plateNumberController = TextEditingController();
   final TextEditingController _fineAmountController = TextEditingController();
   final TextEditingController _payeeController = TextEditingController();
@@ -31,59 +31,79 @@ class _FineInformationPageState extends State<FineInformationPage> {
   @override
   void initState() {
     super.initState();
-    restApiServices = RestApiServices();
-
-    // 初始化 WebSocket 连接，并传入 MessageProvider
-    final messageProvider =
-        Provider.of<MessageProvider>(context, listen: false);
-    restApiServices.initWebSocket(
-        AppConfig.fineInformationEndpoint, messageProvider);
-
-    // 发送获取罚款信息的请求
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      restApiServices.sendMessage(jsonEncode({'action': 'getFineInfo'}));
-    });
+    fineApi = FineInformationControllerApi();
+    _finesFuture = _fetchAllFines();
   }
 
   @override
   void dispose() {
-    restApiServices.closeWebSocket();
+    // 释放资源
+    _plateNumberController.dispose();
+    _fineAmountController.dispose();
+    _payeeController.dispose();
+    _accountNumberController.dispose();
+    _bankController.dispose();
+    _receiptNumberController.dispose();
+    _remarksController.dispose();
+    _dateController.dispose();
     super.dispose();
   }
 
-  // 提交罚款信息的函数
-  void submitFineInfo() {
-    String plateNumber = _plateNumberController.text;
-    double fineAmount = double.tryParse(_fineAmountController.text) ?? 0.0;
-    String payee = _payeeController.text;
-    String accountNumber = _accountNumberController.text;
-    String bank = _bankController.text;
-    String receiptNumber = _receiptNumberController.text;
-    String remarks = _remarksController.text;
-    String date = _dateController.text;
+  /// 获取全部罚款信息
+  Future<List<FineInformation>> _fetchAllFines() async {
+    try {
+      final listObj = await fineApi.apiFinesGet();
+      if (listObj == null) return [];
+      // listObj 是 List<Object> -> 转换为 List<FineInformation>
+      return listObj.map((item) {
+        return FineInformation.fromJson(item as Map<String, dynamic>);
+      }).toList();
+    } catch (e) {
+      rethrow;
+    }
+  }
 
-    // 发送罚款记录
-    restApiServices.sendMessage(jsonEncode({
-      'action': 'submitFineInfo',
-      'plateNumber': plateNumber,
-      'fineAmount': fineAmount,
-      'payee': payee,
-      'accountNumber': accountNumber,
-      'bank': bank,
-      'receiptNumber': receiptNumber,
-      'remarks': remarks,
-      'fineTime': date,
-    }));
+  /// 提交罚款信息
+  Future<void> _submitFineInfo() async {
+    try {
+      // 构造 FineInformation 对象
+      final fineInfo = FineInformation();
+      fineInfo.offenseId = 0; // 示例，如需要 offenseId
+      fineInfo.fineAmount = double.tryParse(_fineAmountController.text) ?? 0.0;
+      fineInfo.payee = _payeeController.text.trim();
+      fineInfo.accountNumber = _accountNumberController.text.trim();
+      fineInfo.bank = _bankController.text.trim();
+      fineInfo.receiptNumber = _receiptNumberController.text.trim();
+      fineInfo.remarks = _remarksController.text.trim();
+      fineInfo.fineTime = _dateController.text.trim();
 
-    // 清空表单
-    _plateNumberController.clear();
-    _fineAmountController.clear();
-    _payeeController.clear();
-    _accountNumberController.clear();
-    _bankController.clear();
-    _receiptNumberController.clear();
-    _remarksController.clear();
-    _dateController.clear();
+      // 提交到后端
+      await fineApi.apiFinesPost(fineInformation: fineInfo);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('罚款信息提交成功')),
+      );
+
+      // 刷新列表
+      setState(() {
+        _finesFuture = _fetchAllFines();
+      });
+
+      // 清空表单
+      _plateNumberController.clear();
+      _fineAmountController.clear();
+      _payeeController.clear();
+      _accountNumberController.clear();
+      _bankController.clear();
+      _receiptNumberController.clear();
+      _remarksController.clear();
+      _dateController.clear();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('提交失败: $e')),
+      );
+    }
   }
 
   @override
@@ -91,46 +111,44 @@ class _FineInformationPageState extends State<FineInformationPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('交通违法罚款记录'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ),
-        backgroundColor: Colors.lightBlue,
-        foregroundColor: Colors.white,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: <Widget>[
-            // 搜索区域
-            buildSearchSection(),
-            const SizedBox(height: 16),
+            // 搜索或时间查询区域 (可按需添加)
             // 罚款记录输入表单
-            buildFineInfoForm(),
+            _buildFineInfoForm(),
             const SizedBox(height: 16),
             // 罚款记录列表
             Expanded(
-              child: Consumer<MessageProvider>(
-                builder: (context, messageProvider, child) {
-                  final message = messageProvider.message;
-                  if (message != null &&
-                      message.action == 'getFineInfoResponse') {
-                    if (message.data['status'] == 'success') {
-                      List<FineRecord> fineRecords = List<FineRecord>.from(
-                        message.data['data']
-                            .map((item) => FineRecord.fromJson(item)),
-                      );
-                      return buildFineRecordList(fineRecords: fineRecords);
-                    } else {
-                      return Center(
-                        child: Text('加载罚款信息失败: ${message.data['message']}'),
-                      );
-                    }
-                  } else {
+              child: FutureBuilder<List<FineInformation>>(
+                future: _finesFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  } else if (snapshot.hasError) {
+                    return Center(
+                      child: Text('加载罚款信息失败: ${snapshot.error}'),
+                    );
+                  } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
                     return const Center(
-                      child: CircularProgressIndicator(),
+                      child: Text('暂无罚款记录'),
+                    );
+                  } else {
+                    final fines = snapshot.data!;
+                    return ListView.builder(
+                      itemCount: fines.length,
+                      itemBuilder: (context, index) {
+                        final record = fines[index];
+                        final amount = record.fineAmount ?? 0;
+                        final payee = record.payee ?? '';
+                        final date = record.fineTime ?? '';
+                        return ListTile(
+                          title: Text('罚款金额: $amount'),
+                          subtitle: Text('缴款人: $payee / 时间: $date'),
+                        );
+                      },
                     );
                   }
                 },
@@ -142,63 +160,7 @@ class _FineInformationPageState extends State<FineInformationPage> {
     );
   }
 
-  Widget buildSearchSection() {
-    final plateNumberController = TextEditingController();
-    final dateController = TextEditingController();
-
-    return Row(
-      children: <Widget>[
-        Expanded(
-          child: TextField(
-            controller: plateNumberController,
-            decoration: const InputDecoration(
-              labelText: '请输入车牌号',
-              prefixIcon: Icon(Icons.local_bar),
-            ),
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: TextField(
-            controller: dateController,
-            decoration: const InputDecoration(
-              labelText: '选择查询时间',
-              prefixIcon: Icon(Icons.date_range),
-            ),
-            onTap: () async {
-              DateTime? pickedDate = await showDatePicker(
-                context: context,
-                initialDate: DateTime.now(),
-                firstDate: DateTime(2000),
-                lastDate: DateTime(2101),
-              );
-              if (pickedDate != null) {
-                dateController.text = pickedDate.toString().split(' ')[0];
-              }
-            },
-          ),
-        ),
-        const SizedBox(width: 16),
-        ElevatedButton(
-          onPressed: () {
-            String plateNumber = plateNumberController.text;
-            String date = dateController.text;
-
-            restApiServices.sendMessage(
-              jsonEncode({
-                'action': 'searchFineInfo',
-                'plateNumber': plateNumber,
-                'date': date,
-              }),
-            );
-          },
-          child: const Text('查询'),
-        ),
-      ],
-    );
-  }
-
-  Widget buildFineInfoForm() {
+  Widget _buildFineInfoForm() {
     return Column(
       children: [
         TextField(
@@ -208,15 +170,14 @@ class _FineInformationPageState extends State<FineInformationPage> {
             prefixIcon: Icon(Icons.local_bar),
           ),
         ),
-        const SizedBox(height: 8),
         TextField(
           controller: _fineAmountController,
           decoration: const InputDecoration(
             labelText: '罚款金额',
             prefixIcon: Icon(Icons.money),
           ),
+          keyboardType: TextInputType.number,
         ),
-        const SizedBox(height: 8),
         TextField(
           controller: _payeeController,
           decoration: const InputDecoration(
@@ -224,7 +185,6 @@ class _FineInformationPageState extends State<FineInformationPage> {
             prefixIcon: Icon(Icons.person),
           ),
         ),
-        const SizedBox(height: 8),
         TextField(
           controller: _accountNumberController,
           decoration: const InputDecoration(
@@ -232,7 +192,6 @@ class _FineInformationPageState extends State<FineInformationPage> {
             prefixIcon: Icon(Icons.account_balance),
           ),
         ),
-        const SizedBox(height: 8),
         TextField(
           controller: _bankController,
           decoration: const InputDecoration(
@@ -240,7 +199,6 @@ class _FineInformationPageState extends State<FineInformationPage> {
             prefixIcon: Icon(Icons.account_balance),
           ),
         ),
-        const SizedBox(height: 8),
         TextField(
           controller: _receiptNumberController,
           decoration: const InputDecoration(
@@ -248,7 +206,6 @@ class _FineInformationPageState extends State<FineInformationPage> {
             prefixIcon: Icon(Icons.receipt),
           ),
         ),
-        const SizedBox(height: 8),
         TextField(
           controller: _remarksController,
           decoration: const InputDecoration(
@@ -256,7 +213,6 @@ class _FineInformationPageState extends State<FineInformationPage> {
             prefixIcon: Icon(Icons.notes),
           ),
         ),
-        const SizedBox(height: 8),
         TextField(
           controller: _dateController,
           decoration: const InputDecoration(
@@ -264,79 +220,23 @@ class _FineInformationPageState extends State<FineInformationPage> {
             prefixIcon: Icon(Icons.date_range),
           ),
           onTap: () async {
-            DateTime? pickedDate = await showDatePicker(
+            final pickedDate = await showDatePicker(
               context: context,
               initialDate: DateTime.now(),
               firstDate: DateTime(2000),
               lastDate: DateTime(2101),
             );
             if (pickedDate != null) {
-              _dateController.text = pickedDate.toString().split(' ')[0];
+              _dateController.text = pickedDate.toIso8601String();
             }
           },
         ),
         const SizedBox(height: 16),
         ElevatedButton(
-          onPressed: submitFineInfo,
+          onPressed: _submitFineInfo,
           child: const Text('提交罚款信息'),
         ),
       ],
-    );
-  }
-
-  Widget buildFineRecordList({required List<FineRecord> fineRecords}) {
-    return ListView.builder(
-      itemCount: fineRecords.length,
-      itemBuilder: (context, index) {
-        final record = fineRecords[index];
-        return ListTile(
-          leading: CircleAvatar(
-            child: Text(record.id.toString()),
-          ),
-          title: Text(record.plateNumber),
-          subtitle: Text('罚款金额: ${record.fineAmount}元'),
-          trailing: Text(record.date),
-        );
-      },
-    );
-  }
-}
-
-// 用户罚款记录模型
-class FineRecord {
-  int id;
-  String plateNumber;
-  double fineAmount;
-  String payee;
-  String accountNumber;
-  String bank;
-  String receiptNumber;
-  String remarks;
-  String date;
-
-  FineRecord({
-    required this.id,
-    required this.plateNumber,
-    required this.fineAmount,
-    required this.payee,
-    required this.accountNumber,
-    required this.bank,
-    required this.receiptNumber,
-    required this.remarks,
-    required this.date,
-  });
-
-  factory FineRecord.fromJson(Map<String, dynamic> json) {
-    return FineRecord(
-      id: json['fineId'],
-      plateNumber: json['plateNumber'],
-      fineAmount: json['fineAmount'],
-      payee: json['payee'],
-      accountNumber: json['accountNumber'],
-      bank: json['bank'],
-      receiptNumber: json['receiptNumber'],
-      remarks: json['remarks'],
-      date: json['fineTime'],
     );
   }
 }

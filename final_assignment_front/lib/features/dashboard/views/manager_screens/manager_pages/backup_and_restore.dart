@@ -1,9 +1,8 @@
-import 'dart:convert';
-
-import 'package:final_assignment_front/utils/services/app_config.dart';
+import 'package:final_assignment_front/features/api/backup_restore_controller_api.dart';
+import 'package:final_assignment_front/features/model/backup_restore.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 
+/// 备份与恢复管理页面
 class BackupAndRestore extends StatefulWidget {
   const BackupAndRestore({super.key});
 
@@ -12,141 +11,206 @@ class BackupAndRestore extends StatefulWidget {
 }
 
 class _BackupAndRestoreState extends State<BackupAndRestore> {
-  late Future<List<Backup>> _backupsFuture;
+  // 使用 BackupRestoreControllerApi 来发起HTTP请求
+  late BackupRestoreControllerApi backupApi;
+
+  // 用于展示在页面上的备份列表
+  late Future<List<BackupRestore>> _backupsFuture;
 
   @override
   void initState() {
     super.initState();
-    _backupsFuture = _fetchBackups();
+    // 初始化时创建 Api 实例
+    backupApi = BackupRestoreControllerApi();
+    // 加载所有备份
+    _backupsFuture = _fetchAllBackups();
   }
 
-  Future<List<Backup>> _fetchBackups() async {
-    final url =
-        Uri.parse('${AppConfig.baseUrl}${AppConfig.backupRestoreEndpoint}');
+  /// 获取所有备份
+  Future<List<BackupRestore>> _fetchAllBackups() async {
     try {
-      final response = await http.get(url);
-      if (!mounted) return [];
-      if (response.statusCode == 200) {
-        List<dynamic> backupsJson = jsonDecode(response.body);
-        return backupsJson.map((json) => Backup.fromJson(json)).toList();
+      // 1) 调用 apiBackupsGet() 获取 (返回类型: Future<Object?>)
+      final result = await backupApi.apiBackupsGet();
+      if (result == null) {
+        return [];
+      }
+      // 如果后端返回的是一个List<Object>，需要将其中每个Object转为Map<String,dynamic>，再构造Backup/BackupRestore
+      if (result is List) {
+        // 将 listOf dynamic -> List<Backup>
+        final backups = result.map((item) {
+          final br = BackupRestore.fromJson(item as Map<String, dynamic>);
+          return BackupRestore(
+            backupId: br.backupId ?? 0,
+            backupFileName: br.backupFileName ?? '',
+            backupTime: br.backupTime ?? '',
+          );
+        }).toList();
+        return backups;
       } else {
-        throw Exception('Failed to load backups');
+        // 如果后端返回的不是数组，比如是单个对象或其他结构，就自行处理
+        return [];
       }
     } catch (e) {
-      throw Exception('Failed to load backups: $e');
+      debugPrint('[BackupAndRestore] 获取所有备份失败: $e');
+      rethrow;
     }
   }
 
+  /// 创建备份
   Future<void> _createBackup() async {
-    final url =
-        Uri.parse('${AppConfig.baseUrl}${AppConfig.backupRestoreEndpoint}');
     try {
-      final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'backupFileName': 'backup_${DateTime.now().toIso8601String()}',
-          // Example backup name
-        }),
-      );
-      if (!mounted) return;
-      if (response.statusCode == 201) {
-        _showSnackBar('备份创建成功！');
-        setState(() {
-          _backupsFuture = _fetchBackups(); // Refresh the data
-        });
-      } else {
-        _showSnackBar('创建备份失败，请稍后重试。');
-      }
+      final backupName = 'backup_${DateTime.now().toIso8601String()}';
+      // 2) 构造一个 BackupRestore 对象
+      final newBackup =
+          BackupRestore(backupId: null, backupFileName: '', backupTime: '');
+      newBackup.backupFileName = backupName;
+
+      // 调用 POST /api/backups
+      final result = await backupApi.apiBackupsPost(backupRestore: newBackup);
+      // result 可能是一个对象，也可能为空
+      debugPrint('[BackupAndRestore] 备份创建结果: $result');
+
+      // 刷新列表
+      setState(() {
+        _backupsFuture = _fetchAllBackups();
+      });
+      _showSnackBar('备份创建成功！');
     } catch (e) {
-      if (!mounted) return;
-      _showSnackBar('发生错误，请检查网络连接。');
+      _showSnackBar('创建备份失败: $e');
     }
   }
 
+  /// 恢复备份
   Future<void> _restoreBackup(int backupId) async {
-    final url = Uri.parse(
-        '${AppConfig.baseUrl}${AppConfig.backupRestoreEndpoint}/$backupId');
     try {
-      final response = await http.put(url);
-      if (!mounted) return;
-      if (response.statusCode == 200) {
-        _showSnackBar('恢复备份成功！');
-      } else {
-        _showSnackBar('恢复备份失败，请稍后重试。');
-      }
+      // 这里看你的 API: updateBackup => apiBackupsBackupIdPut(String backupId, {int? backupNumber})
+      // 可能后端其实并没实现“恢复”逻辑，只是演示
+      // 你可以发送一个 PUT 请求，传 backupNumber 或其他参数
+      final result = await backupApi.apiBackupsBackupIdPut(
+        backupId.toString(),
+        backupNumber: 999, // 示例
+      );
+      debugPrint('[BackupAndRestore] 恢复备份(实际上是updateBackup)结果: $result');
+      _showSnackBar('恢复备份成功！');
     } catch (e) {
-      if (!mounted) return;
-      _showSnackBar('发生错误，请检查网络连接。');
+      _showSnackBar('恢复备份失败: $e');
     }
   }
 
+  /// 删除备份
   Future<void> _deleteBackup(int backupId) async {
-    final url = Uri.parse(
-        '${AppConfig.baseUrl}${AppConfig.backupRestoreEndpoint}/$backupId');
     try {
-      final response = await http.delete(url);
-      if (!mounted) return;
-      if (response.statusCode == 204) {
-        _showSnackBar('删除备份成功！');
+      // DELETE /api/backups/{backupId}
+      final result =
+          await backupApi.apiBackupsBackupIdDelete(backupId.toString());
+      debugPrint('[BackupAndRestore] 删除备份结果: $result');
+
+      // 刷新列表
+      setState(() {
+        _backupsFuture = _fetchAllBackups();
+      });
+      _showSnackBar('删除备份成功！');
+    } catch (e) {
+      _showSnackBar('删除备份失败: $e');
+    }
+  }
+
+  /// 根据文件名搜索
+  Future<void> _fetchBackupsByFileName(String fileName) async {
+    if (fileName.isEmpty) {
+      setState(() {
+        _backupsFuture = _fetchAllBackups();
+      });
+      return;
+    }
+    try {
+      final result =
+          await backupApi.apiBackupsFilenameBackupFileNameGet(fileName);
+      if (result == null) {
+        _showSnackBar('未找到匹配的备份(空返回)。');
+        return;
+      }
+      // 如果后端是单条返回 => result is Map => 转为1条
+      if (result is Map<String, dynamic>) {
+        final br = BackupRestore.fromJson(result);
+        final single = BackupRestore(
+          backupId: br.backupId ?? 0,
+          backupFileName: br.backupFileName ?? '',
+          backupTime: br.backupTime ?? '',
+        );
         setState(() {
-          _backupsFuture = _fetchBackups(); // Refresh the data
+          _backupsFuture = Future.value([single]);
+        });
+      } else if (result is List) {
+        // 如果后端返回多条 => List
+        final list = result.map((item) {
+          final br = BackupRestore.fromJson(item);
+          return BackupRestore(
+            backupId: br.backupId ?? 0,
+            backupFileName: br.backupFileName ?? '',
+            backupTime: br.backupTime ?? '',
+          );
+        }).toList();
+        setState(() {
+          _backupsFuture = Future.value(list);
         });
       } else {
-        _showSnackBar('删除备份失败，请稍后重试。');
+        _showSnackBar('未知返回格式：$result');
       }
     } catch (e) {
-      if (!mounted) return;
-      _showSnackBar('发生错误，请检查网络连接。');
+      _showSnackBar('按文件名搜索备份失败: $e');
+    }
+  }
+
+  /// 根据时间搜索
+  Future<void> _fetchBackupsByTime(String backupTime) async {
+    if (backupTime.isEmpty) {
+      setState(() {
+        _backupsFuture = _fetchAllBackups();
+      });
+      return;
+    }
+    try {
+      final result = await backupApi.apiBackupsTimeBackupTimeGet(backupTime);
+      if (result == null) {
+        _showSnackBar('未找到匹配的备份(空返回)。');
+        return;
+      }
+      if (result is List) {
+        final list = result.map((item) {
+          final br = BackupRestore.fromJson(item);
+          return BackupRestore(
+            backupId: br.backupId ?? 0,
+            backupFileName: br.backupFileName ?? '',
+            backupTime: br.backupTime ?? '',
+          );
+        }).toList();
+        setState(() {
+          _backupsFuture = Future.value(list);
+        });
+      } else if (result is Map<String, dynamic>) {
+        // 如果后端返回单条
+        final br = BackupRestore.fromJson(result);
+        final single = BackupRestore(
+          backupId: br.backupId ?? 0,
+          backupFileName: br.backupFileName ?? '',
+          backupTime: br.backupTime ?? '',
+        );
+        setState(() {
+          _backupsFuture = Future.value([single]);
+        });
+      } else {
+        _showSnackBar('未知返回格式：$result');
+      }
+    } catch (e) {
+      _showSnackBar('按时间搜索备份失败: $e');
     }
   }
 
   void _showSnackBar(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
-  }
-
-  Future<void> _fetchBackupsByFileName(String fileName) async {
-    final url = Uri.parse(
-        '${AppConfig.baseUrl}${AppConfig.backupRestoreEndpoint}/filename/$fileName');
-    try {
-      final response = await http.get(url);
-      if (!mounted) return;
-      if (response.statusCode == 200) {
-        Backup backup = Backup.fromJson(jsonDecode(response.body));
-        setState(() {
-          _backupsFuture = Future.value([backup]);
-        });
-      } else {
-        _showSnackBar('未找到匹配的备份。');
-      }
-    } catch (e) {
-      _showSnackBar('发生错误，请检查网络连接。');
-    }
-  }
-
-  Future<void> _fetchBackupsByTime(String backupTime) async {
-    final url = Uri.parse(
-        '${AppConfig.baseUrl}${AppConfig.backupRestoreEndpoint}/time/$backupTime');
-    try {
-      final response = await http.get(url);
-      if (!mounted) return;
-      if (response.statusCode == 200) {
-        List<dynamic> backupsJson = jsonDecode(response.body);
-        setState(() {
-          _backupsFuture = Future.value(
-              backupsJson.map((json) => Backup.fromJson(json)).toList());
-        });
-      } else {
-        _showSnackBar('未找到匹配的备份。');
-      }
-    } catch (e) {
-      _showSnackBar('发生错误，请检查网络连接。');
-    }
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -164,27 +228,26 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
       ),
       body: Column(
         children: [
-          // Add a search section
+          // 搜索栏
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Row(
               children: [
+                // 按文件名搜索
                 Expanded(
                   child: TextField(
                     decoration: const InputDecoration(
                       labelText: '按文件名搜索备份',
                       prefixIcon: Icon(Icons.search),
                     ),
-                    onSubmitted: (value) {
-                      if (value.isNotEmpty) {
-                        _fetchBackupsByFileName(value);
-                      }
-                    },
+                    onSubmitted: (value) => _fetchBackupsByFileName(value),
                   ),
                 ),
                 const SizedBox(width: 8.0),
+                // 按时间搜索
                 Expanded(
                   child: TextField(
+                    readOnly: true,
                     decoration: const InputDecoration(
                       labelText: '按备份时间搜索',
                       prefixIcon: Icon(Icons.calendar_today),
@@ -197,8 +260,9 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
                         lastDate: DateTime(2101),
                       );
                       if (pickedDate != null) {
-                        String formattedDate = pickedDate.toIso8601String();
-                        _fetchBackupsByTime(formattedDate);
+                        // 你后端backupTime格式若是yyyy-MM-dd这种，则需格式化
+                        String formatted = pickedDate.toIso8601String();
+                        _fetchBackupsByTime(formatted);
                       }
                     },
                   ),
@@ -206,9 +270,9 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
               ],
             ),
           ),
-          // Backup list
+          // 列表
           Expanded(
-            child: FutureBuilder<List<Backup>>(
+            child: FutureBuilder<List<BackupRestore>>(
               future: _backupsFuture,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -227,7 +291,7 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
                         margin: const EdgeInsets.symmetric(
                             vertical: 8.0, horizontal: 16.0),
                         child: ListTile(
-                          title: Text('备份文件名: ${backup.backupFileName}'),
+                          title: Text('文件名: ${backup.backupFileName}'),
                           subtitle: Text('备份时间: ${backup.backupTime}'),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -235,12 +299,13 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
                               IconButton(
                                 icon: const Icon(Icons.restore),
                                 onPressed: () =>
-                                    _restoreBackup(backup.backupId),
+                                    _restoreBackup(backup.backupId!),
                                 tooltip: '恢复此备份',
                               ),
                               IconButton(
                                 icon: const Icon(Icons.delete),
-                                onPressed: () => _deleteBackup(backup.backupId),
+                                onPressed: () =>
+                                    _deleteBackup(backup.backupId!),
                                 tooltip: '删除此备份',
                               ),
                             ],
@@ -255,26 +320,6 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
           ),
         ],
       ),
-    );
-  }
-}
-
-class Backup {
-  final int backupId;
-  final String backupFileName;
-  final String backupTime;
-
-  Backup({
-    required this.backupId,
-    required this.backupFileName,
-    required this.backupTime,
-  });
-
-  factory Backup.fromJson(Map<String, dynamic> json) {
-    return Backup(
-      backupId: json['backupId'],
-      backupFileName: json['backupFileName'],
-      backupTime: json['backupTime'],
     );
   }
 }

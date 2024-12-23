@@ -1,4 +1,3 @@
-import 'package:final_assignment_front/utils/services/message_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -22,10 +21,7 @@ class MainApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => MessageProvider()),
-        // 可以在这里添加其他 Provider
-      ],
+      providers: [],
       child: GetMaterialApp(
         title: '管理系统',
         debugShowCheckedModeBanner: false,

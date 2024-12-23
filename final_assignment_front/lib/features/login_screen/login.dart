@@ -1,17 +1,30 @@
 import 'dart:convert';
+
 import 'package:final_assignment_front/config/routes/app_pages.dart';
-import 'package:final_assignment_front/utils/mixins/app_mixins.dart';
-import 'package:final_assignment_front/utils/services/app_config.dart';
-import 'package:final_assignment_front/utils/services/local_storage_services.dart';
-import 'package:final_assignment_front/utils/services/message_provider.dart';
-import 'package:final_assignment_front/utils/services/rest_api_services.dart';
+import 'package:final_assignment_front/features/api/auth_controller_api.dart';
+import 'package:final_assignment_front/features/model/login_request.dart';
+import 'package:final_assignment_front/features/model/register_request.dart';
+import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_login/flutter_login.dart';
-import 'package:get/get.dart';
-import 'package:provider/provider.dart';
+import 'package:get/get.dart'; // 如果你需要路由跳转
 import 'package:http/http.dart' as http;
 
-/// 登录屏幕 StatefulWidget
+/// 这个 mixin 只是演示，如果你有自己的校验函数，可自行保留或删除
+mixin ValidatorMixin {
+  String? validateUsername(String? val) {
+    if (val == null || val.isEmpty) return '用户名不能为空';
+    return null;
+  }
+
+  String? validatePassword(String? val) {
+    if (val == null || val.isEmpty) return '密码不能为空';
+    if (val.length < 3) return '密码太短';
+    return null;
+  }
+}
+
+/// 登录界面
 class LoginScreen extends StatefulWidget with ValidatorMixin {
   const LoginScreen({super.key});
 
@@ -19,179 +32,120 @@ class LoginScreen extends StatefulWidget with ValidatorMixin {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-/// 登录屏幕状态管理类
+/// 登录界面状态
 class _LoginScreenState extends State<LoginScreen> {
-  late RestApiServices restApiServices;
-  MessageProvider? messageProvider;
+  // 直接使用 AuthControllerApi
+  late AuthControllerApi authApi;
 
-  // 尝试初始化 WebSocket 连接
   @override
   void initState() {
     super.initState();
-    restApiServices = RestApiServices();
-
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      try {
-        // 获取全局的 MessageProvider 实例
-        messageProvider = Provider.of<MessageProvider>(context, listen: false);
-
-        if (messageProvider != null) {
-          String fullUrl = AppConfig.getFullUrl(AppConfig.authControllerEndpoint);
-          debugPrint('尝试连接 WebSocket，URL: $fullUrl');
-
-          // 初始化 WebSocket 连接
-          bool isConnected = await restApiServices.initWebSocket(fullUrl, messageProvider!);
-
-          if (isConnected) {
-            debugPrint('WebSocket 连接初始化成功');
-          } else {
-            debugPrint('WebSocket 连接初始化失败，无法建立连接');
-          }
-        } else {
-          debugPrint('MessageProvider 未初始化，无法建立 WebSocket 连接');
-        }
-      } catch (e, stacktrace) {
-        debugPrint('WebSocket 连接初始化过程中发生错误: $e\n$stacktrace');
-      }
-    });
+    authApi = AuthControllerApi();
+    // 这样会使用默认的 defaultApiClient (basePath = http://localhost:8081)，
+    // 如果你想自定义 basePath，可以在构造时传入一个新的 ApiClient(basePath:'...')
   }
 
-  @override
-  void dispose() {
-    // 关闭 WebSocket 连接
-    restApiServices.closeWebSocket();
-    super.dispose();
-  }
-
-  /// 登录动画持续时间
-  Duration get loginTime => const Duration(milliseconds: 2250);
-
-  /// 用户认证逻辑
+  /// 用户登录逻辑
   Future<String?> _authUser(LoginData data) async {
-    debugPrint('用户名: ${data.name}, 密码: ${data.password}');
+    final username = data.name;
+    final password = data.password;
 
-    if (messageProvider == null) {
-      // 使用 HTTP 请求进行登录
-      final response = await http.post(
-        Uri.parse('${AppConfig.baseUrl}${AppConfig.authControllerEndpoint}/login'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'username': data.name,
-          'password': data.password,
-        }),
+    try {
+      // 发起登录请求
+      final result = await authApi.apiAuthLoginPost(
+        loginRequest: LoginRequest(username: username, password: password),
       );
 
-      if (response.statusCode == 200) {
-        final responseData = jsonDecode(response.body);
-        if (responseData['status'] == 'success') {
-          String token = responseData['token'];
-          await LocalStorageServices().saveToken(token);
-          debugPrint('JWT token saved');
-          Get.offAllNamed(AppPages.initial);
+      // 这里 result 的类型是 `Object?` (通常会被解析为 Map 或其他)
+      // 你需要看后台返回什么格式。例如:
+      // {
+      //   "status": "success",
+      //   "token": "xxxxxx"
+      // }
+      //
+      // 如果是 `null`，说明响应体为空
+      if (result == null) {
+        return '登录失败：响应体为空';
+      }
+
+      // 如果后端返回了一个 Map<String, dynamic>:
+      if (result is Map<String, dynamic>) {
+        if (result['status'] == 'success') {
+          // 拿到 token
+          String token = result['token'] ?? '';
+          // 可以在此处存储 token，比如 SharedPreferences
+          // 登录成功则返回 null（表示无错误消息）
           return null;
         } else {
-          return responseData['message'] ?? '登录失败';
+          // 如果 status != success
+          return result['message'] ?? '登录失败';
         }
       } else {
-        return 'HTTP 请求失败，状态码: ${response.statusCode}';
+        // 如果不是 Map，可能是别的类型
+        return '未识别的响应数据: $result';
       }
-    }
-
-    restApiServices.sendMessage(jsonEncode({
-      'action': 'login',
-      'username': data.name,
-      'password': data.password,
-    }));
-
-    // 等待登录响应
-    final responseData = await messageProvider!.waitForMessage('loginResponse');
-
-    if (responseData != null && responseData['status'] == 'success') {
-      // 存储 JWT 令牌
-      String token = responseData['token'];
-      await LocalStorageServices().saveToken(token);
-      debugPrint('JWT token saved');
-
-      // 导航到仪表板
-      Get.offAllNamed(AppPages.initial);
-      return null;
-    } else {
-      return responseData?['message'] ?? '登录失败';
+    } on ApiException catch (e) {
+      // 如果后端返回 4xx/5xx，ApiException 会被抛出
+      return '登录失败: ${e.message}';
+    } catch (e) {
+      // 其他未知异常
+      return '登录异常: $e';
     }
   }
 
   /// 用户注册逻辑
   Future<String?> _signupUser(SignupData data) async {
-    if (messageProvider == null) {
-      // 使用 HTTP 请求进行注册
-      final response = await http.post(
-        Uri.parse('${AppConfig.baseUrl}${AppConfig.authControllerEndpoint}/signup'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'username': data.name,
-          'password': data.password,
-        }),
-      );
+    final username = data.name ?? '';
+    final password = data.password ?? '';
 
-      if (response.statusCode == 200) {
-        final responseData = jsonDecode(response.body);
-        if (responseData['status'] == 'success') {
+    try {
+      final result = await authApi.apiAuthRegisterPost(
+        registerRequest:
+            RegisterRequest(username: username, password: password),
+      );
+      if (result == null) {
+        return '注册失败：响应体为空';
+      }
+      if (result is Map<String, dynamic>) {
+        if (result['status'] == 'success') {
+          // 注册成功
           return null;
         } else {
-          return responseData['message'] ?? '注册失败';
+          return result['message'] ?? '注册失败';
         }
       } else {
-        return 'HTTP 请求失败，状态码: ${response.statusCode}';
+        return '未知注册响应数据: $result';
       }
-    }
-
-    restApiServices.sendMessage(jsonEncode({
-      'action': 'signup',
-      'username': data.name,
-      'password': data.password,
-    }));
-
-    // 等待注册响应
-    final responseData = await messageProvider!.waitForMessage('signupResponse');
-
-    if (responseData != null && responseData['status'] == 'success') {
-      return null;
-    } else {
-      return responseData?['message'] ?? '注册失败';
+    } on ApiException catch (e) {
+      return '注册失败: ${e.message}';
+    } catch (e) {
+      return '注册异常: $e';
     }
   }
 
-  /// 密码恢复逻辑
+  /// 忘记密码逻辑
   Future<String?> _recoverPassword(String name) async {
-    if (messageProvider == null) {
-      // 使用 HTTP 请求进行密码恢复
+    // 这里演示：没有专门的 recoverPassword 接口，就随便 HTTP 调用下
+    // 如果后端确实有，你可以在 AuthControllerApi 里加一个 apiAuthRecoverPasswordPost
+    try {
+      const url = 'http://localhost:8081/api/auth/recoverPassword';
       final response = await http.post(
-        Uri.parse('${AppConfig.baseUrl}${AppConfig.authControllerEndpoint}/recoverPassword'),
+        Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'username': name}),
       );
-
       if (response.statusCode == 200) {
-        final responseData = jsonDecode(response.body);
-        if (responseData['status'] == 'success') {
-          return null;
+        final data = jsonDecode(response.body);
+        if (data['status'] == 'success') {
+          return null; // 表示无错误
         } else {
-          return responseData['message'] ?? '密码恢复失败';
+          return data['message'] ?? '密码恢复失败';
         }
       } else {
-        return 'HTTP 请求失败，状态码: ${response.statusCode}';
+        return '密码恢复失败：状态码 ${response.statusCode}';
       }
-    }
-
-    restApiServices.sendMessage(jsonEncode({'action': 'recoverPassword', 'username': name}));
-
-    // 等待密码恢复响应
-    final responseData = await messageProvider!.waitForMessage('recoverPasswordResponse');
-
-    if (responseData != null && responseData['status'] == 'success') {
-      return null;
-    } else {
-      return responseData?['message'] ?? '密码恢复失败';
+    } catch (e) {
+      return '密码恢复异常: $e';
     }
   }
 
@@ -219,7 +173,8 @@ class _LoginScreenState extends State<LoginScreen> {
           color: Colors.white,
           elevation: 8.0,
           margin: const EdgeInsets.symmetric(horizontal: 20.0),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
         ),
         titleStyle: const TextStyle(
           color: Colors.white,
