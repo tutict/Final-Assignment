@@ -1,109 +1,146 @@
-import 'dart:convert';
-import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+
+// 导入你的 OffenseInformationControllerApi、OffenseInformation
+import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
+import 'package:final_assignment_front/features/model/offense_information.dart';
 
 class OffenseList extends StatefulWidget {
   const OffenseList({super.key});
 
   @override
-  State<OffenseList> createState() => _OffenseListPage();
+  State<OffenseList> createState() => _OffenseListPageState();
 }
 
-class _OffenseListPage extends State<OffenseList> {
-  late Future<List<Offense>> _offensesFuture;
+class _OffenseListPageState extends State<OffenseList> {
+  // 用于调用后端接口
+  late OffenseInformationControllerApi offenseApi;
+
+  // Future 用于异步加载违法行为列表
+  late Future<List<OffenseInformation>> _offensesFuture;
 
   @override
   void initState() {
     super.initState();
+    offenseApi = OffenseInformationControllerApi();
     _offensesFuture = _fetchOffenses();
   }
 
-  Future<List<Offense>> _fetchOffenses({
+  /// 根据可选条件（driverName, licensePlate, timeRange等）获取违法行为信息
+  Future<List<OffenseInformation>> _fetchOffenses({
     String? driverName,
     String? licensePlate,
     DateTime? startTime,
     DateTime? endTime,
   }) async {
-    Uri url;
-
-    if (driverName != null) {
-      url = Uri.parse(
-          '${AppConfig.baseUrl}${AppConfig.offenseInformationEndpoint}/driverName/$driverName');
-    } else if (licensePlate != null) {
-      url = Uri.parse(
-          '${AppConfig.baseUrl}${AppConfig.offenseInformationEndpoint}/licensePlate/$licensePlate');
-    } else if (startTime != null && endTime != null) {
-      url = Uri.parse(
-          '${AppConfig.baseUrl}${AppConfig.offenseInformationEndpoint}/timeRange?startTime=${startTime.toIso8601String()}&endTime=${endTime.toIso8601String()}');
-    } else {
-      url = Uri.parse('${AppConfig.baseUrl}${AppConfig.offenseInformationEndpoint}');
-    }
-
     try {
-      final response = await http.get(url);
-      if (response.statusCode == 200) {
-        List<dynamic> offensesJson = jsonDecode(response.body);
-        return offensesJson.map((json) => Offense.fromJson(json)).toList();
-      } else {
-        throw Exception('Failed to load offenses');
+      // 1) 按司机姓名
+      if (driverName != null && driverName.isNotEmpty) {
+        final result = await offenseApi.apiOffensesDriverNameDriverNameGet(
+          driverName: driverName,
+        );
+        // result 可能是单个对象(Map)或列表(List)
+        return _parseOffensesResult(result);
+      }
+      // 2) 按车牌号
+      else if (licensePlate != null && licensePlate.isNotEmpty) {
+        final result = await offenseApi.apiOffensesLicensePlateLicensePlateGet(
+          licensePlate: licensePlate,
+        );
+        return _parseOffensesResult(result);
+      }
+      // 3) 按时间范围
+      else if (startTime != null && endTime != null) {
+        final listObj = await offenseApi.apiOffensesTimeRangeGet(
+          startTime: startTime.toIso8601String(),
+          endTime: endTime.toIso8601String(),
+        );
+        return _parseOffensesList(listObj);
+      }
+      // 4) 否则获取所有
+      else {
+        final listObj = await offenseApi.apiOffensesGet();
+        return _parseOffensesList(listObj);
       }
     } catch (e) {
-      developer.log('Error: $e');
-      throw Exception('Failed to load offenses: $e');
+      // 处理或 rethrow
+      throw Exception('获取违法行为信息失败: $e');
     }
   }
 
+  /// 删除违法行为
   Future<void> _deleteOffense(int offenseId) async {
-    final url = Uri.parse(
-        '${AppConfig.baseUrl}${AppConfig.offenseInformationEndpoint}/$offenseId');
     try {
-      final response = await http.delete(url);
-      if (response.statusCode == 204) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('删除违法信息成功！')),
-        );
-        setState(() {
-          _offensesFuture = _fetchOffenses(); // Refresh offense list after delete
-        });
-      } else {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('删除违法信息失败，请稍后重试。')),
-        );
-      }
+      // 调用 apiOffensesOffenseIdDelete
+      final responseObj = await offenseApi.apiOffensesOffenseIdDelete(
+        offenseId: offenseId.toString(),
+      );
+      // 如果成功，刷新列表
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('删除违法信息成功！')),
+      );
+      setState(() {
+        _offensesFuture = _fetchOffenses();
+      });
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('发生错误，请检查网络连接。')),
+        SnackBar(content: Text('删除违法信息失败: $e')),
       );
     }
   }
 
+  /// 按司机姓名搜索
   void _searchOffensesByDriverName(String driverName) {
     setState(() {
       _offensesFuture = _fetchOffenses(driverName: driverName);
     });
   }
 
+  /// 按车牌号搜索
   void _searchOffensesByLicensePlate(String licensePlate) {
     setState(() {
       _offensesFuture = _fetchOffenses(licensePlate: licensePlate);
     });
   }
 
+  /// 弹窗选择时间范围
   Future<void> _selectDateRange() async {
-    DateTimeRange? picked = await showDateRangePicker(
+    final picked = await showDateRangePicker(
       context: context,
       firstDate: DateTime(1970),
       lastDate: DateTime(2100),
     );
     if (picked != null) {
       setState(() {
-        _offensesFuture = _fetchOffenses(startTime: picked.start, endTime: picked.end);
+        _offensesFuture = _fetchOffenses(
+          startTime: picked.start,
+          endTime: picked.end,
+        );
       });
     }
+  }
+
+  /// 解析单次查询结果: 可能返回单条(Map)或多条(List)
+  List<OffenseInformation> _parseOffensesResult(Object? result) {
+    if (result == null) return [];
+    if (result is List) {
+      return result.map((item) {
+        return OffenseInformation.fromJson(item as Map<String, dynamic>);
+      }).toList();
+    } else if (result is Map<String, dynamic>) {
+      return [OffenseInformation.fromJson(result)];
+    } else {
+      return [];
+    }
+  }
+
+  /// 解析后端返回的 List<Object>?
+  List<OffenseInformation> _parseOffensesList(List<Object>? listObj) {
+    if (listObj == null) return [];
+    return listObj.map((item) {
+      return OffenseInformation.fromJson(item as Map<String, dynamic>);
+    }).toList();
   }
 
   @override
@@ -137,6 +174,7 @@ class _OffenseListPage extends State<OffenseList> {
       ),
       body: Column(
         children: [
+          // 按司机姓名搜索
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: TextField(
@@ -147,6 +185,7 @@ class _OffenseListPage extends State<OffenseList> {
               ),
             ),
           ),
+          // 按车牌号搜索
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: TextField(
@@ -157,40 +196,60 @@ class _OffenseListPage extends State<OffenseList> {
               ),
             ),
           ),
+          // 列表
           Expanded(
-            child: FutureBuilder<List<Offense>>(
+            child: FutureBuilder<List<OffenseInformation>>(
               future: _offensesFuture,
               builder: (context, snapshot) {
+                // 加载中
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
-                } else if (snapshot.hasError) {
-                  return Center(child: Text('加载违法行为时发生错误: ${snapshot.error}'));
-                } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                }
+                // 出错
+                else if (snapshot.hasError) {
+                  return Center(
+                    child: Text('加载违法行为时发生错误: ${snapshot.error}'),
+                  );
+                }
+                // 没数据
+                else if (!snapshot.hasData || snapshot.data!.isEmpty) {
                   return const Center(child: Text('没有找到违法行为信息'));
-                } else {
+                }
+                // 有数据
+                else {
                   final offenses = snapshot.data!;
                   return ListView.builder(
                     itemCount: offenses.length,
                     itemBuilder: (context, index) {
                       final offense = offenses[index];
+                      final type = offense.offenseType ?? '未知类型';
+                      final plate = offense.licensePlate ?? '未知车牌';
+                      final status = offense.processStatus ?? '未知状态';
+                      final time = offense.offenseTime ?? '';
+
                       return Card(
                         margin: const EdgeInsets.symmetric(
                             vertical: 8.0, horizontal: 16.0),
                         child: ListTile(
-                          title: Text('违法类型: ${offense.offenseType}'),
-                          subtitle: Text(
-                              '车牌号: ${offense.licensePlate}\n处理状态: ${offense.processState}'),
+                          title: Text('违法类型: $type'),
+                          subtitle: Text('车牌号: $plate\n处理状态: $status'),
                           trailing: IconButton(
                             icon: const Icon(Icons.delete),
-                            onPressed: () => _deleteOffense(offense.offenseId),
+                            onPressed: () {
+                              final id = offense.offenseId;
+                              if (id != null) {
+                                _deleteOffense(id);
+                              }
+                            },
                             tooltip: '删除此违法行为',
                           ),
                           onTap: () {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                  builder: (context) =>
-                                      OffenseDetailPage(offense: offense)),
+                                builder: (context) =>
+                                    OffenseDetailPage(offense: offense),
+                              ),
                             );
                           },
                         ),
@@ -207,6 +266,7 @@ class _OffenseListPage extends State<OffenseList> {
   }
 }
 
+// 添加违法行为页面 (示例)
 class AddOffensePage extends StatelessWidget {
   const AddOffensePage({super.key});
 
@@ -223,62 +283,36 @@ class AddOffensePage extends StatelessWidget {
   }
 }
 
+// 违法行为详情页 (示例)
 class OffenseDetailPage extends StatelessWidget {
-  final Offense offense;
+  final OffenseInformation offense;
 
-  const OffenseDetailPage({required this.offense, super.key});
+  const OffenseDetailPage({super.key, required this.offense});
 
   @override
   Widget build(BuildContext context) {
+    final type = offense.offenseType ?? '未知类型';
+    final plate = offense.licensePlate ?? '未知车牌';
+    final status = offense.processStatus ?? '未知状态';
+    final time = offense.offenseTime ?? '未知时间';
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('违法行为详细信息'),
-      ),
+      appBar: AppBar(title: const Text('违法行为详细信息')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('违法类型: ${offense.offenseType}',
-                style: Theme.of(context).textTheme.titleLarge),
+            Text('违法类型: $type', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 8.0),
-            Text('车牌号: ${offense.licensePlate}',
-                style: Theme.of(context).textTheme.bodyLarge),
+            Text('车牌号: $plate', style: Theme.of(context).textTheme.bodyLarge),
             const SizedBox(height: 8.0),
-            Text('处理状态: ${offense.processState}',
-                style: Theme.of(context).textTheme.bodyLarge),
+            Text('处理状态: $status', style: Theme.of(context).textTheme.bodyLarge),
             const SizedBox(height: 8.0),
-            Text('违法时间: ${offense.offenseTime}',
-                style: Theme.of(context).textTheme.bodyLarge),
+            Text('违法时间: $time', style: Theme.of(context).textTheme.bodyLarge),
           ],
         ),
       ),
-    );
-  }
-}
-
-class Offense {
-  final int offenseId;
-  final String offenseType;
-  final String licensePlate;
-  final String processState;
-  final String offenseTime;
-
-  Offense({
-    required this.offenseId,
-    required this.offenseType,
-    required this.licensePlate,
-    required this.processState,
-    required this.offenseTime,
-  });
-
-  factory Offense.fromJson(Map<String, dynamic> json) {
-    return Offense(
-      offenseId: json['offenseId'],
-      offenseType: json['offenseType'],
-      licensePlate: json['licensePlate'],
-      processState: json['processState'],
-      offenseTime: json['offenseTime'],
     );
   }
 }
