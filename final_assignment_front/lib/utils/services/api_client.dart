@@ -171,7 +171,6 @@ class ApiClient {
   }
 
   /// 发起 HTTP / WebSocket 调用的通用方法
-  ///
   /// 这里加了判断：如果 method == 'WS_CONNECT' / 'WS_SEND' / 'WS_CLOSE' 等，就走 WebSocket 逻辑；
   /// 否则走传统的 HTTP 请求逻辑。
   Future<Response> invokeAPI(

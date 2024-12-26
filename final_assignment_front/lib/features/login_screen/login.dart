@@ -95,13 +95,24 @@ class _LoginScreenState extends State<LoginScreen> {
 
   /// 用户注册逻辑
   Future<String?> _signupUser(SignupData data) async {
-    final username = data.name ?? '';
-    final password = data.password ?? '';
+    final username = data.name?.trim();
+    final password = data.password?.trim();
+
+    if (username == null || username.isEmpty) {
+      return '用户名不能为空';
+    }
+    if (password == null || password.isEmpty) {
+      return '密码不能为空';
+    }
 
     try {
       final result = await authApi.apiAuthRegisterPost(
-        registerRequest:
-            RegisterRequest(username: username, password: password),
+        registerRequest: RegisterRequest(
+          username: username,
+          password: password,
+          // 如果需要设置 admin，可以在这里传递
+          // admin: false,
+        ),
       );
       if (result == null) {
         return '注册失败：响应体为空';

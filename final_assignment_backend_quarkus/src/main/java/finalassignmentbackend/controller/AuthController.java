@@ -102,7 +102,7 @@ public class AuthController {
             UserManagement newUser = new UserManagement();
             newUser.setUsername(registerRequest.getUsername());
             newUser.setPassword(registerRequest.getPassword());
-            newUser.setUserType(registerRequest.isAdmin() ? "ADMIN" : "USER");
+            newUser.setUserType(registerRequest.getRole().equals("admin") ? "ADMIN" : "USER");
 
             userManagementService.createUser(newUser);
 
@@ -156,6 +156,6 @@ public class AuthController {
     public static class RegisterRequest {
         private String username;
         private String password;
-        private boolean admin;
+        private String role;
     }
 }
