@@ -66,7 +66,7 @@ class _Sidebar extends StatelessWidget {
                       ),
                     ],
                     onSelected: (index, value) {
-                      log("index : \$index | label : \${value.label}");
+                      log("index : $index | label : ${value.label}");
                     },
                   ),
                   const Divider(thickness: 1),
@@ -81,7 +81,6 @@ class _Sidebar extends StatelessWidget {
               onPressed: () {},
             ),
           ),
-          const SizedBox(height: kSpacing),
         ],
       ),
     );

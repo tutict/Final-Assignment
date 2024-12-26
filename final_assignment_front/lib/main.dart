@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:provider/provider.dart';
 
 import 'config/routes/app_pages.dart';
 import 'config/themes/app_theme.dart';
@@ -20,23 +19,22 @@ class MainApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [],
-      child: GetMaterialApp(
-        title: '管理系统',
-        debugShowCheckedModeBanner: false,
-        initialRoute: AppPages.login,
-        getPages: AppPages.routes,
-        theme: AppTheme.basicLight,
-        builder: (context, child) {
-          return MediaQuery(
-            // 确保字体大小不随系统设置而改变
-            data: MediaQuery.of(context)
-                .copyWith(textScaler: TextScaler.noScaling),
-            child: child ?? const SizedBox.shrink(),
-          );
-        },
-      ),
+    return GetMaterialApp(
+      title: '管理系统',
+      debugShowCheckedModeBanner: false,
+      initialRoute: AppPages.initial,
+      // initialRoute: AppPages.login,
+      getPages: AppPages.routes,
+      theme: AppTheme.basicLight,
+      builder: (context, child) {
+        return MediaQuery(
+          // 确保字体大小不随系统设置而改变
+          data: MediaQuery.of(context).copyWith(
+            textScaler: TextScaler.noScaling,
+          ),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
     );
   }
 }
