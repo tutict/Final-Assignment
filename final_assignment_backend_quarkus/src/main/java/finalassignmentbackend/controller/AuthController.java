@@ -102,7 +102,7 @@ public class AuthController {
             UserManagement newUser = new UserManagement();
             newUser.setUsername(registerRequest.getUsername());
             newUser.setPassword(registerRequest.getPassword());
-            newUser.setUserType(registerRequest.getRole().equals("admin") ? "ADMIN" : "USER");
+            newUser.setUserType(registerRequest.getRole().equals("ADMIN") ? "ADMIN" : "USER");
 
             userManagementService.createUser(newUser);
 
