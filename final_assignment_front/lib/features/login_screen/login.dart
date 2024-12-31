@@ -41,8 +41,6 @@ class _LoginScreenState extends State<LoginScreen> {
   void initState() {
     super.initState();
     authApi = AuthControllerApi();
-    // 这样会使用默认的 defaultApiClient (basePath = http://localhost:8081)，
-    // 如果你想自定义 basePath，可以在构造时传入一个新的 ApiClient(basePath:'...')
   }
 
   /// 用户登录逻辑
@@ -56,13 +54,6 @@ class _LoginScreenState extends State<LoginScreen> {
         loginRequest: LoginRequest(username: username, password: password),
       );
 
-      // 这里 result 的类型是 `Object?` (通常会被解析为 Map 或其他)
-      // 你需要看后台返回什么格式。例如:
-      // {
-      //   "status": "success",
-      //   "token": "xxxxxx"
-      // }
-      //
       // 如果是 `null`，说明响应体为空
       if (result == null) {
         return '登录失败：响应体为空';
@@ -111,7 +102,6 @@ class _LoginScreenState extends State<LoginScreen> {
           username: username,
           password: password,
           // 如果需要设置 admin，可以在这里传递
-          // admin: false,
         ),
       );
       if (result == null) {

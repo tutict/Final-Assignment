@@ -136,7 +136,8 @@ public class UserManagementService {
         }
     }
 
-    @CacheResult(cacheName = "userCache")
+    // Cache the result of this method
+    @CacheResult(cacheName = "usernameExistsCache")
     public boolean isUsernameExists(String username) {
         validateInput(username, "Invalid username");
         QueryWrapper<UserManagement> queryWrapper = new QueryWrapper<>();
