@@ -49,6 +49,7 @@ public class UserManagementService {
     @Transactional
     @CacheInvalidate(cacheName = "userCache")
     public void createUser(UserManagement user) {
+
         try {
             userManagementMapper.insert(user);
             userEvent.fire(new UserEvent(user, "create"));
@@ -57,6 +58,7 @@ public class UserManagementService {
             throw new RuntimeException("Failed to create user", e);
         }
     }
+
 
     @CacheResult(cacheName = "userCache")
     public UserManagement getUserById(int userId) {

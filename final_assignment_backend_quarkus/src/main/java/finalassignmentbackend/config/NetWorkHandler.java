@@ -186,8 +186,8 @@ public class NetWorkHandler extends AbstractVerticle {
     }
 
     private void forwardHttpRequest(HttpServerRequest request) {
-        String path = request.path(); // e.g., /api/appeals
-        String targetUrl = backendUrl + ":" + backendPort + path; // e.g., http://localhost:8080/api/appeals
+        String path = request.path();
+        String targetUrl = backendUrl + ":" + backendPort + path;
         UUID requestId = UUID.randomUUID();
         log.info("[{}] Forwarding request from path: {} to targetUrl: {}", requestId, path, targetUrl);
 

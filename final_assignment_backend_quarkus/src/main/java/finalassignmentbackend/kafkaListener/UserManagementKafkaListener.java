@@ -40,6 +40,12 @@ public class UserManagementKafkaListener {
     private void processMessage(String message, String action, MessageProcessor<UserManagement> processor) {
         try {
             UserManagement user = deserializeMessage(message);
+
+            // 如果是 create，则确保 userId 为 null，让数据库自增。
+            if ("create".equals(action)) {
+                user.setUserId(null);
+            }
+
             processor.process(user);
             log.info(String.format("User %s action processed successfully: %s", action, message));
         } catch (Exception e) {
