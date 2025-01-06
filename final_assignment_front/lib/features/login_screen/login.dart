@@ -24,6 +24,9 @@ mixin ValidatorMixin {
   }
 }
 
+/// 唯一标识
+String uniqueKey = DateTime.now().millisecondsSinceEpoch.toString();
+
 /// 登录界面
 class LoginScreen extends StatefulWidget with ValidatorMixin {
   const LoginScreen({super.key});
@@ -101,6 +104,7 @@ class _LoginScreenState extends State<LoginScreen> {
         registerRequest: RegisterRequest(
           username: username,
           password: password,
+          idempotencyKey: uniqueKey,
           // 如果需要设置 admin，可以在这里传递
         ),
       );

@@ -2,6 +2,7 @@ class RegisterRequest {
   final String username;
   final String password;
   final String role;
+  final String idempotencyKey;
 
   // 定义正则表达式为静态常量，避免每次实例化时重新编译
   static final RegExp _regExp = RegExp(r'@([^.]+)\.');
@@ -10,13 +11,15 @@ class RegisterRequest {
   RegisterRequest({
     required this.username,
     required this.password,
+    required this.idempotencyKey,
   }) : role = _determineRole(username);
 
   // 从 JSON 创建 RegisterRequest 实例时设置角色
   RegisterRequest.fromJson(Map<String, dynamic> json)
-      : username = json['username'],
-        password = json['password'],
-        role = _determineRole(json['username']);
+      : username = (json['username']),
+        password = (json['password']),
+        role = _determineRole(json['username']),
+        idempotencyKey = (json['idempotencyKey']);
 
   // 将 RegisterRequest 实例转换为 JSON
   Map<String, dynamic> toJson() {
@@ -24,12 +27,13 @@ class RegisterRequest {
       'username': username,
       'password': password,
       'role': role,
+      'idempotencyKey': idempotencyKey,
     };
   }
 
   @override
   String toString() {
-    return 'RegisterRequest[username=$username, password=$password, role=$role]';
+    return 'RegisterRequest[username=$username, password=$password, role=$role, idempotencyKey=$idempotencyKey]';
   }
 
   // 通过正则表达式确定角色
@@ -54,7 +58,7 @@ class RegisterRequest {
     var map = <String, RegisterRequest>{};
     if (json.isNotEmpty) {
       json.forEach((String key, dynamic value) =>
-      map[key] = RegisterRequest.fromJson(value));
+          map[key] = RegisterRequest.fromJson(value));
     }
     return map;
   }
