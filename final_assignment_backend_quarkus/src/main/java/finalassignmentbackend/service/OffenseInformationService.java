@@ -3,6 +3,7 @@ package finalassignmentbackend.service;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import finalassignmentbackend.entity.OffenseInformation;
 import finalassignmentbackend.mapper.OffenseInformationMapper;
+import finalassignmentbackend.mapper.RequestHistoryMapper;
 import io.quarkus.cache.CacheInvalidate;
 import io.quarkus.cache.CacheResult;
 import io.smallrye.reactive.messaging.MutinyEmitter;
@@ -28,6 +29,9 @@ public class OffenseInformationService {
 
     @Inject
     OffenseInformationMapper offenseInformationMapper;
+
+    @Inject
+    RequestHistoryMapper requestHistoryMapper;
 
     @Inject
     Event<OffenseEvent> offenseEvent;

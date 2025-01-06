@@ -27,20 +27,23 @@ public class AppealManagementKafkaListener {
     @Transactional
     @RunOnVirtualThread
     public void onAppealCreateReceived(String message) {
-        processMessage(message, "create", appealManagementService::createAppeal);
+        processMessage(message, "create", (appealManagement) -> appealManagementService.createAppeal(appealManagement));
     }
 
     @Incoming("appeal_updated")
     @Transactional
     @RunOnVirtualThread
     public void onAppealUpdateReceived(String message) {
-        processMessage(message, "update", appealManagementService::updateAppeal);
+        processMessage(message, "update", (appealManagement) -> appealManagementService.updateAppeal(appealManagement));
     }
 
     private void processMessage(String message, String action, MessageProcessor<AppealManagement> processor) {
         try {
             AppealManagement appealManagement = deserializeMessage(message);
-            processor.process(appealManagement);
+            if ("create".equals(action)) {
+                appealManagement.setAppealId(null);
+                processor.process(appealManagement);
+            }
             log.info(String.format("Appeal %s action processed successfully: %s", action, message));
         } catch (Exception e) {
             log.log(Level.SEVERE, String.format("Error processing %s appeal message: %s", action, message), e);

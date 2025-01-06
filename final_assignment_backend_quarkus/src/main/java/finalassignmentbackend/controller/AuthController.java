@@ -11,6 +11,7 @@ import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.annotation.security.PermitAll;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
+import jakarta.transaction.Transactional;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
@@ -91,6 +92,7 @@ public class AuthController {
     @Path("/register")
     @PermitAll
     @RunOnVirtualThread
+    @Transactional
     public Response registerUser(RegisterRequest registerRequest) {
         logger.info(String.format("Attempting to register user: %s", registerRequest.getUsername()));
         try {
@@ -104,7 +106,8 @@ public class AuthController {
             newUser.setPassword(registerRequest.getPassword());
             newUser.setUserType(registerRequest.getRole().equals("ADMIN") ? "ADMIN" : "USER");
 
-            userManagementService.createUser(newUser);
+            String idempotencyKey = registerRequest.getIdempotencyKey(); // 比如在请求体里
+            userManagementService.checkAndInsertIdempotency(idempotencyKey, newUser);
 
             logger.info(String.format("User registered successfully: %s", registerRequest.getUsername()));
             return Response.status(Response.Status.CREATED).build();
@@ -157,5 +160,7 @@ public class AuthController {
         private String username;
         private String password;
         private String role;
+        private String idempotencyKey;
+
     }
 }

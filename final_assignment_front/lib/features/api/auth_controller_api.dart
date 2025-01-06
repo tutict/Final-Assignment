@@ -1,7 +1,6 @@
 import 'package:final_assignment_front/features/model/login_request.dart';
 import 'package:final_assignment_front/features/model/register_request.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
-import 'package:flutter/material.dart';
 import 'package:http/http.dart'; // 用于 Response 和 MultipartRequest
 import 'package:final_assignment_front/utils/services/api_client.dart';
 
@@ -17,15 +16,6 @@ class AuthControllerApi {
 
   // 解码响应体的辅助方法
   String _decodeBodyBytes(Response response) => response.body;
-
-  // 辅助方法：合并自定义头（在这里可检查循环、添加 X-Forwarded-By 等）
-  Map<String, String> _mergeHeaders(Map<String, String> baseHeaders) {
-    if (baseHeaders.containsKey("X-Forwarded-By")) {
-      debugPrint("Warning: X-Forwarded-By header already exists in request!");
-    }
-    baseHeaders["X-Forwarded-By"] = "NetWorkHandler";
-    return baseHeaders;
-  }
 
   /// 使用 HTTP 信息进行登录
   ///
@@ -43,7 +33,6 @@ class AuthControllerApi {
     // 查询参数
     List<QueryParam> queryParams = [];
     Map<String, String> headerParams = {};
-    headerParams = _mergeHeaders(headerParams); // 加入自定义头
     Map<String, String> formParams = {};
 
     List<String> contentTypes = ["application/json"];
@@ -139,7 +128,6 @@ class AuthControllerApi {
     // 查询参数
     List<QueryParam> queryParams = [];
     Map<String, String> headerParams = {};
-    headerParams = _mergeHeaders(headerParams); // 加入自定义头
     Map<String, String> formParams = {};
 
     List<String> contentTypes = [];
@@ -186,7 +174,6 @@ class AuthControllerApi {
     // 查询参数
     List<QueryParam> queryParams = [];
     Map<String, String> headerParams = {};
-    headerParams = _mergeHeaders(headerParams); // 加入自定义头
     Map<String, String> formParams = {};
 
     List<String> contentTypes = ["application/json"];
@@ -235,7 +222,6 @@ class AuthControllerApi {
     // 查询参数
     List<QueryParam> queryParams = [];
     Map<String, String> headerParams = {};
-    headerParams = _mergeHeaders(headerParams); // 加入自定义头
     Map<String, String> formParams = {};
 
     List<String> contentTypes = ["application/json"];
@@ -283,7 +269,6 @@ class AuthControllerApi {
     // 查询参数
     List<QueryParam> queryParams = [];
     Map<String, String> headerParams = {};
-    headerParams = _mergeHeaders(headerParams); // 加入自定义头
     Map<String, String> formParams = {};
 
     List<String> contentTypes = [];

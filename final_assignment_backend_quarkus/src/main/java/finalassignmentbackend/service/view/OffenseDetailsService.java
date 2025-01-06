@@ -1,5 +1,6 @@
 package finalassignmentbackend.service.view;
 
+import finalassignmentbackend.mapper.RequestHistoryMapper;
 import finalassignmentbackend.mapper.view.OffenseDetailsMapper;
 import finalassignmentbackend.entity.view.OffenseDetails;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -24,6 +25,9 @@ public class OffenseDetailsService {
 
     @Inject
     OffenseDetailsMapper offenseDetailsMapper;
+
+    @Inject
+    RequestHistoryMapper requestHistoryMapper;
 
     @Inject
     Event<OffenseDetailsEvent> offenseDetailsEvent;

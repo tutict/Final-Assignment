@@ -27,20 +27,23 @@ public class PermissionManagementKafkaListener {
     @Transactional
     @RunOnVirtualThread
     public void onPermissionCreateReceived(String message) {
-        processMessage(message, "create", permissionManagementService::createPermission);
+        processMessage(message, "create", (permission) -> permissionManagementService.createPermission(permission));
     }
 
     @Incoming("permission_update")
     @Transactional
     @RunOnVirtualThread
     public void onPermissionUpdateReceived(String message) {
-        processMessage(message, "update", permissionManagementService::updatePermission);
+        processMessage(message, "update", (permission) -> permissionManagementService.updatePermission(permission));
     }
 
     private void processMessage(String message, String action, MessageProcessor<PermissionManagement> processor) {
         try {
             PermissionManagement permission = deserializeMessage(message);
-            processor.process(permission);
+            if ("create".equals(action)) {
+                permission.setPermissionId(null);
+                processor.process(permission);
+            }
             log.info(String.format("Permission %s action processed successfully: %s", action, message));
         } catch (Exception e) {
             log.log(Level.SEVERE, String.format("Error processing %s permission message: %s", action, message), e);

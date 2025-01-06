@@ -27,20 +27,23 @@ public class OperationLogKafkaListener {
     @Transactional
     @RunOnVirtualThread
     public void onOperationLogCreateReceived(String message) {
-        processMessage(message, "create", operationLogService::createOperationLog);
+        processMessage(message, "create", (operationLog) -> operationLogService.createOperationLog(operationLog));
     }
 
     @Incoming("operation_update")
     @Transactional
     @RunOnVirtualThread
     public void onOperationLogUpdateReceived(String message) {
-        processMessage(message, "update", operationLogService::updateOperationLog);
+        processMessage(message, "update", (operationLog) -> operationLogService.updateOperationLog(operationLog));
     }
 
     private void processMessage(String message, String action, MessageProcessor<OperationLog> processor) {
         try {
             OperationLog operationLog = deserializeMessage(message);
-            processor.process(operationLog);
+            if ("create".equals(action)) {
+                operationLog.setLogId(null);
+                processor.process(operationLog);
+            }
             log.info(String.format("Operation log %s action processed successfully: %s", action, message));
         } catch (Exception e) {
             log.log(Level.SEVERE, String.format("Error processing %s operation log message: %s", action, message), e);

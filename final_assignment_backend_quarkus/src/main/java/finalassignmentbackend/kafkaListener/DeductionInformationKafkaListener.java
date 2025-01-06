@@ -27,20 +27,23 @@ public class DeductionInformationKafkaListener {
     @Transactional
     @RunOnVirtualThread
     public void onDeductionCreateReceived(String message) {
-        processMessage(message, "create", deductionInformationService::createDeduction);
+        processMessage(message, "create", (deductionInformation) -> deductionInformationService.createDeduction(deductionInformation));
     }
 
     @Incoming("deduction_update")
     @Transactional
     @RunOnVirtualThread
     public void onDeductionUpdateReceived(String message) {
-        processMessage(message, "update", deductionInformationService::updateDeduction);
+        processMessage(message, "update", (deductionInformation) -> deductionInformationService.updateDeduction(deductionInformation));
     }
 
     private void processMessage(String message, String action, MessageProcessor<DeductionInformation> processor) {
         try {
             DeductionInformation deductionInformation = deserializeMessage(message);
-            processor.process(deductionInformation);
+            if ("create".equals(action)) {
+                deductionInformation.setDeductionId(null);
+                processor.process(deductionInformation);
+            }
             log.info(String.format("Deduction %s action processed successfully: %s", action, message));
         } catch (Exception e) {
             log.log(Level.SEVERE, String.format("Error processing %s deduction message: %s", action, message), e);

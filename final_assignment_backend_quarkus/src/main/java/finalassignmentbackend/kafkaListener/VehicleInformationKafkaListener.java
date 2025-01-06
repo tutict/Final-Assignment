@@ -27,20 +27,23 @@ public class VehicleInformationKafkaListener {
     @Transactional
     @RunOnVirtualThread
     public void onVehicleCreateReceived(String message) {
-        processMessage(message, "create", vehicleInformationService::createVehicleInformation);
+        processMessage(message, "create", (vehicleInformation) -> vehicleInformationService.createVehicleInformation(vehicleInformation));
     }
 
     @Incoming("vehicle_update")
     @Transactional
     @RunOnVirtualThread
     public void onVehicleUpdateReceived(String message) {
-        processMessage(message, "update", vehicleInformationService::updateVehicleInformation);
+        processMessage(message, "update", (vehicleInformation) -> vehicleInformationService.updateVehicleInformation(vehicleInformation));
     }
 
     private void processMessage(String message, String action, MessageProcessor<VehicleInformation> processor) {
         try {
             VehicleInformation vehicleInformation = deserializeMessage(message);
-            processor.process(vehicleInformation);
+            if ("create".equals(action)) {
+                vehicleInformation.setVehicleId(null);
+                processor.process(vehicleInformation);
+            }
             log.info(String.format("Vehicle %s action processed successfully: %s", action, message));
         } catch (Exception e) {
             log.log(Level.SEVERE, String.format("Error processing %s vehicle information message: %s", action, message), e);

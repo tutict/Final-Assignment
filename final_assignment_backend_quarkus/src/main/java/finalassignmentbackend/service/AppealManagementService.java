@@ -5,6 +5,7 @@ import finalassignmentbackend.entity.AppealManagement;
 import finalassignmentbackend.entity.OffenseInformation;
 import finalassignmentbackend.mapper.AppealManagementMapper;
 import finalassignmentbackend.mapper.OffenseInformationMapper;
+import finalassignmentbackend.mapper.RequestHistoryMapper;
 import io.quarkus.cache.CacheInvalidate;
 import io.quarkus.cache.CacheResult;
 import io.smallrye.reactive.messaging.MutinyEmitter;
@@ -29,6 +30,9 @@ public class AppealManagementService {
 
     @Inject
     AppealManagementMapper appealManagementMapper;
+
+    @Inject
+    RequestHistoryMapper requestHistoryMapper;
 
     @Inject
     OffenseInformationMapper offenseInformationMapper;

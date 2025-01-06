@@ -35,13 +35,13 @@ public class UserManagementController {
     @POST
     @RolesAllowed("ADMIN")
     @RunOnVirtualThread
-    public Response createUser(UserManagement user) {
+    public Response createUser(UserManagement user, String idempotencyKey) {
         logger.info(String.format("Attempting to create user: %s", user.getUsername()));
         if (userManagementService.isUsernameExists(user.getUsername())) {
             logger.warning(String.format("Username already exists: %s", user.getUsername()));
             return Response.status(Response.Status.CONFLICT).build();
         }
-        userManagementService.createUser(user);
+        userManagementService.checkAndInsertIdempotency(idempotencyKey, user);
         logger.info(String.format("User created successfully: %s", user.getUsername()));
         return Response.status(Response.Status.CREATED).build();
     }

@@ -1,7 +1,9 @@
 package finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import finalassignmentbackend.entity.RequestHistory;
 import finalassignmentbackend.entity.UserManagement;
+import finalassignmentbackend.mapper.RequestHistoryMapper;
 import finalassignmentbackend.mapper.UserManagementMapper;
 import io.quarkus.cache.CacheInvalidate;
 import io.quarkus.cache.CacheResult;
@@ -20,6 +22,7 @@ import org.eclipse.microprofile.reactive.messaging.Message;
 import java.util.List;
 import java.util.logging.Logger;
 
+
 @ApplicationScoped
 public class UserManagementService {
 
@@ -27,6 +30,9 @@ public class UserManagementService {
 
     @Inject
     UserManagementMapper userManagementMapper;
+
+    @Inject
+    RequestHistoryMapper requestHistoryMapper;
 
     @Inject
     Event<UserEvent> userEvent;
@@ -48,17 +54,51 @@ public class UserManagementService {
 
     @Transactional
     @CacheInvalidate(cacheName = "userCache")
-    public void createUser(UserManagement user) {
+    public void checkAndInsertIdempotency(String idempotencyKey, UserManagement user) {
+        // 查询 request_history
+        RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
+        if (existingRequest != null) {
+            // 已有此 key -> 重复请求
+            log.warning(String.format("Duplicate request detected (idempotencyKey=%s)", idempotencyKey));
+            throw new RuntimeException("Duplicate request detected");
+        }
+
+        // 不存在 -> 插入一条 PROCESSING
+        RequestHistory newRequest = new RequestHistory();
+        newRequest.setIdempotentKey(idempotencyKey);
+        newRequest.setBusinessStatus("PROCESSING");
 
         try {
-            userManagementMapper.insert(user);
-            userEvent.fire(new UserEvent(user, "create"));
+            requestHistoryMapper.insert(newRequest);
+            // 这里仅记录 "PROCESSING"，还没真正创建用户
         } catch (Exception e) {
-            log.warning("Exception occurred while creating user or firing event");
+            // 若并发下同 key 导致唯一索引冲突
+            log.severe("Failed to insert requestHistory for idempotencyKey=" + idempotencyKey + ", " + e.getMessage());
+            throw new RuntimeException("Duplicate request or DB insert error", e);
+        }
+
+        // 接着通知 Kafka 或本地事件，让后续流程去“真正创建用户”
+        userEvent.fire(new UserEvent(user, "create"));
+
+        Integer userId = user.getUserId();
+        newRequest.setBusinessStatus("SUCCESS");
+        newRequest.setBusinessId(userId);
+        requestHistoryMapper.updateById(newRequest);
+    }
+
+    @Transactional
+    @CacheInvalidate(cacheName = "userCache")
+    public void createUser(UserManagement user) {
+        try {
+            // 往 user_management 表插入
+            userManagementMapper.insert(user);
+            Integer userId = user.getUserId();
+            log.info(String.format("User created successfully, userId=%d", userId));
+        } catch (Exception e) {
+            log.warning("Exception occurred while creating user: " + e.getMessage());
             throw new RuntimeException("Failed to create user", e);
         }
     }
-
 
     @CacheResult(cacheName = "userCache")
     public UserManagement getUserById(int userId) {
@@ -148,6 +188,7 @@ public class UserManagementService {
     }
 
     public void onUserEvent(@Observes(during = TransactionPhase.AFTER_SUCCESS) UserEvent event) {
+        // 当 action = "create"，user_created
         String topic = event.getAction().equals("create") ? "user_create" : "user_update";
         sendKafkaMessage(topic, event.getUser());
     }

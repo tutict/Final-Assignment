@@ -3,6 +3,7 @@ package finalassignmentbackend.service;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import finalassignmentbackend.entity.PermissionManagement;
 import finalassignmentbackend.mapper.PermissionManagementMapper;
+import finalassignmentbackend.mapper.RequestHistoryMapper;
 import io.quarkus.cache.CacheInvalidate;
 import io.quarkus.cache.CacheResult;
 import io.smallrye.reactive.messaging.MutinyEmitter;
@@ -27,6 +28,9 @@ public class PermissionManagementService {
 
     @Inject
     PermissionManagementMapper permissionManagementMapper;
+
+    @Inject
+    RequestHistoryMapper requestHistoryMapper;
 
     @Inject
     Event<PermissionEvent> permissionEvent;

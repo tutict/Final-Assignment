@@ -27,26 +27,26 @@ public class UserManagementKafkaListener {
     @Transactional
     @RunOnVirtualThread
     public void onUserCreateReceived(String message) {
-        processMessage(message, "create", userManagementService::createUser);
+        processMessage(message, "create", (user) -> userManagementService.createUser(user));
     }
 
     @Incoming("user_update")
     @Transactional
     @RunOnVirtualThread
     public void onUserUpdateReceived(String message) {
-        processMessage(message, "update", userManagementService::updateUser);
+        processMessage(message, "update", (user) -> userManagementService.updateUser(user));
     }
 
     private void processMessage(String message, String action, MessageProcessor<UserManagement> processor) {
         try {
             UserManagement user = deserializeMessage(message);
 
-            // 如果是 create，则确保 userId 为 null，让数据库自增。
             if ("create".equals(action)) {
+                // 让数据库自增
                 user.setUserId(null);
+                processor.process(user);
             }
 
-            processor.process(user);
             log.info(String.format("User %s action processed successfully: %s", action, message));
         } catch (Exception e) {
             log.log(Level.SEVERE, String.format("Error processing %s user message: %s", action, message), e);

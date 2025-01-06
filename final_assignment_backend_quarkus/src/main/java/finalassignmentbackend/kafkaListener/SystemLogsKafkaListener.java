@@ -27,20 +27,23 @@ public class SystemLogsKafkaListener {
     @Transactional
     @RunOnVirtualThread
     public void onSystemLogCreateReceived(String message) {
-        processMessage(message, "create", systemLogsService::createSystemLog);
+        processMessage(message, "create", (systemLog) -> systemLogsService.createSystemLog(systemLog));
     }
 
     @Incoming("system_update")
     @Transactional
     @RunOnVirtualThread
     public void onSystemLogUpdateReceived(String message) {
-        processMessage(message, "update", systemLogsService::updateSystemLog);
+        processMessage(message, "update", (systemLog) -> systemLogsService.updateSystemLog(systemLog));
     }
 
     private void processMessage(String message, String action, MessageProcessor<SystemLogs> processor) {
         try {
             SystemLogs systemLog = deserializeMessage(message);
-            processor.process(systemLog);
+            if ("create".equals(action)) {
+                systemLog.setLogId(null);
+                processor.process(systemLog);
+            }
             log.info(String.format("System log %s action processed successfully: %s", action, message));
         } catch (Exception e) {
             log.log(Level.SEVERE, String.format("Error processing %s system log message: %s", action, message), e);

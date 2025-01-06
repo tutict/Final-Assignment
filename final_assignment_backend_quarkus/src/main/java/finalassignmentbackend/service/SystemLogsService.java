@@ -2,6 +2,7 @@ package finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import finalassignmentbackend.entity.SystemLogs;
+import finalassignmentbackend.mapper.RequestHistoryMapper;
 import finalassignmentbackend.mapper.SystemLogsMapper;
 import io.quarkus.cache.CacheInvalidate;
 import io.quarkus.cache.CacheResult;
@@ -28,6 +29,9 @@ public class SystemLogsService {
 
     @Inject
     SystemLogsMapper systemLogsMapper;
+
+    @Inject
+    RequestHistoryMapper requestHistoryMapper;
 
     @Inject
     Event<SystemLogEvent> systemLogEvent;

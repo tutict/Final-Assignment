@@ -3,6 +3,7 @@ package finalassignmentbackend.service;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import finalassignmentbackend.entity.LoginLog;
 import finalassignmentbackend.mapper.LoginLogMapper;
+import finalassignmentbackend.mapper.RequestHistoryMapper;
 import io.quarkus.cache.CacheInvalidate;
 import io.quarkus.cache.CacheResult;
 import io.smallrye.reactive.messaging.MutinyEmitter;
@@ -28,6 +29,9 @@ public class LoginLogService {
 
     @Inject
     LoginLogMapper loginLogMapper;
+
+    @Inject
+    RequestHistoryMapper requestHistoryMapper;
 
     @Inject
     Event<LoginLogEvent> loginLogEvent;

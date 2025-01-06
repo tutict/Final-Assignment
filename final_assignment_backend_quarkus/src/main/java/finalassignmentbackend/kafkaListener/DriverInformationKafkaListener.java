@@ -27,20 +27,23 @@ public class DriverInformationKafkaListener {
     @Transactional
     @RunOnVirtualThread
     public void onDriverCreateReceived(String message) {
-        processMessage(message, "create", driverInformationService::createDriver);
+        processMessage(message, "create", (driverInformation) -> driverInformationService.createDriver(driverInformation));
     }
 
     @Incoming("driver_update")
     @Transactional
     @RunOnVirtualThread
     public void onDriverUpdateReceived(String message) {
-        processMessage(message, "update", driverInformationService::updateDriver);
+        processMessage(message, "update", (driverInformation) -> driverInformationService.updateDriver(driverInformation));
     }
 
     private void processMessage(String message, String action, MessageProcessor<DriverInformation> processor) {
         try {
             DriverInformation driverInformation = deserializeMessage(message);
-            processor.process(driverInformation);
+            if ("create".equals(action)) {
+                driverInformation.setDriverId(null);
+                processor.process(driverInformation);
+            }
             log.info(String.format("Driver %s action processed successfully: %s", action, message));
         } catch (Exception e) {
             log.log(Level.SEVERE, String.format("Error processing %s driver message: %s", action, message), e);

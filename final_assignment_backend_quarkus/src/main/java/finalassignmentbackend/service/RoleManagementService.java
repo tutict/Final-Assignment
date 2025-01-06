@@ -2,6 +2,7 @@ package finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import finalassignmentbackend.entity.RoleManagement;
+import finalassignmentbackend.mapper.RequestHistoryMapper;
 import finalassignmentbackend.mapper.RoleManagementMapper;
 import io.quarkus.cache.CacheInvalidate;
 import io.quarkus.cache.CacheResult;
@@ -27,6 +28,9 @@ public class RoleManagementService {
 
     @Inject
     RoleManagementMapper roleManagementMapper;
+
+    @Inject
+    RequestHistoryMapper requestHistoryMapper;
 
     @Inject
     Event<RoleEvent> roleEvent;

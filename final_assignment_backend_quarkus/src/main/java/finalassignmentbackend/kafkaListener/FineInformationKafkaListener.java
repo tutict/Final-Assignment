@@ -27,20 +27,23 @@ public class FineInformationKafkaListener {
     @Transactional
     @RunOnVirtualThread
     public void onFineCreateReceived(String message) {
-        processMessage(message, "create", fineInformationService::createFine);
+        processMessage(message, "create", (fineInformation) -> fineInformationService.createFine(fineInformation));
     }
 
     @Incoming("fine_update")
     @Transactional
     @RunOnVirtualThread
     public void onFineUpdateReceived(String message) {
-        processMessage(message, "update", fineInformationService::updateFine);
+        processMessage(message, "update", (fineInformation) -> fineInformationService.updateFine(fineInformation));
     }
 
     private void processMessage(String message, String action, MessageProcessor<FineInformation> processor) {
         try {
             FineInformation fineInformation = deserializeMessage(message);
-            processor.process(fineInformation);
+            if ("create".equals(action)) {
+                fineInformation.setFineId(null);
+                processor.process(fineInformation);
+            }
             log.info(String.format("Fine %s action processed successfully: %s", action, message));
         } catch (Exception e) {
             log.log(Level.SEVERE, String.format("Error processing %s fine message: %s", action, message), e);

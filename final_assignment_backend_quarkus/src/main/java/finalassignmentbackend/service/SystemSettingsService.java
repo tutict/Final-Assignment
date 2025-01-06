@@ -1,6 +1,7 @@
 package finalassignmentbackend.service;
 
 import finalassignmentbackend.entity.SystemSettings;
+import finalassignmentbackend.mapper.RequestHistoryMapper;
 import finalassignmentbackend.mapper.SystemSettingsMapper;
 import io.quarkus.cache.CacheInvalidate;
 import io.quarkus.cache.CacheResult;
@@ -25,6 +26,9 @@ public class SystemSettingsService {
 
     @Inject
     SystemSettingsMapper systemSettingsMapper;
+
+    @Inject
+    RequestHistoryMapper requestHistoryMapper;
 
     @Inject
     Event<SystemSettingsEvent> systemSettingsEvent;

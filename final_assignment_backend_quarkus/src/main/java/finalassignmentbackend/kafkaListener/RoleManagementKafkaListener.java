@@ -27,20 +27,23 @@ public class RoleManagementKafkaListener {
     @Transactional
     @RunOnVirtualThread
     public void onRoleCreateReceived(String message) {
-        processMessage(message, "create", roleManagementService::createRole);
+        processMessage(message, "create", (role) -> roleManagementService.createRole(role));
     }
 
     @Incoming("role_update")
     @Transactional
     @RunOnVirtualThread
     public void onRoleUpdateReceived(String message) {
-        processMessage(message, "update", roleManagementService::updateRole);
+        processMessage(message, "update", (role) -> roleManagementService.updateRole(role));
     }
 
     private void processMessage(String message, String action, MessageProcessor<RoleManagement> processor) {
         try {
             RoleManagement role = deserializeMessage(message);
-            processor.process(role);
+            if ("create".equals(action)) {
+                role.setRoleId(null);
+                processor.process(role);
+            }
             log.info(String.format("Role %s action processed successfully: %s", action, message));
         } catch (Exception e) {
             log.log(Level.SEVERE, String.format("Error processing %s role message: %s", action, message), e);

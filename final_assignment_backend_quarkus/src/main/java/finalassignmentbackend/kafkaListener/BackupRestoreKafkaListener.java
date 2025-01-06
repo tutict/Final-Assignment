@@ -27,20 +27,23 @@ public class BackupRestoreKafkaListener {
     @Transactional
     @RunOnVirtualThread
     public void onBackupCreateReceived(String message) {
-        processMessage(message, "create", backupRestoreService::createBackup);
+        processMessage(message, "create", (backupRestore) -> backupRestoreService.createBackup(backupRestore));
     }
 
     @Incoming("backup_update")
     @Transactional
     @RunOnVirtualThread
     public void onBackupUpdateReceived(String message) {
-        processMessage(message, "update", backupRestoreService::updateBackup);
+        processMessage(message, "update", (backupRestore) -> backupRestoreService.updateBackup(backupRestore));
     }
 
     private void processMessage(String message, String action, MessageProcessor<BackupRestore> processor) {
         try {
             BackupRestore backupRestore = deserializeMessage(message);
-            processor.process(backupRestore);
+            if ("create".equals(action)) {
+                backupRestore.setBackupId(null);
+                processor.process(backupRestore);
+            }
             log.info(String.format("Backup %s action processed successfully: %s", action, message));
         } catch (Exception e) {
             log.log(Level.SEVERE, String.format("Error processing %s backup message: %s", action, message), e);
