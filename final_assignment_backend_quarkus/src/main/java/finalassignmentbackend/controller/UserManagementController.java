@@ -41,7 +41,7 @@ public class UserManagementController {
             logger.warning(String.format("Username already exists: %s", user.getUsername()));
             return Response.status(Response.Status.CONFLICT).build();
         }
-        userManagementService.checkAndInsertIdempotency(idempotencyKey, user);
+        userManagementService.checkAndInsertIdempotency(idempotencyKey, user, "create");
         logger.info(String.format("User created successfully: %s", user.getUsername()));
         return Response.status(Response.Status.CREATED).build();
     }
@@ -80,15 +80,15 @@ public class UserManagementController {
     @Path("/me")
     @RolesAllowed({"USER", "ADMIN"})
     @RunOnVirtualThread
-    public Response updateCurrentUser(@Context SecurityContext securityContext, UserManagement updatedUser) {
+    public Response updateCurrentUser(@Context SecurityContext securityContext, UserManagement updatedUser, String idempotencyKey) {
         String username = securityContext.getUserPrincipal().getName();
         logger.info(String.format("Attempting to update current user: %s", username));
         UserManagement existingUser = userManagementService.getUserByUsername(username);
         if (existingUser != null) {
             updatedUser.setUserId(existingUser.getUserId());
-            UserManagement updatedUserResult = userManagementService.updateUser(updatedUser);
+            userManagementService.checkAndInsertIdempotency(idempotencyKey, updatedUser, "update");
             logger.info(String.format("User updated successfully: %s", username));
-            return Response.ok(updatedUserResult).build();
+            return Response.ok().build();
         } else {
             logger.warning(String.format("User not found: %s", username));
             return Response.status(Response.Status.NOT_FOUND).build();
@@ -163,14 +163,14 @@ public class UserManagementController {
     @Path("/{userId}")
     @RolesAllowed({"USER", "ADMIN"})
     @RunOnVirtualThread
-    public Response updateUser(@PathParam("userId") int userId, UserManagement updatedUser) {
+    public Response updateUser(@PathParam("userId") int userId, UserManagement updatedUser, String idempotencyKey) {
         logger.info(String.format("Attempting to update user: %d", userId));
         UserManagement existingUser = userManagementService.getUserById(userId);
         if (existingUser != null) {
             updatedUser.setUserId(userId);
-            UserManagement updatedUserResult = userManagementService.updateUser(updatedUser);
+            userManagementService.checkAndInsertIdempotency(idempotencyKey, updatedUser, "update");
             logger.info(String.format("User updated successfully: %d", userId));
-            return Response.ok(updatedUserResult).build();
+            return Response.status(Response.Status.OK).entity(updatedUser).build();
         } else {
             logger.warning(String.format("User not found: %d", userId));
             return Response.status(Response.Status.NOT_FOUND).build();

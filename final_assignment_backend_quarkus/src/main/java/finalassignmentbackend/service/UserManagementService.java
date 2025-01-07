@@ -54,7 +54,7 @@ public class UserManagementService {
 
     @Transactional
     @CacheInvalidate(cacheName = "userCache")
-    public void checkAndInsertIdempotency(String idempotencyKey, UserManagement user) {
+    public void checkAndInsertIdempotency(String idempotencyKey, UserManagement user, String action) {
         // 查询 request_history
         RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
         if (existingRequest != null) {
@@ -78,7 +78,7 @@ public class UserManagementService {
         }
 
         // 接着通知 Kafka 或本地事件，让后续流程去“真正创建用户”
-        userEvent.fire(new UserEvent(user, "create"));
+        userEvent.fire(new UserEvent(user, action));
 
         Integer userId = user.getUserId();
         newRequest.setBusinessStatus("SUCCESS");
@@ -136,11 +136,9 @@ public class UserManagementService {
 
     @Transactional
     @CacheInvalidate(cacheName = "userCache")
-    public UserManagement updateUser(UserManagement user) {
+    public void updateUser(UserManagement user) {
         try {
             userManagementMapper.updateById(user);
-            userEvent.fire(new UserEvent(user, "update"));
-            return user;
         } catch (Exception e) {
             log.warning("Exception occurred while updating user or firing event");
             throw new RuntimeException("Failed to update user", e);

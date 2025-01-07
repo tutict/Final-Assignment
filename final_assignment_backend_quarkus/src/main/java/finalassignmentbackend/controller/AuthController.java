@@ -107,7 +107,7 @@ public class AuthController {
             newUser.setUserType(registerRequest.getRole().equals("ADMIN") ? "ADMIN" : "USER");
 
             String idempotencyKey = registerRequest.getIdempotencyKey(); // 比如在请求体里
-            userManagementService.checkAndInsertIdempotency(idempotencyKey, newUser);
+            userManagementService.checkAndInsertIdempotency(idempotencyKey, newUser, "create");
 
             logger.info(String.format("User registered successfully: %s", registerRequest.getUsername()));
             return Response.status(Response.Status.CREATED).build();

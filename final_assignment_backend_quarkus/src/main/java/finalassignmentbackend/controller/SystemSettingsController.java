@@ -35,7 +35,7 @@ public class SystemSettingsController {
     @RunOnVirtualThread
     public Response updateSystemSettings(SystemSettings systemSettings) {
         systemSettingsService.updateSystemSettings(systemSettings);
-        return Response.ok().build();
+        return Response.ok(systemSettings).build();
     }
 
     @GET
