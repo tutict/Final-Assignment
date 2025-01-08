@@ -1,5 +1,6 @@
 package finalassignmentbackend.service;
 
+import finalassignmentbackend.entity.RequestHistory;
 import finalassignmentbackend.entity.SystemSettings;
 import finalassignmentbackend.mapper.RequestHistoryMapper;
 import finalassignmentbackend.mapper.SystemSettingsMapper;
@@ -46,6 +47,37 @@ public class SystemSettingsService {
         }
     }
 
+    @Transactional
+    @CacheInvalidate(cacheName = "userCache")
+    public void checkAndInsertIdempotency(String idempotencyKey, SystemSettings systemSettings) {
+        // 查询 request_history
+        RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
+        if (existingRequest != null) {
+            // 已有此 key -> 重复请求
+            log.warning(String.format("Duplicate request detected (idempotencyKey=%s)", idempotencyKey));
+            throw new RuntimeException("Duplicate request detected");
+        }
+
+        // 不存在 -> 插入一条 PROCESSING
+        RequestHistory newRequest = new RequestHistory();
+        newRequest.setIdempotentKey(idempotencyKey);
+        newRequest.setBusinessStatus("PROCESSING");
+
+        try {
+            requestHistoryMapper.insert(newRequest);
+        } catch (Exception e) {
+            // 若并发下同 key 导致唯一索引冲突
+            log.severe("Failed to insert requestHistory for idempotencyKey=" + idempotencyKey + ", " + e.getMessage());
+            throw new RuntimeException("Duplicate request or DB insert error", e);
+        }
+
+        systemSettingsEvent.fire(new SystemSettingsService.SystemSettingsEvent(systemSettings));
+
+        String systemSettingsName = systemSettings.getSystemName();
+        newRequest.setBusinessStatus("SUCCESS" + systemSettingsName);
+        requestHistoryMapper.updateById(newRequest);
+    }
+
     @CacheResult(cacheName = "systemSettingsCache")
     public SystemSettings getSystemSettings() {
         return systemSettingsMapper.selectById(1);
@@ -53,11 +85,9 @@ public class SystemSettingsService {
 
     @Transactional
     @CacheInvalidate(cacheName = "systemSettingsCache")
-    public SystemSettings updateSystemSettings(SystemSettings systemSettings) {
+    public void updateSystemSettings(SystemSettings systemSettings) {
         try {
             systemSettingsMapper.updateById(systemSettings);
-            systemSettingsEvent.fire(new SystemSettingsEvent(systemSettings));
-            return systemSettings;
         } catch (Exception e) {
             log.warning("Exception occurred while updating system settings or firing event");
             throw new RuntimeException("Failed to update system settings", e);

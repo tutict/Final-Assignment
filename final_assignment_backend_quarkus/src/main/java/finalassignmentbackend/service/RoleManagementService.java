@@ -1,6 +1,7 @@
 package finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import finalassignmentbackend.entity.RequestHistory;
 import finalassignmentbackend.entity.RoleManagement;
 import finalassignmentbackend.mapper.RequestHistoryMapper;
 import finalassignmentbackend.mapper.RoleManagementMapper;
@@ -51,6 +52,38 @@ public class RoleManagementService {
     }
 
     @Transactional
+    @CacheInvalidate(cacheName = "userCache")
+    public void checkAndInsertIdempotency(String idempotencyKey, RoleManagement roleManagement, String action) {
+        // 查询 request_history
+        RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
+        if (existingRequest != null) {
+            // 已有此 key -> 重复请求
+            log.warning(String.format("Duplicate request detected (idempotencyKey=%s)", idempotencyKey));
+            throw new RuntimeException("Duplicate request detected");
+        }
+
+        // 不存在 -> 插入一条 PROCESSING
+        RequestHistory newRequest = new RequestHistory();
+        newRequest.setIdempotentKey(idempotencyKey);
+        newRequest.setBusinessStatus("PROCESSING");
+
+        try {
+            requestHistoryMapper.insert(newRequest);
+        } catch (Exception e) {
+            // 若并发下同 key 导致唯一索引冲突
+            log.severe("Failed to insert requestHistory for idempotencyKey=" + idempotencyKey + ", " + e.getMessage());
+            throw new RuntimeException("Duplicate request or DB insert error", e);
+        }
+
+        roleEvent.fire(new RoleManagementService.RoleEvent(roleManagement, action));
+
+        Integer roleId = roleManagement.getRoleId();
+        newRequest.setBusinessStatus("SUCCESS");
+        newRequest.setBusinessId(roleId);
+        requestHistoryMapper.updateById(newRequest);
+    }
+
+    @Transactional
     @CacheInvalidate(cacheName = "roleCache")
     public void createRole(RoleManagement role) {
         RoleManagement existingRole = roleManagementMapper.selectById(role.getRoleId());
@@ -59,7 +92,6 @@ public class RoleManagementService {
         } else {
             roleManagementMapper.updateById(role);
         }
-        roleEvent.fire(new RoleEvent(role, "create"));
     }
 
     @Transactional
@@ -71,7 +103,6 @@ public class RoleManagementService {
         } else {
             roleManagementMapper.updateById(role);
         }
-        roleEvent.fire(new RoleEvent(role, "update"));
     }
 
     @Transactional
