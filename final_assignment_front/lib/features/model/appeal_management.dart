@@ -25,11 +25,24 @@ class AppealManagement {
   /* 处理结果，数据库字段名为\"process_result\" */
   String? processResult;
 
-  AppealManagement();
+  String idempotencyKey;
+
+  AppealManagement({
+    required int? appealId,
+    required int? offenseId,
+    required String? appellantName,
+    required String? idCardNumber,
+    required String? contactNumber,
+    required String? appealReason,
+    required String? appealTime,
+    required String? processStatus,
+    required String? processResult,
+    required String idempotencyKey,
+  });
 
   @override
   String toString() {
-    return 'AppealManagement[appealId=$appealId, offenseId=$offenseId, appellantName=$appellantName, idCardNumber=$idCardNumber, contactNumber=$contactNumber, appealReason=$appealReason, appealTime=$appealTime, processStatus=$processStatus, processResult=$processResult, ]';
+    return 'AppealManagement[appealId=$appealId, offenseId=$offenseId, appellantName=$appellantName, idCardNumber=$idCardNumber, contactNumber=$contactNumber, appealReason=$appealReason, appealTime=$appealTime, processStatus=$processStatus, processResult=$processResult, idempotencyKey=$idempotencyKey, ]';
   }
 
   AppealManagement.fromJson(Map<String, dynamic> json) {
@@ -42,6 +55,7 @@ class AppealManagement {
     appealTime = json['appealTime'];
     processStatus = json['processStatus'];
     processResult = json['processResult'];
+    idempotencyKey = json['idempotencyKey'];
   }
 
   Map<String, dynamic> toJson() {

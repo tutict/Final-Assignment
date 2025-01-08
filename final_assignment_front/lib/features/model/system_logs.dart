@@ -20,11 +20,22 @@ class SystemLogs {
   /* 备注信息 */
   String? remarks;
 
-  SystemLogs();
+  String idempotencyKey;
+
+  SystemLogs({
+    required int? logId,
+    required String? logType,
+    required String? logContent,
+    required String? operationTime,
+    required String? operationUser,
+    required String? operationIpAddress,
+    required String? remarks,
+    required String idempotencyKey,
+  });
 
   @override
   String toString() {
-    return 'SystemLogs[logId=$logId, logType=$logType, logContent=$logContent, operationTime=$operationTime, operationUser=$operationUser, operationIpAddress=$operationIpAddress, remarks=$remarks, ]';
+    return 'SystemLogs[logId=$logId, logType=$logType, logContent=$logContent, operationTime=$operationTime, operationUser=$operationUser, operationIpAddress=$operationIpAddress, remarks=$remarks, idempotencyKey=$idempotencyKey, ]';
   }
 
   SystemLogs.fromJson(Map<String, dynamic> json) {
@@ -35,6 +46,7 @@ class SystemLogs {
     operationUser = json['operationUser'];
     operationIpAddress = json['operationIpAddress'];
     remarks = json['remarks'];
+    idempotencyKey = json['idempotencyKey'];
   }
 
   Map<String, dynamic> toJson() {

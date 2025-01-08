@@ -38,11 +38,23 @@ class SystemSettings {
   /* 备注信息，映射到数据库remarks字段 */
   String? remarks;
 
-  SystemSettings();
+  String idempotencyKey;
+
+  SystemSettings({
+    required int? loginTimeout,
+    required int? sessionTimeout,
+    required String? dateFormat,
+    required int? pageSize,
+    required String? smtpServer,
+    required String? emailAccount,
+    required String? emailPassword,
+    required String? remarks,
+    required String idempotencyKey,
+  });
 
   @override
   String toString() {
-    return 'SystemSettings[systemName=$systemName, systemVersion=$systemVersion, systemDescription=$systemDescription, copyrightInfo=$copyrightInfo, storagePath=$storagePath, loginTimeout=$loginTimeout, sessionTimeout=$sessionTimeout, dateFormat=$dateFormat, pageSize=$pageSize, smtpServer=$smtpServer, emailAccount=$emailAccount, emailPassword=$emailPassword, remarks=$remarks, ]';
+    return 'SystemSettings[systemName=$systemName, systemVersion=$systemVersion, systemDescription=$systemDescription, copyrightInfo=$copyrightInfo, storagePath=$storagePath, loginTimeout=$loginTimeout, sessionTimeout=$sessionTimeout, dateFormat=$dateFormat, pageSize=$pageSize, smtpServer=$smtpServer, emailAccount=$emailAccount, emailPassword=$emailPassword, remarks=$remarks, idempotencyKey=$idempotencyKey, ]';
   }
 
   SystemSettings.fromJson(Map<String, dynamic> json) {
@@ -59,6 +71,7 @@ class SystemSettings {
     emailAccount = json['emailAccount'];
     emailPassword = json['emailPassword'];
     remarks = json['remarks'];
+    idempotencyKey = json['idempotencyKey'];
   }
 
   Map<String, dynamic> toJson() {

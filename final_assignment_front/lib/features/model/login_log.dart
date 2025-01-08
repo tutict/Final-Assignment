@@ -23,11 +23,23 @@ class LoginLog {
   /* 备注信息 */
   String? remarks;
 
-  LoginLog();
+  String idempotencyKey;
+
+  LoginLog({
+    required int? logId,
+    required String? username,
+    required String? loginIpAddress,
+    required String? loginTime,
+    required String? loginResult,
+    required String? browserType,
+    required String? osVersion,
+    required String? remarks,
+    required String idempotencyKey,
+  });
 
   @override
   String toString() {
-    return 'LoginLog[logId=$logId, username=$username, loginIpAddress=$loginIpAddress, loginTime=$loginTime, loginResult=$loginResult, browserType=$browserType, osVersion=$osVersion, remarks=$remarks, ]';
+    return 'LoginLog[logId=$logId, username=$username, loginIpAddress=$loginIpAddress, loginTime=$loginTime, loginResult=$loginResult, browserType=$browserType, osVersion=$osVersion, remarks=$remarks, idempotencyKey=$idempotencyKey, ]';
   }
 
   LoginLog.fromJson(Map<String, dynamic> json) {
@@ -39,6 +51,7 @@ class LoginLog {
     browserType = json['browserType'];
     osVersion = json['osVersion'];
     remarks = json['remarks'];
+    idempotencyKey = json['idempotencyKey'];
   }
 
   Map<String, dynamic> toJson() {

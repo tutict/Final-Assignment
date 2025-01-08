@@ -19,11 +19,22 @@ class DeductionInformation {
   /* 备注 该字段用于记录关于此次扣分的额外说明或备注信息 */
   String? remarks;
 
-  DeductionInformation();
+  String idempotencyKey;
+
+  DeductionInformation({
+    required String? deductionId,
+    required String? offenseId,
+    required String? deductedPoints,
+    required String? deductionTime,
+    required String? handler,
+    required String? approver,
+    required String? remarks,
+    required String idempotencyKey,
+  });
 
   @override
   String toString() {
-    return 'DeductionInformation[deductionId=$deductionId, offenseId=$offenseId, deductedPoints=$deductedPoints, deductionTime=$deductionTime, handler=$handler, approver=$approver, remarks=$remarks, ]';
+    return 'DeductionInformation[deductionId=$deductionId, offenseId=$offenseId, deductedPoints=$deductedPoints, deductionTime=$deductionTime, handler=$handler, approver=$approver, remarks=$remarks, idempotencyKey=$idempotencyKey, ]';
   }
 
   DeductionInformation.fromJson(Map<String, dynamic> json) {
@@ -34,6 +45,7 @@ class DeductionInformation {
     handler = json['handler'];
     approver = json['approver'];
     remarks = json['remarks'];
+    idempotencyKey = json['idempotencyKey'];
   }
 
   Map<String, dynamic> toJson() {
@@ -74,7 +86,7 @@ class DeductionInformation {
     return map;
   }
 
-  // maps a json object with a list of DeductionInformation-objects as value to a dart map
+// maps a json object with a list of DeductionInformation-objects as value to a dart map
   static Map<String, List<DeductionInformation>> mapListFromJson(
       Map<String, dynamic> json) {
     var map = <String, List<DeductionInformation>>{};

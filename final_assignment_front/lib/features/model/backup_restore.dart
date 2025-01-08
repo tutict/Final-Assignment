@@ -17,14 +17,20 @@ class BackupRestore {
   /* 备注 记录关于备份与恢复操作的额外信息 */
   String? remarks;
 
+  String idempotencyKey;
+
   BackupRestore(
-      {required int? backupId,
+     {required int? backupId,
       required String? backupFileName,
-      required String? backupTime});
+      required String? backupTime,
+      required String? restoreTime,
+      required String? restoreStatus,
+      required String? remarks,
+      required String idempotencyKey });
 
   @override
   String toString() {
-    return 'BackupRestore[backupId=$backupId, backupFileName=$backupFileName, backupTime=$backupTime, restoreTime=$restoreTime, restoreStatus=$restoreStatus, remarks=$remarks, ]';
+    return 'BackupRestore[backupId=$backupId, backupFileName=$backupFileName, backupTime=$backupTime, restoreTime=$restoreTime, restoreStatus=$restoreStatus, remarks=$remarks, idempotencyKey=$idempotencyKey]';
   }
 
   BackupRestore.fromJson(Map<String, dynamic> json) {
@@ -34,6 +40,7 @@ class BackupRestore {
     restoreTime = json['restoreTime'];
     restoreStatus = json['restoreStatus'];
     remarks = json['remarks'];
+    idempotencyKey = json['idempotencyKey'];
   }
 
   Map<String, dynamic> toJson() {

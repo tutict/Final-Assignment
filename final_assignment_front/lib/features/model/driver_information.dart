@@ -32,11 +32,26 @@ class DriverInformation {
   /* 驾驶证有效期截止日期 */
   String? expiryDate;
 
-  DriverInformation();
+  String idempotencyKey;
+
+  DriverInformation({
+    required int driverId,
+    required String? name,
+    required String? idCardNumber,
+    required String? contactNumber,
+    required String? driverLicenseNumber,
+    required String? gender,
+    required String? birthdate,
+    required String? firstLicenseDate,
+    required String? allowedVehicleType,
+    required String? issueDate,
+    required String? expiryDate,
+    required String idempotencyKey,
+  });
 
   @override
   String toString() {
-    return 'DriverInformation[driverId=$driverId, name=$name, idCardNumber=$idCardNumber, contactNumber=$contactNumber, driverLicenseNumber=$driverLicenseNumber, gender=$gender, birthdate=$birthdate, firstLicenseDate=$firstLicenseDate, allowedVehicleType=$allowedVehicleType, issueDate=$issueDate, expiryDate=$expiryDate, ]';
+    return 'DriverInformation[driverId=$driverId, name=$name, idCardNumber=$idCardNumber, contactNumber=$contactNumber, driverLicenseNumber=$driverLicenseNumber, gender=$gender, birthdate=$birthdate, firstLicenseDate=$firstLicenseDate, allowedVehicleType=$allowedVehicleType, issueDate=$issueDate, expiryDate=$expiryDate, idempotencyKey=$idempotencyKey,]';
   }
 
   DriverInformation.fromJson(Map<String, dynamic> json) {
@@ -51,6 +66,7 @@ class DriverInformation {
     allowedVehicleType = json['allowedVehicleType'];
     issueDate = json['issueDate'];
     expiryDate = json['expiryDate'];
+    idempotencyKey = json['idempotencyKey'];
   }
 
   Map<String, dynamic> toJson() {

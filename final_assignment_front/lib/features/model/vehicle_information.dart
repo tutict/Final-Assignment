@@ -32,11 +32,26 @@ class VehicleInformation {
   /* 当前状态 */
   String? currentStatus;
 
-  VehicleInformation();
+  String idempotencyKey;
+
+  VehicleInformation({
+    required int? vehicleId,
+    required String? licensePlate,
+    required String? vehicleType,
+    required String? ownerName,
+    required String? idCardNumber,
+    required String? contactNumber,
+    required String? engineNumber,
+    required String? frameNumber,
+    required String? vehicleColor,
+    required String? firstRegistrationDate,
+    required String? currentStatus,
+    required String idempotencyKey,
+  });
 
   @override
   String toString() {
-    return 'VehicleInformation[vehicleId=$vehicleId, licensePlate=$licensePlate, vehicleType=$vehicleType, ownerName=$ownerName, idCardNumber=$idCardNumber, contactNumber=$contactNumber, engineNumber=$engineNumber, frameNumber=$frameNumber, vehicleColor=$vehicleColor, firstRegistrationDate=$firstRegistrationDate, currentStatus=$currentStatus, ]';
+    return 'VehicleInformation[vehicleId=$vehicleId, licensePlate=$licensePlate, vehicleType=$vehicleType, ownerName=$ownerName, idCardNumber=$idCardNumber, contactNumber=$contactNumber, engineNumber=$engineNumber, frameNumber=$frameNumber, vehicleColor=$vehicleColor, firstRegistrationDate=$firstRegistrationDate, currentStatus=$currentStatus, idempotencyKey=$idempotencyKey, ]';
   }
 
   VehicleInformation.fromJson(Map<String, dynamic> json) {
@@ -51,6 +66,7 @@ class VehicleInformation {
     vehicleColor = json['vehicleColor'];
     firstRegistrationDate = json['firstRegistrationDate'];
     currentStatus = json['currentStatus'];
+    idempotencyKey = json['idempotencyKey'];
   }
 
   Map<String, dynamic> toJson() {

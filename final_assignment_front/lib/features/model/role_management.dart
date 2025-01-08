@@ -17,11 +17,21 @@ class RoleManagement {
   /* 备注 该字段用于记录角色相关的额外信息或备注 */
   String? remarks;
 
-  RoleManagement();
+  String idempotencyKey;
+
+  RoleManagement({
+    required int? roleId,
+    required String? roleName,
+    required String? roleDescription,
+    required String? createdTime,
+    required String? modifiedTime,
+    required String? remarks,
+    required String idempotencyKey,
+  });
 
   @override
   String toString() {
-    return 'RoleManagement[roleId=$roleId, roleName=$roleName, roleDescription=$roleDescription, createdTime=$createdTime, modifiedTime=$modifiedTime, remarks=$remarks, ]';
+    return 'RoleManagement[roleId=$roleId, roleName=$roleName, roleDescription=$roleDescription, createdTime=$createdTime, modifiedTime=$modifiedTime, remarks=$remarks, idempotencyKey=$idempotencyKey, ]';
   }
 
   RoleManagement.fromJson(Map<String, dynamic> json) {
@@ -31,6 +41,7 @@ class RoleManagement {
     createdTime = json['createdTime'];
     modifiedTime = json['modifiedTime'];
     remarks = json['remarks'];
+    idempotencyKey = json['idempotencyKey'];
   }
 
   Map<String, dynamic> toJson() {

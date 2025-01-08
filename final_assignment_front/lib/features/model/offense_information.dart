@@ -32,11 +32,26 @@ class OffenseInformation {
   /* 处理结果 */
   String? processResult;
 
-  OffenseInformation();
+  String idempotencyKey;
+
+  OffenseInformation({
+    required int? offenseId,
+    required String? offenseTime,
+    required String? offenseLocation,
+    required String? licensePlate,
+    required String? driverName,
+    required String? offenseType,
+    required String? offenseCode,
+    required num? fineAmount,
+    required int? deductedPoints,
+    required String? processStatus,
+    required String? processResult,
+    required String idempotencyKey,
+  });
 
   @override
   String toString() {
-    return 'OffenseInformation[offenseId=$offenseId, offenseTime=$offenseTime, offenseLocation=$offenseLocation, licensePlate=$licensePlate, driverName=$driverName, offenseType=$offenseType, offenseCode=$offenseCode, fineAmount=$fineAmount, deductedPoints=$deductedPoints, processStatus=$processStatus, processResult=$processResult, ]';
+    return 'OffenseInformation[offenseId=$offenseId, offenseTime=$offenseTime, offenseLocation=$offenseLocation, licensePlate=$licensePlate, driverName=$driverName, offenseType=$offenseType, offenseCode=$offenseCode, fineAmount=$fineAmount, deductedPoints=$deductedPoints, processStatus=$processStatus, processResult=$processResult, idempotencyKey=$idempotencyKey, ]';
   }
 
   OffenseInformation.fromJson(Map<String, dynamic> json) {
@@ -51,6 +66,7 @@ class OffenseInformation {
     deductedPoints = json['deductedPoints'];
     processStatus = json['processStatus'];
     processResult = json['processResult'];
+    idempotencyKey = json['idempotencyKey'];
   }
 
   Map<String, dynamic> toJson() {

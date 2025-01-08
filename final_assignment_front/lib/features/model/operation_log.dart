@@ -20,14 +20,26 @@ class OperationLog {
   /* 备注，用于记录额外的说明信息 */
   String? remarks;
 
-  OperationLog();
+  String idempotencyKey;
+
+  OperationLog({
+    required int? logId,
+    required int? userId,
+    required String? operationTime,
+    required String? operationIpAddress,
+    required String? operationContent,
+    required String? operationResult,
+    required String? remarks,
+    required String idempotencyKey,
+  });
 
   @override
   String toString() {
-    return 'OperationLog[logId=$logId, userId=$userId, operationTime=$operationTime, operationIpAddress=$operationIpAddress, operationContent=$operationContent, operationResult=$operationResult, remarks=$remarks, ]';
+    return 'OperationLog[logId=$logId, userId=$userId, operationTime=$operationTime, operationIpAddress=$operationIpAddress, operationContent=$operationContent, operationResult=$operationResult, remarks=$remarks, idempotencyKey=$idempotencyKey, ]';
   }
 
-  OperationLog.fromJson(Map<String, dynamic> json) {
+  OperationLog.fromJson
+      (Map<String, dynamic> json) {
     logId = json['logId'];
     userId = json['userId'];
     operationTime = json['operationTime'];
@@ -35,6 +47,7 @@ class OperationLog {
     operationContent = json['operationContent'];
     operationResult = json['operationResult'];
     remarks = json['remarks'];
+    idempotencyKey = json['idempotencyKey'];
   }
 
   Map<String, dynamic> toJson() {
@@ -71,12 +84,12 @@ class OperationLog {
     var map = <String, OperationLog>{};
     if (json.isNotEmpty) {
       json.forEach((String key, dynamic value) =>
-          map[key] = OperationLog.fromJson(value));
+      map[key] = OperationLog.fromJson(value));
     }
     return map;
   }
 
-  // maps a json object with a list of OperationLog-objects as value to a dart map
+// maps a json object with a list of OperationLog-objects as value to a dart map
   static Map<String, List<OperationLog>> mapListFromJson(
       Map<String, dynamic> json) {
     var map = <String, List<OperationLog>>{};

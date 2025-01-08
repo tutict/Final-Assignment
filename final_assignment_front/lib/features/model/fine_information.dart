@@ -24,11 +24,24 @@ class FineInformation {
   /* 备注信息 */
   String? remarks;
 
-  FineInformation();
+  String idempotencyKey;
+
+  FineInformation({
+    required int? fineId,
+    required String? offenseId,
+    required num? fineAmount,
+    required String? fineTime,
+    required String? payee,
+    required String? accountNumber,
+    required String? bank,
+    required String? receiptNumber,
+    required String? remarks,
+    required String idempotencyKey,
+  });
 
   @override
   String toString() {
-    return 'FineInformation[fineId=$fineId, offenseId=$offenseId, fineAmount=$fineAmount, fineTime=$fineTime, payee=$payee, accountNumber=$accountNumber, bank=$bank, receiptNumber=$receiptNumber, remarks=$remarks, ]';
+    return 'FineInformation[fineId=$fineId, offenseId=$offenseId, fineAmount=$fineAmount, fineTime=$fineTime, payee=$payee, accountNumber=$accountNumber, bank=$bank, receiptNumber=$receiptNumber, remarks=$remarks, idempotencyKey=$idempotencyKey, ]';
   }
 
   FineInformation.fromJson(Map<String, dynamic> json) {
@@ -41,6 +54,7 @@ class FineInformation {
     bank = json['bank'];
     receiptNumber = json['receiptNumber'];
     remarks = json['remarks'];
+    idempotencyKey = json['idempotencyKey'];
   }
 
   Map<String, dynamic> toJson() {

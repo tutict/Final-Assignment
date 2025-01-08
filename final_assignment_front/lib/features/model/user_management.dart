@@ -32,11 +32,26 @@ class UserManagement {
   /* 备注，用于记录额外的用户信息 */
   String? remarks;
 
-  UserManagement();
+  String idempotencyKey;
+
+  UserManagement({
+    required int? userId,
+    required String? name,
+    required String? username,
+    required String? password,
+    required String? contactNumber,
+    required String? email,
+    required String? userType,
+    required String? status,
+    required String? createdTime,
+    required String? modifiedTime,
+    required String? remarks,
+    required String idempotencyKey,
+});
 
   @override
   String toString() {
-    return 'UserManagement[userId=$userId, name=$name, username=$username, password=$password, contactNumber=$contactNumber, email=$email, userType=$userType, status=$status, createdTime=$createdTime, modifiedTime=$modifiedTime, remarks=$remarks, ]';
+    return 'UserManagement[userId=$userId, name=$name, username=$username, password=$password, contactNumber=$contactNumber, email=$email, userType=$userType, status=$status, createdTime=$createdTime, modifiedTime=$modifiedTime, remarks=$remarks, idempotencyKey=$idempotencyKey, ]';
   }
 
   UserManagement.fromJson(Map<String, dynamic> json) {
@@ -51,6 +66,7 @@ class UserManagement {
     createdTime = json['createdTime'];
     modifiedTime = json['modifiedTime'];
     remarks = json['remarks'];
+    idempotencyKey = json['idempotencyKey'];
   }
 
   Map<String, dynamic> toJson() {

@@ -17,11 +17,21 @@ class PermissionManagement {
   /* 备注信息 该字段映射remarks */
   String? remarks;
 
-  PermissionManagement();
+  String  idempotencyKey;
+
+  PermissionManagement({
+    required int? permissionId,
+    required String? permissionName,
+    required String? permissionDescription,
+    required String? createdTime,
+    required String? modifiedTime,
+    required String? remarks,
+    required String idempotencyKey,
+  });
 
   @override
   String toString() {
-    return 'PermissionManagement[permissionId=$permissionId, permissionName=$permissionName, permissionDescription=$permissionDescription, createdTime=$createdTime, modifiedTime=$modifiedTime, remarks=$remarks, ]';
+    return 'PermissionManagement[permissionId=$permissionId, permissionName=$permissionName, permissionDescription=$permissionDescription, createdTime=$createdTime, modifiedTime=$modifiedTime, remarks=$remarks, idempotencyKey=$idempotencyKey, ]';
   }
 
   PermissionManagement.fromJson(Map<String, dynamic> json) {
@@ -31,6 +41,7 @@ class PermissionManagement {
     createdTime = json['createdTime'];
     modifiedTime = json['modifiedTime'];
     remarks = json['remarks'];
+    idempotencyKey = json['idempotencyKey'];
   }
 
   Map<String, dynamic> toJson() {
