@@ -30,8 +30,8 @@ public class LoginLogController {
 
     @POST
     @RunOnVirtualThread
-    public Response createLoginLog(LoginLog loginLog) {
-        loginLogService.createLoginLog(loginLog);
+    public Response createLoginLog(LoginLog loginLog, String idempotencyKey) {
+        loginLogService.checkAndInsertIdempotency(idempotencyKey, loginLog, "create");
         return Response.status(Response.Status.CREATED).build();
     }
 
@@ -57,12 +57,12 @@ public class LoginLogController {
     @PUT
     @Path("/{logId}")
     @RunOnVirtualThread
-    public Response updateLoginLog(@PathParam("logId") int logId, LoginLog updatedLoginLog) {
+    public Response updateLoginLog(@PathParam("logId") int logId, LoginLog updatedLoginLog, String idempotencyKey) {
         LoginLog existingLoginLog = loginLogService.getLoginLog(logId);
         if (existingLoginLog != null) {
             updatedLoginLog.setLogId(logId);
-            loginLogService.updateLoginLog(updatedLoginLog);
-            return Response.ok().build();
+            loginLogService.checkAndInsertIdempotency(idempotencyKey, updatedLoginLog, "update");
+            return Response.ok(Response.Status.OK).entity(updatedLoginLog).build();
         } else {
             return Response.status(Response.Status.NOT_FOUND).build();
         }

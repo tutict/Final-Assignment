@@ -52,7 +52,7 @@ public class DriverInformationService {
     }
 
     @Transactional
-    @CacheInvalidate(cacheName = "userCache")
+    @CacheInvalidate(cacheName = "driverCache")
     public void checkAndInsertIdempotency(String idempotencyKey, DriverInformation driverInformation, String action) {
         // 查询 request_history
         RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);

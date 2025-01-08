@@ -53,7 +53,7 @@ public class OffenseInformationService {
     }
 
     @Transactional
-    @CacheInvalidate(cacheName = "userCache")
+    @CacheInvalidate(cacheName = "offenseCache")
     public void checkAndInsertIdempotency(String idempotencyKey, OffenseInformation offenseInformation, String action) {
         // 查询 request_history
         RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);

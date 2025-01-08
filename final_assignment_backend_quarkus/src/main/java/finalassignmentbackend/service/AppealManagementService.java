@@ -57,7 +57,7 @@ public class AppealManagementService {
     }
 
     @Transactional
-    @CacheInvalidate(cacheName = "userCache")
+    @CacheInvalidate(cacheName = "appealCache")
     public void checkAndInsertIdempotency(String idempotencyKey, AppealManagement appealManagement, String action) {
         // 查询 request_history
         RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);

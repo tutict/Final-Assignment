@@ -53,7 +53,7 @@ public class FineInformationService {
     }
 
     @Transactional
-    @CacheInvalidate(cacheName = "userCache")
+    @CacheInvalidate(cacheName = "fineCache")
     public void checkAndInsertIdempotency(String idempotencyKey, FineInformation fineInformation, String action) {
         // 查询 request_history
         RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);

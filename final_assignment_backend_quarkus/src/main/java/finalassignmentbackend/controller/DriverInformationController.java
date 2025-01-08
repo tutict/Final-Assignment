@@ -27,8 +27,8 @@ public class DriverInformationController {
 
     @POST
     @RunOnVirtualThread
-    public Response createDriver(DriverInformation driverInformation) {
-        driverInformationService.createDriver(driverInformation);
+    public Response createDriver(DriverInformation driverInformation, String idempotencyKey) {
+        driverInformationService.checkAndInsertIdempotency(idempotencyKey, driverInformation, "create");
         return Response.status(Response.Status.CREATED).build();
     }
 
@@ -54,12 +54,12 @@ public class DriverInformationController {
     @PUT
     @Path("/{driverId}")
     @RunOnVirtualThread
-    public Response updateDriver(@PathParam("driverId") int driverId, DriverInformation updatedDriverInformation) {
+    public Response updateDriver(@PathParam("driverId") int driverId, DriverInformation updatedDriverInformation, String idempotencyKey) {
         DriverInformation existingDriverInformation = driverInformationService.getDriverById(driverId);
         if (existingDriverInformation != null) {
             updatedDriverInformation.setDriverId(driverId);
-            driverInformationService.updateDriver(updatedDriverInformation);
-            return Response.ok().build();
+            driverInformationService.checkAndInsertIdempotency(idempotencyKey, updatedDriverInformation, "update");
+            return Response.ok(Response.Status.OK).entity(updatedDriverInformation).build();
         } else {
             return Response.status(Response.Status.NOT_FOUND).build();
         }

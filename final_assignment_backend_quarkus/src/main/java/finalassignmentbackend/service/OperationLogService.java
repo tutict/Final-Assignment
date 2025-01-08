@@ -53,7 +53,7 @@ public class OperationLogService {
     }
 
     @Transactional
-    @CacheInvalidate(cacheName = "userCache")
+    @CacheInvalidate(cacheName = "operationCache")
     public void checkAndInsertIdempotency(String idempotencyKey, OperationLog operationLog, String action) {
         // 查询 request_history
         RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);

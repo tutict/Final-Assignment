@@ -29,8 +29,8 @@ public class DeductionInformationController {
 
     @POST
     @RunOnVirtualThread
-    public Response createDeduction(DeductionInformation deduction) {
-        deductionInformationService.createDeduction(deduction);
+    public Response createDeduction(DeductionInformation deduction, String idempotencyKey) {
+        deductionInformationService.checkAndInsertIdempotency(idempotencyKey, deduction, "create");
         return Response.status(Response.Status.CREATED).build();
     }
 
@@ -56,7 +56,7 @@ public class DeductionInformationController {
     @PUT
     @Path("/{deductionId}")
     @RunOnVirtualThread
-    public Response updateDeduction(@PathParam("deductionId") int deductionId, DeductionInformation updatedDeduction) {
+    public Response updateDeduction(@PathParam("deductionId") int deductionId, DeductionInformation updatedDeduction, String idempotencyKey) {
         DeductionInformation existingDeduction = deductionInformationService.getDeductionById(deductionId);
         if (existingDeduction != null) {
             existingDeduction.setRemarks(updatedDeduction.getRemarks());
@@ -65,7 +65,7 @@ public class DeductionInformationController {
             existingDeduction.setDeductionTime(updatedDeduction.getDeductionTime());
             existingDeduction.setApprover(updatedDeduction.getApprover());
 
-            deductionInformationService.updateDeduction(existingDeduction);
+            deductionInformationService.checkAndInsertIdempotency(idempotencyKey, existingDeduction, "update");
             return Response.ok().build();
         } else {
             return Response.status(Response.Status.NOT_FOUND).build();

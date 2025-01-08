@@ -52,7 +52,7 @@ public class PermissionManagementService {
     }
 
     @Transactional
-    @CacheInvalidate(cacheName = "userCache")
+    @CacheInvalidate(cacheName = "permissionCache")
     public void checkAndInsertIdempotency(String idempotencyKey, PermissionManagement permissionManagement, String action) {
         // 查询 request_history
         RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);

@@ -52,7 +52,7 @@ public class RoleManagementService {
     }
 
     @Transactional
-    @CacheInvalidate(cacheName = "userCache")
+    @CacheInvalidate(cacheName = "roleCache")
     public void checkAndInsertIdempotency(String idempotencyKey, RoleManagement roleManagement, String action) {
         // 查询 request_history
         RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);

@@ -53,7 +53,7 @@ public class SystemLogsService {
     }
 
     @Transactional
-    @CacheInvalidate(cacheName = "userCache")
+    @CacheInvalidate(cacheName = "systemLogCache")
     public void checkAndInsertIdempotency(String idempotencyKey, SystemLogs systemLogs, String action) {
         // 查询 request_history
         RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);

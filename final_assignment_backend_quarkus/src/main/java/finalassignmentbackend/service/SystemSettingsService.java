@@ -48,7 +48,7 @@ public class SystemSettingsService {
     }
 
     @Transactional
-    @CacheInvalidate(cacheName = "userCache")
+    @CacheInvalidate(cacheName = "systemSettingsCache")
     public void checkAndInsertIdempotency(String idempotencyKey, SystemSettings systemSettings) {
         // 查询 request_history
         RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);

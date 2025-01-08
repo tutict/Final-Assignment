@@ -28,8 +28,8 @@ public class PermissionManagementController {
 
     @POST
     @RunOnVirtualThread
-    public Response createPermission(PermissionManagement permission) {
-        permissionManagementService.createPermission(permission);
+    public Response createPermission(PermissionManagement permission, String idempotencyKey) {
+        permissionManagementService.checkAndInsertIdempotency(idempotencyKey, permission, "create");
         return Response.status(Response.Status.CREATED).build();
     }
 
@@ -75,12 +75,12 @@ public class PermissionManagementController {
     @PUT
     @Path("/{permissionId}")
     @RunOnVirtualThread
-    public Response updatePermission(@PathParam("permissionId") int permissionId, PermissionManagement updatedPermission) {
+    public Response updatePermission(@PathParam("permissionId") int permissionId, PermissionManagement updatedPermission, String idempotencyKey) {
         PermissionManagement existingPermission = permissionManagementService.getPermissionById(permissionId);
         if (existingPermission != null) {
             updatedPermission.setPermissionId(permissionId);
-            permissionManagementService.updatePermission(updatedPermission);
-            return Response.ok().build();
+            permissionManagementService.checkAndInsertIdempotency(idempotencyKey, updatedPermission, "update");
+            return Response.ok(Response.Status.OK).entity(updatedPermission).build();
         } else {
             return Response.status(Response.Status.NOT_FOUND).build();
         }

@@ -29,8 +29,8 @@ public class SystemLogsController {
 
     @POST
     @RunOnVirtualThread
-    public Response createSystemLog(SystemLogs systemLog) {
-        systemLogsService.createSystemLog(systemLog);
+    public Response createSystemLog(SystemLogs systemLog, String idempotencyKey) {
+        systemLogsService.checkAndInsertIdempotency(idempotencyKey, systemLog, "create");
         return Response.status(Response.Status.CREATED).build();
     }
 
@@ -82,12 +82,12 @@ public class SystemLogsController {
     @PUT
     @Path("/{logId}")
     @RunOnVirtualThread
-    public Response updateSystemLog(@PathParam("logId") int logId, SystemLogs updatedSystemLog) {
+    public Response updateSystemLog(@PathParam("logId") int logId, SystemLogs updatedSystemLog, String idempotencyKey) {
         SystemLogs existingSystemLog = systemLogsService.getSystemLogById(logId);
         if (existingSystemLog != null) {
             updatedSystemLog.setLogId(logId);
-            systemLogsService.updateSystemLog(updatedSystemLog);
-            return Response.ok().build();
+            systemLogsService.checkAndInsertIdempotency(idempotencyKey, updatedSystemLog, "update");
+            return Response.ok(Response.Status.OK).entity(updatedSystemLog).build();
         } else {
             return Response.status(Response.Status.NOT_FOUND).build();
         }

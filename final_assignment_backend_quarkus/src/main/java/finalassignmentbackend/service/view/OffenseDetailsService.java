@@ -1,5 +1,6 @@
 package finalassignmentbackend.service.view;
 
+import finalassignmentbackend.entity.RequestHistory;
 import finalassignmentbackend.mapper.RequestHistoryMapper;
 import finalassignmentbackend.mapper.view.OffenseDetailsMapper;
 import finalassignmentbackend.entity.view.OffenseDetails;
@@ -47,6 +48,37 @@ public class OffenseDetailsService {
         }
     }
 
+    @Transactional
+    public void checkAndInsertIdempotency(String idempotencyKey, OffenseDetails offenseDetails, String action) {
+        // 查询 request_history
+        RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
+        if (existingRequest != null) {
+            // 已有此 key -> 重复请求
+            log.warning(String.format("Duplicate request detected (idempotencyKey=%s)", idempotencyKey));
+            throw new RuntimeException("Duplicate request detected");
+        }
+
+        // 不存在 -> 插入一条 PROCESSING
+        RequestHistory newRequest = new RequestHistory();
+        newRequest.setIdempotentKey(idempotencyKey);
+        newRequest.setBusinessStatus("PROCESSING");
+
+        try {
+            requestHistoryMapper.insert(newRequest);
+        } catch (Exception e) {
+            // 若并发下同 key 导致唯一索引冲突
+            log.severe("Failed to insert requestHistory for idempotencyKey=" + idempotencyKey + ", " + e.getMessage());
+            throw new RuntimeException("Duplicate request or DB insert error", e);
+        }
+
+        offenseDetailsEvent.fire(new OffenseDetailsService.OffenseDetailsEvent(offenseDetails, action));
+
+        Integer offenseDetailsId = offenseDetails.getOffenseId();
+        newRequest.setBusinessStatus("SUCCESS");
+        newRequest.setBusinessId(offenseDetailsId);
+        requestHistoryMapper.updateById(newRequest);
+    }
+
     // 获取所有违规详情记录
     public List<OffenseDetails> getAllOffenseDetails() {
         return offenseDetailsMapper.selectList(null);
@@ -64,7 +96,6 @@ public class OffenseDetailsService {
             offenseDetailsMapper.insert(offenseDetails);
             log.info("Offense details saved to database successfully");
             // 发布事件
-            offenseDetailsEvent.fire(new OffenseDetailsEvent(offenseDetails, "create"));
         } catch (Exception e) {
             log.warning("Exception occurred while saving offense details or firing event");
             throw new RuntimeException("Failed to save offense details", e);

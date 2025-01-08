@@ -52,7 +52,7 @@ public class BackupRestoreService {
     }
 
     @Transactional
-    @CacheInvalidate(cacheName = "userCache")
+    @CacheInvalidate(cacheName = "backupCache")
     public void checkAndInsertIdempotency(String idempotencyKey, BackupRestore backupRestore, String action) {
         // 查询 request_history
         RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);

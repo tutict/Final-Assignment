@@ -33,8 +33,8 @@ public class SystemSettingsController {
 
     @PUT
     @RunOnVirtualThread
-    public Response updateSystemSettings(SystemSettings systemSettings) {
-        systemSettingsService.updateSystemSettings(systemSettings);
+    public Response updateSystemSettings(SystemSettings systemSettings, String idempotencyKey) {
+        systemSettingsService.checkAndInsertIdempotency(idempotencyKey, systemSettings);
         return Response.ok(systemSettings).build();
     }
 

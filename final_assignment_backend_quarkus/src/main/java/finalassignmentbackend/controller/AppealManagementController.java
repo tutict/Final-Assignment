@@ -33,8 +33,8 @@ public class AppealManagementController {
     @POST
     @RunOnVirtualThread
     public Response
-    createAppeal(AppealManagement appeal) {
-        appealManagementService.createAppeal(appeal);
+    createAppeal(AppealManagement appeal, String idempotencyKey) {
+        appealManagementService.checkAndInsertIdempotency(idempotencyKey, appeal, "create");
         return Response.status(Response.Status.CREATED).build();
     }
 
@@ -66,7 +66,7 @@ public class AppealManagementController {
     @PUT
     @Path("/{appealId}")
     @RunOnVirtualThread
-    public Response updateAppeal(@PathParam("appealId") Integer appealId, AppealManagement updatedAppeal) {
+    public Response updateAppeal(@PathParam("appealId") Integer appealId, AppealManagement updatedAppeal, String idempotencyKey) {
         AppealManagement existingAppeal = appealManagementService.getAppealById(appealId);
         if (existingAppeal != null) {
             // 更新现有申诉的属性
@@ -80,7 +80,7 @@ public class AppealManagementController {
             existingAppeal.setProcessResult(updatedAppeal.getProcessResult());
 
             // 更新申诉
-            appealManagementService.updateAppeal(existingAppeal);
+            appealManagementService.checkAndInsertIdempotency(idempotencyKey, existingAppeal, "update");
             return Response.ok().build();
         } else {
             return Response.status(Response.Status.NOT_FOUND).build();

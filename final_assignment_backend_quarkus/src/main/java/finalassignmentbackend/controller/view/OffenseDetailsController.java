@@ -62,10 +62,10 @@ public class OffenseDetailsController {
     @POST
     @Path("/send-to-kafka/{id}")
     @RunOnVirtualThread
-    public Response updateOffenseDetailsToKafka(@PathParam("id") Integer id) {
+    public Response updateOffenseDetailsToKafka(@PathParam("id") Integer id, String idempotencyKey) {
         OffenseDetails offenseDetails = offenseDetailsService.getOffenseDetailsById(id);
         if (offenseDetails != null) {
-            offenseDetailsService.saveOffenseDetails(offenseDetails);
+            offenseDetailsService.checkAndInsertIdempotency(idempotencyKey, offenseDetails, "update");
             return Response.ok("OffenseDetails sent to Kafka topic successfully!").build();
         } else {
             return Response.status(Response.Status.NOT_FOUND).entity("OffenseDetails not found for id: " + id).build();

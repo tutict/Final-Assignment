@@ -32,8 +32,8 @@ public class OffenseInformationController {
      */
     @POST
     @RunOnVirtualThread
-    public Response createOffense(OffenseInformation offenseInformation) {
-        offenseInformationService.createOffense(offenseInformation);
+    public Response createOffense(OffenseInformation offenseInformation, String idempotencyKey) {
+        offenseInformationService.checkAndInsertIdempotency(idempotencyKey, offenseInformation, "create");
         return Response.status(Response.Status.CREATED).build();
     }
 
@@ -68,12 +68,12 @@ public class OffenseInformationController {
     @PUT
     @Path("/{offenseId}")
     @RunOnVirtualThread
-    public Response updateOffense(@PathParam("offenseId") int offenseId, OffenseInformation updatedOffenseInformation) {
+    public Response updateOffense(@PathParam("offenseId") int offenseId, OffenseInformation updatedOffenseInformation, String idempotencyKey) {
         OffenseInformation existingOffenseInformation = offenseInformationService.getOffenseByOffenseId(offenseId);
         if (existingOffenseInformation != null) {
             updatedOffenseInformation.setOffenseId(offenseId);
-            offenseInformationService.updateOffense(updatedOffenseInformation);
-            return Response.ok().build();
+            offenseInformationService.checkAndInsertIdempotency(idempotencyKey, updatedOffenseInformation, "update");
+            return Response.ok(Response.Status.OK).entity(updatedOffenseInformation).build();
         } else {
             return Response.status(Response.Status.NOT_FOUND).build();
         }

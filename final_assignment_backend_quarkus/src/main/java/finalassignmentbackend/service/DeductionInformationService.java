@@ -53,7 +53,7 @@ public class DeductionInformationService {
     }
 
     @Transactional
-    @CacheInvalidate(cacheName = "userCache")
+    @CacheInvalidate(cacheName = "deductionCache")
     public void checkAndInsertIdempotency(String idempotencyKey, DeductionInformation dedicatedInformation, String action) {
         // 查询 request_history
         RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);

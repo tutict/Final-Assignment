@@ -30,8 +30,8 @@ public class FineInformationController {
 
     @POST
     @RunOnVirtualThread
-    public Response createFine(FineInformation fineInformation) {
-        fineInformationService.createFine(fineInformation);
+    public Response createFine(FineInformation fineInformation, String idempotencyKey) {
+        fineInformationService.checkAndInsertIdempotency(idempotencyKey, fineInformation, "create");
         return Response.status(Response.Status.CREATED).build();
     }
 
@@ -57,12 +57,12 @@ public class FineInformationController {
     @PUT
     @Path("/{fineId}")
     @RunOnVirtualThread
-    public Response updateFine(@PathParam("fineId") int fineId, FineInformation updatedFineInformation) {
+    public Response updateFine(@PathParam("fineId") int fineId, FineInformation updatedFineInformation, String idempotencyKey) {
         FineInformation existingFineInformation = fineInformationService.getFineById(fineId);
         if (existingFineInformation != null) {
             updatedFineInformation.setFineId(fineId);
-            fineInformationService.updateFine(updatedFineInformation);
-            return Response.ok().build();
+            fineInformationService.checkAndInsertIdempotency(idempotencyKey, updatedFineInformation, "update");
+            return Response.ok(Response.Status.OK).entity(updatedFineInformation).build();
         } else {
             return Response.status(Response.Status.NOT_FOUND).build();
         }

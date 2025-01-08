@@ -36,8 +36,8 @@ public class VehicleInformationController {
      */
     @POST
     @RunOnVirtualThread
-    public Response createVehicleInformation(VehicleInformation vehicleInformation) {
-        vehicleInformationService.createVehicleInformation(vehicleInformation);
+    public Response createVehicleInformation(VehicleInformation vehicleInformation, String idempotencyKey) {
+        vehicleInformationService.checkAndInsertIdempotency(idempotencyKey, vehicleInformation, "create");
         return Response.status(Response.Status.CREATED).build();
     }
 
@@ -134,17 +134,17 @@ public class VehicleInformationController {
     /**
      * 更新车辆信息。
      *
-     * @param vehicleId 车辆ID
+     * @param vehicleId          车辆ID
      * @param vehicleInformation 更新后的车辆信息对象
      * @return HTTP响应状态码200 OK
      */
     @PUT
     @Path("/{vehicleId}")
     @RunOnVirtualThread
-    public Response updateVehicleInformation(@PathParam("vehicleId") int vehicleId, VehicleInformation vehicleInformation) {
+    public Response updateVehicleInformation(@PathParam("vehicleId") int vehicleId, VehicleInformation vehicleInformation, String idempotencyKey) {
         vehicleInformation.setVehicleId(vehicleId);
-        vehicleInformationService.updateVehicleInformation(vehicleInformation);
-        return Response.ok().build();
+        vehicleInformationService.checkAndInsertIdempotency(idempotencyKey, vehicleInformation, "update");
+        return Response.ok(Response.Status.OK).entity(vehicleInformation).build();
     }
 
     /**

@@ -52,7 +52,7 @@ public class VehicleInformationService {
     }
 
     @Transactional
-    @CacheInvalidate(cacheName = "userCache")
+    @CacheInvalidate(cacheName = "vehicleCache")
     public void checkAndInsertIdempotency(String idempotencyKey, VehicleInformation vehicleInformation, String action) {
         // 查询 request_history
         RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);

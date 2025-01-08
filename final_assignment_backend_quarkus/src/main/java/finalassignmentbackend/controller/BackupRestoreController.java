@@ -14,6 +14,7 @@ import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+
 import java.util.List;
 
 // 控制器类，处理与事件总线备份相关的HTTP请求
@@ -30,8 +31,8 @@ public class BackupRestoreController {
     // 接受一个BackupRestore对象作为请求体，创建备份并返回201状态码
     @POST
     @RunOnVirtualThread
-    public Response createBackup(BackupRestore backup) {
-        backupRestoreService.createBackup(backup);
+    public Response createBackup(BackupRestore backup, String idempotencyKey) {
+        backupRestoreService.checkAndInsertIdempotency(idempotencyKey, backup, "create");
         return Response.status(Response.Status.CREATED).build();
     }
 
@@ -73,11 +74,11 @@ public class BackupRestoreController {
     @PUT
     @Path("/{backupId}")
     @RunOnVirtualThread
-    public Response updateBackup(@PathParam("backupId") int backupId, BackupRestore updatedBackup) {
+    public Response updateBackup(@PathParam("backupId") int backupId, BackupRestore updatedBackup, String idempotencyKey) {
         BackupRestore existingBackup = backupRestoreService.getBackupById(backupId);
         if (existingBackup != null) {
             updatedBackup.setBackupId(backupId);
-            backupRestoreService.updateBackup(updatedBackup);
+            backupRestoreService.checkAndInsertIdempotency(idempotencyKey, updatedBackup, "update");
             return Response.ok().build();
         } else {
             return Response.status(Response.Status.NOT_FOUND).build();
