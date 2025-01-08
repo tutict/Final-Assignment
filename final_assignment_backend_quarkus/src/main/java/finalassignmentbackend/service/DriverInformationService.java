@@ -2,6 +2,7 @@ package finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import finalassignmentbackend.entity.DriverInformation;
+import finalassignmentbackend.entity.RequestHistory;
 import finalassignmentbackend.mapper.DriverInformationMapper;
 import finalassignmentbackend.mapper.RequestHistoryMapper;
 import io.quarkus.cache.CacheInvalidate;
@@ -51,6 +52,38 @@ public class DriverInformationService {
     }
 
     @Transactional
+    @CacheInvalidate(cacheName = "userCache")
+    public void checkAndInsertIdempotency(String idempotencyKey, DriverInformation driverInformation, String action) {
+        // 查询 request_history
+        RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
+        if (existingRequest != null) {
+            // 已有此 key -> 重复请求
+            log.warning(String.format("Duplicate request detected (idempotencyKey=%s)", idempotencyKey));
+            throw new RuntimeException("Duplicate request detected");
+        }
+
+        // 不存在 -> 插入一条 PROCESSING
+        RequestHistory newRequest = new RequestHistory();
+        newRequest.setIdempotentKey(idempotencyKey);
+        newRequest.setBusinessStatus("PROCESSING");
+
+        try {
+            requestHistoryMapper.insert(newRequest);
+        } catch (Exception e) {
+            // 若并发下同 key 导致唯一索引冲突
+            log.severe("Failed to insert requestHistory for idempotencyKey=" + idempotencyKey + ", " + e.getMessage());
+            throw new RuntimeException("Duplicate request or DB insert error", e);
+        }
+
+        driverEvent.fire(new DriverInformationService.DriverEvent(driverInformation, action));
+
+        Integer driverId = driverInformation.getDriverId();
+        newRequest.setBusinessStatus("SUCCESS");
+        newRequest.setBusinessId(driverId);
+        requestHistoryMapper.updateById(newRequest);
+    }
+
+    @Transactional
     @CacheInvalidate(cacheName = "driverCache")
     public void createDriver(DriverInformation driverInformation) {
         DriverInformation existingDriver = driverInformationMapper.selectById(driverInformation.getDriverId());
@@ -59,7 +92,6 @@ public class DriverInformationService {
         } else {
             driverInformationMapper.updateById(driverInformation);
         }
-        driverEvent.fire(new DriverEvent(driverInformation, "create"));
     }
 
     @Transactional
@@ -71,7 +103,6 @@ public class DriverInformationService {
         } else {
             driverInformationMapper.updateById(driverInformation);
         }
-        driverEvent.fire(new DriverEvent(driverInformation, "update"));
     }
 
     @Transactional

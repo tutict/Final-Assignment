@@ -1,6 +1,7 @@
 package finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import finalassignmentbackend.entity.RequestHistory;
 import finalassignmentbackend.entity.VehicleInformation;
 import finalassignmentbackend.mapper.RequestHistoryMapper;
 import finalassignmentbackend.mapper.VehicleInformationMapper;
@@ -51,11 +52,41 @@ public class VehicleInformationService {
     }
 
     @Transactional
+    @CacheInvalidate(cacheName = "userCache")
+    public void checkAndInsertIdempotency(String idempotencyKey, VehicleInformation vehicleInformation, String action) {
+        // 查询 request_history
+        RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
+        if (existingRequest != null) {
+            // 已有此 key -> 重复请求
+            log.warning(String.format("Duplicate request detected (idempotencyKey=%s)", idempotencyKey));
+            throw new RuntimeException("Duplicate request detected");
+        }
+
+        // 不存在 -> 插入一条 PROCESSING
+        RequestHistory newRequest = new RequestHistory();
+        newRequest.setIdempotentKey(idempotencyKey);
+        newRequest.setBusinessStatus("PROCESSING");
+
+        try {
+            requestHistoryMapper.insert(newRequest);
+        } catch (Exception e) {
+            log.severe("Failed to insert requestHistory for idempotencyKey=" + idempotencyKey + ", " + e.getMessage());
+            throw new RuntimeException("Duplicate request or DB insert error", e);
+        }
+
+        vehicleEvent.fire(new VehicleInformationService.VehicleEvent(vehicleInformation, action));
+
+        Integer vehicleId = vehicleInformation.getVehicleId();
+        newRequest.setBusinessStatus("SUCCESS");
+        newRequest.setBusinessId(vehicleId);
+        requestHistoryMapper.updateById(newRequest);
+    }
+
+    @Transactional
     @CacheInvalidate(cacheName = "vehicleCache")
     public void createVehicleInformation(VehicleInformation vehicleInformation) {
         try {
             vehicleInformationMapper.insert(vehicleInformation);
-            vehicleEvent.fire(new VehicleEvent(vehicleInformation, "create"));
         } catch (Exception e) {
             log.warning("Exception occurred while creating vehicle information or firing event");
             throw new RuntimeException("Failed to create vehicle information", e);
@@ -98,11 +129,9 @@ public class VehicleInformationService {
 
     @Transactional
     @CacheInvalidate(cacheName = "vehicleCache")
-    public VehicleInformation updateVehicleInformation(VehicleInformation vehicleInformation) {
+    public void updateVehicleInformation(VehicleInformation vehicleInformation) {
         try {
             vehicleInformationMapper.updateById(vehicleInformation);
-            vehicleEvent.fire(new VehicleEvent(vehicleInformation, "update"));
-            return vehicleInformation;
         } catch (Exception e) {
             log.warning("Exception occurred while updating vehicle information or firing event");
             throw new RuntimeException("Failed to update vehicle information", e);

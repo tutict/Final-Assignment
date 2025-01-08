@@ -2,6 +2,7 @@ package finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import finalassignmentbackend.entity.PermissionManagement;
+import finalassignmentbackend.entity.RequestHistory;
 import finalassignmentbackend.mapper.PermissionManagementMapper;
 import finalassignmentbackend.mapper.RequestHistoryMapper;
 import io.quarkus.cache.CacheInvalidate;
@@ -51,6 +52,38 @@ public class PermissionManagementService {
     }
 
     @Transactional
+    @CacheInvalidate(cacheName = "userCache")
+    public void checkAndInsertIdempotency(String idempotencyKey, PermissionManagement permissionManagement, String action) {
+        // 查询 request_history
+        RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
+        if (existingRequest != null) {
+            // 已有此 key -> 重复请求
+            log.warning(String.format("Duplicate request detected (idempotencyKey=%s)", idempotencyKey));
+            throw new RuntimeException("Duplicate request detected");
+        }
+
+        // 不存在 -> 插入一条 PROCESSING
+        RequestHistory newRequest = new RequestHistory();
+        newRequest.setIdempotentKey(idempotencyKey);
+        newRequest.setBusinessStatus("PROCESSING");
+
+        try {
+            requestHistoryMapper.insert(newRequest);
+        } catch (Exception e) {
+            // 若并发下同 key 导致唯一索引冲突
+            log.severe("Failed to insert requestHistory for idempotencyKey=" + idempotencyKey + ", " + e.getMessage());
+            throw new RuntimeException("Duplicate request or DB insert error", e);
+        }
+
+        permissionEvent.fire(new PermissionManagementService.PermissionEvent(permissionManagement, action));
+
+        Integer permissionId = permissionManagement.getPermissionId();
+        newRequest.setBusinessStatus("SUCCESS");
+        newRequest.setBusinessId(permissionId);
+        requestHistoryMapper.updateById(newRequest);
+    }
+
+    @Transactional
     @CacheInvalidate(cacheName = "permissionCache")
     public void createPermission(PermissionManagement permission) {
         PermissionManagement existingPermission = permissionManagementMapper.selectById(permission.getPermissionId());
@@ -59,7 +92,6 @@ public class PermissionManagementService {
         } else {
             permissionManagementMapper.updateById(permission);
         }
-        permissionEvent.fire(new PermissionEvent(permission, "create"));
     }
 
     @Transactional
@@ -71,7 +103,6 @@ public class PermissionManagementService {
         } else {
             permissionManagementMapper.updateById(permission);
         }
-        permissionEvent.fire(new PermissionEvent(permission, "update"));
     }
 
     @Transactional

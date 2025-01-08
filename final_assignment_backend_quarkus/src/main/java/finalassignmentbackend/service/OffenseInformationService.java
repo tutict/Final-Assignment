@@ -2,6 +2,7 @@ package finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import finalassignmentbackend.entity.OffenseInformation;
+import finalassignmentbackend.entity.RequestHistory;
 import finalassignmentbackend.mapper.OffenseInformationMapper;
 import finalassignmentbackend.mapper.RequestHistoryMapper;
 import io.quarkus.cache.CacheInvalidate;
@@ -49,7 +50,38 @@ public class OffenseInformationService {
             this.offenseInformation = offenseInformation;
             this.action = action;
         }
+    }
 
+    @Transactional
+    @CacheInvalidate(cacheName = "userCache")
+    public void checkAndInsertIdempotency(String idempotencyKey, OffenseInformation offenseInformation, String action) {
+        // 查询 request_history
+        RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
+        if (existingRequest != null) {
+            // 已有此 key -> 重复请求
+            log.warning(String.format("Duplicate request detected (idempotencyKey=%s)", idempotencyKey));
+            throw new RuntimeException("Duplicate request detected");
+        }
+
+        // 不存在 -> 插入一条 PROCESSING
+        RequestHistory newRequest = new RequestHistory();
+        newRequest.setIdempotentKey(idempotencyKey);
+        newRequest.setBusinessStatus("PROCESSING");
+
+        try {
+            requestHistoryMapper.insert(newRequest);
+        } catch (Exception e) {
+            // 若并发下同 key 导致唯一索引冲突
+            log.severe("Failed to insert requestHistory for idempotencyKey=" + idempotencyKey + ", " + e.getMessage());
+            throw new RuntimeException("Duplicate request or DB insert error", e);
+        }
+
+        offenseEvent.fire(new OffenseInformationService.OffenseEvent(offenseInformation, action));
+
+        Integer offenseId = offenseInformation.getOffenseId();
+        newRequest.setBusinessStatus("SUCCESS");
+        newRequest.setBusinessId(offenseId);
+        requestHistoryMapper.updateById(newRequest);
     }
 
     @Transactional
@@ -61,7 +93,6 @@ public class OffenseInformationService {
         } else {
             offenseInformationMapper.updateById(offenseInformation);
         }
-        offenseEvent.fire(new OffenseEvent(offenseInformation, "create"));
     }
 
     @Transactional
@@ -73,7 +104,6 @@ public class OffenseInformationService {
         } else {
             offenseInformationMapper.updateById(offenseInformation);
         }
-        offenseEvent.fire(new OffenseEvent(offenseInformation, "update"));
     }
 
     @Transactional

@@ -2,6 +2,7 @@ package finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import finalassignmentbackend.entity.LoginLog;
+import finalassignmentbackend.entity.RequestHistory;
 import finalassignmentbackend.mapper.LoginLogMapper;
 import finalassignmentbackend.mapper.RequestHistoryMapper;
 import io.quarkus.cache.CacheInvalidate;
@@ -52,6 +53,38 @@ public class LoginLogService {
     }
 
     @Transactional
+    @CacheInvalidate(cacheName = "userCache")
+    public void checkAndInsertIdempotency(String idempotencyKey, LoginLog loginLog, String action) {
+        // 查询 request_history
+        RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
+        if (existingRequest != null) {
+            // 已有此 key -> 重复请求
+            log.warning(String.format("Duplicate request detected (idempotencyKey=%s)", idempotencyKey));
+            throw new RuntimeException("Duplicate request detected");
+        }
+
+        // 不存在 -> 插入一条 PROCESSING
+        RequestHistory newRequest = new RequestHistory();
+        newRequest.setIdempotentKey(idempotencyKey);
+        newRequest.setBusinessStatus("PROCESSING");
+
+        try {
+            requestHistoryMapper.insert(newRequest);
+        } catch (Exception e) {
+            // 若并发下同 key 导致唯一索引冲突
+            log.severe("Failed to insert requestHistory for idempotencyKey=" + idempotencyKey + ", " + e.getMessage());
+            throw new RuntimeException("Duplicate request or DB insert error", e);
+        }
+
+        loginLogEvent.fire(new LoginLogService.LoginLogEvent(loginLog, action));
+
+        Integer loginLogId = loginLog.getLogId();
+        newRequest.setBusinessStatus("SUCCESS");
+        newRequest.setBusinessId(loginLogId);
+        requestHistoryMapper.updateById(newRequest);
+    }
+
+    @Transactional
     @CacheInvalidate(cacheName = "loginCache")
     public void createLoginLog(LoginLog loginLog) {
         LoginLog existingLog = loginLogMapper.selectById(loginLog.getLogId());
@@ -60,7 +93,6 @@ public class LoginLogService {
         } else {
             loginLogMapper.updateById(loginLog);
         }
-        loginLogEvent.fire(new LoginLogEvent(loginLog, "create"));
     }
 
     @Transactional
@@ -72,7 +104,6 @@ public class LoginLogService {
         } else {
             loginLogMapper.updateById(loginLog);
         }
-        loginLogEvent.fire(new LoginLogEvent(loginLog, "update"));
     }
 
     @Transactional

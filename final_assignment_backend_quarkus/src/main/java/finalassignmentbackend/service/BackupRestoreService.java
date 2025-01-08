@@ -2,6 +2,7 @@ package finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import finalassignmentbackend.entity.BackupRestore;
+import finalassignmentbackend.entity.RequestHistory;
 import finalassignmentbackend.mapper.BackupRestoreMapper;
 import finalassignmentbackend.mapper.RequestHistoryMapper;
 import io.quarkus.cache.CacheInvalidate;
@@ -51,6 +52,38 @@ public class BackupRestoreService {
     }
 
     @Transactional
+    @CacheInvalidate(cacheName = "userCache")
+    public void checkAndInsertIdempotency(String idempotencyKey, BackupRestore backupRestore, String action) {
+        // 查询 request_history
+        RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
+        if (existingRequest != null) {
+            // 已有此 key -> 重复请求
+            log.warning(String.format("Duplicate request detected (idempotencyKey=%s)", idempotencyKey));
+            throw new RuntimeException("Duplicate request detected");
+        }
+
+        // 不存在 -> 插入一条 PROCESSING
+        RequestHistory newRequest = new RequestHistory();
+        newRequest.setIdempotentKey(idempotencyKey);
+        newRequest.setBusinessStatus("PROCESSING");
+
+        try {
+            requestHistoryMapper.insert(newRequest);
+        } catch (Exception e) {
+            // 若并发下同 key 导致唯一索引冲突
+            log.severe("Failed to insert requestHistory for idempotencyKey=" + idempotencyKey + ", " + e.getMessage());
+            throw new RuntimeException("Duplicate request or DB insert error", e);
+        }
+
+        backupEvent.fire(new BackupRestoreService.BackupEvent(backupRestore, action));
+
+        Integer backupId = backupRestore.getBackupId();
+        newRequest.setBusinessStatus("SUCCESS");
+        newRequest.setBusinessId(backupId);
+        requestHistoryMapper.updateById(newRequest);
+    }
+
+    @Transactional
     @CacheInvalidate(cacheName = "backupCache")
     public void createBackup(BackupRestore backup) {
         BackupRestore existingBackup = backupRestoreMapper.selectById(backup.getBackupId());
@@ -59,7 +92,6 @@ public class BackupRestoreService {
         } else {
             backupRestoreMapper.updateById(backup);
         }
-        backupEvent.fire(new BackupEvent(backup, "create"));
     }
 
     @Transactional
@@ -71,7 +103,6 @@ public class BackupRestoreService {
         } else {
             backupRestoreMapper.updateById(backup);
         }
-        backupEvent.fire(new BackupEvent(backup, "update"));
     }
 
     @Transactional
