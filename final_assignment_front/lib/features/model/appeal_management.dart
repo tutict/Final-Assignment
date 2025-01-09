@@ -4,88 +4,76 @@ class AppealManagement {
 
   int? offenseId;
 
-  /* 上诉人姓名，数据库字段名为\"appellant_name\" */
+  /* 上诉人姓名，数据库字段名为 "appellant_name" */
   String? appellantName;
 
-  /* 身份证号码，数据库字段名为\"id_card_number\" */
+  /* 身份证号码，数据库字段名为 "id_card_number" */
   String? idCardNumber;
 
-  /* 联系电话，数据库字段名为\"contact_number\" */
+  /* 联系电话，数据库字段名为 "contact_number" */
   String? contactNumber;
 
-  /* 上诉原因，数据库字段名为\"appeal_reason\" */
+  /* 上诉原因，数据库字段名为 "appeal_reason" */
   String? appealReason;
 
-  /* 上诉时间，使用LocalDateTime存储，数据库字段名为\"appeal_time\" */
+  /* 上诉时间，使用字符串存储，数据库字段名为 "appeal_time" */
   String? appealTime;
 
-  /* 处理状态，数据库字段名为\"process_status\" */
+  /* 处理状态，数据库字段名为 "process_status" */
   String? processStatus;
 
-  /* 处理结果，数据库字段名为\"process_result\" */
+  /* 处理结果，数据库字段名为 "process_result" */
   String? processResult;
 
+  /* 幂等键，记录请求的唯一标识符 */
   String idempotencyKey;
 
   AppealManagement({
-    required int? appealId,
-    required int? offenseId,
-    required String? appellantName,
-    required String? idCardNumber,
-    required String? contactNumber,
-    required String? appealReason,
-    required String? appealTime,
-    required String? processStatus,
-    required String? processResult,
-    required String idempotencyKey,
+    this.appealId,
+    this.offenseId,
+    this.appellantName,
+    this.idCardNumber,
+    this.contactNumber,
+    this.appealReason,
+    this.appealTime,
+    this.processStatus,
+    this.processResult,
+    required this.idempotencyKey,
   });
 
   @override
   String toString() {
-    return 'AppealManagement[appealId=$appealId, offenseId=$offenseId, appellantName=$appellantName, idCardNumber=$idCardNumber, contactNumber=$contactNumber, appealReason=$appealReason, appealTime=$appealTime, processStatus=$processStatus, processResult=$processResult, idempotencyKey=$idempotencyKey, ]';
+    return 'AppealManagement[appealId=$appealId, offenseId=$offenseId, appellantName=$appellantName, idCardNumber=$idCardNumber, contactNumber=$contactNumber, appealReason=$appealReason, appealTime=$appealTime, processStatus=$processStatus, processResult=$processResult, idempotencyKey=$idempotencyKey]';
   }
 
-  AppealManagement.fromJson(Map<String, dynamic> json) {
-    appealId = json['appealId'];
-    offenseId = json['offenseId'];
-    appellantName = json['appellantName'];
-    idCardNumber = json['idCardNumber'];
-    contactNumber = json['contactNumber'];
-    appealReason = json['appealReason'];
-    appealTime = json['appealTime'];
-    processStatus = json['processStatus'];
-    processResult = json['processResult'];
-    idempotencyKey = json['idempotencyKey'];
+  factory AppealManagement.fromJson(Map<String, dynamic> json) {
+    return AppealManagement(
+      appealId: json['appealId'],
+      offenseId: json['offenseId'],
+      appellantName: json['appellant_name'], // 注意字段名
+      idCardNumber: json['id_card_number'],   // 注意字段名
+      contactNumber: json['contact_number'],   // 注意字段名
+      appealReason: json['appeal_reason'],     // 注意字段名
+      appealTime: json['appeal_time'],
+      processStatus: json['process_status'],   // 注意字段名
+      processResult: json['process_result'],   // 注意字段名
+      idempotencyKey: json['idempotencyKey'],
+    );
   }
 
   Map<String, dynamic> toJson() {
-    Map<String, dynamic> json = {};
-    if (appealId != null) {
-      json['appealId'] = appealId;
-    }
-    if (offenseId != null) {
-      json['offenseId'] = offenseId;
-    }
-    if (appellantName != null) {
-      json['appellantName'] = appellantName;
-    }
-    if (idCardNumber != null) {
-      json['idCardNumber'] = idCardNumber;
-    }
-    json['contactNumber'] = contactNumber;
-    if (appealReason != null) {
-      json['appealReason'] = appealReason;
-    }
-    if (appealTime != null) {
-      json['appealTime'] = appealTime;
-    }
-    if (processStatus != null) {
-      json['processStatus'] = processStatus;
-    }
-    if (processResult != null) {
-      json['processResult'] = processResult;
-    }
-    return json;
+    return {
+      if (appealId != null) 'appealId': appealId,
+      if (offenseId != null) 'offenseId': offenseId,
+      if (appellantName != null) 'appellant_name': appellantName, // 注意字段名
+      if (idCardNumber != null) 'id_card_number': idCardNumber,     // 注意字段名
+      if (contactNumber != null) 'contact_number': contactNumber,   // 注意字段名
+      if (appealReason != null) 'appeal_reason': appealReason,     // 注意字段名
+      if (appealTime != null) 'appeal_time': appealTime,
+      if (processStatus != null) 'process_status': processStatus,   // 注意字段名
+      if (processResult != null) 'process_result': processResult,   // 注意字段名
+      'idempotencyKey': idempotencyKey,
+    };
   }
 
   static List<AppealManagement> listFromJson(List<dynamic> json) {
@@ -96,7 +84,7 @@ class AppealManagement {
     var map = <String, AppealManagement>{};
     if (json.isNotEmpty) {
       json.forEach((String key, dynamic value) =>
-          map[key] = AppealManagement.fromJson(value));
+      map[key] = AppealManagement.fromJson(value));
     }
     return map;
   }

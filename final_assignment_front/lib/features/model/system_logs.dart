@@ -20,7 +20,7 @@ class SystemLogs {
   /* 备注信息 */
   String? remarks;
 
-  String idempotencyKey;
+  String? idempotencyKey;
 
   SystemLogs({
     required int? logId,

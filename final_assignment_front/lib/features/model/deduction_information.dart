@@ -19,7 +19,7 @@ class DeductionInformation {
   /* 备注 该字段用于记录关于此次扣分的额外说明或备注信息 */
   String? remarks;
 
-  String idempotencyKey;
+  String? idempotencyKey;
 
   DeductionInformation({
     required String? deductionId,

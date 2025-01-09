@@ -32,7 +32,7 @@ class DriverInformation {
   /* 驾驶证有效期截止日期 */
   String? expiryDate;
 
-  String idempotencyKey;
+  String? idempotencyKey;
 
   DriverInformation({
     required int driverId,

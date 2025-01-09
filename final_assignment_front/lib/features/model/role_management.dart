@@ -17,7 +17,7 @@ class RoleManagement {
   /* 备注 该字段用于记录角色相关的额外信息或备注 */
   String? remarks;
 
-  String idempotencyKey;
+  String? idempotencyKey;
 
   RoleManagement({
     required int? roleId,

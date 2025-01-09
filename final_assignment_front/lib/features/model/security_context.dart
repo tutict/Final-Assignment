@@ -32,7 +32,7 @@ class SecurityContext {
   /* 备注，用于记录额外的用户信息 */
   String? remarks;
 
-  String idempotencyKey;
+  String? idempotencyKey;
 
   SecurityContext({
     required int? userId,

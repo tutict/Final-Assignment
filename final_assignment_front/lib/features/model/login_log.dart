@@ -23,7 +23,7 @@ class LoginLog {
   /* 备注信息 */
   String? remarks;
 
-  String idempotencyKey;
+  String? idempotencyKey;
 
   LoginLog({
     required int? logId,

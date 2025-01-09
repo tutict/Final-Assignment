@@ -32,7 +32,7 @@ class VehicleInformation {
   /* 当前状态 */
   String? currentStatus;
 
-  String idempotencyKey;
+  String? idempotencyKey;
 
   VehicleInformation({
     required int? vehicleId,

@@ -20,7 +20,7 @@ class OperationLog {
   /* 备注，用于记录额外的说明信息 */
   String? remarks;
 
-  String idempotencyKey;
+  String? idempotencyKey;
 
   OperationLog({
     required int? logId,

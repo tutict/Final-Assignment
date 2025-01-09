@@ -32,7 +32,7 @@ class OffenseInformation {
   /* 处理结果 */
   String? processResult;
 
-  String idempotencyKey;
+  String? idempotencyKey;
 
   OffenseInformation({
     required int? offenseId,

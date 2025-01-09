@@ -24,7 +24,7 @@ class FineInformation {
   /* 备注信息 */
   String? remarks;
 
-  String idempotencyKey;
+  String? idempotencyKey;
 
   FineInformation({
     required int? fineId,

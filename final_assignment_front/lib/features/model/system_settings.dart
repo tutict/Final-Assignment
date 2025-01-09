@@ -38,7 +38,7 @@ class SystemSettings {
   /* 备注信息，映射到数据库remarks字段 */
   String? remarks;
 
-  String idempotencyKey;
+  String? idempotencyKey;
 
   SystemSettings({
     required int? loginTimeout,

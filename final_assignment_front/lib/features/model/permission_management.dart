@@ -17,7 +17,7 @@ class PermissionManagement {
   /* 备注信息 该字段映射remarks */
   String? remarks;
 
-  String  idempotencyKey;
+  String?  idempotencyKey;
 
   PermissionManagement({
     required int? permissionId,
