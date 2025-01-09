@@ -1,6 +1,7 @@
 plugins {
     id 'java'
     id 'io.quarkus' version '3.17.5'
+    id 'org.graalvm.buildtools.native' version '0.10.4'
 }
 
 java {

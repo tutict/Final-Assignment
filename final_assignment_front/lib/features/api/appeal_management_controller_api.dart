@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:final_assignment_front/features/model/appeal_management.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:http/http.dart'; // 用于 Response 和 MultipartRequest
@@ -254,13 +256,13 @@ class AppealManagementControllerApi {
   /// getAllAppeals
   ///
   ///
-  Future<List<Object>?> apiAppealsGet() async {
+  Future<List<AppealManagement>?> apiAppealsGet() async {
     Response response = await apiAppealsGetWithHttpInfo();
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'List<Object>')
-          as List<Object>;
+      final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+      return AppealManagement.listFromJson(jsonList);
     } else {
       return null;
     }

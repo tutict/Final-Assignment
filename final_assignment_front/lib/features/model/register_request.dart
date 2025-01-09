@@ -4,24 +4,35 @@ class RegisterRequest {
   final String role;
   final String idempotencyKey;
 
-  // 定义正则表达式为静态常量，避免每次实例化时重新编译
-  static final RegExp _regExp = RegExp(r'@([^.]+)\.');
+  // 使用静态常量正则表达式，提高效率和可读性
+  static final RegExp _domainRegExp = RegExp(r'@([^.]+)\.');
 
-  // 构造函数中根据用户名设置角色
+  /// 构造函数，根据 [username] 自动设置 [role]
   RegisterRequest({
     required this.username,
     required this.password,
     required this.idempotencyKey,
   }) : role = _determineRole(username);
 
-  // 从 JSON 创建 RegisterRequest 实例时设置角色
-  RegisterRequest.fromJson(Map<String, dynamic> json)
-      : username = (json['username']),
-        password = (json['password']),
-        role = _determineRole(json['username']),
-        idempotencyKey = (json['idempotencyKey']);
+  /// 从 JSON 创建 [RegisterRequest] 实例
+  factory RegisterRequest.fromJson(Map<String, dynamic> json) {
+    final username = json['username'] as String?;
+    final password = json['password'] as String?;
+    final idempotencyKey = json['idempotencyKey'] as String?;
 
-  // 将 RegisterRequest 实例转换为 JSON
+    // 验证必填字段是否存在
+    if (username == null || password == null || idempotencyKey == null) {
+      throw ArgumentError('Missing required fields in JSON');
+    }
+
+    return RegisterRequest(
+      username: username,
+      password: password,
+      idempotencyKey: idempotencyKey,
+    );
+  }
+
+  /// 将 [RegisterRequest] 实例转换为 JSON
   Map<String, dynamic> toJson() {
     return {
       'username': username,
@@ -33,13 +44,14 @@ class RegisterRequest {
 
   @override
   String toString() {
-    return 'RegisterRequest[username=$username, password=$password, role=$role, idempotencyKey=$idempotencyKey]';
+    // 为了安全，隐藏密码字段
+    return 'RegisterRequest[username=$username, password=******, role=$role, idempotencyKey=$idempotencyKey]';
   }
 
-  // 通过正则表达式确定角色
+  /// 根据 [username] 确定角色
+  /// 如果域名是 'admin'，返回 'ADMIN'，否则返回 'USER'
   static String _determineRole(String username) {
-    // 假设 username 是类似 '123@admin.com' 的邮箱地址
-    final match = _regExp.firstMatch(username);
+    final match = _domainRegExp.firstMatch(username);
     if (match != null && match.groupCount >= 1) {
       final domain = match.group(1)?.toLowerCase();
       if (domain == 'admin') {
@@ -49,29 +61,38 @@ class RegisterRequest {
     return 'USER';
   }
 
-  // 其他辅助方法保持不变
-  static List<RegisterRequest> listFromJson(List<dynamic> json) {
-    return json.map((value) => RegisterRequest.fromJson(value)).toList();
+  /// 从 JSON 列表创建 [RegisterRequest] 列表
+  static List<RegisterRequest> listFromJson(List<dynamic> jsonList) {
+    return jsonList.map((item) {
+      if (item is Map<String, dynamic>) {
+        return RegisterRequest.fromJson(item);
+      } else {
+        throw ArgumentError('Invalid item type in JSON list');
+      }
+    }).toList();
   }
 
-  static Map<String, RegisterRequest> mapFromJson(Map<String, dynamic> json) {
-    var map = <String, RegisterRequest>{};
-    if (json.isNotEmpty) {
-      json.forEach((String key, dynamic value) =>
-          map[key] = RegisterRequest.fromJson(value));
-    }
-    return map;
+  /// 从 JSON 映射创建 [RegisterRequest] 映射
+  static Map<String, RegisterRequest> mapFromJson(
+      Map<String, dynamic> jsonMap) {
+    return jsonMap.map((key, value) {
+      if (value is Map<String, dynamic>) {
+        return MapEntry(key, RegisterRequest.fromJson(value));
+      } else {
+        throw ArgumentError('Invalid value type in JSON map');
+      }
+    });
   }
 
-  // maps a json object with a list of RegisterRequest-objects as value to a dart map
+  /// 从包含 [RegisterRequest] 列表的 JSON 映射创建映射
   static Map<String, List<RegisterRequest>> mapListFromJson(
-      Map<String, dynamic> json) {
-    var map = <String, List<RegisterRequest>>{};
-    if (json.isNotEmpty) {
-      json.forEach((String key, dynamic value) {
-        map[key] = RegisterRequest.listFromJson(value);
-      });
-    }
-    return map;
+      Map<String, dynamic> jsonMap) {
+    return jsonMap.map((key, value) {
+      if (value is List<dynamic>) {
+        return MapEntry(key, listFromJson(value));
+      } else {
+        throw ArgumentError('Invalid value type for key "$key" in JSON map');
+      }
+    });
   }
 }

@@ -1,7 +1,9 @@
+import 'dart:convert';
+
 import 'package:final_assignment_front/features/model/fine_information.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
-import 'package:http/http.dart'; // 用于 Response 和 MultipartRequest
 import 'package:final_assignment_front/utils/services/api_client.dart';
+import 'package:http/http.dart'; // 用于 Response 和 MultipartRequest
 
 /// 定义一个全局的 defaultApiClient
 final ApiClient defaultApiClient = ApiClient();
@@ -114,13 +116,14 @@ class FineInformationControllerApi {
   /// getFineById
   ///
   ///
-  Future<Object?> apiFinesFineIdGet({required String fineId}) async {
+  Future<List<FineInformation>?> apiFinesFineIdGet(
+      {required String fineId}) async {
     Response response = await apiFinesFineIdGetWithHttpInfo(fineId: fineId);
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
+      final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+      return FineInformation.listFromJson(jsonList);
     } else {
       return null;
     }
