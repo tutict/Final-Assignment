@@ -227,8 +227,7 @@ public class NetWorkHandler extends AbstractVerticle {
                             log.info("[{}] 转发 HTTP 请求成功: {}", requestId, response.statusMessage());
 
                             // 设置响应状态码
-                            request.response()
-                                    .setStatusCode(response.statusCode());
+                            request.response().setStatusCode(response.statusCode());
 
                             // 仅在 statusMessage 不为 null 时设置
                             String statusMessage = response.statusMessage();
@@ -254,12 +253,16 @@ public class NetWorkHandler extends AbstractVerticle {
                                 }
                             });
 
-                            // 设置响应内容类型并发送响应体
-                            HttpResponseStatus defaultReason = HttpResponseStatus.valueOf(response.statusCode());
-                            request.response()
-                                    .putHeader("Content-Type", "application/json")
-                                    .setStatusMessage(defaultReason.reasonPhrase())
-                                    .closed();
+                            // **将后端响应体写回给前端**
+                            String responseBody = response.bodyAsString();
+                            log.info("[{}] 后端响应Body: {}", requestId, responseBody);
+
+                            // 设置响应内容类型（如果后端是 JSON，可写 application/json）
+                            request.response().putHeader("Content-Type", "application/json");
+
+                            // **将后端响应体写回前端**
+                            request.response().sendAndAwait(responseBody);
+
                         })
                         .onFailure(failure -> {
                             log.error("[{}] 转发 HTTP 请求失败", requestId, failure);
