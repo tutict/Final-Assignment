@@ -126,7 +126,11 @@ public class AppealManagementService {
 
     @CacheResult(cacheName = "appealCache")
     public AppealManagement getAppealById(Integer appealId) {
-        return appealManagementMapper.selectById(appealId);
+        AppealManagement result = appealManagementMapper.selectById(appealId);
+        if (result == null) {
+            throw new IllegalArgumentException("Appeal not found for ID: " + appealId);
+        }
+        return result;
     }
 
     @CacheResult(cacheName = "appealCache")

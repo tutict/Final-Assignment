@@ -103,21 +103,11 @@ public class NetWorkHandler extends AbstractVerticle {
             forwardHttpRequest(request);
         });
 
-        // 处理 /eventbus/* 路径下的 WebSocket 请求
-        router.route("/eventbus/*").handler(ctx -> {
-            HttpServerRequest request = ctx.request();
-            String path = request.path();
-            String newWsUrl = wsUrl + path;
-            //TODO: 添加 WebSocket 连接处理逻辑
-        });
-
         HttpServerOptions options = new HttpServerOptions()
                 .setMaxWebSocketFrameSize(1000000)
                 .setTcpKeepAlive(true);
 
-        log.info("WebSocketServer 启动中...{}", router.patch());
-
-        // 启动 WebSocket 服务
+        // 启动 Network 服务
         vertx.createHttpServer(options)
                 .requestHandler(router)
                 .webSocketHandler(ws -> {
@@ -254,14 +244,14 @@ public class NetWorkHandler extends AbstractVerticle {
                                 }
                             });
 
-                            // **将后端响应体写回给前端**
+                            // 将后端响应体写回给前端
                             String responseBody = response.bodyAsString();
                             log.info("[{}] 后端响应Body: {}", requestId, responseBody);
 
                             // 设置响应内容类型（如果后端是 JSON，可写 application/json）
                             request.response().putHeader("Content-Type", "application/json");
 
-                            // **将后端响应体写回前端**
+                            // 将后端响应体写回前端
                             request.response().sendAndAwait(responseBody);
 
                         })

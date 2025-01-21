@@ -12,11 +12,11 @@ import java.util.logging.Logger;
  * 用于直接开启docker desktop
  */
 @ApplicationScoped
-public class ShellScriptConfig {
+public class QuarkusStartDockerScript {
 
-    private static final Logger logger = Logger.getLogger(String.valueOf(ShellScriptConfig.class));
+    private static final Logger logger = Logger.getLogger(String.valueOf(QuarkusStartDockerScript.class));
 
-    public ShellScriptConfig() {
+    public QuarkusStartDockerScript() {
     }
 
     @PostConstruct
