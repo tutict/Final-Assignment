@@ -33,7 +33,6 @@ public class VertxConfig {
                     );
         } catch (Exception e) {
             log.error("WebSocketServer 启动过程中出现异常：{}", e.getMessage(), e);
-            throw e;
         }
     }
 }

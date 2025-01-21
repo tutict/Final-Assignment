@@ -8,6 +8,9 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.logging.Logger;
 
+/*
+ * 用于直接开启docker desktop
+ */
 @ApplicationScoped
 public class ShellScriptConfig {
 
