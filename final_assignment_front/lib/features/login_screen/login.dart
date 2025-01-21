@@ -65,10 +65,7 @@ class _LoginScreenState extends State<LoginScreen> {
       // 如果后端返回了一个 Map<String, dynamic>:
       if (result is Map<String, dynamic>) {
         if (result['status'] == 'success') {
-          // 拿到 token
           String token = result['token'] ?? '';
-          // 可以在此处存储 token，比如 SharedPreferences
-          // 登录成功则返回 null（表示无错误消息）
           return null;
         } else {
           // 如果 status != success
@@ -79,10 +76,8 @@ class _LoginScreenState extends State<LoginScreen> {
         return '未识别的响应数据: $result';
       }
     } on ApiException catch (e) {
-      // 如果后端返回 4xx/5xx，ApiException 会被抛出
       return '登录失败: ${e.message}';
     } catch (e) {
-      // 其他未知异常
       return '登录异常: $e';
     }
   }
@@ -142,7 +137,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['status'] == 'success') {
-          return null; // 表示无错误
+          return '密码恢复成功';
         } else {
           return data['message'] ?? '密码恢复失败';
         }

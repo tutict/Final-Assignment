@@ -19,9 +19,13 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 @ApplicationScoped
 public class TokenProvider {
+
+    Logger log = Logger.getLogger(TokenProvider.class.getName());
 
     @Inject
     JWTParser jwtParser;
@@ -69,8 +73,7 @@ public class TokenProvider {
                     && jwt.getAudience().contains("tutict_client")
                     && jwt.getExpirationTime() > (System.currentTimeMillis() / 1000);
         } catch (ParseException e) {
-            System.err.println("Invalid token: " + e.getMessage());
-            e.printStackTrace();
+            log.log(Level.WARNING, "Invalid token: " + e.getMessage(), e);
             return false;
         }
     }
