@@ -10,16 +10,12 @@ import io.smallrye.mutiny.vertx.core.AbstractVerticle;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.json.JsonObject;
-import io.vertx.ext.bridge.PermittedOptions;
 import io.vertx.ext.web.client.WebClient;
-import io.vertx.ext.web.handler.sockjs.SockJSBridgeOptions;
-import io.vertx.ext.web.handler.sockjs.SockJSHandlerOptions;
 import io.vertx.mutiny.core.Vertx;
 import io.vertx.mutiny.core.http.HttpServerRequest;
 import io.vertx.mutiny.core.http.ServerWebSocket;
 import io.vertx.mutiny.ext.web.Router;
 import io.vertx.mutiny.ext.web.handler.CorsHandler;
-import io.vertx.mutiny.ext.web.handler.sockjs.SockJSHandler;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -39,6 +35,9 @@ public class NetWorkHandler extends AbstractVerticle {
 
     @ConfigProperty(name = "backend.url")
     String backendUrl;
+
+    @ConfigProperty(name = "ws.url")
+    String wsUrl;
 
     @ConfigProperty(name = "backend.port")
     int backendPort;
@@ -68,12 +67,12 @@ public class NetWorkHandler extends AbstractVerticle {
         Router router = Router.router(vertx);
 
         configureCors(router);
-        configureSockJS(router);
-        configureHttpRouting(router);
-
-        setupHttpServer(router);
+        setupNetWorksServer(router);
     }
 
+    /*
+     * 配置跨域请求和路由
+     */
     private void configureCors(Router router) {
         Set<String> allowedHeaders = Set.of(
                 "Authorization",
@@ -94,56 +93,58 @@ public class NetWorkHandler extends AbstractVerticle {
                 .allowedMethod(HttpMethod.OPTIONS));
     }
 
-    private void configureSockJS(Router router) {
-        SockJSHandlerOptions sockJSOptions = new SockJSHandlerOptions().setHeartbeatInterval(2000);
-        SockJSHandler sockJSHandler = SockJSHandler.create(vertx, sockJSOptions);
+    private void setupNetWorksServer(Router router) {
 
-        SockJSBridgeOptions bridgeOptions = new SockJSBridgeOptions()
-                .addInboundPermitted(new PermittedOptions().setAddress(EventBusAddress.CLIENT_TO_SERVER))
-                .addOutboundPermitted(new PermittedOptions().setAddress(EventBusAddress.SERVER_TO_CLIENT));
+        log.info("NetworkHandler 启动中... 请求路径为:{} ", router.route());
 
-        // 创建桥接路由器
-        Router sockJSRouter = sockJSHandler.bridge(bridgeOptions);
-
-        // 使用 Route.subRouter 方法将 SockJSHandler 作为子路由器挂载到 /eventbus 路径下
-        router.route("/eventbus/*").subRouter(sockJSRouter);
-    }
-
-    private void configureHttpRouting(Router router) {
         // 将 HTTP 转发请求挂载到 /api/* 路径下
         router.route("/api/*").handler(ctx -> {
             HttpServerRequest request = ctx.request();
             forwardHttpRequest(request);
         });
 
-        // 处理未匹配的路由
-        router.route().handler(ctx -> ctx.response().setStatusCode(404).setStatusMessage("未找到资源").closed());
-    }
+        // 处理 /eventbus/* 路径下的 WebSocket 请求
+        router.route("/eventbus/*").handler(ctx -> {
+            HttpServerRequest request = ctx.request();
+            String path = request.path();
+            String newWsUrl = wsUrl + path;
+            //TODO: 添加 WebSocket 连接处理逻辑
+        });
 
-    private void setupHttpServer(Router router) {
         HttpServerOptions options = new HttpServerOptions()
                 .setMaxWebSocketFrameSize(1000000)
                 .setTcpKeepAlive(true);
+
+        log.info("WebSocketServer 启动中...{}", router.patch());
 
         // 启动 WebSocket 服务
         vertx.createHttpServer(options)
                 .requestHandler(router)
                 .webSocketHandler(ws -> {
-                    // 只处理 /eventbus 路径上的 WebSocket 连接
-                    if (ws.path().startsWith("/eventbus")) {
+
+                    // 打印 WebSocket
+                    log.info("WebSocket 连接已建立: {}", ws.path());
+
+                    // 只处理 /eventbus/* 路径上的 WebSocket 连接
+                    if ("/eventbus".equals(ws.path()) || ws.path().startsWith("/eventbus/")) {
                         handleWebSocketConnection(ws);
                     } else {
-                        ws.close().subscribe().with(
-                                success -> log.info("关闭 WebSocket 成功 {}", success),
-                                failure -> log.error("关闭 WebSocket 失败: {}", failure.getMessage(), failure)
+                        ws.close((short) 1003, "Unsupported path").subscribe().with(
+                                success -> log.info("关闭 {} WebSocket 连接成功 {}", ws.path(), success),
+                                failure -> log.error("关闭 {} WebSocket 连接失败: {}", ws.path(), failure.getMessage(), failure)
                         );
                     }
                 })
                 .listen(port)  // 确保这里使用了指定的端口
                 .subscribe().with(
-                        server -> log.info("WebSocket 服务器已在端口 {} 启动", server.actualPort()),
-                        failure -> log.error("服务器启动失败: {}", failure.getMessage(), failure)
+                        server -> log.info("Network服务器已在端口 {} 启动", server.actualPort()),
+                        failure -> log.error("Network服务器启动失败: {}", failure.getMessage(), failure)
                 );
+
+
+        // 处理未匹配的路由
+        router.route().handler(ctx -> ctx.response().setStatusCode(404).setStatusMessage("未找到资源").closed());
+
     }
 
     private void handleWebSocketConnection(ServerWebSocket ws) {

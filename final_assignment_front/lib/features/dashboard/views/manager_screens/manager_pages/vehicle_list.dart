@@ -5,7 +5,7 @@ import 'package:final_assignment_front/features/api/vehicle_information_controll
 import 'package:final_assignment_front/features/model/vehicle_information.dart';
 
 class VehicleList extends StatefulWidget {
-  const VehicleList({Key? key}) : super(key: key);
+  const VehicleList({super.key});
 
   @override
   State<VehicleList> createState() => _VehicleListPageState();
@@ -284,7 +284,7 @@ class AddVehiclePage extends StatelessWidget {
 class VehicleDetailPage extends StatelessWidget {
   final VehicleInformation vehicle;
 
-  const VehicleDetailPage({Key? key, required this.vehicle}) : super(key: key);
+  const VehicleDetailPage({super.key, required this.vehicle});
 
   @override
   Widget build(BuildContext context) {
