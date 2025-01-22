@@ -36,9 +36,6 @@ public class NetWorkHandler extends AbstractVerticle {
     @ConfigProperty(name = "backend.url")
     String backendUrl;
 
-    @ConfigProperty(name = "ws.url")
-    String wsUrl;
-
     @ConfigProperty(name = "backend.port")
     int backendPort;
 
@@ -95,13 +92,37 @@ public class NetWorkHandler extends AbstractVerticle {
 
     private void setupNetWorksServer(Router router) {
 
-        log.info("NetworkHandler 启动中... 请求路径为:{} ", router.route());
-
         // 将 HTTP 转发请求挂载到 /api/* 路径下
         router.route("/api/*").handler(ctx -> {
             HttpServerRequest request = ctx.request();
             forwardHttpRequest(request);
         });
+
+        router.route("/eventbus/*").handler(ctx -> {
+            HttpServerRequest request = ctx.request();
+            request.toWebSocket().subscribe().with(
+                    ws -> {
+
+                        log.info("WebSocket 连接已建立, path={}", ws.path());
+
+                        if (ws.path().contains("/eventbus")) {
+                            handleWebSocketConnection(ws);
+                        } else {
+                            ws.close((short) 1003, "Unsupported path").subscribe().with(
+                                    success -> log.info("关闭 {} WebSocket 连接成功 {}", ws.path(), success),
+                                    failure -> log.error("关闭 {} WebSocket 连接失败: {}", ws.path(), failure.getMessage(), failure)
+                            );
+                        }
+                    },
+                    failure -> {
+                        log.error("WebSocket 升级失败: {}", failure.getMessage(), failure);
+                        ctx.response().setStatusCode(400).setStatusMessage("WebSocket upgrade failed").closed();
+                    }
+            );
+        });
+
+        // 处理未匹配的路由（使用正则）
+        router.route("^/(?!api(/|$)|eventbus(/|$)).*").handler(ctx -> ctx.response().setStatusCode(404).setStatusMessage("未找到资源").closed());
 
         HttpServerOptions options = new HttpServerOptions()
                 .setMaxWebSocketFrameSize(1000000)
@@ -110,31 +131,11 @@ public class NetWorkHandler extends AbstractVerticle {
         // 启动 Network 服务
         vertx.createHttpServer(options)
                 .requestHandler(router)
-                .webSocketHandler(ws -> {
-
-                    // 打印 WebSocket
-                    log.info("WebSocket 连接已建立: {}", ws.path());
-
-                    // 只处理 /eventbus/* 路径上的 WebSocket 连接
-                    if ("/eventbus".equals(ws.path()) || ws.path().startsWith("/eventbus/")) {
-                        handleWebSocketConnection(ws);
-                    } else {
-                        ws.close((short) 1003, "Unsupported path").subscribe().with(
-                                success -> log.info("关闭 {} WebSocket 连接成功 {}", ws.path(), success),
-                                failure -> log.error("关闭 {} WebSocket 连接失败: {}", ws.path(), failure.getMessage(), failure)
-                        );
-                    }
-                })
                 .listen(port)  // 确保这里使用了指定的端口
                 .subscribe().with(
                         server -> log.info("Network服务器已在端口 {} 启动", server.actualPort()),
                         failure -> log.error("Network服务器启动失败: {}", failure.getMessage(), failure)
                 );
-
-
-        // 处理未匹配的路由
-        router.route().handler(ctx -> ctx.response().setStatusCode(404).setStatusMessage("未找到资源").closed());
-
     }
 
     private void handleWebSocketConnection(ServerWebSocket ws) {
