@@ -121,9 +121,9 @@ public class FineInformationService {
     }
 
     @CacheResult(cacheName = "fineCache")
-    public FineInformation getFineById(int fineId) {
-        if (fineId <= 0) {
-            throw new IllegalArgumentException("Invalid fine ID");
+    public FineInformation getFineById(Integer fineId) {
+        if (fineId == null || fineId <= 0 || fineId >= Integer.MAX_VALUE) {
+            throw new IllegalArgumentException("Invalid fine ID" + fineId);
         }
         return fineInformationMapper.selectById(fineId);
     }

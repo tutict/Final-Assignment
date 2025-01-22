@@ -139,9 +139,9 @@ public class PermissionManagementService {
     }
 
     @CacheResult(cacheName = "permissionCache")
-    public PermissionManagement getPermissionById(int permissionId) {
-        if (permissionId <= 0) {
-            throw new IllegalArgumentException("Invalid permission ID");
+    public PermissionManagement getPermissionById(Integer permissionId) {
+        if (permissionId == null || permissionId <= 0 || permissionId >= Integer.MAX_VALUE) {
+            throw new IllegalArgumentException("Invalid permission ID" + permissionId);
         }
         return permissionManagementMapper.selectById(permissionId);
     }

@@ -101,7 +101,10 @@ public class UserManagementService {
     }
 
     @CacheResult(cacheName = "userCache")
-    public UserManagement getUserById(int userId) {
+    public UserManagement getUserById(Integer userId) {
+        if (userId == null || userId <= 0 || userId >= Integer.MAX_VALUE) {
+            throw new RuntimeException("Invalid userId" + userId);
+        }
         return userManagementMapper.selectById(userId);
     }
 

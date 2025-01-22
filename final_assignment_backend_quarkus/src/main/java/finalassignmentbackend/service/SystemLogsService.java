@@ -117,7 +117,10 @@ public class SystemLogsService {
     }
 
     @CacheResult(cacheName = "systemLogCache")
-    public SystemLogs getSystemLogById(int logId) {
+    public SystemLogs getSystemLogById(Integer logId) {
+        if (logId == null || logId <= 0 || logId >= Integer.MAX_VALUE) {
+            throw new IllegalArgumentException("Invalid log ID" + logId);
+        }
         return systemLogsMapper.selectById(logId);
     }
 

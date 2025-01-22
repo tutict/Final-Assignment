@@ -121,8 +121,8 @@ public class BackupRestoreService {
 
     @CacheResult(cacheName = "backupCache")
     public BackupRestore getBackupById(Integer backupId) {
-        if (backupId == null || backupId <= 0) {
-            throw new IllegalArgumentException("Invalid backup ID");
+        if (backupId == null || backupId <= 0 || backupId >= Integer.MAX_VALUE) {
+            throw new IllegalArgumentException("Invalid backup ID" + backupId);
         }
         return backupRestoreMapper.selectById(backupId);
     }

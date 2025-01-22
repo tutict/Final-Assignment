@@ -94,7 +94,10 @@ public class VehicleInformationService {
     }
 
     @CacheResult(cacheName = "vehicleCache")
-    public VehicleInformation getVehicleInformationById(int vehicleId) {
+    public VehicleInformation getVehicleInformationById(Integer vehicleId) {
+        if (vehicleId == null || vehicleId == 0 || vehicleId >= Integer.MAX_VALUE) {
+            throw new IllegalArgumentException("Invalid vehicle ID" + vehicleId);
+        }
         return vehicleInformationMapper.selectById(vehicleId);
     }
 

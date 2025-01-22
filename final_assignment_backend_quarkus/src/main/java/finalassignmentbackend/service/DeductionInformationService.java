@@ -121,9 +121,9 @@ public class DeductionInformationService {
     }
 
     @CacheResult(cacheName = "deductionCache")
-    public DeductionInformation getDeductionById(int deductionId) {
-        if (deductionId <= 0) {
-            throw new IllegalArgumentException("Invalid deduction ID");
+    public DeductionInformation getDeductionById(Integer deductionId) {
+        if (deductionId == null || deductionId <= 0 || deductionId >= Integer.MAX_VALUE) {
+            throw new IllegalArgumentException("Invalid deduction ID" + deductionId);
         }
         return deductionInformationMapper.selectById(deductionId);
     }

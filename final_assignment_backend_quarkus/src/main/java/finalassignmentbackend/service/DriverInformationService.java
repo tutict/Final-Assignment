@@ -120,9 +120,9 @@ public class DriverInformationService {
     }
 
     @CacheResult(cacheName = "driverCache")
-    public DriverInformation getDriverById(int driverId) {
-        if (driverId <= 0) {
-            throw new IllegalArgumentException("Invalid driver ID");
+    public DriverInformation getDriverById(Integer driverId) {
+        if (driverId == null || driverId <= 0 || driverId >= Integer.MAX_VALUE) {
+            throw new IllegalArgumentException("Invalid driver ID" + driverId);
         }
         return driverInformationMapper.selectById(driverId);
     }

@@ -139,9 +139,9 @@ public class RoleManagementService {
     }
 
     @CacheResult(cacheName = "roleCache")
-    public RoleManagement getRoleById(int roleId) {
-        if (roleId <= 0) {
-            throw new IllegalArgumentException("Invalid role ID");
+    public RoleManagement getRoleById(Integer roleId) {
+        if (roleId == null || roleId <= 0 || roleId >= Integer.MAX_VALUE) {
+            throw new IllegalArgumentException("Invalid role ID" + roleId);
         }
         return roleManagementMapper.selectById(roleId);
     }

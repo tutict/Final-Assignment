@@ -121,7 +121,10 @@ public class OffenseInformationService {
     }
 
     @CacheResult(cacheName = "offenseCache")
-    public OffenseInformation getOffenseByOffenseId(int offenseId) {
+    public OffenseInformation getOffenseByOffenseId(Integer offenseId) {
+        if (offenseId == null || offenseId <= 0 || offenseId >= Integer.MAX_VALUE) {
+            throw new IllegalArgumentException("Invalid offense ID" + offenseId);
+        }
         return offenseInformationMapper.selectById(offenseId);
     }
 
