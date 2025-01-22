@@ -122,7 +122,10 @@ public class NetWorkHandler extends AbstractVerticle {
         });
 
         // 处理未匹配的路由（使用正则）
-        router.route("^/(?!api(/|$)|eventbus(/|$)).*").handler(ctx -> ctx.response().setStatusCode(404).setStatusMessage("未找到资源").closed());
+        router.routeWithRegex("^/(?!api(/|$)|eventbus(/|$)).*")
+                .handler(ctx -> ctx.response().setStatusCode(404)
+                        .setStatusMessage("未找到资源")
+                        .closed());
 
         HttpServerOptions options = new HttpServerOptions()
                 .setMaxWebSocketFrameSize(1000000)
