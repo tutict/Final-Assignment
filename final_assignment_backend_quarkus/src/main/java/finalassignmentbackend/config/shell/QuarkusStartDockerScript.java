@@ -1,5 +1,6 @@
 package finalassignmentbackend.config.shell;
 
+import io.quarkus.runtime.Startup;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 
@@ -9,15 +10,13 @@ import java.io.InputStreamReader;
 import java.util.logging.Logger;
 
 /*
- * 用于直接开启docker desktop
+ * 用于开启docker
  */
+//@Startup(value = 1)
 @ApplicationScoped
 public class QuarkusStartDockerScript {
 
     private static final Logger logger = Logger.getLogger(String.valueOf(QuarkusStartDockerScript.class));
-
-    public QuarkusStartDockerScript() {
-    }
 
     @PostConstruct
     public void executeShellScript() {
