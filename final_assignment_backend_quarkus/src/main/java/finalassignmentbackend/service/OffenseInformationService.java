@@ -1,6 +1,7 @@
 package finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import finalassignmentbackend.config.websocket.WsAction;
 import finalassignmentbackend.entity.OffenseInformation;
 import finalassignmentbackend.entity.RequestHistory;
 import finalassignmentbackend.mapper.OffenseInformationMapper;
@@ -54,6 +55,7 @@ public class OffenseInformationService {
 
     @Transactional
     @CacheInvalidate(cacheName = "offenseCache")
+    @WsAction(service = "offenseInformation", action = "checkCreateAndUpdate")
     public void checkAndInsertIdempotency(String idempotencyKey, OffenseInformation offenseInformation, String action) {
         // 查询 request_history
         RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
@@ -108,6 +110,7 @@ public class OffenseInformationService {
 
     @Transactional
     @CacheInvalidate(cacheName = "offenseCache")
+    @WsAction(service = "offenseInformation", action = "deleteOffense")
     public void deleteOffense(int offenseId) {
         if (offenseId <= 0) {
             throw new IllegalArgumentException("Invalid offense ID");
@@ -121,6 +124,7 @@ public class OffenseInformationService {
     }
 
     @CacheResult(cacheName = "offenseCache")
+    @WsAction(service = "offenseInformation", action = "getOffenseByOffenseId")
     public OffenseInformation getOffenseByOffenseId(Integer offenseId) {
         if (offenseId == null || offenseId <= 0 || offenseId >= Integer.MAX_VALUE) {
             throw new IllegalArgumentException("Invalid offense ID" + offenseId);
@@ -129,11 +133,13 @@ public class OffenseInformationService {
     }
 
     @CacheResult(cacheName = "offenseCache")
+    @WsAction(service = "offenseInformation", action = "getOffensesInformation")
     public List<OffenseInformation> getOffensesInformation() {
         return offenseInformationMapper.selectList(null);
     }
 
     @CacheResult(cacheName = "offenseCache")
+    @WsAction(service = "offenseInformation", action = "getOffensesByTimeRange")
     public List<OffenseInformation> getOffensesByTimeRange(Date startTime, Date endTime) {
         if (startTime == null || endTime == null || startTime.after(endTime)) {
             throw new IllegalArgumentException("Invalid time range");
@@ -144,6 +150,7 @@ public class OffenseInformationService {
     }
 
     @CacheResult(cacheName = "offenseCache")
+    @WsAction(service = "offenseInformation", action = "getOffensesByProcessState")
     public List<OffenseInformation> getOffensesByProcessState(String processState) {
         if (processState == null || processState.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid process state");
@@ -154,6 +161,7 @@ public class OffenseInformationService {
     }
 
     @CacheResult(cacheName = "offenseCache")
+    @WsAction(service = "offenseInformation", action = "getOffensesByDriverName")
     public List<OffenseInformation> getOffensesByDriverName(String driverName) {
         if (driverName == null || driverName.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid driver name");
@@ -164,6 +172,7 @@ public class OffenseInformationService {
     }
 
     @CacheResult(cacheName = "offenseCache")
+    @WsAction(service = "offenseInformation", action = "getOffensesByLicensePlate")
     public List<OffenseInformation> getOffensesByLicensePlate(String offenseLicensePlate) {
         if (offenseLicensePlate == null || offenseLicensePlate.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid license plate");

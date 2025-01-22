@@ -4,8 +4,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import finalassignmentbackend.config.login.jwt.TokenProvider;
-import finalassignmentbackend.config.route.EventBusAddress;
+import finalassignmentbackend.config.websocket.WsActionRegistry;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import io.quarkus.arc.ArcContainer;
 import io.smallrye.mutiny.vertx.core.AbstractVerticle;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerOptions;
@@ -47,6 +48,12 @@ public class NetWorkHandler extends AbstractVerticle {
 
     @Inject
     ObjectMapper objectMapper;
+
+    @Inject
+    WsActionRegistry wsActionRegistry;
+
+    @Inject
+    ArcContainer arc;
 
     @Inject
     ProducerTemplate producerTemplate;
@@ -153,10 +160,10 @@ public class NetWorkHandler extends AbstractVerticle {
                     if (token != null && tokenProvider.validateToken(token)) {
                         String action = jsonNode.has("action") ? jsonNode.get("action").asText() : null;
                         JsonNode data = jsonNode.has("data") ? jsonNode.get("data") : null;
+//                        String idempotencyId = jsonNode.has("idempotencyId") ? jsonNode.get("idempotencyId").asText() : null;
 
                         log.info("Received action: {}, with data: {}", action, data);
 
-                        producerTemplate.sendBodyAndHeader(EventBusAddress.CLIENT_TO_SERVER, data, "RequestPath", ws.path());
 
                     } else {
                         log.warn("无效的令牌，关闭 WebSocket 连接");

@@ -1,6 +1,7 @@
 package finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import finalassignmentbackend.config.websocket.WsAction;
 import finalassignmentbackend.entity.OperationLog;
 import finalassignmentbackend.entity.RequestHistory;
 import finalassignmentbackend.mapper.OperationLogMapper;
@@ -54,6 +55,7 @@ public class OperationLogService {
 
     @Transactional
     @CacheInvalidate(cacheName = "operationCache")
+    @WsAction(service = "operationLog", action = "checkCreateAndUpdate")
     public void checkAndInsertIdempotency(String idempotencyKey, OperationLog operationLog, String action) {
         // 查询 request_history
         RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
@@ -108,6 +110,7 @@ public class OperationLogService {
 
     @Transactional
     @CacheInvalidate(cacheName = "operationCache")
+    @WsAction(service = "operationLog", action = "deleteOperationLog")
     public void deleteOperationLog(int logId) {
         if (logId <= 0) {
             throw new IllegalArgumentException("Invalid log ID");
@@ -121,19 +124,22 @@ public class OperationLogService {
     }
 
     @CacheResult(cacheName = "operationCache")
-    public OperationLog getOperationLog(int logId) {
-        if (logId <= 0) {
-            throw new IllegalArgumentException("Invalid log ID");
+    @WsAction(service = "operationLog", action = "getOperationLog")
+    public OperationLog getOperationLog(Integer logId) {
+        if (logId == null || logId <= 0 || logId >= Integer.MAX_VALUE) {
+            throw new IllegalArgumentException("Invalid log ID" + logId);
         }
         return operationLogMapper.selectById(logId);
     }
 
     @CacheResult(cacheName = "operationCache")
+    @WsAction(service = "operationLog", action = "getAllOperationLogs")
     public List<OperationLog> getAllOperationLogs() {
         return operationLogMapper.selectList(null);
     }
 
     @CacheResult(cacheName = "operationCache")
+    @WsAction(service = "operationLog", action = "getOperationLogsByTimeRange")
     public List<OperationLog> getOperationLogsByTimeRange(Date startTime, Date endTime) {
         if (startTime == null || endTime == null || startTime.after(endTime)) {
             throw new IllegalArgumentException("Invalid time range");
@@ -144,6 +150,7 @@ public class OperationLogService {
     }
 
     @CacheResult(cacheName = "operationCache")
+    @WsAction(service = "operationLog", action = "getOperationLogsByUserId")
     public List<OperationLog> getOperationLogsByUserId(String userId) {
         if (userId == null || userId.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid userId");
@@ -154,6 +161,7 @@ public class OperationLogService {
     }
 
     @CacheResult(cacheName = "operationCache")
+    @WsAction(service = "operationLog", action = "getOperationLogsByResult")
     public List<OperationLog> getOperationLogsByResult(String operationResult) {
         if (operationResult == null || operationResult.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid operation result");

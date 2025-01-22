@@ -1,6 +1,7 @@
 package finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import finalassignmentbackend.config.websocket.WsAction;
 import finalassignmentbackend.entity.DeductionInformation;
 import finalassignmentbackend.entity.RequestHistory;
 import finalassignmentbackend.mapper.DeductionInformationMapper;
@@ -54,6 +55,7 @@ public class DeductionInformationService {
 
     @Transactional
     @CacheInvalidate(cacheName = "deductionCache")
+    @WsAction(service = "deduction", action = "checkCreateAndUpdate")
     public void checkAndInsertIdempotency(String idempotencyKey, DeductionInformation dedicatedInformation, String action) {
         // 查询 request_history
         RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
@@ -108,6 +110,7 @@ public class DeductionInformationService {
 
     @Transactional
     @CacheInvalidate(cacheName = "deductionCache")
+    @WsAction(service = "DeductionInformation", action = "deleteDeduction")
     public void deleteDeduction(int deductionId) {
         if (deductionId <= 0) {
             throw new IllegalArgumentException("Invalid deduction ID");
@@ -121,6 +124,7 @@ public class DeductionInformationService {
     }
 
     @CacheResult(cacheName = "deductionCache")
+    @WsAction(service = "DeductionInformation", action = "getDeductionById")
     public DeductionInformation getDeductionById(Integer deductionId) {
         if (deductionId == null || deductionId <= 0 || deductionId >= Integer.MAX_VALUE) {
             throw new IllegalArgumentException("Invalid deduction ID" + deductionId);
@@ -129,11 +133,13 @@ public class DeductionInformationService {
     }
 
     @CacheResult(cacheName = "deductionCache")
+    @WsAction(service = "DeductionInformation", action = "getAllDeductions")
     public List<DeductionInformation> getAllDeductions() {
         return deductionInformationMapper.selectList(null);
     }
 
     @CacheResult(cacheName = "deductionCache")
+    @WsAction(service = "DeductionInformation", action = "getDeductionsByHandler")
     public List<DeductionInformation> getDeductionsByHandler(String handler) {
         if (handler == null || handler.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid handler");
@@ -144,6 +150,7 @@ public class DeductionInformationService {
     }
 
     @CacheResult(cacheName = "deductionCache")
+    @WsAction(service = "DeductionInformation", action = "getDeductionsByTime")
     public List<DeductionInformation> getDeductionsByTimeRange(Date startTime, Date endTime) {
         if (startTime == null || endTime == null || startTime.after(endTime)) {
             throw new IllegalArgumentException("Invalid time range");

@@ -86,6 +86,9 @@ public class OffenseDetailsService {
 
     // 根据 ID 获取违规详情
     public OffenseDetails getOffenseDetailsById(Integer id) {
+        if (id == null || id <= 0 || id >= Integer.MAX_VALUE) {
+            throw new IllegalArgumentException("Invalid offense ID" + id);
+        }
         return offenseDetailsMapper.selectById(id);
     }
 

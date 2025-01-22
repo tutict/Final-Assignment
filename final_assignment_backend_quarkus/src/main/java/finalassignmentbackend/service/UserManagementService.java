@@ -1,6 +1,7 @@
 package finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import finalassignmentbackend.config.websocket.WsAction;
 import finalassignmentbackend.entity.RequestHistory;
 import finalassignmentbackend.entity.UserManagement;
 import finalassignmentbackend.mapper.RequestHistoryMapper;
@@ -54,6 +55,7 @@ public class UserManagementService {
 
     @Transactional
     @CacheInvalidate(cacheName = "userCache")
+    @WsAction(service = "user", action = "checkCreateAndUpdate")
     public void checkAndInsertIdempotency(String idempotencyKey, UserManagement user, String action) {
         // 查询 request_history
         RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
@@ -101,6 +103,7 @@ public class UserManagementService {
     }
 
     @CacheResult(cacheName = "userCache")
+    @WsAction(service = "user", action = "getUserById")
     public UserManagement getUserById(Integer userId) {
         if (userId == null || userId <= 0 || userId >= Integer.MAX_VALUE) {
             throw new RuntimeException("Invalid userId" + userId);
@@ -109,6 +112,7 @@ public class UserManagementService {
     }
 
     @CacheResult(cacheName = "userCache")
+    @WsAction(service = "user", action = "getUserByUsername")
     public UserManagement getUserByUsername(String username) {
         validateInput(username, "Invalid username");
         QueryWrapper<UserManagement> queryWrapper = new QueryWrapper<>();
@@ -117,11 +121,13 @@ public class UserManagementService {
     }
 
     @CacheResult(cacheName = "userCache")
+    @WsAction(service = "user", action = "getAllUsers")
     public List<UserManagement> getAllUsers() {
         return userManagementMapper.selectList(null);
     }
 
     @CacheResult(cacheName = "userCache")
+    @WsAction(service = "user", action = "getUsersByType")
     public List<UserManagement> getUsersByType(String userType) {
         validateInput(userType, "Invalid user type");
         QueryWrapper<UserManagement> queryWrapper = new QueryWrapper<>();
@@ -130,6 +136,7 @@ public class UserManagementService {
     }
 
     @CacheResult(cacheName = "userCache")
+    @WsAction(service = "user", action = "getUsersByStatus")
     public List<UserManagement> getUsersByStatus(String status) {
         validateInput(status, "Invalid status");
         QueryWrapper<UserManagement> queryWrapper = new QueryWrapper<>();
@@ -139,6 +146,7 @@ public class UserManagementService {
 
     @Transactional
     @CacheInvalidate(cacheName = "userCache")
+    @WsAction(service = "user", action = "updateUser")
     public void updateUser(UserManagement user) {
         try {
             userManagementMapper.updateById(user);
@@ -150,6 +158,7 @@ public class UserManagementService {
 
     @Transactional
     @CacheInvalidate(cacheName = "userCache")
+    @WsAction(service = "user", action = "deleteUser")
     public void deleteUser(int userId) {
         try {
             UserManagement userToDelete = userManagementMapper.selectById(userId);
@@ -164,6 +173,7 @@ public class UserManagementService {
 
     @Transactional
     @CacheInvalidate(cacheName = "userCache")
+    @WsAction(service = "user", action = "deleteUserByUsername")
     public void deleteUserByUsername(String username) {
         validateInput(username, "Invalid username");
         try {
@@ -181,6 +191,7 @@ public class UserManagementService {
 
     // Cache the result of this method
     @CacheResult(cacheName = "usernameExistsCache")
+    @WsAction(service = "user", action = "isUsernameExists")
     public boolean isUsernameExists(String username) {
         validateInput(username, "Invalid username");
         QueryWrapper<UserManagement> queryWrapper = new QueryWrapper<>();

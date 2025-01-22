@@ -1,6 +1,7 @@
 package finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import finalassignmentbackend.config.websocket.WsAction;
 import finalassignmentbackend.entity.AppealManagement;
 import finalassignmentbackend.entity.OffenseInformation;
 import finalassignmentbackend.entity.RequestHistory;
@@ -58,6 +59,7 @@ public class AppealManagementService {
 
     @Transactional
     @CacheInvalidate(cacheName = "appealCache")
+    @WsAction(service = "AppealManagement", action = "checkCreateAndUpdate")
     public void checkAndInsertIdempotency(String idempotencyKey, AppealManagement appealManagement, String action) {
         // 查询 request_history
         RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
@@ -112,6 +114,7 @@ public class AppealManagementService {
 
     @Transactional
     @CacheInvalidate(cacheName = "appealCache")
+    @WsAction(service = "AppealManagement", action = "deleteAppeal")
     public void deleteAppeal(Integer appealId) {
         if (appealId == null || appealId <= 0) {
             throw new IllegalArgumentException("Invalid appeal ID");
@@ -125,6 +128,7 @@ public class AppealManagementService {
     }
 
     @CacheResult(cacheName = "appealCache")
+    @WsAction(service = "AppealManagement", action = "getAppealById")
     public AppealManagement getAppealById(Integer appealId) {
         if (appealId == null || appealId <= 0 || appealId >= Integer.MAX_VALUE) {
             throw new IllegalArgumentException("Appeal not found for ID: " + appealId);
@@ -133,11 +137,13 @@ public class AppealManagementService {
     }
 
     @CacheResult(cacheName = "appealCache")
+    @WsAction(service = "AppealManagement", action = "getAllAppeals")
     public List<AppealManagement> getAllAppeals() {
         return appealManagementMapper.selectList(null);
     }
 
     @CacheResult(cacheName = "appealCache")
+    @WsAction(service = "AppealManagement", action = "getAppealsByProcessStatus")
     public List<AppealManagement> getAppealsByProcessStatus(String processStatus) {
         if (processStatus == null || processStatus.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid process status");
@@ -148,6 +154,7 @@ public class AppealManagementService {
     }
 
     @CacheResult(cacheName = "appealCache")
+    @WsAction(service = "AppealManagement", action = "getAppealsByAppealName")
     public List<AppealManagement> getAppealsByAppealName(String appealName) {
         if (appealName == null || appealName.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid appeal name");
@@ -158,6 +165,7 @@ public class AppealManagementService {
     }
 
     @CacheResult(cacheName = "appealCache")
+    @WsAction(service = "AppealManagement", action = "getOffenseByAppealId")
     public OffenseInformation getOffenseByAppealId(Integer appealId) {
         AppealManagement appeal = appealManagementMapper.selectById(appealId);
         if (appeal != null) {

@@ -1,6 +1,7 @@
 package finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import finalassignmentbackend.config.websocket.WsAction;
 import finalassignmentbackend.entity.RequestHistory;
 import finalassignmentbackend.entity.RoleManagement;
 import finalassignmentbackend.mapper.RequestHistoryMapper;
@@ -53,6 +54,7 @@ public class RoleManagementService {
 
     @Transactional
     @CacheInvalidate(cacheName = "roleCache")
+    @WsAction(service = "role", action = "checkCreateAndUpdate")
     public void checkAndInsertIdempotency(String idempotencyKey, RoleManagement roleManagement, String action) {
         // 查询 request_history
         RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
@@ -107,6 +109,7 @@ public class RoleManagementService {
 
     @Transactional
     @CacheInvalidate(cacheName = "roleCache")
+    @WsAction(service = "role", action = "deleteRole")
     public void deleteRole(int roleId) {
         if (roleId <= 0) {
             throw new IllegalArgumentException("Invalid role ID");
@@ -121,6 +124,7 @@ public class RoleManagementService {
 
     @Transactional
     @CacheInvalidate(cacheName = "roleCache")
+    @WsAction(service = "role", action = "deleteRoleByName")
     public void deleteRoleByName(String roleName) {
         if (roleName == null || roleName.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid role name");
@@ -139,6 +143,7 @@ public class RoleManagementService {
     }
 
     @CacheResult(cacheName = "roleCache")
+    @WsAction(service = "role", action = "getRoleById")
     public RoleManagement getRoleById(Integer roleId) {
         if (roleId == null || roleId <= 0 || roleId >= Integer.MAX_VALUE) {
             throw new IllegalArgumentException("Invalid role ID" + roleId);
@@ -147,11 +152,13 @@ public class RoleManagementService {
     }
 
     @CacheResult(cacheName = "roleCache")
+    @WsAction(service = "role", action = "getAllRoles")
     public List<RoleManagement> getAllRoles() {
         return roleManagementMapper.selectList(null);
     }
 
     @CacheResult(cacheName = "roleCache")
+    @WsAction(service = "role", action = "getRoleByName")
     public RoleManagement getRoleByName(String roleName) {
         if (roleName == null || roleName.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid role name");
@@ -162,6 +169,7 @@ public class RoleManagementService {
     }
 
     @CacheResult(cacheName = "roleCache")
+    @WsAction(service = "role", action = "getRolesByNameLike")
     public List<RoleManagement> getRolesByNameLike(String roleName) {
         if (roleName == null || roleName.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid role name");
