@@ -1,6 +1,5 @@
 package finalassignmentbackend;
 
-import finalassignmentbackend.config.shell.QuarkusStartDockerScript;
 import io.quarkus.runtime.Quarkus;
 import io.quarkus.runtime.QuarkusApplication;
 import io.quarkus.runtime.annotations.QuarkusMain;

@@ -1,7 +1,5 @@
 import finalassignmentbackend.config.login.jwt.TokenProvider;
 
-import java.util.Set;
-
 public class GenerateTestToken {
     public static void main(String[] args) {
         // 创建 TokenProvider 实例
