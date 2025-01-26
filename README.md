@@ -1,16 +1,16 @@
-# Final-Assignment
-（一个开发中的毕设）
+# Final-Assignment （一个开发中的毕设）
 
-********************************************
-
-这是一个交通违法行为处理管理系统项目，此项目采用Flutter前端与Java后端架构（Quarkus/Spring Boot 3）实现，未来考虑结合Flutter，将此项目开发成鸿蒙应用以支持多端适配。
-
+这是一个交通违法行为处理管理系统项目，此项目采用Flutter前端与Java后端架构（Quarkus/Spring Boot
+3）实现，未来考虑结合Flutter，将此项目开发成鸿蒙应用以支持多端适配。
 
 - **运行代码之前需要确保docker在后台运行。**
+
+*********************************************
 
 ## Quarkus
 
 基于Quarkus框架的交通管理系统后端实现，关键依赖特性：
+
 - 🛠 **核心架构**：Vert.x异步驱动 + Quarkus DI容器 + GraalVM原生编译支持
 - 🔐 **安全体系**：JWT令牌鉴权 + BCrypt加密 + 细粒度权限控制
 - 🚀 **核心功能**：
@@ -22,6 +22,10 @@
     - 响应式消息流（Smallrye Reactive）
     - 阿里云智能服务集成百炼平台（DashScope SDK）
 - 📘 **开放能力**：OpenAPI 3.0规范文档自动生成
+
+#### IntelliJ IDEA运行配置
+
+![img_1.png](./img_1.png)
 
 #### application.properties参考：
 
@@ -112,16 +116,17 @@ quarkus.http.cors.access-control-allow-credentials=true
 
 ## Spring Boot
 
-
 **<span style="color:#e74c3c">我将首先集中精力开发Quarkus代码，随后基于Quarkus的实现对Spring Boot代码进行优化。</span>**
 
 #### 技术架构
+
 - 🚀 **核心框架**  
   Spring Boot 3.4 + Java 22
 - 🛠 **数据层**  
   MyBatis Plus 3.5.7 + MySQL + Redis 多级缓存
 
 #### 关键特性
+
 - 🔐 **安全体系**  
   JWT 鉴权（双实现方案） + Spring Security 6.3 + BCrypt 加密
 - 📡 **实时处理**  
@@ -132,11 +137,13 @@ quarkus.http.cors.access-control-allow-credentials=true
   Caffeine 本地缓存 + Jedis 连接池
 
 #### 扩展能力
+
 - 📘 OpenAPI 3 规范接口
 - 🔌 混合通信模式（HTTP/REST + WebSocket）
 - 📊 多数据源支持（关系型 + 缓存 + 消息队列）
 
 #### application.properties参考：
+
 ``` properties
 
 spring.application.name=finalAssignmentBackend  
