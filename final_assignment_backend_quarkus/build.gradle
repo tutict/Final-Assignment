@@ -2,6 +2,7 @@ plugins {
     id 'java'
     id 'io.quarkus' version '3.17.8'
     id 'org.graalvm.buildtools.native' version '0.10.4'
+    id 'me.champeau.jmh' version '0.7.2'
 }
 
 java {
