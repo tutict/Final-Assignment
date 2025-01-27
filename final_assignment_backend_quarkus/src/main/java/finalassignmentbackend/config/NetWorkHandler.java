@@ -6,7 +6,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import finalassignmentbackend.config.login.jwt.TokenProvider;
 import finalassignmentbackend.config.websocket.WsActionRegistry;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import io.quarkus.arc.ArcContainer;
 import io.smallrye.mutiny.vertx.core.AbstractVerticle;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServerOptions;
@@ -21,9 +20,9 @@ import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.camel.ProducerTemplate;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
+import java.lang.reflect.Method;
 import java.util.Set;
 import java.util.UUID;
 
@@ -51,12 +50,6 @@ public class NetWorkHandler extends AbstractVerticle {
 
     @Inject
     WsActionRegistry wsActionRegistry;
-
-    @Inject
-    ArcContainer arc;
-
-    @Inject
-    ProducerTemplate producerTemplate;
 
     private WebClient webClient;
 
@@ -153,38 +146,122 @@ public class NetWorkHandler extends AbstractVerticle {
             if (frame.isText()) {
                 String message = frame.textData();
                 try {
-                    JsonNode jsonNode = objectMapper.readTree(message);
+                    JsonNode root = objectMapper.readTree(message);
 
-                    String token = jsonNode.has("token") ? jsonNode.get("token").asText() : null;
-
-                    if (token != null && tokenProvider.validateToken(token)) {
-                        String action = jsonNode.has("action") ? jsonNode.get("action").asText() : null;
-                        JsonNode data = jsonNode.has("data") ? jsonNode.get("data") : null;
-//                        String idempotencyId = jsonNode.has("idempotencyId") ? jsonNode.get("idempotencyId").asText() : null;
-
-                        log.info("Received action: {}, with data: {}", action, data);
-
-
-                    } else {
-                        log.warn("无效的令牌，关闭 WebSocket 连接");
+                    String token = root.path("token").asText(null);
+                    if (token == null || !tokenProvider.validateToken(token)) {
+                        log.warn("无效令牌, 关闭 WS");
                         ws.close((short) 1000, "Invalid token").subscribe().with(
-                                success -> log.info("WebSocket 连接已关闭: Invalid token: {}", success),
-                                failure -> log.error("关闭 WebSocket 连接失败: {}", failure.getMessage(), failure)
+                                success -> log.info("websocket closed due to invalid token: {}", success),
+                                failure -> log.error("关闭websocket连接失败: {}", failure.getMessage(), failure)
                         );
+                        return;
                     }
-                } catch (JsonProcessingException e) {
-                    log.error("无效的 JSON 消息，关闭 WebSocket 连接", e);
-                    ws.close((short) 1000, "Invalid JSON format").subscribe().with(
-                            success -> log.info("WebSocket 连接已关闭: Invalid JSON format: {}", success),
-                            failure -> log.error("关闭 WebSocket 连接失败: {}", failure.getMessage(), failure)
+
+                    // 解析 service, action, idempotencyKey
+                    String service = root.path("service").asText(null);
+                    String action = root.path("action").asText(null);
+                    String idempotencyKey = root.path("idempotencyKey").asText(null);
+
+                    JsonNode argsArray = root.path("args");
+                    if (argsArray.isMissingNode() || !argsArray.isArray()) {
+                        // 如果你想继续兼容 data 作为单对象，也可做兼容判断
+                        log.warn("Missing or invalid 'args' array");
+                        ws.writeTextMessage("{\"error\":\"Missing or invalid 'args' array\"}")
+                                .subscribe().with(
+                                        success -> log.info("websocket write success: {}", success),
+                                        failure -> log.error("websocket write fail: {}", failure.getMessage(), failure)
+                                );
+                        return;
+                    }
+
+                    log.info("Received service={}, action={}, idempotencyKey={}, args={}",
+                            service, action, idempotencyKey, argsArray);
+
+                    // 找 HandlerMethod
+                    WsActionRegistry.HandlerMethod handler = wsActionRegistry.getHandler(service, action);
+                    if (handler == null) {
+                        ws.writeTextMessage("{\"error\":\"No such WsAction for " + service + "#" + action + "\"}")
+                                .subscribe().with(
+                                        success -> log.info("websocket write success: {}", success),
+                                        failure -> log.error("websocket write fail: {}", failure.getMessage(), failure)
+                                );
+                        return;
+                    }
+
+                    // 反射
+                    Method m = handler.getMethod();
+                    Class<?>[] paramTypes = m.getParameterTypes();
+                    Object bean = handler.getBean();
+                    int paramCount = paramTypes.length;
+
+                    if (argsArray.size() != paramCount) {
+                        ws.writeTextMessage("{\"error\":\"Param mismatch, method expects "
+                                        + paramCount + " but got " + argsArray.size() + "\"}")
+                                .subscribe().with(
+                                        success -> log.info("websocket write success: {}", success),
+                                        failure -> log.error("websocket write fail: {}", failure.getMessage(), failure)
+                                );
+                        return;
+                    }
+
+                    // 准备 invoke 的参数数组
+                    Object[] invokeArgs = new Object[paramCount];
+                    for (int i = 0; i < paramCount; i++) {
+                        Class<?> pt = paramTypes[i];
+                        JsonNode argNode = argsArray.get(i);
+
+                        // 这里仅演示 “将 argNode -> paramType”:
+                        invokeArgs[i] = convertJsonToParam(argNode, pt);
+                    }
+
+                    // 最终调用
+                    Object result = m.invoke(bean, invokeArgs);
+
+                    // 处理返回值
+                    if (m.getReturnType() != void.class && result != null) {
+                        String retJson = objectMapper.writeValueAsString(result);
+                        ws.writeTextMessage("{\"result\":" + retJson + "}")
+                                .subscribe().with(
+                                        success -> log.info("websocket write: success: {}", success),
+                                        failure -> log.error("websocket write fail: {}", failure.getMessage(), failure)
+                                );
+                    } else {
+                        ws.writeTextMessage("{\"status\":\"OK\"}")
+                                .subscribe().with(
+                                        success -> log.info("websocket write: success: {}", success),
+                                        failure -> log.error("websocket write fail: {}", failure.getMessage(), failure)
+                                );
+                    }
+
+                } catch (Exception e) {
+                    log.error("JSON解析/调用异常", e);
+                    ws.close((short) 1000, "Invalid JSON or reflect error").subscribe().with(
+                            success -> log.info("websocket closed: invalid JSON: {}", success),
+                            failure -> log.error("close websocket failure: {}", failure.getMessage(), failure)
                     );
                 }
             } else {
-                log.warn("不支持的 WebSocket 消息类型");
+                log.warn("不支持的 WS消息类型");
             }
         });
 
-        ws.closeHandler(() -> log.info("WebSocket 连接已关闭"));
+        ws.closeHandler(() -> log.info("WebSocket 连接已关闭, path={}", ws.path()));
+    }
+
+    private Object convertJsonToParam(JsonNode node, Class<?> targetType) throws JsonProcessingException {
+        if (targetType == String.class) {
+            return node.asText();
+        } else if (targetType == int.class || targetType == Integer.class) {
+            return node.asInt();
+        } else if (targetType == long.class || targetType == Long.class) {
+            return node.asLong();
+        } else if (targetType == boolean.class || targetType == Boolean.class) {
+            return node.asBoolean();
+        } else {
+            // fallback: 直接映射为 Java对象 (实体等)
+            return objectMapper.treeToValue(node, targetType);
+        }
     }
 
     private void forwardHttpRequest(HttpServerRequest request) {

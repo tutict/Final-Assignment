@@ -7,6 +7,7 @@ import finalassignmentbackend.mapper.RequestHistoryMapper;
 import finalassignmentbackend.mapper.SystemSettingsMapper;
 import io.quarkus.cache.CacheInvalidate;
 import io.quarkus.cache.CacheResult;
+import io.quarkus.runtime.annotations.RegisterForReflection;
 import io.smallrye.reactive.messaging.MutinyEmitter;
 import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -22,6 +23,7 @@ import org.eclipse.microprofile.reactive.messaging.Message;
 import java.util.logging.Logger;
 
 @ApplicationScoped
+@RegisterForReflection
 public class SystemSettingsService {
 
     private static final Logger log = Logger.getLogger(SystemSettingsService.class.getName());

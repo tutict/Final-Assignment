@@ -8,6 +8,7 @@ import finalassignmentbackend.mapper.RequestHistoryMapper;
 import finalassignmentbackend.mapper.SystemLogsMapper;
 import io.quarkus.cache.CacheInvalidate;
 import io.quarkus.cache.CacheResult;
+import io.quarkus.runtime.annotations.RegisterForReflection;
 import io.smallrye.reactive.messaging.MutinyEmitter;
 import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -25,6 +26,7 @@ import java.util.List;
 import java.util.logging.Logger;
 
 @ApplicationScoped
+@RegisterForReflection
 public class SystemLogsService {
 
     private static final Logger log = Logger.getLogger(SystemLogsService.class.getName());
