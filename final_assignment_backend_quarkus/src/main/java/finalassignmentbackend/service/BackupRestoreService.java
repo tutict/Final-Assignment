@@ -54,7 +54,7 @@ public class BackupRestoreService {
 
     @Transactional
     @CacheInvalidate(cacheName = "backupCache")
-    @WsAction(service = "BackupRestore", action = "checkCreateAndUpdate")
+    @WsAction(service = "BackupRestoreService", action = "checkAndInsertIdempotency")
     public void checkAndInsertIdempotency(String idempotencyKey, BackupRestore backupRestore, String action) {
         // 查询 request_history
         RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
@@ -109,7 +109,7 @@ public class BackupRestoreService {
 
     @Transactional
     @CacheInvalidate(cacheName = "backupCache")
-    @WsAction(service = "BackupRestore", action = "deleteBackup")
+    @WsAction(service = "BackupRestoreService", action = "deleteBackup")
     public void deleteBackup(Integer backupId) {
         if (backupId == null || backupId <= 0) {
             throw new IllegalArgumentException("Invalid backup ID");
@@ -123,7 +123,7 @@ public class BackupRestoreService {
     }
 
     @CacheResult(cacheName = "backupCache")
-    @WsAction(service = "BackupRestore", action = "getBackupById")
+    @WsAction(service = "BackupRestoreService", action = "getBackupById")
     public BackupRestore getBackupById(Integer backupId) {
         if (backupId == null || backupId <= 0 || backupId >= Integer.MAX_VALUE) {
             throw new IllegalArgumentException("Invalid backup ID" + backupId);
@@ -132,13 +132,13 @@ public class BackupRestoreService {
     }
 
     @CacheResult(cacheName = "backupCache")
-    @WsAction(service = "BackupRestore", action = "getAllBackups")
+    @WsAction(service = "BackupRestoreService", action = "getAllBackups")
     public List<BackupRestore> getAllBackups() {
         return backupRestoreMapper.selectList(null);
     }
 
     @CacheResult(cacheName = "backupCache")
-    @WsAction(service = "BackupRestore", action = "getBackupByFileName")
+    @WsAction(service = "BackupRestoreService", action = "getBackupByFileName")
     public BackupRestore getBackupByFileName(String backupFileName) {
         if (backupFileName == null || backupFileName.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid backup file name");
@@ -149,7 +149,7 @@ public class BackupRestoreService {
     }
 
     @CacheResult(cacheName = "backupCache")
-    @WsAction(service = "BackupRestore", action = "getBackupsByTime")
+    @WsAction(service = "BackupRestoreService", action = "getBackupsByTime")
     public List<BackupRestore> getBackupsByTime(String backupTime) {
         if (backupTime == null || backupTime.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid backup time");

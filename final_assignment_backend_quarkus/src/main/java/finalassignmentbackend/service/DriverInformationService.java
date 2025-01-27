@@ -54,7 +54,7 @@ public class DriverInformationService {
 
     @Transactional
     @CacheInvalidate(cacheName = "driverCache")
-    @WsAction(service = "DriverInformation", action = "checkCreateAndUpdate")
+    @WsAction(service = "DriverInformationService", action = "checkAndInsertIdempotency")
     public void checkAndInsertIdempotency(String idempotencyKey, DriverInformation driverInformation, String action) {
         // 查询 request_history
         RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
@@ -109,7 +109,7 @@ public class DriverInformationService {
 
     @Transactional
     @CacheInvalidate(cacheName = "driverCache")
-    @WsAction(service = "DriverInformation", action = "deleteDriver")
+    @WsAction(service = "DriverInformationService", action = "deleteDriver")
     public void deleteDriver(int driverId) {
         if (driverId <= 0) {
             throw new IllegalArgumentException("Invalid driver ID");
@@ -123,7 +123,7 @@ public class DriverInformationService {
     }
 
     @CacheResult(cacheName = "driverCache")
-    @WsAction(service = "DriverInformation", action = "getDriverById")
+    @WsAction(service = "DriverInformationService", action = "getDriverById")
     public DriverInformation getDriverById(Integer driverId) {
         if (driverId == null || driverId <= 0 || driverId >= Integer.MAX_VALUE) {
             throw new IllegalArgumentException("Invalid driver ID" + driverId);
@@ -132,13 +132,13 @@ public class DriverInformationService {
     }
 
     @CacheResult(cacheName = "driverCache")
-    @WsAction(service = "DriverInformation", action = "getAllDrivers")
+    @WsAction(service = "DriverInformationService", action = "getAllDrivers")
     public List<DriverInformation> getAllDrivers() {
         return driverInformationMapper.selectList(null);
     }
 
     @CacheResult(cacheName = "driverCache")
-    @WsAction(service = "DriverInformation", action = "getDriversByIdCardNumber")
+    @WsAction(service = "DriverInformationService", action = "getDriversByIdCardNumber")
     public List<DriverInformation> getDriversByIdCardNumber(String idCardNumber) {
         if (idCardNumber == null || idCardNumber.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid ID card number");
@@ -149,7 +149,7 @@ public class DriverInformationService {
     }
 
     @CacheResult(cacheName = "driverCache")
-    @WsAction(service = "DriverInformation", action = "getDriverByDriverLicenseNumber")
+    @WsAction(service = "DriverInformationService", action = "getDriverByDriverLicenseNumber")
     public DriverInformation getDriverByDriverLicenseNumber(String driverLicenseNumber) {
         if (driverLicenseNumber == null || driverLicenseNumber.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid driver license number");
@@ -160,7 +160,7 @@ public class DriverInformationService {
     }
 
     @CacheResult(cacheName = "driverCache")
-    @WsAction(service = "DriverInformation", action = "getDriversByName")
+    @WsAction(service = "DriverInformationService", action = "getDriversByName")
     public List<DriverInformation> getDriversByName(String name) {
         if (name == null || name.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid name");

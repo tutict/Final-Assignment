@@ -55,7 +55,7 @@ public class SystemLogsService {
 
     @Transactional
     @CacheInvalidate(cacheName = "systemLogCache")
-    @WsAction(service = "systemLogs", action = "checkCreateAndUpdate")
+    @WsAction(service = "SystemLogsService", action = "checkAndInsertIdempotency")
     public void checkAndInsertIdempotency(String idempotencyKey, SystemLogs systemLogs, String action) {
         // 查询 request_history
         RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
@@ -105,7 +105,7 @@ public class SystemLogsService {
 
     @Transactional
     @CacheInvalidate(cacheName = "systemLogCache")
-    @WsAction(service = "systemLogs", action = "deleteSystemLog")
+    @WsAction(service = "SystemLogsService", action = "deleteSystemLog")
     public void deleteSystemLog(int logId) {
         if (logId <= 0) {
             throw new IllegalArgumentException("Invalid log ID");
@@ -120,7 +120,7 @@ public class SystemLogsService {
     }
 
     @CacheResult(cacheName = "systemLogCache")
-    @WsAction(service = "systemLogs", action = "getSystemLogById")
+    @WsAction(service = "SystemLogsService", action = "getSystemLogById")
     public SystemLogs getSystemLogById(Integer logId) {
         if (logId == null || logId <= 0 || logId >= Integer.MAX_VALUE) {
             throw new IllegalArgumentException("Invalid log ID" + logId);
@@ -129,13 +129,13 @@ public class SystemLogsService {
     }
 
     @CacheResult(cacheName = "systemLogCache")
-    @WsAction(service = "systemLogs", action = "getAllSystemLogs")
+    @WsAction(service = "SystemLogsService", action = "getAllSystemLogs")
     public List<SystemLogs> getAllSystemLogs() {
         return systemLogsMapper.selectList(null);
     }
 
     @CacheResult(cacheName = "systemLogCache")
-    @WsAction(service = "systemLogs", action = "getSystemLogsByType")
+    @WsAction(service = "SystemLogsService", action = "getSystemLogsByType")
     public List<SystemLogs> getSystemLogsByType(String logType) {
         if (logType == null || logType.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid log type");
@@ -146,7 +146,7 @@ public class SystemLogsService {
     }
 
     @CacheResult(cacheName = "systemLogCache")
-    @WsAction(service = "systemLogs", action = "getSystemLogsByTimeRange")
+    @WsAction(service = "SystemLogsService", action = "getSystemLogsByTimeRange")
     public List<SystemLogs> getSystemLogsByTimeRange(Date startTime, Date endTime) {
         if (startTime == null || endTime == null || startTime.after(endTime)) {
             throw new IllegalArgumentException("Invalid time range");
@@ -157,7 +157,7 @@ public class SystemLogsService {
     }
 
     @CacheResult(cacheName = "systemLogCache")
-    @WsAction(service = "systemLogs", action = "getSystemLogsByOperationUser")
+    @WsAction(service = "SystemLogsService", action = "getSystemLogsByOperationUser")
     public List<SystemLogs> getSystemLogsByOperationUser(String operationUser) {
         if (operationUser == null || operationUser.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid operation user");

@@ -55,7 +55,7 @@ public class FineInformationService {
 
     @Transactional
     @CacheInvalidate(cacheName = "fineCache")
-    @WsAction(service = "FineInformation", action = "checkCreateAndUpdate")
+    @WsAction(service = "FineInformationService", action = "checkAndInsertIdempotency")
     public void checkAndInsertIdempotency(String idempotencyKey, FineInformation fineInformation, String action) {
         // 查询 request_history
         RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
@@ -110,7 +110,7 @@ public class FineInformationService {
 
     @Transactional
     @CacheInvalidate(cacheName = "fineCache")
-    @WsAction(service = "FineInformation", action = "deleteFine")
+    @WsAction(service = "FineInformationService", action = "deleteFine")
     public void deleteFine(int fineId) {
         if (fineId <= 0) {
             throw new IllegalArgumentException("Invalid fine ID");
@@ -124,7 +124,7 @@ public class FineInformationService {
     }
 
     @CacheResult(cacheName = "fineCache")
-    @WsAction(service = "FineInformation", action = "getFineById")
+    @WsAction(service = "FineInformationService", action = "getFineById")
     public FineInformation getFineById(Integer fineId) {
         if (fineId == null || fineId <= 0 || fineId >= Integer.MAX_VALUE) {
             throw new IllegalArgumentException("Invalid fine ID" + fineId);
@@ -133,13 +133,13 @@ public class FineInformationService {
     }
 
     @CacheResult(cacheName = "fineCache")
-    @WsAction(service = "FineInformation", action = "getAllFines")
+    @WsAction(service = "FineInformationService", action = "getAllFines")
     public List<FineInformation> getAllFines() {
         return fineInformationMapper.selectList(null);
     }
 
     @CacheResult(cacheName = "fineCache")
-    @WsAction(service = "FineInformation", action = "getFinesByPayee")
+    @WsAction(service = "FineInformationService", action = "getFinesByPayee")
     public List<FineInformation> getFinesByPayee(String payee) {
         if (payee == null || payee.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid payee");
@@ -150,7 +150,7 @@ public class FineInformationService {
     }
 
     @CacheResult(cacheName = "fineCache")
-    @WsAction(service = "FineInformation", action = "getFinesByTimeRange")
+    @WsAction(service = "FineInformationService", action = "getFinesByTimeRange")
     public List<FineInformation> getFinesByTimeRange(Date startTime, Date endTime) {
         if (startTime == null || endTime == null || startTime.after(endTime)) {
             throw new IllegalArgumentException("Invalid time range");
@@ -161,7 +161,7 @@ public class FineInformationService {
     }
 
     @CacheResult(cacheName = "fineCache")
-    @WsAction(service = "FineInformation", action = "getFineByReceiptNumber")
+    @WsAction(service = "FineInformationService", action = "getFineByReceiptNumber")
     public FineInformation getFineByReceiptNumber(String receiptNumber) {
         if (receiptNumber == null || receiptNumber.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid receipt number");

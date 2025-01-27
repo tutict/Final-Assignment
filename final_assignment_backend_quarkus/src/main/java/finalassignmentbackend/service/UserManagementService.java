@@ -55,7 +55,7 @@ public class UserManagementService {
 
     @Transactional
     @CacheInvalidate(cacheName = "userCache")
-    @WsAction(service = "user", action = "checkCreateAndUpdate")
+    @WsAction(service = "UserManagementService", action = "checkAndInsertIdempotency")
     public void checkAndInsertIdempotency(String idempotencyKey, UserManagement user, String action) {
         // 查询 request_history
         RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
@@ -103,7 +103,7 @@ public class UserManagementService {
     }
 
     @CacheResult(cacheName = "userCache")
-    @WsAction(service = "user", action = "getUserById")
+    @WsAction(service = "UserManagementService", action = "getUserById")
     public UserManagement getUserById(Integer userId) {
         if (userId == null || userId <= 0 || userId >= Integer.MAX_VALUE) {
             throw new RuntimeException("Invalid userId" + userId);
@@ -112,7 +112,7 @@ public class UserManagementService {
     }
 
     @CacheResult(cacheName = "userCache")
-    @WsAction(service = "user", action = "getUserByUsername")
+    @WsAction(service = "UserManagementService", action = "getUserByUsername")
     public UserManagement getUserByUsername(String username) {
         validateInput(username, "Invalid username");
         QueryWrapper<UserManagement> queryWrapper = new QueryWrapper<>();
@@ -121,13 +121,13 @@ public class UserManagementService {
     }
 
     @CacheResult(cacheName = "userCache")
-    @WsAction(service = "user", action = "getAllUsers")
+    @WsAction(service = "UserManagementService", action = "getAllUsers")
     public List<UserManagement> getAllUsers() {
         return userManagementMapper.selectList(null);
     }
 
     @CacheResult(cacheName = "userCache")
-    @WsAction(service = "user", action = "getUsersByType")
+    @WsAction(service = "UserManagementService", action = "getUsersByType")
     public List<UserManagement> getUsersByType(String userType) {
         validateInput(userType, "Invalid user type");
         QueryWrapper<UserManagement> queryWrapper = new QueryWrapper<>();
@@ -136,7 +136,7 @@ public class UserManagementService {
     }
 
     @CacheResult(cacheName = "userCache")
-    @WsAction(service = "user", action = "getUsersByStatus")
+    @WsAction(service = "UserManagementService", action = "getUsersByStatus")
     public List<UserManagement> getUsersByStatus(String status) {
         validateInput(status, "Invalid status");
         QueryWrapper<UserManagement> queryWrapper = new QueryWrapper<>();
@@ -146,7 +146,7 @@ public class UserManagementService {
 
     @Transactional
     @CacheInvalidate(cacheName = "userCache")
-    @WsAction(service = "user", action = "updateUser")
+    @WsAction(service = "UserManagementService", action = "updateUser")
     public void updateUser(UserManagement user) {
         try {
             userManagementMapper.updateById(user);
@@ -158,7 +158,7 @@ public class UserManagementService {
 
     @Transactional
     @CacheInvalidate(cacheName = "userCache")
-    @WsAction(service = "user", action = "deleteUser")
+    @WsAction(service = "UserManagementService", action = "deleteUser")
     public void deleteUser(int userId) {
         try {
             UserManagement userToDelete = userManagementMapper.selectById(userId);
@@ -173,7 +173,7 @@ public class UserManagementService {
 
     @Transactional
     @CacheInvalidate(cacheName = "userCache")
-    @WsAction(service = "user", action = "deleteUserByUsername")
+    @WsAction(service = "UserManagementService", action = "deleteUserByUsername")
     public void deleteUserByUsername(String username) {
         validateInput(username, "Invalid username");
         try {
@@ -191,7 +191,7 @@ public class UserManagementService {
 
     // Cache the result of this method
     @CacheResult(cacheName = "usernameExistsCache")
-    @WsAction(service = "user", action = "isUsernameExists")
+    @WsAction(service = "UserManagementService", action = "isUsernameExists")
     public boolean isUsernameExists(String username) {
         validateInput(username, "Invalid username");
         QueryWrapper<UserManagement> queryWrapper = new QueryWrapper<>();

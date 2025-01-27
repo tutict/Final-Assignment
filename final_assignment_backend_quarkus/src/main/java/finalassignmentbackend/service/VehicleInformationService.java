@@ -54,7 +54,7 @@ public class VehicleInformationService {
 
     @Transactional
     @CacheInvalidate(cacheName = "vehicleCache")
-    @WsAction(service = "vehicle", action = "checkCreateAndUpdate")
+    @WsAction(service = "VehicleInformationService", action = "checkAndInsertIdempotency")
     public void checkAndInsertIdempotency(String idempotencyKey, VehicleInformation vehicleInformation, String action) {
         // 查询 request_history
         RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
@@ -96,7 +96,7 @@ public class VehicleInformationService {
     }
 
     @CacheResult(cacheName = "vehicleCache")
-    @WsAction(service = "vehicle", action = "getVehicleInformationById")
+    @WsAction(service = "VehicleInformationService", action = "getVehicleInformationById")
     public VehicleInformation getVehicleInformationById(Integer vehicleId) {
         if (vehicleId == null || vehicleId == 0 || vehicleId >= Integer.MAX_VALUE) {
             throw new IllegalArgumentException("Invalid vehicle ID" + vehicleId);
@@ -105,7 +105,7 @@ public class VehicleInformationService {
     }
 
     @CacheResult(cacheName = "vehicleCache")
-    @WsAction(service = "vehicle", action = "getVehicleInformationByLicensePlate")
+    @WsAction(service = "VehicleInformationService", action = "getVehicleInformationByLicensePlate")
     public VehicleInformation getVehicleInformationByLicensePlate(String licensePlate) {
         validateInput(licensePlate, "Invalid license plate number");
         QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
@@ -114,13 +114,13 @@ public class VehicleInformationService {
     }
 
     @CacheResult(cacheName = "vehicleCache")
-    @WsAction(service = "vehicle", action = "getAllVehicleInformation")
+    @WsAction(service = "VehicleInformationService", action = "getAllVehicleInformation")
     public List<VehicleInformation> getAllVehicleInformation() {
         return vehicleInformationMapper.selectList(null);
     }
 
     @CacheResult(cacheName = "vehicleCache")
-    @WsAction(service = "vehicle", action = "getVehicleInformationByType")
+    @WsAction(service = "VehicleInformationService", action = "getVehicleInformationByType")
     public List<VehicleInformation> getVehicleInformationByType(String vehicleType) {
         validateInput(vehicleType, "Invalid vehicle type");
         QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
@@ -129,7 +129,7 @@ public class VehicleInformationService {
     }
 
     @CacheResult(cacheName = "vehicleCache")
-    @WsAction(service = "vehicle", action = "getVehicleInformationByOwnerName")
+    @WsAction(service = "VehicleInformationService", action = "getVehicleInformationByOwnerName")
     public List<VehicleInformation> getVehicleInformationByOwnerName(String ownerName) {
         validateInput(ownerName, "Invalid owner name");
         QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
@@ -150,7 +150,7 @@ public class VehicleInformationService {
 
     @Transactional
     @CacheInvalidate(cacheName = "vehicleCache")
-    @WsAction(service = "vehicle", action = "deleteVehicleInformation")
+    @WsAction(service = "VehicleInformationService", action = "deleteVehicleInformation")
     public void deleteVehicleInformation(int vehicleId) {
         try {
             VehicleInformation vehicleToDelete = vehicleInformationMapper.selectById(vehicleId);
@@ -165,7 +165,7 @@ public class VehicleInformationService {
 
     @Transactional
     @CacheInvalidate(cacheName = "vehicleCache")
-    @WsAction(service = "vehicle", action = "deleteVehicleInformationByLicensePlate")
+    @WsAction(service = "VehicleInformationService", action = "deleteVehicleInformationByLicensePlate")
     public void deleteVehicleInformationByLicensePlate(String licensePlate) {
         validateInput(licensePlate, "Invalid license plate number");
         QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
@@ -174,7 +174,7 @@ public class VehicleInformationService {
     }
 
     @CacheResult(cacheName = "vehicleCache")
-    @WsAction(service = "vehicle", action = "isLicensePlateExists")
+    @WsAction(service = "VehicleInformationService", action = "isLicensePlateExists")
     public boolean isLicensePlateExists(String licensePlate) {
         validateInput(licensePlate, "Invalid license plate number");
         QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
@@ -183,7 +183,7 @@ public class VehicleInformationService {
     }
 
     @CacheResult(cacheName = "vehicleCache")
-    @WsAction(service = "vehicle", action = "getVehicleInformationByStatus")
+    @WsAction(service = "VehicleInformationService", action = "getVehicleInformationByStatus")
     public List<VehicleInformation> getVehicleInformationByStatus(String currentStatus) {
         validateInput(currentStatus, "Invalid current status");
         QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();

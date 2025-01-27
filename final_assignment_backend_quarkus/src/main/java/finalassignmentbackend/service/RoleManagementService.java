@@ -54,7 +54,7 @@ public class RoleManagementService {
 
     @Transactional
     @CacheInvalidate(cacheName = "roleCache")
-    @WsAction(service = "role", action = "checkCreateAndUpdate")
+    @WsAction(service = "RoleManagementService", action = "checkAndInsertIdempotency")
     public void checkAndInsertIdempotency(String idempotencyKey, RoleManagement roleManagement, String action) {
         // 查询 request_history
         RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
@@ -109,7 +109,7 @@ public class RoleManagementService {
 
     @Transactional
     @CacheInvalidate(cacheName = "roleCache")
-    @WsAction(service = "role", action = "deleteRole")
+    @WsAction(service = "RoleManagementService", action = "deleteRole")
     public void deleteRole(int roleId) {
         if (roleId <= 0) {
             throw new IllegalArgumentException("Invalid role ID");
@@ -124,7 +124,7 @@ public class RoleManagementService {
 
     @Transactional
     @CacheInvalidate(cacheName = "roleCache")
-    @WsAction(service = "role", action = "deleteRoleByName")
+    @WsAction(service = "RoleManagementService", action = "deleteRoleByName")
     public void deleteRoleByName(String roleName) {
         if (roleName == null || roleName.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid role name");
@@ -143,7 +143,7 @@ public class RoleManagementService {
     }
 
     @CacheResult(cacheName = "roleCache")
-    @WsAction(service = "role", action = "getRoleById")
+    @WsAction(service = "RoleManagementService", action = "getRoleById")
     public RoleManagement getRoleById(Integer roleId) {
         if (roleId == null || roleId <= 0 || roleId >= Integer.MAX_VALUE) {
             throw new IllegalArgumentException("Invalid role ID" + roleId);
@@ -152,13 +152,13 @@ public class RoleManagementService {
     }
 
     @CacheResult(cacheName = "roleCache")
-    @WsAction(service = "role", action = "getAllRoles")
+    @WsAction(service = "RoleManagementService", action = "getAllRoles")
     public List<RoleManagement> getAllRoles() {
         return roleManagementMapper.selectList(null);
     }
 
     @CacheResult(cacheName = "roleCache")
-    @WsAction(service = "role", action = "getRoleByName")
+    @WsAction(service = "RoleManagementService", action = "getRoleByName")
     public RoleManagement getRoleByName(String roleName) {
         if (roleName == null || roleName.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid role name");
@@ -169,7 +169,7 @@ public class RoleManagementService {
     }
 
     @CacheResult(cacheName = "roleCache")
-    @WsAction(service = "role", action = "getRolesByNameLike")
+    @WsAction(service = "RoleManagementService", action = "getRolesByNameLike")
     public List<RoleManagement> getRolesByNameLike(String roleName) {
         if (roleName == null || roleName.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid role name");

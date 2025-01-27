@@ -55,7 +55,7 @@ public class LoginLogService {
 
     @Transactional
     @CacheInvalidate(cacheName = "loginCache")
-    @WsAction(service = "loginLog", action = "checkCreateAndUpdate")
+    @WsAction(service = "LoginLogService", action = "checkAndInsertIdempotency")
     public void checkAndInsertIdempotency(String idempotencyKey, LoginLog loginLog, String action) {
         // 查询 request_history
         RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
@@ -110,7 +110,7 @@ public class LoginLogService {
 
     @Transactional
     @CacheInvalidate(cacheName = "loginCache")
-    @WsAction(service = "loginLog", action = "deleteLoginLog")
+    @WsAction(service = "LoginLogService", action = "deleteLoginLog")
     public void deleteLoginLog(int logId) {
         if (logId <= 0) {
             throw new IllegalArgumentException("Invalid log ID");
@@ -124,7 +124,7 @@ public class LoginLogService {
     }
 
     @CacheResult(cacheName = "loginCache")
-    @WsAction(service = "loginLog", action = "getLoginLog")
+    @WsAction(service = "LoginLogService", action = "getLoginLog")
     public LoginLog getLoginLog(Integer logId) {
         if (logId == null || logId <= 0 || logId >= Integer.MAX_VALUE) {
             throw new IllegalArgumentException("Invalid log ID" + logId);
@@ -133,13 +133,13 @@ public class LoginLogService {
     }
 
     @CacheResult(cacheName = "loginCache")
-    @WsAction(service = "loginLog", action = "getAllLoginLogs")
+    @WsAction(service = "LoginLogService", action = "getAllLoginLogs")
     public List<LoginLog> getAllLoginLogs() {
         return loginLogMapper.selectList(null);
     }
 
     @CacheResult(cacheName = "loginCache")
-    @WsAction(service = "loginLog", action = "getLoginLogsByTimeRange")
+    @WsAction(service = "LoginLogService", action = "getLoginLogsByTimeRange")
     public List<LoginLog> getLoginLogsByTimeRange(Date startTime, Date endTime) {
         if (startTime == null || endTime == null || startTime.after(endTime)) {
             throw new IllegalArgumentException("Invalid time range");
@@ -150,7 +150,7 @@ public class LoginLogService {
     }
 
     @CacheResult(cacheName = "loginCache")
-    @WsAction(service = "loginLog", action = "getLoginLogsByUsername")
+    @WsAction(service = "LoginLogService", action = "getLoginLogsByUsername")
     public List<LoginLog> getLoginLogsByUsername(String username) {
         if (username == null || username.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid username");
@@ -161,7 +161,7 @@ public class LoginLogService {
     }
 
     @CacheResult(cacheName = "loginCache")
-    @WsAction(service = "loginLog", action = "getLoginLogsByLoginResult")
+    @WsAction(service = "LoginLogService", action = "getLoginLogsByLoginResult")
     public List<LoginLog> getLoginLogsByLoginResult(String loginResult) {
         if (loginResult == null || loginResult.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid login result");

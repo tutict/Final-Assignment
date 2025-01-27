@@ -59,7 +59,7 @@ public class AppealManagementService {
 
     @Transactional
     @CacheInvalidate(cacheName = "appealCache")
-    @WsAction(service = "AppealManagement", action = "checkCreateAndUpdate")
+    @WsAction(service = "AppealManagementService", action = "checkAndInsertIdempotency")
     public void checkAndInsertIdempotency(String idempotencyKey, AppealManagement appealManagement, String action) {
         // 查询 request_history
         RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
@@ -114,7 +114,7 @@ public class AppealManagementService {
 
     @Transactional
     @CacheInvalidate(cacheName = "appealCache")
-    @WsAction(service = "AppealManagement", action = "deleteAppeal")
+    @WsAction(service = "AppealManagementService", action = "deleteAppeal")
     public void deleteAppeal(Integer appealId) {
         if (appealId == null || appealId <= 0) {
             throw new IllegalArgumentException("Invalid appeal ID");
@@ -128,7 +128,7 @@ public class AppealManagementService {
     }
 
     @CacheResult(cacheName = "appealCache")
-    @WsAction(service = "AppealManagement", action = "getAppealById")
+    @WsAction(service = "AppealManagementService", action = "getAppealById")
     public AppealManagement getAppealById(Integer appealId) {
         if (appealId == null || appealId <= 0 || appealId >= Integer.MAX_VALUE) {
             throw new IllegalArgumentException("Appeal not found for ID: " + appealId);
@@ -137,13 +137,13 @@ public class AppealManagementService {
     }
 
     @CacheResult(cacheName = "appealCache")
-    @WsAction(service = "AppealManagement", action = "getAllAppeals")
+    @WsAction(service = "AppealManagementService", action = "getAllAppeals")
     public List<AppealManagement> getAllAppeals() {
         return appealManagementMapper.selectList(null);
     }
 
     @CacheResult(cacheName = "appealCache")
-    @WsAction(service = "AppealManagement", action = "getAppealsByProcessStatus")
+    @WsAction(service = "AppealManagementService", action = "getAppealsByProcessStatus")
     public List<AppealManagement> getAppealsByProcessStatus(String processStatus) {
         if (processStatus == null || processStatus.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid process status");
@@ -154,7 +154,7 @@ public class AppealManagementService {
     }
 
     @CacheResult(cacheName = "appealCache")
-    @WsAction(service = "AppealManagement", action = "getAppealsByAppealName")
+    @WsAction(service = "AppealManagementService", action = "getAppealsByAppealName")
     public List<AppealManagement> getAppealsByAppealName(String appealName) {
         if (appealName == null || appealName.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid appeal name");
@@ -165,7 +165,7 @@ public class AppealManagementService {
     }
 
     @CacheResult(cacheName = "appealCache")
-    @WsAction(service = "AppealManagement", action = "getOffenseByAppealId")
+    @WsAction(service = "AppealManagementService", action = "getOffenseByAppealId")
     public OffenseInformation getOffenseByAppealId(Integer appealId) {
         AppealManagement appeal = appealManagementMapper.selectById(appealId);
         if (appeal != null) {
