@@ -211,7 +211,6 @@ public class NetWorkHandler extends AbstractVerticle {
                         Class<?> pt = paramTypes[i];
                         JsonNode argNode = argsArray.get(i);
 
-                        // 这里仅演示 “将 argNode -> paramType”:
                         invokeArgs[i] = convertJsonToParam(argNode, pt);
                     }
 

@@ -67,10 +67,13 @@ public class AuthController {
                     String roles = role.getRoleName();
 
                     // Create JWT Token
-                    String token = tokenProvider.createToken(loginRequest.getUsername(), roles);
+                    String jwtToken = tokenProvider.createToken(
+                            user.getUsername(),
+                            roles
+                    );
 
                     logger.info(String.format("User authenticated successfully: %s", loginRequest.getUsername()));
-                    return Response.ok(Map.of("token", token)).build();
+                    return Response.ok(Map.of("jwtToken", jwtToken)).build();
                 } else {
                     logger.severe(String.format("Role not found for user: %s", loginRequest.getUsername()));
                     recordFailedLogin(loginRequest.getUsername());
