@@ -374,201 +374,91 @@ class DeductionInformationControllerApi {
     }
   }
 
-  /// deleteDeduction with HTTP info returned (eventbus)
-  ///
-  ///
-  Future<Response> eventbusDeductionsDeductionIdDeleteWithHttpInfo(
-      {required String deductionId}) async {
-    Object postBody = ''; // DELETE 请求通常没有 body
-
-    // 验证必需参数已设置
-    if (deductionId.isEmpty) {
-      throw ApiException(400, "Missing required param: deductionId");
-    }
-
-    // 创建路径和映射变量
-    String path = "/eventbus/deductions/{deductionId}"
-        .replaceAll("{format}", "json")
-        .replaceAll("{deductionId}", deductionId);
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'DELETE', queryParams,
-        postBody, headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// deleteDeduction
-  ///
-  ///
+  /// deleteDeduction (WebSocket)
+  /// 对应后端: @WsAction(service="DeductionInformation", action="deleteDeduction")
   Future<Object?> eventbusDeductionsDeductionIdDelete(
       {required String deductionId}) async {
-    Response response = await eventbusDeductionsDeductionIdDeleteWithHttpInfo(
-        deductionId: deductionId);
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
+    // 1) 构造要发送的 WS JSON
+    final msg = {
+      "service": "DeductionInformation",
+      "action": "deleteDeduction",
+      "args": [
+        int.parse(deductionId) // 依据后端方法的参数类型
+      ]
+    };
+
+    // 2) 调用 apiClient.sendWsMessage
+    final respMap = await apiClient.sendWsMessage(msg);
+
+    // 3) 解析 result / error
+    if (respMap.containsKey("error")) {
+      throw ApiException(400, respMap["error"]);
     }
+    if (respMap.containsKey("result")) {
+      return respMap["result"];
+    }
+    return null;
   }
 
-  /// getDeductionById with HTTP info returned (eventbus)
-  ///
-  ///
-  Future<Response> eventbusDeductionsDeductionIdGetWithHttpInfo(
-      {required String deductionId}) async {
-    Object postBody = ''; // GET 请求通常没有 body
-
-    // 验证必需参数已设置
-    if (deductionId.isEmpty) {
-      throw ApiException(400, "Missing required param: deductionId");
-    }
-
-    // 创建路径和映射变量
-    String path = "/eventbus/deductions/{deductionId}"
-        .replaceAll("{format}", "json")
-        .replaceAll("{deductionId}", deductionId);
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// getDeductionById (eventbus)
-  ///
-  ///
+  /// getDeductionById (WebSocket)
+  /// 对应后端: @WsAction(service="DeductionInformation", action="getDeductionById")
   Future<Object?> eventbusDeductionsDeductionIdGet(
       {required String deductionId}) async {
-    Response response = await eventbusDeductionsDeductionIdGetWithHttpInfo(
-        deductionId: deductionId);
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
+    final msg = {
+      "service": "DeductionInformation",
+      "action": "getDeductionById",
+      "args": [int.parse(deductionId)]
+    };
+
+    final respMap = await apiClient.sendWsMessage(msg);
+    if (respMap.containsKey("error")) {
+      throw ApiException(400, respMap["error"]);
     }
+    if (respMap.containsKey("result")) {
+      return respMap["result"];
+    }
+    return null;
   }
 
-  /// updateDeduction with HTTP info returned (eventbus)
-  ///
-  ///
-  Future<Response> eventbusDeductionsDeductionIdPutWithHttpInfo(
-      {required String deductionId, int? deductionAmount}) async {
-    Object postBody = deductionAmount ?? 0; // 根据实际需求设置默认值
-
-    // 验证必需参数已设置
-    if (deductionId.isEmpty) {
-      throw ApiException(400, "Missing required param: deductionId");
-    }
-
-    // 创建路径和映射变量
-    String path = "/eventbus/deductions/{deductionId}"
-        .replaceAll("{format}", "json")
-        .replaceAll("{deductionId}", deductionId);
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = ["application/json"];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'PUT', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// updateDeduction (eventbus)
-  ///
-  ///
+  /// updateDeduction (WebSocket)
+  /// 对应后端: @WsAction(service="DeductionInformation", action="updateDeduction")
   Future<Object?> eventbusDeductionsDeductionIdPut(
       {required String deductionId, int? deductionAmount}) async {
-    Response response = await eventbusDeductionsDeductionIdPutWithHttpInfo(
-        deductionId: deductionId, deductionAmount: deductionAmount);
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
+    final msg = {
+      "service": "DeductionInformation",
+      "action": "updateDeduction",
+      "args": [int.parse(deductionId), deductionAmount ?? 0]
+    };
+
+    final respMap = await apiClient.sendWsMessage(msg);
+    if (respMap.containsKey("error")) {
+      throw ApiException(400, respMap["error"]);
     }
+    if (respMap.containsKey("result")) {
+      return respMap["result"];
+    }
+    return null;
   }
 
-  /// getAllDeductions with HTTP info returned (eventbus)
-  ///
-  ///
-  Future<Response> eventbusDeductionsGetWithHttpInfo() async {
-    Object postBody = ''; // GET 请求通常没有 body
-
-    // 创建路径和映射变量
-    String path = "/eventbus/deductions".replaceAll("{format}", "json");
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// getAllDeductions (eventbus)
-  ///
-  ///
+  /// getAllDeductions (WebSocket)
+  /// 对应后端: @WsAction(service="DeductionInformation", action="getAllDeductions")
   Future<List<Object>?> eventbusDeductionsGet() async {
-    Response response = await eventbusDeductionsGetWithHttpInfo();
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'List<Object>')
-          as List<Object>;
-    } else {
-      return null;
+    final msg = {
+      "service": "DeductionInformation",
+      "action": "getAllDeductions",
+      "args": []
+    };
+
+    final respMap = await apiClient.sendWsMessage(msg);
+
+    if (respMap.containsKey("error")) {
+      throw ApiException(400, respMap["error"]);
     }
+
+    // 如果返回 { result:[...] } 就取 result 并判断是否是 list
+    if (respMap.containsKey("result") && respMap["result"] is List) {
+      return respMap["result"].cast<Object>();
+    }
+    return null;
   }
 }

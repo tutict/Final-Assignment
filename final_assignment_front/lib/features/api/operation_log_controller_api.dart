@@ -399,378 +399,156 @@ class OperationLogControllerApi {
     }
   }
 
-  /// getAllOperationLogs with HTTP info returned
-  ///
-  ///
-  Future<Response> eventbusOperationLogsGetWithHttpInfo() async {
-    Object postBody = ''; // GET 请求通常没有 body
-
-    // 创建路径和映射变量
-    String path = "/eventbus/operationLogs".replaceAll("{format}", "json");
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// getAllOperationLogs
-  ///
-  ///
+  /// getAllOperationLogs (WebSocket)
+  /// 对应后端: @WsAction(service="OperationLogService", action="getAllOperationLogs")
   Future<List<Object>?> eventbusOperationLogsGet() async {
-    Response response = await eventbusOperationLogsGetWithHttpInfo();
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'List<Object>')
-          as List<Object>;
-    } else {
-      return null;
+    final msg = {
+      "service": "OperationLogService",
+      "action": "getAllOperationLogs",
+      "args": []
+    };
+
+    final respMap = await apiClient.sendWsMessage(msg);
+    if (respMap.containsKey("error")) {
+      throw ApiException(400, respMap["error"]);
     }
+
+    if (respMap["result"] is List) {
+      return (respMap["result"] as List).cast<Object>();
+    }
+    return null;
   }
 
-  /// deleteOperationLog with HTTP info returned
-  ///
-  ///
-  Future<Response> eventbusOperationLogsLogIdDeleteWithHttpInfo(
-      {required String logId}) async {
-    Object postBody = ''; // DELETE 请求通常没有 body
-
-    // 创建路径和映射变量
-    String path = "/eventbus/operationLogs/{logId}"
-        .replaceAll("{format}", "json")
-        .replaceAll("{logId}", logId);
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'DELETE', queryParams,
-        postBody, headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// deleteOperationLog
-  ///
-  ///
+  /// deleteOperationLog (WebSocket)
+  /// 对应后端: @WsAction(service="OperationLogService", action="deleteOperationLog")
   Future<Object?> eventbusOperationLogsLogIdDelete(
       {required String logId}) async {
-    Response response =
-        await eventbusOperationLogsLogIdDeleteWithHttpInfo(logId: logId);
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
+    // 这里看后端是 String or int
+    final msg = {
+      "service": "OperationLogService",
+      "action": "deleteOperationLog",
+      "args": [int.parse(logId)] // 如果后端方法是 deleteOperationLog(int logId)
+    };
+
+    final respMap = await apiClient.sendWsMessage(msg);
+    if (respMap.containsKey("error")) {
+      throw ApiException(400, respMap["error"]);
     }
+    return respMap["result"];
   }
 
-  /// getOperationLog with HTTP info returned
-  ///
-  ///
-  Future<Response> eventbusOperationLogsLogIdGetWithHttpInfo(
-      {required String logId}) async {
-    Object postBody = ''; // GET 请求通常没有 body
-
-    // 创建路径和映射变量
-    String path = "/eventbus/operationLogs/{logId}"
-        .replaceAll("{format}", "json")
-        .replaceAll("{logId}", logId);
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// getOperationLog
-  ///
-  ///
+  /// getOperationLog (WebSocket)
+  /// 对应后端: @WsAction(service="OperationLogService", action="getOperationLog")
   Future<Object?> eventbusOperationLogsLogIdGet({required String logId}) async {
-    Response response =
-        await eventbusOperationLogsLogIdGetWithHttpInfo(logId: logId);
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
+    final msg = {
+      "service": "OperationLogService",
+      "action": "getOperationLog",
+      "args": [int.parse(logId)]
+    };
+
+    final respMap = await apiClient.sendWsMessage(msg);
+    if (respMap.containsKey("error")) {
+      throw ApiException(400, respMap["error"]);
     }
+    return respMap["result"];
   }
 
-  /// updateOperationLog with HTTP info returned
-  ///
-  ///
-  Future<Response> eventbusOperationLogsLogIdPutWithHttpInfo(
-      {required String logId, int? updateValue}) async {
-    Object postBody = updateValue ?? 0; // 根据实际需求设置默认值
-
-    // 创建路径和映射变量
-    String path = "/eventbus/operationLogs/{logId}"
-        .replaceAll("{format}", "json")
-        .replaceAll("{logId}", logId);
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = ["application/json"];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'PUT', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// updateOperationLog
-  ///
-  ///
+  /// updateOperationLog (WebSocket)
+  /// 对应后端: @WsAction(service="OperationLogService", action="updateOperationLog")
   Future<Object?> eventbusOperationLogsLogIdPut(
       {required String logId, int? updateValue}) async {
-    Response response = await eventbusOperationLogsLogIdPutWithHttpInfo(
-        logId: logId, updateValue: updateValue);
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
+    final msg = {
+      "service": "OperationLogService",
+      "action": "updateOperationLog",
+      "args": [
+        int.parse(logId),
+        updateValue ?? 0 // 或者根据你的后端参数签名
+      ]
+    };
+
+    final respMap = await apiClient.sendWsMessage(msg);
+    if (respMap.containsKey("error")) {
+      throw ApiException(400, respMap["error"]);
     }
+    return respMap["result"];
   }
 
-  /// createOperationLog with HTTP info returned
-  ///
-  ///
-  Future<Response> eventbusOperationLogsPostWithHttpInfo(
-      {required OperationLog operationLog}) async {
-    Object postBody = operationLog;
-
-    // 创建路径和映射变量
-    String path = "/eventbus/operationLogs".replaceAll("{format}", "json");
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = ["application/json"];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'POST', queryParams,
-        postBody, headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// createOperationLog
-  ///
-  ///
+  /// createOperationLog (WebSocket)
+  /// 对应后端: @WsAction(service="OperationLogService", action="createOperationLog")
   Future<Object?> eventbusOperationLogsPost(
       {required OperationLog operationLog}) async {
-    Response response =
-        await eventbusOperationLogsPostWithHttpInfo(operationLog: operationLog);
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
+    // 序列化
+    final opLogMap = operationLog.toJson();
+    final msg = {
+      "service": "OperationLogService",
+      "action": "createOperationLog",
+      "args": [opLogMap]
+    };
+
+    final respMap = await apiClient.sendWsMessage(msg);
+    if (respMap.containsKey("error")) {
+      throw ApiException(400, respMap["error"]);
     }
+    return respMap["result"];
   }
 
-  /// getOperationLogsByResult with HTTP info returned
-  ///
-  ///
-  Future<Response> eventbusOperationLogsResultResultGetWithHttpInfo(
-      {required String result}) async {
-    Object postBody = ''; // GET 请求通常没有 body
-
-    // 创建路径和映射变量
-    String path = "/eventbus/operationLogs/result/{result}"
-        .replaceAll("{format}", "json")
-        .replaceAll("{result}", result);
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// getOperationLogsByResult
-  ///
-  ///
+  /// getOperationLogsByResult (WebSocket)
+  /// 对应后端: @WsAction(service="OperationLogService", action="getOperationLogsByResult")
   Future<List<Object>?> eventbusOperationLogsResultResultGet(
       {required String result}) async {
-    Response response =
-        await eventbusOperationLogsResultResultGetWithHttpInfo(result: result);
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'List<Object>')
-          as List<Object>;
-    } else {
-      return null;
+    final msg = {
+      "service": "OperationLogService",
+      "action": "getOperationLogsByResult",
+      "args": [result]
+    };
+
+    final respMap = await apiClient.sendWsMessage(msg);
+    if (respMap.containsKey("error")) {
+      throw ApiException(400, respMap["error"]);
     }
+    if (respMap["result"] is List) {
+      return (respMap["result"] as List).cast<Object>();
+    }
+    return null;
   }
 
-  /// getOperationLogsByTimeRange with HTTP info returned
-  ///
-  ///
-  Future<Response> eventbusOperationLogsTimeRangeGetWithHttpInfo(
-      {String? startTime, String? endTime}) async {
-    Object postBody = ''; // GET 请求通常没有 body
-
-    // 创建路径和映射变量
-    String path =
-        "/eventbus/operationLogs/timeRange".replaceAll("{format}", "json");
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-    if (startTime != null) {
-      queryParams.addAll(
-          _convertParametersForCollectionFormat("", "startTime", startTime));
-    }
-    if (endTime != null) {
-      queryParams.addAll(
-          _convertParametersForCollectionFormat("", "endTime", endTime));
-    }
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// getOperationLogsByTimeRange
-  ///
-  ///
+  /// getOperationLogsByTimeRange (WebSocket)
+  /// 对应后端: @WsAction(service="OperationLogService", action="getOperationLogsByTimeRange")
   Future<List<Object>?> eventbusOperationLogsTimeRangeGet(
       {String? startTime, String? endTime}) async {
-    Response response = await eventbusOperationLogsTimeRangeGetWithHttpInfo(
-        startTime: startTime, endTime: endTime);
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'List<Object>')
-          as List<Object>;
-    } else {
-      return null;
+    final msg = {
+      "service": "OperationLogService",
+      "action": "getOperationLogsByTimeRange",
+      "args": [startTime ?? "", endTime ?? ""]
+    };
+
+    final respMap = await apiClient.sendWsMessage(msg);
+    if (respMap.containsKey("error")) {
+      throw ApiException(400, respMap["error"]);
     }
+    if (respMap["result"] is List) {
+      return (respMap["result"] as List).cast<Object>();
+    }
+    return null;
   }
 
-  /// getOperationLogsByUserId with HTTP info returned
-  ///
-  ///
-  Future<Response> eventbusOperationLogsUserIdUserIdGetWithHttpInfo(
-      {required String userId}) async {
-    Object postBody = ''; // GET 请求通常没有 body
-
-    // 创建路径和映射变量
-    String path = "/eventbus/operationLogs/userId/{userId}"
-        .replaceAll("{format}", "json")
-        .replaceAll("{userId}", userId);
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// getOperationLogsByUserId
-  ///
-  ///
+  /// getOperationLogsByUserId (WebSocket)
+  /// 对应后端: @WsAction(service="OperationLogService", action="getOperationLogsByUserId")
   Future<List<Object>?> eventbusOperationLogsUserIdUserIdGet(
       {required String userId}) async {
-    Response response =
-        await eventbusOperationLogsUserIdUserIdGetWithHttpInfo(userId: userId);
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'List<Object>')
-          as List<Object>;
-    } else {
-      return null;
+    final msg = {
+      "service": "OperationLogService",
+      "action": "getOperationLogsByUserId",
+      "args": [int.parse(userId)] // 假设是 int userId
+    };
+
+    final respMap = await apiClient.sendWsMessage(msg);
+    if (respMap.containsKey("error")) {
+      throw ApiException(400, respMap["error"]);
     }
+    if (respMap["result"] is List) {
+      return (respMap["result"] as List).cast<Object>();
+    }
+    return null;
   }
 }

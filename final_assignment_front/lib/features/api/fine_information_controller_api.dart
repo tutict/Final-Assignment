@@ -427,348 +427,140 @@ class FineInformationControllerApi {
     }
   }
 
-  /// deleteFine with HTTP info returned (eventbus)
-  ///
-  ///
-  Future<Response> eventbusFinesFineIdDeleteWithHttpInfo(
-      {required String fineId}) async {
-    Object postBody = ''; // DELETE 请求通常没有 body
-
-    // 验证必需参数已设置
-    if (fineId.isEmpty) {
-      throw ApiException(400, "Missing required param: fineId");
-    }
-
-    // 创建路径和映射变量
-    String path = "/eventbus/fines/{fineId}"
-        .replaceAll("{format}", "json")
-        .replaceAll("{fineId}", fineId);
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'DELETE', queryParams,
-        postBody, headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// deleteFine
-  ///
-  ///
+  /// deleteFine (WebSocket)
+  /// 对应后端: @WsAction(service="FineInformation", action="deleteFine")
   Future<Object?> eventbusFinesFineIdDelete({required String fineId}) async {
-    Response response =
-        await eventbusFinesFineIdDeleteWithHttpInfo(fineId: fineId);
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
+    // 1) 构造websocket消息
+    final msg = {
+      "service": "FineInformation",
+      "action": "deleteFine",
+      "args": [
+        int.parse(fineId) // 假设deleteFine(int fineId)
+      ]
+    };
+
+    // 2) 调用 sendWsMessage
+    final respMap = await apiClient.sendWsMessage(msg);
+
+    // 3) 检查 error/result
+    if (respMap.containsKey("error")) {
+      throw ApiException(400, respMap["error"]);
     }
+    return respMap["result"]; // or null if no result
   }
 
-  /// getFineById with HTTP info returned (eventbus)
-  ///
-  ///
-  Future<Response> eventbusFinesFineIdGetWithHttpInfo(
-      {required String fineId}) async {
-    Object postBody = ''; // GET 请求通常没有 body
-
-    // 验证必需参数已设置
-    if (fineId.isEmpty) {
-      throw ApiException(400, "Missing required param: fineId");
-    }
-
-    // 创建路径和映射变量
-    String path = "/eventbus/fines/{fineId}"
-        .replaceAll("{format}", "json")
-        .replaceAll("{fineId}", fineId);
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// getFineById
-  ///
-  ///
+  /// getFineById (WebSocket)
+  /// 对应后端: @WsAction(service="FineInformation", action="getFineById")
   Future<Object?> eventbusFinesFineIdGet({required String fineId}) async {
-    Response response =
-        await eventbusFinesFineIdGetWithHttpInfo(fineId: fineId);
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
+    final msg = {
+      "service": "FineInformation",
+      "action": "getFineById",
+      "args": [int.parse(fineId)]
+    };
+
+    final respMap = await apiClient.sendWsMessage(msg);
+    if (respMap.containsKey("error")) {
+      throw ApiException(400, respMap["error"]);
     }
+    return respMap["result"];
   }
 
-  /// updateFine with HTTP info returned (eventbus)
-  ///
-  ///
-  Future<Response> eventbusFinesFineIdPutWithHttpInfo(
-      {required String fineId, int? updateValue}) async {
-    Object postBody = updateValue ?? 0; // 根据实际需求设置默认值
-
-    // 验证必需参数已设置
-    if (fineId.isEmpty) {
-      throw ApiException(400, "Missing required param: fineId");
-    }
-
-    // 创建路径和映射变量
-    String path = "/eventbus/fines/{fineId}"
-        .replaceAll("{format}", "json")
-        .replaceAll("{fineId}", fineId);
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = ["application/json"];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'PUT', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// updateFine (eventbus)
-  ///
-  ///
+  /// updateFine (WebSocket)
+  /// 对应后端: @WsAction(service="FineInformation", action="updateFine")
   Future<Object?> eventbusFinesFineIdPut(
       {required String fineId, int? updateValue}) async {
-    Response response = await eventbusFinesFineIdPutWithHttpInfo(
-        fineId: fineId, updateValue: updateValue);
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
+    final msg = {
+      "service": "FineInformation",
+      "action": "updateFine",
+      "args": [int.parse(fineId), updateValue ?? 0]
+    };
+
+    final respMap = await apiClient.sendWsMessage(msg);
+    if (respMap.containsKey("error")) {
+      throw ApiException(400, respMap["error"]);
     }
+    return respMap["result"];
   }
 
-  /// getAllFines with HTTP info returned (eventbus)
-  ///
-  ///
-  Future<Response> eventbusFinesGetWithHttpInfo() async {
-    Object postBody = ''; // GET 请求通常没有 body
-
-    // 创建路径和映射变量
-    String path = "/eventbus/fines".replaceAll("{format}", "json");
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// getAllFines (eventbus)
-  ///
-  ///
+  /// getAllFines (WebSocket)
+  /// 对应后端: @WsAction(service="FineInformation", action="getAllFines")
   Future<List<Object>?> eventbusFinesGet() async {
-    Response response = await eventbusFinesGetWithHttpInfo();
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'List<Object>')
-          as List<Object>;
-    } else {
-      return null;
+    final msg = {
+      "service": "FineInformation",
+      "action": "getAllFines",
+      "args": []
+    };
+
+    final respMap = await apiClient.sendWsMessage(msg);
+    if (respMap.containsKey("error")) {
+      throw ApiException(400, respMap["error"]);
     }
+    if (respMap["result"] is List) {
+      return respMap["result"].cast<Object>();
+    }
+    return null;
   }
 
-  /// getFinesByPayee with HTTP info returned (eventbus)
-  ///
-  ///
-  Future<Response> eventbusFinesPayeePayeeGetWithHttpInfo(
-      {required String payee}) async {
-    Object postBody = ''; // GET 请求通常没有 body
-
-    // 验证必需参数已设置
+  /// getFinesByPayee (WebSocket)
+  /// 对应后端: @WsAction(service="FineInformation", action="getFinesByPayee")
+  Future<Object?> eventbusFinesPayeePayeeGet({required String payee}) async {
     if (payee.isEmpty) {
       throw ApiException(400, "Missing required param: payee");
     }
 
-    // 创建路径和映射变量
-    String path = "/eventbus/fines/payee/{payee}"
-        .replaceAll("{format}", "json")
-        .replaceAll("{payee}", payee);
+    final msg = {
+      "service": "FineInformation",
+      "action": "getFinesByPayee",
+      "args": [payee]
+    };
 
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// getFinesByPayee (eventbus)
-  ///
-  ///
-  Future<Object?> eventbusFinesPayeePayeeGet({required String payee}) async {
-    Response response =
-        await eventbusFinesPayeePayeeGetWithHttpInfo(payee: payee);
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
+    final respMap = await apiClient.sendWsMessage(msg);
+    if (respMap.containsKey("error")) {
+      throw ApiException(400, respMap["error"]);
     }
+    return respMap["result"];
   }
 
-  /// createFine with HTTP info returned (eventbus)
-  ///
-  ///
-  Future<Response> eventbusFinesPostWithHttpInfo(
-      {required FineInformation fineInformation}) async {
-    Object postBody = fineInformation;
-
-    // 创建路径和映射变量
-    String path = "/eventbus/fines".replaceAll("{format}", "json");
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = ["application/json"];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'POST', queryParams,
-        postBody, headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// createFine (eventbus)
-  ///
-  ///
+  /// createFine (WebSocket)
+  /// 对应后端: @WsAction(service="FineInformation", action="createFine")
+  /// 可能签名: createFine(FineInformation fineInfo)
   Future<Object?> eventbusFinesPost(
       {required FineInformation fineInformation}) async {
-    Response response =
-        await eventbusFinesPostWithHttpInfo(fineInformation: fineInformation);
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
+    // 1) 序列化FineInformation => Map
+    //   你可写 toJson
+    final fiMap = fineInformation.toJson();
+    // 2) 构造
+    final msg = {
+      "service": "FineInformation",
+      "action": "createFine",
+      "args": [fiMap]
+    };
+
+    final respMap = await apiClient.sendWsMessage(msg);
+    if (respMap.containsKey("error")) {
+      throw ApiException(400, respMap["error"]);
     }
+    return respMap["result"];
   }
 
-  /// getFineByReceiptNumber with HTTP info returned (eventbus)
-  ///
-  ///
-  Future<Response> eventbusFinesReceiptNumberReceiptNumberGetWithHttpInfo(
+  /// getFineByReceiptNumber (WebSocket)
+  /// 对应后端: @WsAction(service="FineInformation", action="getFineByReceiptNumber")
+  Future<Object?> eventbusFinesReceiptNumberReceiptNumberGet(
       {required String receiptNumber}) async {
-    Object postBody = ''; // GET 请求通常没有 body
-
-    // 验证必需参数已设置
     if (receiptNumber.isEmpty) {
       throw ApiException(400, "Missing required param: receiptNumber");
     }
 
-    // 创建路径和映射变量
-    String path = "/eventbus/fines/receiptNumber/{receiptNumber}"
-        .replaceAll("{format}", "json")
-        .replaceAll("{receiptNumber}", receiptNumber);
+    final msg = {
+      "service": "FineInformation",
+      "action": "getFineByReceiptNumber",
+      "args": [receiptNumber]
+    };
 
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// getFineByReceiptNumber (eventbus)
-  ///
-  ///
-  Future<Object?> eventbusFinesReceiptNumberReceiptNumberGet(
-      {required String receiptNumber}) async {
-    Response response =
-        await eventbusFinesReceiptNumberReceiptNumberGetWithHttpInfo(
-            receiptNumber: receiptNumber);
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
+    final respMap = await apiClient.sendWsMessage(msg);
+    if (respMap.containsKey("error")) {
+      throw ApiException(400, respMap["error"]);
     }
+    return respMap["result"];
   }
 }

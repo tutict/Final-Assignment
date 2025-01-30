@@ -420,153 +420,69 @@ class LoginLogControllerApi {
     }
   }
 
-  /// createLoginLog with HTTP info returned (eventbus)
-  ///
-  ///
-  Future<Response> eventbusLoginLogsPostWithHttpInfo(
-      {required LoginLog loginLog}) async {
-    Object postBody = loginLog;
-
-    // 创建路径和映射变量
-    String path = "/eventbus/loginLogs".replaceAll("{format}", "json");
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = ["application/json"];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'POST', queryParams,
-        postBody, headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// createLoginLog (eventbus)
-  ///
-  ///
+  /// createLoginLog (WebSocket)
+  /// 对应后端: @WsAction(service="LoginLogService", action="createLoginLog")
   Future<Object?> eventbusLoginLogsPost({required LoginLog loginLog}) async {
-    Response response =
-        await eventbusLoginLogsPostWithHttpInfo(loginLog: loginLog);
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
+    // 1) 将 loginLog => Map
+    final logMap = loginLog.toJson();
+    // 2) 构造请求
+    final msg = {
+      "service": "LoginLogService",
+      "action": "createLoginLog",
+      "args": [logMap]
+    };
+
+    // 3) 发送
+    final respMap = await apiClient.sendWsMessage(msg);
+
+    // 4) 判断 error/result
+    if (respMap.containsKey("error")) {
+      throw ApiException(400, respMap["error"]);
     }
+    return respMap["result"];
   }
 
-  /// getLoginLogsByTimeRange with HTTP info returned (eventbus)
-  ///
-  ///
-  Future<Response> eventbusLoginLogsTimeRangeGetWithHttpInfo(
-      {String? startTime, String? endTime}) async {
-    Object postBody = ''; // GET 请求通常没有 body
-
-    // 创建路径和映射变量
-    String path =
-        "/eventbus/loginLogs/timeRange".replaceAll("{format}", "json");
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-    if (startTime != null) {
-      queryParams.addAll(
-          _convertParametersForCollectionFormat("", "startTime", startTime));
-    }
-    if (endTime != null) {
-      queryParams.addAll(
-          _convertParametersForCollectionFormat("", "endTime", endTime));
-    }
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// getLoginLogsByTimeRange (eventbus)
-  ///
-  ///
+  /// getLoginLogsByTimeRange (WebSocket)
+  /// 对应后端: @WsAction(service="LoginLogService", action="getLoginLogsByTimeRange")
   Future<List<Object>?> eventbusLoginLogsTimeRangeGet(
       {String? startTime, String? endTime}) async {
-    Response response = await eventbusLoginLogsTimeRangeGetWithHttpInfo(
-        startTime: startTime, endTime: endTime);
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'List<Object>')
-          as List<Object>;
-    } else {
-      return null;
+    // 这里可能后端方法签名: getLoginLogsByTimeRange(String start, String end)
+    // => 2个参数
+    final msg = {
+      "service": "LoginLogService",
+      "action": "getLoginLogsByTimeRange",
+      "args": [startTime ?? "", endTime ?? ""]
+    };
+
+    final respMap = await apiClient.sendWsMessage(msg);
+    if (respMap.containsKey("error")) {
+      throw ApiException(400, respMap["error"]);
     }
+    // 如果 result 是个列表
+    if (respMap["result"] is List) {
+      return respMap["result"].cast<Object>();
+    }
+    return null;
   }
 
-  /// getLoginLogsByUsername with HTTP info returned (eventbus)
-  ///
-  ///
-  Future<Response> eventbusLoginLogsUsernameUsernameGetWithHttpInfo(
+  /// getLoginLogsByUsername (WebSocket)
+  /// 对应后端: @WsAction(service="LoginLogService", action="getLoginLogsByUsername")
+  Future<Object?> eventbusLoginLogsUsernameUsernameGet(
       {required String username}) async {
-    Object postBody = ''; // GET 请求通常没有 body
-
-    // 验证必需参数已设置
     if (username.isEmpty) {
       throw ApiException(400, "Missing required param: username");
     }
 
-    // 创建路径和映射变量
-    String path = "/eventbus/loginLogs/username/{username}"
-        .replaceAll("{format}", "json")
-        .replaceAll("{username}", username);
+    final msg = {
+      "service": "LoginLogService",
+      "action": "getLoginLogsByUsername",
+      "args": [username]
+    };
 
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// getLoginLogsByUsername (eventbus)
-  ///
-  ///
-  Future<Object?> eventbusLoginLogsUsernameUsernameGet(
-      {required String username}) async {
-    Response response = await eventbusLoginLogsUsernameUsernameGetWithHttpInfo(
-        username: username);
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
+    final respMap = await apiClient.sendWsMessage(msg);
+    if (respMap.containsKey("error")) {
+      throw ApiException(400, respMap["error"]);
     }
+    return respMap["result"];
   }
 }

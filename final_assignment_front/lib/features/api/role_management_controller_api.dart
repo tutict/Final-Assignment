@@ -387,369 +387,145 @@ class RoleManagementControllerApi {
     }
   }
 
-  /// getAllRoles with HTTP info returned
-  ///
-  ///
-  Future<Response> eventbusRolesGetWithHttpInfo() async {
-    Object postBody = ''; // GET 请求通常没有 body
-
-    // 创建路径和映射变量
-    String path = "/eventbus/roles".replaceAll("{format}", "json");
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// getAllRoles
-  ///
-  ///
+  /// getAllRoles (WebSocket)
+  /// 对应后端: @WsAction(service="RoleManagement", action="getAllRoles")
   Future<List<Object>?> eventbusRolesGet() async {
-    Response response = await eventbusRolesGetWithHttpInfo();
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'List<Object>')
-          as List<Object>;
-    } else {
-      return null;
+    final msg = {
+      "service": "RoleManagement",
+      "action": "getAllRoles",
+      "args": []
+    };
+
+    final respMap = await apiClient.sendWsMessage(msg);
+
+    if (respMap.containsKey("error")) {
+      throw ApiException(400, respMap["error"]);
     }
+    if (respMap["result"] is List) {
+      return (respMap["result"] as List).cast<Object>();
+    }
+    return null;
   }
 
-  /// deleteRoleByName with HTTP info returned
-  ///
-  ///
-  Future<Response> eventbusRolesNameRoleNameDeleteWithHttpInfo(
-      {required String roleName}) async {
-    Object postBody = ''; // DELETE 请求通常没有 body
-
-    // 创建路径和映射变量
-    String path = "/eventbus/roles/name/{roleName}"
-        .replaceAll("{format}", "json")
-        .replaceAll("{roleName}", roleName);
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'DELETE', queryParams,
-        postBody, headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// deleteRoleByName
-  ///
-  ///
+  /// deleteRoleByName (WebSocket)
+  /// 对应后端: @WsAction(service="RoleManagement", action="deleteRoleByName")
   Future<Object?> eventbusRolesNameRoleNameDelete(
       {required String roleName}) async {
-    Response response =
-        await eventbusRolesNameRoleNameDeleteWithHttpInfo(roleName: roleName);
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
+    final msg = {
+      "service": "RoleManagement",
+      "action": "deleteRoleByName",
+      "args": [roleName]
+    };
+
+    final respMap = await apiClient.sendWsMessage(msg);
+    if (respMap.containsKey("error")) {
+      throw ApiException(400, respMap["error"]);
     }
+    return respMap["result"];
   }
 
-  /// getRoleByName with HTTP info returned
-  ///
-  ///
-  Future<Response> eventbusRolesNameRoleNameGetWithHttpInfo(
-      {required String roleName}) async {
-    Object postBody = ''; // GET 请求通常没有 body
-
-    // 创建路径和映射变量
-    String path = "/eventbus/roles/name/{roleName}"
-        .replaceAll("{format}", "json")
-        .replaceAll("{roleName}", roleName);
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// getRoleByName
-  ///
-  ///
+  /// getRoleByName (WebSocket)
+  /// 对应后端: @WsAction(service="RoleManagement", action="getRoleByName")
   Future<Object?> eventbusRolesNameRoleNameGet(
       {required String roleName}) async {
-    Response response =
-        await eventbusRolesNameRoleNameGetWithHttpInfo(roleName: roleName);
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
+    final msg = {
+      "service": "RoleManagement",
+      "action": "getRoleByName",
+      "args": [roleName]
+    };
+
+    final respMap = await apiClient.sendWsMessage(msg);
+    if (respMap.containsKey("error")) {
+      throw ApiException(400, respMap["error"]);
     }
+    return respMap["result"];
   }
 
-  /// createRole with HTTP info returned
-  ///
-  ///
-  Future<Response> eventbusRolesPostWithHttpInfo(
-      {required RoleManagement roleManagement}) async {
-    Object postBody = roleManagement;
-
-    // 创建路径和映射变量
-    String path = "/eventbus/roles".replaceAll("{format}", "json");
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = ["application/json"];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'POST', queryParams,
-        postBody, headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// createRole
-  ///
-  ///
+  /// createRole (WebSocket)
+  /// 对应后端: @WsAction(service="RoleManagement", action="createRole")
   Future<Object?> eventbusRolesPost(
       {required RoleManagement roleManagement}) async {
-    Response response =
-        await eventbusRolesPostWithHttpInfo(roleManagement: roleManagement);
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
+    // 将 roleManagement 序列化
+    final roleMap = roleManagement.toJson();
+
+    final msg = {
+      "service": "RoleManagement",
+      "action": "createRole",
+      "args": [roleMap]
+    };
+
+    final respMap = await apiClient.sendWsMessage(msg);
+    if (respMap.containsKey("error")) {
+      throw ApiException(400, respMap["error"]);
     }
+    return respMap["result"];
   }
 
-  /// deleteRole with HTTP info returned
-  ///
-  ///
-  Future<Response> eventbusRolesRoleIdDeleteWithHttpInfo(
-      {required String roleId}) async {
-    Object postBody = ''; // DELETE 请求通常没有 body
-
-    // 创建路径和映射变量
-    String path = "/eventbus/roles/{roleId}"
-        .replaceAll("{format}", "json")
-        .replaceAll("{roleId}", roleId);
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'DELETE', queryParams,
-        postBody, headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// deleteRole
-  ///
-  ///
+  /// deleteRole (WebSocket)
+  /// 对应后端: @WsAction(service="RoleManagement", action="deleteRole")
   Future<Object?> eventbusRolesRoleIdDelete({required String roleId}) async {
-    Response response =
-        await eventbusRolesRoleIdDeleteWithHttpInfo(roleId: roleId);
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
+    final msg = {
+      "service": "RoleManagement",
+      "action": "deleteRole",
+      "args": [int.parse(roleId)] // 如果后端是 int roleId
+    };
+
+    final respMap = await apiClient.sendWsMessage(msg);
+    if (respMap.containsKey("error")) {
+      throw ApiException(400, respMap["error"]);
     }
+    return respMap["result"];
   }
 
-  /// getRoleById with HTTP info returned
-  ///
-  ///
-  Future<Response> eventbusRolesRoleIdGetWithHttpInfo(
-      {required String roleId}) async {
-    Object postBody = ''; // GET 请求通常没有 body
-
-    // 创建路径和映射变量
-    String path = "/eventbus/roles/{roleId}"
-        .replaceAll("{format}", "json")
-        .replaceAll("{roleId}", roleId);
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// getRoleById
-  ///
-  ///
+  /// getRoleById (WebSocket)
+  /// 对应后端: @WsAction(service="RoleManagement", action="getRoleById")
   Future<Object?> eventbusRolesRoleIdGet({required String roleId}) async {
-    Response response =
-        await eventbusRolesRoleIdGetWithHttpInfo(roleId: roleId);
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
+    final msg = {
+      "service": "RoleManagement",
+      "action": "getRoleById",
+      "args": [int.parse(roleId)]
+    };
+
+    final respMap = await apiClient.sendWsMessage(msg);
+    if (respMap.containsKey("error")) {
+      throw ApiException(400, respMap["error"]);
     }
+    return respMap["result"];
   }
 
-  /// updateRole with HTTP info returned
-  ///
-  ///
-  Future<Response> eventbusRolesRoleIdPutWithHttpInfo(
-      {required String roleId, int? updateValue}) async {
-    Object postBody = updateValue ?? 0; // 根据实际需求设置默认值
-
-    // 创建路径和映射变量
-    String path = "/eventbus/roles/{roleId}"
-        .replaceAll("{format}", "json")
-        .replaceAll("{roleId}", roleId);
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = ["application/json"];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'PUT', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// updateRole
-  ///
-  ///
+  /// updateRole (WebSocket)
+  /// 对应后端: @WsAction(service="RoleManagement", action="updateRole")
   Future<Object?> eventbusRolesRoleIdPut(
       {required String roleId, int? updateValue}) async {
-    Response response = await eventbusRolesRoleIdPutWithHttpInfo(
-        roleId: roleId, updateValue: updateValue);
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
+    final msg = {
+      "service": "RoleManagement",
+      "action": "updateRole",
+      "args": [int.parse(roleId), updateValue ?? 0]
+    };
+
+    final respMap = await apiClient.sendWsMessage(msg);
+    if (respMap.containsKey("error")) {
+      throw ApiException(400, respMap["error"]);
     }
+    return respMap["result"];
   }
 
-  /// getRolesByNameLike with HTTP info returned
-  ///
-  ///
-  Future<Response> eventbusRolesSearchGetWithHttpInfo({String? name}) async {
-    Object postBody = ''; // GET 请求通常没有 body
-
-    // 创建路径和映射变量
-    String path = "/eventbus/roles/search".replaceAll("{format}", "json");
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-    if (name != null) {
-      queryParams
-          .addAll(_convertParametersForCollectionFormat("", "name", name));
-    }
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// getRolesByNameLike
-  ///
-  ///
+  /// getRolesByNameLike (WebSocket)
+  /// 对应后端: @WsAction(service="RoleManagement", action="getRolesByNameLike")
   Future<List<Object>?> eventbusRolesSearchGet({String? name}) async {
-    Response response = await eventbusRolesSearchGetWithHttpInfo(name: name);
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'List<Object>')
-          as List<Object>;
-    } else {
-      return null;
+    final msg = {
+      "service": "RoleManagement",
+      "action": "getRolesByNameLike",
+      "args": [name ?? ""]
+    };
+
+    final respMap = await apiClient.sendWsMessage(msg);
+    if (respMap.containsKey("error")) {
+      throw ApiException(400, respMap["error"]);
     }
+    if (respMap["result"] is List) {
+      return (respMap["result"] as List).cast<Object>();
+    }
+    return null;
   }
 }
