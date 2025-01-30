@@ -158,144 +158,77 @@ class AuthControllerApi {
     }
   }
 
-  /// 使用 HTTP 信息进行登录（事件总线）
-  ///
-  ///
-  Future<Response> eventbusAuthLoginPostWithHttpInfo(
-      {required LoginRequest loginRequest}) async {
-    Object postBody = loginRequest;
-
-    // 验证必需参数已设置
-    // 因为使用了 'required'，无需检查是否为 null
-
-    // 创建路径和映射变量
-    String path = "/eventbus/auth/login".replaceAll("{format}", "json");
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = ["application/json"];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'POST', queryParams,
-        postBody, headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// 登录（事件总线）
-  ///
-  ///
+  /// 登录（WebSocket）
   Future<Object?> eventbusAuthLoginPost(
       {required LoginRequest loginRequest}) async {
-    Response response =
-        await eventbusAuthLoginPostWithHttpInfo(loginRequest: loginRequest);
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
+    // 构造 message
+    final msg = <String, dynamic>{
+      "service": "Auth",
+      "action": "login",
+      "args": [
+        // 这里序列化 loginRequest
+        {"username": loginRequest.username, "password": loginRequest.password}
+      ],
+    };
+
+    // 调用websocket
+    final respMap = await apiClient.sendWsMessage(msg);
+
+    // 解析返回
+    if (respMap.containsKey("error")) {
+      throw ApiException(400, respMap["error"]);
     }
+    if (respMap.containsKey("result")) {
+      return respMap["result"];
+    }
+    return null;
   }
 
-  /// 使用 HTTP 信息进行用户注册（事件总线）
-  ///
-  ///
-  Future<Response> eventbusAuthRegisterPostWithHttpInfo(
-      {required RegisterRequest registerRequest}) async {
-    Object postBody = registerRequest;
-
-    // 验证必需参数已设置
-    // 因为使用了 'required'，无需检查是否为 null
-
-    // 创建路径和映射变量
-    String path = "/eventbus/auth/register".replaceAll("{format}", "json");
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = ["application/json"];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'POST', queryParams,
-        postBody, headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// 用户注册（事件总线）
-  ///
-  ///
+  /// 用户注册（WebSocket）
   Future<Object?> eventbusAuthRegisterPost(
       {required RegisterRequest registerRequest}) async {
-    Response response = await eventbusAuthRegisterPostWithHttpInfo(
-        registerRequest: registerRequest);
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
+    // 构造 webSocket 消息
+    final msg = <String, dynamic>{
+      "service": "Auth",
+      "action": "register",
+      "args": [
+        {
+          "username": registerRequest.username,
+          "password": registerRequest.password,
+          "role": registerRequest.role,
+          "idempotencyKey": registerRequest.idempotencyKey
+        }
+      ],
+    };
+
+    final respMap = await apiClient.sendWsMessage(msg);
+
+    if (respMap.containsKey("error")) {
+      throw ApiException(400, respMap["error"]);
     }
+    if (respMap.containsKey("result")) {
+      return respMap["result"];
+    }
+    return null;
   }
 
-  /// 使用 HTTP 信息获取所有用户（事件总线）
-  ///
-  ///
-  Future<Response> eventbusAuthUsersGetWithHttpInfo() async {
-    Object? postBody;
-
-    // 验证必需参数已设置
-    // 假设此端点无需必需参数
-
-    // 创建路径和映射变量
-    String path = "/eventbus/auth/users".replaceAll("{format}", "json");
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// 获取所有用户（事件总线）
-  ///
-  ///
+  /// 获取所有用户（WebSocket）
   Future<Object?> eventbusAuthUsersGet() async {
-    Response response = await eventbusAuthUsersGetWithHttpInfo();
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
+    // service=Auth, action=getAllUsers, 无参数 => args:[]
+    final msg = <String, dynamic>{
+      "service": "Auth",
+      "action": "getAllUsers",
+      "args": []
+    };
+
+    final respMap = await apiClient.sendWsMessage(msg);
+
+    if (respMap.containsKey("error")) {
+      throw ApiException(400, respMap["error"]);
     }
+    if (respMap.containsKey("result")) {
+      return respMap["result"];
+    }
+    return null;
   }
 }

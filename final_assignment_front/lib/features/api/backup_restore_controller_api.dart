@@ -363,253 +363,110 @@ class BackupRestoreControllerApi {
     }
   }
 
-  /// deleteBackup with HTTP info returned (eventbus)
-  ///
-  ///
-  Future<Response> eventbusBackupsBackupIdDeleteWithHttpInfo(
-      String backupId) async {
-    Object postBody = ''; // DELETE 请求通常没有 body
-
-    // 验证必需参数已设置
-    if (backupId.isEmpty) {
-      throw ApiException(400, "Missing required param: backupId");
-    }
-
-    // 创建路径和映射变量
-    String path = "/eventbus/backups/{backupId}"
-        .replaceAll("{format}", "json")
-        .replaceAll("{backupId}", backupId);
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'DELETE', queryParams,
-        postBody, headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// deleteBackup
-  ///
-  ///
+  /// deleteBackup (WebSocket)
+  /// 对应后端 @WsAction(service='BackupRestore', action='deleteBackup')
   Future<Object?> eventbusBackupsBackupIdDelete(String backupId) async {
-    Response response =
-        await eventbusBackupsBackupIdDeleteWithHttpInfo(backupId);
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
+    // 构造消息
+    final msg = {
+      "service": "BackupRestore",
+      "action": "deleteBackup",
+      "args": [
+        int.parse(backupId) // 取决于后端的签名 (Integer backupId)
+      ]
+    };
+
+    // 调用 apiClient.sendWsMessage
+    final respMap = await apiClient.sendWsMessage(msg);
+
+    // 判断 result/error
+    if (respMap.containsKey("error")) {
+      throw ApiException(400, respMap["error"]);
     }
+    if (respMap.containsKey("result")) {
+      return respMap["result"];
+    }
+    return null;
   }
 
-  /// getBackupById with HTTP info returned (eventbus)
-  ///
-  ///
-  Future<Response> eventbusBackupsBackupIdGetWithHttpInfo(
-      String backupId) async {
-    Object postBody = ''; // GET 请求通常没有 body
-
-    // 验证必需参数已设置
-    if (backupId.isEmpty) {
-      throw ApiException(400, "Missing required param: backupId");
-    }
-
-    // 创建路径和映射变量
-    String path = "/eventbus/backups/{backupId}"
-        .replaceAll("{format}", "json")
-        .replaceAll("{backupId}", backupId);
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// getBackupById (eventbus)
-  ///
-  ///
+  /// getBackupById (WebSocket)
+  /// 对应 @WsAction(service='BackupRestore', action='getBackupById')
   Future<Object?> eventbusBackupsBackupIdGet(String backupId) async {
-    Response response = await eventbusBackupsBackupIdGetWithHttpInfo(backupId);
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
+    final msg = {
+      "service": "BackupRestore",
+      "action": "getBackupById",
+      "args": [int.parse(backupId)]
+    };
+
+    final respMap = await apiClient.sendWsMessage(msg);
+    if (respMap.containsKey("error")) {
+      throw ApiException(400, respMap["error"]);
     }
+    if (respMap.containsKey("result")) {
+      return respMap["result"];
+    }
+    return null;
   }
 
-  /// updateBackup with HTTP info returned (eventbus)
-  ///
-  ///
-  Future<Response> eventbusBackupsBackupIdPutWithHttpInfo(String backupId,
-      {int? backupNumber}) async {
-    Object postBody = backupNumber ?? 0; // 根据实际需求设置默认值
-
-    // 验证必需参数已设置
-    if (backupId.isEmpty) {
-      throw ApiException(400, "Missing required param: backupId");
-    }
-
-    // 创建路径和映射变量
-    String path = "/eventbus/backups/{backupId}"
-        .replaceAll("{format}", "json")
-        .replaceAll("{backupId}", backupId);
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = ["application/json"];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'PUT', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// updateBackup (eventbus)
-  ///
-  ///
+  /// updateBackup (WebSocket)
+  /// 对应 @WsAction(service='BackupRestore', action='updateBackup')
+  /// 例如: updateBackup(String backupId, int backupNumber)
   Future<Object?> eventbusBackupsBackupIdPut(String backupId,
       {int? backupNumber}) async {
-    Response response = await eventbusBackupsBackupIdPutWithHttpInfo(backupId,
-        backupNumber: backupNumber);
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
+    final msg = {
+      "service": "BackupRestore",
+      "action": "updateBackup",
+      "args": [int.parse(backupId), backupNumber ?? 0]
+    };
+
+    final respMap = await apiClient.sendWsMessage(msg);
+    if (respMap.containsKey("error")) {
+      throw ApiException(400, respMap["error"]);
     }
+    if (respMap.containsKey("result")) {
+      return respMap["result"];
+    }
+    return null;
   }
 
-  /// getBackupByFileName with HTTP info returned (eventbus)
-  ///
-  ///
-  Future<Response> apiBackupsEventbusFilenameBackupFileNameGetWithHttpInfo(
+  /// getBackupByFileName (WebSocket)
+  /// 对应 @WsAction(service='BackupRestore', action='getBackupByFileName')
+  Future<Object?> apiBackupsEventbusFilenameBackupFileNameGet(
       String backupFileName) async {
-    Object postBody = ''; // GET 请求通常没有 body
-
-    // 验证必需参数已设置
     if (backupFileName.isEmpty) {
       throw ApiException(400, "Missing required param: backupFileName");
     }
+    final msg = {
+      "service": "BackupRestore",
+      "action": "getBackupByFileName",
+      "args": [backupFileName]
+    };
 
-    // 创建路径和映射变量
-    String path = "/eventbus/backups/filename/{backupFileName}"
-        .replaceAll("{format}", "json")
-        .replaceAll("{backupFileName}", backupFileName);
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// getBackupByFileName (eventbus)
-  ///
-  ///
-  Future<Object?> apiBackupsEventbusFilenameBackupFileNameGet(
-      String backupFileName) async {
-    Response response =
-        await apiBackupsFilenameBackupFileNameGetWithHttpInfo(backupFileName);
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
+    final respMap = await apiClient.sendWsMessage(msg);
+    if (respMap.containsKey("error")) {
+      throw ApiException(400, respMap["error"]);
     }
+    if (respMap.containsKey("result")) {
+      return respMap["result"];
+    }
+    return null;
   }
 
-  /// getAllBackups with HTTP info returned (eventbus)
-  ///
-  ///
-  Future<Response> apiBackupsGetWithHttpInfoEventbus() async {
-    Object postBody = ''; // GET 请求通常没有 body
-
-    // 验证必需参数已设置
-    // 假设此端点无需必需参数
-
-    // 创建路径和映射变量
-    String path = "/eventbus/backups".replaceAll("{format}", "json");
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// getAllBackups (eventbus)
-  ///
-  ///
+  /// getAllBackups (WebSocket)
+  /// 对应 @WsAction(service='BackupRestore', action='getAllBackups')
   Future<Object?> apiBackupsGetEventbus() async {
-    Response response = await apiBackupsGetWithHttpInfoEventbus();
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
+    final msg = {
+      "service": "BackupRestore",
+      "action": "getAllBackups",
+      "args": []
+    };
+
+    final respMap = await apiClient.sendWsMessage(msg);
+    if (respMap.containsKey("error")) {
+      throw ApiException(400, respMap["error"]);
     }
+    if (respMap.containsKey("result")) {
+      return respMap["result"];
+    }
+    return null;
   }
 }

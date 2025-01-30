@@ -63,7 +63,7 @@ class ApiClient {
   /// 当前 WebSocket 连接对应的URL
   String? _wsUrl;
 
-  /// 构造函数
+  /// 连接后端的构造函数
   ApiClient({this.basePath = "http://localhost:8081"}) : client = Client();
 
   /// 添加默认的Header，可在后续请求中自动带上
@@ -186,11 +186,10 @@ class ApiClient {
     // ============ 判断是否为 WebSocket 相关操作 =============
     if (method.toUpperCase() == 'WS_CONNECT') {
       await connectWebSocket(path, queryParams);
-      // WebSocket 没有 HTTP Response 的概念，这里返回一个 200 的空响应即可
-      return Response('', 200);
+      return Response('', 200); // 模拟成功
     }
     if (method.toUpperCase() == 'WS_SEND') {
-      sendWebSocketMessage(body);
+      sendWsMessage(body as Map<String, dynamic>);
       return Response('', 200);
     }
     if (method.toUpperCase() == 'WS_CLOSE') {
@@ -321,14 +320,29 @@ class ApiClient {
     debugPrint('【WebSocket连接已建立】: $_wsUrl');
   }
 
-  /// 发送 WebSocket 消息
-  void sendWebSocketMessage(Object? message) {
+  Future<Map<String, dynamic>> sendWsMessage(
+      Map<String, dynamic> message) async {
     if (_wsChannel == null) {
-      throw StateError('WebSocket 尚未连接，无法发送消息');
+      throw ApiException(500, 'WebSocket not connected');
     }
-    // 如需以JSON格式发送，可以进行 json.encode
-    final data = (message is String) ? message : json.encode(message);
-    _wsChannel?.sink.add(data);
+    final encoded = jsonEncode(message);
+    _wsChannel!.sink.add(encoded);
+
+    try {
+      final responseRaw = await _wsChannel!.stream.first; // simplistic approach
+      final respMap = jsonDecode(responseRaw as String);
+      if (respMap is Map<String, dynamic>) {
+        // check error
+        if (respMap.containsKey('error')) {
+          throw ApiException(400, respMap['error']);
+        }
+        return respMap;
+      } else {
+        throw ApiException(400, 'Response is not a JSON object');
+      }
+    } catch (e) {
+      throw ApiException(500, 'WebSocket read error: $e');
+    }
   }
 
   /// 关闭 WebSocket 连接

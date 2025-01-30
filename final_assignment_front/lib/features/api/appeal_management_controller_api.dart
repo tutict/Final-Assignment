@@ -417,252 +417,83 @@ class AppealManagementControllerApi {
     }
   }
 
-  /// deleteAppeal with HTTP info returned (eventbus)
-  ///
-  ///
-  Future<Response> eventbusAppealsAppealIdDeleteWithHttpInfo(
-      {required String appealId}) async {
-    Object postBody = ''; // DELETE 请求通常没有 body
+  /// deleteAppeal (websocket)
+  Future<Object?> eventbusAppealsAppealIdDelete({required String appealId}) async {
+    // 构造要发送的 WS 消息
+    final msg = {
+      "service": "AppealManagementService",
+      "action": "deleteAppeal",
+      "args": [ int.parse(appealId) ],
+    };
 
-    // 验证必需参数已设置
-    if (appealId.isEmpty) {
-      throw ApiException(400, "Missing required param: appealId");
+    // 调用 apiClient.sendWsMessage
+    final respMap = await apiClient.sendWsMessage(msg);
+    // 如果服务器返回 { \"result\": ... }，可以直接拿 result
+    if (respMap.containsKey("result")) {
+      return respMap["result"];
+    } else if (respMap.containsKey("status")) {
+      return respMap["status"];
     }
-
-    // 创建路径和映射变量
-    String path = "/eventbus/appeals/{appealId}"
-        .replaceAll("{format}", "json")
-        .replaceAll("{appealId}", appealId);
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'DELETE', queryParams,
-        postBody, headerParams, formParams, nullableContentType, authNames);
-    return response;
+    return respMap; // fallback
   }
 
-  /// deleteAppeal
-  ///
-  ///
-  Future<Object?> eventbusAppealsAppealIdDelete(
-      {required String appealId}) async {
-    Response response =
-        await eventbusAppealsAppealIdDeleteWithHttpInfo(appealId: appealId);
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
-    }
-  }
-
-  /// getAppealById with HTTP info returned (eventbus)
-  ///
-  ///
-  Future<Response> eventbusAppealsAppealIdGetWithHttpInfo(
-      {required String appealId}) async {
-    Object postBody = ''; // GET 请求通常没有 body
-
-    // 验证必需参数已设置
-    if (appealId.isEmpty) {
-      throw ApiException(400, "Missing required param: appealId");
-    }
-
-    // 创建路径和映射变量
-    String path = "/eventbus/appeals/{appealId}"
-        .replaceAll("{format}", "json")
-        .replaceAll("{appealId}", appealId);
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// getAppealById (eventbus)
-  ///
-  ///
+  /// getAppealById (websocket)
   Future<Object?> eventbusAppealsAppealIdGet({required String appealId}) async {
-    Response response =
-        await eventbusAppealsAppealIdGetWithHttpInfo(appealId: appealId);
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
+    final msg = {
+      "service": "AppealManagementService",
+      "action": "getAppealById",
+      "args": [ int.parse(appealId) ],
+    };
+    final respMap = await apiClient.sendWsMessage(msg);
+    if (respMap.containsKey("result")) {
+      return respMap["result"];
     }
+    return respMap;
   }
 
-  /// getOffenseByAppealId with HTTP info returned (eventbus)
-  ///
-  ///
-  Future<Response> eventbusAppealsAppealIdOffenseGetWithHttpInfo(
-      {required String appealId}) async {
-    Object postBody = ''; // GET 请求通常没有 body
-
-    // 验证必需参数已设置
-    if (appealId.isEmpty) {
-      throw ApiException(400, "Missing required param: appealId");
+  /// getOffenseByAppealId
+  Future<Object?> eventbusAppealsAppealIdOffenseGet({required String appealId}) async {
+    final msg = {
+      "service": "AppealManagementService",
+      "action": "getOffenseByAppealId",
+      "args":[ int.parse(appealId) ],
+    };
+    final respMap = await apiClient.sendWsMessage(msg);
+    if(respMap.containsKey("result")){
+      return respMap["result"];
     }
-
-    // 创建路径和映射变量
-    String path = "/eventbus/appeals/{appealId}/offense"
-        .replaceAll("{format}", "json")
-        .replaceAll("{appealId}", appealId);
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
+    return respMap;
   }
 
-  /// getOffenseByAppealId (eventbus)
-  ///
-  ///
-  Future<Object?> eventbusAppealsAppealIdOffenseGet(
-      {required String appealId}) async {
-    Response response =
-        await eventbusAppealsAppealIdOffenseGetWithHttpInfo(appealId: appealId);
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
+  /// updateAppeal
+  Future<Object?> eventbusAppealsAppealIdPut({required String appealId, int? integer}) async {
+    final msg = {
+      "service": "AppealManagementService",
+      "action": "updateAppeal",
+      "args": [
+        int.parse(appealId),
+        integer ?? 0
+      ],
+    };
+    final respMap = await apiClient.sendWsMessage(msg);
+    if(respMap.containsKey("result")){
+      return respMap["result"];
     }
+    return respMap;
   }
 
-  /// updateAppeal with HTTP info returned (eventbus)
-  ///
-  ///
-  Future<Response> eventbusAppealsAppealIdPutWithHttpInfo(
-      {required String appealId, int? integer}) async {
-    Object postBody = integer ?? 0; // 根据实际需求设置默认值
-
-    // 验证必需参数已设置
-    if (appealId.isEmpty) {
-      throw ApiException(400, "Missing required param: appealId");
-    }
-
-    // 创建路径和映射变量
-    String path = "/eventbus/appeals/{appealId}"
-        .replaceAll("{format}", "json")
-        .replaceAll("{appealId}", appealId);
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = ["application/json"];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'PUT', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// updateAppeal (eventbus)
-  ///
-  ///
-  Future<Object?> eventbusAppealsAppealIdPut(
-      {required String appealId, int? integer}) async {
-    Response response = await eventbusAppealsAppealIdPutWithHttpInfo(
-        appealId: appealId, integer: integer);
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
-    }
-  }
-
-  /// getAllAppeals with HTTP info returned (eventbus)
-  ///
-  ///
-  Future<Response> eventbusAppealsGetWithHttpInfo() async {
-    Object postBody = ''; // GET 请求通常没有 body
-
-    // 创建路径和映射变量
-    String path = "/eventbus/appeals".replaceAll("{format}", "json");
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// getAllAppeals (eventbus)
-  ///
-  ///
+  /// getAllAppeals
   Future<List<Object>?> eventbusAppealsGet() async {
-    Response response = await eventbusAppealsGetWithHttpInfo();
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'List<Object>')
-          as List<Object>;
-    } else {
-      return null;
+    final msg = {
+      "service":"AppealManagementService",
+      "action":"getAllAppeals",
+      "args":[]
+    };
+
+    final respMap = await apiClient.sendWsMessage(msg);
+    if(respMap.containsKey("result") && respMap["result"] is List){
+      return respMap["result"] as List<Object>;
     }
+    return null;
   }
 }

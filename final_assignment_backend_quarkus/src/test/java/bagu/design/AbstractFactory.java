@@ -76,7 +76,7 @@ public class AbstractFactory {
             return new girlDesk();
         }
     }
-
+   
     Box box;
     Desk desk;
 
