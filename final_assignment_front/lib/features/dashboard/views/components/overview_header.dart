@@ -1,89 +1,101 @@
 part of '../manager_screens/manager_dashboard_screen.dart';
 
-class _OverviewHeader extends StatefulWidget {
-  const _OverviewHeader({
+class OverviewHeader extends StatefulWidget {
+  final Function(CaseType) onSelected;
+  final Axis axis;
+
+  const OverviewHeader({
+    super.key,
     required this.onSelected,
     required this.axis,
   });
 
-  final Function(CaseType) onSelected; // Ensure onSelected expects a CaseType
-  final Axis axis;
-
   @override
-  State<_OverviewHeader> createState() => _OverviewHeaderState();
+  State<OverviewHeader> createState() => _OverviewHeaderState();
 }
 
-class _OverviewHeaderState extends State<_OverviewHeader> {
+class _OverviewHeaderState extends State<OverviewHeader> {
   @override
   Widget build(BuildContext context) {
-    // 使用Get.find来访问DashboardController中的响应式变量
+    // 通过 Get.find 获取 DashboardController 中的响应式变量
     final selectedCase = Get.find<DashboardController>().selectedCaseType;
-    return Obx(
-      () => (widget.axis == Axis.horizontal)
-          ? Row(
-              children: [
-                Text(
-                  "当前工作",
-                  style: const TextStyle(fontWeight: FontWeight.w600)
-                      .useSystemChineseFont(),
+    return Obx(() {
+      if (widget.axis == Axis.horizontal) {
+        return Row(
+          children: [
+            Text(
+              "当前工作",
+              style: const TextStyle(fontWeight: FontWeight.w600)
+                  .useSystemChineseFont(),
+            ),
+            const SizedBox(width: 8),
+            // 使用 Expanded 包裹 SingleChildScrollView，保证按钮部分占满剩余空间，
+            // 并且超出时可横向滚动，避免 RenderFlex 溢出
+            Expanded(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                child: Row(
+                  children: _listButton(
+                    selectedCase: selectedCase.value,
+                    onSelected: (value) {
+                      selectedCase.value = value;
+                      widget.onSelected(value);
+                    },
+                  ),
                 ),
-                const Spacer(),
-                ..._listButton(
+              ),
+            ),
+          ],
+        );
+      } else {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "当前工作",
+              style: const TextStyle(fontWeight: FontWeight.w600)
+                  .useSystemChineseFont(),
+            ),
+            const SizedBox(height: 10),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              child: Row(
+                children: _listButton(
                   selectedCase: selectedCase.value,
                   onSelected: (value) {
                     selectedCase.value = value;
                     widget.onSelected(value);
                   },
-                )
-              ],
-            )
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "当前工作",
-                  style: const TextStyle(fontWeight: FontWeight.w600)
-                      .useSystemChineseFont(),
                 ),
-                const SizedBox(height: 10),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  physics: const BouncingScrollPhysics(),
-                  child: Row(
-                    children: _listButton(
-                      selectedCase: selectedCase.value,
-                      onSelected: (value) {
-                        selectedCase.value = value;
-                        widget.onSelected(value);
-                      },
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
-    );
+          ],
+        );
+      }
+    });
   }
 
   List<Widget> _listButton({
-    required CaseType selectedCase, // 确保selectedCase是CaseType类型
+    required CaseType selectedCase,
     required Function(CaseType) onSelected,
   }) {
     return [
       _button(
         selected: selectedCase == CaseType.caseManagement,
         label: "信息管理",
-        onPressed: () =>
-            onSelected(CaseType.caseManagement), // 修改这里，移除错误的参数并正确传递枚举值
+        onPressed: () => onSelected(CaseType.caseManagement),
       ),
       _button(
         selected: selectedCase == CaseType.caseSearch,
         label: "案件查询",
-        onPressed: () => onSelected(CaseType.caseSearch), // 修改这里，同上
+        onPressed: () => onSelected(CaseType.caseSearch),
       ),
       _button(
         selected: selectedCase == CaseType.caseAppeal,
         label: "案件申诉",
-        onPressed: () => onSelected(CaseType.caseAppeal), // 修改这里，同上
+        onPressed: () => onSelected(CaseType.caseAppeal),
       ),
     ];
   }
@@ -91,25 +103,25 @@ class _OverviewHeaderState extends State<_OverviewHeader> {
   Widget _button({
     required bool selected,
     required String label,
-    required VoidCallback onPressed, // 修改这里，使用VoidCallback代替Function(CaseType)
+    required VoidCallback onPressed,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 5),
       child: ElevatedButton(
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
+          // 前景色（文字颜色）根据选中状态变化
           foregroundColor:
               selected ? kFontColorPallets[0] : kFontColorPallets[2],
+          // 背景色根据选中状态变化
           backgroundColor: selected
-              ? Theme.of(Get.context!).cardColor
-              : Theme.of(Get.context!).canvasColor,
+              ? Theme.of(context).cardColor
+              : Theme.of(context).canvasColor,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
-        ), // 使用onPressed回调
-        child: Text(
-          label,
         ),
+        child: Text(label),
       ),
     );
   }

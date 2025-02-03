@@ -22,8 +22,9 @@ class MainApp extends StatelessWidget {
     return GetMaterialApp(
       title: '管理系统',
       debugShowCheckedModeBanner: false,
-      // initialRoute: AppPages.initial,
-      initialRoute: AppPages.login,
+      initialRoute: AppPages.initial,
+      // initialRoute: AppPages.userInitial,
+      // initialRoute: AppPages.login,
       getPages: AppPages.routes,
       theme: AppTheme.basicLight,
       builder: (context, child) {

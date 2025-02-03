@@ -1,3 +1,4 @@
+// manager_dashboard.dart
 library manager_dashboard;
 
 import 'dart:developer';
@@ -24,17 +25,26 @@ import 'package:get/get.dart';
 
 // binding
 part '../../bindings/manager_dashboard_binding.dart';
+
 // controller
 part '../../controllers/manager_dashboard_controller.dart';
+
 // models
 part '../../models/manager_profile.dart';
+
 // component
 part '../components/active_project_card.dart';
+
 part '../components/header.dart';
+
 part '../components/overview_header.dart';
+
 part '../components/profile_tile.dart';
+
 part '../components/recent_messages.dart';
+
 part '../components/sidebar.dart';
+
 part '../components/team_member.dart';
 
 class DashboardScreen extends GetView<DashboardController> {
@@ -44,8 +54,7 @@ class DashboardScreen extends GetView<DashboardController> {
   Widget build(BuildContext context) {
     return Scaffold(
       key: controller.scaffoldKey,
-
-      // 如果是 desktop，就不需要抽屉，否则使用 Drawer
+      // 移动端显示抽屉，桌面端不显示
       drawer: ResponsiveBuilder.isDesktop(context)
           ? null
           : Drawer(
@@ -60,12 +69,9 @@ class DashboardScreen extends GetView<DashboardController> {
             slivers: [
               // 头部区域
               SliverToBoxAdapter(
-                child: _buildHeaderSection(constraints, context),
-              ),
-              // 用 SliverFillRemaining 让剩余空间给 mainContent
-              SliverFillRemaining(
-                child: _buildMainContent(constraints),
-              ),
+                  child: _buildHeaderSection(constraints, context)),
+              // 主内容区域（将 SliverFillRemaining 换为 SliverToBoxAdapter）
+              SliverToBoxAdapter(child: _buildMainContent(constraints)),
             ],
           );
         },
@@ -87,24 +93,18 @@ class DashboardScreen extends GetView<DashboardController> {
   Widget _buildMainContent(BoxConstraints constraints) {
     return ResponsiveBuilder(
       mobileBuilder: (context, constraints) {
-        return SingleChildScrollView(
-          child: Column(
-            children: [
-              _buildProfileSection(),
-              _buildProgressSection(Axis.vertical),
-              _buildTeamMemberSection(),
-              _buildPremiumCard(),
-              _buildTaskOverviewSection(
-                crossAxisCount: 2,
-                childAspectRatio: 1.2,
-              ),
-              _buildActiveProjectSection(
-                crossAxisCount: 2,
-                childAspectRatio: 1.2,
-              ),
-              _buildRecentMessagesSection(),
-            ],
-          ),
+        // 注意：此处移除了内部的 SingleChildScrollView
+        return Column(
+          children: [
+            _buildProfileSection(),
+            _buildProgressSection(Axis.vertical),
+            _buildTeamMemberSection(),
+            _buildPremiumCard(),
+            _buildTaskOverviewSection(crossAxisCount: 2, childAspectRatio: 1.2),
+            _buildActiveProjectSection(
+                crossAxisCount: 2, childAspectRatio: 1.2),
+            _buildRecentMessagesSection(),
+          ],
         );
       },
       tabletBuilder: (context, constraints) {
@@ -113,26 +113,17 @@ class DashboardScreen extends GetView<DashboardController> {
           children: [
             Expanded(
               flex: 7,
-              child: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    _buildProgressSection(Axis.horizontal),
-                    _buildTaskOverviewSection(
-                      crossAxisCount: 3,
-                      childAspectRatio: 1.2,
-                    ),
-                    _buildActiveProjectSection(
-                      crossAxisCount: 3,
-                      childAspectRatio: 1.2,
-                    ),
-                  ],
-                ),
+              child: Column(
+                children: [
+                  _buildProgressSection(Axis.horizontal),
+                  _buildTaskOverviewSection(
+                      crossAxisCount: 3, childAspectRatio: 1.2),
+                  _buildActiveProjectSection(
+                      crossAxisCount: 3, childAspectRatio: 1.2),
+                ],
               ),
             ),
-            Expanded(
-              flex: 3,
-              child: _buildSideContent(),
-            ),
+            Expanded(flex: 3, child: _buildSideContent()),
           ],
         );
       },
@@ -141,31 +132,21 @@ class DashboardScreen extends GetView<DashboardController> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Flexible(
-              flex: 2,
-              child: _Sidebar(data: controller.getSelectedProject()),
-            ),
+                flex: 2,
+                child: _Sidebar(data: controller.getSelectedProject())),
             Expanded(
               flex: 5,
-              child: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    _buildProgressSection(Axis.horizontal),
-                    _buildTaskOverviewSection(
-                      crossAxisCount: 4,
-                      childAspectRatio: 1.1,
-                    ),
-                    _buildActiveProjectSection(
-                      crossAxisCount: 4,
-                      childAspectRatio: 1.1,
-                    ),
-                  ],
-                ),
+              child: Column(
+                children: [
+                  _buildProgressSection(Axis.horizontal),
+                  _buildTaskOverviewSection(
+                      crossAxisCount: 4, childAspectRatio: 1.1),
+                  _buildActiveProjectSection(
+                      crossAxisCount: 4, childAspectRatio: 1.1),
+                ],
               ),
             ),
-            Expanded(
-              flex: 3,
-              child: _buildSideContent(),
-            ),
+            Expanded(flex: 3, child: _buildSideContent()),
           ],
         );
       },
@@ -186,8 +167,17 @@ class DashboardScreen extends GetView<DashboardController> {
                 tooltip: "菜单",
               ),
             ),
-          // 头部标题
           const Expanded(child: _Header()),
+          IconButton(
+            onPressed: () => log("Chat icon pressed"),
+            icon: const Icon(Icons.chat_bubble_outline),
+            tooltip: "Chat",
+          ),
+          IconButton(
+            onPressed: () => log("Theme toggle pressed"),
+            icon: const Icon(Icons.brightness_6),
+            tooltip: "切换主题",
+          ),
         ],
       ),
     );
@@ -196,48 +186,38 @@ class DashboardScreen extends GetView<DashboardController> {
   Widget _buildProfileSection() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: kSpacing),
-      child: _buildProfile(data: controller.getProfil()),
-    );
-  }
-
-  Widget _buildProfile({required _Profile data}) {
-    return _ProfilTile(
-      data: data,
-      onPressedNotification: () {
-        log("Notification clicked");
-      },
+      child: _ProfilTile(
+        data: controller.getProfil(),
+        onPressedNotification: () => log("Notification clicked"),
+      ),
     );
   }
 
   Widget _buildProgressSection(Axis axis) {
     return Padding(
       padding: const EdgeInsets.symmetric(
-        horizontal: kSpacing,
-        vertical: kSpacing / 2,
-      ),
+          horizontal: kSpacing, vertical: kSpacing / 2),
       child: axis == Axis.horizontal
           ? Row(
               children: [
                 Expanded(
                   flex: 5,
-                  child: ProgressCard(
-                    data: const ProgressCardData(
-                      totalUndone: 10,
-                      totalTaskInProress: 2,
+                  child: Card(
+                    child: ListTile(
+                      title: const Text("Progress Card"),
+                      subtitle: const Text("Undone: 10 | In Progress: 2"),
+                      trailing: IconButton(
+                          icon: const Icon(Icons.check), onPressed: () {}),
                     ),
-                    onPressedCheck: () {},
                   ),
                 ),
                 const SizedBox(width: kSpacing / 2),
                 const Expanded(
                   flex: 4,
-                  child: ProgressReportCard(
-                    data: ProgressReportCardData(
-                      title: "案件申诉处理",
-                      doneTask: 5,
-                      percent: .3,
-                      task: 3,
-                      undoneTask: 2,
+                  child: Card(
+                    child: ListTile(
+                      title: Text("案件申诉处理"),
+                      subtitle: Text("Done: 5 | Undone: 2 | Total: 3"),
                     ),
                   ),
                 ),
@@ -245,21 +225,19 @@ class DashboardScreen extends GetView<DashboardController> {
             )
           : Column(
               children: [
-                ProgressCard(
-                  data: const ProgressCardData(
-                    totalUndone: 10,
-                    totalTaskInProress: 2,
+                Card(
+                  child: ListTile(
+                    title: const Text("Progress Card"),
+                    subtitle: const Text("Undone: 10 | In Progress: 2"),
+                    trailing: IconButton(
+                        icon: const Icon(Icons.check), onPressed: () {}),
                   ),
-                  onPressedCheck: () {},
                 ),
                 const SizedBox(height: kSpacing / 2),
-                const ProgressReportCard(
-                  data: ProgressReportCardData(
-                    title: "案件申诉处理",
-                    doneTask: 5,
-                    percent: .3,
-                    task: 3,
-                    undoneTask: 2,
+                const Card(
+                  child: ListTile(
+                    title: Text("案件申诉处理"),
+                    subtitle: Text("Done: 5 | Undone: 2 | Total: 3"),
                   ),
                 ),
               ],
@@ -270,24 +248,15 @@ class DashboardScreen extends GetView<DashboardController> {
   Widget _buildTeamMemberSection() {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: kSpacing),
-      child: _buildTeamMember(data: controller.getMember()),
-    );
-  }
-
-  Widget _buildTeamMember({required List<ImageProvider> data}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: kSpacing),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _TeamMember(
-            totalMember: data.length,
-            onPressedAdd: () {
-              log("Add member clicked");
-            },
+            totalMember: controller.getMember().length,
+            onPressedAdd: () => log("Add member clicked"),
           ),
           const SizedBox(height: kSpacing / 2),
-          ListProfilImage(maxImages: 6, images: data),
+          ListProfilImage(maxImages: 6, images: controller.getMember()),
         ],
       ),
     );
@@ -296,56 +265,69 @@ class DashboardScreen extends GetView<DashboardController> {
   Widget _buildPremiumCard() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: kSpacing),
-      child: PoliceCard(
-        onPressed: () {
-          log("PoliceCard clicked");
-        },
-      ),
+      child: PoliceCard(onPressed: () => log("PoliceCard clicked")),
     );
   }
 
+  /// 修改后的 _buildTaskOverviewSection：计算 GridView 固定高度
   Widget _buildTaskOverviewSection({
     required int crossAxisCount,
     required double childAspectRatio,
   }) {
     return Obx(() {
-      List<CaseCardData> taskList =
+      final taskList =
           controller.getCaseByType(controller.selectedCaseType.value);
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: kSpacing),
-        child: GridView.builder(
-          itemCount: taskList.length + 1,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: crossAxisCount,
-            crossAxisSpacing: kSpacing,
-            mainAxisSpacing: kSpacing,
-            childAspectRatio: childAspectRatio,
-          ),
-          itemBuilder: (context, index) {
-            if (index == 0) {
-              return _OverviewHeader(
-                axis: Axis.horizontal,
-                onSelected: (caseType) {
-                  controller.onCaseTypeSelected(caseType);
+      // 总 item 数（包含放置 OverviewHeader 的第一个 item）
+      final int itemCount = taskList.length + 1;
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          // 可用宽度（去掉左右 Padding）
+          final availableWidth = constraints.maxWidth - 2 * kSpacing;
+          final itemWidth = (availableWidth - (crossAxisCount - 1) * kSpacing) /
+              crossAxisCount;
+          final itemHeight = itemWidth / childAspectRatio;
+          final int rowCount = (itemCount / crossAxisCount).ceil();
+          final gridHeight = rowCount * itemHeight + (rowCount - 1) * kSpacing;
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: kSpacing),
+            child: SizedBox(
+              height: gridHeight,
+              child: GridView.builder(
+                itemCount: itemCount,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: crossAxisCount,
+                  crossAxisSpacing: kSpacing,
+                  mainAxisSpacing: kSpacing,
+                  childAspectRatio: childAspectRatio,
+                ),
+                itemBuilder: (context, index) {
+                  if (index == 0) {
+                    return OverviewHeader(
+                      axis: Axis.horizontal,
+                      onSelected: (caseType) =>
+                          controller.onCaseTypeSelected(caseType),
+                    );
+                  } else {
+                    return CaseCard(
+                      data: taskList[index - 1],
+                      onPressedMore: () {},
+                      onPressedTask: () {},
+                      onPressedContributors: () {},
+                      onPressedComments: () {},
+                    );
+                  }
                 },
-              );
-            } else {
-              return CaseCard(
-                data: taskList[index - 1],
-                onPressedMore: () {},
-                onPressedTask: () {},
-                onPressedContributors: () {},
-                onPressedComments: () {},
-              );
-            }
-          },
-        ),
+              ),
+            ),
+          );
+        },
       );
     });
   }
 
+  /// 修改后的 _buildActiveProjectSection：同样计算 GridView 固定高度
   Widget _buildActiveProjectSection({
     required int crossAxisCount,
     required double childAspectRatio,
@@ -353,22 +335,37 @@ class DashboardScreen extends GetView<DashboardController> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: kSpacing),
       child: _ActiveProjectCard(
-        onPressedSeeAll: () {
-          log("查看所有项目");
-        },
-        child: GridView.builder(
-          itemCount: controller.getActiveProject().length,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: crossAxisCount,
-            crossAxisSpacing: kSpacing,
-            mainAxisSpacing: kSpacing,
-            childAspectRatio: childAspectRatio,
-          ),
-          itemBuilder: (context, index) {
-            final data = controller.getActiveProject()[index];
-            return ProjectCard(data: data);
+        onPressedSeeAll: () => log("查看所有项目"),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final activeProjects = controller.getActiveProject();
+            final int itemCount = activeProjects.length;
+            final availableWidth = constraints.maxWidth - 2 * kSpacing;
+            final itemWidth =
+                (availableWidth - (crossAxisCount - 1) * kSpacing) /
+                    crossAxisCount;
+            final itemHeight = itemWidth / childAspectRatio;
+            final int rowCount = (itemCount / crossAxisCount).ceil();
+            final gridHeight =
+                rowCount * itemHeight + (rowCount - 1) * kSpacing;
+            return SizedBox(
+              height: gridHeight,
+              child: GridView.builder(
+                itemCount: itemCount,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: crossAxisCount,
+                  crossAxisSpacing: kSpacing,
+                  mainAxisSpacing: kSpacing,
+                  childAspectRatio: childAspectRatio,
+                ),
+                itemBuilder: (context, index) {
+                  final data = activeProjects[index];
+                  return ProjectCard(data: data);
+                },
+              ),
+            );
           },
         ),
       ),
@@ -378,37 +375,29 @@ class DashboardScreen extends GetView<DashboardController> {
   Widget _buildRecentMessagesSection() {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: kSpacing),
-      child: _buildRecentMessages(data: controller.getChatting()),
-    );
-  }
-
-  Widget _buildRecentMessages({required List<ChattingCardData> data}) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: kSpacing),
-          child: _RecentMessages(
-            onPressedMore: () {
-              log("More recent messages clicked");
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: kSpacing),
+            child: _RecentMessages(
+              onPressedMore: () => log("More recent messages clicked"),
+            ),
+          ),
+          const SizedBox(height: kSpacing / 2),
+          ListView.builder(
+            itemCount: controller.getChatting().length,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemBuilder: (context, index) {
+              final data = controller.getChatting()[index];
+              return ChattingCard(
+                data: data,
+                onPressed: () => log("Chat with ${data.name}"),
+              );
             },
           ),
-        ),
-        const SizedBox(height: kSpacing / 2),
-        // 若消息列表可能很多，需可滚动，可改为 ListView + fixed height
-        ListView.builder(
-          itemCount: data.length,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemBuilder: (context, index) {
-            return ChattingCard(
-              data: data[index],
-              onPressed: () {
-                log("Chat with ${data[index].name}");
-              },
-            );
-          },
-        ),
-      ],
+        ],
+      ),
     );
   }
 
