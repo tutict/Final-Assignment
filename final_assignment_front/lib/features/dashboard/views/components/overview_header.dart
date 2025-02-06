@@ -17,29 +17,41 @@ class OverviewHeader extends StatefulWidget {
 class _OverviewHeaderState extends State<OverviewHeader> {
   @override
   Widget build(BuildContext context) {
-    // 通过 Get.find 获取 DashboardController 中的 selectedCaseType
     final selectedCase = Get.find<DashboardController>().selectedCaseType;
     return Obx(() {
       if (widget.axis == Axis.horizontal) {
+        // 为了在水平滚动中避免 Expanded 导致无限宽度的问题，
+        // 将 Row 的 mainAxisSize 设置为 min，并用 Flexible 替换 Expanded，
+        // 同时在外层用 Container 或 SizedBox 设置一个明确宽度（例如通过媒体查询或父级约束）
         return Row(
-          mainAxisSize: MainAxisSize.min, // 让 Row 根据子内容收缩包装
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              "当前工作",
-              style: const TextStyle(fontWeight: FontWeight.w600)
-                  .useSystemChineseFont(),
+            // 固定宽度的文本区域
+            Container(
+              // 可以根据设计需求设置一个固定宽度或自动包裹
+              constraints: const BoxConstraints(minWidth: 80),
+              child: Text(
+                "当前工作",
+                style: const TextStyle(fontWeight: FontWeight.w600)
+                    .useSystemChineseFont(),
+              ),
             ),
             const SizedBox(width: 8),
-            // 使用 Flexible 替换 Expanded，在水平滚动区域中适应内容尺寸
+            // Flexible 包裹的 SingleChildScrollView 确保内容横向滚动
             Flexible(
               fit: FlexFit.loose,
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 physics: const BouncingScrollPhysics(),
                 child: Row(
-                  mainAxisSize: MainAxisSize.min, // shrink-wrap 子内容
-                  children:
-                      _buildButtons(selectedCase.value, widget.onSelected),
+                  mainAxisSize: MainAxisSize.min,
+                  children: _buildButtons(
+                    selectedCase: selectedCase.value,
+                    onSelected: (value) {
+                      selectedCase.value = value;
+                      widget.onSelected(value);
+                    },
+                  ),
                 ),
               ),
             ),
@@ -61,7 +73,13 @@ class _OverviewHeaderState extends State<OverviewHeader> {
               physics: const BouncingScrollPhysics(),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
-                children: _buildButtons(selectedCase.value, widget.onSelected),
+                children: _buildButtons(
+                  selectedCase: selectedCase.value,
+                  onSelected: (value) {
+                    selectedCase.value = value;
+                    widget.onSelected(value);
+                  },
+                ),
               ),
             ),
           ],
@@ -70,8 +88,10 @@ class _OverviewHeaderState extends State<OverviewHeader> {
     });
   }
 
-  List<Widget> _buildButtons(
-      CaseType selectedCase, Function(CaseType) onSelected) {
+  List<Widget> _buildButtons({
+    required CaseType selectedCase,
+    required Function(CaseType) onSelected,
+  }) {
     return [
       _buildButton(
         selected: selectedCase == CaseType.caseManagement,
