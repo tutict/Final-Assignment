@@ -31,6 +31,7 @@ class _ActiveProjectCard extends StatelessWidget {
               height: kSpacing,
             ),
             const SizedBox(height: kSpacing),
+            // 这里就是传进来的子组件
             child,
           ],
         ),
@@ -41,8 +42,8 @@ class _ActiveProjectCard extends StatelessWidget {
   Widget _title(String value) {
     return Text(
       value,
-      style:
-          const TextStyle(fontWeight: FontWeight.bold).useSystemChineseFont(),
+      style: const TextStyle(fontWeight: FontWeight.bold)
+          .useSystemChineseFont(),
     );
   }
 

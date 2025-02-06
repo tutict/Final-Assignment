@@ -6,13 +6,11 @@ import 'dart:developer';
 import 'package:chinese_font_library/chinese_font_library.dart';
 import 'package:eva_icons_flutter/eva_icons_flutter.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
-import 'package:final_assignment_front/shared_components/add_car_card.dart';
 import 'package:final_assignment_front/shared_components/case_card.dart';
 import 'package:final_assignment_front/shared_components/chatting_card.dart';
 import 'package:final_assignment_front/shared_components/list_profil_image.dart';
 import 'package:final_assignment_front/shared_components/police_card.dart';
 import 'package:final_assignment_front/shared_components/post_card.dart';
-import 'package:final_assignment_front/shared_components/progress_report_card.dart';
 import 'package:final_assignment_front/shared_components/project_card.dart';
 import 'package:final_assignment_front/shared_components/responsive_builder.dart';
 import 'package:final_assignment_front/shared_components/search_field.dart';
@@ -58,28 +56,40 @@ class DashboardScreen extends GetView<DashboardController> {
       drawer: ResponsiveBuilder.isDesktop(context)
           ? null
           : Drawer(
-              child: Padding(
-                padding: const EdgeInsets.only(top: kSpacing),
-                child: _Sidebar(data: controller.getSelectedProject()),
-              ),
-            ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          return CustomScrollView(
-            slivers: [
-              // 头部区域
-              SliverToBoxAdapter(
-                  child: _buildHeaderSection(constraints, context)),
-              // 主内容区域（将 SliverFillRemaining 换为 SliverToBoxAdapter）
-              SliverToBoxAdapter(child: _buildMainContent(constraints)),
-            ],
-          );
-        },
+        child: Padding(
+          padding: const EdgeInsets.only(top: kSpacing),
+          child: _Sidebar(data: controller.getSelectedProject()),
+        ),
+      ),
+      // 为保证 Ink 效果正常，将 body 用 Material 作为祖先
+      body: Material(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return CustomScrollView(
+              slivers: [
+                // 头部区域：用 Container 提供一个最小高度
+                SliverToBoxAdapter(
+                  child: Container(
+                      constraints: const BoxConstraints(minHeight: 50),
+                      child: _buildHeaderSection(constraints, context)),
+                ),
+                // 主内容区域：同样用 Container 保证有明确尺寸
+                SliverToBoxAdapter(
+                  child: Container(
+                      constraints: const BoxConstraints(minHeight: 100),
+                      child: _buildMainContent(constraints)
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
 
   Widget _buildHeaderSection(BoxConstraints constraints, BuildContext context) {
+    // 请确保此方法内部返回的 widget 不为 null
     return Column(
       children: [
         const SizedBox(height: kSpacing * (kIsWeb ? 1 : 2)),
@@ -91,9 +101,9 @@ class DashboardScreen extends GetView<DashboardController> {
   }
 
   Widget _buildMainContent(BoxConstraints constraints) {
+    // 请确保此方法内部返回的 widget 不为 null
     return ResponsiveBuilder(
       mobileBuilder: (context, constraints) {
-        // 注意：此处移除了内部的 SingleChildScrollView
         return Column(
           children: [
             _buildProfileSection(),
@@ -108,46 +118,63 @@ class DashboardScreen extends GetView<DashboardController> {
         );
       },
       tabletBuilder: (context, constraints) {
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              flex: 7,
-              child: Column(
-                children: [
-                  _buildProgressSection(Axis.horizontal),
-                  _buildTaskOverviewSection(
-                      crossAxisCount: 3, childAspectRatio: 1.2),
-                  _buildActiveProjectSection(
-                      crossAxisCount: 3, childAspectRatio: 1.2),
-                ],
+        return SizedBox(
+          height: constraints.maxHeight,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: constraints.maxWidth * 0.7,
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      _buildProgressSection(Axis.horizontal),
+                      _buildTaskOverviewSection(
+                          crossAxisCount: 3, childAspectRatio: 1.2),
+                      _buildActiveProjectSection(
+                          crossAxisCount: 3, childAspectRatio: 1.2),
+                    ],
+                  ),
+                ),
               ),
-            ),
-            Expanded(flex: 3, child: _buildSideContent()),
-          ],
+              SizedBox(
+                width: constraints.maxWidth * 0.3,
+                child: SingleChildScrollView(child: _buildSideContent()),
+              ),
+            ],
+          ),
         );
       },
       desktopBuilder: (context, constraints) {
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Flexible(
-                flex: 2,
-                child: _Sidebar(data: controller.getSelectedProject())),
-            Expanded(
-              flex: 5,
-              child: Column(
-                children: [
-                  _buildProgressSection(Axis.horizontal),
-                  _buildTaskOverviewSection(
-                      crossAxisCount: 4, childAspectRatio: 1.1),
-                  _buildActiveProjectSection(
-                      crossAxisCount: 4, childAspectRatio: 1.1),
-                ],
+        return SizedBox(
+          height: constraints.maxHeight,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: constraints.maxWidth * 0.2,
+                child: _Sidebar(data: controller.getSelectedProject()),
               ),
-            ),
-            Expanded(flex: 3, child: _buildSideContent()),
-          ],
+              SizedBox(
+                width: constraints.maxWidth * 0.5,
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      _buildProgressSection(Axis.horizontal),
+                      _buildTaskOverviewSection(
+                          crossAxisCount: 4, childAspectRatio: 1.1),
+                      _buildActiveProjectSection(
+                          crossAxisCount: 4, childAspectRatio: 1.1),
+                    ],
+                  ),
+                ),
+              ),
+              SizedBox(
+                width: constraints.maxWidth * 0.3,
+                child: SingleChildScrollView(child: _buildSideContent()),
+              ),
+            ],
+          ),
         );
       },
     );
@@ -157,6 +184,7 @@ class DashboardScreen extends GetView<DashboardController> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: kSpacing),
       child: Row(
+        // 如果 _Header 内部使用了 Expanded，请改为 Flexible 或使用 SingleChildScrollView
         children: [
           if (onPressedMenu != null)
             Padding(
@@ -167,7 +195,12 @@ class DashboardScreen extends GetView<DashboardController> {
                 tooltip: "菜单",
               ),
             ),
-          const Expanded(child: _Header()),
+          // 这里直接使用 _Header（如果 _Header 内部有 Row with Expanded，
+          // 请参考 _OverviewHeader 的修改方式，将其改为使用 Flexible 或 mainAxisSize.min）
+          const SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: _Header(),
+          ),
           IconButton(
             onPressed: () => log("Chat icon pressed"),
             icon: const Icon(Icons.chat_bubble_outline),
@@ -199,49 +232,50 @@ class DashboardScreen extends GetView<DashboardController> {
           horizontal: kSpacing, vertical: kSpacing / 2),
       child: axis == Axis.horizontal
           ? Row(
-              children: [
-                Expanded(
-                  flex: 5,
-                  child: Card(
-                    child: ListTile(
-                      title: const Text("Progress Card"),
-                      subtitle: const Text("Undone: 10 | In Progress: 2"),
-                      trailing: IconButton(
-                          icon: const Icon(Icons.check), onPressed: () {}),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: kSpacing / 2),
-                const Expanded(
-                  flex: 4,
-                  child: Card(
-                    child: ListTile(
-                      title: Text("案件申诉处理"),
-                      subtitle: Text("Done: 5 | Undone: 2 | Total: 3"),
-                    ),
-                  ),
-                ),
-              ],
-            )
-          : Column(
-              children: [
-                Card(
-                  child: ListTile(
-                    title: const Text("Progress Card"),
-                    subtitle: const Text("Undone: 10 | In Progress: 2"),
-                    trailing: IconButton(
-                        icon: const Icon(Icons.check), onPressed: () {}),
-                  ),
-                ),
-                const SizedBox(height: kSpacing / 2),
-                const Card(
-                  child: ListTile(
-                    title: Text("案件申诉处理"),
-                    subtitle: Text("Done: 5 | Undone: 2 | Total: 3"),
-                  ),
-                ),
-              ],
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 300,
+            child: Card(
+              child: ListTile(
+                title: const Text("Progress Card"),
+                subtitle: const Text("Undone: 10 | In Progress: 2"),
+                trailing: IconButton(
+                    icon: const Icon(Icons.check), onPressed: () {}),
+              ),
             ),
+          ),
+          const SizedBox(width: kSpacing / 2),
+          const SizedBox(
+            width: 300,
+            child: Card(
+              child: ListTile(
+                title: Text("案件申诉处理"),
+                subtitle: Text("Done: 5 | Undone: 2 | Total: 3"),
+              ),
+            ),
+          ),
+        ],
+      )
+          : Column(
+        children: [
+          Card(
+            child: ListTile(
+              title: const Text("Progress Card"),
+              subtitle: const Text("Undone: 10 | In Progress: 2"),
+              trailing: IconButton(
+                  icon: const Icon(Icons.check), onPressed: () {}),
+            ),
+          ),
+          const SizedBox(height: kSpacing / 2),
+          const Card(
+            child: ListTile(
+              title: Text("案件申诉处理"),
+              subtitle: Text("Done: 5 | Undone: 2 | Total: 3"),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -252,7 +286,9 @@ class DashboardScreen extends GetView<DashboardController> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _TeamMember(
-            totalMember: controller.getMember().length,
+            totalMember: controller
+                .getMember()
+                .length,
             onPressedAdd: () => log("Add member clicked"),
           ),
           const SizedBox(height: kSpacing / 2),
@@ -269,19 +305,18 @@ class DashboardScreen extends GetView<DashboardController> {
     );
   }
 
-  /// 修改后的 _buildTaskOverviewSection：计算 GridView 固定高度
+  /// 任务概览区域，使用 LayoutBuilder 计算 GridView 固定高度
   Widget _buildTaskOverviewSection({
     required int crossAxisCount,
     required double childAspectRatio,
   }) {
     return Obx(() {
       final taskList =
-          controller.getCaseByType(controller.selectedCaseType.value);
-      // 总 item 数（包含放置 OverviewHeader 的第一个 item）
+      controller.getCaseByType(controller.selectedCaseType.value);
+      // 总 item 数（包含 OverviewHeader 的一个 item）
       final int itemCount = taskList.length + 1;
       return LayoutBuilder(
         builder: (context, constraints) {
-          // 可用宽度（去掉左右 Padding）
           final availableWidth = constraints.maxWidth - 2 * kSpacing;
           final itemWidth = (availableWidth - (crossAxisCount - 1) * kSpacing) /
               crossAxisCount;
@@ -327,7 +362,7 @@ class DashboardScreen extends GetView<DashboardController> {
     });
   }
 
-  /// 修改后的 _buildActiveProjectSection：同样计算 GridView 固定高度
+  /// 活跃项目区域，使用 LayoutBuilder 计算 GridView 固定高度
   Widget _buildActiveProjectSection({
     required int crossAxisCount,
     required double childAspectRatio,
@@ -385,7 +420,9 @@ class DashboardScreen extends GetView<DashboardController> {
           ),
           const SizedBox(height: kSpacing / 2),
           ListView.builder(
-            itemCount: controller.getChatting().length,
+            itemCount: controller
+                .getChatting()
+                .length,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemBuilder: (context, index) {

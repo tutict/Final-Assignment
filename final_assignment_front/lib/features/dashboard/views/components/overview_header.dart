@@ -17,11 +17,12 @@ class OverviewHeader extends StatefulWidget {
 class _OverviewHeaderState extends State<OverviewHeader> {
   @override
   Widget build(BuildContext context) {
-    // 通过 Get.find 获取 DashboardController 中的响应式变量
+    // 通过 Get.find 获取 DashboardController 中的 selectedCaseType
     final selectedCase = Get.find<DashboardController>().selectedCaseType;
     return Obx(() {
       if (widget.axis == Axis.horizontal) {
         return Row(
+          mainAxisSize: MainAxisSize.min, // 让 Row 根据子内容收缩包装
           children: [
             Text(
               "当前工作",
@@ -29,20 +30,16 @@ class _OverviewHeaderState extends State<OverviewHeader> {
                   .useSystemChineseFont(),
             ),
             const SizedBox(width: 8),
-            // 使用 Expanded 包裹 SingleChildScrollView，保证按钮部分占满剩余空间，
-            // 并且超出时可横向滚动，避免 RenderFlex 溢出
-            Expanded(
+            // 使用 Flexible 替换 Expanded，在水平滚动区域中适应内容尺寸
+            Flexible(
+              fit: FlexFit.loose,
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 physics: const BouncingScrollPhysics(),
                 child: Row(
-                  children: _listButton(
-                    selectedCase: selectedCase.value,
-                    onSelected: (value) {
-                      selectedCase.value = value;
-                      widget.onSelected(value);
-                    },
-                  ),
+                  mainAxisSize: MainAxisSize.min, // shrink-wrap 子内容
+                  children:
+                      _buildButtons(selectedCase.value, widget.onSelected),
                 ),
               ),
             ),
@@ -51,6 +48,7 @@ class _OverviewHeaderState extends State<OverviewHeader> {
       } else {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               "当前工作",
@@ -62,13 +60,8 @@ class _OverviewHeaderState extends State<OverviewHeader> {
               scrollDirection: Axis.horizontal,
               physics: const BouncingScrollPhysics(),
               child: Row(
-                children: _listButton(
-                  selectedCase: selectedCase.value,
-                  onSelected: (value) {
-                    selectedCase.value = value;
-                    widget.onSelected(value);
-                  },
-                ),
+                mainAxisSize: MainAxisSize.min,
+                children: _buildButtons(selectedCase.value, widget.onSelected),
               ),
             ),
           ],
@@ -77,22 +70,20 @@ class _OverviewHeaderState extends State<OverviewHeader> {
     });
   }
 
-  List<Widget> _listButton({
-    required CaseType selectedCase,
-    required Function(CaseType) onSelected,
-  }) {
+  List<Widget> _buildButtons(
+      CaseType selectedCase, Function(CaseType) onSelected) {
     return [
-      _button(
+      _buildButton(
         selected: selectedCase == CaseType.caseManagement,
         label: "信息管理",
         onPressed: () => onSelected(CaseType.caseManagement),
       ),
-      _button(
+      _buildButton(
         selected: selectedCase == CaseType.caseSearch,
         label: "案件查询",
         onPressed: () => onSelected(CaseType.caseSearch),
       ),
-      _button(
+      _buildButton(
         selected: selectedCase == CaseType.caseAppeal,
         label: "案件申诉",
         onPressed: () => onSelected(CaseType.caseAppeal),
@@ -100,7 +91,7 @@ class _OverviewHeaderState extends State<OverviewHeader> {
     ];
   }
 
-  Widget _button({
+  Widget _buildButton({
     required bool selected,
     required String label,
     required VoidCallback onPressed,
@@ -110,10 +101,8 @@ class _OverviewHeaderState extends State<OverviewHeader> {
       child: ElevatedButton(
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
-          // 前景色（文字颜色）根据选中状态变化
           foregroundColor:
               selected ? kFontColorPallets[0] : kFontColorPallets[2],
-          // 背景色根据选中状态变化
           backgroundColor: selected
               ? Theme.of(context).cardColor
               : Theme.of(context).canvasColor,
