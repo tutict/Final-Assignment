@@ -39,14 +39,24 @@ class _FloatingWindowState extends State<FloatingWindow> {
             ),
             width: isFullScreen
                 ? MediaQueryData.fromView(
-                        WidgetsBinding.instance.platformDispatcher.views.first) .size .width
-                : MediaQueryData.fromView(
-                        WidgetsBinding .instance.platformDispatcher.views.first) .size .width * 0.8,
+                        WidgetsBinding.instance.platformDispatcher.views.first)
+                    .size
+                    .width
+                : MediaQueryData.fromView(WidgetsBinding
+                            .instance.platformDispatcher.views.first)
+                        .size
+                        .width *
+                    0.8,
             height: isFullScreen
                 ? MediaQueryData.fromView(
-                        WidgetsBinding.instance.platformDispatcher.views.first) .size .height
-                : MediaQueryData.fromView(
-                        WidgetsBinding .instance.platformDispatcher.views.first) .size .height * 0.6,
+                        WidgetsBinding.instance.platformDispatcher.views.first)
+                    .size
+                    .height
+                : MediaQueryData.fromView(WidgetsBinding
+                            .instance.platformDispatcher.views.first)
+                        .size
+                        .height *
+                    0.6,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -111,16 +121,24 @@ mixin FloatingBase {
       point: Point(
         MediaQueryData.fromView(
                         WidgetsBinding.instance.platformDispatcher.views.first)
-                    .size .width / 2 -
+                    .size
+                    .width /
+                2 -
             (MediaQueryData.fromView(
                         WidgetsBinding.instance.platformDispatcher.views.first)
-                    .size .width * 0.4),
+                    .size
+                    .width *
+                0.4),
         MediaQueryData.fromView(
                         WidgetsBinding.instance.platformDispatcher.views.first)
-                    .size .height / 2 -
+                    .size
+                    .height /
+                2 -
             (MediaQueryData.fromView(
                         WidgetsBinding.instance.platformDispatcher.views.first)
-                    .size .height * 0.3),
+                    .size
+                    .height *
+                0.3),
       ),
       isSnapToEdge: false,
 
