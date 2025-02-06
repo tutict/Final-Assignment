@@ -17,6 +17,7 @@ import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.SecurityContext;
+import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import java.util.List;
 import java.util.logging.Level;
@@ -25,6 +26,7 @@ import java.util.logging.Logger;
 @Path("/api/users")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
+@Tag(name = "User Management", description = "User Management Controller for managing user accounts")
 public class UserManagementController {
 
     private static final Logger logger = Logger.getLogger(String.valueOf(UserManagementController.class));

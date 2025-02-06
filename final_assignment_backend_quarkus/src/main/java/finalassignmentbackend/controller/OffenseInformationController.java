@@ -15,6 +15,7 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import java.util.Date;
 import java.util.List;
@@ -22,6 +23,7 @@ import java.util.List;
 @Path("/api/offenses")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
+@Tag(name = "Offense Information", description = "Offense Information Controller for managing offense information")
 public class OffenseInformationController {
 
     @Inject

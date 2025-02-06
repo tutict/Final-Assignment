@@ -14,6 +14,7 @@ import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import java.util.List;
 
@@ -21,6 +22,7 @@ import java.util.List;
 @Path("/api/backups")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
+@Tag(name = "Backup Restore", description = "Backup Restore Controller for managing backups")
 public class BackupRestoreController {
 
     // 备份恢复服务的依赖注入

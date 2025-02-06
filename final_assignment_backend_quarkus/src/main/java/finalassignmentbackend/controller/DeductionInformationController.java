@@ -15,6 +15,7 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import java.util.Date;
 import java.util.List;
@@ -22,6 +23,7 @@ import java.util.List;
 @Path("/api/deductions")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
+@Tag(name = "Deduction Information", description = "Deduction Information Controller for managing deductions")
 public class DeductionInformationController {
 
     @Inject

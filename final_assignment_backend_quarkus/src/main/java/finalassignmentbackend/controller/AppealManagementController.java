@@ -15,6 +15,7 @@ import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import java.util.List;
 
@@ -22,6 +23,7 @@ import java.util.List;
 @Path("/api/appeals")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
+@Tag(name = "Appeal Management", description = "Appeal Management Controller for managing appeals")
 public class AppealManagementController {
 
     // 申诉管理服务的接口实例，用于处理申诉的业务逻辑

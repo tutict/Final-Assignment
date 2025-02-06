@@ -16,6 +16,7 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import java.util.Date;
 import java.util.List;
@@ -23,6 +24,7 @@ import java.util.List;
 @Path("/api/loginLogs")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
+@Tag(name = "Login Log", description = "Login Log Controller for managing login logs")
 public class LoginLogController {
 
     @Inject

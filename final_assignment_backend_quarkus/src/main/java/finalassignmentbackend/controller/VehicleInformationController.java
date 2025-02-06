@@ -14,12 +14,14 @@ import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import java.util.List;
 
 @Path("/api/vehicles")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
+@Tag(name = "Vehicle Information Controller", description = "Operations related to vehicle information")
 /*
  * 车辆信息控制器类，用于处理与车辆信息相关的HTTP请求。
  */
