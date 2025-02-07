@@ -3,24 +3,27 @@ part of '../manager_screens/manager_dashboard_screen.dart';
 class _Header extends StatelessWidget {
   const _Header();
 
+  // 提取魔法数字为局部常量，便于维护
+  static const double _headerWidth = 1248.0;
+  static const double _todayTextWidth = 300.0;
+  static const double _searchFieldWidth = 932.0;
+
   @override
   Widget build(BuildContext context) {
-    // 假设整个 _Header 可用宽度为 1248 像素，
-    // 今天文本占 300 像素，搜索框占 932 像素，中间间距 16 像素
     return SizedBox(
-      width: 1248,
+      width: _headerWidth,
       child: Row(
         children: [
-          // 固定宽度 300 的 TodayTeconst xt
+          // 固定宽度的 TodayText
           const SizedBox(
-            width: 300,
+            width: _todayTextWidth,
             child: TodayText(),
           ),
-          // 固定间距 16 像素
-          const SizedBox(width: 16),
-          // 固定宽度 932 的搜索框
+          // 使用全局常量 kSpacing 替代硬编码的间距 16
+          const SizedBox(width: kSpacing),
+          // 固定宽度的搜索框
           SizedBox(
-            width: 932,
+            width: _searchFieldWidth,
             child: SearchField(),
           ),
         ],

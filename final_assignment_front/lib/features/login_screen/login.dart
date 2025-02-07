@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/features/api/auth_controller_api.dart';
+import 'package:final_assignment_front/features/api/user_management_controller_api.dart';
 import 'package:final_assignment_front/features/model/login_request.dart';
 import 'package:final_assignment_front/features/model/register_request.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
@@ -10,7 +11,6 @@ import 'package:flutter_login/flutter_login.dart';
 import 'package:get/get.dart'; // 如果你需要路由跳转
 import 'package:http/http.dart' as http;
 
-/// 这个 mixin 只是演示，如果你有自己的校验函数，可自行保留或删除
 mixin ValidatorMixin {
   String? validateUsername(String? val) {
     if (val == null || val.isEmpty) return '用户名不能为空';
@@ -37,13 +37,32 @@ class LoginScreen extends StatefulWidget with ValidatorMixin {
 
 /// 登录界面状态
 class _LoginScreenState extends State<LoginScreen> {
-  // 直接使用 AuthControllerApi
+  // 使用 AuthControllerApi 实现注册登陆
   late AuthControllerApi authApi;
+
+  // 使用 UserManagementControllerApi 实现忘记密码的逻辑
+  late UserManagementControllerApi userApi;
+
+  // 使用静态常量正则表达式，提高效率和可读性
+  static final RegExp _domainRegExp = RegExp(r'@([^.]+)\.');
 
   @override
   void initState() {
     super.initState();
     authApi = AuthControllerApi();
+  }
+
+  /// 根据 [username] 确定角色
+  /// 如果域名是 'admin'，返回 'ADMIN'，否则返回 'USER'
+  static String determineRole(String username) {
+    final match = _domainRegExp.firstMatch(username);
+    if (match != null && match.groupCount >= 1) {
+      final domain = match.group(1)?.toLowerCase();
+      if (domain == 'admin') {
+        return 'ADMIN';
+      }
+    }
+    return 'USER';
   }
 
   /// 用户登录逻辑
@@ -65,8 +84,12 @@ class _LoginScreenState extends State<LoginScreen> {
       // 如果后端返回了一个 Map<String, dynamic>:
       if (result is Map<String, dynamic>) {
         if (result['status'] == 'success') {
-          String token = result['token'] ?? '';
-          return null;
+          if (determineRole(username) == 'ADMIN') {
+            AppPages.initial;
+          } else {
+            AppPages.userInitial;
+          }
+          return '登陆成功';
         } else {
           // 如果 status != success
           return result['message'] ?? '登录失败';
@@ -125,7 +148,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
   /// 忘记密码逻辑
   Future<String?> _recoverPassword(String name) async {
-    // 这里演示：没有专门的 recoverPassword 接口，就随便 HTTP 调用下
     // 如果后端确实有，你可以在 AuthControllerApi 里加一个 apiAuthRecoverPasswordPost
     try {
       const url = 'http://localhost:8081/api/auth/recoverPassword';

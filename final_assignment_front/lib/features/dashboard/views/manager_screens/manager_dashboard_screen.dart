@@ -55,46 +55,42 @@ class DashboardScreen extends GetView<DashboardController> {
 
     return Scaffold(
       key: controller.scaffoldKey,
-      // Show Drawer only if not desktop.
+      // 仅在非桌面端显示抽屉
       drawer: ResponsiveBuilder.isDesktop(context)
           ? null
           : Drawer(
               child: Padding(
-                padding:
-                    const EdgeInsets.only(top: 16), // 16 pixels top padding
+                padding: const EdgeInsets.only(top: kSpacing),
                 child: _Sidebar(data: controller.getSelectedProject()),
               ),
             ),
-      // The body fills the full screen height.
       body: SizedBox(
         height: screenHeight,
-        child: Material(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              // Ensure the content fills at least the screen height.
-              return SingleChildScrollView(
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minHeight: screenHeight),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Header Section with a minimum height of 50.
-                      Container(
-                        constraints: const BoxConstraints(minHeight: 50),
-                        child: _buildHeaderSection(context, screenWidth),
-                      ),
-                      // Main Content Section with a minimum height of 100.
-                      Container(
-                        constraints: const BoxConstraints(minHeight: 100),
+        child: Column(
+          children: [
+            // 固定顶栏部分
+            SizedBox(
+              height: 50, // 设置固定高度
+              child: _buildHeaderSection(context, screenWidth),
+            ),
+            // 主体内容区域，剩余空间可滚动
+            Expanded(
+              child: Material(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    return SingleChildScrollView(
+                      child: ConstrainedBox(
+                        constraints:
+                            BoxConstraints(minHeight: constraints.maxHeight),
                         child: _buildMainContent(
                             context, screenWidth, screenHeight),
                       ),
-                    ],
-                  ),
+                    );
+                  },
                 ),
-              );
-            },
-          ),
+              ),
+            ),
+          ],
         ),
       ),
     );
