@@ -18,7 +18,10 @@ class UserSidebar extends StatelessWidget {
         controller: ScrollController(),
         child: Column(
           children: [
-            ProjectCard(data: data),
+            Padding(
+              padding: const EdgeInsets.all(kSpacing),
+              child: ProjectCard(data: data),
+            ),
             const Divider(thickness: 1),
             SelectionButton(
               data: [
@@ -66,7 +69,8 @@ class UserSidebar extends StatelessWidget {
             ),
             const Divider(thickness: 1),
             PostCard(
-              backgroundColor: Theme.of(context).canvasColor.withAlpha((0.4 * 255).toInt()),
+              backgroundColor:
+                  Theme.of(context).canvasColor.withAlpha((0.4 * 255).toInt()),
               onPressed: () {},
             ),
           ],

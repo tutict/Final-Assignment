@@ -12,6 +12,13 @@ class DashboardController extends GetxController {
   var selectedCaseType =
       CaseType.caseManagement.obs; // Set default to caseManagement
 
+  // RxBool 用于管理侧边栏显示状态（手机模式下）
+  final RxBool isSidebarOpen = false.obs;
+
+  void toggleSidebar() {
+    isSidebarOpen.value = !isSidebarOpen.value;
+  }
+
   /// 打开拖拽工具栏。
   void openDrawer() {
     scaffoldKey.currentState?.openDrawer();

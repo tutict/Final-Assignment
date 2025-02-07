@@ -20,7 +20,6 @@ import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-// For brevity, the following parts are defined in this file. In your project you can split them.
 // binding
 part '../../bindings/manager_dashboard_binding.dart';
 
@@ -62,52 +61,48 @@ class DashboardScreen extends GetView<DashboardController> {
         preferredSize: const Size.fromHeight(kHeaderTotalHeight),
         child: _buildHeaderSection(context, screenWidth),
       ),
-      // 非桌面端通过抽屉显示侧边栏
-      drawer: ResponsiveBuilder.isDesktop(context)
-          ? null
-          : Drawer(
-              child: Padding(
-                padding: const EdgeInsets.only(top: kSpacing),
-                child: _Sidebar(data: controller.getSelectedProject()),
-              ),
-            ),
-      // 主体内容不再包含顶栏，直接展示主体部分
+      // 移除 drawer，改为在 mobile 模式下使用 Stack 叠加侧边栏
       body: Material(
         child: ResponsiveBuilder(
           mobileBuilder: (context, constraints) {
-            return SingleChildScrollView(
-              child: Column(
-                children: [
-                  _buildProfileSection(context),
-                  _buildProgressSection(Axis.vertical, context),
-                  _buildTeamMemberSection(context),
-                  _buildPremiumCard(context),
-                  _buildTaskOverviewSection(
-                    context,
-                    crossAxisCount: 2,
-                    childAspectRatio: 1.2,
+            return Stack(
+              children: [
+                // 主要内容区域（可滚动）
+                SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      _buildProfileSection(context),
+                      _buildProgressSection(Axis.vertical, context),
+                      _buildTeamMemberSection(context),
+                      _buildPremiumCard(context),
+                      _buildTaskOverviewSection(
+                        context,
+                        crossAxisCount: 2,
+                        childAspectRatio: 1.2,
+                      ),
+                      _buildActiveProjectSection(
+                        context,
+                        crossAxisCount: 2,
+                        childAspectRatio: 1.2,
+                      ),
+                      _buildRecentMessagesSection(context),
+                    ],
                   ),
-                  _buildActiveProjectSection(
-                    context,
-                    crossAxisCount: 2,
-                    childAspectRatio: 1.2,
-                  ),
-                  _buildRecentMessagesSection(context),
-                ],
-              ),
+                ),
+                // 侧边栏：使用 AnimatedContainer 以及 Obx 根据状态显示
+                Obx(() => _buildSidebar(context)),
+              ],
             );
           },
           tabletBuilder: (context, constraints) {
-            // 平板端布局
+            // 平板端布局：固定侧边栏
             return Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 固定侧边栏
                 SizedBox(
                   width: screenWidth * 0.3,
                   child: _Sidebar(data: controller.getSelectedProject()),
                 ),
-                // 主要内容区域
                 SizedBox(
                   width: screenWidth * 0.7,
                   child: SingleChildScrollView(
@@ -133,17 +128,15 @@ class DashboardScreen extends GetView<DashboardController> {
             );
           },
           desktopBuilder: (context, constraints) {
-            // 桌面端布局
+            // 桌面端布局：左侧侧边栏、中间滚动内容、右侧固定聊天栏
             return Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 左侧固定侧边栏，占 20% 宽度
                 SizedBox(
                   width: screenWidth * 0.2,
                   height: screenHeight,
                   child: _Sidebar(data: controller.getSelectedProject()),
                 ),
-                // 中间滚动内容，占 50% 宽度
                 Expanded(
                   child: SingleChildScrollView(
                     child: Column(
@@ -163,7 +156,6 @@ class DashboardScreen extends GetView<DashboardController> {
                     ),
                   ),
                 ),
-                // 右侧固定聊天或侧边内容栏，占 30% 宽度
                 SizedBox(
                   width: screenWidth * 0.3,
                   height: screenHeight,
@@ -179,53 +171,73 @@ class DashboardScreen extends GetView<DashboardController> {
 
   /// 构建顶栏区域（包含上下间距和分割线）
   Widget _buildHeaderSection(BuildContext context, double screenWidth) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const SizedBox(height: 32), // 固定上边距 32
-        _buildHeader(
-          onPressedMenu: () => controller.openDrawer(),
-          screenWidth: screenWidth,
-        ),
-        const SizedBox(height: 15), // 固定下边距 15
-        const Divider(), // 分割线
-      ],
+    return Container(
+      color: Colors.blueAccent,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 32), // 固定上边距 32
+          _buildHeader(
+            onPressedMenu: () => controller.openDrawer(),
+            screenWidth: screenWidth,
+          ),
+          const SizedBox(height: 15), // 固定下边距 15
+          // 设置 Divider 高度和厚度为 1 像素，避免过高导致溢出
+          const Divider(
+            height: 1,
+            thickness: 1,
+          ),
+        ],
+      ),
     );
   }
 
-  /// 构建顶栏的内容行
+  /// 构建顶栏的内容行（父级）
   Widget _buildHeader({
     Function()? onPressedMenu,
     required double screenWidth,
   }) {
-    // 计算可用宽度：屏幕宽度减去左右内边距（2 * kSpacing）
-    final double availableWidth = screenWidth - 2 * kSpacing;
+    const double horizontalPadding = kSpacing / 2; // 使用较小的内边距
+    final double availableWidth = screenWidth - 2 * horizontalPadding;
+    const double mobileBreakpoint = 600.0;
+
+    // 菜单图标和右侧图标的固定宽度（可根据实际情况调整）
+    final double menuIconWidth = onPressedMenu != null ? 48.0 : 0.0;
+    const double iconWidth = 48.0; // 右侧每个图标宽度预估值
+    const double iconSpacing = 4.0; // 两个图标之间的间隔
+    const double iconsTotalWidth = iconWidth * 2 + iconSpacing;
+
+    // 剩余给中间部分的宽度
+    final double headerContentAvailableWidth =
+        availableWidth - menuIconWidth - iconsTotalWidth;
+
     return SizedBox(
-      height: 50, // 固定高度 50 像素，确保内部内容完整显示
+      height: 50, // 固定高度 50 像素
       child: Container(
         width: availableWidth,
-        padding: const EdgeInsets.symmetric(horizontal: kSpacing),
+        padding: const EdgeInsets.symmetric(horizontal: horizontalPadding),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            if (onPressedMenu != null)
+            if (screenWidth < mobileBreakpoint && onPressedMenu != null)
               IconButton(
-                onPressed: onPressedMenu,
+                onPressed: () => controller.toggleSidebar(),
                 icon: const Icon(Icons.menu),
                 tooltip: "菜单",
               ),
-            // 中间部分采用 Expanded 和水平滚动，确保内容不会溢出
-            const Expanded(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: _Header(), // 该组件定义在 part '../components/header.dart'
+            // 中间区域使用 ConstrainedBox 限制最大宽度
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: headerContentAvailableWidth,
               ),
+              child: const _Header(), // 该组件定义在 part '../components/header.dart'
             ),
+            // 右侧固定的图标区域
             IconButton(
               onPressed: () => log("Chat icon pressed"),
               icon: const Icon(Icons.chat_bubble_outline),
               tooltip: "Chat",
             ),
+            const SizedBox(width: 4), // 图标之间的小间隔
             IconButton(
               onPressed: () => log("Theme toggle pressed"),
               icon: const Icon(Icons.brightness_6),
@@ -463,6 +475,32 @@ class DashboardScreen extends GetView<DashboardController> {
           ),
         ],
       ),
+    );
+  }
+
+  /// 构建侧边栏，使用 AnimatedContainer 实现平滑过渡
+  Widget _buildSidebar(BuildContext context) {
+    final bool isDesktop = ResponsiveBuilder.isDesktop(context);
+    // 对于桌面端侧边栏一直显示；对于手机端，根据控制器状态决定是否显示
+    final bool showSidebar = isDesktop || controller.isSidebarOpen.value;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+      width: showSidebar ? 300 : 0,
+      height: double.infinity,
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        boxShadow: kBoxShadows, // 使用全局阴影效果
+      ),
+      child: showSidebar
+          ? Padding(
+              padding:
+                  const EdgeInsets.fromLTRB(16.0, kSpacing * 2, 16.0, kSpacing),
+              child: _Sidebar(
+                data: controller.getSelectedProject(),
+              ),
+            )
+          : null,
     );
   }
 

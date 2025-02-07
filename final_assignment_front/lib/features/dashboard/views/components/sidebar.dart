@@ -9,10 +9,9 @@ class _Sidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+
     return Container(
-      color: Theme
-          .of(context)
-          .cardColor,
+      color: Theme.of(context).cardColor,
       // 使用 SingleChildScrollView 包裹整个内容，避免 Expanded 造成无限尺寸问题
       child: SingleChildScrollView(
         controller: ScrollController(),
@@ -73,8 +72,7 @@ class _Sidebar extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(kSpacing),
               child: PostCard(
-                backgroundColor: Theme
-                    .of(context)
+                backgroundColor: Theme.of(context)
                     .canvasColor
                     .withAlpha((0.4 * 255).toInt()),
                 onPressed: () {},
