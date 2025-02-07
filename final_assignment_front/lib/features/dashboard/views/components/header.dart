@@ -12,6 +12,7 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: _headerWidth,
+      height: 50.0,
       child: Row(
         children: [
           // 固定宽度的 TodayText
