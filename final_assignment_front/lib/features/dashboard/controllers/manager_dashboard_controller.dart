@@ -2,6 +2,9 @@ part of '../views/manager_screens/manager_dashboard_screen.dart';
 
 /// DashboardController 管理主控制器，用于处理框架和数据相关的功能。
 class DashboardController extends GetxController {
+  // 用于管理主体内容的主题（初始使用浅色主题）
+  final Rx<ThemeData> currentBodyTheme = AppTheme.materialLightTheme.obs;
+
   /// 创建一个 GlobalKey 用于辅助控制主栏。
   final scaffoldKey = GlobalKey<ScaffoldState>();
 
@@ -103,6 +106,14 @@ class DashboardController extends GetxController {
       AssetImage(ImageRasterPath.avatar5),
       AssetImage(ImageRasterPath.avatar6),
     ];
+  }
+
+  void toggleBodyTheme() {
+    if (currentBodyTheme.value.brightness == Brightness.light) {
+      currentBodyTheme.value = AppTheme.materialDarkTheme;
+    } else {
+      currentBodyTheme.value = AppTheme.materialLightTheme;
+    }
   }
 
   /// 获取聊天卡片数据的列表。

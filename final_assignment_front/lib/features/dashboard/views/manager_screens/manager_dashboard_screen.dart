@@ -5,6 +5,7 @@ import 'dart:developer';
 
 import 'package:chinese_font_library/chinese_font_library.dart';
 import 'package:eva_icons_flutter/eva_icons_flutter.dart';
+import 'package:final_assignment_front/config/themes/app_theme.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
 import 'package:final_assignment_front/shared_components/case_card.dart';
 import 'package:final_assignment_front/shared_components/chatting_card.dart';
@@ -62,108 +63,113 @@ class DashboardScreen extends GetView<DashboardController> {
         child: _buildHeaderSection(context, screenWidth),
       ),
       // 移除 drawer，改为在 mobile 模式下使用 Stack 叠加侧边栏
-      body: Material(
-        child: ResponsiveBuilder(
-          mobileBuilder: (context, constraints) {
-            return Stack(
-              children: [
-                // 主要内容区域（可滚动）
-                SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      _buildProfileSection(context),
-                      _buildProgressSection(Axis.vertical, context),
-                      _buildTeamMemberSection(context),
-                      _buildPremiumCard(context),
-                      _buildTaskOverviewSection(
-                        context,
-                        crossAxisCount: 2,
-                        childAspectRatio: 1.2,
+      body: Obx(
+        () => Theme(
+          data: controller.currentBodyTheme.value,
+          child: Material(
+            child: ResponsiveBuilder(
+              mobileBuilder: (context, constraints) {
+                return Stack(
+                  children: [
+                    // 主要内容区域（可滚动）
+                    SingleChildScrollView(
+                      child: Column(
+                        children: [
+                          _buildProfileSection(context),
+                          _buildProgressSection(Axis.vertical, context),
+                          _buildTeamMemberSection(context),
+                          _buildPremiumCard(context),
+                          _buildTaskOverviewSection(
+                            context,
+                            crossAxisCount: 2,
+                            childAspectRatio: 1.2,
+                          ),
+                          _buildActiveProjectSection(
+                            context,
+                            crossAxisCount: 2,
+                            childAspectRatio: 1.2,
+                          ),
+                          _buildRecentMessagesSection(context),
+                        ],
                       ),
-                      _buildActiveProjectSection(
-                        context,
-                        crossAxisCount: 2,
-                        childAspectRatio: 1.2,
+                    ),
+                    // 侧边栏：使用 AnimatedContainer 以及 Obx 根据状态显示
+                    Obx(() => _buildSidebar(context)),
+                  ],
+                );
+              },
+              tabletBuilder: (context, constraints) {
+                // 平板端布局：固定侧边栏
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: screenWidth * 0.3,
+                      child: _Sidebar(data: controller.getSelectedProject()),
+                    ),
+                    SizedBox(
+                      width: screenWidth * 0.7,
+                      child: SingleChildScrollView(
+                        child: Column(
+                          children: [
+                            _buildProfileSection(context),
+                            _buildProgressSection(Axis.horizontal, context),
+                            _buildTaskOverviewSection(
+                              context,
+                              crossAxisCount: 3,
+                              childAspectRatio: 1.2,
+                            ),
+                            _buildActiveProjectSection(
+                              context,
+                              crossAxisCount: 3,
+                              childAspectRatio: 1.2,
+                            ),
+                          ],
+                        ),
                       ),
-                      _buildRecentMessagesSection(context),
-                    ],
-                  ),
-                ),
-                // 侧边栏：使用 AnimatedContainer 以及 Obx 根据状态显示
-                Obx(() => _buildSidebar(context)),
-              ],
-            );
-          },
-          tabletBuilder: (context, constraints) {
-            // 平板端布局：固定侧边栏
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(
-                  width: screenWidth * 0.3,
-                  child: _Sidebar(data: controller.getSelectedProject()),
-                ),
-                SizedBox(
-                  width: screenWidth * 0.7,
-                  child: SingleChildScrollView(
-                    child: Column(
-                      children: [
-                        _buildProfileSection(context),
-                        _buildProgressSection(Axis.horizontal, context),
-                        _buildTaskOverviewSection(
-                          context,
-                          crossAxisCount: 3,
-                          childAspectRatio: 1.2,
-                        ),
-                        _buildActiveProjectSection(
-                          context,
-                          crossAxisCount: 3,
-                          childAspectRatio: 1.2,
-                        ),
-                      ],
                     ),
-                  ),
-                ),
-              ],
-            );
-          },
-          desktopBuilder: (context, constraints) {
-            // 桌面端布局：左侧侧边栏、中间滚动内容、右侧固定聊天栏
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(
-                  width: screenWidth * 0.2,
-                  height: screenHeight,
-                  child: _Sidebar(data: controller.getSelectedProject()),
-                ),
-                Expanded(
-                  child: SingleChildScrollView(
-                    child: Column(
-                      children: [
-                        _buildProgressSection(Axis.horizontal, context),
-                        _buildTaskOverviewSection(
-                          context,
-                          crossAxisCount: 4,
-                          childAspectRatio: 1.1,
-                        ),
-                        _buildActiveProjectSection(
-                          context,
-                          crossAxisCount: 4,
-                          childAspectRatio: 1.1,
-                        ),
-                      ],
+                  ],
+                );
+              },
+              desktopBuilder: (context, constraints) {
+                // 桌面端布局：左侧侧边栏、中间滚动内容、右侧固定聊天栏
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: screenWidth * 0.2,
+                      height: screenHeight,
+                      child: _Sidebar(data: controller.getSelectedProject()),
                     ),
-                  ),
-                ),
-                SizedBox(
-                  width: screenWidth * 0.3,
-                  height: screenHeight,
-                  child: _buildSideContent(context),
-                ),
-              ],
-            );
-          },
+                    Expanded(
+                      child: SingleChildScrollView(
+                        child: Column(
+                          children: [
+                            _buildProgressSection(Axis.horizontal, context),
+                            _buildTaskOverviewSection(
+                              context,
+                              crossAxisCount: 4,
+                              childAspectRatio: 1.1,
+                            ),
+                            _buildActiveProjectSection(
+                              context,
+                              crossAxisCount: 4,
+                              childAspectRatio: 1.1,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      width: screenWidth * 0.3,
+                      height: screenHeight,
+                      child: _buildSideContent(context),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
         ),
       ),
     );
@@ -239,7 +245,7 @@ class DashboardScreen extends GetView<DashboardController> {
             ),
             const SizedBox(width: 4), // 图标之间的小间隔
             IconButton(
-              onPressed: () => log("Theme toggle pressed"),
+              onPressed: () => controller.toggleBodyTheme(),
               icon: const Icon(Icons.brightness_6),
               tooltip: "切换主题",
             ),

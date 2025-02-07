@@ -2,6 +2,9 @@ part of '../views/user_screens/user_dashboard.dart';
 
 /// UserDashboardController 管理用户主页的主控制器，包含了主要的进入流程、数据处理和界面的控制。
 class UserDashboardController extends GetxController with NavigationMixin {
+  // 用于管理主体内容的主题（初始使用浅色主题）
+  final Rx<ThemeData> currentBodyTheme = AppTheme.materialLightTheme.obs;
+
   /// 创建一个用于辅助控制主栏的 GlobalKey。
   final scaffoldKey = GlobalKey<ScaffoldState>();
 
@@ -66,6 +69,14 @@ class UserDashboardController extends GetxController with NavigationMixin {
       final pageContent = selectedPage.value;
       return pageContent ?? const SizedBox.shrink();
     });
+  }
+
+  void toggleBodyTheme() {
+    if (currentBodyTheme.value.brightness == Brightness.light) {
+      currentBodyTheme.value = AppTheme.materialDarkTheme;
+    } else {
+      currentBodyTheme.value = AppTheme.materialLightTheme;
+    }
   }
 
   /// 获取用户的资料。
