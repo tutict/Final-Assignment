@@ -35,6 +35,9 @@ class UserDashboardController extends GetxController with NavigationMixin {
     _initializeCaseCardData(); // 初始化案件卡片数据
   }
 
+  void toggleSidebar() {
+    isSidebarOpen.value = !isSidebarOpen.value;
+  }
   /// 打开拖拽工具栏。如果是桌面端，便将侧边栏设置为打开状态，否则调用拖拽功能。
   void openDrawer() => isDesktop.value
       ? isSidebarOpen.value = true
