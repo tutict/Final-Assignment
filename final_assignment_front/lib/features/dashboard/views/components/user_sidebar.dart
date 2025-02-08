@@ -10,85 +10,116 @@ class UserSidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.find<UserDashboardController>();
+    // 获取控制器：UserDashboardController
+    final UserDashboardController controller =
+        Get.find<UserDashboardController>();
 
-    // 根据当前亮度判断使用不同的颜色
-    final bool isLight = Theme.of(context).brightness == Brightness.light;
-    // 在亮色模式下使用白色背景，否则使用 theme.cardColor（通常较暗）
-    final Color backgroundColor =
-        isLight ? Colors.white : Theme.of(context).cardColor;
-    // 分割线颜色在亮色模式下用较浅的灰色，在暗色模式下用较深的颜色
-    final Color dividerColor = isLight ? Colors.grey[300]! : Colors.white24;
+    // 使用 Obx 监听主题变化
+    return Obx(() {
+      // 从控制器中获取当前主题数据
+      final ThemeData currentTheme = controller.currentBodyTheme.value;
+      // 判断当前是否为亮色模式
+      final bool isLight = currentTheme.brightness == Brightness.light;
+      // 在亮色模式下背景为白色；暗色模式下使用当前主题的 cardColor
+      final Color backgroundColor =
+          isLight ? Colors.white : currentTheme.cardColor;
+      // 分割线颜色：亮色模式下使用浅灰色；暗色模式下使用透明度较低的白色
+      final Color dividerColor = isLight ? Colors.grey[500]! : Colors.white24;
+      // 定义默认文本和图标颜色：亮色模式下使用深色；暗色模式下使用白色
+      final TextStyle defaultTextStyle =
+          TextStyle(color: isLight ? Colors.black87 : Colors.white);
+      final IconThemeData defaultIconTheme =
+          IconThemeData(color: isLight ? Colors.black87 : Colors.white);
 
-    return Container(
-      color: backgroundColor,
-      child: SingleChildScrollView(
-        controller: ScrollController(),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch, // 让子项尽可能填满宽度
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(kSpacing),
-              child: ProjectCard(data: data),
+      return Container(
+        color: backgroundColor,
+        // 使用 DefaultTextStyle 与 IconTheme 包裹内部内容，统一设置文本和图标颜色
+        child: DefaultTextStyle(
+          style: defaultTextStyle,
+          child: IconTheme(
+            data: defaultIconTheme,
+            child: SingleChildScrollView(
+              controller: ScrollController(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // 项目卡片区域
+                  Padding(
+                    padding: const EdgeInsets.all(kSpacing),
+                    child: ProjectCard(data: data),
+                  ),
+                  Divider(thickness: 1, color: dividerColor),
+                  // SelectionButton 区域
+                  // 在暗色模式下，通过 Theme 复制当前主题并将 primaryColor 覆盖为蓝色，
+                  // 使得当按钮处于选中状态时，其文本和图标颜色变为蓝色
+                  Theme(
+                    data: isLight
+                        ? Theme.of(context)
+                        : Theme.of(context).copyWith(primaryColor: Colors.blue),
+                    child: SelectionButton(
+                      data: [
+                        SelectionButtonData(
+                          activeIcon: EvaIcons.grid,
+                          icon: EvaIcons.gridOutline,
+                          label: "主页",
+                          routeName: "homePage",
+                        ),
+                        SelectionButtonData(
+                          activeIcon: EvaIcons.map,
+                          icon: EvaIcons.archiveOutline,
+                          label: "业务点",
+                          routeName: "businessPointPage",
+                        ),
+                        SelectionButtonData(
+                          activeIcon: EvaIcons.calendar,
+                          icon: EvaIcons.calendarOutline,
+                          label: "业务办理",
+                          routeName: "businessProgressPage",
+                        ),
+                        SelectionButtonData(
+                          activeIcon: EvaIcons.email,
+                          icon: EvaIcons.emailOutline,
+                          label: "消息",
+                          totalNotif: 20,
+                          routeName: "messagePage",
+                        ),
+                        SelectionButtonData(
+                          activeIcon: EvaIcons.person,
+                          icon: EvaIcons.personOutline,
+                          label: "个人信息",
+                          routeName: "personalPage",
+                        ),
+                        SelectionButtonData(
+                          activeIcon: EvaIcons.settings,
+                          icon: EvaIcons.settingsOutline,
+                          label: "设置",
+                          routeName: "settingsPage",
+                        ),
+                      ],
+                      onSelected: (index, value) {
+                        log("index : $index | label : ${value.label}");
+                        controller.navigateToPage(value.routeName);
+                      },
+                    ),
+                  ),
+                  Divider(thickness: 1, color: dividerColor),
+                  // PostCard 区域
+                  Container(
+                    padding: const EdgeInsets.all(kSpacing),
+                    child: PostCard(
+                      backgroundColor: isLight
+                          ? Colors.grey[100]!.withAlpha((0.4 * 255).toInt())
+                          : currentTheme.canvasColor
+                              .withAlpha((0.4 * 255).toInt()),
+                      onPressed: () {},
+                    ),
+                  ),
+                ],
+              ),
             ),
-            Divider(thickness: 1, color: dividerColor),
-            SelectionButton(
-              data: [
-                SelectionButtonData(
-                  activeIcon: EvaIcons.grid,
-                  icon: EvaIcons.gridOutline,
-                  label: "更多",
-                  routeName: "morePage",
-                ),
-                SelectionButtonData(
-                  activeIcon: EvaIcons.trendingUp,
-                  icon: EvaIcons.trendingUpOutline,
-                  label: "网办进度",
-                  routeName: "/onlineProcessingProgress",
-                ),
-                SelectionButtonData(
-                  activeIcon: EvaIcons.globe,
-                  icon: EvaIcons.globe2Outline,
-                  label: "网办大厅",
-                  routeName: AppPages.onlineProcessingProgress,
-                ),
-                SelectionButtonData(
-                  activeIcon: EvaIcons.pin,
-                  icon: EvaIcons.pinOutline,
-                  label: "线下网点",
-                  routeName: "offlinePointPage",
-                ),
-                SelectionButtonData(
-                  activeIcon: EvaIcons.person,
-                  icon: EvaIcons.personOutline,
-                  label: "我的",
-                  routeName: AppPages.personalMain,
-                ),
-                SelectionButtonData(
-                  activeIcon: EvaIcons.settings,
-                  icon: EvaIcons.settingsOutline,
-                  label: "设置",
-                  routeName: AppPages.setting,
-                ),
-              ],
-              onSelected: (index, value) {
-                log("index : $index | label : ${value.label}");
-                controller.navigateToPage(value.routeName);
-              },
-            ),
-            Divider(thickness: 1, color: dividerColor),
-            // 对 PostCard 在亮色模式下使用较浅的背景
-            PostCard(
-              backgroundColor: isLight
-                  ? Colors.grey[100]!.withAlpha((0.4 * 255).toInt())
-                  : Theme.of(context)
-                      .canvasColor
-                      .withAlpha((0.4 * 255).toInt()),
-              onPressed: () {},
-            ),
-          ],
+          ),
         ),
-      ),
-    );
+      );
+    });
   }
 }

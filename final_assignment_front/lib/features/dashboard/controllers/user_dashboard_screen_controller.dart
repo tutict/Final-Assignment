@@ -93,7 +93,7 @@ class UserDashboardController extends GetxController with NavigationMixin {
   ProjectCardData getSelectedProject() => ProjectCardData(
     percent: .3, // 项目完成进度
     projectImage: const AssetImage(ImageRasterPath.logo1), // 项目图标
-    projectName: "", // 项目名称
+    projectName: "交通违法行为处理管理系统", // 项目名称
     releaseTime: DateTime.now(), // 项目发布时间
   );
 

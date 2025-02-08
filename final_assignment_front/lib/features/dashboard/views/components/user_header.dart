@@ -36,9 +36,6 @@ class UserHeader extends StatelessWidget {
                 width: _baseSearchFieldWidth * scaleFactor,
                 child: Container(
                   decoration: BoxDecoration(
-                    border: Border.all(
-                      color: Colors.grey, // 边框颜色
-                    ),
                     borderRadius: BorderRadius.circular(8.0),
                   ),
                   child: SearchField(),

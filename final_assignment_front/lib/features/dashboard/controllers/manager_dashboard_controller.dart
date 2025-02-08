@@ -1,7 +1,7 @@
 part of '../views/manager_screens/manager_dashboard_screen.dart';
 
 /// DashboardController 管理主控制器，用于处理框架和数据相关的功能。
-class DashboardController extends GetxController {
+class DashboardController extends GetxController with NavigationMixin {
   // 用于管理主体内容的主题（初始使用浅色主题）
   final Rx<ThemeData> currentBodyTheme = AppTheme.materialLightTheme.obs;
 
@@ -18,6 +18,12 @@ class DashboardController extends GetxController {
   // RxBool 用于管理侧边栏显示状态（手机模式下）
   final RxBool isSidebarOpen = false.obs;
 
+  /// 当前选择的页面。
+  final selectedPage = Rx<Widget?>(null);
+
+  /// 是否显示侧边栏内容的状态。
+  final isShowingSidebarContent = false.obs;
+
   void toggleSidebar() {
     isSidebarOpen.value = !isSidebarOpen.value;
   }
@@ -30,6 +36,12 @@ class DashboardController extends GetxController {
   /// 当选择一个案件类型时，更新 selectedCaseType。
   void onCaseTypeSelected(CaseType selectedType) {
     selectedCaseType.value = selectedType;
+  }
+
+  /// 通过路由名称进入指定的页面，并设置 isShowingSidebarContent 为 true。
+  void navigateToPage(String routeName) {
+    selectedPage.value = getPageForRoute(routeName);
+    isShowingSidebarContent.value = true; // 点击侧边栏时，显示侧边栏内容
   }
 
   /// 根据案件类型返回相应的案件卡片。
@@ -52,11 +64,16 @@ class DashboardController extends GetxController {
     // 添加示例案件
     caseCardDataList.addAll([
       const CaseCardData(
-        title: 'Todo Task 1', // 任务标题
-        dueDay: 5, // 当前距终止日期还剩余的天数
-        totalComments: 10, // 总评论数
-        totalContributors: 3, // 总贡献人数
-        type: CaseType.caseManagement, // 案件类型，为 caseManagement
+        title: 'Todo Task 1',
+        // 任务标题
+        dueDay: 5,
+        // 当前距终止日期还剩余的天数
+        totalComments: 10,
+        // 总评论数
+        totalContributors: 3,
+        // 总贡献人数
+        type: CaseType.caseManagement,
+        // 案件类型，为 caseManagement
         profilContributors: [], // 贡献人员信息
       ),
       const CaseCardData(
@@ -64,7 +81,8 @@ class DashboardController extends GetxController {
         dueDay: 10,
         totalComments: 5,
         totalContributors: 2,
-        type: CaseType.caseSearch, // 案件类型，为 caseSearch
+        type: CaseType.caseSearch,
+        // 案件类型，为 caseSearch
         profilContributors: [],
       ),
       const CaseCardData(
@@ -72,7 +90,8 @@ class DashboardController extends GetxController {
         dueDay: -2,
         totalComments: 3,
         totalContributors: 1,
-        type: CaseType.caseAppeal, // 案件类型，为 caseAppeal
+        type: CaseType.caseAppeal,
+        // 案件类型，为 caseAppeal
         profilContributors: [],
       ),
       // 添加更多案件
@@ -120,11 +139,16 @@ class DashboardController extends GetxController {
   List<ChattingCardData> getChatting() {
     return const [
       ChattingCardData(
-        image: AssetImage(ImageRasterPath.avatar6), // 聊天用户头像
-        isOnline: true, // 是否在线
-        name: "Samantha", // 聊天用户名称
-        lastMessage: "我处理了新的申诉", // 最近的消息
-        isRead: false, // 是否已读
+        image: AssetImage(ImageRasterPath.avatar6),
+        // 聊天用户头像
+        isOnline: true,
+        // 是否在线
+        name: "Samantha",
+        // 聊天用户名称
+        lastMessage: "我处理了新的申诉",
+        // 最近的消息
+        isRead: false,
+        // 是否已读
         totalUnread: 1, // 未读消息的总数
       ),
     ];

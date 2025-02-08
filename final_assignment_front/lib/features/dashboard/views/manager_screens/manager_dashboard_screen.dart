@@ -19,6 +19,7 @@ import 'package:final_assignment_front/shared_components/search_field.dart';
 import 'package:final_assignment_front/shared_components/selection_button.dart';
 import 'package:final_assignment_front/shared_components/today_text.dart';
 import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
+import 'package:final_assignment_front/utils/mixins/app_mixins.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -45,7 +46,8 @@ part '../components/sidebar.dart';
 
 part '../components/team_member.dart';
 
-class DashboardScreen extends GetView<DashboardController> {
+class DashboardScreen extends GetView<DashboardController>
+    with NavigationMixin {
   const DashboardScreen({super.key});
 
   @override

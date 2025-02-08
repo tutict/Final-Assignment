@@ -9,29 +9,26 @@ class _Sidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 获取控制器
+    // 获取 DashboardController 实例
     final DashboardController controller = Get.find<DashboardController>();
 
-    // 使用 Obx 监听主题的变化
+    // 使用 Obx 监听主题变化
     return Obx(() {
-      // 从控制器中获取当前主题数据
+      // 从控制器中获取当前主体主题数据
       final ThemeData currentTheme = controller.currentBodyTheme.value;
       // 判断当前是否为亮色模式
       final bool isLight = currentTheme.brightness == Brightness.light;
-      // 亮色模式下使用白色背景，暗色模式下使用主题中的 cardColor
-      final Color backgroundColor =
-          isLight ? Colors.white : currentTheme.cardColor;
+      // 亮色模式下背景为白色，暗色模式下使用主题中的 cardColor
+      final Color backgroundColor = isLight ? Colors.white : currentTheme.cardColor;
       // 分割线颜色：亮色模式下使用浅灰色；暗色模式下使用透明度较低的白色
       final Color dividerColor = isLight ? Colors.grey[500]! : Colors.white24;
-      // 定义默认文本和图标颜色：亮色模式下使用深色，暗色模式下使用浅色
-      final TextStyle defaultTextStyle =
-          TextStyle(color: isLight ? Colors.black: Colors.white);
-      final IconThemeData defaultIconTheme =
-          IconThemeData(color: isLight ? Colors.black: Colors.white);
+      // 定义默认文本和图标颜色：亮色模式下使用深色，暗色模式下使用白色
+      final TextStyle defaultTextStyle = TextStyle(color: isLight ? Colors.black87 : Colors.white);
+      final IconThemeData defaultIconTheme = IconThemeData(color: isLight ? Colors.black87 : Colors.white);
 
       return Container(
         color: backgroundColor,
-        // 使用 DefaultTextStyle 和 IconTheme 包裹内部内容，以统一设置文本和图标颜色
+        // 使用 DefaultTextStyle 与 IconTheme 统一设置文本和图标颜色
         child: DefaultTextStyle(
           style: defaultTextStyle,
           child: IconTheme(
@@ -48,50 +45,57 @@ class _Sidebar extends StatelessWidget {
                   ),
                   Divider(thickness: 1, color: dividerColor),
                   // SelectionButton 区域
-                  SelectionButton(
-                    data: [
-                      SelectionButtonData(
-                        activeIcon: EvaIcons.grid,
-                        icon: EvaIcons.gridOutline,
-                        label: "主页",
-                        routeName: "homePage",
-                      ),
-                      SelectionButtonData(
-                        activeIcon: EvaIcons.map,
-                        icon: EvaIcons.archiveOutline,
-                        label: "业务点",
-                        routeName: "businessPointPage",
-                      ),
-                      SelectionButtonData(
-                        activeIcon: EvaIcons.calendar,
-                        icon: EvaIcons.calendarOutline,
-                        label: "业务办理进度",
-                        routeName: "businessProgressPage",
-                      ),
-                      SelectionButtonData(
-                        activeIcon: EvaIcons.email,
-                        icon: EvaIcons.emailOutline,
-                        label: "消息",
-                        totalNotif: 20,
-                        routeName: "messagePage",
-                      ),
-                      SelectionButtonData(
-                        activeIcon: EvaIcons.person,
-                        icon: EvaIcons.personOutline,
-                        label: "个人信息",
-                        routeName: "personalPage",
-                      ),
-                      SelectionButtonData(
-                        activeIcon: EvaIcons.settings,
-                        icon: EvaIcons.settingsOutline,
-                        label: "设置",
-                        routeName: "settingsPage",
-                      ),
-                    ],
-                    onSelected: (index, value) {
-                      log("index : $index | label : ${value.label}");
-                      // 你可以在此添加点击后的导航或其它逻辑
-                    },
+                  // 当处于暗色模式时，通过 Theme 复制当前主题并将 primaryColor 覆盖为蓝色，
+                  // 使得按钮选中时其文本和图标显示为蓝色
+                  Theme(
+                    data: isLight
+                        ? Theme.of(context)
+                        : Theme.of(context).copyWith(primaryColor: Colors.blue),
+                    child: SelectionButton(
+                      data: [
+                        SelectionButtonData(
+                          activeIcon: EvaIcons.grid,
+                          icon: EvaIcons.gridOutline,
+                          label: "主页",
+                          routeName: "homePage",
+                        ),
+                        SelectionButtonData(
+                          activeIcon: EvaIcons.map,
+                          icon: EvaIcons.archiveOutline,
+                          label: "业务点",
+                          routeName: "businessPointPage",
+                        ),
+                        SelectionButtonData(
+                          activeIcon: EvaIcons.calendar,
+                          icon: EvaIcons.calendarOutline,
+                          label: "业务办理进度",
+                          routeName: "businessProgressPage",
+                        ),
+                        SelectionButtonData(
+                          activeIcon: EvaIcons.email,
+                          icon: EvaIcons.emailOutline,
+                          label: "消息",
+                          totalNotif: 20,
+                          routeName: "messagePage",
+                        ),
+                        SelectionButtonData(
+                          activeIcon: EvaIcons.person,
+                          icon: EvaIcons.personOutline,
+                          label: "个人信息",
+                          routeName: "personalPage",
+                        ),
+                        SelectionButtonData(
+                          activeIcon: EvaIcons.settings,
+                          icon: EvaIcons.settingsOutline,
+                          label: "设置",
+                          routeName: "settingsPage",
+                        ),
+                      ],
+                      onSelected: (index, value) {
+                        log("index: $index | label: ${value.label}");
+                        controller.navigateToPage(value.routeName);
+                      },
+                    ),
                   ),
                   Divider(thickness: 1, color: dividerColor),
                   // PostCard 区域
@@ -100,8 +104,7 @@ class _Sidebar extends StatelessWidget {
                     child: PostCard(
                       backgroundColor: isLight
                           ? Colors.grey[100]!.withAlpha((0.4 * 255).toInt())
-                          : currentTheme.canvasColor
-                              .withAlpha((0.4 * 255).toInt()),
+                          : currentTheme.canvasColor.withAlpha((0.4 * 255).toInt()),
                       onPressed: () {},
                     ),
                   ),
