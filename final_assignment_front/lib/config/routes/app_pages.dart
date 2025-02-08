@@ -2,6 +2,7 @@
 library app_pages;
 
 // 导入各种页面相关的库和绑定
+import 'package:final_assignment_front/features/dashboard/views/components/ai_chat.dart';
 import 'package:final_assignment_front/features/dashboard/views/components/change_themes.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_dashboard_screen.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/appeal_management.dart';
@@ -12,7 +13,6 @@ import 'package:final_assignment_front/features/dashboard/views/manager_screens/
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/offense_list.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/vehicle_list.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/chat/ai_chat.dart';
 
 //import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/map/map.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/news/news_detail_screen.dart';
@@ -148,7 +148,7 @@ class AppPages {
     ),
     GetPage(
       name: _Paths.aiChat,
-      page: () => const AIChatPage(),
+      page: () => const AiChat(),
     ),
     // GetPage(
     //   name: _Paths.map,

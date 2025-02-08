@@ -132,7 +132,7 @@ class UserDashboard extends GetView<UserDashboardController>
   Widget _buildSideContent(BuildContext context) {
     return Container(
       color: Theme.of(context).scaffoldBackgroundColor,
-      child: const ChatConversationWidget(),
+      child: const AiChat(),
     );
   }
 

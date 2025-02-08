@@ -15,7 +15,7 @@ mixin NavigationMixin {
       case AppPages.setting:
         return const SettingPage();
       case AppPages.aiChat:
-        return const AIChatPage();
+        return const AiChat();
       case AppPages.accountAndSecurity:
         return const AccountAndSecurityPage();
       case AppPages.changePassword:

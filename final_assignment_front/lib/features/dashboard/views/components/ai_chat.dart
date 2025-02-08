@@ -2,13 +2,15 @@ import 'package:final_assignment_front/features/dashboard/controllers/chat_contr
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-class ChatConversationWidget extends GetView<ChatController> {
-  const ChatConversationWidget({Key? key}) : super(key: key);
+/// AI 聊天对话界面组件
+class AiChat extends GetView<ChatController> {
+  const AiChat({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
+        // 消息列表
         Expanded(
           child: Obx(() {
             return ListView.builder(
@@ -40,6 +42,7 @@ class ChatConversationWidget extends GetView<ChatController> {
             );
           }),
         ),
+        // 输入区域
         Padding(
           padding: const EdgeInsets.all(8.0),
           child: Row(
