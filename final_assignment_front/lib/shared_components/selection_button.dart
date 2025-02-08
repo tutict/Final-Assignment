@@ -87,30 +87,59 @@ class _Button extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 获取当前主题亮度，判断是否为亮色模式
+    final bool isLight = Theme.of(context).brightness == Brightness.light;
+
+    // 根据当前状态设置背景色：
+    // 未选中状态：亮色模式下使用白色，暗色模式下使用卡片背景色
+    // 选中状态：在亮色模式下使用 primaryColor 的浅色透明效果，
+    //           在暗色模式下可以稍微加深透明度以提高对比度
+    final Color backgroundColor = !selected
+        ? (isLight ? Colors.white : Theme.of(context).cardColor)
+        : (isLight
+            ? Theme.of(context).primaryColor.withAlpha((0.1 * 255).toInt())
+            : Theme.of(context).primaryColor.withAlpha((0.2 * 255).toInt()));
+
+    // 阴影颜色，根据选中状态和当前主题调整
+    final Color shadowColor = selected
+        ? (isLight
+            ? Colors.blueAccent.withAlpha((0.3 * 255).toInt())
+            : Colors.black87.withAlpha((0.3 * 255).toInt()))
+        : (isLight ? Colors.black12 : Colors.black26);
+
+    // 未选中时图标和文字颜色：
+    // 在亮色模式下使用较深色（例如 Colors.black87），暗色模式下使用白色
+    final Color defaultIconColor = !selected
+        ? (isLight ? Colors.black87 : Colors.white70)
+        : Theme.of(context).primaryColor;
+    final Color defaultTextColor = !selected
+        ? (isLight ? Colors.black87 : Colors.white70)
+        : Theme.of(context).primaryColor;
+
     return Material(
-      color: (!selected)
-          ? Theme.of(context).cardColor
-          : Theme.of(context).primaryColor.withAlpha((0.1 * 255).toInt()),
+      color: backgroundColor,
       borderRadius: BorderRadius.circular(12),
       elevation: selected ? 6.0 : 3.0,
-      shadowColor:
-          selected ? Colors.blueAccent.withAlpha((0.3 * 255).toInt()) : Colors.black12,
+      shadowColor: shadowColor,
       child: InkWell(
         onTap: onPressed,
         borderRadius: BorderRadius.circular(12),
-        splashColor: Theme.of(context).primaryColor.withAlpha((0.2 * 255).toInt()),
+        splashColor:
+            Theme.of(context).primaryColor.withAlpha((0.2 * 255).toInt()),
         child: Padding(
           padding: const EdgeInsets.all(kSpacing),
           child: Row(
             children: [
-              _icon((!selected) ? data.icon : data.activeIcon),
+              _icon(
+                  data: (!selected) ? data.icon : data.activeIcon,
+                  color: defaultIconColor),
               const SizedBox(width: kSpacing / 2),
-              Expanded(child: _labelText(data.label)),
+              Expanded(child: _labelText(data.label, color: defaultTextColor)),
               if (data.totalNotif != null)
                 Padding(
                   padding: const EdgeInsets.only(left: kSpacing / 2),
-                  child: _notif(data.totalNotif!),
-                )
+                  child: _notif(total: data.totalNotif!),
+                ),
             ],
           ),
         ),
@@ -118,25 +147,21 @@ class _Button extends StatelessWidget {
     );
   }
 
-  // 渲染按钮图标
-  Widget _icon(IconData iconData) {
+  // 渲染按钮图标，传入自定义颜色
+  Widget _icon({required IconData data, required Color color}) {
     return Icon(
-      iconData,
+      data,
       size: 24,
-      color: (!selected)
-          ? kFontColorPallets[2]
-          : Theme.of(Get.context!).primaryColor,
+      color: color,
     );
   }
 
-  // 渲染按钮标签文本
-  Widget _labelText(String data) {
+  // 渲染按钮标签文本，传入自定义颜色
+  Widget _labelText(String text, {required Color color}) {
     return Text(
-      data,
+      text,
       style: TextStyle(
-        color: (!selected)
-            ? kFontColorPallets[1]
-            : Theme.of(Get.context!).primaryColor,
+        color: color,
         fontWeight: FontWeight.w700,
         letterSpacing: 1.0,
         fontSize: 15,
@@ -145,33 +170,32 @@ class _Button extends StatelessWidget {
   }
 
   // 渲染通知数标记
-  Widget _notif(int total) {
-    return (total <= 0)
-        ? Container()
-        : Container(
-            width: 30,
-            padding: const EdgeInsets.all(5),
-            decoration: BoxDecoration(
-              color: kNotifColor,
-              borderRadius: BorderRadius.circular(15),
-              boxShadow: const [
-                BoxShadow(
-                  color: Colors.black26,
-                  offset: Offset(0, 4),
-                  blurRadius: 8,
-                ),
-              ],
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              (total >= 100) ? "99+" : "$total",
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-              ).useSystemChineseFont(),
-              textAlign: TextAlign.center,
-            ),
-          );
+  Widget _notif({required int total}) {
+    if (total <= 0) return Container();
+    return Container(
+      width: 30,
+      padding: const EdgeInsets.all(5),
+      decoration: BoxDecoration(
+        color: kNotifColor,
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black26,
+            offset: Offset(0, 4),
+            blurRadius: 8,
+          ),
+        ],
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        (total >= 100) ? "99+" : "$total",
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ).useSystemChineseFont(),
+        textAlign: TextAlign.center,
+      ),
+    );
   }
 }

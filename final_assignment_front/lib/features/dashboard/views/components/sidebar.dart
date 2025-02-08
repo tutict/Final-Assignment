@@ -9,78 +9,108 @@ class _Sidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 获取控制器
+    final DashboardController controller = Get.find<DashboardController>();
 
-    return Container(
-      color: Theme.of(context).cardColor,
-      // 使用 SingleChildScrollView 包裹整个内容，避免 Expanded 造成无限尺寸问题
-      child: SingleChildScrollView(
-        controller: ScrollController(),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch, // 让子项尽可能填满宽度
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(kSpacing),
-              child: ProjectCard(data: data),
-            ),
-            const Divider(thickness: 1),
-            // 使用 SelectionButton 组件（注意：如果 SelectionButton 内部使用了 Expanded，请检查其实现并改为使用 Flexible 或设置 mainAxisSize 为 min）
-            SelectionButton(
-              data: [
-                SelectionButtonData(
-                  activeIcon: EvaIcons.grid,
-                  icon: EvaIcons.gridOutline,
-                  label: "主页",
-                  routeName: "homePage",
-                ),
-                SelectionButtonData(
-                  activeIcon: EvaIcons.map,
-                  icon: EvaIcons.archiveOutline,
-                  label: "业务点",
-                  routeName: "businessPointPage",
-                ),
-                SelectionButtonData(
-                  activeIcon: EvaIcons.calendar,
-                  icon: EvaIcons.calendarOutline,
-                  label: "业务办理进度",
-                  routeName: "businessProgressPage",
-                ),
-                SelectionButtonData(
-                  activeIcon: EvaIcons.email,
-                  icon: EvaIcons.emailOutline,
-                  label: "消息",
-                  totalNotif: 20,
-                  routeName: "messagePage",
-                ),
-                SelectionButtonData(
-                  activeIcon: EvaIcons.person,
-                  icon: EvaIcons.personOutline,
-                  label: "个人信息",
-                  routeName: "personalPage",
-                ),
-                SelectionButtonData(
-                  activeIcon: EvaIcons.settings,
-                  icon: EvaIcons.settingsOutline,
-                  label: "设置",
-                  routeName: "settingsPage",
-                ),
-              ],
-              onSelected: (index, value) {
-                log("index : $index | label : ${value.label}");
-              },
-            ),
-            const Divider(thickness: 1),
-            Container(
-              padding: const EdgeInsets.all(kSpacing),
-              child: PostCard(
-                backgroundColor: Theme.of(context)
-                    .canvasColor
-                    .withAlpha((0.4 * 255).toInt()),
-                onPressed: () {},
+    // 使用 Obx 监听主题的变化
+    return Obx(() {
+      // 从控制器中获取当前主题数据
+      final ThemeData currentTheme = controller.currentBodyTheme.value;
+      // 判断当前是否为亮色模式
+      final bool isLight = currentTheme.brightness == Brightness.light;
+      // 亮色模式下使用白色背景，暗色模式下使用主题中的 cardColor
+      final Color backgroundColor =
+          isLight ? Colors.white : currentTheme.cardColor;
+      // 分割线颜色：亮色模式下使用浅灰色；暗色模式下使用透明度较低的白色
+      final Color dividerColor = isLight ? Colors.grey[500]! : Colors.white24;
+      // 定义默认文本和图标颜色：亮色模式下使用深色，暗色模式下使用浅色
+      final TextStyle defaultTextStyle =
+          TextStyle(color: isLight ? Colors.black: Colors.white);
+      final IconThemeData defaultIconTheme =
+          IconThemeData(color: isLight ? Colors.black: Colors.white);
+
+      return Container(
+        color: backgroundColor,
+        // 使用 DefaultTextStyle 和 IconTheme 包裹内部内容，以统一设置文本和图标颜色
+        child: DefaultTextStyle(
+          style: defaultTextStyle,
+          child: IconTheme(
+            data: defaultIconTheme,
+            child: SingleChildScrollView(
+              controller: ScrollController(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // 项目卡片区域
+                  Padding(
+                    padding: const EdgeInsets.all(kSpacing),
+                    child: ProjectCard(data: data),
+                  ),
+                  Divider(thickness: 1, color: dividerColor),
+                  // SelectionButton 区域
+                  SelectionButton(
+                    data: [
+                      SelectionButtonData(
+                        activeIcon: EvaIcons.grid,
+                        icon: EvaIcons.gridOutline,
+                        label: "主页",
+                        routeName: "homePage",
+                      ),
+                      SelectionButtonData(
+                        activeIcon: EvaIcons.map,
+                        icon: EvaIcons.archiveOutline,
+                        label: "业务点",
+                        routeName: "businessPointPage",
+                      ),
+                      SelectionButtonData(
+                        activeIcon: EvaIcons.calendar,
+                        icon: EvaIcons.calendarOutline,
+                        label: "业务办理进度",
+                        routeName: "businessProgressPage",
+                      ),
+                      SelectionButtonData(
+                        activeIcon: EvaIcons.email,
+                        icon: EvaIcons.emailOutline,
+                        label: "消息",
+                        totalNotif: 20,
+                        routeName: "messagePage",
+                      ),
+                      SelectionButtonData(
+                        activeIcon: EvaIcons.person,
+                        icon: EvaIcons.personOutline,
+                        label: "个人信息",
+                        routeName: "personalPage",
+                      ),
+                      SelectionButtonData(
+                        activeIcon: EvaIcons.settings,
+                        icon: EvaIcons.settingsOutline,
+                        label: "设置",
+                        routeName: "settingsPage",
+                      ),
+                    ],
+                    onSelected: (index, value) {
+                      log("index : $index | label : ${value.label}");
+                      // 你可以在此添加点击后的导航或其它逻辑
+                    },
+                  ),
+                  Divider(thickness: 1, color: dividerColor),
+                  // PostCard 区域
+                  Container(
+                    padding: const EdgeInsets.all(kSpacing),
+                    child: PostCard(
+                      backgroundColor: isLight
+                          ? Colors.grey[100]!.withAlpha((0.4 * 255).toInt())
+                          : currentTheme.canvasColor
+                              .withAlpha((0.4 * 255).toInt()),
+                      onPressed: () {},
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
+          ),
         ),
-      ),
-    );
+      );
+    });
   }
 }
