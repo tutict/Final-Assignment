@@ -46,8 +46,7 @@ part '../components/sidebar.dart';
 
 part '../components/team_member.dart';
 
-class DashboardScreen extends GetView<DashboardController>
-    with NavigationMixin {
+class DashboardScreen extends GetView<DashboardController> with NavigationMixin{
   const DashboardScreen({super.key});
 
   @override

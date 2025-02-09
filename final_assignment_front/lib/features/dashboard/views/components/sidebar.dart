@@ -92,8 +92,14 @@ class _Sidebar extends StatelessWidget {
                         ),
                       ],
                       onSelected: (index, value) {
-                        log("index: $index | label: ${value.label}");
-                        controller.navigateToPage(value.routeName);
+                        log("index : $index | label : ${value.label}");
+                        if (value.routeName == "homePage") {
+                          // 如果点击的是“主页”，则退出侧边栏内容，显示默认 Dashboard 内容
+                          controller.exitSidebarContent();
+                        } else {
+                          // 否则，导航到对应页面
+                          controller.navigateToPage(value.routeName);
+                        }
                       },
                     ),
                   ),

@@ -73,6 +73,10 @@ class _SelectionButtonState extends State<SelectionButton> {
   }
 }
 
+void navigateToPage(String routeName) {
+  Get.toNamed(routeName);
+}
+
 // 定义实际渲染的按钮组件
 class _Button extends StatelessWidget {
   const _Button({

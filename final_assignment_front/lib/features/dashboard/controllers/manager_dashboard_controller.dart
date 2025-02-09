@@ -44,6 +44,12 @@ class DashboardController extends GetxController with NavigationMixin {
     isShowingSidebarContent.value = true; // 点击侧边栏时，显示侧边栏内容
   }
 
+  /// 退出侧边栏内容，将 isShowingSidebarContent 设置为 false，并设置 selectedPage 为 null。
+  void exitSidebarContent() {
+    isShowingSidebarContent.value = false; // 退出侧边栏内容时，恢复原来组件
+    selectedPage.value = null;
+  }
+
   /// 根据案件类型返回相应的案件卡片。
   List<CaseCardData> getCaseByType(CaseType type) {
     return caseCardDataList.where((task) => task.type == type).toList();

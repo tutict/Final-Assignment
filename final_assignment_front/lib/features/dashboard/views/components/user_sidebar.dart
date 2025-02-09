@@ -93,12 +93,18 @@ class UserSidebar extends StatelessWidget {
                           activeIcon: EvaIcons.settings,
                           icon: EvaIcons.settingsOutline,
                           label: "设置",
-                          routeName: "settingsPage",
+                          routeName: Routes.setting,
                         ),
                       ],
                       onSelected: (index, value) {
                         log("index : $index | label : ${value.label}");
-                        controller.navigateToPage(value.routeName);
+                        if (value.routeName == "homePage") {
+                          // 如果点击的是“主页”，则退出侧边栏内容，显示默认 Dashboard 内容
+                          controller.exitSidebarContent();
+                        } else {
+                          // 否则，导航到对应页面
+                          controller.navigateToPage(value.routeName);
+                        }
                       },
                     ),
                   ),
