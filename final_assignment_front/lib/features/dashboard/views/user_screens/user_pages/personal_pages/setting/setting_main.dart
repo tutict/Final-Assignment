@@ -2,7 +2,7 @@ import 'dart:developer';
 import 'dart:io';
 import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/config/themes/app_theme.dart';
-import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_dashboard_screen.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
@@ -18,29 +18,18 @@ class SettingPage extends StatefulWidget {
 
 class _SettingPageState extends State<SettingPage> {
   double _cacheSize = 0.0;
-  bool _isDarkMode = Config.dark;
+  final bool _isDarkMode = Config.dark;
+  final String _selectedTheme = 'Material Light';
 
-  // 获取 DashboardController 实例
-  final DashboardController controller = Get.find<DashboardController>();
-
-  /// 切换主题：更新本页面的 _isDarkMode、全局配置以及 DashboardController 中的当前主题
-  void _toggleTheme(bool value) {
-    setState(() {
-      _isDarkMode = value;
-      Config.dark = value;
-      Config.themeData =
-          value ? AppTheme.materialDarkTheme : AppTheme.materialLightTheme;
-      controller.currentBodyTheme.value = Config.themeData;
-    });
-  }
+  final UserDashboardController controller =
+      Get.find<UserDashboardController>();
 
   @override
   void initState() {
     super.initState();
-    _calculateCacheSize(); // 初始化计算缓存大小
+    _calculateCacheSize();
   }
 
-  // 计算缓存大小
   Future<void> _calculateCacheSize() async {
     try {
       Directory cacheDir = await getTemporaryDirectory();
@@ -53,7 +42,6 @@ class _SettingPageState extends State<SettingPage> {
     }
   }
 
-  // 获取目录中所有文件的总大小（单位：MB）
   Future<double> _getTotalSizeOfFilesInDir(final Directory directory) async {
     double totalSize = 0;
     try {
@@ -71,7 +59,6 @@ class _SettingPageState extends State<SettingPage> {
     return totalSize;
   }
 
-  // 清除缓存并重新计算缓存大小
   Future<void> _clearCache() async {
     await DefaultCacheManager().emptyCache();
     await _calculateCacheSize();
@@ -82,13 +69,11 @@ class _SettingPageState extends State<SettingPage> {
     return CupertinoPageScaffold(
       navigationBar: CupertinoNavigationBar(
         middle: const Text('设置'),
-        // 使用 CupertinoButton 作为返回按钮，确保点击事件能正常触发
         leading: CupertinoButton(
           padding: EdgeInsets.zero,
           onPressed: () {
             log("Back button pressed");
             controller.exitSidebarContent();
-            // 重定向到首页，这里使用 Get.offNamed 重置导航栈
             Get.offNamed(Routes.userDashboard);
           },
           child: const Icon(CupertinoIcons.back),
@@ -102,15 +87,88 @@ class _SettingPageState extends State<SettingPage> {
             padding: const EdgeInsets.all(16.0),
             children: [
               CupertinoListTile(
-                title: const Text('切换白天/夜间模式'),
-                trailing: CupertinoSwitch(
-                  value: _isDarkMode,
-                  onChanged: _toggleTheme,
+                title: Text(
+                  '选择显示主题',
+                  style: TextStyle(
+                    color: _isDarkMode ? Colors.white : Colors.black,
+                  ),
                 ),
                 leading: const Icon(
-                  CupertinoIcons.moon,
+                  CupertinoIcons.app_badge,
                   color: CupertinoColors.activeBlue,
                 ),
+                trailing: Text(
+                  _selectedTheme,
+                  style: TextStyle(
+                    color: _isDarkMode ? Colors.white : Colors.black,
+                  ),
+                ),
+                onTap: () {
+                  showCupertinoDialog(
+                    context: context,
+                    builder: (context) {
+                      return CupertinoAlertDialog(
+                        title: const Text('选择显示主题'),
+                        content: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            CupertinoDialogAction(
+                              child: const Text('Material Light'),
+                              onPressed: () {
+                                controller.setSelectedStyle(
+                                    'Material'); // Set style to Material
+                                controller
+                                    .toggleBodyTheme(); // Toggle the theme based on current light/dark mode
+                                Navigator.pop(context);
+                              },
+                            ),
+                            CupertinoDialogAction(
+                              child: const Text('Material Dark'),
+                              onPressed: () {
+                                controller.setSelectedStyle('Material');
+                                controller.toggleBodyTheme();
+                                Navigator.pop(context);
+                              },
+                            ),
+                            CupertinoDialogAction(
+                              child: const Text('Ionic Light'),
+                              onPressed: () {
+                                controller.setSelectedStyle(
+                                    'Ionic'); // Set style to Ionic
+                                controller.toggleBodyTheme();
+                                Navigator.pop(context);
+                              },
+                            ),
+                            CupertinoDialogAction(
+                              child: const Text('Ionic Dark'),
+                              onPressed: () {
+                                controller.setSelectedStyle('Ionic');
+                                controller.toggleBodyTheme();
+                                Navigator.pop(context);
+                              },
+                            ),
+                            CupertinoDialogAction(
+                              child: const Text('Basic Light'),
+                              onPressed: () {
+                                controller.setSelectedStyle('Basic');
+                                controller.toggleBodyTheme();
+                                Navigator.pop(context);
+                              },
+                            ),
+                            CupertinoDialogAction(
+                              child: const Text('Basic Dark'),
+                              onPressed: () {
+                                controller.setSelectedStyle('Basic');
+                                controller.toggleBodyTheme();
+                                Navigator.pop(context);
+                              },
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                },
               ),
               CupertinoListTile(
                 title: const Text('清除缓存'),
@@ -187,7 +245,6 @@ class _SettingPageState extends State<SettingPage> {
   }
 }
 
-// CupertinoListTile widget to mimic ListTile for macOS-style design
 class CupertinoListTile extends StatelessWidget {
   final Widget title;
   final Widget? subtitle;
@@ -210,8 +267,9 @@ class CupertinoListTile extends StatelessWidget {
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-        decoration: const BoxDecoration(
-          border: Border(
+        decoration: BoxDecoration(
+          color: CupertinoColors.secondarySystemFill.withOpacity(0.3),
+          border: const Border(
             bottom: BorderSide(
               color: CupertinoColors.separator,
               width: 0.5,
@@ -244,7 +302,6 @@ class CupertinoListTile extends StatelessWidget {
   }
 }
 
-// 配置暗色模式设置
 class Config {
   static bool dark = true;
   static ThemeData themeData = AppTheme.materialDarkTheme;

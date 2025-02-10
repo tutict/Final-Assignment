@@ -371,7 +371,7 @@ class UserDashboard extends GetView<UserDashboardController>
             IconButton(
               onPressed: () => controller.toggleBodyTheme(),
               icon: const Icon(Icons.brightness_6),
-              tooltip: "切换主题",
+              tooltip: "切换明暗主题",
             ),
           ],
         ),
