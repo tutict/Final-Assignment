@@ -1,3 +1,6 @@
+import 'package:final_assignment_front/features/dashboard/controllers/chat_controller.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_dashboard_screen.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -10,6 +13,10 @@ void main() async {
 
   // 初始化指定语言环境的日期格式
   await initializeDateFormatting('zh_CN', null);
+
+  Get.put(DashboardController());
+  Get.put(UserDashboardController());
+  Get.put(ChatController());
 
   runApp(const MainApp());
 }
