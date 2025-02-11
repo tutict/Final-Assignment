@@ -14,7 +14,7 @@ class UserDashboardController extends GetxController with NavigationMixin {
   // Track the current theme (light or dark)
   var currentTheme = 'Light'.obs;
 
-  final Rx<ThemeData> currentBodyTheme = AppTheme.materialLightTheme.obs;
+  final Rx<ThemeData> currentBodyTheme = AppTheme.basicLight.obs;
 
   /// 当前选中的案件类型，默认为 caseManagement。
   final selectedCaseType = CaseType.caseManagement.obs;

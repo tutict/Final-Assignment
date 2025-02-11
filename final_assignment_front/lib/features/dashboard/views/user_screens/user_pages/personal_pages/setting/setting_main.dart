@@ -1,13 +1,12 @@
-import 'dart:developer';
 import 'dart:io';
 import 'package:final_assignment_front/config/routes/app_pages.dart';
-import 'package:final_assignment_front/config/themes/app_theme.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:get/get.dart';
 import 'package:path_provider/path_provider.dart';
+import 'dart:ui';
 
 class SettingPage extends StatefulWidget {
   const SettingPage({super.key});
@@ -18,8 +17,7 @@ class SettingPage extends StatefulWidget {
 
 class _SettingPageState extends State<SettingPage> {
   double _cacheSize = 0.0;
-  final bool _isDarkMode = Config.dark;
-  final String _selectedTheme = 'Material Light';
+  final String _selectedTheme = 'Material Light'; // 记录当前选中的主题样式
 
   final UserDashboardController controller =
       Get.find<UserDashboardController>();
@@ -49,7 +47,7 @@ class _SettingPageState extends State<SettingPage> {
         List<FileSystemEntity> files = directory.listSync(recursive: true);
         for (FileSystemEntity file in files) {
           if (file is File) {
-            totalSize += await file.length() / (1024 * 1024);
+            totalSize += await file.length() / (1024 * 1024); // Size in MB
           }
         }
       }
@@ -66,178 +64,194 @@ class _SettingPageState extends State<SettingPage> {
 
   @override
   Widget build(BuildContext context) {
+    // 判断当前主题模式
+    final bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return CupertinoPageScaffold(
+      backgroundColor: isDarkMode ? Colors.black : CupertinoColors.white,
       navigationBar: CupertinoNavigationBar(
         middle: const Text('设置'),
         leading: CupertinoButton(
           padding: EdgeInsets.zero,
           onPressed: () {
-            log("Back button pressed");
             controller.exitSidebarContent();
             Get.offNamed(Routes.userDashboard);
           },
           child: const Icon(CupertinoIcons.back),
         ),
-        backgroundColor: CupertinoColors.systemBlue,
-        brightness: Brightness.dark,
       ),
+      // 使用 BackdropFilter 添加毛玻璃效果
       child: SafeArea(
         child: CupertinoScrollbar(
-          child: ListView(
-            padding: const EdgeInsets.all(16.0),
-            children: [
-              CupertinoListTile(
-                title: Text(
-                  '选择显示主题',
-                  style: TextStyle(
-                    color: _isDarkMode ? Colors.white : Colors.black,
+          child: SingleChildScrollView(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10), // 毛玻璃效果
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: isDarkMode
+                        ? Colors.black.withOpacity(0.7)
+                        : CupertinoColors.white.withOpacity(0.8),
+                    borderRadius: BorderRadius.circular(16),
                   ),
-                ),
-                leading: const Icon(
-                  CupertinoIcons.app_badge,
-                  color: CupertinoColors.activeBlue,
-                ),
-                trailing: Text(
-                  _selectedTheme,
-                  style: TextStyle(
-                    color: _isDarkMode ? Colors.white : Colors.black,
-                  ),
-                ),
-                onTap: () {
-                  showCupertinoDialog(
-                    context: context,
-                    builder: (context) {
-                      return CupertinoAlertDialog(
-                        title: const Text('选择显示主题'),
-                        content: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            CupertinoDialogAction(
-                              child: const Text('Material Light'),
-                              onPressed: () {
-                                controller.setSelectedStyle(
-                                    'Material'); // Set style to Material
-                                controller
-                                    .toggleBodyTheme(); // Toggle the theme based on current light/dark mode
-                                Navigator.pop(context);
-                              },
-                            ),
-                            CupertinoDialogAction(
-                              child: const Text('Material Dark'),
-                              onPressed: () {
-                                controller.setSelectedStyle('Material');
-                                controller.toggleBodyTheme();
-                                Navigator.pop(context);
-                              },
-                            ),
-                            CupertinoDialogAction(
-                              child: const Text('Ionic Light'),
-                              onPressed: () {
-                                controller.setSelectedStyle(
-                                    'Ionic'); // Set style to Ionic
-                                controller.toggleBodyTheme();
-                                Navigator.pop(context);
-                              },
-                            ),
-                            CupertinoDialogAction(
-                              child: const Text('Ionic Dark'),
-                              onPressed: () {
-                                controller.setSelectedStyle('Ionic');
-                                controller.toggleBodyTheme();
-                                Navigator.pop(context);
-                              },
-                            ),
-                            CupertinoDialogAction(
-                              child: const Text('Basic Light'),
-                              onPressed: () {
-                                controller.setSelectedStyle('Basic');
-                                controller.toggleBodyTheme();
-                                Navigator.pop(context);
-                              },
-                            ),
-                            CupertinoDialogAction(
-                              child: const Text('Basic Dark'),
-                              onPressed: () {
-                                controller.setSelectedStyle('Basic');
-                                controller.toggleBodyTheme();
-                                Navigator.pop(context);
-                              },
-                            ),
-                          ],
+                  child: Column(
+                    children: [
+                      // 选择显示主题
+                      CupertinoListTile(
+                        title: Text(
+                          '选择显示主题',
+                          style: TextStyle(
+                            color: isDarkMode ? Colors.white : Colors.black,
+                          ),
                         ),
-                      );
-                    },
-                  );
-                },
-              ),
-              CupertinoListTile(
-                title: const Text('清除缓存'),
-                subtitle: Text(
-                  '${_cacheSize.toStringAsFixed(2)} MB',
-                  style: const TextStyle(color: CupertinoColors.systemGrey),
-                ),
-                leading: const Icon(
-                  CupertinoIcons.trash,
-                  color: CupertinoColors.systemRed,
-                ),
-                onTap: () {
-                  showCupertinoDialog(
-                    context: context,
-                    builder: (context) {
-                      return CupertinoAlertDialog(
+                        leading: const Icon(
+                          CupertinoIcons.app_badge,
+                          color: CupertinoColors.activeBlue,
+                        ),
+                        trailing: Text(
+                          _selectedTheme,
+                          style: TextStyle(
+                            color: isDarkMode ? Colors.white : Colors.black,
+                          ),
+                        ),
+                        onTap: () {
+                          showCupertinoDialog(
+                            context: context,
+                            builder: (context) {
+                              return CupertinoAlertDialog(
+                                title: const Text('选择显示主题'),
+                                content: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    CupertinoDialogAction(
+                                      child: const Text('Material Light'),
+                                      onPressed: () {
+                                        controller.setSelectedStyle('Material');
+                                        controller.toggleBodyTheme();
+                                        Navigator.pop(context);
+                                      },
+                                    ),
+                                    CupertinoDialogAction(
+                                      child: const Text('Material Dark'),
+                                      onPressed: () {
+                                        controller.setSelectedStyle('Material');
+                                        controller.toggleBodyTheme();
+                                        Navigator.pop(context);
+                                      },
+                                    ),
+                                    CupertinoDialogAction(
+                                      child: const Text('Ionic Light'),
+                                      onPressed: () {
+                                        controller.setSelectedStyle('Ionic');
+                                        controller.toggleBodyTheme();
+                                        Navigator.pop(context);
+                                      },
+                                    ),
+                                    CupertinoDialogAction(
+                                      child: const Text('Ionic Dark'),
+                                      onPressed: () {
+                                        controller.setSelectedStyle('Ionic');
+                                        controller.toggleBodyTheme();
+                                        Navigator.pop(context);
+                                      },
+                                    ),
+                                    CupertinoDialogAction(
+                                      child: const Text('Basic Light'),
+                                      onPressed: () {
+                                        controller.setSelectedStyle('Basic');
+                                        controller.toggleBodyTheme();
+                                        Navigator.pop(context);
+                                      },
+                                    ),
+                                    CupertinoDialogAction(
+                                      child: const Text('Basic Dark'),
+                                      onPressed: () {
+                                        controller.setSelectedStyle('Basic');
+                                        controller.toggleBodyTheme();
+                                        Navigator.pop(context);
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
+                      CupertinoListTile(
                         title: const Text('清除缓存'),
-                        content: const Text('确定要清除缓存吗？'),
-                        actions: [
-                          CupertinoDialogAction(
-                            child: const Text('取消'),
-                            onPressed: () {
-                              Navigator.pop(context);
+                        subtitle: Text(
+                          '${_cacheSize.toStringAsFixed(2)} MB',
+                          style: const TextStyle(
+                              color: CupertinoColors.systemGrey),
+                        ),
+                        leading: const Icon(
+                          CupertinoIcons.trash,
+                          color: CupertinoColors.systemRed,
+                        ),
+                        onTap: () {
+                          showCupertinoDialog(
+                            context: context,
+                            builder: (context) {
+                              return CupertinoAlertDialog(
+                                title: const Text('清除缓存'),
+                                content: const Text('确定要清除缓存吗？'),
+                                actions: [
+                                  CupertinoDialogAction(
+                                    child: const Text('取消'),
+                                    onPressed: () {
+                                      Navigator.pop(context);
+                                    },
+                                  ),
+                                  CupertinoDialogAction(
+                                    child: const Text('确定'),
+                                    onPressed: () {
+                                      _clearCache();
+                                      Navigator.pop(context);
+                                    },
+                                  ),
+                                ],
+                              );
                             },
-                          ),
-                          CupertinoDialogAction(
-                            child: const Text('确定'),
-                            onPressed: () {
-                              _clearCache();
-                              Navigator.pop(context);
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 20.0),
+                      CupertinoButton(
+                        color: CupertinoColors.systemRed,
+                        child: const Text('删除账户'),
+                        onPressed: () {
+                          showCupertinoDialog(
+                            context: context,
+                            builder: (context) {
+                              return CupertinoAlertDialog(
+                                title: const Text('删除账户'),
+                                content: const Text('确定要删除账户吗？'),
+                                actions: [
+                                  CupertinoDialogAction(
+                                    child: const Text('取消'),
+                                    onPressed: () {
+                                      Navigator.pop(context);
+                                    },
+                                  ),
+                                  CupertinoDialogAction(
+                                    child: const Text('确定'),
+                                    onPressed: () {
+                                      Navigator.pop(context);
+                                    },
+                                  ),
+                                ],
+                              );
                             },
-                          ),
-                        ],
-                      );
-                    },
-                  );
-                },
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              const SizedBox(height: 20.0),
-              CupertinoButton(
-                color: CupertinoColors.systemRed,
-                child: const Text('删除账户'),
-                onPressed: () {
-                  showCupertinoDialog(
-                    context: context,
-                    builder: (context) {
-                      return CupertinoAlertDialog(
-                        title: const Text('删除账户'),
-                        content: const Text('确定要删除账户吗？'),
-                        actions: [
-                          CupertinoDialogAction(
-                            child: const Text('取消'),
-                            onPressed: () {
-                              Navigator.pop(context);
-                            },
-                          ),
-                          CupertinoDialogAction(
-                            child: const Text('确定'),
-                            onPressed: () {
-                              Navigator.pop(context);
-                            },
-                          ),
-                        ],
-                      );
-                    },
-                  );
-                },
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -245,6 +259,7 @@ class _SettingPageState extends State<SettingPage> {
   }
 }
 
+// CupertinoListTile widget to mimic ListTile for macOS-style design
 class CupertinoListTile extends StatelessWidget {
   final Widget title;
   final Widget? subtitle;
@@ -263,12 +278,15 @@ class CupertinoListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
         decoration: BoxDecoration(
-          color: CupertinoColors.secondarySystemFill.withOpacity(0.3),
+          color: isDarkMode
+              ? Colors.grey[850]!.withOpacity(0.6)
+              : CupertinoColors.secondarySystemFill.withOpacity(0.3),
           border: const Border(
             bottom: BorderSide(
               color: CupertinoColors.separator,
@@ -300,9 +318,4 @@ class CupertinoListTile extends StatelessWidget {
       ),
     );
   }
-}
-
-class Config {
-  static bool dark = true;
-  static ThemeData themeData = AppTheme.materialDarkTheme;
 }
