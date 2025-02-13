@@ -94,6 +94,9 @@ class Routes {
 
   // 切换主题
   static const changeThemes = _Paths.changeThemes;
+
+  //
+  static const businessProgress = _Paths.businessProgress;
 }
 
 /// 包含路由名称列表。
@@ -156,41 +159,44 @@ class _Paths {
   // 申诉管理路由
   static const appealManagement = '/appealManagement';
 
- // 备份与恢复路由
- static const backupAndRestore = '/backupAndRestore';
+  // 备份与恢复路由
+  static const backupAndRestore = '/backupAndRestore';
 
- // 驾驶证列表路由
- static const driverList = '/driverList';
+  // 驾驶证列表路由
+  static const driverList = '/driverList';
 
- // 罚款列表路由
- static const fineList = '/fineList';
+  // 罚款列表路由
+  static const fineList = '/fineList';
 
- // 管理员个人主页路由
- static const managerPersonalPage = '/managerPersonalPage';
+  // 管理员个人主页路由
+  static const managerPersonalPage = '/managerPersonalPage';
 
- // 管理员设置路由
- static const managerSetting = '/managerSetting';
+  // 管理员设置路由
+  static const managerSetting = '/managerSetting';
 
- // 违章列表路由
- static const offenseList = '/offenseList';
+  // 违章列表路由
+  static const offenseList = '/offenseList';
 
- // 车辆列表路由
- static const vehicleList = '/vehicleList';
+  // 车辆列表路由
+  static const vehicleList = '/vehicleList';
 
- // 罚款信息路由
- static const fineInformation = '/fineInformation';
+  // 罚款信息路由
+  static const fineInformation = '/fineInformation';
 
- // 在线处理路由
- static const onlineProcessing = '/onlineProcessing';
+  // 在线处理路由
+  static const onlineProcessing = '/onlineProcessing';
 
- // 用户申诉路由
- static const userAppeal = '/userAppeal';
+  // 用户申诉路由
+  static const userAppeal = '/userAppeal';
 
- // 车辆详情路由
- static const vehicleManagement = '/vehicleManagement';
+  // 车辆详情路由
+  static const vehicleManagement = '/vehicleManagement';
 
- // 切换主题
- static const changeThemes = '/changeThemes';
+  // 切换主题
+  static const changeThemes = '/changeThemes';
+
+  // 用户业务办理页面
+  static const businessProgress = '/businessProgress';
 // 示例：
 // static const index = '/';
 // static const splash = '/splash';

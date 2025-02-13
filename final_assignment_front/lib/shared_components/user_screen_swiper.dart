@@ -1,3 +1,4 @@
+import 'package:final_assignment_front/constants/app_constants.dart';
 import 'package:flutter/material.dart';
 import 'package:card_swiper/card_swiper.dart';
 
@@ -19,9 +20,9 @@ class UserScreenSwiper extends StatelessWidget {
   Widget build(BuildContext context) {
     // 图片URL列表，用于轮播图展示
     final List<String> imageUrls = [
-      "https://via.placeholder.com/350x150/FF0000/FFFFFF?text=Image+1",
-      "https://via.placeholder.com/350x150/00FF00/FFFFFF?text=Image+2",
-      "https://via.placeholder.com/350x150/0000FF/FFFFFF?text=Image+3",
+      ImageRasterPath.liangnv1,
+      ImageRasterPath.liangnv2,
+      ImageRasterPath.liangnv3,
     ];
 
     // 返回一个 Swiper，用于展示轮播图

@@ -21,6 +21,7 @@ class ImageAnimationPath {
 class ImageRasterPath {
   // 图像文件夹路径常量
   static const _folderPath = "assets/images/raster";
+
   // 一系列头像图像路径常量
   static const avatar1 = "$_folderPath/avatar-1.png";
   static const avatar2 = "$_folderPath/avatar-2.png";
@@ -30,17 +31,24 @@ class ImageRasterPath {
   static const avatar6 = "$_folderPath/avatar-6.png";
   static const avatar7 = "$_folderPath/avatar-7.png";
   static const avatar8 = "$_folderPath/avatar-8.png";
+
   // 一系列标志图像路径常量
   static const logo1 = "$_folderPath/logo-1.png";
   static const logo2 = "$_folderPath/logo-2.png";
   static const logo3 = "$_folderPath/logo-3.png";
   static const logo4 = "$_folderPath/logo-4.png";
+
+  // 轮播图图像路径常量
+  static const liangnv1 = "$_folderPath/liangnv-1.png";
+  static const liangnv2 = "$_folderPath/liangnv-2.png";
+  static const liangnv3 = "$_folderPath/liangnv-3.png";
 }
 
 // 定义矢量图像路径常量的类
 class ImageVectorPath {
   // 矢量图像文件夹路径常量
   static const _folderPath = "assets/images/vector";
+
   // 一系列矢量图像路径常量
   static const happy = "$_folderPath/happy.svg";
   static const happy2 = "$_folderPath/happy-2.svg";

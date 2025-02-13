@@ -68,7 +68,7 @@ class UserSidebar extends StatelessWidget {
                           activeIcon: EvaIcons.map,
                           icon: EvaIcons.archiveOutline,
                           label: "业务点",
-                          routeName: "businessPointPage",
+                          routeName: Routes.map,
                         ),
                         SelectionButtonData(
                           activeIcon: EvaIcons.calendar,
@@ -80,7 +80,7 @@ class UserSidebar extends StatelessWidget {
                           activeIcon: EvaIcons.email,
                           icon: EvaIcons.emailOutline,
                           label: "消息",
-                          routeName: "messagePage",
+                          routeName: Routes.onlineProcessingProgress,
                         ),
                         SelectionButtonData(
                           activeIcon: EvaIcons.person,

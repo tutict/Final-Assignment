@@ -26,6 +26,7 @@ import 'package:final_assignment_front/features/dashboard/views/user_screens/use
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/personal_info/personal_info.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/personal_main.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/setting/setting_main.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/process_pages/business_progress.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/process_pages/fine_information.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/process_pages/online_processing_progress.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/process_pages/vehicle_management.dart';
@@ -130,6 +131,8 @@ class AppPages {
   // 主题切换
   static const changeThemes = Routes.changeThemes;
 
+  static const businessProgress = Routes.businessProgress;
+
   // 配置应用中的所有页面路由
   static final routes = [
     GetPage(
@@ -226,5 +229,8 @@ class AppPages {
     GetPage(
         name: _Paths.vehicleManagement, page: () => const VehicleManagement()),
     GetPage(name: _Paths.changeThemes, page: () => const ChangeThemes()),
+    GetPage(
+        name: _Paths.businessProgress,
+        page: () => const BusinessProgressPage()),
   ];
 }
