@@ -30,7 +30,7 @@ import 'package:final_assignment_front/features/dashboard/views/user_screens/use
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/process_pages/fine_information.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/process_pages/online_processing_progress.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/process_pages/vehicle_management.dart';
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/scaner/main_scan.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/scanner/main_scan.dart';
 import 'package:final_assignment_front/features/login_screen/login.dart';
 
 // 导入Get库，用于页面路由管理
@@ -80,8 +80,8 @@ class AppPages {
   // 个人信息页面路由
   static const personalInfo = Routes.personalInfo;
 
-  // 设置页面路由
-  static const setting = Routes.setting;
+  // 用户设置页面路由
+  static const userSetting = Routes.userSetting;
 
   // 咨询反馈页面路由
   static const consultation = Routes.consultation;
@@ -190,7 +190,7 @@ class AppPages {
       page: () => const PersonalInformationPage(),
     ),
     GetPage(
-      name: _Paths.setting,
+      name: _Paths.userSetting,
       page: () => const SettingPage(),
     ),
     GetPage(

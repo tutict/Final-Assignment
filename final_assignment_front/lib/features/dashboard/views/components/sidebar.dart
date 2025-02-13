@@ -19,12 +19,15 @@ class _Sidebar extends StatelessWidget {
       // 判断当前是否为亮色模式
       final bool isLight = currentTheme.brightness == Brightness.light;
       // 亮色模式下背景为白色，暗色模式下使用主题中的 cardColor
-      final Color backgroundColor = isLight ? Colors.white : currentTheme.cardColor;
+      final Color backgroundColor =
+          isLight ? Colors.white : currentTheme.cardColor;
       // 分割线颜色：亮色模式下使用浅灰色；暗色模式下使用透明度较低的白色
       final Color dividerColor = isLight ? Colors.grey[500]! : Colors.white24;
       // 定义默认文本和图标颜色：亮色模式下使用深色，暗色模式下使用白色
-      final TextStyle defaultTextStyle = TextStyle(color: isLight ? Colors.black87 : Colors.white);
-      final IconThemeData defaultIconTheme = IconThemeData(color: isLight ? Colors.black87 : Colors.white);
+      final TextStyle defaultTextStyle =
+          TextStyle(color: isLight ? Colors.black87 : Colors.white);
+      final IconThemeData defaultIconTheme =
+          IconThemeData(color: isLight ? Colors.black87 : Colors.white);
 
       return Container(
         color: backgroundColor,
@@ -63,7 +66,7 @@ class _Sidebar extends StatelessWidget {
                           activeIcon: EvaIcons.map,
                           icon: EvaIcons.archiveOutline,
                           label: "业务点",
-                          routeName: "businessPointPage",
+                          routeName: Routes.map,
                         ),
                         SelectionButtonData(
                           activeIcon: EvaIcons.calendar,
@@ -82,13 +85,13 @@ class _Sidebar extends StatelessWidget {
                           activeIcon: EvaIcons.person,
                           icon: EvaIcons.personOutline,
                           label: "个人信息",
-                          routeName: "personalPage",
+                          routeName: Routes.managerPersonalPage,
                         ),
                         SelectionButtonData(
                           activeIcon: EvaIcons.settings,
                           icon: EvaIcons.settingsOutline,
                           label: "设置",
-                          routeName: "settingsPage",
+                          routeName: Routes.managerSetting,
                         ),
                       ],
                       onSelected: (index, value) {
@@ -110,7 +113,8 @@ class _Sidebar extends StatelessWidget {
                     child: PostCard(
                       backgroundColor: isLight
                           ? Colors.grey[100]!.withAlpha((0.4 * 255).toInt())
-                          : currentTheme.canvasColor.withAlpha((0.4 * 255).toInt()),
+                          : currentTheme.canvasColor
+                              .withAlpha((0.4 * 255).toInt()),
                       onPressed: () {},
                     ),
                   ),

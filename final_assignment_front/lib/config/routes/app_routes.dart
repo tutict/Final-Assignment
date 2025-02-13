@@ -42,7 +42,7 @@ class Routes {
   static const personalInfo = _Paths.personalInfo;
 
   /// 设置页面路由
-  static const setting = _Paths.setting;
+  static const userSetting = _Paths.userSetting;
 
   /// 咨询页面路由
   static const consultation = _Paths.consultation;
@@ -141,8 +141,11 @@ class _Paths {
   /// 个人信息路由
   static const personalInfo = '/personalInfo';
 
-  /// 设置路由
-  static const setting = '/setting';
+  /// 用户设置路由
+  static const userSetting = '/userSetting';
+
+  /// 管理员设置路由
+  static const managerSetting = '/managerSetting';
 
   /// 咨询路由
   static const consultation = '/consultation';
@@ -170,9 +173,6 @@ class _Paths {
 
   // 管理员个人主页路由
   static const managerPersonalPage = '/managerPersonalPage';
-
-  // 管理员设置路由
-  static const managerSetting = '/managerSetting';
 
   // 违章列表路由
   static const offenseList = '/offenseList';

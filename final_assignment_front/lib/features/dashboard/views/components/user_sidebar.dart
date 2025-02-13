@@ -92,7 +92,7 @@ class UserSidebar extends StatelessWidget {
                           activeIcon: EvaIcons.settings,
                           icon: EvaIcons.settingsOutline,
                           label: "设置",
-                          routeName: Routes.setting,
+                          routeName: Routes.userSetting,
                         ),
                       ],
                       onSelected: (index, value) {
