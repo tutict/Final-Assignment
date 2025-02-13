@@ -51,22 +51,6 @@ class PersonalMainPage extends StatelessWidget {
                   controller.navigateToPage(AppPages.consultation);
                 },
               ),
-              CupertinoListTile(
-                title: const Text('智能客服'),
-                leading: const Icon(CupertinoIcons.chat_bubble_2_fill,
-                    color: CupertinoColors.activeBlue),
-                onTap: () {
-                  controller.navigateToPage(AppPages.aiChat);
-                },
-              ),
-              CupertinoListTile(
-                title: const Text('设置'),
-                leading: const Icon(CupertinoIcons.settings,
-                    color: CupertinoColors.activeBlue),
-                onTap: () {
-                  controller.navigateToPage(AppPages.setting);
-                },
-              ),
             ],
           ).toList(),
         ),

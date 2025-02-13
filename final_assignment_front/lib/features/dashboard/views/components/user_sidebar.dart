@@ -80,14 +80,13 @@ class UserSidebar extends StatelessWidget {
                           activeIcon: EvaIcons.email,
                           icon: EvaIcons.emailOutline,
                           label: "消息",
-                          totalNotif: 20,
                           routeName: "messagePage",
                         ),
                         SelectionButtonData(
                           activeIcon: EvaIcons.person,
                           icon: EvaIcons.personOutline,
-                          label: "个人信息",
-                          routeName: "personalPage",
+                          label: "个人",
+                          routeName: Routes.personalMain,
                         ),
                         SelectionButtonData(
                           activeIcon: EvaIcons.settings,

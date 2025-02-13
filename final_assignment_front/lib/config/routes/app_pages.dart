@@ -4,6 +4,7 @@ library app_pages;
 // 导入各种页面相关的库和绑定
 import 'package:final_assignment_front/features/dashboard/views/components/ai_chat.dart';
 import 'package:final_assignment_front/features/dashboard/views/components/change_themes.dart';
+import 'package:final_assignment_front/features/dashboard/views/components/map.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_dashboard_screen.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/appeal_management.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/backup_and_restore.dart';
@@ -14,7 +15,6 @@ import 'package:final_assignment_front/features/dashboard/views/manager_screens/
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/vehicle_list.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 
-//import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/map/map.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/news/news_detail_screen.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/account_and_security/account_and_security_main.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/account_and_security/change_password.dart';
@@ -53,7 +53,7 @@ class AppPages {
   static const aiChat = Routes.aiChat;
 
   // 地图页面路由
-  //static const map = Routes.map;
+  static const map = Routes.map;
 
   // 在线办理进度页面路由
   static const onlineProcessingProgress = Routes.onlineProcessingProgress;
@@ -150,10 +150,10 @@ class AppPages {
       name: _Paths.aiChat,
       page: () => const AiChat(),
     ),
-    // GetPage(
-    //   name: _Paths.map,
-    //   page: () => const MapScreen(),
-    // ),
+    GetPage(
+      name: _Paths.map,
+      page: () => const MapPage(),
+    ),
     GetPage(
       name: _Paths.onlineProcessingProgress,
       page: () => const OnlineProcessingProgress(),

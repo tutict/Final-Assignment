@@ -68,7 +68,7 @@ class _Sidebar extends StatelessWidget {
                         SelectionButtonData(
                           activeIcon: EvaIcons.calendar,
                           icon: EvaIcons.calendarOutline,
-                          label: "业务办理进度",
+                          label: "业务处理",
                           routeName: "businessProgressPage",
                         ),
                         SelectionButtonData(
