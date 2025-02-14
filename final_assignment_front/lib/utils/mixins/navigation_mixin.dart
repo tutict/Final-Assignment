@@ -12,7 +12,7 @@ mixin NavigationMixin {
       //   return const MapScreen();
       case AppPages.personalMain:
         return const PersonalMainPage();
-      case AppPages.setting:
+      case AppPages.userSetting:
         return const SettingPage();
       case AppPages.aiChat:
         return const AiChat();
