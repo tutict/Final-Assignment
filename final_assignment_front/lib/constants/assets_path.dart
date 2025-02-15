@@ -39,9 +39,9 @@ class ImageRasterPath {
   static const logo4 = "$_folderPath/logo-4.png";
 
   // 轮播图图像路径常量
-  static const liangnv1 = "$_folderPath/liangnv-1.png";
-  static const liangnv2 = "$_folderPath/liangnv-2.png";
-  static const liangnv3 = "$_folderPath/liangnv-3.png";
+  static const liangnv1 = "$_folderPath/liangnv1.png";
+  static const liangnv2 = "$_folderPath/liangnv2.png";
+  static const liangnv3 = "$_folderPath/liangnv3.png";
 }
 
 // 定义矢量图像路径常量的类

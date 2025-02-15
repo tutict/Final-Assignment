@@ -108,7 +108,7 @@ class DashboardController extends GetxController with NavigationMixin {
   ProjectCardData getSelectedProject() {
     return ProjectCardData(
       percent: .3, // 项目完成进度
-      projectImage: const AssetImage(ImageRasterPath.logo1), // 项目图标
+      projectImage: const AssetImage(ImageRasterPath.logo4), // 项目图标
       projectName: "交通违法行为处理管理系统", // 项目名称
       releaseTime: DateTime.now(), // 项目发布时间
     );
