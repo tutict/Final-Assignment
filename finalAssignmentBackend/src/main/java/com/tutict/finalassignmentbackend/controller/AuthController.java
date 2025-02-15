@@ -1,60 +1,90 @@
 package com.tutict.finalassignmentbackend.controller;
 
-import com.tutict.finalassignmentbackend.config.login.JWT.TokenProvider;
-import lombok.Getter;
-import lombok.Setter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.tutict.finalassignmentbackend.entity.UserManagement;
+import jakarta.annotation.security.PermitAll;
+import jakarta.annotation.security.RolesAllowed;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.logging.Logger;
 
 @RestController
-@RequestMapping("/auth")
+@RequestMapping("/api/auth")
 public class AuthController {
 
-    private final AuthenticationManager authenticationManager;
-    private final TokenProvider tokenProvider;
+    private static final Logger logger = Logger.getLogger(AuthController.class.getName());
 
-    public static final Logger logger = LoggerFactory.getLogger(AuthController.class);
+    // Creating virtual thread pool
+    private static final ExecutorService virtualThreadExecutor = Executors.newVirtualThreadPerTaskExecutor();
 
-    @Autowired
-    public AuthController(AuthenticationManager authenticationManager, TokenProvider tokenProvider) {
-        this.authenticationManager = authenticationManager;
-        this.tokenProvider = tokenProvider;
+    private final AuthWsService authWsService;
+
+    public AuthController(AuthWsService authWsService) {
+        this.authWsService = authWsService;
     }
 
+    // Login method
     @PostMapping("/login")
-    public ResponseEntity<Map<String, String>> login(@RequestBody LoginRequest loginRequest) {
-        logger.info("Attempting to authenticate user: {}", loginRequest.getUsername());
-        try {
-            Authentication authentication = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword())
-            );
-
-            String token = tokenProvider.createToken(authentication);
-            logger.info("User authenticated successfully: {}", loginRequest.getUsername());
-            return ResponseEntity.ok(Map.of("token", token));
-        } catch (Exception e) {
-            logger.error("Authentication failed for user: {}", loginRequest.getUsername(), e);
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
+    @PermitAll
+    @Async
+    public CompletableFuture<ResponseEntity<Map<String, Object>>> login(@RequestBody LoginRequest loginRequest) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                Map<String, Object> result = authWsService.login(loginRequest);
+                if (result.containsKey("jwtToken")) {
+                    return ResponseEntity.ok(result);
+                } else {
+                    return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(result);
+                }
+            } catch (Exception e) {
+                logger.warning("Login failed: " + e.getMessage());
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", e.getMessage()));
+            }
+        }, virtualThreadExecutor);
     }
 
-    @Setter
-    @Getter
-    public static class LoginRequest {
-        private String username;
-        private String password;
+    // Register method
+    @PostMapping("/register")
+    @PermitAll
+    @Async
+    @Transactional
+    public CompletableFuture<ResponseEntity<Map<String, String>>> registerUser(@RequestBody RegisterRequest registerRequest) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                String res = authWsService.registerUser(registerRequest);
+                return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("status", res));
+            } catch (Exception e) {
+                logger.warning("Register failed: " + e.getMessage());
+                return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", e.getMessage()));
+            }
+        }, virtualThreadExecutor);
+    }
 
+    // Get all users (Admin only)
+    @GetMapping("/users")
+    @RolesAllowed("ADMIN")
+    @Async
+    public CompletableFuture<ResponseEntity<List<UserManagement>>> getAllUsers() {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                List<UserManagement> users = authWsService.getAllUsers();
+                return ResponseEntity.ok(users);
+            } catch (Exception e) {
+                logger.warning("GetAllUsers failed: " + e.getMessage());
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(List.of(Map.of("error", e.getMessage())));
+            }
+        }, virtualThreadExecutor);
     }
 }

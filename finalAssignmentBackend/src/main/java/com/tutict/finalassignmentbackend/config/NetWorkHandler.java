@@ -4,207 +4,301 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.config.login.JWT.TokenProvider;
-import com.tutict.finalassignmentbackend.config.route.EventBusAddress;
+import com.tutict.finalassignmentbackend.config.websocket.WsActionRegistry;
+import io.vertx.core.http.HttpServerOptions;
+import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.http.ServerWebSocket;
+import io.vertx.core.json.JsonObject;
+import io.vertx.ext.web.Router;
+import io.vertx.ext.web.handler.CorsHandler;
 import lombok.extern.slf4j.Slf4j;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Bean;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.reactive.socket.CloseStatus;
-import org.springframework.web.reactive.socket.WebSocketMessage;
-import org.springframework.web.reactive.socket.WebSocketSession;
-import org.springframework.web.reactive.socket.server.support.WebSocketHandlerAdapter;
-import org.springframework.web.server.ServerWebExchange;
-import org.springframework.web.reactive.function.client.WebClient;
-import reactor.core.publisher.Mono;
 
+import jakarta.annotation.PostConstruct;
+import org.springframework.web.reactive.function.client.WebClient;
+
+import java.lang.reflect.Method;
+import java.util.Set;
 import java.util.UUID;
 
 @Slf4j
 @Component
-public class NetWorkHandler implements org.springframework.web.reactive.socket.WebSocketHandler {
+public class NetWorkHandler {
 
-    // Configuration Properties
+    @Value("${network.server.port:8081}")
+    int port;
+
     @Value("${backend.url}")
-    private String backendUrl;
+    String backendUrl;
 
     @Value("${backend.port}")
-    private int backendPort;
+    int backendPort;
 
-    // Dependencies
     private final TokenProvider tokenProvider;
     private final ObjectMapper objectMapper;
-    private final ProducerTemplate producerTemplate;
-    private final WebClient webClient;
+    private final WsActionRegistry wsActionRegistry;
+    private WebClient webClient;
 
-    // Constructor Injection
-    public NetWorkHandler(TokenProvider tokenProvider,
-                          ObjectMapper objectMapper,
-                          ProducerTemplate producerTemplate,
-                          WebClient.Builder webClientBuilder) {
+    public NetWorkHandler(TokenProvider tokenProvider, ObjectMapper objectMapper, WsActionRegistry wsActionRegistry) {
         this.tokenProvider = tokenProvider;
         this.objectMapper = objectMapper;
-        this.producerTemplate = producerTemplate;
-        this.webClient = webClientBuilder.build();
+        this.wsActionRegistry = wsActionRegistry;
     }
 
-    /**
-     * Bean to handle WebSocket connections
-     */
-    @Bean
-    public WebSocketHandlerAdapter handlerAdapter() {
-        return new WebSocketHandlerAdapter();
+    @PostConstruct
+    public void init() {
+        this.webClient = WebClient.builder().baseUrl(backendUrl + ":" + backendPort).build();
     }
 
-    /**
-     * Handle WebSocket connections
-     */
-    @NotNull
-    @Override
-    public Mono<Void> handle(WebSocketSession session) {
-        String path = session.getHandshakeInfo().getUri().getPath();
-        if (!path.startsWith("/eventbus")) {
-            log.warn("Unsupported WebSocket path: {}", path);
-            return session.close(CloseStatus.NORMAL.withReason("Unsupported path"));
-        }
+    public void setupNetWorksServer() {
+        Router router = Router.router(vertx);
 
-        return session.receive()
-                .filter(msg -> msg.getType() == WebSocketMessage.Type.TEXT)
-                .map(WebSocketMessage::getPayloadAsText)
-                .flatMap(message -> processWebSocketMessage(message, session))
-                .doOnError(error -> log.error("WebSocket processing error", error))
-                .doFinally(signalType -> log.info("WebSocket connection closed: {}", signalType))
-                .then();
-    }
+        configureCors(router);
+        setupWebSocketHandler(router);
 
-    /**
-     * Process incoming WebSocket messages
-     */
-    private Mono<Void> processWebSocketMessage(String message, WebSocketSession session) {
-        UUID requestId = UUID.randomUUID();
-        try {
-            JsonNode jsonNode = objectMapper.readTree(message);
+        HttpServerOptions options = new HttpServerOptions().setMaxWebSocketFrameSize(1000000).setTcpKeepAlive(true);
 
-            String token = jsonNode.has("token") ? jsonNode.get("token").asText() : null;
-
-            if (token != null && tokenProvider.validateToken(token)) {
-                String action = jsonNode.has("action") ? jsonNode.get("action").asText() : null;
-                JsonNode data = jsonNode.has("data") ? jsonNode.get("data") : null;
-
-                log.info("[{}] Received action: {}, with data: {}", requestId, action, data);
-
-                producerTemplate.sendBodyAndHeader(
-                        EventBusAddress.CLIENT_TO_SERVER,
-                        data,
-                        "RequestPath",
-                        session.getHandshakeInfo().getUri().getPath()
+        vertx.createHttpServer(options)
+                .requestHandler(router)
+                .listen(port)
+                .subscribe().with(
+                        server -> log.info("Network server started on port {}", server.actualPort()),
+                        failure -> log.error("Network server failed to start: {}", failure.getMessage(), failure)
                 );
+    }
 
-                return session.send(Mono.just(session.textMessage("Action received")))
-                        .then();
+    private void configureCors(Router router) {
+        Set<String> allowedHeaders = Set.of(
+                "Authorization", "X-Requested-With", "Sec-WebSocket-Key",
+                "Sec-WebSocket-Version", "Sec-WebSocket-Protocol", "Content-Type", "Accept"
+        );
 
+        router.route().handler(CorsHandler.create()
+                .addOrigin("*")
+                .allowedHeaders(allowedHeaders)
+                .allowedMethod(io.vertx.core.http.HttpMethod.GET)
+                .allowedMethod(io.vertx.core.http.HttpMethod.POST)
+                .allowedMethod(io.vertx.core.http.HttpMethod.PUT)
+                .allowedMethod(io.vertx.core.http.HttpMethod.OPTIONS));
+    }
+
+    private void setupWebSocketHandler(Router router) {
+        router.route("/eventbus/*").handler(ctx -> {
+            HttpServerRequest request = ctx.request();
+            request.toWebSocket().subscribe().with(
+                    ws -> {
+                        log.info("WebSocket connection established, path={}", ws.path());
+                        handleWebSocketConnection(ws);
+                    },
+                    failure -> {
+                        log.error("WebSocket upgrade failed: {}", failure.getMessage(), failure);
+                        ctx.response().setStatusCode(400).setStatusMessage("WebSocket upgrade failed").closed();
+                    }
+            );
+        });
+    }
+
+    private void handleWebSocketConnection(ServerWebSocket ws) {
+        ws.frameHandler(frame -> {
+            if (frame.isText()) {
+                String message = frame.textData();
+                try {
+                    JsonNode root = objectMapper.readTree(message);
+                    String token = root.path("token").asText(null);
+
+                    if (token == null || !tokenProvider.validateToken(token)) {
+                        log.warn("Invalid token, closing WS");
+                        ws.close((short) 1000, "Invalid token").subscribe().with(
+                                success -> log.info("WebSocket closed due to invalid token: {}", success),
+                                failure -> log.error("Error closing WebSocket: {}", failure.getMessage(), failure)
+                        );
+                        return;
+                    }
+
+                    String service = root.path("service").asText(null);
+                    String action = root.path("action").asText(null);
+                    String idempotencyKey = root.path("idempotencyKey").asText(null);
+
+                    JsonNode argsArray = root.path("args");
+                    if (argsArray.isMissingNode() || !argsArray.isArray()) {
+                        log.warn("Invalid or missing 'args' array");
+                        ws.writeTextMessage("{\"error\":\"Missing or invalid 'args' array\"}")
+                                .subscribe().with(
+                                        success -> log.info("WebSocket write success: {}", success),
+                                        failure -> log.error("WebSocket write failure: {}", failure.getMessage(), failure)
+                                );
+                        return;
+                    }
+
+                    log.info("Received service={}, action={}, idempotencyKey={}, args={}",
+                            service, action, idempotencyKey, argsArray);
+
+                    WsActionRegistry.HandlerMethod handler = wsActionRegistry.getHandler(service, action);
+                    if (handler == null) {
+                        ws.writeTextMessage("{\"error\":\"No such WsAction for " + service + "#" + action + "\"}")
+                                .subscribe().with(
+                                        success -> log.info("WebSocket write success: {}", success),
+                                        failure -> log.error("WebSocket write failure: {}", failure.getMessage(), failure)
+                                );
+                        return;
+                    }
+
+                    Method method = handler.getMethod();
+                    Class<?>[] paramTypes = method.getParameterTypes();
+                    Object bean = handler.getBean();
+                    int paramCount = paramTypes.length;
+
+                    if (argsArray.size() != paramCount) {
+                        ws.writeTextMessage("{\"error\":\"Param mismatch, method expects "
+                                        + paramCount + " but got " + argsArray.size() + "\"}")
+                                .subscribe().with(
+                                        success -> log.info("WebSocket write success: {}", success),
+                                        failure -> log.error("WebSocket write failure: {}", failure.getMessage(), failure)
+                                );
+                        return;
+                    }
+
+                    Object[] invokeArgs = new Object[paramCount];
+                    for (int i = 0; i < paramCount; i++) {
+                        Class<?> pt = paramTypes[i];
+                        JsonNode argNode = argsArray.get(i);
+
+                        invokeArgs[i] = convertJsonToParam(argNode, pt);
+                    }
+
+                    Object result = method.invoke(bean, invokeArgs);
+
+                    if (method.getReturnType() != void.class && result != null) {
+                        String retJson = objectMapper.writeValueAsString(result);
+                        ws.writeTextMessage("{\"result\":" + retJson + "}")
+                                .subscribe().with(
+                                        success -> log.info("WebSocket write success: {}", success),
+                                        failure -> log.error("WebSocket write failure: {}", failure.getMessage(), failure)
+                                );
+                    } else {
+                        ws.writeTextMessage("{\"status\":\"OK\"}")
+                                .subscribe().with(
+                                        success -> log.info("WebSocket write success: {}", success),
+                                        failure -> log.error("WebSocket write failure: {}", failure.getMessage(), failure)
+                                );
+                    }
+
+                } catch (Exception e) {
+                    log.error("JSON parsing or reflection error", e);
+                    ws.close((short) 1000, "Invalid JSON or reflect error").subscribe().with(
+                            success -> log.info("WebSocket closed due to invalid JSON: {}", success),
+                            failure -> log.error("Error closing WebSocket: {}", failure.getMessage(), failure)
+                    );
+                }
             } else {
-                log.warn("[{}] Invalid token, closing WebSocket connection", requestId);
-                return session.close(CloseStatus.NORMAL.withReason("Invalid token"));
+                log.warn("Unsupported WebSocket frame type");
             }
-        } catch (JsonProcessingException e) {
-            log.error("[{}] Invalid JSON message, closing WebSocket connection", requestId, e);
-            return session.close(CloseStatus.NORMAL.withReason("Invalid JSON format"));
+        });
+
+        ws.closeHandler(() -> log.info("WebSocket connection closed, path={}", ws.path()));
+    }
+
+    private Object convertJsonToParam(JsonNode node, Class<?> targetType) throws JsonProcessingException {
+        if (targetType == String.class) {
+            return node.asText();
+        } else if (targetType == int.class || targetType == Integer.class) {
+            return node.asInt();
+        } else if (targetType == long.class || targetType == Long.class) {
+            return node.asLong();
+        } else if (targetType == boolean.class || targetType == Boolean.class) {
+            return node.asBoolean();
+        } else {
+            return objectMapper.treeToValue(node, targetType);
         }
     }
 
-    /**
-     * 内部私有的 HTTP 转发控制器
-     */
-    @RestController
-    @RequestMapping("/api")
-    private class HttpForwardingController {
+    private void forwardHttpRequest(HttpServerRequest request) {
+        String path = request.path();
+        String targetUrl = backendUrl + ":" + backendPort + path;
+        UUID requestId = UUID.randomUUID();
+        log.info("[{}] Forwarding request from path: {} to targetUrl: {}", requestId, path, targetUrl);
 
-        /**
-         * HTTP Request Forwarding Endpoint
-         * This method handles all /api/** requests and forwards them to the backend service.
-         */
-        @PostMapping("/**")
-        @GetMapping("/**")
-        @PutMapping("/**")
-        @RequestMapping(method = {RequestMethod.POST, RequestMethod.GET, RequestMethod.PUT})
-        public Mono<ResponseEntity<String>> forwardRequest(@RequestBody(required = false) String body,
-                                                           @RequestHeader HttpHeaders headers,
-                                                           ServerWebExchange exchange) {
-            String path = exchange.getRequest().getURI().getPath();
-            String targetPath = path.replaceFirst("/api", ""); // Remove /api prefix
-            String targetUrl = backendUrl + ":" + backendPort + targetPath;
+        if (request.headers().contains("X-Forwarded-By")) {
+            log.error("[{}] Detected circular forwarding, aborting request", requestId);
+            request.response()
+                    .setStatusCode(500)
+                    .setStatusMessage("Circular forwarding detected")
+                    .closed();
+            return;
+        }
 
-            UUID requestId = UUID.randomUUID();
-            log.info("[{}] Forwarding request from path: {} to targetUrl: {}", requestId, path, targetUrl);
+        request.headers().add("X-Forwarded-By", "NetWorkHandler");
 
-            // Prevent forwarding loops
-            if (headers.containsKey("X-Forwarded-By")) {
-                log.error("[{}] Detected forwarding loop, terminating request processing", requestId);
-                return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                        .body("循环转发"));
-            }
-
-            // Add custom header to identify forwarded requests
-            HttpHeaders newHeaders = new HttpHeaders();
-            newHeaders.add("X-Forwarded-By", "HttpForwardingController");
-
-            if (body == null || body.isEmpty()) {
-                log.error("[{}] Request body is empty, cannot send JSON data", requestId);
-                return Mono.just(ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body("请求体为空"));
+        request.bodyHandler(body -> {
+            log.info("[{}] body1: {}", requestId, body);
+            if (body == null || body.length() == 0) {
+                log.error("[{}] Request body is empty, unable to send JSON", requestId);
+                request.response()
+                        .setStatusCode(400)
+                        .setStatusMessage("Empty request body")
+                        .closed();
+                return;
             }
 
             try {
-                JsonNode jsonBody = objectMapper.readTree(body);
-                log.info("[{}] Parsed JSON body: {}", requestId, jsonBody);
+                JsonObject jsonBody = body.toJsonObject();
+                log.info("[{}] body2: {}", requestId, jsonBody);
 
-                return webClient.post()
-                        .uri(targetUrl)
-                        .headers(httpHeaders -> {
-                            httpHeaders.addAll(newHeaders);
-                            // Optionally, copy other headers as needed
-                        })
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .bodyValue(jsonBody)
-                        .exchangeToMono(response -> {
-                            HttpStatusCode status = response.statusCode();
-                            HttpHeaders responseHeaders = new HttpHeaders();
-                            response.headers().asHttpHeaders().forEach((key, values) -> {
-                                if (!key.equalsIgnoreCase("Transfer-Encoding")) {
-                                    responseHeaders.put(key, values);
+                webClient.postAbs(targetUrl)
+                        .putHeader("X-Forwarded-By", "NetWorkHandler")
+                        .sendJsonObject(jsonBody)
+                        .onSuccess(response -> {
+                            log.info("[{}] Response: {}", requestId, response);
+                            log.info("[{}] Forwarded HTTP request success: {}", requestId, response.statusMessage());
+                            request.response().setStatusCode(response.statusCode());
+
+                            String statusMessage = response.statusMessage();
+                            if (statusMessage != null) {
+                                request.response().setStatusMessage(statusMessage);
+                            } else {
+                                log.warn("[{}] Backend response statusMessage is null, using default message", requestId);
+                                try {
+                                    HttpResponseStatus defaultReason = HttpResponseStatus.valueOf(response.statusCode());
+                                    request.response().setStatusMessage(defaultReason.reasonPhrase());
+                                } catch (IllegalArgumentException e) {
+                                    log.error("[{}] Could not get default statusMessage: {}", requestId, e.getMessage());
+                                    request.response().setStatusMessage("Unknown Status");
+                                }
+                            }
+
+                            response.headers().forEach(entry -> {
+                                if (!entry.getKey().equalsIgnoreCase("Transfer-Encoding")) {
+                                    request.response().putHeader(entry.getKey(), entry.getValue());
                                 }
                             });
 
-                            return response.bodyToMono(String.class)
-                                    .map(bodyContent -> ResponseEntity.status(status)
-                                            .headers(responseHeaders)
-                                            .body(bodyContent));
-                        })
-                        .onErrorResume(error -> {
-                            log.error("[{}] Forwarding HTTP request failed", requestId, error);
-                            return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                                    .body("转发失败"));
-                        });
+                            String responseBody = response.bodyAsString();
+                            log.info("[{}] Backend response body: {}", requestId, responseBody);
+                            request.response().putHeader("Content-Type", "application/json");
+                            request.response().sendAndAwait(responseBody);
 
-            } catch (JsonProcessingException e) {
-                log.error("[{}] Failed to parse request body", requestId, e);
-                return Mono.just(ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body("请求体解析失败"));
+                        })
+                        .onFailure(failure -> {
+                            log.error("[{}] Forwarding HTTP request failed", requestId, failure);
+                            request.response()
+                                    .setStatusCode(500)
+                                    .setStatusMessage("Forwarding failed")
+                                    .closed();
+                        });
+            } catch (Exception e) {
+                log.error("[{}] Request body parsing failed", requestId, e);
+                request.response()
+                        .setStatusCode(400)
+                        .setStatusMessage("Request body parsing failed")
+                        .closed();
             }
-        }
+        }).exceptionHandler(e -> {
+            log.error("[{}] Exception occurred while processing request body", requestId, e);
+            request.response()
+                    .setStatusCode(500)
+                    .setStatusMessage("Internal Server Error")
+                    .closed();
+        });
     }
 }

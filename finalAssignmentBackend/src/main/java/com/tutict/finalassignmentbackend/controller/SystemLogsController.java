@@ -2,10 +2,10 @@ package com.tutict.finalassignmentbackend.controller;
 
 import com.tutict.finalassignmentbackend.entity.SystemLogs;
 import com.tutict.finalassignmentbackend.service.SystemLogsService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -18,86 +18,112 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
-// 控制器类，处理与系统日志相关的HTTP请求
 @RestController
-@RequestMapping("/eventbus/systemLogs")
+@RequestMapping("/api/systemLogs")
 public class SystemLogsController {
 
-    // 系统日志服务的接口实例，用于处理日志的业务逻辑
+    private static final ExecutorService virtualThreadExecutor = Executors.newVirtualThreadPerTaskExecutor();
+
     private final SystemLogsService systemLogsService;
 
-    // 构造函数，通过依赖注入初始化系统日志服务实例
-    @Autowired
     public SystemLogsController(SystemLogsService systemLogsService) {
         this.systemLogsService = systemLogsService;
     }
 
-    // 创建系统日志的接口，接收POST请求
+    // 创建新的系统日志记录
     @PostMapping
-    public ResponseEntity<Void> createSystemLog(@RequestBody SystemLogs systemLog) {
-        systemLogsService.createSystemLog(systemLog);
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+    @Async
+    public CompletableFuture<ResponseEntity<Void>> createSystemLog(@RequestBody SystemLogs systemLog, @RequestParam String idempotencyKey) {
+        return CompletableFuture.supplyAsync(() -> {
+            systemLogsService.checkAndInsertIdempotency(idempotencyKey, systemLog, "create");
+            return ResponseEntity.status(HttpStatus.CREATED).build();
+        }, virtualThreadExecutor);
     }
 
-    // 根据日志ID获取系统日志的接口，接收GET请求
+    // 根据日志ID获取系统日志信息
     @GetMapping("/{logId}")
-    public ResponseEntity<SystemLogs> getSystemLogById(@PathVariable int logId) {
-        SystemLogs systemLog = systemLogsService.getSystemLogById(logId);
-        if (systemLog != null) {
-            return ResponseEntity.ok(systemLog);
-        } else {
-            return ResponseEntity.notFound().build();
-        }
+    @Async
+    public CompletableFuture<ResponseEntity<SystemLogs>> getSystemLogById(@PathVariable int logId) {
+        return CompletableFuture.supplyAsync(() -> {
+            SystemLogs systemLog = systemLogsService.getSystemLogById(logId);
+            if (systemLog != null) {
+                return ResponseEntity.ok(systemLog);
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            }
+        }, virtualThreadExecutor);
     }
 
-    // 获取所有系统日志的接口，接收GET请求
+    // 获取所有系统日志
     @GetMapping
-    public ResponseEntity<List<SystemLogs>> getAllSystemLogs() {
-        List<SystemLogs> systemLogs = systemLogsService.getAllSystemLogs();
-        return ResponseEntity.ok(systemLogs);
+    @Async
+    public CompletableFuture<ResponseEntity<List<SystemLogs>>> getAllSystemLogs() {
+        return CompletableFuture.supplyAsync(() -> {
+            List<SystemLogs> systemLogs = systemLogsService.getAllSystemLogs();
+            return ResponseEntity.ok(systemLogs);
+        }, virtualThreadExecutor);
     }
 
-    // 根据日志类型获取系统日志的接口，接收GET请求
+    // 根据日志类型获取系统日志
     @GetMapping("/type/{logType}")
-    public ResponseEntity<List<SystemLogs>> getSystemLogsByType(@PathVariable String logType) {
-        List<SystemLogs> systemLogs = systemLogsService.getSystemLogsByType(logType);
-        return ResponseEntity.ok(systemLogs);
+    @Async
+    public CompletableFuture<ResponseEntity<List<SystemLogs>>> getSystemLogsByType(@PathVariable String logType) {
+        return CompletableFuture.supplyAsync(() -> {
+            List<SystemLogs> systemLogs = systemLogsService.getSystemLogsByType(logType);
+            return ResponseEntity.ok(systemLogs);
+        }, virtualThreadExecutor);
     }
 
-    // 根据时间范围获取系统日志的接口，接收GET请求
+    // 根据时间范围获取系统日志
     @GetMapping("/timeRange")
-    public ResponseEntity<List<SystemLogs>> getSystemLogsByTimeRange(
-            @RequestParam("startTime") @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") Date startTime,
-            @RequestParam("endTime") @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") Date endTime) {
-        List<SystemLogs> systemLogs = systemLogsService.getSystemLogsByTimeRange(startTime, endTime);
-        return ResponseEntity.ok(systemLogs);
+    @Async
+    public CompletableFuture<ResponseEntity<List<SystemLogs>>> getSystemLogsByTimeRange(
+            @RequestParam Date startTime,
+            @RequestParam Date endTime) {
+        return CompletableFuture.supplyAsync(() -> {
+            List<SystemLogs> systemLogs = systemLogsService.getSystemLogsByTimeRange(startTime, endTime);
+            return ResponseEntity.ok(systemLogs);
+        }, virtualThreadExecutor);
     }
 
-    // 根据操作用户获取系统日志的接口，接收GET请求
+    // 根据操作用户获取系统日志
     @GetMapping("/operationUser/{operationUser}")
-    public ResponseEntity<List<SystemLogs>> getSystemLogsByOperationUser(@PathVariable String operationUser) {
-        List<SystemLogs> systemLogs = systemLogsService.getSystemLogsByOperationUser(operationUser);
-        return ResponseEntity.ok(systemLogs);
+    @Async
+    public CompletableFuture<ResponseEntity<List<SystemLogs>>> getSystemLogsByOperationUser(@PathVariable String operationUser) {
+        return CompletableFuture.supplyAsync(() -> {
+            List<SystemLogs> systemLogs = systemLogsService.getSystemLogsByOperationUser(operationUser);
+            return ResponseEntity.ok(systemLogs);
+        }, virtualThreadExecutor);
     }
 
-    // 更新系统日志的接口，接收PUT请求
+    // 更新指定系统日志信息
     @PutMapping("/{logId}")
-    public ResponseEntity<Void> updateSystemLog(@PathVariable int logId, @RequestBody SystemLogs updatedSystemLog) {
-        SystemLogs existingSystemLog = systemLogsService.getSystemLogById(logId);
-        if (existingSystemLog != null) {
-            updatedSystemLog.setLogId(logId);
-            systemLogsService.updateSystemLog(updatedSystemLog);
-            return ResponseEntity.ok().build();
-        } else {
-            return ResponseEntity.notFound().build();
-        }
+    @Async
+    @Transactional
+    public CompletableFuture<ResponseEntity<SystemLogs>> updateSystemLog(@PathVariable int logId, @RequestBody SystemLogs updatedSystemLog, @RequestParam String idempotencyKey) {
+        return CompletableFuture.supplyAsync(() -> {
+            SystemLogs existingSystemLog = systemLogsService.getSystemLogById(logId);
+            if (existingSystemLog != null) {
+                updatedSystemLog.setLogId(logId);
+                systemLogsService.checkAndInsertIdempotency(idempotencyKey, updatedSystemLog, "update");
+                return ResponseEntity.ok(updatedSystemLog);
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            }
+        }, virtualThreadExecutor);
     }
 
-    // 删除系统日志的接口，接收DELETE请求
+    // 删除指定系统日志记录
     @DeleteMapping("/{logId}")
-    public ResponseEntity<Void> deleteSystemLog(@PathVariable int logId) {
-        systemLogsService.deleteSystemLog(logId);
-        return ResponseEntity.noContent().build();
+    @Async
+    public CompletableFuture<ResponseEntity<Void>> deleteSystemLog(@PathVariable int logId) {
+        return CompletableFuture.supplyAsync(() -> {
+            systemLogsService.deleteSystemLog(logId);
+            return ResponseEntity.noContent().build();
+        }, virtualThreadExecutor);
     }
 }

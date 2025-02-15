@@ -2,10 +2,10 @@ package com.tutict.finalassignmentbackend.controller;
 
 import com.tutict.finalassignmentbackend.entity.OperationLog;
 import com.tutict.finalassignmentbackend.service.OperationLogService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -18,86 +18,112 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
-// 控制器类，用于管理操作日志的CRUD操作
 @RestController
-@RequestMapping("/eventbus/operationLogs")
+@RequestMapping("/api/operationLogs")
 public class OperationLogController {
 
-    // 操作日志服务的接口实例
+    private static final ExecutorService virtualThreadExecutor = Executors.newVirtualThreadPerTaskExecutor();
+
     private final OperationLogService operationLogService;
 
-    // 构造函数，通过依赖注入初始化操作日志服务实例
-    @Autowired
     public OperationLogController(OperationLogService operationLogService) {
         this.operationLogService = operationLogService;
     }
 
-    // 创建操作日志的接口
+    // 创建新的操作日志
     @PostMapping
-    public ResponseEntity<Void> createOperationLog(@RequestBody OperationLog operationLog) {
-        operationLogService.createOperationLog(operationLog);
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+    @Async
+    public CompletableFuture<ResponseEntity<Void>> createOperationLog(@RequestBody OperationLog operationLog, @RequestParam String idempotencyKey) {
+        return CompletableFuture.supplyAsync(() -> {
+            operationLogService.checkAndInsertIdempotency(idempotencyKey, operationLog, "create");
+            return ResponseEntity.status(HttpStatus.CREATED).build();
+        }, virtualThreadExecutor);
     }
 
-    // 根据日志ID获取操作日志的接口
+    // 根据日志ID获取操作日志
     @GetMapping("/{logId}")
-    public ResponseEntity<OperationLog> getOperationLog(@PathVariable int logId) {
-        OperationLog operationLog = operationLogService.getOperationLog(logId);
-        if (operationLog != null) {
-            return ResponseEntity.ok(operationLog);
-        } else {
-            return ResponseEntity.notFound().build();
-        }
+    @Async
+    public CompletableFuture<ResponseEntity<OperationLog>> getOperationLog(@PathVariable int logId) {
+        return CompletableFuture.supplyAsync(() -> {
+            OperationLog operationLog = operationLogService.getOperationLog(logId);
+            if (operationLog != null) {
+                return ResponseEntity.ok(operationLog);
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            }
+        }, virtualThreadExecutor);
     }
 
-    // 获取所有操作日志的接口
+    // 获取所有操作日志
     @GetMapping
-    public ResponseEntity<List<OperationLog>> getAllOperationLogs() {
-        List<OperationLog> operationLogs = operationLogService.getAllOperationLogs();
-        return ResponseEntity.ok(operationLogs);
+    @Async
+    public CompletableFuture<ResponseEntity<List<OperationLog>>> getAllOperationLogs() {
+        return CompletableFuture.supplyAsync(() -> {
+            List<OperationLog> operationLogs = operationLogService.getAllOperationLogs();
+            return ResponseEntity.ok(operationLogs);
+        }, virtualThreadExecutor);
     }
 
-    // 更新操作日志的接口
+    // 更新指定操作日志的信息
     @PutMapping("/{logId}")
-    public ResponseEntity<Void> updateOperationLog(@PathVariable int logId, @RequestBody OperationLog updatedOperationLog) {
-        OperationLog existingOperationLog = operationLogService.getOperationLog(logId);
-        if (existingOperationLog != null) {
-            updatedOperationLog.setLogId(logId);
-            operationLogService.updateOperationLog(updatedOperationLog);
-            return ResponseEntity.ok().build();
-        } else {
-            return ResponseEntity.notFound().build();
-        }
+    @Async
+    @Transactional
+    public CompletableFuture<ResponseEntity<OperationLog>> updateOperationLog(@PathVariable int logId, @RequestBody OperationLog updatedOperationLog, @RequestParam String idempotencyKey) {
+        return CompletableFuture.supplyAsync(() -> {
+            OperationLog existingOperationLog = operationLogService.getOperationLog(logId);
+            if (existingOperationLog != null) {
+                updatedOperationLog.setLogId(logId);
+                operationLogService.checkAndInsertIdempotency(idempotencyKey, updatedOperationLog, "update");
+                return ResponseEntity.ok(updatedOperationLog);
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            }
+        }, virtualThreadExecutor);
     }
 
-    // 删除操作日志的接口
+    // 删除指定操作日志的信息
     @DeleteMapping("/{logId}")
-    public ResponseEntity<Void> deleteOperationLog(@PathVariable int logId) {
-        operationLogService.deleteOperationLog(logId);
-        return ResponseEntity.noContent().build();
+    @Async
+    public CompletableFuture<ResponseEntity<Void>> deleteOperationLog(@PathVariable int logId) {
+        return CompletableFuture.supplyAsync(() -> {
+            operationLogService.deleteOperationLog(logId);
+            return ResponseEntity.noContent().build();
+        }, virtualThreadExecutor);
     }
 
-    // 根据时间范围获取操作日志的接口
+    // 根据时间范围获取操作日志
     @GetMapping("/timeRange")
-    public ResponseEntity<List<OperationLog>> getOperationLogsByTimeRange(
-            @RequestParam("startTime") @DateTimeFormat(pattern = "yyyy-MM-dd") Date startTime,
-            @RequestParam("endTime") @DateTimeFormat(pattern = "yyyy-MM-dd") Date endTime) {
-        List<OperationLog> operationLogs = operationLogService.getOperationLogsByTimeRange(startTime, endTime);
-        return ResponseEntity.ok(operationLogs);
+    @Async
+    public CompletableFuture<ResponseEntity<List<OperationLog>>> getOperationLogsByTimeRange(
+            @RequestParam(defaultValue = "1970-01-01") Date startTime,
+            @RequestParam(defaultValue = "2100-01-01") Date endTime) {
+        return CompletableFuture.supplyAsync(() -> {
+            List<OperationLog> operationLogs = operationLogService.getOperationLogsByTimeRange(startTime, endTime);
+            return ResponseEntity.ok(operationLogs);
+        }, virtualThreadExecutor);
     }
 
-    // 根据用户ID获取操作日志的接口
+    // 根据用户ID获取操作日志
     @GetMapping("/userId/{userId}")
-    public ResponseEntity<List<OperationLog>> getOperationLogsByUserId(@PathVariable String userId) {
-        List<OperationLog> operationLogs = operationLogService.getOperationLogsByUserId(userId);
-        return ResponseEntity.ok(operationLogs);
+    @Async
+    public CompletableFuture<ResponseEntity<List<OperationLog>>> getOperationLogsByUserId(@PathVariable String userId) {
+        return CompletableFuture.supplyAsync(() -> {
+            List<OperationLog> operationLogs = operationLogService.getOperationLogsByUserId(userId);
+            return ResponseEntity.ok(operationLogs);
+        }, virtualThreadExecutor);
     }
 
-    // 根据操作结果获取操作日志的接口
+    // 根据操作结果获取操作日志
     @GetMapping("/result/{result}")
-    public ResponseEntity<List<OperationLog>> getOperationLogsByResult(@PathVariable String result) {
-        List<OperationLog> operationLogs = operationLogService.getOperationLogsByResult(result);
-        return ResponseEntity.ok(operationLogs);
+    @Async
+    public CompletableFuture<ResponseEntity<List<OperationLog>>> getOperationLogsByResult(@PathVariable String result) {
+        return CompletableFuture.supplyAsync(() -> {
+            List<OperationLog> operationLogs = operationLogService.getOperationLogsByResult(result);
+            return ResponseEntity.ok(operationLogs);
+        }, virtualThreadExecutor);
     }
 }

@@ -2,163 +2,211 @@ package com.tutict.finalassignmentbackend.controller;
 
 import com.tutict.finalassignmentbackend.entity.SystemSettings;
 import com.tutict.finalassignmentbackend.service.SystemSettingsService;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-// 控制器类，用于处理系统设置相关的HTTP请求
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 @RestController
-@RequestMapping("/eventbus/systemSettings")
+@RequestMapping("/api/systemSettings")
 public class SystemSettingsController {
 
-    // 系统设置服务的引用，用于操作系统设置数据
+    private static final ExecutorService virtualThreadExecutor = Executors.newVirtualThreadPerTaskExecutor();
+
     private final SystemSettingsService systemSettingsService;
 
-    // 构造函数，通过依赖注入初始化系统设置服务
-    @Autowired
     public SystemSettingsController(SystemSettingsService systemSettingsService) {
         this.systemSettingsService = systemSettingsService;
     }
 
-    // 获取系统设置信息
+    // 获取系统设置
     @GetMapping
-    public ResponseEntity<SystemSettings> getSystemSettings() {
-        SystemSettings systemSettings = systemSettingsService.getSystemSettings();
-        if (systemSettings != null) {
-            return ResponseEntity.ok(systemSettings);
-        } else {
-            return ResponseEntity.notFound().build();
-        }
+    @Async
+    public CompletableFuture<ResponseEntity<SystemSettings>> getSystemSettings() {
+        return CompletableFuture.supplyAsync(() -> {
+            SystemSettings systemSettings = systemSettingsService.getSystemSettings();
+            if (systemSettings != null) {
+                return ResponseEntity.ok(systemSettings);
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            }
+        }, virtualThreadExecutor);
     }
 
-    // 更新系统设置信息
+    // 更新系统设置
     @PutMapping
-    public ResponseEntity<Void> updateSystemSettings(@RequestBody SystemSettings systemSettings) {
-        systemSettingsService.updateSystemSettings(systemSettings);
-        return ResponseEntity.ok().build();
+    @Async
+    @Transactional
+    public CompletableFuture<ResponseEntity<SystemSettings>> updateSystemSettings(@RequestBody SystemSettings systemSettings, @RequestParam String idempotencyKey) {
+        return CompletableFuture.supplyAsync(() -> {
+            systemSettingsService.checkAndInsertIdempotency(idempotencyKey, systemSettings);
+            return ResponseEntity.ok(systemSettings);
+        }, virtualThreadExecutor);
     }
 
     // 获取系统名称
     @GetMapping("/systemName")
-    public ResponseEntity<String> getSystemName() {
-        String systemName = systemSettingsService.getSystemName();
-        if (systemName != null) {
-            return ResponseEntity.ok(systemName);
-        } else {
-            return ResponseEntity.notFound().build();
-        }
+    @Async
+    public CompletableFuture<ResponseEntity<String>> getSystemName() {
+        return CompletableFuture.supplyAsync(() -> {
+            String systemName = systemSettingsService.getSystemName();
+            if (systemName != null) {
+                return ResponseEntity.ok(systemName);
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            }
+        }, virtualThreadExecutor);
     }
 
     // 获取系统版本
     @GetMapping("/systemVersion")
-    public ResponseEntity<String> getSystemVersion() {
-        String systemVersion = systemSettingsService.getSystemVersion();
-        if (systemVersion != null) {
-            return ResponseEntity.ok(systemVersion);
-        } else {
-            return ResponseEntity.notFound().build();
-        }
+    @Async
+    public CompletableFuture<ResponseEntity<String>> getSystemVersion() {
+        return CompletableFuture.supplyAsync(() -> {
+            String systemVersion = systemSettingsService.getSystemVersion();
+            if (systemVersion != null) {
+                return ResponseEntity.ok(systemVersion);
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            }
+        }, virtualThreadExecutor);
     }
 
     // 获取系统描述
     @GetMapping("/systemDescription")
-    public ResponseEntity<String> getSystemDescription() {
-        String systemDescription = systemSettingsService.getSystemDescription();
-        if (systemDescription != null) {
-            return ResponseEntity.ok(systemDescription);
-        } else {
-            return ResponseEntity.notFound().build();
-        }
+    @Async
+    public CompletableFuture<ResponseEntity<String>> getSystemDescription() {
+        return CompletableFuture.supplyAsync(() -> {
+            String systemDescription = systemSettingsService.getSystemDescription();
+            if (systemDescription != null) {
+                return ResponseEntity.ok(systemDescription);
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            }
+        }, virtualThreadExecutor);
     }
 
     // 获取版权信息
     @GetMapping("/copyrightInfo")
-    public ResponseEntity<String> getCopyrightInfo() {
-        String copyrightInfo = systemSettingsService.getCopyrightInfo();
-        if (copyrightInfo != null) {
-            return ResponseEntity.ok(copyrightInfo);
-        } else {
-            return ResponseEntity.notFound().build();
-        }
+    @Async
+    public CompletableFuture<ResponseEntity<String>> getCopyrightInfo() {
+        return CompletableFuture.supplyAsync(() -> {
+            String copyrightInfo = systemSettingsService.getCopyrightInfo();
+            if (copyrightInfo != null) {
+                return ResponseEntity.ok(copyrightInfo);
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            }
+        }, virtualThreadExecutor);
     }
 
     // 获取存储路径
     @GetMapping("/storagePath")
-    public ResponseEntity<String> getStoragePath() {
-        String storagePath = systemSettingsService.getStoragePath();
-        if (storagePath != null) {
-            return ResponseEntity.ok(storagePath);
-        } else {
-            return ResponseEntity.notFound().build();
-        }
+    @Async
+    public CompletableFuture<ResponseEntity<String>> getStoragePath() {
+        return CompletableFuture.supplyAsync(() -> {
+            String storagePath = systemSettingsService.getStoragePath();
+            if (storagePath != null) {
+                return ResponseEntity.ok(storagePath);
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            }
+        }, virtualThreadExecutor);
     }
 
     // 获取登录超时时间
     @GetMapping("/loginTimeout")
-    public ResponseEntity<Integer> getLoginTimeout() {
-        int loginTimeout = systemSettingsService.getLoginTimeout();
-        return ResponseEntity.ok(loginTimeout);
+    @Async
+    public CompletableFuture<ResponseEntity<Integer>> getLoginTimeout() {
+        return CompletableFuture.supplyAsync(() -> {
+            int loginTimeout = systemSettingsService.getLoginTimeout();
+            return ResponseEntity.ok(loginTimeout);
+        }, virtualThreadExecutor);
     }
 
     // 获取会话超时时间
     @GetMapping("/sessionTimeout")
-    public ResponseEntity<Integer> getSessionTimeout() {
-        int sessionTimeout = systemSettingsService.getSessionTimeout();
-        return ResponseEntity.ok(sessionTimeout);
+    @Async
+    public CompletableFuture<ResponseEntity<Integer>> getSessionTimeout() {
+        return CompletableFuture.supplyAsync(() -> {
+            int sessionTimeout = systemSettingsService.getSessionTimeout();
+            return ResponseEntity.ok(sessionTimeout);
+        }, virtualThreadExecutor);
     }
 
     // 获取日期格式
     @GetMapping("/dateFormat")
-    public ResponseEntity<String> getDateFormat() {
-        String dateFormat = systemSettingsService.getDateFormat();
-        if (dateFormat != null) {
-            return ResponseEntity.ok(dateFormat);
-        } else {
-            return ResponseEntity.notFound().build();
-        }
+    @Async
+    public CompletableFuture<ResponseEntity<String>> getDateFormat() {
+        return CompletableFuture.supplyAsync(() -> {
+            String dateFormat = systemSettingsService.getDateFormat();
+            if (dateFormat != null) {
+                return ResponseEntity.ok(dateFormat);
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            }
+        }, virtualThreadExecutor);
     }
 
-    // 获取每页显示条数
+    // 获取分页大小
     @GetMapping("/pageSize")
-    public ResponseEntity<Integer> getPageSize() {
-        int pageSize = systemSettingsService.getPageSize();
-        return ResponseEntity.ok(pageSize);
+    @Async
+    public CompletableFuture<ResponseEntity<Integer>> getPageSize() {
+        return CompletableFuture.supplyAsync(() -> {
+            int pageSize = systemSettingsService.getPageSize();
+            return ResponseEntity.ok(pageSize);
+        }, virtualThreadExecutor);
     }
 
-    // 获取SMTP服务器地址
+    // 获取SMTP服务器
     @GetMapping("/smtpServer")
-    public ResponseEntity<String> getSmtpServer() {
-        String smtpServer = systemSettingsService.getSmtpServer();
-        if (smtpServer != null) {
-            return ResponseEntity.ok(smtpServer);
-        } else {
-            return ResponseEntity.notFound().build();
-        }
+    @Async
+    public CompletableFuture<ResponseEntity<String>> getSmtpServer() {
+        return CompletableFuture.supplyAsync(() -> {
+            String smtpServer = systemSettingsService.getSmtpServer();
+            if (smtpServer != null) {
+                return ResponseEntity.ok(smtpServer);
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            }
+        }, virtualThreadExecutor);
     }
 
-    // 获取邮件发送账号
+    // 获取邮件账户
     @GetMapping("/emailAccount")
-    public ResponseEntity<String> getEmailAccount() {
-        String emailAccount = systemSettingsService.getEmailAccount();
-        if (emailAccount != null) {
-            return ResponseEntity.ok(emailAccount);
-        } else {
-            return ResponseEntity.notFound().build();
-        }
+    @Async
+    public CompletableFuture<ResponseEntity<String>> getEmailAccount() {
+        return CompletableFuture.supplyAsync(() -> {
+            String emailAccount = systemSettingsService.getEmailAccount();
+            if (emailAccount != null) {
+                return ResponseEntity.ok(emailAccount);
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            }
+        }, virtualThreadExecutor);
     }
 
-    // 获取邮件发送密码
+    // 获取邮件密码
     @GetMapping("/emailPassword")
-    public ResponseEntity<String> getEmailPassword() {
-        String emailPassword = systemSettingsService.getEmailPassword();
-        if (emailPassword != null) {
-            return ResponseEntity.ok(emailPassword);
-        } else {
-            return ResponseEntity.notFound().build();
-        }
+    @Async
+    public CompletableFuture<ResponseEntity<String>> getEmailPassword() {
+        return CompletableFuture.supplyAsync(() -> {
+            String emailPassword = systemSettingsService.getEmailPassword();
+            if (emailPassword != null) {
+                return ResponseEntity.ok(emailPassword);
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            }
+        }, virtualThreadExecutor);
     }
 }

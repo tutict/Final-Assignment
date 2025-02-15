@@ -2,10 +2,10 @@ package com.tutict.finalassignmentbackend.controller;
 
 import com.tutict.finalassignmentbackend.entity.DeductionInformation;
 import com.tutict.finalassignmentbackend.service.DeductionInformationService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -18,95 +18,111 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.logging.Logger;
 
-// 控制器类，用于管理扣分信息相关的HTTP请求
 @RestController
-@RequestMapping("/eventbus/deductions")
+@RequestMapping("/api/deductions")
 public class DeductionInformationController {
 
-    // 扣分信息服务的接口，用于执行扣分信息的CRUD操作
+    private static final Logger logger = Logger.getLogger(DeductionInformationController.class.getName());
+
+    // 创建虚拟线程池
+    private static final ExecutorService virtualThreadExecutor = Executors.newVirtualThreadPerTaskExecutor();
+
     private final DeductionInformationService deductionInformationService;
 
-    // 构造函数注入扣分信息服务
-    @Autowired
     public DeductionInformationController(DeductionInformationService deductionInformationService) {
         this.deductionInformationService = deductionInformationService;
     }
 
-    // 创建新的扣分信息
-    // @RequestBody 表示请求体中的数据，这里是指扣分信息对象
-    // 返回状态为201 CREATED，表示已成功创建新的资源
+    // 创建新的扣除记录
     @PostMapping
-    public ResponseEntity<Void> createDeduction(@RequestBody DeductionInformation deduction) {
-        deductionInformationService.createDeduction(deduction);
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+    @Async
+    public CompletableFuture<ResponseEntity<Void>> createDeduction(@RequestBody DeductionInformation deduction, @RequestParam String idempotencyKey) {
+        return CompletableFuture.supplyAsync(() -> {
+            logger.info("Attempting to create deduction with idempotency key: " + idempotencyKey);
+            deductionInformationService.checkAndInsertIdempotency(idempotencyKey, deduction, "create");
+            logger.info("Deduction created successfully.");
+            return ResponseEntity.status(HttpStatus.CREATED).build();
+        }, virtualThreadExecutor);
     }
 
-    // 根据扣分ID获取扣分信息
-    // @PathVariable 表示URL路径中的变量，这里是指扣分ID
-    // 如果找到对应的扣分信息，返回状态为200 OK，否则返回状态为404 NOT_FOUND
+    // 根据扣除ID获取扣除信息
     @GetMapping("/{deductionId}")
-    public ResponseEntity<DeductionInformation> getDeductionById(@PathVariable int deductionId) {
-        DeductionInformation deduction = deductionInformationService.getDeductionById(deductionId);
-        if (deduction != null) {
-            return ResponseEntity.ok(deduction);
-        } else {
-            return ResponseEntity.notFound().build();
-        }
+    @Async
+    public CompletableFuture<ResponseEntity<DeductionInformation>> getDeductionById(@PathVariable int deductionId) {
+        return CompletableFuture.supplyAsync(() -> {
+            DeductionInformation deduction = deductionInformationService.getDeductionById(deductionId);
+            if (deduction != null) {
+                return ResponseEntity.ok(deduction);
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            }
+        }, virtualThreadExecutor);
     }
 
-    // 获取所有扣分信息列表
-    // 返回状态为200 OK，包含扣分信息列表的响应体
+    // 获取所有扣除记录
     @GetMapping
-    public ResponseEntity<List<DeductionInformation>> getAllDeductions() {
-        List<DeductionInformation> deductions = deductionInformationService.getAllDeductions();
-        return ResponseEntity.ok(deductions);
+    @Async
+    public CompletableFuture<ResponseEntity<List<DeductionInformation>>> getAllDeductions() {
+        return CompletableFuture.supplyAsync(() -> {
+            List<DeductionInformation> deductions = deductionInformationService.getAllDeductions();
+            return ResponseEntity.ok(deductions);
+        }, virtualThreadExecutor);
     }
 
-    // 更新指定扣分ID的扣分信息
-    // 如果找到对应的扣分信息，更新其属性并返回状态为200 OK，否则返回状态为404 NOT_FOUND
+    // 更新扣除记录
     @PutMapping("/{deductionId}")
-    public ResponseEntity<Void> updateDeduction(@PathVariable int deductionId, @RequestBody DeductionInformation updatedDeduction) {
-        DeductionInformation existingDeduction = deductionInformationService.getDeductionById(deductionId);
-        if (existingDeduction != null) {
-            // 更新扣分信息的属性
-            existingDeduction.setRemarks(updatedDeduction.getRemarks());
-            existingDeduction.setHandler(updatedDeduction.getHandler());
-            existingDeduction.setDeductedPoints(updatedDeduction.getDeductedPoints());
-            existingDeduction.setDeductionTime(updatedDeduction.getDeductionTime());
-            existingDeduction.setApprover(updatedDeduction.getApprover());
+    @Async
+    @Transactional
+    public CompletableFuture<ResponseEntity<Void>> updateDeduction(@PathVariable int deductionId, @RequestBody DeductionInformation updatedDeduction, @RequestParam String idempotencyKey) {
+        return CompletableFuture.supplyAsync(() -> {
+            DeductionInformation existingDeduction = deductionInformationService.getDeductionById(deductionId);
+            if (existingDeduction != null) {
+                existingDeduction.setRemarks(updatedDeduction.getRemarks());
+                existingDeduction.setHandler(updatedDeduction.getHandler());
+                existingDeduction.setDeductedPoints(updatedDeduction.getDeductedPoints());
+                existingDeduction.setDeductionTime(updatedDeduction.getDeductionTime());
+                existingDeduction.setApprover(updatedDeduction.getApprover());
 
-            deductionInformationService.updateDeduction(updatedDeduction);
-            return ResponseEntity.ok().build();
-        } else {
-            return ResponseEntity.notFound().build();
-        }
+                deductionInformationService.checkAndInsertIdempotency(idempotencyKey, existingDeduction, "update");
+                return ResponseEntity.ok().build();
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            }
+        }, virtualThreadExecutor);
     }
 
-    // 删除指定扣分ID的扣分信息
-    // 返回状态为204 NO_CONTENT，表示请求已成功处理但没有返回内容
+    // 删除扣除记录
     @DeleteMapping("/{deductionId}")
-    public ResponseEntity<Void> deleteDeduction(@PathVariable int deductionId) {
-        deductionInformationService.deleteDeduction(deductionId);
-        return ResponseEntity.noContent().build();
+    @Async
+    public CompletableFuture<ResponseEntity<Void>> deleteDeduction(@PathVariable int deductionId) {
+        return CompletableFuture.supplyAsync(() -> {
+            deductionInformationService.deleteDeduction(deductionId);
+            return ResponseEntity.noContent().build();
+        }, virtualThreadExecutor);
     }
 
-    // 根据处理人获取扣分信息列表
-    // 返回状态为200 OK，包含由处理人处理的扣分信息列表的响应体
+    // 根据处理人获取扣除记录
     @GetMapping("/handler/{handler}")
-    public ResponseEntity<List<DeductionInformation>> getDeductionsByHandler(@PathVariable String handler) {
-        List<DeductionInformation> deductions = deductionInformationService.getDeductionsByHandler(handler);
-        return ResponseEntity.ok(deductions);
+    @Async
+    public CompletableFuture<ResponseEntity<List<DeductionInformation>>> getDeductionsByHandler(@PathVariable String handler) {
+        return CompletableFuture.supplyAsync(() -> {
+            List<DeductionInformation> deductions = deductionInformationService.getDeductionsByHandler(handler);
+            return ResponseEntity.ok(deductions);
+        }, virtualThreadExecutor);
     }
 
-    // 根据时间范围获取扣分信息列表
-    // @RequestParam 表示请求参数，这里是指开始时间和结束时间
-    // 返回状态为200 OK，包含在指定时间范围内发生的扣分信息列表的响应体
+    // 根据时间范围获取扣除记录
     @GetMapping("/timeRange")
-    public ResponseEntity<List<DeductionInformation>> getDeductionsByTimeRange(
-            @RequestParam("startTime") @DateTimeFormat(pattern = "yyyy-MM-dd") Date startTime,
-            @RequestParam("endTime") @DateTimeFormat(pattern = "yyyy-MM-dd") Date endTime) {
-        List<DeductionInformation> deductions = deductionInformationService.getDeductionsByByTimeRange(startTime, endTime);
-        return ResponseEntity.ok(deductions);
+    @Async
+    public CompletableFuture<ResponseEntity<List<DeductionInformation>>> getDeductionsByTimeRange(@RequestParam Date startTime, @RequestParam Date endTime) {
+        return CompletableFuture.supplyAsync(() -> {
+            List<DeductionInformation> deductions = deductionInformationService.getDeductionsByTimeRange(startTime, endTime);
+            return ResponseEntity.ok(deductions);
+        }, virtualThreadExecutor);
     }
 }

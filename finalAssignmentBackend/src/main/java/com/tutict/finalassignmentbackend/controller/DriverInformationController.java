@@ -2,9 +2,10 @@ package com.tutict.finalassignmentbackend.controller;
 
 import com.tutict.finalassignmentbackend.entity.DriverInformation;
 import com.tutict.finalassignmentbackend.service.DriverInformationService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -12,91 +13,118 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
-// 控制器类，处理与司机信息相关的HTTP请求
 @RestController
-@RequestMapping("/eventbus/drivers")
+@RequestMapping("/api/drivers")
 public class DriverInformationController {
 
-    // 司机信息服务的依赖项，处理具体的业务逻辑
+    private static final ExecutorService virtualThreadExecutor = Executors.newVirtualThreadPerTaskExecutor();
+
     private final DriverInformationService driverInformationService;
 
-    // 构造函数注入司机信息服务
-    @Autowired
     public DriverInformationController(DriverInformationService driverInformationService) {
         this.driverInformationService = driverInformationService;
     }
 
-    // 创建司机信息的POST请求处理方法
+    // 创建司机信息
     @PostMapping
-    public ResponseEntity<Void> createDriver(@RequestBody DriverInformation driverInformation) {
-        driverInformationService.createDriver(driverInformation);
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+    @Async
+    public CompletableFuture<ResponseEntity<Void>> createDriver(@RequestBody DriverInformation driverInformation, @RequestParam String idempotencyKey) {
+        return CompletableFuture.supplyAsync(() -> {
+            driverInformationService.checkAndInsertIdempotency(idempotencyKey, driverInformation, "create");
+            return ResponseEntity.status(HttpStatus.CREATED).build();
+        }, virtualThreadExecutor);
     }
 
-    // 根据ID获取司机信息的GET请求处理方法
+    // 根据司机ID获取司机信息
     @GetMapping("/{driverId}")
-    public ResponseEntity<DriverInformation> getDriverById(@PathVariable int driverId) {
-        DriverInformation driverInformation = driverInformationService.getDriverById(driverId);
-        if (driverInformation != null) {
-            return ResponseEntity.ok(driverInformation);
-        } else {
-            return ResponseEntity.notFound().build();
-        }
+    @Async
+    public CompletableFuture<ResponseEntity<DriverInformation>> getDriverById(@PathVariable int driverId) {
+        return CompletableFuture.supplyAsync(() -> {
+            DriverInformation driverInformation = driverInformationService.getDriverById(driverId);
+            if (driverInformation != null) {
+                return ResponseEntity.ok(driverInformation);
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            }
+        }, virtualThreadExecutor);
     }
 
-    // 获取所有司机信息的GET请求处理方法
+    // 获取所有司机信息
     @GetMapping
-    public ResponseEntity<List<DriverInformation>> getAllDrivers() {
-        List<DriverInformation> drivers = driverInformationService.getAllDrivers();
-        return ResponseEntity.ok(drivers);
+    @Async
+    public CompletableFuture<ResponseEntity<List<DriverInformation>>> getAllDrivers() {
+        return CompletableFuture.supplyAsync(() -> {
+            List<DriverInformation> drivers = driverInformationService.getAllDrivers();
+            return ResponseEntity.ok(drivers);
+        }, virtualThreadExecutor);
     }
 
-    // 更新司机信息的PUT请求处理方法
+    // 更新司机信息
     @PutMapping("/{driverId}")
-    public ResponseEntity<Void> updateDriver(@PathVariable int driverId, @RequestBody DriverInformation updatedDriverInformation) {
-        DriverInformation existingDriverInformation = driverInformationService.getDriverById(driverId);
-        if (existingDriverInformation != null) {
-            updatedDriverInformation.setDriverId(driverId);
-            driverInformationService.updateDriver(updatedDriverInformation);
-            return ResponseEntity.ok().build();
-        } else {
-            return ResponseEntity.notFound().build();
-        }
+    @Async
+    @Transactional
+    public CompletableFuture<ResponseEntity<DriverInformation>> updateDriver(@PathVariable int driverId, @RequestBody DriverInformation updatedDriverInformation, @RequestParam String idempotencyKey) {
+        return CompletableFuture.supplyAsync(() -> {
+            DriverInformation existingDriverInformation = driverInformationService.getDriverById(driverId);
+            if (existingDriverInformation != null) {
+                updatedDriverInformation.setDriverId(driverId);
+                driverInformationService.checkAndInsertIdempotency(idempotencyKey, updatedDriverInformation, "update");
+                return ResponseEntity.ok(updatedDriverInformation);
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            }
+        }, virtualThreadExecutor);
     }
 
-    // 删除司机信息的DELETE请求处理方法
+    // 删除指定ID的司机信息
     @DeleteMapping("/{driverId}")
-    public ResponseEntity<Void> deleteDriver(@PathVariable int driverId) {
-        driverInformationService.deleteDriver(driverId);
-        return ResponseEntity.noContent().build();
+    @Async
+    public CompletableFuture<ResponseEntity<Void>> deleteDriver(@PathVariable int driverId) {
+        return CompletableFuture.supplyAsync(() -> {
+            driverInformationService.deleteDriver(driverId);
+            return ResponseEntity.noContent().build();
+        }, virtualThreadExecutor);
     }
 
-    // 根据身份证号码获取司机信息的GET请求处理方法
+    // 根据身份证号获取司机信息
     @GetMapping("/idCardNumber/{idCardNumber}")
-    public ResponseEntity<List<DriverInformation>> getDriversByIdCardNumber(@PathVariable String idCardNumber) {
-        List<DriverInformation> drivers = driverInformationService.getDriversByIdCardNumber(idCardNumber);
-        return ResponseEntity.ok(drivers);
+    @Async
+    public CompletableFuture<ResponseEntity<List<DriverInformation>>> getDriversByIdCardNumber(@PathVariable String idCardNumber) {
+        return CompletableFuture.supplyAsync(() -> {
+            List<DriverInformation> drivers = driverInformationService.getDriversByIdCardNumber(idCardNumber);
+            return ResponseEntity.ok(drivers);
+        }, virtualThreadExecutor);
     }
 
-    // 根据驾驶证号码获取司机信息的GET请求处理方法
+    // 根据驾驶证号获取司机信息
     @GetMapping("/driverLicenseNumber/{driverLicenseNumber}")
-    public ResponseEntity<DriverInformation> getDriverByDriverLicenseNumber(@PathVariable String driverLicenseNumber) {
-        DriverInformation driverInformation = driverInformationService.getDriverByDriverLicenseNumber(driverLicenseNumber);
-        if (driverInformation != null) {
-            return ResponseEntity.ok(driverInformation);
-        } else {
-            return ResponseEntity.notFound().build();
-        }
+    @Async
+    public CompletableFuture<ResponseEntity<DriverInformation>> getDriverByDriverLicenseNumber(@PathVariable String driverLicenseNumber) {
+        return CompletableFuture.supplyAsync(() -> {
+            DriverInformation driverInformation = driverInformationService.getDriverByDriverLicenseNumber(driverLicenseNumber);
+            if (driverInformation != null) {
+                return ResponseEntity.ok(driverInformation);
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            }
+        }, virtualThreadExecutor);
     }
 
-    // 根据姓名获取司机信息的GET请求处理方法
+    // 根据司机姓名获取司机信息
     @GetMapping("/name/{name}")
-    public ResponseEntity<List<DriverInformation>> getDriversByName(@PathVariable String name) {
-        List<DriverInformation> drivers = driverInformationService.getDriversByName(name);
-        return ResponseEntity.ok(drivers);
+    @Async
+    public CompletableFuture<ResponseEntity<List<DriverInformation>>> getDriversByName(@PathVariable String name) {
+        return CompletableFuture.supplyAsync(() -> {
+            List<DriverInformation> drivers = driverInformationService.getDriversByName(name);
+            return ResponseEntity.ok(drivers);
+        }, virtualThreadExecutor);
     }
 }

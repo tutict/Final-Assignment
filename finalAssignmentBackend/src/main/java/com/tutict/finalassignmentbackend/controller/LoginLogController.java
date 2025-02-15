@@ -2,10 +2,10 @@ package com.tutict.finalassignmentbackend.controller;
 
 import com.tutict.finalassignmentbackend.entity.LoginLog;
 import com.tutict.finalassignmentbackend.service.LoginLogService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -18,94 +18,112 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
-// 控制器类，用于处理与登录日志相关的HTTP请求
 @RestController
-@RequestMapping("/eventbus/loginLogs")
+@RequestMapping("/api/loginLogs")
 public class LoginLogController {
 
-    // 登录日志服务层的接口实例，用于操作登录日志数据
+    private static final ExecutorService virtualThreadExecutor = Executors.newVirtualThreadPerTaskExecutor();
+
     private final LoginLogService loginLogService;
 
-    // 构造函数，通过依赖注入初始化登录日志服务层的实例
-    @Autowired
     public LoginLogController(LoginLogService loginLogService) {
         this.loginLogService = loginLogService;
     }
 
-    // 创建登录日志的接口，接收POST请求
-    // 请求体中的LoginLog对象包含新登录日志的详细信息
+    // 创建新的登录日志
     @PostMapping
-    public ResponseEntity<Void> createLoginLog(@RequestBody LoginLog loginLog) {
-        loginLogService.createLoginLog(loginLog);
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+    @Async
+    public CompletableFuture<ResponseEntity<Void>> createLoginLog(@RequestBody LoginLog loginLog, @RequestParam String idempotencyKey) {
+        return CompletableFuture.supplyAsync(() -> {
+            loginLogService.checkAndInsertIdempotency(idempotencyKey, loginLog, "create");
+            return ResponseEntity.status(HttpStatus.CREATED).build();
+        }, virtualThreadExecutor);
     }
 
-    // 根据日志ID获取登录日志的接口，接收GET请求
-    // {logId}是一个路径变量，代表登录日志的唯一标识符
+    // 根据日志ID获取登录日志
     @GetMapping("/{logId}")
-    public ResponseEntity<LoginLog> getLoginLog(@PathVariable int logId) {
-        LoginLog loginLog = loginLogService.getLoginLog(logId);
-        if (loginLog != null) {
-            return ResponseEntity.ok(loginLog);
-        } else {
-            return ResponseEntity.notFound().build();
-        }
+    @Async
+    public CompletableFuture<ResponseEntity<LoginLog>> getLoginLog(@PathVariable int logId) {
+        return CompletableFuture.supplyAsync(() -> {
+            LoginLog loginLog = loginLogService.getLoginLog(logId);
+            if (loginLog != null) {
+                return ResponseEntity.ok(loginLog);
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            }
+        }, virtualThreadExecutor);
     }
 
-    // 获取所有登录日志的接口，接收GET请求
-    // 该接口返回一个登录日志的列表
+    // 获取所有登录日志
     @GetMapping
-    public ResponseEntity<List<LoginLog>> getAllLoginLogs() {
-        List<LoginLog> loginLogs = loginLogService.getAllLoginLogs();
-        return ResponseEntity.ok(loginLogs);
+    @Async
+    public CompletableFuture<ResponseEntity<List<LoginLog>>> getAllLoginLogs() {
+        return CompletableFuture.supplyAsync(() -> {
+            List<LoginLog> loginLogs = loginLogService.getAllLoginLogs();
+            return ResponseEntity.ok(loginLogs);
+        }, virtualThreadExecutor);
     }
 
-    // 更新登录日志的接口，接收PUT请求
-    // {logId}是一个路径变量，代表要更新的登录日志的ID
+    // 更新登录日志
     @PutMapping("/{logId}")
-    public ResponseEntity<Void> updateLoginLog(@PathVariable int logId, @RequestBody LoginLog updatedLoginLog) {
-        LoginLog existingLoginLog = loginLogService.getLoginLog(logId);
-        if (existingLoginLog != null) {
-            updatedLoginLog.setLogId(logId);
-            loginLogService.updateLoginLog(updatedLoginLog);
-            return ResponseEntity.ok().build();
-        } else {
-            return ResponseEntity.notFound().build();
-        }
+    @Async
+    @Transactional
+    public CompletableFuture<ResponseEntity<LoginLog>> updateLoginLog(@PathVariable int logId, @RequestBody LoginLog updatedLoginLog, @RequestParam String idempotencyKey) {
+        return CompletableFuture.supplyAsync(() -> {
+            LoginLog existingLoginLog = loginLogService.getLoginLog(logId);
+            if (existingLoginLog != null) {
+                updatedLoginLog.setLogId(logId);
+                loginLogService.checkAndInsertIdempotency(idempotencyKey, updatedLoginLog, "update");
+                return ResponseEntity.ok(updatedLoginLog);
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            }
+        }, virtualThreadExecutor);
     }
 
-    // 删除登录日志的接口，接收DELETE请求
-    // {logId}是一个路径变量，代表要删除的登录日志的ID
+    // 删除指定ID的登录日志
     @DeleteMapping("/{logId}")
-    public ResponseEntity<Void> deleteLoginLog(@PathVariable int logId) {
-        loginLogService.deleteLoginLog(logId);
-        return ResponseEntity.noContent().build();
+    @Async
+    public CompletableFuture<ResponseEntity<Void>> deleteLoginLog(@PathVariable int logId) {
+        return CompletableFuture.supplyAsync(() -> {
+            loginLogService.deleteLoginLog(logId);
+            return ResponseEntity.noContent().build();
+        }, virtualThreadExecutor);
     }
 
-    // 根据时间范围获取登录日志的接口，接收GET请求
-    // startTime和endTime是查询参数，用于指定时间筛选范围
+    // 根据时间范围获取登录日志
     @GetMapping("/timeRange")
-    public ResponseEntity<List<LoginLog>> getLoginLogsByTimeRange(
-            @RequestParam("startTime") @DateTimeFormat(pattern = "yyyy-MM-dd") Date startTime,
-            @RequestParam("endTime") @DateTimeFormat(pattern = "yyyy-MM-dd") Date endTime) {
-        List<LoginLog> loginLogs = loginLogService.getLoginLogsByTimeRange(startTime, endTime);
-        return ResponseEntity.ok(loginLogs);
+    @Async
+    public CompletableFuture<ResponseEntity<List<LoginLog>>> getLoginLogsByTimeRange(
+            @RequestParam(defaultValue = "1970-01-01") Date startTime,
+            @RequestParam(defaultValue = "2100-01-01") Date endTime) {
+        return CompletableFuture.supplyAsync(() -> {
+            List<LoginLog> loginLogs = loginLogService.getLoginLogsByTimeRange(startTime, endTime);
+            return ResponseEntity.ok(loginLogs);
+        }, virtualThreadExecutor);
     }
 
-    // 根据用户名获取登录日志的接口，接收GET请求
-    // {username}是一个路径变量，代表查询的用户名
+    // 根据用户名获取登录日志
     @GetMapping("/username/{username}")
-    public ResponseEntity<List<LoginLog>> getLoginLogsByUsername(@PathVariable String username) {
-        List<LoginLog> loginLogs = loginLogService.getLoginLogsByUsername(username);
-        return ResponseEntity.ok(loginLogs);
+    @Async
+    public CompletableFuture<ResponseEntity<List<LoginLog>>> getLoginLogsByUsername(@PathVariable String username) {
+        return CompletableFuture.supplyAsync(() -> {
+            List<LoginLog> loginLogs = loginLogService.getLoginLogsByUsername(username);
+            return ResponseEntity.ok(loginLogs);
+        }, virtualThreadExecutor);
     }
 
-    // 根据登录结果获取登录日志的接口，接收GET请求
-    // {loginResult}是一个路径变量，代表查询的登录结果（成功或失败）
+    // 根据登录结果获取登录日志
     @GetMapping("/loginResult/{loginResult}")
-    public ResponseEntity<List<LoginLog>> getLoginLogsByLoginResult(@PathVariable String loginResult) {
-        List<LoginLog> loginLogs = loginLogService.getLoginLogsByLoginResult(loginResult);
-        return ResponseEntity.ok(loginLogs);
+    @Async
+    public CompletableFuture<ResponseEntity<List<LoginLog>>> getLoginLogsByLoginResult(@PathVariable String loginResult) {
+        return CompletableFuture.supplyAsync(() -> {
+            List<LoginLog> loginLogs = loginLogService.getLoginLogsByLoginResult(loginResult);
+            return ResponseEntity.ok(loginLogs);
+        }, virtualThreadExecutor);
     }
 }
