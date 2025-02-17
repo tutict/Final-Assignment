@@ -1,193 +1,160 @@
 package com.tutict.finalassignmentbackend.service;
 
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.tutict.finalassignmentbackend.entity.RequestHistory;
+import com.tutict.finalassignmentbackend.mapper.RequestHistoryMapper;
 import com.tutict.finalassignmentbackend.mapper.VehicleInformationMapper;
 import com.tutict.finalassignmentbackend.entity.VehicleInformation;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.logging.Logger;
 
 @Service
 public class VehicleInformationService {
 
-    // 日志记录器，用于记录应用的运行信息
-    private static final Logger log = LoggerFactory.getLogger(VehicleInformationService.class);
+    private static final Logger log = Logger.getLogger(VehicleInformationService.class.getName());
 
-    // MyBatis映射器，用于执行车辆信息的数据访问操作
     private final VehicleInformationMapper vehicleInformationMapper;
-    // Kafka模板，用于发送消息到Kafka消息队列
+    private final RequestHistoryMapper requestHistoryMapper;
     private final KafkaTemplate<String, VehicleInformation> kafkaTemplate;
 
-    // 构造函数，通过依赖注入初始化VehicleInformationMapper和KafkaTemplate
     @Autowired
-    public VehicleInformationService(VehicleInformationMapper vehicleInformationMapper, KafkaTemplate<String, VehicleInformation> kafkaTemplate) {
+    public VehicleInformationService(VehicleInformationMapper vehicleInformationMapper,
+                                     RequestHistoryMapper requestHistoryMapper,
+                                     KafkaTemplate<String, VehicleInformation> kafkaTemplate) {
         this.vehicleInformationMapper = vehicleInformationMapper;
+        this.requestHistoryMapper = requestHistoryMapper;
         this.kafkaTemplate = kafkaTemplate;
     }
 
-    // 创建车辆信息
     @Transactional
-    @CacheEvict(cacheNames = "vehicleCache", key = "#vehicleInformation.vehicleId")
+    @CacheEvict(cacheNames = "vehicleCache", allEntries = true)
+    public void checkAndInsertIdempotency(String idempotencyKey, VehicleInformation vehicleInformation, String action) {
+        // Query request_history
+        RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
+        if (existingRequest != null) {
+            log.warning(String.format("Duplicate request detected (idempotencyKey=%s)", idempotencyKey));
+            throw new RuntimeException("Duplicate request detected");
+        }
+
+        // Insert a "PROCESSING" status if not found
+        RequestHistory newRequest = new RequestHistory();
+        newRequest.setIdempotentKey(idempotencyKey);
+        newRequest.setBusinessStatus("PROCESSING");
+
+        try {
+            requestHistoryMapper.insert(newRequest);
+        } catch (Exception e) {
+            log.severe("Failed to insert requestHistory for idempotencyKey=" + idempotencyKey + ", " + e.getMessage());
+            throw new RuntimeException("Duplicate request or DB insert error", e);
+        }
+
+        // Notify Kafka or local events to create the vehicle information
+        sendKafkaMessage(vehicleInformation, action);
+
+        Integer vehicleId = vehicleInformation.getVehicleId();
+        newRequest.setBusinessStatus("SUCCESS");
+        newRequest.setBusinessId(vehicleId);
+        requestHistoryMapper.updateById(newRequest);
+    }
+
+    @Transactional
+    @CacheEvict(cacheNames = "vehicleCache", allEntries = true)
     public void createVehicleInformation(VehicleInformation vehicleInformation) {
         try {
-            // 同步发送 Kafka 消息
-            sendKafkaMessage("vehicle_create", vehicleInformation);
-            // 插入车辆信息到数据库
             vehicleInformationMapper.insert(vehicleInformation);
+            Integer vehicleId = vehicleInformation.getVehicleId();
+            log.info(String.format("Vehicle created successfully, vehicleId=%d", vehicleId));
         } catch (Exception e) {
-            // 记录异常信息
-            log.error("Exception occurred while creating vehicle information or sending Kafka message", e);
+            log.warning("Exception occurred while creating vehicle information: " + e.getMessage());
             throw new RuntimeException("Failed to create vehicle information", e);
         }
     }
 
-    // 根据车辆ID查询车辆信息
-    @Cacheable(cacheNames = "vehicleCache", key = "#vehicleId")
-    public VehicleInformation getVehicleInformationById(int vehicleId) {
+    @Cacheable(cacheNames = "vehicleCache")
+    public VehicleInformation getVehicleInformationById(Integer vehicleId) {
+        if (vehicleId == null || vehicleId == 0 || vehicleId >= Integer.MAX_VALUE) {
+            throw new IllegalArgumentException("Invalid vehicle ID" + vehicleId);
+        }
         return vehicleInformationMapper.selectById(vehicleId);
     }
 
-    /**
-     * 根据车牌号查询车辆信息
-     * @param licensePlate 车牌号
-     * @return 车辆信息对象
-     */
-    @Cacheable(cacheNames = "vehicleCache", key = "#root.methodName + '_' + #licensePlate")
+    @Cacheable(cacheNames = "vehicleCache")
     public VehicleInformation getVehicleInformationByLicensePlate(String licensePlate) {
         validateInput(licensePlate, "Invalid license plate number");
-        QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("license_plate", licensePlate);
-        return vehicleInformationMapper.selectOne(queryWrapper);
+        return vehicleInformationMapper.selectByLicensePlate(licensePlate);
     }
 
-    // 查询所有车辆信息
-    @Cacheable(cacheNames = "vehicleCache", key = "'allVehicles'")
+    @Cacheable(cacheNames = "vehicleCache")
     public List<VehicleInformation> getAllVehicleInformation() {
         return vehicleInformationMapper.selectList(null);
     }
 
-    /**
-     * 根据车辆类型查询车辆信息
-     * @param vehicleType 车辆类型
-     * @return 车辆信息对象列表
-     */
-    @Cacheable(cacheNames = "vehicleCache", key = "#root.methodName + '_' + #vehicleType")
+    @Cacheable(cacheNames = "vehicleCache")
     public List<VehicleInformation> getVehicleInformationByType(String vehicleType) {
         validateInput(vehicleType, "Invalid vehicle type");
-        QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("vehicle_type", vehicleType);
-        return vehicleInformationMapper.selectList(queryWrapper);
+        return vehicleInformationMapper.selectByType(vehicleType);
     }
 
-    /**
-     * 根据车主姓名查询车辆信息
-     * @param ownerName 车主姓名
-     * @return 车辆信息对象列表
-     */
-    @Cacheable(cacheNames = "vehicleCache", key = "#root.methodName + '_' + #ownerName")
+    @Cacheable(cacheNames = "vehicleCache")
     public List<VehicleInformation> getVehicleInformationByOwnerName(String ownerName) {
         validateInput(ownerName, "Invalid owner name");
-        QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("owner_name", ownerName);
-        return vehicleInformationMapper.selectList(queryWrapper);
+        return vehicleInformationMapper.selectByOwnerName(ownerName);
     }
 
-    // 更新车辆信息
     @Transactional
-    @CachePut(cacheNames = "vehicleCache", key = "#vehicleInformation.vehicleId")
+    @CacheEvict(cacheNames = "vehicleCache", allEntries = true)
     public void updateVehicleInformation(VehicleInformation vehicleInformation) {
         try {
-            // 同步发送 Kafka 消息
-            sendKafkaMessage("vehicle_update", vehicleInformation);
-            // 更新数据库中的车辆信息
             vehicleInformationMapper.updateById(vehicleInformation);
         } catch (Exception e) {
-            // 记录异常
-            log.error("Exception occurred while updating vehicle information or sending Kafka message", e);
+            log.warning("Exception occurred while updating vehicle information: " + e.getMessage());
             throw new RuntimeException("Failed to update vehicle information", e);
         }
     }
 
-    /**
-     * 删除车辆信息
-     * @param vehicleId 车辆ID
-     */
     @Transactional
-    @CacheEvict(cacheNames = "vehicleCache", key = "#vehicleId")
+    @CacheEvict(cacheNames = "vehicleCache", allEntries = true)
     public void deleteVehicleInformation(int vehicleId) {
         try {
-            VehicleInformation vehicleToDelete = vehicleInformationMapper.selectById(vehicleId);
-            if (vehicleToDelete != null) {
-                vehicleInformationMapper.deleteById(vehicleId);
-            }
+            vehicleInformationMapper.deleteById(vehicleId);
+            log.info(String.format("Vehicle with ID %d deleted successfully", vehicleId));
         } catch (Exception e) {
-            // 记录异常信息
-            log.error("Exception occurred while deleting vehicle information", e);
+            log.warning("Exception occurred while deleting vehicle information: " + e.getMessage());
             throw new RuntimeException("Failed to delete vehicle information", e);
-
         }
     }
 
-    /**
-     * 检查车牌号是否存在
-     * @param licensePlate 车牌号
-     * @return true 如果存在，false 如果不存在
-     */
-    @Cacheable(cacheNames = "vehicleCache", key = "#root.methodName + '_' + #licensePlate")
+    @Transactional
+    @CacheEvict(cacheNames = "vehicleCache", allEntries = true)
+    public void deleteVehicleInformationByLicensePlate(String licensePlate) {
+        validateInput(licensePlate, "Invalid license plate number");
+        vehicleInformationMapper.deleteByLicensePlate(licensePlate);
+    }
+
+    @Cacheable(cacheNames = "vehicleCache")
     public boolean isLicensePlateExists(String licensePlate) {
         validateInput(licensePlate, "Invalid license plate number");
-        QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("license_plate", licensePlate);
-        return vehicleInformationMapper.selectCount(queryWrapper) > 0;
+        return vehicleInformationMapper.selectCountByLicensePlate(licensePlate) > 0;
     }
 
-    /**
-     * 根据车辆状态查询车辆信息
-     * @param currentStatus 车辆状态
-     * @return 车辆信息对象列表
-     * @throws IllegalArgumentException 如果传入的参数为空或空字符串
-     */
-    @Cacheable(cacheNames = "vehicleCache", key = "#currentStatus")
+    @Cacheable(cacheNames = "vehicleCache")
     public List<VehicleInformation> getVehicleInformationByStatus(String currentStatus) {
-        if (currentStatus == null || currentStatus.trim().isEmpty()) {
-            throw new IllegalArgumentException("Invalid current status");
-        }
-        QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("current_status", currentStatus);
-        return vehicleInformationMapper.selectList(queryWrapper);
+        validateInput(currentStatus, "Invalid current status");
+        return vehicleInformationMapper.selectByStatus(currentStatus);
     }
 
-    /**
-     * 根据车牌号删除车辆信息
-     * @param licensePlate 车牌号
-     * @throws IllegalArgumentException 如果传入的参数为空或空字符串
-     */
-    @Transactional
-    @CacheEvict(cacheNames = "vehicleCache", key = "#licensePlate")
-    public void deleteVehicleInformationByLicensePlate(String licensePlate) {
-        if (licensePlate == null || licensePlate.trim().isEmpty()) {
-            throw new IllegalArgumentException("Invalid license plate number");
-        }
-        QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("license_plate", licensePlate);
-        vehicleInformationMapper.delete(queryWrapper);
-    }
-    // 发送 Kafka 消息的私有方法
-    private void sendKafkaMessage(String topic, VehicleInformation vehicleInformation) throws Exception {
-        SendResult<String, VehicleInformation> sendResult = kafkaTemplate.send(topic, vehicleInformation).get();
-        log.info("Message sent to Kafka topic {} successfully: {}", topic, sendResult.toString());
+    public void sendKafkaMessage(VehicleInformation vehicleInformation, String action) {
+        String topic = action.equals("create") ? "vehicle_create" : "vehicle_update";
+        kafkaTemplate.send(topic, vehicleInformation);
+        log.info(String.format("Message sent to Kafka topic %s successfully", topic));
     }
 
-    // 校验输入数据的私有方法
     private void validateInput(String input, String errorMessage) {
         if (input == null || input.trim().isEmpty()) {
             throw new IllegalArgumentException(errorMessage);

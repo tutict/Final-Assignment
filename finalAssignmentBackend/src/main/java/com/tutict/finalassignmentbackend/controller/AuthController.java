@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentbackend.controller;
 
 import com.tutict.finalassignmentbackend.entity.UserManagement;
+import com.tutict.finalassignmentbackend.service.AuthWsService;
 import jakarta.annotation.security.PermitAll;
 import jakarta.annotation.security.RolesAllowed;
 import org.springframework.http.HttpStatus;
@@ -39,7 +40,7 @@ public class AuthController {
     @PostMapping("/login")
     @PermitAll
     @Async
-    public CompletableFuture<ResponseEntity<Map<String, Object>>> login(@RequestBody LoginRequest loginRequest) {
+    public CompletableFuture<ResponseEntity<Map<String, Object>>> login(@RequestBody AuthWsService.LoginRequest loginRequest) {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 Map<String, Object> result = authWsService.login(loginRequest);
@@ -60,7 +61,7 @@ public class AuthController {
     @PermitAll
     @Async
     @Transactional
-    public CompletableFuture<ResponseEntity<Map<String, String>>> registerUser(@RequestBody RegisterRequest registerRequest) {
+    public CompletableFuture<ResponseEntity<Map<String, String>>> registerUser(@RequestBody AuthWsService.RegisterRequest registerRequest) {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 String res = authWsService.registerUser(registerRequest);
