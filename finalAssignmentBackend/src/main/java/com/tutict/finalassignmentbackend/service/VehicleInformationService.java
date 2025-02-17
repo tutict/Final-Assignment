@@ -1,5 +1,6 @@
 package com.tutict.finalassignmentbackend.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.tutict.finalassignmentbackend.entity.RequestHistory;
 import com.tutict.finalassignmentbackend.mapper.RequestHistoryMapper;
 import com.tutict.finalassignmentbackend.mapper.VehicleInformationMapper;
@@ -87,7 +88,9 @@ public class VehicleInformationService {
     @Cacheable(cacheNames = "vehicleCache")
     public VehicleInformation getVehicleInformationByLicensePlate(String licensePlate) {
         validateInput(licensePlate, "Invalid license plate number");
-        return vehicleInformationMapper.selectByLicensePlate(licensePlate);
+        QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("license_plate", licensePlate);
+        return vehicleInformationMapper.selectOne(queryWrapper);
     }
 
     @Cacheable(cacheNames = "vehicleCache")
@@ -98,13 +101,17 @@ public class VehicleInformationService {
     @Cacheable(cacheNames = "vehicleCache")
     public List<VehicleInformation> getVehicleInformationByType(String vehicleType) {
         validateInput(vehicleType, "Invalid vehicle type");
-        return vehicleInformationMapper.selectByType(vehicleType);
+        QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("vehicle_type", vehicleType);
+        return vehicleInformationMapper.selectList(queryWrapper);
     }
 
     @Cacheable(cacheNames = "vehicleCache")
     public List<VehicleInformation> getVehicleInformationByOwnerName(String ownerName) {
         validateInput(ownerName, "Invalid owner name");
-        return vehicleInformationMapper.selectByOwnerName(ownerName);
+        QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("owner_name", ownerName);
+        return vehicleInformationMapper.selectList(queryWrapper);
     }
 
     @Transactional
@@ -134,19 +141,25 @@ public class VehicleInformationService {
     @CacheEvict(cacheNames = "vehicleCache", allEntries = true)
     public void deleteVehicleInformationByLicensePlate(String licensePlate) {
         validateInput(licensePlate, "Invalid license plate number");
-        vehicleInformationMapper.deleteByLicensePlate(licensePlate);
+        QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("license_plate", licensePlate);
+        vehicleInformationMapper.delete(queryWrapper);
     }
 
     @Cacheable(cacheNames = "vehicleCache")
     public boolean isLicensePlateExists(String licensePlate) {
         validateInput(licensePlate, "Invalid license plate number");
-        return vehicleInformationMapper.selectCountByLicensePlate(licensePlate) > 0;
+        QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("license_plate", licensePlate);
+        return vehicleInformationMapper.selectCount(queryWrapper) > 0;
     }
 
     @Cacheable(cacheNames = "vehicleCache")
     public List<VehicleInformation> getVehicleInformationByStatus(String currentStatus) {
         validateInput(currentStatus, "Invalid current status");
-        return vehicleInformationMapper.selectByStatus(currentStatus);
+        QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("current_status", currentStatus);
+        return vehicleInformationMapper.selectList(queryWrapper);
     }
 
     public void sendKafkaMessage(VehicleInformation vehicleInformation, String action) {
