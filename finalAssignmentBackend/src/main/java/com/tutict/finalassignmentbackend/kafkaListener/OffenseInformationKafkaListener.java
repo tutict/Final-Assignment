@@ -3,83 +3,68 @@ package com.tutict.finalassignmentbackend.kafkaListener;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.entity.OffenseInformation;
 import com.tutict.finalassignmentbackend.service.OffenseInformationService;
-import io.vertx.core.Future;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.kafka.support.Acknowledgment;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 
-@Component
+@Service
+@EnableKafka
 public class OffenseInformationKafkaListener {
 
-    private static final Logger log = LoggerFactory.getLogger(OffenseInformationKafkaListener.class);
+    private static final Logger log = Logger.getLogger(OffenseInformationKafkaListener.class.getName());
+
     private final OffenseInformationService offenseInformationService;
-    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
+    private final ObjectMapper objectMapper;
 
     @Autowired
-    public OffenseInformationKafkaListener(OffenseInformationService offenseInformationService) {
+    public OffenseInformationKafkaListener(OffenseInformationService offenseInformationService, ObjectMapper objectMapper) {
         this.offenseInformationService = offenseInformationService;
+        this.objectMapper = objectMapper;
     }
 
-    @KafkaListener(topics = "offense_create", groupId = "offense_listener_group", concurrency = "3")
-    public void onOffenseCreateReceived(String message, Acknowledgment acknowledgment) {
-        Future.<Void>future(promise -> {
-            try {
-                // 反序列化消息内容为OffenseInformation对象
-                OffenseInformation offenseInformation = deserializeMessage(message);
-
-                // 根据业务逻辑处理创建违法行为信息
-                offenseInformationService.createOffense(offenseInformation);
-
-                promise.complete();
-            } catch (Exception e) {
-                // 记录异常信息，不确认消息，以便Kafka重新投递
-                log.error("Error processing create offense message: {}", message, e);
-                promise.fail(e);
-            }
-        }).onComplete(res -> {
-            if (res.succeeded()) {
-                acknowledgment.acknowledge();
-            } else {
-                log.error("Error processing create offense message: {}", message, res.cause());
-            }
-        });
+    @KafkaListener(topics = "offense_create", groupId = "offenseGroup")
+    @Transactional
+    public void onOffenseCreateReceived(String message) {
+        processMessage(message, "create", offenseInformationService::createOffense);
     }
 
-    @KafkaListener(topics = "offense_update", groupId = "offense_listener_group", concurrency = "3")
-    public void onOffenseUpdateReceived(String message, Acknowledgment acknowledgment) {
-        Future.<Void>future(promise -> {
-            try {
-                // 反序列化消息内容为OffenseInformation对象
-                OffenseInformation offenseInformation = deserializeMessage(message);
+    @KafkaListener(topics = "offense_update", groupId = "offenseGroup")
+    @Transactional
+    public void onOffenseUpdateReceived(String message) {
+        processMessage(message, "update", offenseInformationService::updateOffense);
+    }
 
-                // 根据业务逻辑处理更新违法行为信息
-                offenseInformationService.updateOffense(offenseInformation);
-
-                promise.complete();
-            } catch (Exception e) {
-                // 记录异常信息，不确认消息，以便Kafka重新投递
-                log.error("Error processing update offense message: {}", message, e);
-                promise.fail(e);
+    private void processMessage(String message, String action, MessageProcessor<OffenseInformation> processor) {
+        try {
+            OffenseInformation offenseInformation = deserializeMessage(message);
+            if ("create".equals(action)) {
+                offenseInformation.setOffenseId(null);
+                processor.process(offenseInformation);
             }
-        }).onComplete(res -> {
-            if (res.succeeded()) {
-                acknowledgment.acknowledge();
-            } else {
-                log.error("Error processing update offense message: {}", message, res.cause());
-            }
-        });
+            log.info(String.format("Offense %s action processed successfully: %s", action, message));
+        } catch (Exception e) {
+            log.log(Level.SEVERE, String.format("Error processing %s offense message: %s", action, message), e);
+            throw new RuntimeException(String.format("Failed to process %s offense message", action), e);
+        }
     }
 
     private OffenseInformation deserializeMessage(String message) {
         try {
-            // 实现JSON字符串到OffenseInformation对象的反序列化
             return objectMapper.readValue(message, OffenseInformation.class);
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            log.log(Level.SEVERE, "Failed to deserialize message: " + message, e);
+            throw new RuntimeException("Failed to deserialize message", e);
         }
+    }
+
+    @FunctionalInterface
+    private interface MessageProcessor<T> {
+        void process(T t) throws Exception;
     }
 }

@@ -3,92 +3,69 @@ package com.tutict.finalassignmentbackend.kafkaListener;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.entity.PermissionManagement;
 import com.tutict.finalassignmentbackend.service.PermissionManagementService;
-import io.vertx.core.Future;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.kafka.support.Acknowledgment;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 
 // 定义一个Kafka消息监听器类，用于处理权限管理相关的Kafka消息
-@Component
+@Service
+@EnableKafka
 public class PermissionManagementKafkaListener {
 
-    // 初始化日志记录器
-    private static final Logger log = LoggerFactory.getLogger(PermissionManagementKafkaListener.class);
+    private static final Logger log = Logger.getLogger(PermissionManagementKafkaListener.class.getName());
 
-    // 权限管理服务接口，用于处理权限的业务逻辑
     private final PermissionManagementService permissionManagementService;
+    private final ObjectMapper objectMapper;
 
-    // 对象映射器，用于JSON序列化和反序列化
-    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
-
-    // 构造函数，自动注入权限管理服务
     @Autowired
-    public PermissionManagementKafkaListener(PermissionManagementService permissionManagementService) {
+    public PermissionManagementKafkaListener(PermissionManagementService permissionManagementService, ObjectMapper objectMapper) {
         this.permissionManagementService = permissionManagementService;
+        this.objectMapper = objectMapper;
     }
 
-    // 监听权限创建主题，处理权限创建消息
-    @KafkaListener(topics = "permission_create", groupId = "permission_listener_group", concurrency = "3")
-    public void onPermissionCreateReceived(String message, Acknowledgment acknowledgment) {
-        Future.<Void>future(promise -> {
-            try {
-                // 反序列化消息内容为PermissionManagement对象
-                PermissionManagement permission = deserializeMessage(message);
-
-                // 根据业务逻辑处理创建权限
-                permissionManagementService.createPermission(permission);
-
-                promise.complete();
-            } catch (Exception e) {
-                // 记录异常信息，不确认消息，以便Kafka重新投递
-                log.error("Error processing create permission message: {}", message, e);
-                promise.fail(e);
-            }
-        }).onComplete(res -> {
-            if (res.succeeded()) {
-                acknowledgment.acknowledge();
-            } else {
-                log.error("Error processing create permission message: {}", message, res.cause());
-            }
-        });
+    @KafkaListener(topics = "permission_create", groupId = "permissionGroup")
+    @Transactional
+    public void onPermissionCreateReceived(String message) {
+        processMessage(message, "create", permissionManagementService::createPermission);
     }
 
-    // 监听权限更新主题，处理权限更新消息
-    @KafkaListener(topics = "permission_update", groupId = "permission_listener_group", concurrency = "3")
-    public void onPermissionUpdateReceived(String message, Acknowledgment acknowledgment) {
-        Future.<Void>future(promise -> {
-            try {
-                // 反序列化消息内容为PermissionManagement对象
-                PermissionManagement permission = deserializeMessage(message);
-
-                // 根据业务逻辑处理更新权限
-                permissionManagementService.updatePermission(permission);
-
-                promise.complete();
-            } catch (Exception e) {
-                // 记录异常信息，不确认消息，以便Kafka重新投递
-                log.error("Error processing update permission message: {}", message, e);
-                promise.fail(e);
-            }
-        }).onComplete(res -> {
-            if (res.succeeded()) {
-                acknowledgment.acknowledge();
-            } else {
-                log.error("Error processing update permission message: {}", message, res.cause());
-            }
-        });
+    @KafkaListener(topics = "permission_update", groupId = "permissionGroup")
+    @Transactional
+    public void onPermissionUpdateReceived(String message) {
+        processMessage(message, "update", permissionManagementService::updatePermission);
     }
 
-    // 反序列化JSON消息为PermissionManagement对象
+    private void processMessage(String message, String action, MessageProcessor<PermissionManagement> processor) {
+        try {
+            PermissionManagement permission = deserializeMessage(message);
+            if ("create".equals(action)) {
+                permission.setPermissionId(null);
+                processor.process(permission);
+            }
+            log.info(String.format("Permission %s action processed successfully: %s", action, message));
+        } catch (Exception e) {
+            log.log(Level.SEVERE, String.format("Error processing %s permission message: %s", action, message), e);
+            throw new RuntimeException(String.format("Failed to process %s permission message", action), e);
+        }
+    }
+
     private PermissionManagement deserializeMessage(String message) {
         try {
             return objectMapper.readValue(message, PermissionManagement.class);
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            log.log(Level.SEVERE, "Failed to deserialize message: " + message, e);
+            throw new RuntimeException("Failed to deserialize message", e);
         }
+    }
+
+    @FunctionalInterface
+    private interface MessageProcessor<T> {
+        void process(T t) throws Exception;
     }
 }

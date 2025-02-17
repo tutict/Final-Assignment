@@ -3,88 +3,71 @@ package com.tutict.finalassignmentbackend.kafkaListener;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.entity.UserManagement;
 import com.tutict.finalassignmentbackend.service.UserManagementService;
-import io.vertx.core.Future;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.kafka.support.Acknowledgment;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 
-@Component
+@Service
+@EnableKafka
 public class UserManagementKafkaListener {
 
-    // 日志记录器
-    private static final Logger log = LoggerFactory.getLogger(UserManagementKafkaListener.class);
-    // 用户管理服务
+    private static final Logger log = Logger.getLogger(UserManagementKafkaListener.class.getName());
+
     private final UserManagementService userManagementService;
-    // 对象映射器，用于JSON序列化和反序列化
-    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
+    private final ObjectMapper objectMapper;
 
     @Autowired
-    public UserManagementKafkaListener(UserManagementService userManagementService) {
+    public UserManagementKafkaListener(UserManagementService userManagementService, ObjectMapper objectMapper) {
         this.userManagementService = userManagementService;
+        this.objectMapper = objectMapper;
     }
 
-    @KafkaListener(topics = "user_create", groupId = "user_listener_group", concurrency = "3")
-    public void onUserCreateReceived(String message, Acknowledgment acknowledgment) {
-        Future.<Void>future(promise -> {
-            try {
-                // 反序列化消息内容为UserManagement对象
-                UserManagement user = deserializeMessage(message);
-
-                // 根据业务逻辑处理创建用户
-                userManagementService.createUser(user);
-
-                // 确认消息已被成功处理
-                promise.complete();
-            } catch (Exception e) {
-                // 记录异常信息，不确认消息，以便Kafka重新投递
-                log.error("Error processing create user message: {}", message, e);
-                promise.fail(e);
-            }
-        }).onComplete(res -> {
-            if (res.succeeded()) {
-                acknowledgment.acknowledge();
-            } else {
-                log.error("Error processing create user message: {}", message, res.cause());
-            }
-        });
+    @KafkaListener(topics = "user_create", groupId = "userGroup")
+    @Transactional
+    public void onUserCreateReceived(String message) {
+        processMessage(message, "create", userManagementService::createUser);
     }
 
-    @KafkaListener(topics = "user_update", groupId = "user_listener_group", concurrency = "3")
-    public void onUserUpdateReceived(String message, Acknowledgment acknowledgment) {
-        Future.<Void>future(promise -> {
-            try {
-                // 反序列化消息内容为UserManagement对象
-                UserManagement user = deserializeMessage(message);
+    @KafkaListener(topics = "user_update", groupId = "userGroup")
+    @Transactional
+    public void onUserUpdateReceived(String message) {
+        processMessage(message, "update", userManagementService::updateUser);
+    }
 
-                // 根据业务逻辑处理更新用户
-                userManagementService.updateUser(user);
+    private void processMessage(String message, String action, MessageProcessor<UserManagement> processor) {
+        try {
+            UserManagement user = deserializeMessage(message);
 
-                // 确认消息已被成功处理
-                promise.complete();
-            } catch (Exception e) {
-                // 记录异常信息，不确认消息，以便Kafka重新投递
-                log.error("Error processing update user message: {}", message, e);
-                promise.fail(e);
+            if ("create".equals(action)) {
+                // 让数据库自增
+                user.setUserId(null);
+                processor.process(user);
             }
-        }).onComplete(res -> {
-            if (res.succeeded()) {
-                acknowledgment.acknowledge();
-            } else {
-                log.error("Error processing update user message: {}", message, res.cause());
-            }
-        });
+
+            log.info(String.format("User %s action processed successfully: %s", action, message));
+        } catch (Exception e) {
+            log.log(Level.SEVERE, String.format("Error processing %s user message: %s", action, message), e);
+            throw new RuntimeException(String.format("Failed to process %s user message", action), e);
+        }
     }
 
     private UserManagement deserializeMessage(String message) {
         try {
-            // 实现JSON字符串到UserManagement对象的反序列化
             return objectMapper.readValue(message, UserManagement.class);
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            log.log(Level.SEVERE, "Failed to deserialize message: " + message, e);
+            throw new RuntimeException("Failed to deserialize message", e);
         }
+    }
+
+    @FunctionalInterface
+    private interface MessageProcessor<T> {
+        void process(T t) throws Exception;
     }
 }
