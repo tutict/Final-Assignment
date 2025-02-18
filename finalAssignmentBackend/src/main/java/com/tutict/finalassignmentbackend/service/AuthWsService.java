@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentbackend.service;
 
-import com.tutict.finalassignmentbackend.config.login.JWT.TokenProvider;
+import com.tutict.finalassignmentbackend.config.login.jwt.TokenProvider;
+import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.LoginLog;
 import com.tutict.finalassignmentbackend.entity.RoleManagement;
 import com.tutict.finalassignmentbackend.entity.UserManagement;
@@ -40,6 +41,7 @@ public class AuthWsService {
     /*
      * WebSocket: 登录用户
      */
+    @WsAction(service = "AuthWsService", action = "login")
     public Map<String, Object> login(LoginRequest loginRequest) {
         logger.info(String.format("[WS] Attempting to authenticate user: %s", loginRequest.getUsername()));
 
@@ -71,6 +73,7 @@ public class AuthWsService {
      * WebSocket: 注册用户
      */
     @Transactional
+    @WsAction(service = "AuthWsService", action = "registerUser")
     public String registerUser(RegisterRequest registerRequest) {
         logger.info(String.format("[WS] Attempting to register user: %s", registerRequest.getUsername()));
         if (userManagementService.isUsernameExists(registerRequest.getUsername())) {
@@ -95,6 +98,7 @@ public class AuthWsService {
      * WebSocket: 获取所有用户
      */
     @Cacheable(cacheNames = "userCache")  // 可选
+    @WsAction(service = "AuthWsService", action = "getAllUsers")
     public List<UserManagement> getAllUsers() {
         logger.info("[WS] Fetching all users");
         return userManagementService.getAllUsers();

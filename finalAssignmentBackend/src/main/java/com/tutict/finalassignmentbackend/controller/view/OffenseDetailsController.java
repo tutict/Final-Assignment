@@ -60,7 +60,7 @@ public class OffenseDetailsController {
         return CompletableFuture.supplyAsync(() -> {
             OffenseDetails offenseDetails = offenseDetailsService.getOffenseDetailsById(id);
             if (offenseDetails != null) {
-                offenseDetailsService.checkAndInsertIdempotency(idempotencyKey, offenseDetails, "update");
+                offenseDetailsService.checkAndInsertIdempotency(idempotencyKey, offenseDetails);
                 return ResponseEntity.ok("OffenseDetails sent to Kafka topic successfully!");
             } else {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body("OffenseDetails not found for id: " + id);

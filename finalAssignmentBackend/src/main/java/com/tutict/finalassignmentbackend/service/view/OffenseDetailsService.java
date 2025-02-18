@@ -35,7 +35,7 @@ public class OffenseDetailsService {
 
     @Transactional
     @CacheEvict(cacheNames = "offenseDetailsCache", allEntries = true)
-    public void checkAndInsertIdempotency(String idempotencyKey, OffenseDetails offenseDetails, String action) {
+    public void checkAndInsertIdempotency(String idempotencyKey, OffenseDetails offenseDetails) {
         // 查询 request_history
         RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
         if (existingRequest != null) {

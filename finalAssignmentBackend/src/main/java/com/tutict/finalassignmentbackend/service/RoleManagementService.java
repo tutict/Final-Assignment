@@ -53,7 +53,7 @@ public class RoleManagementService {
             throw new RuntimeException("Duplicate request or DB insert error", e);
         }
 
-        sendKafkaMessage(roleManagement);
+        sendKafkaMessage("role_" + action, roleManagement);
 
         Integer roleId = roleManagement.getRoleId();
         newRequest.setBusinessStatus("SUCCESS");
@@ -149,8 +149,8 @@ public class RoleManagementService {
         return roleManagementMapper.selectList(queryWrapper);
     }
 
-    private void sendKafkaMessage(RoleManagement role) {
-        kafkaTemplate.send("role_processed_topic", role);
-        log.info(String.format("Message sent to Kafka topic %s successfully", "role_processed_topic"));
+    private void sendKafkaMessage(String topic, RoleManagement role) {
+        kafkaTemplate.send(topic, role);
+        log.info(String.format("Message sent to Kafka topic %s successfully", topic));
     }
 }

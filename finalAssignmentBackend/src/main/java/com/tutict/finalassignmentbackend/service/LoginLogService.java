@@ -54,7 +54,7 @@ public class LoginLogService {
             throw new RuntimeException("Duplicate request or DB insert error", e);
         }
 
-        sendKafkaMessage(loginLog);
+        sendKafkaMessage("login_" + action, loginLog);
 
         Integer loginLogId = loginLog.getLogId();
         newRequest.setBusinessStatus("SUCCESS");
@@ -141,8 +141,8 @@ public class LoginLogService {
         return loginLogMapper.selectList(queryWrapper);
     }
 
-    private void sendKafkaMessage(LoginLog loginLog) {
-        kafkaTemplate.send("login_processed_topic", loginLog);
-        log.info(String.format("Message sent to Kafka topic %s successfully", "login_processed_topic"));
+    private void sendKafkaMessage(String topic, LoginLog loginLog) {
+        kafkaTemplate.send(topic, loginLog);
+        log.info(String.format("Message sent to Kafka topic %s successfully", topic));
     }
 }

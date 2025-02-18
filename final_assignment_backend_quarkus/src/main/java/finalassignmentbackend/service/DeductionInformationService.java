@@ -152,7 +152,7 @@ public class DeductionInformationService {
     }
 
     @CacheResult(cacheName = "deductionCache")
-    @WsAction(service = "DeductionInformationService", action = "getDeductionsByTime")
+    @WsAction(service = "DeductionInformationService", action = "getDeductionsByTimeRange")
     public List<DeductionInformation> getDeductionsByTimeRange(Date startTime, Date endTime) {
         if (startTime == null || endTime == null || startTime.after(endTime)) {
             throw new IllegalArgumentException("Invalid time range");

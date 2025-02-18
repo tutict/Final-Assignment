@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.RequestHistory;
 import com.tutict.finalassignmentbackend.mapper.BackupRestoreMapper;
 import com.tutict.finalassignmentbackend.entity.BackupRestore;
@@ -38,6 +39,7 @@ public class BackupRestoreService {
 
     @Transactional
     @CacheEvict(cacheNames = "backupCache", allEntries = true)
+    @WsAction(service = "BackupRestoreService", action = "checkAndInsertIdempotency")
     public void checkAndInsertIdempotency(String idempotencyKey, BackupRestore backupRestore, String action) {
         RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
         if (existingRequest != null) {
@@ -56,7 +58,7 @@ public class BackupRestoreService {
             throw new RuntimeException("Duplicate request or DB insert error", e);
         }
 
-        sendKafkaMessage("backup_processed_" + action, backupRestore);
+        sendKafkaMessage("backup_" + action, backupRestore);
 
         Integer backupId = backupRestore.getBackupId();
         newRequest.setBusinessStatus("SUCCESS");
@@ -88,6 +90,7 @@ public class BackupRestoreService {
 
     @Transactional
     @CacheEvict(cacheNames = "backupCache", allEntries = true)
+    @WsAction(service = "BackupRestoreService", action = "deleteBackup")
     public void deleteBackup(Integer backupId) {
         if (backupId == null || backupId <= 0) {
             throw new IllegalArgumentException("Invalid backup ID");
@@ -101,6 +104,7 @@ public class BackupRestoreService {
     }
 
     @Cacheable(cacheNames = "backupCache")
+    @WsAction(service = "BackupRestoreService", action = "getBackupById")
     public BackupRestore getBackupById(Integer backupId) {
         if (backupId == null || backupId <= 0 || backupId >= Integer.MAX_VALUE) {
             throw new IllegalArgumentException("Invalid backup ID " + backupId);
@@ -109,11 +113,13 @@ public class BackupRestoreService {
     }
 
     @Cacheable(cacheNames = "backupCache")
+    @WsAction(service = "BackupRestoreService", action = "getAllBackups")
     public List<BackupRestore> getAllBackups() {
         return backupRestoreMapper.selectList(null);
     }
 
     @Cacheable(cacheNames = "backupCache")
+    @WsAction(service = "BackupRestoreService", action = "getBackupByFileName")
     public BackupRestore getBackupByFileName(String backupFileName) {
         if (backupFileName == null || backupFileName.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid backup file name");
@@ -124,6 +130,7 @@ public class BackupRestoreService {
     }
 
     @Cacheable(cacheNames = "backupCache")
+    @WsAction(service = "BackupRestoreService", action = "getBackupsByTime")
     public List<BackupRestore> getBackupsByTime(String backupTime) {
         if (backupTime == null || backupTime.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid backup time");

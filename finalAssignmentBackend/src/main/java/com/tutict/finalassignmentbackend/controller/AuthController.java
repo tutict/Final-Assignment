@@ -77,7 +77,7 @@ public class AuthController {
     @GetMapping("/users")
     @RolesAllowed("ADMIN")
     @Async
-    public CompletableFuture<ResponseEntity<List<UserManagement>>> getAllUsers() {
+    public CompletableFuture<ResponseEntity<? extends List<?>>> getAllUsers() {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 List<UserManagement> users = authWsService.getAllUsers();

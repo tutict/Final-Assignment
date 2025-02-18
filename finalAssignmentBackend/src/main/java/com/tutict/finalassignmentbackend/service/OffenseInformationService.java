@@ -57,7 +57,7 @@ public class OffenseInformationService {
             throw new RuntimeException("Duplicate request or DB insert error", e);
         }
 
-        sendKafkaMessage(offenseInformation);
+        sendKafkaMessage("offense_"+action, offenseInformation);
 
         Integer offenseId = offenseInformation.getOffenseId();
         newRequest.setBusinessStatus("SUCCESS");
@@ -154,8 +154,8 @@ public class OffenseInformationService {
         return offenseInformationMapper.selectList(queryWrapper);
     }
 
-    private void sendKafkaMessage(OffenseInformation offenseInformation) {
-        kafkaTemplate.send("offense_processed_topic", offenseInformation);
-        log.info(String.format("Message sent to Kafka topic %s successfully", "offense_processed_topic"));
+    private void sendKafkaMessage(String topic, OffenseInformation offenseInformation) {
+        kafkaTemplate.send(topic, offenseInformation);
+        log.info(String.format("Message sent to Kafka topic %s successfully", topic));
     }
 }

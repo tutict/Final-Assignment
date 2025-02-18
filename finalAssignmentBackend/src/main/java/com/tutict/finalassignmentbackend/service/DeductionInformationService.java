@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.RequestHistory;
 import com.tutict.finalassignmentbackend.mapper.DeductionInformationMapper;
 import com.tutict.finalassignmentbackend.entity.DeductionInformation;
@@ -36,6 +37,7 @@ public class DeductionInformationService {
 
     @Transactional
     @CacheEvict(cacheNames = "deductionCache", allEntries = true)
+    @WsAction(service = "DeductionService", action = "checkAndInsertIdempotency")
     public void checkAndInsertIdempotency(String idempotencyKey, DeductionInformation deductionInformation, String action) {
         RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
         if (existingRequest != null) {
@@ -54,7 +56,7 @@ public class DeductionInformationService {
             throw new RuntimeException("Duplicate request or DB insert error", e);
         }
 
-        sendKafkaMessage(deductionInformation);
+        sendKafkaMessage("deduction_" + action, deductionInformation);
 
         Integer deductionId = deductionInformation.getDeductionId();
         newRequest.setBusinessStatus("SUCCESS");
@@ -86,6 +88,7 @@ public class DeductionInformationService {
 
     @Transactional
     @CacheEvict(cacheNames = "deductionCache", allEntries = true)
+    @WsAction(service = "DeductionInformationService", action = "deleteDeduction")
     public void deleteDeduction(int deductionId) {
         if (deductionId <= 0) {
             throw new IllegalArgumentException("Invalid deduction ID");
@@ -99,6 +102,7 @@ public class DeductionInformationService {
     }
 
     @Cacheable(cacheNames = "deductionCache")
+    @WsAction(service = "DeductionInformationService", action = "getDeductionById")
     public DeductionInformation getDeductionById(Integer deductionId) {
         if (deductionId == null || deductionId <= 0 || deductionId >= Integer.MAX_VALUE) {
             throw new IllegalArgumentException("Invalid deduction ID " + deductionId);
@@ -107,11 +111,13 @@ public class DeductionInformationService {
     }
 
     @Cacheable(cacheNames = "deductionCache")
+    @WsAction(service = "DeductionInformationService", action = "getAllDeductions")
     public List<DeductionInformation> getAllDeductions() {
         return deductionInformationMapper.selectList(null);
     }
 
     @Cacheable(cacheNames = "deductionCache")
+    @WsAction(service = "DeductionInformationService", action = "getDeductionsByHandler")
     public List<DeductionInformation> getDeductionsByHandler(String handler) {
         if (handler == null || handler.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid handler");
@@ -122,6 +128,7 @@ public class DeductionInformationService {
     }
 
     @Cacheable(cacheNames = "deductionCache")
+    @WsAction(service = "DeductionInformationService", action = "getDeductionsByTimeRange")
     public List<DeductionInformation> getDeductionsByTimeRange(Date startTime, Date endTime) {
         if (startTime == null || endTime == null || startTime.after(endTime)) {
             throw new IllegalArgumentException("Invalid time range");
@@ -131,8 +138,8 @@ public class DeductionInformationService {
         return deductionInformationMapper.selectList(queryWrapper);
     }
 
-    private void sendKafkaMessage(DeductionInformation deductionInformation) {
-        kafkaTemplate.send("deduction_processed_topic", deductionInformation);
-        log.info(String.format("Message sent to Kafka topic %s successfully", "deduction_processed_topic"));
+    private void sendKafkaMessage(String topic, DeductionInformation deductionInformation) {
+        kafkaTemplate.send(topic, deductionInformation);
+        log.info(String.format("Message sent to Kafka topic %s successfully", topic));
     }
 }

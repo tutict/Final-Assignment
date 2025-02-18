@@ -54,7 +54,7 @@ public class SystemLogsService {
             throw new RuntimeException("Duplicate request or DB insert error", e);
         }
 
-        sendKafkaMessage(systemLogs);
+        sendKafkaMessage("system_" + action, systemLogs);
 
         Integer systemLogsId = systemLogs.getLogId();
         newRequest.setBusinessStatus("SUCCESS");
@@ -137,8 +137,8 @@ public class SystemLogsService {
         return systemLogsMapper.selectList(queryWrapper);
     }
 
-    private void sendKafkaMessage(SystemLogs systemLog) {
-        kafkaTemplate.send("system_log_processed_topic", systemLog);
-        log.info(String.format("Message sent to Kafka topic %s successfully", "system_log_processed_topic"));
+    private void sendKafkaMessage(String topic, SystemLogs systemLog) {
+        kafkaTemplate.send(topic, systemLog);
+        log.info(String.format("Message sent to Kafka topic %s successfully", topic));
     }
 }

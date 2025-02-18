@@ -5,8 +5,6 @@ import com.tutict.finalassignmentbackend.service.VehicleInformationService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.transaction.annotation.Transactional;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -26,7 +24,6 @@ import java.util.concurrent.Executors;
 @RequestMapping("/api/vehicles")
 public class VehicleInformationController {
 
-    private static final Logger logger = LoggerFactory.getLogger(VehicleInformationController.class);
 
     private static final ExecutorService virtualThreadExecutor = Executors.newVirtualThreadPerTaskExecutor();
 

@@ -56,7 +56,7 @@ public class OperationLogService {
             throw new RuntimeException("Duplicate request or DB insert error", e);
         }
 
-        sendKafkaMessage(operationLog);
+        sendKafkaMessage("operation_" + action, operationLog);
 
         Integer operationId = operationLog.getLogId();
         newRequest.setBusinessStatus("SUCCESS");
@@ -143,8 +143,8 @@ public class OperationLogService {
         return operationLogMapper.selectList(queryWrapper);
     }
 
-    private void sendKafkaMessage(OperationLog operationLog) {
-        kafkaTemplate.send("operation_processed_topic", operationLog);
-        log.info(String.format("Message sent to Kafka topic %s successfully", "operation_processed_topic"));
+    private void sendKafkaMessage(String topic, OperationLog operationLog) {
+        kafkaTemplate.send(topic, operationLog);
+        log.info(String.format("Message sent to Kafka topic %s successfully", topic));
     }
 }

@@ -53,7 +53,7 @@ public class PermissionManagementService {
             throw new RuntimeException("Duplicate request or DB insert error", e);
         }
 
-        sendKafkaMessage(permissionManagement);
+        sendKafkaMessage("permission_" + action, permissionManagement);
 
         Integer permissionId = permissionManagement.getPermissionId();
         newRequest.setBusinessStatus("SUCCESS");
@@ -149,8 +149,8 @@ public class PermissionManagementService {
         return permissionManagementMapper.selectList(queryWrapper);
     }
 
-    private void sendKafkaMessage(PermissionManagement permission) {
-        kafkaTemplate.send("permission_processed_topic", permission);
-        log.info(String.format("Message sent to Kafka topic %s successfully", "permission_processed_topic"));
+    private void sendKafkaMessage(String topic, PermissionManagement permission) {
+        kafkaTemplate.send(topic, permission);
+        log.info(String.format("Message sent to Kafka topic %s successfully", topic));
     }
 }
