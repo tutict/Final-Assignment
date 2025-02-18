@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.RequestHistory;
 import com.tutict.finalassignmentbackend.mapper.RequestHistoryMapper;
 import com.tutict.finalassignmentbackend.mapper.SystemLogsMapper;
@@ -36,6 +37,7 @@ public class SystemLogsService {
 
     @Transactional
     @CacheEvict(cacheNames = "systemLogCache", allEntries = true)
+    @WsAction(service = "SystemLogsService", action = "checkAndInsertIdempotency")
     public void checkAndInsertIdempotency(String idempotencyKey, SystemLogs systemLogs, String action) {
         RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
         if (existingRequest != null) {
@@ -81,6 +83,7 @@ public class SystemLogsService {
 
     @Transactional
     @CacheEvict(cacheNames = "systemLogCache", allEntries = true)
+    @WsAction(service = "SystemLogsService", action = "deleteSystemLog")
     public void deleteSystemLog(int logId) {
         if (logId <= 0) {
             throw new IllegalArgumentException("Invalid log ID");
@@ -95,6 +98,7 @@ public class SystemLogsService {
     }
 
     @Cacheable(cacheNames = "systemLogCache")
+    @WsAction(service = "SystemLogsService", action = "getSystemLogById")
     public SystemLogs getSystemLogById(Integer logId) {
         if (logId == null || logId <= 0 || logId >= Integer.MAX_VALUE) {
             throw new IllegalArgumentException("Invalid log ID" + logId);
@@ -103,11 +107,13 @@ public class SystemLogsService {
     }
 
     @Cacheable(cacheNames = "systemLogCache")
+    @WsAction(service = "SystemLogsService", action = "getAllSystemLogs")
     public List<SystemLogs> getAllSystemLogs() {
         return systemLogsMapper.selectList(null);
     }
 
     @Cacheable(cacheNames = "systemLogCache")
+    @WsAction(service = "SystemLogsService", action = "getSystemLogsByType")
     public List<SystemLogs> getSystemLogsByType(String logType) {
         if (logType == null || logType.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid log type");
@@ -118,6 +124,7 @@ public class SystemLogsService {
     }
 
     @Cacheable(cacheNames = "systemLogCache")
+    @WsAction(service = "SystemLogsService", action = "getSystemLogsByTimeRange")
     public List<SystemLogs> getSystemLogsByTimeRange(Date startTime, Date endTime) {
         if (startTime == null || endTime == null || startTime.after(endTime)) {
             throw new IllegalArgumentException("Invalid time range");
@@ -128,6 +135,7 @@ public class SystemLogsService {
     }
 
     @Cacheable(cacheNames = "systemLogCache")
+    @WsAction(service = "SystemLogsService", action = "getSystemLogsByOperationUser")
     public List<SystemLogs> getSystemLogsByOperationUser(String operationUser) {
         if (operationUser == null || operationUser.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid operation user");

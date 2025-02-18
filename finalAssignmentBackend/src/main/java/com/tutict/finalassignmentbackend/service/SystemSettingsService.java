@@ -1,5 +1,6 @@
 package com.tutict.finalassignmentbackend.service;
 
+import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.RequestHistory;
 import com.tutict.finalassignmentbackend.mapper.RequestHistoryMapper;
 import com.tutict.finalassignmentbackend.mapper.SystemSettingsMapper;
@@ -35,6 +36,7 @@ public class SystemSettingsService {
 
     @Transactional
     @CacheEvict(cacheNames = "systemSettingsCache", allEntries = true)
+    @WsAction(service = "SystemSettingsService", action = "checkAndInsertIdempotency")
     public void checkAndInsertIdempotency(String idempotencyKey, SystemSettings systemSettings) {
         // Query request_history
         RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
@@ -65,6 +67,7 @@ public class SystemSettingsService {
     }
 
     @Cacheable(cacheNames = "systemSettingsCache")
+    @WsAction(service = "SystemSettingsService", action = "getSystemSettings")
     public SystemSettings getSystemSettings() {
         return systemSettingsMapper.selectById(1);
     }
@@ -81,72 +84,84 @@ public class SystemSettingsService {
     }
 
     @Cacheable(cacheNames = "systemSettingsCache")
+    @WsAction(service = "SystemSettingsService", action = "getSystemName")
     public String getSystemName() {
         SystemSettings systemSettings = getSystemSettings();
         return systemSettings != null ? systemSettings.getSystemName() : null;
     }
 
     @Cacheable(cacheNames = "systemSettingsCache")
+    @WsAction(service = "SystemSettingsService", action = "getSystemVersion")
     public String getSystemVersion() {
         SystemSettings systemSettings = getSystemSettings();
         return systemSettings != null ? systemSettings.getSystemVersion() : null;
     }
 
     @Cacheable(cacheNames = "systemSettingsCache")
+    @WsAction(service = "SystemSettingsService", action = "getSystemDescription")
     public String getSystemDescription() {
         SystemSettings systemSettings = getSystemSettings();
         return systemSettings != null ? systemSettings.getSystemDescription() : null;
     }
 
     @Cacheable(cacheNames = "systemSettingsCache")
+    @WsAction(service = "SystemSettingsService", action = "getCopyrightInfo")
     public String getCopyrightInfo() {
         SystemSettings systemSettings = getSystemSettings();
         return systemSettings != null ? systemSettings.getCopyrightInfo() : null;
     }
 
     @Cacheable(cacheNames = "systemSettingsCache")
+    @WsAction(service = "SystemSettingsService", action = "getStoragePath")
     public String getStoragePath() {
         SystemSettings systemSettings = getSystemSettings();
         return systemSettings != null ? systemSettings.getStoragePath() : null;
     }
 
     @Cacheable(cacheNames = "systemSettingsCache")
+    @WsAction(service = "SystemSettingsService", action = "getLoginTimeout")
     public int getLoginTimeout() {
         SystemSettings systemSettings = getSystemSettings();
         return systemSettings != null ? systemSettings.getLoginTimeout() : 0;
     }
 
     @Cacheable(cacheNames = "systemSettingsCache")
+    @WsAction(service = "SystemSettingsService", action = "getSessionTimeout")
     public int getSessionTimeout() {
         SystemSettings systemSettings = getSystemSettings();
         return systemSettings != null ? systemSettings.getSessionTimeout() : 0;
     }
 
     @Cacheable(cacheNames = "systemSettingsCache")
+    @WsAction(service = "SystemSettingsService", action = "getDateFormat")
     public String getDateFormat() {
         SystemSettings systemSettings = getSystemSettings();
         return systemSettings != null ? systemSettings.getDateFormat() : null;
     }
 
     @Cacheable(cacheNames = "systemSettingsCache")
+    @WsAction(service = "SystemSettingsService", action = "getPageSize")
     public int getPageSize() {
         SystemSettings systemSettings = getSystemSettings();
         return systemSettings != null ? systemSettings.getPageSize() : 0;
     }
 
     @Cacheable(cacheNames = "systemSettingsCache")
+    @WsAction(service = "SystemSettingsService", action = "getSmtpServer")
     public String getSmtpServer() {
         SystemSettings systemSettings = getSystemSettings();
         return systemSettings != null ? systemSettings.getSmtpServer() : null;
     }
 
     @Cacheable(cacheNames = "systemSettingsCache")
+    @WsAction(service = "SystemSettingsService", action = "getEmailAccount")
     public String getEmailAccount() {
         SystemSettings systemSettings = getSystemSettings();
         return systemSettings != null ? systemSettings.getEmailAccount() : null;
     }
 
     @Cacheable(cacheNames = "systemSettingsCache")
+    @WsAction(service = "SystemSettingsService", action = "getEmailPassword")
     public String getEmailPassword() {
         SystemSettings systemSettings = getSystemSettings();
         return systemSettings != null ? systemSettings.getEmailPassword() : null;

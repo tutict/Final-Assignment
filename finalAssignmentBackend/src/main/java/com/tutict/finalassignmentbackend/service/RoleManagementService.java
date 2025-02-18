@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.RequestHistory;
 import com.tutict.finalassignmentbackend.mapper.RequestHistoryMapper;
 import com.tutict.finalassignmentbackend.mapper.RoleManagementMapper;
@@ -35,6 +36,7 @@ public class RoleManagementService {
 
     @Transactional
     @CacheEvict(cacheNames = "roleCache", allEntries = true)
+    @WsAction(service = "RoleManagementService", action = "checkAndInsertIdempotency")
     public void checkAndInsertIdempotency(String idempotencyKey, RoleManagement roleManagement, String action) {
         RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
         if (existingRequest != null) {
@@ -85,6 +87,7 @@ public class RoleManagementService {
 
     @Transactional
     @CacheEvict(cacheNames = "roleCache", allEntries = true)
+    @WsAction(service = "RoleManagementService", action = "deleteRole")
     public void deleteRole(int roleId) {
         if (roleId <= 0) {
             throw new IllegalArgumentException("Invalid role ID");
@@ -99,6 +102,7 @@ public class RoleManagementService {
 
     @Transactional
     @CacheEvict(cacheNames = "roleCache", allEntries = true)
+    @WsAction(service = "RoleManagementService", action = "deleteRoleByName")
     public void deleteRoleByName(String roleName) {
         if (roleName == null || roleName.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid role name");
@@ -117,6 +121,7 @@ public class RoleManagementService {
     }
 
     @Cacheable(cacheNames = "roleCache")
+    @WsAction(service = "RoleManagementService", action = "getRoleById")
     public RoleManagement getRoleById(Integer roleId) {
         if (roleId == null || roleId <= 0 || roleId >= Integer.MAX_VALUE) {
             throw new IllegalArgumentException("Invalid role ID" + roleId);
@@ -125,11 +130,13 @@ public class RoleManagementService {
     }
 
     @Cacheable(cacheNames = "roleCache")
+    @WsAction(service = "RoleManagementService", action = "getAllRoles")
     public List<RoleManagement> getAllRoles() {
         return roleManagementMapper.selectList(null);
     }
 
     @Cacheable(cacheNames = "roleCache")
+    @WsAction(service = "RoleManagementService", action = "getRoleByName")
     public RoleManagement getRoleByName(String roleName) {
         if (roleName == null || roleName.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid role name");
@@ -140,6 +147,7 @@ public class RoleManagementService {
     }
 
     @Cacheable(cacheNames = "roleCache")
+    @WsAction(service = "RoleManagementService", action = "getRolesByNameLike")
     public List<RoleManagement> getRolesByNameLike(String roleName) {
         if (roleName == null || roleName.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid role name");

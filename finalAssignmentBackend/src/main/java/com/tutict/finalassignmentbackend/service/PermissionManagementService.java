@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.RequestHistory;
 import com.tutict.finalassignmentbackend.mapper.PermissionManagementMapper;
 import com.tutict.finalassignmentbackend.entity.PermissionManagement;
@@ -35,6 +36,7 @@ public class PermissionManagementService {
 
     @Transactional
     @CacheEvict(cacheNames = "permissionCache", allEntries = true)
+    @WsAction(service = "PermissionManagementService", action = "checkAndInsertIdempotency")
     public void checkAndInsertIdempotency(String idempotencyKey, PermissionManagement permissionManagement, String action) {
         RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
         if (existingRequest != null) {
@@ -85,6 +87,7 @@ public class PermissionManagementService {
 
     @Transactional
     @CacheEvict(cacheNames = "permissionCache", allEntries = true)
+    @WsAction(service = "permissionManagementService", action = "deletePermission")
     public void deletePermission(int permissionId) {
         if (permissionId <= 0) {
             throw new IllegalArgumentException("Invalid permission ID");
@@ -99,6 +102,7 @@ public class PermissionManagementService {
 
     @Transactional
     @CacheEvict(cacheNames = "permissionCache", allEntries = true)
+    @WsAction(service = "permissionManagementService", action = "deletePermissionByName")
     public void deletePermissionByName(String permissionName) {
         if (permissionName == null || permissionName.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid permission name");
@@ -117,6 +121,7 @@ public class PermissionManagementService {
     }
 
     @Cacheable(cacheNames = "permissionCache")
+    @WsAction(service = "PermissionManagementService", action = "getPermissionById")
     public PermissionManagement getPermissionById(Integer permissionId) {
         if (permissionId == null || permissionId <= 0 || permissionId >= Integer.MAX_VALUE) {
             throw new IllegalArgumentException("Invalid permission ID" + permissionId);
@@ -125,11 +130,13 @@ public class PermissionManagementService {
     }
 
     @Cacheable(cacheNames = "permissionCache")
+    @WsAction(service = "PermissionManagementService", action = "getAllPermissions")
     public List<PermissionManagement> getAllPermissions() {
         return permissionManagementMapper.selectList(null);
     }
 
     @Cacheable(cacheNames = "permissionCache")
+    @WsAction(service = "PermissionManagementService", action = "getPermissionByName")
     public PermissionManagement getPermissionByName(String permissionName) {
         if (permissionName == null || permissionName.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid permission name");
@@ -140,6 +147,7 @@ public class PermissionManagementService {
     }
 
     @Cacheable(cacheNames = "permissionCache")
+    @WsAction(service = "PermissionManagementService", action = "getPermissionsByNameLike")
     public List<PermissionManagement> getPermissionsByNameLike(String permissionName) {
         if (permissionName == null || permissionName.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid permission name");

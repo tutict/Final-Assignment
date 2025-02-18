@@ -148,7 +148,6 @@ public class UserManagementService {
 
     @Transactional
     @CacheInvalidate(cacheName = "userCache")
-    @WsAction(service = "UserManagementService", action = "updateUser")
     public void updateUser(UserManagement user) {
         try {
             userManagementMapper.updateById(user);

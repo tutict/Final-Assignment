@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.RequestHistory;
 import com.tutict.finalassignmentbackend.mapper.OperationLogMapper;
 import com.tutict.finalassignmentbackend.entity.OperationLog;
@@ -36,6 +37,7 @@ public class OperationLogService {
 
     @Transactional
     @CacheEvict(cacheNames = "operationCache", allEntries = true)
+    @WsAction(service = "OperationLogService", action = "checkAndInsertIdempotency")
     public void checkAndInsertIdempotency(String idempotencyKey, OperationLog operationLog, String action) {
         // 查询 request_history
         RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
@@ -88,6 +90,7 @@ public class OperationLogService {
 
     @Transactional
     @CacheEvict(cacheNames = "operationCache", allEntries = true)
+    @WsAction(service = "OperationLogService", action = "deleteOperationLog")
     public void deleteOperationLog(int logId) {
         if (logId <= 0) {
             throw new IllegalArgumentException("Invalid log ID");
@@ -101,6 +104,7 @@ public class OperationLogService {
     }
 
     @Cacheable(cacheNames = "operationCache")
+    @WsAction(service = "OperationLogService", action = "getOperationLog")
     public OperationLog getOperationLog(Integer logId) {
         if (logId == null || logId <= 0 || logId >= Integer.MAX_VALUE) {
             throw new IllegalArgumentException("Invalid log ID" + logId);
@@ -109,11 +113,13 @@ public class OperationLogService {
     }
 
     @Cacheable(cacheNames = "operationCache")
+    @WsAction(service = "OperationLogService", action = "getAllOperationLogs")
     public List<OperationLog> getAllOperationLogs() {
         return operationLogMapper.selectList(null);
     }
 
     @Cacheable(cacheNames = "operationCache")
+    @WsAction(service = "OperationLogService", action = "getOperationLogsByTimeRange")
     public List<OperationLog> getOperationLogsByTimeRange(Date startTime, Date endTime) {
         if (startTime == null || endTime == null || startTime.after(endTime)) {
             throw new IllegalArgumentException("Invalid time range");
@@ -124,6 +130,7 @@ public class OperationLogService {
     }
 
     @Cacheable(cacheNames = "operationCache")
+    @WsAction(service = "OperationLogService", action = "getOperationLogsByUserId")
     public List<OperationLog> getOperationLogsByUserId(String userId) {
         if (userId == null || userId.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid userId");
@@ -134,6 +141,7 @@ public class OperationLogService {
     }
 
     @Cacheable(cacheNames = "operationCache")
+    @WsAction(service = "OperationLogService", action = "getOperationLogsByResult")
     public List<OperationLog> getOperationLogsByResult(String operationResult) {
         if (operationResult == null || operationResult.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid operation result");
