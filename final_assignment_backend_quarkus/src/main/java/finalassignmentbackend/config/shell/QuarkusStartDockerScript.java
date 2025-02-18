@@ -1,6 +1,5 @@
 package finalassignmentbackend.config.shell;
 
-import io.quarkus.runtime.Startup;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 
@@ -14,6 +13,7 @@ import java.util.logging.Logger;
  */
 //@Startup(value = 1)
 @ApplicationScoped
+@Deprecated
 public class QuarkusStartDockerScript {
 
     private static final Logger logger = Logger.getLogger(String.valueOf(QuarkusStartDockerScript.class));
