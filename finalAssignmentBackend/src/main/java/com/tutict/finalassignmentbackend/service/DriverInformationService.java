@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.RequestHistory;
 import com.tutict.finalassignmentbackend.mapper.DriverInformationMapper;
 import com.tutict.finalassignmentbackend.entity.DriverInformation;
@@ -35,6 +36,7 @@ public class DriverInformationService {
 
     @Transactional
     @CacheEvict(cacheNames = "driverCache", allEntries = true)
+    @WsAction(service = "DriverInformationService", action = "checkAndInsertIdempotency")
     public void checkAndInsertIdempotency(String idempotencyKey, DriverInformation driverInformation, String action) {
         // 查询 request_history
         RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
@@ -55,7 +57,7 @@ public class DriverInformationService {
             throw new RuntimeException("Duplicate request or DB insert error", e);
         }
 
-        sendKafkaMessage(driverInformation);
+        sendKafkaMessage("driver_" + action, driverInformation);
 
         Integer driverId = driverInformation.getDriverId();
         newRequest.setBusinessStatus("SUCCESS");
@@ -87,6 +89,7 @@ public class DriverInformationService {
 
     @Transactional
     @CacheEvict(cacheNames = "driverCache", allEntries = true)
+    @WsAction(service = "DriverInformationService", action = "deleteDriver")
     public void deleteDriver(int driverId) {
         if (driverId <= 0) {
             throw new IllegalArgumentException("Invalid driver ID");
@@ -100,6 +103,7 @@ public class DriverInformationService {
     }
 
     @Cacheable(cacheNames = "driverCache")
+    @WsAction(service = "DriverInformationService", action = "getDriverById")
     public DriverInformation getDriverById(Integer driverId) {
         if (driverId == null || driverId <= 0 || driverId >= Integer.MAX_VALUE) {
             throw new IllegalArgumentException("Invalid driver ID " + driverId);
@@ -108,11 +112,13 @@ public class DriverInformationService {
     }
 
     @Cacheable(cacheNames = "driverCache")
+    @WsAction(service = "DriverInformationService", action = "getAllDrivers")
     public List<DriverInformation> getAllDrivers() {
         return driverInformationMapper.selectList(null);
     }
 
     @Cacheable(cacheNames = "driverCache")
+    @WsAction(service = "DriverInformationService", action = "getDriversByIdCardNumber")
     public List<DriverInformation> getDriversByIdCardNumber(String idCardNumber) {
         if (idCardNumber == null || idCardNumber.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid ID card number");
@@ -123,6 +129,7 @@ public class DriverInformationService {
     }
 
     @Cacheable(cacheNames = "driverCache")
+    @WsAction(service = "DriverInformationService", action = "getDriverByDriverLicenseNumber")
     public DriverInformation getDriverByDriverLicenseNumber(String driverLicenseNumber) {
         if (driverLicenseNumber == null || driverLicenseNumber.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid driver license number");
@@ -133,6 +140,7 @@ public class DriverInformationService {
     }
 
     @Cacheable(cacheNames = "driverCache")
+    @WsAction(service = "DriverInformationService", action = "getDriversByName")
     public List<DriverInformation> getDriversByName(String name) {
         if (name == null || name.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid name");
@@ -142,8 +150,8 @@ public class DriverInformationService {
         return driverInformationMapper.selectList(queryWrapper);
     }
 
-    private void sendKafkaMessage(DriverInformation driverInformation) {
-        kafkaTemplate.send("driver_processed_topic", driverInformation);
-        log.info(String.format("Message sent to Kafka topic %s successfully", "driver_processed_topic"));
+    private void sendKafkaMessage(String topic, DriverInformation driverInformation) {
+        kafkaTemplate.send(topic, driverInformation);
+        log.info(String.format("Message sent to Kafka topic %s successfully", topic));
     }
 }
