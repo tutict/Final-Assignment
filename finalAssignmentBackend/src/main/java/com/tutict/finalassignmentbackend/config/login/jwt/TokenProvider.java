@@ -1,86 +1,80 @@
 package com.tutict.finalassignmentbackend.config.login.jwt;
 
-import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
 import jakarta.annotation.PostConstruct;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
-import java.security.Key;
-import java.security.SecureRandom;
-import java.util.Arrays;
 import java.util.Base64;
-import java.util.Collection;
 import java.util.Date;
-import java.util.stream.Collectors;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
-@Component
+@Service
 public class TokenProvider {
 
-    // Token validity period (24 hours)
-    private static final long JWT_TOKEN_VALIDITY = 24 * 60 * 60 * 1000;
+    private static final Logger LOG = Logger.getLogger(TokenProvider.class.getName());
 
-    // Secret key for JWT
-    private final String secretKeyBase64 = Base64.getEncoder().encodeToString(new SecureRandom().generateSeed(32));
+    @Value("${jwt.secret.key}")
+    private String base64Secret;
 
-    private Key key;
+    private SecretKey secretKey;
 
     @PostConstruct
     public void init() {
-        // Decode the base64-encoded secret key
-        byte[] keyBytes = Decoders.BASE64.decode(secretKeyBase64);
-        this.key = Keys.hmacShaKeyFor(keyBytes);
+        // Decode base64 secret key into byte array
+        byte[] keyBytes = Base64.getDecoder().decode(base64Secret);
+        // Use the Keys utility class to create the SecretKey for HMACSHA256
+        this.secretKey = Keys.hmacShaKeyFor(keyBytes);
+
+        LOG.info("TokenProvider initialized with HS256 secret key");
     }
 
-    public String createToken(Authentication authentication) {
+
+    /**
+     * Creates a JWT token with the provided username and roles.
+     *
+     * @param username the username (subject)
+     * @param roles    the roles
+     * @return the generated JWT token
+     */
+    public String createToken(String username, String roles) {
         long now = System.currentTimeMillis();
-        Date validity = new Date(now + JWT_TOKEN_VALIDITY);
+        Date expirationDate = new Date(now + 86400000L); // 24 hours expiration
 
-        // Extract authorities
-        String authorities = authentication.getAuthorities().stream()
-                .map(Object::toString)
-                .collect(Collectors.joining(","));
-
+        // Create JWT
         return Jwts.builder()
-                .subject(authentication.getName())
-                .claim("authorities", authorities)
+                .subject(username)
+                .claim("roles", roles) // Adding roles as a claim
                 .issuedAt(new Date(now))
-                .expiration(validity)
-                .signWith(key)
+                .expiration(expirationDate)
+                .signWith(secretKey) // Using SecretKey for signing
                 .compact();
     }
 
+    /**
+     * Validates the provided JWT token.
+     *
+     * @param token the JWT token
+     * @return true if the token is valid, false otherwise
+     */
     public boolean validateToken(String token) {
         try {
-            // Parse the token to ensure it's valid
-            Jwts.parser().verifyWith((SecretKey) key).build().parseSignedClaims(token);
+            // Parse and validate the token
+            Jwts.parser()
+                    .verifyWith(secretKey) // Set the signing key explicitly
+                    .build()
+                    .parseSignedClaims(token); // Throws exception if the token is invalid
+
+            LOG.log(Level.INFO, "Token validated successfully: " + token);
             return true;
-        } catch (JwtException | IllegalArgumentException e) {
-            // Invalid token
+        } catch (JwtException e) {
+            LOG.log(Level.WARNING, "Invalid token: " + e.getMessage(), e);
             return false;
         }
-    }
-
-    public Authentication getAuthentication(String token) {
-        Claims claims = Jwts.parser()
-                .verifyWith((SecretKey) key)
-                .build()
-                .parseSignedClaims(token)
-                .getPayload();
-
-        Collection<SimpleGrantedAuthority> authorities = Arrays.stream(claims.get("authorities").toString().split(","))
-                .map(SimpleGrantedAuthority::new)
-                .collect(Collectors.toList());
-
-        User principal = new User(claims.getSubject(), "", authorities);
-
-        return new UsernamePasswordAuthenticationToken(principal, token, authorities);
     }
 }

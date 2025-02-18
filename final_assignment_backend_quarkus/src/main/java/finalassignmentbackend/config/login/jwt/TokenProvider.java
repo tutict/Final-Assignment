@@ -68,6 +68,8 @@ public class TokenProvider {
         try {
             // 如果 Token 不合法或过期，会抛出 ParseException
             JsonWebToken jwt = jwtParser.parse(token);
+            LOG.log(Level.INFO, "Token validated successfully: " + jwt.getRawToken());
+
             // 如果 parse 成功，说明签名、issuer、audience、expires 都合法
             return true;
         } catch (ParseException e) {

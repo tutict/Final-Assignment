@@ -1,12 +1,11 @@
 package com.tutict.finalassignmentbackend.config.shell;
 
 import jakarta.annotation.PostConstruct;
-import org.springframework.context.annotation.Configuration;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 
-//@Configuration
+@Deprecated
 public class ShellScriptConfig {
 
     public ShellScriptConfig() {
