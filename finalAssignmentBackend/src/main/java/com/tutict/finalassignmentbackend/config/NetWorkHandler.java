@@ -5,6 +5,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.config.login.jwt.TokenProvider;
 import com.tutict.finalassignmentbackend.config.websocket.WsActionRegistry;
+import io.netty.handler.codec.http.HttpResponseStatus;
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.Vertx;
+import io.vertx.ext.web.client.WebClient;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.ServerWebSocket;
@@ -16,15 +20,16 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import jakarta.annotation.PostConstruct;
-import org.springframework.web.reactive.function.client.WebClient;
 
 import java.lang.reflect.Method;
 import java.util.Set;
 import java.util.UUID;
 
+import static io.vertx.core.Vertx.vertx;
+
 @Slf4j
 @Component
-public class NetWorkHandler {
+public class NetWorkHandler extends AbstractVerticle {
 
     @Value("${network.server.port:8081}")
     int port;
@@ -34,6 +39,8 @@ public class NetWorkHandler {
 
     @Value("${backend.port}")
     int backendPort;
+
+    Vertx vertx;
 
     private final TokenProvider tokenProvider;
     private final ObjectMapper objectMapper;
@@ -46,26 +53,68 @@ public class NetWorkHandler {
         this.wsActionRegistry = wsActionRegistry;
     }
 
+
     @PostConstruct
     public void init() {
-        this.webClient = WebClient.builder().baseUrl(backendUrl + ":" + backendPort).build();
+        io.vertx.core.Vertx coreVertx = vertx();
+        webClient = io.vertx.ext.web.client.WebClient.create(coreVertx);
     }
 
-    public void setupNetWorksServer() {
+    @Override
+    public void start() {
         Router router = Router.router(vertx);
 
         configureCors(router);
-        setupWebSocketHandler(router);
+        setupNetWorksServer(router);
+    }
 
-        HttpServerOptions options = new HttpServerOptions().setMaxWebSocketFrameSize(1000000).setTcpKeepAlive(true);
+    private void setupNetWorksServer(Router router) {
 
+        // 将 HTTP 转发请求挂载到 /api/* 路径下
+        router.route("/api/*").handler(ctx -> {
+            HttpServerRequest request = ctx.request();
+            forwardHttpRequest(request);
+        });
+
+        router.route("/eventbus/*").handler(ctx -> {
+            HttpServerRequest request = ctx.request();
+
+            // 使用异步方式将请求升级为 WebSocket
+            request.toWebSocket().onSuccess(ws -> {
+                log.info("WebSocket 连接已建立, path={}", ws.path());
+
+                if (ws.path().contains("/eventbus")) {
+                    handleWebSocketConnection(ws);
+                } else {
+                    // 如果路径不匹配，关闭连接并返回错误码 1003
+                    ws.close((short) 1003, "Unsupported path").onSuccess(success ->
+                            log.info("关闭 {} WebSocket 连接成功 {}", ws.path(), success)
+                    ).onFailure(failure ->
+                            log.error("关闭 {} WebSocket 连接失败: {}", ws.path(), failure.getMessage(), failure)
+                    );
+                }
+            }).onFailure(failure -> {
+                log.error("WebSocket 升级失败: {}", failure.getMessage(), failure);
+                ctx.response().setStatusCode(400).setStatusMessage("WebSocket upgrade failed").end();
+            });
+        });
+
+        // 处理未匹配的路由（使用正则）
+        router.routeWithRegex("^/(?!api(/|$)|eventbus(/|$)).*")
+                .handler(ctx -> ctx.response().setStatusCode(404)
+                        .setStatusMessage("未找到资源")
+                        .closed());
+
+        HttpServerOptions options = new HttpServerOptions()
+                .setMaxWebSocketFrameSize(1000000)
+                .setTcpKeepAlive(true);
+
+        // 启动 Network 服务
         vertx.createHttpServer(options)
                 .requestHandler(router)
-                .listen(port)
-                .subscribe().with(
-                        server -> log.info("Network server started on port {}", server.actualPort()),
-                        failure -> log.error("Network server failed to start: {}", failure.getMessage(), failure)
-                );
+                .listen(port)  // 确保这里使用了指定的端口
+                .onSuccess(server -> log.info("Network服务器已在端口 {} 启动", server.actualPort()))
+                .onFailure(failure -> log.error("Network服务器启动失败: {}", failure.getMessage(), failure));
     }
 
     private void configureCors(Router router) {
@@ -83,22 +132,6 @@ public class NetWorkHandler {
                 .allowedMethod(io.vertx.core.http.HttpMethod.OPTIONS));
     }
 
-    private void setupWebSocketHandler(Router router) {
-        router.route("/eventbus/*").handler(ctx -> {
-            HttpServerRequest request = ctx.request();
-            request.toWebSocket().subscribe().with(
-                    ws -> {
-                        log.info("WebSocket connection established, path={}", ws.path());
-                        handleWebSocketConnection(ws);
-                    },
-                    failure -> {
-                        log.error("WebSocket upgrade failed: {}", failure.getMessage(), failure);
-                        ctx.response().setStatusCode(400).setStatusMessage("WebSocket upgrade failed").closed();
-                    }
-            );
-        });
-    }
-
     private void handleWebSocketConnection(ServerWebSocket ws) {
         ws.frameHandler(frame -> {
             if (frame.isText()) {
@@ -109,10 +142,8 @@ public class NetWorkHandler {
 
                     if (token == null || !tokenProvider.validateToken(token)) {
                         log.warn("Invalid token, closing WS");
-                        ws.close((short) 1000, "Invalid token").subscribe().with(
-                                success -> log.info("WebSocket closed due to invalid token: {}", success),
-                                failure -> log.error("Error closing WebSocket: {}", failure.getMessage(), failure)
-                        );
+                        ws.close((short) 1000, "Invalid token").onSuccess(result -> log.info("WebSocket closed due to invalid token: {}", result))
+                                .onFailure(failure -> log.error("Error closing WebSocket: {}", failure.getMessage(), failure));
                         return;
                     }
 
@@ -124,10 +155,8 @@ public class NetWorkHandler {
                     if (argsArray.isMissingNode() || !argsArray.isArray()) {
                         log.warn("Invalid or missing 'args' array");
                         ws.writeTextMessage("{\"error\":\"Missing or invalid 'args' array\"}")
-                                .subscribe().with(
-                                        success -> log.info("WebSocket write success: {}", success),
-                                        failure -> log.error("WebSocket write failure: {}", failure.getMessage(), failure)
-                                );
+                                .onSuccess(result -> log.info("WebSocket write success: {}", result))
+                                .onFailure(failure -> log.error("WebSocket write failure: {}", failure.getMessage(), failure));
                         return;
                     }
 
@@ -137,10 +166,8 @@ public class NetWorkHandler {
                     WsActionRegistry.HandlerMethod handler = wsActionRegistry.getHandler(service, action);
                     if (handler == null) {
                         ws.writeTextMessage("{\"error\":\"No such WsAction for " + service + "#" + action + "\"}")
-                                .subscribe().with(
-                                        success -> log.info("WebSocket write success: {}", success),
-                                        failure -> log.error("WebSocket write failure: {}", failure.getMessage(), failure)
-                                );
+                                .onSuccess(result -> log.info("WebSocket write success: {}", result))
+                                .onFailure(failure -> log.error("WebSocket write failure: {}", failure.getMessage(), failure));
                         return;
                     }
 
@@ -152,10 +179,8 @@ public class NetWorkHandler {
                     if (argsArray.size() != paramCount) {
                         ws.writeTextMessage("{\"error\":\"Param mismatch, method expects "
                                         + paramCount + " but got " + argsArray.size() + "\"}")
-                                .subscribe().with(
-                                        success -> log.info("WebSocket write success: {}", success),
-                                        failure -> log.error("WebSocket write failure: {}", failure.getMessage(), failure)
-                                );
+                                .onSuccess(result -> log.info("WebSocket write success: {}", result))
+                                .onFailure(failure -> log.error("WebSocket write failure: {}", failure.getMessage(), failure));
                         return;
                     }
 
@@ -170,33 +195,40 @@ public class NetWorkHandler {
                     Object result = method.invoke(bean, invokeArgs);
 
                     if (method.getReturnType() != void.class && result != null) {
-                        String retJson = objectMapper.writeValueAsString(result);
-                        ws.writeTextMessage("{\"result\":" + retJson + "}")
-                                .subscribe().with(
-                                        success -> log.info("WebSocket write success: {}", success),
-                                        failure -> log.error("WebSocket write failure: {}", failure.getMessage(), failure)
-                                );
+                        try {
+                            String retJson = objectMapper.writeValueAsString(result);
+                            ws.writeTextMessage("{\"result\":" + retJson + "}")
+                                    .onSuccess(response -> log.info("WebSocket write success: {}", response))
+                                    .onFailure(failure -> log.error("WebSocket write failure: {}", failure.getMessage(), failure));
+                        } catch (JsonProcessingException e) {
+                            log.error("Error serializing result to JSON", e);
+                            ws.writeTextMessage("{\"error\":\"Internal server error\"}")
+                                    .onSuccess(response -> log.info("Error response sent: {}", response))
+                                    .onFailure(failure -> log.error("Failed to send error response: {}", failure.getMessage(), failure));
+                        }
                     } else {
                         ws.writeTextMessage("{\"status\":\"OK\"}")
-                                .subscribe().with(
-                                        success -> log.info("WebSocket write success: {}", success),
-                                        failure -> log.error("WebSocket write failure: {}", failure.getMessage(), failure)
-                                );
+                                .onSuccess(response -> log.info("WebSocket write success: {}", response))
+                                .onFailure(failure -> log.error("WebSocket write failure: {}", failure.getMessage(), failure));
                     }
 
                 } catch (Exception e) {
                     log.error("JSON parsing or reflection error", e);
-                    ws.close((short) 1000, "Invalid JSON or reflect error").subscribe().with(
-                            success -> log.info("WebSocket closed due to invalid JSON: {}", success),
-                            failure -> log.error("Error closing WebSocket: {}", failure.getMessage(), failure)
-                    );
+                    ws.close((short) 1000, "Invalid JSON or reflect error")
+                            .onComplete(ar -> {
+                                if (ar.succeeded()) {
+                                    log.info("WebSocket closed due to invalid JSON");
+                                } else {
+                                    log.error("Error closing WebSocket: {}", ar.cause().getMessage(), ar.cause());
+                                }
+                            });
                 }
             } else {
                 log.warn("Unsupported WebSocket frame type");
             }
         });
 
-        ws.closeHandler(() -> log.info("WebSocket connection closed, path={}", ws.path()));
+        ws.closeHandler(v -> log.info("WebSocket connection closed, path={} {}", ws.path(), v));
     }
 
     private Object convertJsonToParam(JsonNode node, Class<?> targetType) throws JsonProcessingException {
@@ -276,7 +308,7 @@ public class NetWorkHandler {
                             String responseBody = response.bodyAsString();
                             log.info("[{}] Backend response body: {}", requestId, responseBody);
                             request.response().putHeader("Content-Type", "application/json");
-                            request.response().sendAndAwait(responseBody);
+                            request.response().send(responseBody);
 
                         })
                         .onFailure(failure -> {
