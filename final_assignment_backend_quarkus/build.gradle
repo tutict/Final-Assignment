@@ -7,7 +7,7 @@ plugins {
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(22)
+        languageVersion = JavaLanguageVersion.of(23)
     }
 }
 
@@ -51,8 +51,8 @@ group 'my-groupId'
 version '1.0.0-SNAPSHOT'
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_22
-    targetCompatibility = JavaVersion.VERSION_22
+    sourceCompatibility = JavaVersion.VERSION_23
+    targetCompatibility = JavaVersion.VERSION_23
 }
 
 test {
@@ -61,12 +61,12 @@ test {
 
 compileJava {
     options.encoding = 'UTF-8'
-    options.compilerArgs.addAll(['-parameters', '--release', '22'])
+    options.compilerArgs.addAll(['-parameters', '--release', '23'])
 }
 
 compileTestJava {
     options.encoding = 'UTF-8'
-    options.compilerArgs.addAll(['--release', '22'])
+    options.compilerArgs.addAll(['--release', '23'])
 }
 
 configurations.configureEach {

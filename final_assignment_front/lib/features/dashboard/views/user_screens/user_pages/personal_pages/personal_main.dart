@@ -4,12 +4,20 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-class PersonalMainPage extends StatelessWidget {
+class PersonalMainPage extends StatefulWidget {
   const PersonalMainPage({super.key});
 
   @override
+  State<PersonalMainPage> createState() => _PersonalMainPageState();
+}
+
+class _PersonalMainPageState extends State<PersonalMainPage> {
+
+  final UserDashboardController controller =
+  Get.find<UserDashboardController>();
+
+  @override
   Widget build(BuildContext context) {
-    final controller = Get.find<UserDashboardController>();
     return CupertinoPageScaffold(
       navigationBar: CupertinoNavigationBar(
         middle: const Text('我的'),
@@ -59,6 +67,7 @@ class PersonalMainPage extends StatelessWidget {
   }
 }
 
+
 class CupertinoListTile extends StatelessWidget {
   final Widget title;
   final Widget leading;
@@ -73,12 +82,19 @@ class CupertinoListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 判断当前主题模式
+    final bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
+        // 根据当前主题模式设置背景色
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-        decoration: const BoxDecoration(
-          border: Border(
+        decoration: BoxDecoration(
+          color: isDarkMode
+              ? Colors.black.withOpacity(0.7)
+              : CupertinoColors.white.withOpacity(0.8),
+          border: const Border(
             bottom: BorderSide(color: CupertinoColors.separator, width: 0.5),
           ),
         ),
