@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart'; // Assuming you are using GetX for navigation consistency
 
 class InformationStatementPage extends StatelessWidget {
@@ -6,7 +7,14 @@ class InformationStatementPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Get current theme from context
+    final currentTheme = Theme.of(context);
+    final bool isLight = currentTheme.brightness == Brightness.light;
+
     return CupertinoPageScaffold(
+      backgroundColor: isLight
+          ? CupertinoColors.white.withOpacity(0.9)
+          : CupertinoColors.black.withOpacity(0.4), // Adjust background opacity
       navigationBar: CupertinoNavigationBar(
         middle: const Text('信息申述'),
         leading: GestureDetector(
@@ -27,7 +35,8 @@ class InformationStatementPage extends StatelessWidget {
                 leading: const Icon(CupertinoIcons.info,
                     color: CupertinoColors.activeBlue),
                 onTap: () {
-                  Navigator.pushNamed(context, '/');
+                  // Modify navigation logic to use GetX for consistency
+                  Get.toNamed('/blacklistPhoneAppeal');
                 },
               ),
               CupertinoListTile(
@@ -35,7 +44,8 @@ class InformationStatementPage extends StatelessWidget {
                 leading: const Icon(CupertinoIcons.info,
                     color: CupertinoColors.activeBlue),
                 onTap: () {
-                  Navigator.pushNamed(context, '/');
+                  // Modify navigation logic to use GetX for consistency
+                  Get.toNamed('/blacklistUserAppeal');
                 },
               ),
             ],
@@ -60,12 +70,19 @@ class CupertinoListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Get current theme from context
+    final currentTheme = Theme.of(context);
+    final bool isLight = currentTheme.brightness == Brightness.light;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-        decoration: const BoxDecoration(
-          border: Border(
+        decoration: BoxDecoration(
+          color: isLight
+              ? CupertinoColors.white.withOpacity(0.9)
+              : CupertinoColors.systemGrey.withOpacity(0.2),
+          border: const Border(
             bottom: BorderSide(color: CupertinoColors.separator, width: 0.5),
           ),
         ),

@@ -5,6 +5,7 @@ library app_mixins;
 import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/features/dashboard/views/components/ai_chat.dart';
 import 'package:final_assignment_front/features/dashboard/views/components/change_themes.dart';
+import 'package:final_assignment_front/features/dashboard/views/components/map.dart';
 // import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/map/map.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/news/news_detail_screen.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/account_and_security/account_and_security_main.dart';

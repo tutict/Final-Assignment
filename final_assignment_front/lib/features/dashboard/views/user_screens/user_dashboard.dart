@@ -21,6 +21,7 @@ import 'package:final_assignment_front/shared_components/user_screen_swiper.dart
 import 'package:final_assignment_front/shared_components/user_tools_card.dart';
 import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
 import 'package:final_assignment_front/utils/mixins/app_mixins.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -172,8 +173,10 @@ class UserDashboard extends GetView<UserDashboardController>
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // 用户屏幕轮播
                   _buildUserScreenSwiper(context),
                   const SizedBox(height: kSpacing),
+                  // 用户工具卡片
                   _buildUserToolsCard(context),
                 ],
               );
@@ -211,7 +214,6 @@ class UserDashboard extends GetView<UserDashboardController>
                   return pageContent != null
                       ? Container(
                           decoration: BoxDecoration(
-                            color: Theme.of(context).scaffoldBackgroundColor,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: pageContent,

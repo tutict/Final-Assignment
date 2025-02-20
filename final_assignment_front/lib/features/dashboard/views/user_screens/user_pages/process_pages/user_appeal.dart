@@ -50,7 +50,6 @@ class _UserAppealPageState extends State<UserAppealPage> {
       _errorMessage = '';
     });
 
-
     try {
       final List<AppealManagement>? listObj = await appealApi.apiAppealsGet();
       setState(() {
@@ -85,11 +84,6 @@ class _UserAppealPageState extends State<UserAppealPage> {
       }
 
       final Object? result = await appealApi.apiAppealsNameAppealNameGet(appealName: name);
-      // 这个方法返回的是 Object? 可能是单个 or List
-      // 需要看后端具体实现
-      // 如果后端返回列表, 你可以把它当成 List<AppealManagement>.
-      // 如果返回单个, 就转成 single item
-      // 这里示例假设返回单条
 
       if (result is Map<String, dynamic>) {
         final singleAppeal = AppealManagement.fromJson(result);
@@ -98,14 +92,12 @@ class _UserAppealPageState extends State<UserAppealPage> {
           _isLoading = false;
         });
       } else if (result is List) {
-        // 如果后端返回列表
         final appeals = result.map((item) => AppealManagement.fromJson(item as Map<String, dynamic>)).toList();
         setState(() {
           _appeals = appeals;
           _isLoading = false;
         });
       } else {
-        // 不认识的格式
         setState(() {
           _appeals = [];
           _isLoading = false;
@@ -128,7 +120,6 @@ class _UserAppealPageState extends State<UserAppealPage> {
   Future<void> _createAppeal(AppealManagement appeal) async {
     try {
       await appealApi.apiAppealsPost(appealManagement: appeal);
-      // 创建成功后刷新列表
       await _fetchAllAppeals();
       _showSnackBar('创建申诉成功！');
     } on ApiException catch (e) {
@@ -145,10 +136,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
   /// 删除申诉
   Future<void> _deleteAppeal(int appealId) async {
     try {
-      await appealApi.apiAppealsAppealIdDelete(
-        appealId: appealId.toString(),
-      );
-      // 删除成功后刷新
+      await appealApi.apiAppealsAppealIdDelete(appealId: appealId.toString());
       await _fetchAllAppeals();
       _showSnackBar('删除申诉成功！');
     } on ApiException catch (e) {
@@ -180,7 +168,6 @@ class _UserAppealPageState extends State<UserAppealPage> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            // 搜索
             Row(
               children: [
                 Expanded(
@@ -204,7 +191,6 @@ class _UserAppealPageState extends State<UserAppealPage> {
               ],
             ),
             const SizedBox(height: 16),
-            // 列表
             if (_isLoading)
               const Expanded(child: Center(child: CircularProgressIndicator()))
             else if (_errorMessage.isNotEmpty)
@@ -220,9 +206,11 @@ class _UserAppealPageState extends State<UserAppealPage> {
                     return Card(
                       child: ListTile(
                         title: Text(
-                            '申诉人: ${appeal.appellantName ?? ""} (ID: ${appeal.appealId})'),
+                          '申诉人: ${appeal.appellantName ?? ""} (ID: ${appeal.appealId})',
+                        ),
                         subtitle: Text(
-                            '原因: ${appeal.appealReason ?? ""}\n状态: ${appeal.processStatus ?? ""}'),
+                          '原因: ${appeal.appealReason ?? ""}\n状态: ${appeal.processStatus ?? ""}',
+                        ),
                         trailing: IconButton(
                           icon: const Icon(Icons.delete),
                           onPressed: () {
@@ -232,7 +220,6 @@ class _UserAppealPageState extends State<UserAppealPage> {
                           },
                         ),
                         onTap: () {
-                          // 点击可查看详情或编辑
                           Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -249,7 +236,6 @@ class _UserAppealPageState extends State<UserAppealPage> {
           ],
         ),
       ),
-      // 浮动按钮：新增申诉
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           _showCreateAppealDialog();
@@ -259,7 +245,6 @@ class _UserAppealPageState extends State<UserAppealPage> {
     );
   }
 
-  /// 弹出对话框，输入申诉信息后创建
   void _showCreateAppealDialog() {
     final TextEditingController nameController = TextEditingController();
     final TextEditingController reasonController = TextEditingController();
@@ -309,7 +294,6 @@ class _UserAppealPageState extends State<UserAppealPage> {
                 return;
               }
 
-              // 示例：简单的身份证号码和联系电话格式验证
               final RegExp idCardRegExp = RegExp(r'^\d{15}|\d{18}$');
               final RegExp contactRegExp = RegExp(r'^\d{10,15}$');
 
@@ -325,14 +309,14 @@ class _UserAppealPageState extends State<UserAppealPage> {
 
               final String idempotencyKey = generateIdempotencyKey();
               final AppealManagement newAppeal = AppealManagement(
-                appealId: null, // 由后端生成
-                offenseId: null, // 根据实际情况填充
+                appealId: null,
+                offenseId: null,
                 appellantName: name,
                 idCardNumber: idCard,
                 contactNumber: contact,
                 appealReason: reason,
                 appealTime: DateTime.now().toIso8601String(),
-                processStatus: '处理中', // 初始状态
+                processStatus: '处理中',
                 processResult: '',
                 idempotencyKey: idempotencyKey,
               );

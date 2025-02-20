@@ -1,7 +1,10 @@
 import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 import 'package:final_assignment_front/features/model/driver_information.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
 /// PersonalInformationPage is a StatefulWidget for displaying driver's personal information.
 class PersonalInformationPage extends StatefulWidget {
@@ -21,6 +24,9 @@ class _PersonalInformationPageState extends State<PersonalInformationPage> {
   // Future 用于异步加载司机信息
   late Future<DriverInformation?> _driverFuture;
 
+  final UserDashboardController controller =
+      Get.find<UserDashboardController>();
+
   @override
   void initState() {
     super.initState();
@@ -34,8 +40,8 @@ class _PersonalInformationPageState extends State<PersonalInformationPage> {
   Future<DriverInformation?> _fetchDriverInfo(String driverId) async {
     try {
       // 调用 controllerApi 获取
-      final response = await driverApi.apiDriversDriverIdGet(
-          driverId: driverId);
+      final response =
+          await driverApi.apiDriversDriverIdGet(driverId: driverId);
       if (response == null) return null;
 
       if (response is Map<String, dynamic>) {
@@ -52,14 +58,33 @@ class _PersonalInformationPageState extends State<PersonalInformationPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Get current theme from context
+    final currentTheme = Theme.of(context);
+    final bool isLight = currentTheme.brightness == Brightness.light;
+
     return CupertinoPageScaffold(
+      backgroundColor: isLight
+          ? CupertinoColors.white.withOpacity(0.9)
+          : CupertinoColors.black.withOpacity(0.4), // Adjust background opacity
       navigationBar: CupertinoNavigationBar(
-        middle: const Text('驾驶人信息管理'),
+        middle: Text(
+          '驾驶人信息管理', // Theme-dependent text
+          style: TextStyle(
+            color: isLight ? CupertinoColors.black : CupertinoColors.white,
+            fontWeight: FontWeight.bold, // Make text bold for better visibility
+          ),
+        ),
         leading: GestureDetector(
-          onTap: () => Navigator.pop(context),
+          onTap: () {
+            controller.exitSidebarContent();
+            Get.offNamed(Routes.userDashboard);
+          },
           child: const Icon(CupertinoIcons.back),
         ),
-        backgroundColor: CupertinoColors.systemBlue,
+        backgroundColor:
+            isLight ? CupertinoColors.systemGrey5 : CupertinoColors.systemGrey,
+        brightness:
+            isLight ? Brightness.light : Brightness.dark, // Set brightness
       ),
       child: SafeArea(
         child: CupertinoScrollbar(
@@ -146,12 +171,19 @@ class CupertinoListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Get current theme from context
+    final currentTheme = Theme.of(context);
+    final bool isLight = currentTheme.brightness == Brightness.light;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-        decoration: const BoxDecoration(
-          border: Border(
+        decoration: BoxDecoration(
+          color: isLight
+              ? CupertinoColors.white.withOpacity(0.9)
+              : CupertinoColors.systemGrey.withOpacity(0.2),
+          border: const Border(
             bottom: BorderSide(color: CupertinoColors.separator, width: 0.5),
           ),
         ),

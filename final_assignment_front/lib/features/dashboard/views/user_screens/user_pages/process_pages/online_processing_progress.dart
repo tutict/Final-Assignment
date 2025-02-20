@@ -1,5 +1,8 @@
+import 'package:final_assignment_front/config/routes/app_pages.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
 class OnlineProcessingProgress extends StatefulWidget {
   const OnlineProcessingProgress({super.key});
@@ -12,6 +15,9 @@ class OnlineProcessingProgress extends StatefulWidget {
 class OnlineProcessingProgressState extends State<OnlineProcessingProgress>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+
+  final UserDashboardController controller =
+  Get.find<UserDashboardController>();
 
   @override
   void initState() {
@@ -28,11 +34,33 @@ class OnlineProcessingProgressState extends State<OnlineProcessingProgress>
 
   @override
   Widget build(BuildContext context) {
+    // Get current theme from context
+    final currentTheme = Theme.of(context);
+    final bool isLight = currentTheme.brightness == Brightness.light;
+
     return CupertinoPageScaffold(
-      navigationBar: const CupertinoNavigationBar(
-        middle: Text('网办进度'),
-        backgroundColor: CupertinoColors.systemBlue,
-        brightness: Brightness.dark,
+      backgroundColor: isLight
+          ? CupertinoColors.white.withOpacity(0.9)
+          : Colors.black.withOpacity(0.4),
+      navigationBar: CupertinoNavigationBar(
+        middle: Text(
+          '网办进度',
+          style: TextStyle(
+            color: isLight ? CupertinoColors.black : CupertinoColors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        leading: GestureDetector(
+          onTap: () {
+            controller.exitSidebarContent();
+            Get.offNamed(Routes.userDashboard);
+          },
+          child: const Icon(CupertinoIcons.back),
+        ),
+        backgroundColor:
+        isLight ? CupertinoColors.systemGrey5 : CupertinoColors.systemGrey,
+        brightness:
+        isLight ? Brightness.light : Brightness.dark, // Set brightness
       ),
       child: SafeArea(
         child: Column(
@@ -62,15 +90,15 @@ class OnlineProcessingProgressState extends State<OnlineProcessingProgress>
               },
               children: const <int, Widget>{
                 0: Text('受理中'),
-                1: Text(''),
-                2: Text(''),
-                3: Text(''),
+                1: Text('处理中'),
+                2: Text('已完成'),
+                3: Text('已归档'),
               },
             ),
             SizedBox(
               height: 200,
               child: TabBarView(
-                controller: _tabController,
+                controller: _tabController, // Pass the TabController here
                 children: const [
                   Center(child: Text('Tab 1 Content')),
                   Center(child: Text('Tab 2 Content')),
@@ -105,6 +133,7 @@ class CupertinoListTile extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
         decoration: const BoxDecoration(
+          color: CupertinoColors.white,
           border: Border(
             bottom: BorderSide(color: CupertinoColors.separator, width: 0.5),
           ),

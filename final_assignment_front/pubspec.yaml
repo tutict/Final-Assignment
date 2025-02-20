@@ -143,8 +143,8 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/images/raster/.
-    - assets/images/vector/.
+    - assets/images/raster/
+    - assets/images/vector/
 
 
 

@@ -1,11 +1,19 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 
 class DeleteAccount extends StatelessWidget {
   const DeleteAccount({super.key});
 
   @override
   Widget build(BuildContext context) {
+    // Get current theme from context
+    final currentTheme = Theme.of(context);
+    final bool isLight = currentTheme.brightness == Brightness.light;
+
     return CupertinoPageScaffold(
+      backgroundColor: isLight
+          ? CupertinoColors.white.withOpacity(0.9)
+          : CupertinoColors.black.withOpacity(0.4), // Adjust background opacity
       navigationBar: CupertinoNavigationBar(
         middle: const Text('注销账号'),
         leading: GestureDetector(
@@ -22,7 +30,7 @@ class DeleteAccount extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(16.0),
             decoration: BoxDecoration(
-              color: CupertinoColors.white,
+              color: isLight ? CupertinoColors.white : CupertinoColors.systemGrey.withOpacity(0.1),
               border: Border.all(color: CupertinoColors.systemRed, width: 2.0),
               borderRadius: BorderRadius.circular(12.0),
             ),

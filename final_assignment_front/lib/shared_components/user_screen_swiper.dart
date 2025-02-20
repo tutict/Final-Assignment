@@ -18,14 +18,13 @@ class UserScreenSwiper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 图片URL列表，用于轮播图展示
+    // 图片路径列表，用于轮播图展示
     final List<String> imageUrls = [
       ImageRasterPath.liangnv1,
       ImageRasterPath.liangnv2,
       ImageRasterPath.liangnv3,
     ];
 
-    // 返回一个 Swiper，用于展示轮播图
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 32.0, horizontal: 16.0),
       child: Swiper(
@@ -38,20 +37,9 @@ class UserScreenSwiper extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  Image.network(
-                    imageUrls[index],
+                  Image.asset(
+                    imageUrls[index], // Use Image.asset for local images
                     fit: BoxFit.cover,
-                    loadingBuilder: (context, child, progress) {
-                      if (progress == null) return child;
-                      return Center(
-                        child: CircularProgressIndicator(
-                          value: progress.expectedTotalBytes != null
-                              ? progress.cumulativeBytesLoaded /
-                                  (progress.expectedTotalBytes ?? 1)
-                              : null,
-                        ),
-                      );
-                    },
                   ),
                   Container(
                     decoration: BoxDecoration(
