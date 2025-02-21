@@ -7,7 +7,6 @@ import com.tutict.finalassignmentbackend.config.login.jwt.TokenProvider;
 import com.tutict.finalassignmentbackend.config.websocket.WsActionRegistry;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.vertx.core.AbstractVerticle;
-import io.vertx.core.Vertx;
 import io.vertx.ext.web.client.WebClient;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.http.HttpServerRequest;
@@ -16,7 +15,6 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.handler.CorsHandler;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
@@ -42,8 +40,6 @@ public class NetWorkHandler extends AbstractVerticle {
     @Value("${backend.port}")
     int backendPort;
 
-    Vertx vertx;
-
     TokenProvider tokenProvider;
 
     @Lazy
@@ -67,8 +63,10 @@ public class NetWorkHandler extends AbstractVerticle {
 
     @Override
     public void start() {
-        Router router = Router.router(vertx);
+        // 在此处初始化 webClient，确保 vertx 已可用
+        this.webClient = WebClient.create(vertx);
 
+        Router router = Router.router(vertx);
         configureCors(router);
         setupNetWorksServer(router);
     }
