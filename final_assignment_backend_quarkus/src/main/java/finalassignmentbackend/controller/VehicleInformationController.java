@@ -12,6 +12,7 @@ import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
@@ -38,7 +39,7 @@ public class VehicleInformationController {
      */
     @POST
     @RunOnVirtualThread
-    public Response createVehicleInformation(VehicleInformation vehicleInformation, String idempotencyKey) {
+    public Response createVehicleInformation(VehicleInformation vehicleInformation, @QueryParam("idempotencyKey") String idempotencyKey) {
         vehicleInformationService.checkAndInsertIdempotency(idempotencyKey, vehicleInformation, "create");
         return Response.status(Response.Status.CREATED).build();
     }
@@ -143,7 +144,7 @@ public class VehicleInformationController {
     @PUT
     @Path("/{vehicleId}")
     @RunOnVirtualThread
-    public Response updateVehicleInformation(@PathParam("vehicleId") int vehicleId, VehicleInformation vehicleInformation, String idempotencyKey) {
+    public Response updateVehicleInformation(@PathParam("vehicleId") int vehicleId, VehicleInformation vehicleInformation, @QueryParam("idempotencyKey") String idempotencyKey) {
         vehicleInformation.setVehicleId(vehicleId);
         vehicleInformationService.checkAndInsertIdempotency(idempotencyKey, vehicleInformation, "update");
         return Response.ok(Response.Status.OK).entity(vehicleInformation).build();

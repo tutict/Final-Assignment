@@ -12,6 +12,7 @@ import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
@@ -33,7 +34,7 @@ public class BackupRestoreController {
     // 接受一个BackupRestore对象作为请求体，创建备份并返回201状态码
     @POST
     @RunOnVirtualThread
-    public Response createBackup(BackupRestore backup, String idempotencyKey) {
+    public Response createBackup(BackupRestore backup, @QueryParam("idempotencyKey") String idempotencyKey) {
         backupRestoreService.checkAndInsertIdempotency(idempotencyKey, backup, "create");
         return Response.status(Response.Status.CREATED).build();
     }
@@ -76,7 +77,7 @@ public class BackupRestoreController {
     @PUT
     @Path("/{backupId}")
     @RunOnVirtualThread
-    public Response updateBackup(@PathParam("backupId") int backupId, BackupRestore updatedBackup, String idempotencyKey) {
+    public Response updateBackup(@PathParam("backupId") int backupId, BackupRestore updatedBackup, @QueryParam("idempotencyKey") String idempotencyKey) {
         BackupRestore existingBackup = backupRestoreService.getBackupById(backupId);
         if (existingBackup != null) {
             updatedBackup.setBackupId(backupId);

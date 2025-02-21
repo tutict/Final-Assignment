@@ -13,6 +13,7 @@ import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -37,7 +38,7 @@ public class UserManagementController {
     @POST
     @RolesAllowed("ADMIN")
     @RunOnVirtualThread
-    public Response createUser(UserManagement user, String idempotencyKey) {
+    public Response createUser(UserManagement user, @QueryParam("idempotencyKey") String idempotencyKey) {
         logger.info(String.format("Attempting to create user: %s", user.getUsername()));
         if (userManagementService.isUsernameExists(user.getUsername())) {
             logger.warning(String.format("Username already exists: %s", user.getUsername()));
@@ -82,7 +83,7 @@ public class UserManagementController {
     @Path("/me")
     @RolesAllowed({"USER", "ADMIN"})
     @RunOnVirtualThread
-    public Response updateCurrentUser(@Context SecurityContext securityContext, UserManagement updatedUser, String idempotencyKey) {
+    public Response updateCurrentUser(@Context SecurityContext securityContext, UserManagement updatedUser, @QueryParam("idempotencyKey") String idempotencyKey) {
         String username = securityContext.getUserPrincipal().getName();
         logger.info(String.format("Attempting to update current user: %s", username));
         UserManagement existingUser = userManagementService.getUserByUsername(username);
@@ -165,7 +166,7 @@ public class UserManagementController {
     @Path("/{userId}")
     @RolesAllowed({"USER", "ADMIN"})
     @RunOnVirtualThread
-    public Response updateUser(@PathParam("userId") int userId, UserManagement updatedUser, String idempotencyKey) {
+    public Response updateUser(@PathParam("userId") int userId, UserManagement updatedUser, @QueryParam("idempotencyKey") String idempotencyKey) {
         logger.info(String.format("Attempting to update user: %d", userId));
         UserManagement existingUser = userManagementService.getUserById(userId);
         if (existingUser != null) {

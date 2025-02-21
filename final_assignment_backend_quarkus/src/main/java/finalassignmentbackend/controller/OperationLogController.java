@@ -32,7 +32,7 @@ public class OperationLogController {
 
     @POST
     @RunOnVirtualThread
-    public Response createOperationLog(OperationLog operationLog, String idempotencyKey) {
+    public Response createOperationLog(OperationLog operationLog, @QueryParam("idempotencyKey") String idempotencyKey) {
         operationLogService.checkAndInsertIdempotency(idempotencyKey, operationLog, "create");
         return Response.status(Response.Status.CREATED).build();
     }
@@ -59,7 +59,7 @@ public class OperationLogController {
     @PUT
     @Path("/{logId}")
     @RunOnVirtualThread
-    public Response updateOperationLog(@PathParam("logId") int logId, OperationLog updatedOperationLog, String idempotencyKey) {
+    public Response updateOperationLog(@PathParam("logId") int logId, OperationLog updatedOperationLog, @QueryParam("idempotencyKey") String idempotencyKey) {
         OperationLog existingOperationLog = operationLogService.getOperationLog(logId);
         if (existingOperationLog != null) {
             updatedOperationLog.setLogId(logId);

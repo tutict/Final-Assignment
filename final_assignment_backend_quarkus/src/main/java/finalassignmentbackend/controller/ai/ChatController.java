@@ -18,7 +18,6 @@ public class ChatController {
     ChatService chatService;
 
     @Path("/chat")
-    @RunOnVirtualThread
     public Uni<Response> chat(@QueryParam("message") String message) {
         return Uni.createFrom().item(() -> {
             try {

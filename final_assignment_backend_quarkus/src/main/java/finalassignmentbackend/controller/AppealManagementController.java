@@ -13,6 +13,7 @@ import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
@@ -35,7 +36,7 @@ public class AppealManagementController {
     @POST
     @RunOnVirtualThread
     public Response
-    createAppeal(AppealManagement appeal, String idempotencyKey) {
+    createAppeal(AppealManagement appeal, @QueryParam("idempotencyKey") String idempotencyKey) {
         appealManagementService.checkAndInsertIdempotency(idempotencyKey, appeal, "create");
         return Response.status(Response.Status.CREATED).build();
     }
@@ -68,7 +69,7 @@ public class AppealManagementController {
     @PUT
     @Path("/{appealId}")
     @RunOnVirtualThread
-    public Response updateAppeal(@PathParam("appealId") Integer appealId, AppealManagement updatedAppeal, String idempotencyKey) {
+    public Response updateAppeal(@PathParam("appealId") Integer appealId, AppealManagement updatedAppeal, @QueryParam("idempotencyKey") String idempotencyKey) {
         AppealManagement existingAppeal = appealManagementService.getAppealById(appealId);
         if (existingAppeal != null) {
             // 更新现有申诉的属性

@@ -30,7 +30,7 @@ public class RoleManagementController {
 
     @POST
     @RunOnVirtualThread
-    public Response createRole(RoleManagement role, String idempotencyKey) {
+    public Response createRole(RoleManagement role, @QueryParam("idempotencyKey") String idempotencyKey) {
         roleManagementService.checkAndInsertIdempotency(idempotencyKey, role, "create");
         return Response.status(Response.Status.CREATED).build();
     }
@@ -77,7 +77,7 @@ public class RoleManagementController {
     @PUT
     @Path("/{roleId}")
     @RunOnVirtualThread
-    public Response updateRole(@PathParam("roleId") int roleId, RoleManagement updatedRole, String idempotencyKey) {
+    public Response updateRole(@PathParam("roleId") int roleId, RoleManagement updatedRole, @QueryParam("idempotencyKey") String idempotencyKey) {
         RoleManagement existingRole = roleManagementService.getRoleById(roleId);
         if (existingRole != null) {
             updatedRole.setRoleId(roleId);

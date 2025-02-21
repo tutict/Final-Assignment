@@ -16,7 +16,9 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.handler.CorsHandler;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
 import jakarta.annotation.PostConstruct;
@@ -42,15 +44,18 @@ public class NetWorkHandler extends AbstractVerticle {
 
     Vertx vertx;
 
-    private final TokenProvider tokenProvider;
+    TokenProvider tokenProvider;
+
+    @Lazy
+    WsActionRegistry wsActionRegistry;
+
     private final ObjectMapper objectMapper;
-    private final WsActionRegistry wsActionRegistry;
     private WebClient webClient;
 
-    public NetWorkHandler(TokenProvider tokenProvider, ObjectMapper objectMapper, WsActionRegistry wsActionRegistry) {
+
+    public NetWorkHandler(TokenProvider tokenProvider, ObjectMapper objectMapper) {
         this.tokenProvider = tokenProvider;
         this.objectMapper = objectMapper;
-        this.wsActionRegistry = wsActionRegistry;
     }
 
 

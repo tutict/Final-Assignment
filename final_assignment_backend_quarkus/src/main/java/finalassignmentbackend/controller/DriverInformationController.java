@@ -8,6 +8,7 @@ import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
@@ -29,7 +30,7 @@ public class DriverInformationController {
 
     @POST
     @RunOnVirtualThread
-    public Response createDriver(DriverInformation driverInformation, String idempotencyKey) {
+    public Response createDriver(DriverInformation driverInformation, @QueryParam("idempotencyKey") String idempotencyKey) {
         driverInformationService.checkAndInsertIdempotency(idempotencyKey, driverInformation, "create");
         return Response.status(Response.Status.CREATED).build();
     }
@@ -56,7 +57,7 @@ public class DriverInformationController {
     @PUT
     @Path("/{driverId}")
     @RunOnVirtualThread
-    public Response updateDriver(@PathParam("driverId") int driverId, DriverInformation updatedDriverInformation, String idempotencyKey) {
+    public Response updateDriver(@PathParam("driverId") int driverId, DriverInformation updatedDriverInformation, @QueryParam("idempotencyKey") String idempotencyKey) {
         DriverInformation existingDriverInformation = driverInformationService.getDriverById(driverId);
         if (existingDriverInformation != null) {
             updatedDriverInformation.setDriverId(driverId);
