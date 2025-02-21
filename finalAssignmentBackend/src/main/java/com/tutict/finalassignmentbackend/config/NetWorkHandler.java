@@ -311,15 +311,18 @@ public class NetWorkHandler extends AbstractVerticle {
                             String responseBody = response.bodyAsString();
                             log.info("[{}] Backend response body: {}", requestId, responseBody);
                             request.response().putHeader("Content-Type", "application/json");
-                            request.response().send(responseBody);
-
+                            if (responseBody != null) {
+                                request.response().send(responseBody); // 仅在非 null 时发送
+                            } else {
+                                request.response().end(); // 如果为空，使用 end() 结束响应
+                            }
                         })
                         .onFailure(failure -> {
                             log.error("[{}] Forwarding HTTP request failed", requestId, failure);
                             request.response()
                                     .setStatusCode(500)
                                     .setStatusMessage("Forwarding failed")
-                                    .closed();
+                                    .end();
                         });
             } catch (Exception e) {
                 log.error("[{}] Request body parsing failed", requestId, e);

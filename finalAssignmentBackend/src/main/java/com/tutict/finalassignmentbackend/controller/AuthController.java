@@ -63,14 +63,19 @@ public class AuthController {
     @Transactional
     public CompletableFuture<ResponseEntity<Map<String, String>>> registerUser(@RequestBody AuthWsService.RegisterRequest registerRequest) {
         return CompletableFuture.supplyAsync(() -> {
-            try {
-                String res = authWsService.registerUser(registerRequest);
-                return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("status", res));
-            } catch (Exception e) {
-                logger.warning("Register failed: " + e.getMessage());
-                return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", e.getMessage()));
-            }
-        }, virtualThreadExecutor);
+                    try {
+                        String res = authWsService.registerUser(registerRequest);
+                        logger.info("Register succeeded for username");
+                        return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("status", res));
+                    } catch (Exception e) {
+                        logger.warning("Register failed for username");
+                        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", e.getMessage()));
+                    }
+                }, virtualThreadExecutor)
+                .exceptionally(throwable -> {
+                    logger.severe("Unexpected error in registerUser");
+                    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", "Internal server error"));
+                });
     }
 
     // Get all users (Admin only)
