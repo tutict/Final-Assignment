@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:final_assignment_front/features/model/login_request.dart';
 import 'package:final_assignment_front/features/model/register_request.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
@@ -109,13 +111,15 @@ class AuthControllerApi {
       debugPrint('Register response body: ${response.body}');
 
       if (response.statusCode >= 400) {
-        throw ApiException(response.statusCode, _decodeBodyBytes(response));
+        String errorMessage = response.body.isNotEmpty
+            ? _decodeBodyBytes(response)
+            : 'Unknown error';
+        throw ApiException(response.statusCode, errorMessage);
       } else if (response.body.isNotEmpty) {
-        return apiClient.deserialize(
-                _decodeBodyBytes(response), 'Map<String, dynamic>')
-            as Map<String, dynamic>;
+        // 直接解析 JSON，避免 deserialize
+        return jsonDecode(response.body) as Map<String, dynamic>;
       } else if (response.statusCode == 201) {
-        return {'status': 'CREATED'}; // 默认成功响应
+        return {'status': 'CREATED'};
       } else {
         throw ApiException(response.statusCode, 'Empty response body');
       }

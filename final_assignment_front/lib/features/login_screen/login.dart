@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:final_assignment_front/config/routes/app_pages.dart';
+import 'package:final_assignment_front/constants/app_constants.dart';
 import 'package:final_assignment_front/features/api/auth_controller_api.dart';
 import 'package:final_assignment_front/features/api/user_management_controller_api.dart';
 import 'package:final_assignment_front/features/model/login_request.dart';
@@ -43,8 +44,7 @@ class _LoginScreenState extends State<LoginScreen> {
   // 使用 UserManagementControllerApi 实现忘记密码的逻辑
   late UserManagementControllerApi userApi;
 
-  // 使用静态常量正则表达式，提高效率和可读性
-  static final RegExp _domainRegExp = RegExp(r'@([^.]+)\.');
+  late String? _userRole; // 保存用户角色
 
   @override
   void initState() {
@@ -55,12 +55,8 @@ class _LoginScreenState extends State<LoginScreen> {
   /// 根据 [username] 确定角色
   /// 如果域名是 'admin'，返回 'ADMIN'，否则返回 'USER'
   static String determineRole(String username) {
-    final match = _domainRegExp.firstMatch(username);
-    if (match != null && match.groupCount >= 1) {
-      final domain = match.group(1)?.toLowerCase();
-      if (domain == 'admin') {
-        return 'ADMIN';
-      }
+    if (username.toLowerCase().endsWith('@admin.com')) {
+      return 'ADMIN';
     }
     return 'USER';
   }
@@ -71,31 +67,22 @@ class _LoginScreenState extends State<LoginScreen> {
     final password = data.password;
 
     try {
-      // 发起登录请求
       final result = await authApi.apiAuthLoginPost(
         loginRequest: LoginRequest(username: username, password: password),
       );
 
-      // 如果是 `null`，说明响应体为空
       if (result == null) {
         return '登录失败：响应体为空';
       }
 
-      // 如果后端返回了一个 Map<String, dynamic>:
       if (result is Map<String, dynamic>) {
         if (result['status'] == 'success') {
-          if (determineRole(username) == 'ADMIN') {
-            AppPages.initial;
-          } else {
-            AppPages.userInitial;
-          }
-          return '登陆成功';
+          _userRole = determineRole(username); // 保存角色
+          return null; // 表示登录成功
         } else {
-          // 如果 status != success
           return result['message'] ?? '登录失败';
         }
       } else {
-        // 如果不是 Map，可能是别的类型
         return '未识别的响应数据: $result';
       }
     } on ApiException catch (e) {
@@ -113,6 +100,8 @@ class _LoginScreenState extends State<LoginScreen> {
     if (username == null || username.isEmpty) return '用户名不能为空';
     if (password == null || password.isEmpty) return '密码不能为空';
 
+    String uniqueKey = DateTime.now().millisecondsSinceEpoch.toString();
+
     try {
       final result = await authApi.apiAuthRegisterPost(
         registerRequest: RegisterRequest(
@@ -123,6 +112,7 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (result['status'] == 'CREATED') {
+        _userRole = determineRole(username); // 保存角色
         return null; // 注册成功
       }
       return result['error'] ?? '注册失败：未知错误';
@@ -132,7 +122,7 @@ class _LoginScreenState extends State<LoginScreen> {
       return '注册异常: $e';
     }
   }
-  
+
   /// 忘记密码逻辑
   Future<String?> _recoverPassword(String name) async {
     // 如果后端确实有，你可以在 AuthControllerApi 里加一个 apiAuthRecoverPasswordPost
@@ -162,7 +152,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return FlutterLogin(
       title: '交通违法行为处理管理系统',
-      logo: const AssetImage('assets/images/raster/logo-1.png'),
+      logo: const AssetImage(ImageRasterPath.logo4),
       onLogin: _authUser,
       onSignup: _signupUser,
       theme: LoginTheme(
@@ -191,29 +181,20 @@ class _LoginScreenState extends State<LoginScreen> {
           fontWeight: FontWeight.w700,
           fontSize: 24.0,
         ),
-        bodyStyle: const TextStyle(
-          color: Colors.white,
-        ),
-        textFieldStyle: const TextStyle(
-          color: Colors.black,
-          fontSize: 16.0,
-        ),
-        buttonStyle: const TextStyle(
-          fontWeight: FontWeight.w800,
-          color: Colors.white,
-        ),
-        inputTheme: const InputDecorationTheme(
+        bodyStyle: const TextStyle(color: Colors.black),
+        textFieldStyle: const TextStyle(color: Colors.black, fontSize: 16.0),
+        buttonStyle:
+            const TextStyle(fontWeight: FontWeight.w800, color: Colors.white),
+        inputTheme: InputDecorationTheme(
           filled: true,
-          fillColor: Colors.white70,
+          fillColor: Colors.grey.shade200,
           contentPadding: EdgeInsets.zero,
-          errorStyle: TextStyle(
-            backgroundColor: Colors.orange,
-            color: Colors.white,
-          ),
-          labelStyle: TextStyle(fontSize: 16.0),
+          errorStyle: const TextStyle(
+              backgroundColor: Colors.orange, color: Colors.white),
+          labelStyle: const TextStyle(fontSize: 16.0),
         ),
         cardInitialHeight: 300.0,
-        cardTopPosition: 100.0,
+        cardTopPosition: 250.0,
       ),
       messages: LoginMessages(
         passwordHint: '密码',
@@ -232,8 +213,10 @@ class _LoginScreenState extends State<LoginScreen> {
         recoverPasswordIntro: '重置密码',
       ),
       onSubmitAnimationCompleted: () {
-        // 登录成功后跳转到仪表板
-        Get.offAllNamed(AppPages.initial);
+        // 根据角色跳转
+        Get.offAllNamed(_userRole == 'ADMIN'
+            ? AppPages.initial
+            : AppPages.userInitial);
       },
       onRecoverPassword: _recoverPassword,
     );

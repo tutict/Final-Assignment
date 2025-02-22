@@ -47,40 +47,32 @@ class UserDashboard extends GetView<UserDashboardController>
 
   @override
   Widget build(BuildContext context) {
-    // 获取屏幕尺寸
     final double screenWidth = MediaQuery.of(context).size.width;
     final double screenHeight = MediaQuery.of(context).size.height;
-    // 计算顶部 Header 总高度：上边距 32 + header 行 50 + 下边距 15 + Divider 高度 1
     const double kHeaderTotalHeight = 32 + 50 + 15 + 1;
 
     return Scaffold(
       key: controller.scaffoldKey,
-      // 固定在 appBar 中显示 Header
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(kHeaderTotalHeight),
         child: _buildHeaderSection(context, screenWidth),
       ),
-      // 移除 Drawer，侧边栏统一采用 AnimatedContainer 显示
       body: Obx(
-        () => Theme(
+            () => Theme(
           data: controller.currentBodyTheme.value,
           child: Material(
             child: ResponsiveBuilder(
               mobileBuilder: (context, constraints) {
-                // 移动端布局：Stack 叠加主体内容与侧边栏
                 return Stack(
                   children: [
-                    // 主体内容（滚动区域）
                     SingleChildScrollView(
                       child: _buildLayout(context),
                     ),
-                    // 侧边栏：使用 AnimatedContainer 根据 controller.isSidebarOpen 显示
                     Obx(() => _buildSidebar(context)),
                   ],
                 );
               },
               tabletBuilder: (context, constraints) {
-                // 平板端布局：左侧侧边栏、右侧主体内容分栏显示
                 return Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -98,23 +90,39 @@ class UserDashboard extends GetView<UserDashboardController>
                 );
               },
               desktopBuilder: (context, constraints) {
-                // 桌面端布局：左侧侧边栏、中间滚动主体、右侧固定工具/聊天区域
                 return Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    SizedBox(
+                    // 侧边栏
+                    Container(
                       width: screenWidth * 0.2,
                       height: screenHeight,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).cardColor,
+                        border: Border(right: BorderSide(color: Colors.grey.shade300)),
+                        boxShadow: kBoxShadows,
+                      ),
                       child: UserSidebar(data: controller.getSelectedProject()),
                     ),
+                    // 内容区
                     Expanded(
-                      child: SingleChildScrollView(
-                        child: _buildLayout(context),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).scaffoldBackgroundColor,
+                          border: Border(right: BorderSide(color: Colors.grey.shade300)),
+                        ),
+                        child: SingleChildScrollView(
+                          child: _buildLayout(context),
+                        ),
                       ),
                     ),
-                    SizedBox(
+                    // 聊天区
+                    Container(
                       width: screenWidth * 0.3,
                       height: screenHeight,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).cardColor.withOpacity(0.9),
+                      ),
                       child: _buildSideContent(context),
                     ),
                   ],
