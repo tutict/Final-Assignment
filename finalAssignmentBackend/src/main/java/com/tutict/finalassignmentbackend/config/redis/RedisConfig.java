@@ -1,5 +1,6 @@
 package com.tutict.finalassignmentbackend.config.redis;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -19,14 +20,18 @@ import java.time.Duration;
 @EnableRedisRepositories
 public class RedisConfig {
 
+    @Value("${spring.data.redis.host}")
+    private String redisHost;
+
+    @Value("${spring.data.redis.port}")
+    private int redisPort;
+
     @Bean
     public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory factory) {
         RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(factory);
-        // 使用 StringRedisSerializer 序列化键，确保键是可读的字符串
         template.setKeySerializer(new StringRedisSerializer());
         template.setHashKeySerializer(new StringRedisSerializer());
-        // 使用 GenericJackson2JsonRedisSerializer 序列化值
         template.setValueSerializer(new GenericJackson2JsonRedisSerializer());
         template.setHashValueSerializer(new GenericJackson2JsonRedisSerializer());
         return template;
@@ -36,21 +41,21 @@ public class RedisConfig {
     @Primary
     public RedisCacheManager cacheManager(RedisConnectionFactory connectionFactory) {
         RedisCacheConfiguration config = RedisCacheConfiguration.defaultCacheConfig()
-                .entryTtl(Duration.ofMinutes(10)) // 设置默认缓存有效期
+                .entryTtl(Duration.ofMinutes(10))
                 .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(new GenericJackson2JsonRedisSerializer()))
-                .disableCachingNullValues(); // 禁用缓存空值，防止缓存穿透
+                .disableCachingNullValues();
 
         return RedisCacheManager.builder(connectionFactory)
                 .cacheDefaults(config)
-                .transactionAware() // 支持事务
+                .transactionAware()
                 .build();
     }
 
     @Bean
     public RedisConnectionFactory redisConnectionFactory() {
-        // 使用默认的 Redis 连接工厂
-        LettuceConnectionFactory factory = new LettuceConnectionFactory();
-        factory.setShareNativeConnection(false); // 避免连接池共享连接，增强并发性能
+        LettuceConnectionFactory factory = new LettuceConnectionFactory(redisHost, redisPort);
+        factory.setShareNativeConnection(false);
+        factory.afterPropertiesSet(); // 初始化工厂
         return factory;
     }
 }

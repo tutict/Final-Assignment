@@ -8,7 +8,7 @@ import com.tutict.finalassignmentbackend.entity.UserManagement;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,9 +38,12 @@ public class AuthWsService {
         this.roleManagementService = roleManagementService;
     }
 
+
+
     /*
      * WebSocket: 登录用户
      */
+    @CacheEvict(cacheNames = "AuthCache", allEntries = true)
     @WsAction(service = "AuthWsService", action = "login")
     public Map<String, Object> login(LoginRequest loginRequest) {
         logger.info(String.format("[WS] Attempting to authenticate user: %s", loginRequest.getUsername()));
@@ -73,6 +76,7 @@ public class AuthWsService {
      * WebSocket: 注册用户
      */
     @Transactional
+    @CacheEvict(cacheNames = "AuthCache", allEntries = true)
     @WsAction(service = "AuthWsService", action = "registerUser")
     public String registerUser(RegisterRequest registerRequest) {
         logger.info(String.format("[WS] Attempting to register user: %s", registerRequest.getUsername()));
@@ -97,7 +101,7 @@ public class AuthWsService {
     /*
      * WebSocket: 获取所有用户
      */
-    @Cacheable(cacheNames = "userCache")  // 可选
+    @CacheEvict(cacheNames = "AuthCache", allEntries = true)
     @WsAction(service = "AuthWsService", action = "getAllUsers")
     public List<UserManagement> getAllUsers() {
         logger.info("[WS] Fetching all users");

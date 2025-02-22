@@ -12,11 +12,9 @@ import java.util.logging.Logger;
 @Component
 public class RunDocker {
 
-    private final Logger log = Logger.getLogger(RunDocker.class.getName());
+    private static final Logger log = Logger.getLogger(RunDocker.class.getName());
 
-    // 保存容器实例作为类的字段
     private RedisContainer redisContainer;
-
     private RedpandaContainer redpandaContainer;
 
     @PostConstruct
@@ -31,13 +29,13 @@ public class RunDocker {
             redisContainer.start();
             String redisHost = redisContainer.getHost();
             int redisPort = redisContainer.getFirstMappedPort();
-            log.log(Level.INFO, "Redis container started successfully at {}", redisPort);
-
-            // 动态设置 Redis 配置
+            log.log(Level.INFO, "Redis container started successfully at {0}:{1}", new Object[]{redisHost, redisPort});
             System.setProperty("spring.data.redis.host", redisHost);
             System.setProperty("spring.data.redis.port", String.valueOf(redisPort));
+            log.log(Level.INFO, "Redis properties set: host={0}, port={1}", new Object[]{redisHost, redisPort});
         } catch (Exception e) {
-            log.log(Level.WARNING, "Redis docker-image connection failed: " + e.getMessage());
+            log.log(Level.SEVERE, "Failed to start Redis container: {0}", new Object[]{e.getMessage()});
+            throw new RuntimeException("Redis startup failed", e);
         }
     }
 
@@ -46,25 +44,24 @@ public class RunDocker {
             redpandaContainer = new RedpandaContainer("redpandadata/redpanda:v24.1.2");
             redpandaContainer.start();
             String bootstrapServers = redpandaContainer.getBootstrapServers();
-            log.log(Level.INFO, "Redpanda container started successfully with bootstrap servers: " + bootstrapServers);
-
-            // 动态设置 spring.kafka.bootstrap-servers 属性
+            log.log(Level.INFO, "Redpanda container started successfully with bootstrap servers: {0}", new Object[]{bootstrapServers});
             System.setProperty("spring.kafka.bootstrap-servers", bootstrapServers);
+            log.log(Level.INFO, "Kafka bootstrap-servers set: {0}", new Object[]{bootstrapServers});
         } catch (Exception e) {
-            log.log(Level.WARNING, "Redpanda docker-image connection failed: " + e.getMessage());
+            log.log(Level.SEVERE, "Failed to start Redpanda container: {0}", new Object[]{e.getMessage(), e});
+            throw new RuntimeException("Redpanda startup failed", e);
         }
     }
 
-    // 在应用程序关闭时停止容器
     @PreDestroy
     public void stopContainers() {
-        if (redisContainer != null) {
+        if (redisContainer != null && redisContainer.isRunning()) {
             redisContainer.stop();
             log.log(Level.INFO, "Redis container stopped");
         }
-        if (redpandaContainer != null) {
+        if (redpandaContainer != null && redpandaContainer.isRunning()) {
             redpandaContainer.stop();
-            log.log(Level.INFO, "Kafka container stopped");
+            log.log(Level.INFO, "Redpanda container stopped");
         }
     }
 }
