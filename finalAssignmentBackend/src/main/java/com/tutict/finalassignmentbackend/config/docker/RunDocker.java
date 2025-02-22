@@ -29,6 +29,13 @@ public class RunDocker {
         try {
             redisContainer = new RedisContainer("redis:7");
             redisContainer.start();
+            String redisHost = redisContainer.getHost();
+            int redisPort = redisContainer.getFirstMappedPort();
+            log.log(Level.INFO, "Redis container started successfully at {}", redisPort);
+
+            // 动态设置 Redis 配置
+            System.setProperty("spring.data.redis.host", redisHost);
+            System.setProperty("spring.data.redis.port", String.valueOf(redisPort));
         } catch (Exception e) {
             log.log(Level.WARNING, "Redis docker-image connection failed: " + e.getMessage());
         }

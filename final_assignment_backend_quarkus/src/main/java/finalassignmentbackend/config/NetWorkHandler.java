@@ -267,101 +267,117 @@ public class NetWorkHandler extends AbstractVerticle {
         String path = request.path();
         String targetUrl = backendUrl + ":" + backendPort + path;
         UUID requestId = UUID.randomUUID();
-        log.info("[{}] Forwarding request from path: {} to targetUrl: {}", requestId, path, targetUrl);
+        log.info("[{}] 从路径转发请求: {} 到目标URL: {}", requestId, path, targetUrl);
 
-        // 防止循环转发
         if (request.headers().contains("X-Forwarded-By")) {
             log.error("[{}] 检测到循环转发，终止请求处理", requestId);
             request.response()
                     .setStatusCode(500)
                     .setStatusMessage("循环转发")
-                    .closed();
+                    .end()
+                    .subscribe().with(
+                            success -> log.info("[{}] 循环转发停止成功: {}", requestId, success),
+                            failure -> log.error("[{}] 循环转发停止失败: {}", requestId, failure.getMessage(), failure)
+                    );
             return;
         }
 
-        // 添加自定义头以标识请求已被转发
         request.headers().add("X-Forwarded-By", "NetWorkHandler");
 
         request.bodyHandler(body -> {
-            log.info("[{}] body1: {}", requestId, body);
+            log.info("[{}] 请求体1: {}", requestId, body);
             if (body == null || body.length() == 0) {
                 log.error("[{}] 请求体为空，无法发送 JSON 数据", requestId);
                 request.response()
                         .setStatusCode(400)
                         .setStatusMessage("请求体为空")
-                        .closed();
+                        .end()
+                        .subscribe().with(
+                                success -> log.info("[{}] 请求体为空响应发送成功: {}", requestId, success),
+                                failure -> log.error("[{}] 发送请求体为空响应失败: {}", requestId, failure.getMessage(), failure)
+                        );
                 return;
             }
 
             try {
                 JsonObject jsonBody = body.toJsonObject();
-                log.info("[{}] body2: {}", requestId, jsonBody);
+                log.info("[{}] 请求体2: {}", requestId, jsonBody);
 
                 webClient.postAbs(targetUrl)
                         .putHeader("X-Forwarded-By", "NetWorkHandler")
                         .sendJsonObject(jsonBody)
                         .onSuccess(response -> {
-                            log.info("[{}] response: {}", requestId, response);
+                            log.info("[{}] 响应: {}", requestId, response);
                             log.info("[{}] 转发 HTTP 请求成功: {}", requestId, response.statusMessage());
 
-                            // 设置响应状态码
                             request.response().setStatusCode(response.statusCode());
 
-                            // 仅在 statusMessage 不为 null 时设置
                             String statusMessage = response.statusMessage();
                             if (statusMessage != null) {
                                 request.response().setStatusMessage(statusMessage);
                             } else {
                                 log.warn("[{}] 后端响应的 statusMessage 为 null，使用默认消息", requestId);
-                                // 根据 statusCode 设置默认的 reasonPhrase
                                 try {
                                     HttpResponseStatus defaultReason = HttpResponseStatus.valueOf(response.statusCode());
                                     request.response().setStatusMessage(defaultReason.reasonPhrase());
                                 } catch (IllegalArgumentException e) {
                                     log.error("[{}] 无法获取 statusMessage 的默认值: {}", requestId, e.getMessage());
-                                    // 可以选择设置一个通用的默认消息
-                                    request.response().setStatusMessage("Unknown Status");
+                                    request.response().setStatusMessage("未知状态");
                                 }
                             }
 
-                            // 复制所有响应头，避免复制保留头（如 Transfer-Encoding）
                             response.headers().forEach(entry -> {
                                 if (!entry.getKey().equalsIgnoreCase("Transfer-Encoding")) {
                                     request.response().putHeader(entry.getKey(), entry.getValue());
                                 }
                             });
 
-                            // 将后端响应体写回给前端
                             String responseBody = response.bodyAsString();
-                            log.info("[{}] 后端响应Body: {}", requestId, responseBody);
+                            log.info("[{}] 后端响应体: {}", requestId, responseBody);
 
-                            // 设置响应内容类型（如果后端是 JSON，可写 application/json）
-                            request.response().putHeader("Content-Type", "application/json");
+                            // 动态设置 Content-Type
+                            String contentType = response.headers().get("Content-Type");
+                            request.response().putHeader("Content-Type", contentType != null ? contentType : "text/html");
 
-                            // 将后端响应体写回前端
-                            request.response().sendAndAwait(responseBody);
-
+                            request.response()
+                                    .send(responseBody)
+                                    .subscribe().with(
+                                            success -> log.info("[{}] 响应发送成功{}，状态码: {}", requestId, success, response.statusCode()),
+                                            failure -> log.error("[{}] 发送响应失败: {}", requestId, failure.getMessage(), failure)
+                                    );
                         })
                         .onFailure(failure -> {
                             log.error("[{}] 转发 HTTP 请求失败", requestId, failure);
                             request.response()
                                     .setStatusCode(500)
                                     .setStatusMessage("转发失败")
-                                    .closed();
+                                    .end()
+                                    .subscribe().with(
+                                            success -> log.info("[{}] 转发失败响应发送成功: {}", requestId, success),
+                                            fail -> log.error("[{}] 发送转发失败响应失败: {}", requestId, fail.getMessage(), fail)
+                                    );
                         });
             } catch (Exception e) {
                 log.error("[{}] 请求体解析失败", requestId, e);
                 request.response()
                         .setStatusCode(400)
                         .setStatusMessage("请求体解析失败")
-                        .closed();
+                        .end()
+                        .subscribe().with(
+                                success -> log.info("[{}] 请求体解析失败响应发送成功: {}", requestId, success),
+                                failure -> log.error("[{}] 发送请求体解析失败响应失败: {}", requestId, failure.getMessage(), failure)
+                        );
             }
         }).exceptionHandler(e -> {
             log.error("[{}] 处理请求体时发生异常", requestId, e);
             request.response()
                     .setStatusCode(500)
                     .setStatusMessage("服务器内部错误")
-                    .closed();
+                    .end()
+                    .subscribe().with(
+                            success -> log.info("[{}] 服务器内部错误响应发送成功: {}", requestId, success),
+                            failure -> log.error("[{}] 发送服务器内部错误响应失败: {}", requestId, failure.getMessage(), failure)
+                    );
         });
     }
 }

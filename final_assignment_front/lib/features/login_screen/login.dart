@@ -110,12 +110,8 @@ class _LoginScreenState extends State<LoginScreen> {
     final username = data.name?.trim();
     final password = data.password?.trim();
 
-    if (username == null || username.isEmpty) {
-      return '用户名不能为空';
-    }
-    if (password == null || password.isEmpty) {
-      return '密码不能为空';
-    }
+    if (username == null || username.isEmpty) return '用户名不能为空';
+    if (password == null || password.isEmpty) return '密码不能为空';
 
     try {
       final result = await authApi.apiAuthRegisterPost(
@@ -123,29 +119,20 @@ class _LoginScreenState extends State<LoginScreen> {
           username: username,
           password: password,
           idempotencyKey: uniqueKey,
-          // 如果需要设置 admin，可以在这里传递
         ),
       );
-      if (result == null) {
-        return '注册失败：响应体为空';
+
+      if (result['status'] == 'CREATED') {
+        return null; // 注册成功
       }
-      if (result is Map<String, dynamic>) {
-        if (result['status'] == 'success') {
-          // 注册成功
-          return null;
-        } else {
-          return result['message'] ?? '注册失败';
-        }
-      } else {
-        return '未知注册响应数据: $result';
-      }
+      return result['error'] ?? '注册失败：未知错误';
     } on ApiException catch (e) {
-      return '注册失败: ${e.message}';
+      return '注册失败: ${e.code} - ${e.message}';
     } catch (e) {
       return '注册异常: $e';
     }
   }
-
+  
   /// 忘记密码逻辑
   Future<String?> _recoverPassword(String name) async {
     // 如果后端确实有，你可以在 AuthControllerApi 里加一个 apiAuthRecoverPasswordPost

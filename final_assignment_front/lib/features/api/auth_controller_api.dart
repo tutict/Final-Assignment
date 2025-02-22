@@ -1,6 +1,7 @@
 import 'package:final_assignment_front/features/model/login_request.dart';
 import 'package:final_assignment_front/features/model/register_request.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart'; // 用于 Response 和 MultipartRequest
 import 'package:final_assignment_front/utils/services/api_client.dart';
 
@@ -99,17 +100,28 @@ class AuthControllerApi {
   /// 用户注册
   ///
   ///
-  Future<Object?> apiAuthRegisterPost(
+  Future<Map<String, dynamic>> apiAuthRegisterPost(
       {required RegisterRequest registerRequest}) async {
-    Response response =
-        await apiAuthRegisterPostWithHttpInfo(registerRequest: registerRequest);
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
+    try {
+      Response response = await apiAuthRegisterPostWithHttpInfo(
+          registerRequest: registerRequest);
+      debugPrint('Register response status: ${response.statusCode}');
+      debugPrint('Register response body: ${response.body}');
+
+      if (response.statusCode >= 400) {
+        throw ApiException(response.statusCode, _decodeBodyBytes(response));
+      } else if (response.body.isNotEmpty) {
+        return apiClient.deserialize(
+                _decodeBodyBytes(response), 'Map<String, dynamic>')
+            as Map<String, dynamic>;
+      } else if (response.statusCode == 201) {
+        return {'status': 'CREATED'}; // 默认成功响应
+      } else {
+        throw ApiException(response.statusCode, 'Empty response body');
+      }
+    } catch (e) {
+      debugPrint('Register error: $e');
+      rethrow;
     }
   }
 

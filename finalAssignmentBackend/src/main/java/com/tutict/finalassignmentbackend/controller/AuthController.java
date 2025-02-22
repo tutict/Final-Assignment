@@ -19,6 +19,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 @RestController
@@ -62,19 +63,26 @@ public class AuthController {
     @Async
     @Transactional
     public CompletableFuture<ResponseEntity<Map<String, String>>> registerUser(@RequestBody AuthWsService.RegisterRequest registerRequest) {
+        logger.log(Level.WARNING, "Received register request for username: {}", registerRequest.getUsername());
         return CompletableFuture.supplyAsync(() -> {
                     try {
                         String res = authWsService.registerUser(registerRequest);
-                        logger.info("Register succeeded for username");
-                        return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("status", res));
+                        logger.log(Level.WARNING, "Register succeeded for username: {}", registerRequest.getUsername());
+                        return ResponseEntity.status(HttpStatus.CREATED)
+                                .header("Content-Type", "application/json")
+                                .body(Map.of("status", res));
                     } catch (Exception e) {
-                        logger.warning("Register failed for username");
-                        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", e.getMessage()));
+                        logger.log(Level.WARNING, "Register failed for username: {} ", registerRequest.getUsername());
+                        return ResponseEntity.status(HttpStatus.CONFLICT)
+                                .header("Content-Type", "application/json")
+                                .body(Map.of("error", e.getMessage()));
                     }
                 }, virtualThreadExecutor)
                 .exceptionally(throwable -> {
-                    logger.severe("Unexpected error in registerUser");
-                    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", "Internal server error"));
+                    logger.log(Level.WARNING, "Unexpected error in registerUser for username: {}", registerRequest.getUsername());
+                    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                            .header("Content-Type", "application/json")
+                            .body(Map.of("error", "Internal server error"));
                 });
     }
 
