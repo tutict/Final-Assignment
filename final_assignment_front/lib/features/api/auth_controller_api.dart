@@ -54,16 +54,14 @@ class AuthControllerApi {
   /// 登录
   ///
   ///
-  Future<Object?> apiAuthLoginPost({required LoginRequest loginRequest}) async {
-    Response response =
-        await apiAuthLoginPostWithHttpInfo(loginRequest: loginRequest);
+  Future<Map<String, dynamic>> apiAuthLoginPost({required LoginRequest loginRequest}) async {
+    Response response = await apiAuthLoginPostWithHttpInfo(loginRequest: loginRequest);
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
+      return apiClient.deserialize(_decodeBodyBytes(response), 'Map<String, dynamic>') as Map<String, dynamic>;
     } else {
-      return null;
+      return {};
     }
   }
 

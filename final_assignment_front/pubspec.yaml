@@ -37,6 +37,8 @@ dependencies:
 
   latlong2: ^0.9.1
 
+  shared_preferences: ^2.5.2
+
   flutter_map: ^8.0.0
 
   path_provider: ^2.1.1

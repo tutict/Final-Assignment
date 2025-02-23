@@ -1,16 +1,15 @@
 import 'dart:convert';
-
 import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
 import 'package:final_assignment_front/features/api/auth_controller_api.dart';
-import 'package:final_assignment_front/features/api/user_management_controller_api.dart';
 import 'package:final_assignment_front/features/model/login_request.dart';
 import 'package:final_assignment_front/features/model/register_request.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_login/flutter_login.dart';
-import 'package:get/get.dart'; // 如果你需要路由跳转
+import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 mixin ValidatorMixin {
   String? validateUsername(String? val) {
@@ -25,10 +24,6 @@ mixin ValidatorMixin {
   }
 }
 
-/// 唯一标识
-String uniqueKey = DateTime.now().millisecondsSinceEpoch.toString();
-
-/// 登录界面
 class LoginScreen extends StatefulWidget with ValidatorMixin {
   const LoginScreen({super.key});
 
@@ -36,24 +31,17 @@ class LoginScreen extends StatefulWidget with ValidatorMixin {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-/// 登录界面状态
 class _LoginScreenState extends State<LoginScreen> {
-  // 使用 AuthControllerApi 实现注册登陆
   late AuthControllerApi authApi;
-
-  // 使用 UserManagementControllerApi 实现忘记密码的逻辑
-  late UserManagementControllerApi userApi;
-
-  late String? _userRole; // 保存用户角色
+  late String? _userRole;
 
   @override
   void initState() {
     super.initState();
     authApi = AuthControllerApi();
+    _userRole = null;
   }
 
-  /// 根据 [username] 确定角色
-  /// 如果域名是 'admin'，返回 'ADMIN'，否则返回 'USER'
   static String determineRole(String username) {
     if (username.toLowerCase().endsWith('@admin.com')) {
       return 'ADMIN';
@@ -61,38 +49,38 @@ class _LoginScreenState extends State<LoginScreen> {
     return 'USER';
   }
 
-  /// 用户登录逻辑
   Future<String?> _authUser(LoginData data) async {
     final username = data.name;
     final password = data.password;
+
+    if (username.isEmpty) return '用户名不能为空';
+    if (password.isEmpty) return '密码不能为空';
 
     try {
       final result = await authApi.apiAuthLoginPost(
         loginRequest: LoginRequest(username: username, password: password),
       );
 
-      if (result == null) {
-        return '登录失败：响应体为空';
-      }
+      debugPrint('Raw result: $result');
 
-      if (result is Map<String, dynamic>) {
-        if (result['status'] == 'success') {
-          _userRole = determineRole(username); // 保存角色
-          return null; // 表示登录成功
-        } else {
-          return result['message'] ?? '登录失败';
-        }
+      if (result.containsKey('jwtToken')) {
+        _userRole = determineRole(username);
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('jwtToken', result['jwtToken']);
+        debugPrint('User Role: $_userRole');
+        return null;
       } else {
-        return '未识别的响应数据: $result';
+        return result['message'] ?? '登录失败';
       }
-    } on ApiException catch (e) {
+        } on ApiException catch (e) {
+      debugPrint('ApiException: ${e.message}'); // 调试输出
       return '登录失败: ${e.message}';
     } catch (e) {
-      return '登录异常: $e';
+      debugPrint('General Exception: $e'); // 调试输出 return '登录异常: $e';
     }
+    return null;
   }
 
-  /// 用户注册逻辑
   Future<String?> _signupUser(SignupData data) async {
     final username = data.name?.trim();
     final password = data.password?.trim();
@@ -112,8 +100,8 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (result['status'] == 'CREATED') {
-        _userRole = determineRole(username); // 保存角色
-        return null; // 注册成功
+        _userRole = determineRole(username);
+        return null;
       }
       return result['error'] ?? '注册失败：未知错误';
     } on ApiException catch (e) {
@@ -123,9 +111,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  /// 忘记密码逻辑
   Future<String?> _recoverPassword(String name) async {
-    // 如果后端确实有，你可以在 AuthControllerApi 里加一个 apiAuthRecoverPasswordPost
     try {
       const url = 'http://localhost:8081/api/auth/recoverPassword';
       final response = await http.post(
@@ -172,8 +158,7 @@ class _LoginScreenState extends State<LoginScreen> {
           color: Colors.white,
           elevation: 8.0,
           margin: const EdgeInsets.symmetric(horizontal: 20.0),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
         ),
         titleStyle: const TextStyle(
           color: Colors.white,
@@ -183,14 +168,12 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         bodyStyle: const TextStyle(color: Colors.black),
         textFieldStyle: const TextStyle(color: Colors.black, fontSize: 16.0),
-        buttonStyle:
-            const TextStyle(fontWeight: FontWeight.w800, color: Colors.white),
+        buttonStyle: const TextStyle(fontWeight: FontWeight.w800, color: Colors.white),
         inputTheme: InputDecorationTheme(
           filled: true,
           fillColor: Colors.grey.shade200,
           contentPadding: EdgeInsets.zero,
-          errorStyle: const TextStyle(
-              backgroundColor: Colors.orange, color: Colors.white),
+          errorStyle: const TextStyle(backgroundColor: Colors.orange, color: Colors.white),
           labelStyle: const TextStyle(fontSize: 16.0),
         ),
         cardInitialHeight: 300.0,
@@ -213,10 +196,7 @@ class _LoginScreenState extends State<LoginScreen> {
         recoverPasswordIntro: '重置密码',
       ),
       onSubmitAnimationCompleted: () {
-        // 根据角色跳转
-        Get.offAllNamed(_userRole == 'ADMIN'
-            ? AppPages.initial
-            : AppPages.userInitial);
+        Get.offAllNamed(_userRole == 'ADMIN' ? AppPages.initial : AppPages.userInitial);
       },
       onRecoverPassword: _recoverPassword,
     );

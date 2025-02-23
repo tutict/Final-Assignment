@@ -1,13 +1,12 @@
 class LoginRequest {
   String? username;
-
   String? password;
 
-  LoginRequest({required String? username, required String? password});
+  LoginRequest({required this.username, required this.password}); // 修复构造函数
 
   @override
   String toString() {
-    return 'LoginRequest[username=$username, password=$password, ]';
+    return 'LoginRequest[username=$username, password=$password]';
   }
 
   LoginRequest.fromJson(Map<String, dynamic> json) {
@@ -39,9 +38,7 @@ class LoginRequest {
     return map;
   }
 
-  // maps a json object with a list of LoginRequest-objects as value to a dart map
-  static Map<String, List<LoginRequest>> mapListFromJson(
-      Map<String, dynamic> json) {
+  static Map<String, List<LoginRequest>> mapListFromJson(Map<String, dynamic> json) {
     var map = <String, List<LoginRequest>>{};
     if (json.isNotEmpty) {
       json.forEach((String key, dynamic value) {

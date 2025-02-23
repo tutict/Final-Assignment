@@ -42,6 +42,10 @@ public class AuthController {
     @PermitAll
     @Async
     public CompletableFuture<ResponseEntity<Map<String, Object>>> login(@RequestBody AuthWsService.LoginRequest loginRequest) {
+        if (loginRequest == null || loginRequest.getUsername() == null || loginRequest.getPassword() == null) {
+            return CompletableFuture.completedFuture(
+                    ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", "Username and password are required")));
+        }
         return CompletableFuture.supplyAsync(() -> {
             try {
                 Map<String, Object> result = authWsService.login(loginRequest);

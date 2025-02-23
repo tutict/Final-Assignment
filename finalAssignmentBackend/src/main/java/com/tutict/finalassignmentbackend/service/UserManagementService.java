@@ -38,14 +38,12 @@ public class UserManagementService {
     @CacheEvict(cacheNames = "userCache", allEntries = true)
     @WsAction(service = "UserManagementService", action = "checkAndInsertIdempotency")
     public void checkAndInsertIdempotency(String idempotencyKey, UserManagement user, String action) {
-        // Query request_history
         RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
         if (existingRequest != null) {
             log.warning(String.format("Duplicate request detected (idempotencyKey=%s)", idempotencyKey));
             throw new RuntimeException("Duplicate request detected");
         }
 
-        // Insert a "PROCESSING" status if not found
         RequestHistory newRequest = new RequestHistory();
         newRequest.setIdempotentKey(idempotencyKey);
         newRequest.setBusinessStatus("PROCESSING");
@@ -57,7 +55,6 @@ public class UserManagementService {
             throw new RuntimeException("Duplicate request or DB insert error", e);
         }
 
-        // Notify Kafka or local events to create the user
         sendKafkaMessage(user, action);
 
         Integer userId = user.getUserId();
@@ -79,46 +76,68 @@ public class UserManagementService {
         }
     }
 
-    @Cacheable(cacheNames = "userCache")
+    @Cacheable(cacheNames = "userCache", unless = "#result == null")
     @WsAction(service = "UserManagementService", action = "getUserById")
     public UserManagement getUserById(Integer userId) {
         if (userId == null || userId <= 0 || userId >= Integer.MAX_VALUE) {
-            throw new RuntimeException("Invalid userId" + userId);
+            throw new RuntimeException("Invalid userId: " + userId);
         }
-        return userManagementMapper.selectById(userId);
+        UserManagement user = userManagementMapper.selectById(userId);
+        if (user == null) {
+            log.warning(String.format("User not found for ID: %d", userId));
+        }
+        return user;
     }
 
-    @Cacheable(cacheNames = "userCache")
+    @Cacheable(cacheNames = "userCache", unless = "#result == null")
     @WsAction(service = "UserManagementService", action = "getUserByUsername")
     public UserManagement getUserByUsername(String username) {
         validateInput(username, "Invalid username");
         QueryWrapper<UserManagement> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("username", username);
-        return userManagementMapper.selectOne(queryWrapper);
+        UserManagement user = userManagementMapper.selectOne(queryWrapper);
+        if (user == null) {
+            log.warning(String.format("User not found for username: %s", username));
+        }
+        return user;
     }
 
-    @Cacheable(cacheNames = "userCache")
+    @Cacheable(cacheNames = "userCache", unless = "#result == null || #result.isEmpty()")
     @WsAction(service = "UserManagementService", action = "getAllUsers")
     public List<UserManagement> getAllUsers() {
-        return userManagementMapper.selectList(null);
+        List<UserManagement> users = userManagementMapper.selectList(null);
+        if (users.isEmpty()) {
+            log.warning("No users found in the system");
+        }
+        return users;
     }
 
-    @Cacheable(cacheNames = "userCache")
-    @WsAction(service = "UserManagementService", action = "getUsersByType")
-    public List<UserManagement> getUsersByType(String userType) {
-        validateInput(userType, "Invalid user type");
+    @Cacheable(cacheNames = "userCache", unless = "#result == null || #result.isEmpty()")
+    @WsAction(service = "UserManagementService", action = "getUsersByRole")
+    public List<UserManagement> getUsersByRole(String roleName) {
+        validateInput(roleName, "Invalid role name");
         QueryWrapper<UserManagement> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("user_type", userType);
-        return userManagementMapper.selectList(queryWrapper);
+        queryWrapper.inSql("user_id",
+                "SELECT user_id FROM user_role WHERE role_id IN " +
+                        "(SELECT role_id FROM role_management WHERE role_name = '" + roleName + "')");
+        List<UserManagement> users = userManagementMapper.selectList(queryWrapper);
+        if (users.isEmpty()) {
+            log.warning(String.format("No users found for role: %s", roleName));
+        }
+        return users;
     }
 
-    @Cacheable(cacheNames = "userCache")
+    @Cacheable(cacheNames = "userCache", unless = "#result == null || #result.isEmpty()")
     @WsAction(service = "UserManagementService", action = "getUsersByStatus")
     public List<UserManagement> getUsersByStatus(String status) {
         validateInput(status, "Invalid status");
         QueryWrapper<UserManagement> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("status", status);
-        return userManagementMapper.selectList(queryWrapper);
+        List<UserManagement> users = userManagementMapper.selectList(queryWrapper);
+        if (users.isEmpty()) {
+            log.warning(String.format("No users found with status: %s", status));
+        }
+        return users;
     }
 
     @Transactional
@@ -127,7 +146,7 @@ public class UserManagementService {
         try {
             userManagementMapper.updateById(user);
         } catch (Exception e) {
-            log.warning("Exception occurred while updating user or firing event");
+            log.warning("Exception occurred while updating user: " + e.getMessage());
             throw new RuntimeException("Failed to update user", e);
         }
     }
@@ -142,7 +161,7 @@ public class UserManagementService {
                 userManagementMapper.deleteById(userId);
             }
         } catch (Exception e) {
-            log.warning("Exception occurred while deleting user");
+            log.warning("Exception occurred while deleting user: " + e.getMessage());
             throw new RuntimeException("Failed to delete user", e);
         }
     }
@@ -160,12 +179,12 @@ public class UserManagementService {
                 userManagementMapper.delete(queryWrapper);
             }
         } catch (Exception e) {
-            log.warning("Exception occurred while deleting user");
+            log.warning("Exception occurred while deleting user: " + e.getMessage());
             throw new RuntimeException("Failed to delete user", e);
         }
     }
 
-    @Cacheable(cacheNames = "usernameExistsCache")
+    @Cacheable(cacheNames = "usernameExistsCache", unless = "#result == null")
     @WsAction(service = "UserManagementService", action = "isUsernameExists")
     public boolean isUsernameExists(String username) {
         validateInput(username, "Invalid username");

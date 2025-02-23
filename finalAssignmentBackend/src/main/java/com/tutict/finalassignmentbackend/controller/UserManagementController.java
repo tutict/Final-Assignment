@@ -8,15 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -131,13 +123,13 @@ public class UserManagementController {
         }, virtualThreadExecutor);
     }
 
-    @GetMapping("/type/{userType}")
+    @GetMapping("/role/{roleName}")
     @Async
-    public CompletableFuture<ResponseEntity<List<UserManagement>>> getUsersByType(@PathVariable String userType) {
+    public CompletableFuture<ResponseEntity<List<UserManagement>>> getUsersByRole(@PathVariable String roleName) {
         return CompletableFuture.supplyAsync(() -> {
-            logger.info("Fetching users by type: {}", userType);
-            List<UserManagement> users = userManagementService.getUsersByType(userType);
-            logger.info("Total users of type {}: {}", userType, users.size());
+            logger.info("Fetching users by role: {}", roleName);
+            List<UserManagement> users = userManagementService.getUsersByRole(roleName);
+            logger.info("Total users of role {}: {}", roleName, users.size());
             return ResponseEntity.ok(users);
         }, virtualThreadExecutor);
     }

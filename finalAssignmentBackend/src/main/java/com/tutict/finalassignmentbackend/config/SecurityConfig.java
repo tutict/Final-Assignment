@@ -18,7 +18,8 @@ public class SecurityConfig {
                 // 配置请求授权
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/api/auth/register", "/api/auth/login").permitAll() // 公开注册和登录
-                        .requestMatchers("/api/auth/users").hasRole("ADMIN") // 限制获取用户
+                        .requestMatchers("/api/**").hasAnyRole("ADMIN", "USER") // 限制获取用户
+                        .requestMatchers("/eventbus/**").hasAnyRole("ADMIN", "USER")
                         .anyRequest().authenticated() // 其他请求需认证
                 )
                 // 禁用 CSRF（API 服务无需 CSRF）

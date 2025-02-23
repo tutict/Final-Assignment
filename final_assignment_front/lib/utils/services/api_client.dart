@@ -83,6 +83,10 @@ class ApiClient {
           return value is bool ? value : '$value'.toLowerCase() == 'true';
         case 'double':
           return value is double ? value : double.parse('$value');
+        case 'DateTime':
+          return value != null ? DateTime.parse(value as String) : null;
+        case 'Map<String, dynamic>': // 新增支持
+          return value as Map<String, dynamic>;
         case 'AppealManagement':
           return AppealManagement.fromJson(value);
         case 'BackupRestore':
@@ -129,39 +133,35 @@ class ApiClient {
         default:
           {
             RegExpMatch? match;
-            // 如果是 List<T>
-            if (value is List &&
-                (match = _regList.firstMatch(targetType)) != null) {
-              var newTargetType = match!.group(1)!; // match 不会是 null
-              return value.map((v) => _deserialize(v, newTargetType)).toList();
-            }
-            // 如果是 Map<String, T>
-            else if (value is Map &&
-                (match = _regMap.firstMatch(targetType)) != null) {
+            if (value is List && (match = _regList.firstMatch(targetType)) != null) {
               var newTargetType = match!.group(1)!;
+              return value.map((v) => _deserialize(v, newTargetType)).toList();
+            } else if (value is Map && (match = _regMap.firstMatch(targetType)) != null) {
+              var newTargetType = match!.group(1)!;
+              if (newTargetType == 'dynamic') {
+                return value as Map<String, dynamic>;
+              }
               return Map<String, dynamic>.fromIterables(
                 value.keys.cast<String>(),
                 value.values.map((v) => _deserialize(v, newTargetType)),
               );
             }
+            throw ApiException(500, 'Could not find a suitable class for deserialization: $targetType');
           }
       }
     } on Exception catch (e, stack) {
-      throw ApiException.withInner(
-          500, 'Exception during deserialization.', e, stack);
+      throw ApiException.withInner(500, 'Exception during deserialization: $e', e, stack);
     }
-    throw ApiException(
-        500, 'Could not find a suitable class for deserialization');
   }
 
   /// 将 JSON 字符串解析为对应类型的对象
   dynamic deserialize(String jsonStr, String targetType) {
-    // 先去掉空格，防止一些不必要的问题
     targetType = targetType.replaceAll(' ', '');
-
     if (targetType == 'String') return jsonStr;
-
     var decodedJson = jsonDecode(jsonStr);
+    if (targetType == 'Map<String, dynamic>') {
+      return decodedJson as Map<String, dynamic>;
+    }
     return _deserialize(decodedJson, targetType);
   }
 
