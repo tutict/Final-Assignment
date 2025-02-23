@@ -1,8 +1,9 @@
 // 导入所需包和库
+import 'dart:async';
 import 'package:chinese_font_library/chinese_font_library.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:get/get.dart';
+import 'package:get/Get.dart';
 import 'package:percent_indicator/percent_indicator.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
 
@@ -22,7 +23,7 @@ class ProjectCardData {
 }
 
 /// 项目卡片组件，用于展示单个项目的信息
-class ProjectCard extends StatelessWidget {
+class ProjectCard extends StatefulWidget {
   const ProjectCard({
     required this.data,
     super.key,
@@ -31,31 +32,55 @@ class ProjectCard extends StatelessWidget {
   final ProjectCardData data;
 
   @override
+  State<ProjectCard> createState() => _ProjectCardState();
+}
+
+class _ProjectCardState extends State<ProjectCard> {
+  late Timer _timer;
+  DateTime _currentTime = DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+    // 每秒更新时间
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      setState(() {
+        _currentTime = DateTime.now();
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel(); // 清理定时器
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // 项目卡片布局，包括进度指示器、项目图片、项目名称和发布时间
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         _ProgressIndicator(
-          percent: data.percent,
-          center: _ProfilImage(image: data.projectImage),
+          percent: widget.data.percent,
+          center: _ProfilImage(image: widget.data.projectImage),
         ),
         const SizedBox(width: 15),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _TitleText(data.projectName),
+              _TitleText(widget.data.projectName),
               const SizedBox(height: 8),
               Row(
                 children: [
-                  const _SubtitleText("更新时间: "),
-                  _ReleaseTimeText(data.releaseTime)
+                  const _SubtitleText("现在时间: "),
+                  _ReleaseTimeText(_currentTime), // 使用当前时间
                 ],
-              )
+              ),
             ],
           ),
-        )
+        ),
       ],
     );
   }
@@ -75,11 +100,8 @@ class _ProgressIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 根据当前主题判断亮暗
     final bool isLight = Theme.of(context).brightness == Brightness.light;
-    // 在亮色模式下使用当前主题的 primaryColor；暗色模式下可使用蓝色强调
-    final Color progressColor =
-        isLight ? Theme.of(context).primaryColor : Colors.blueAccent;
+    final Color progressColor = isLight ? Theme.of(context).primaryColor : Colors.blueAccent;
     return CircularPercentIndicator(
       radius: 45,
       lineWidth: 4.0,
@@ -100,7 +122,6 @@ class _ProfilImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 根据当前主题判断亮暗，调整背景颜色
     final bool isLight = Theme.of(context).brightness == Brightness.light;
     return ClipOval(
       child: Container(
@@ -124,13 +145,12 @@ class _TitleText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 根据当前主题设置文本颜色
     final bool isLight = Theme.of(context).brightness == Brightness.light;
     final Color textColor = isLight ? Colors.black87 : Colors.white;
     return Text(
       data.capitalize!,
       style: TextStyle(
-        fontSize: 14,
+        fontSize: 12,
         fontWeight: FontWeight.w700,
         color: textColor,
         letterSpacing: 1.0,
@@ -149,7 +169,6 @@ class _SubtitleText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 根据当前主题设置副标题文本颜色
     final bool isLight = Theme.of(context).brightness == Brightness.light;
     final Color textColor = isLight ? Colors.black54 : Colors.white70;
     return Text(
@@ -164,7 +183,7 @@ class _SubtitleText extends StatelessWidget {
   }
 }
 
-/// 项目发布时间文本组件，展示项目发布时间
+/// 项目发布时间文本组件，展示当前时间
 class _ReleaseTimeText extends StatelessWidget {
   const _ReleaseTimeText(this.date);
 
@@ -172,7 +191,6 @@ class _ReleaseTimeText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 根据当前主题设置背景色（这里保留原来的 kNotifColor，但可调整透明度）
     final bool isLight = Theme.of(context).brightness == Brightness.light;
     final Color bgColor = isLight
         ? kNotifColor.withAlpha((0.8 * 255).toInt())
@@ -184,7 +202,7 @@ class _ReleaseTimeText extends StatelessWidget {
       ),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: Text(
-        DateFormat.yMMMd('zh_CN').format(date),
+        DateFormat('HH:mm:ss').format(date), // 改为显示时:分:秒
         style: const TextStyle(
           fontSize: 10,
           color: Colors.white,

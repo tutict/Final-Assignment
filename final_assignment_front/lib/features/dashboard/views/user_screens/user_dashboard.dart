@@ -149,48 +149,38 @@ class UserDashboard extends GetView<UserDashboardController>
   ///
   /// 包含用户信息、页面主体（或用户屏幕轮播和工具卡片）。
   Widget _buildLayout(BuildContext context, {bool isDesktop = false}) {
-    // 计算屏幕宽度
-    return Padding(
-      padding:
-          const EdgeInsets.symmetric(horizontal: kSpacing, vertical: kSpacing),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 保留一定的上间距
-          SizedBox(height: kSpacing * (kIsWeb || isDesktop ? 2.5 : 3.5)),
-          // 这里不再重复显示 Header，因为 Header 已在 appBar 中固定显示
-          const Divider(),
-          // 主体内容区域
-          Obx(() {
-            final pageContent = controller.selectedPage.value;
-            if (pageContent != null) {
-              return Padding(
-                padding: const EdgeInsets.all(kSpacing),
-                child: Container(
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: kSpacing, vertical: kSpacing),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(height: kSpacing * (kIsWeb || isDesktop ? 2.5 : 3.5)),
+            const Divider(),
+            Obx(() {
+              final pageContent = controller.selectedPage.value;
+              if (pageContent != null) {
+                return Container(
+                  width: double.infinity,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(kBorderRadius),
                     boxShadow: kBoxShadows,
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: _buildUserScreenSidebarTools(context),
-                  ),
-                ),
-              );
-            } else {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 用户屏幕轮播
-                  _buildUserScreenSwiper(context),
-                  const SizedBox(height: kSpacing),
-                  // 用户工具卡片
-                  _buildUserToolsCard(context),
-                ],
-              );
-            }
-          }),
-        ],
+                  child: _buildUserScreenSidebarTools(context),
+                );
+              } else {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildUserScreenSwiper(context),
+                    const SizedBox(height: kSpacing),
+                    _buildUserToolsCard(context),
+                  ],
+                );
+              }
+            }),
+          ],
+        ),
       ),
     );
   }
@@ -208,29 +198,22 @@ class UserDashboard extends GetView<UserDashboardController>
 
   /// 构建用户屏幕侧边工具区域
   Widget _buildUserScreenSidebarTools(BuildContext context) {
-    return SizedBox(
-      height: MediaQuery.of(context).size.height * 0.80,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Column(
-            children: [
-              Expanded(
-                child: Obx(() {
-                  final pageContent = controller.selectedPage.value;
-                  return pageContent != null
-                      ? Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: pageContent,
-                        )
-                      : const SizedBox(width: 100, height: 100);
-                }),
-              ),
-            ],
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          width: double.infinity,
+          height: MediaQuery.of(context).size.height * 0.8, // 设置明确高度
+          padding: const EdgeInsets.all(8.0),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor.withOpacity(0.9),
+            borderRadius: BorderRadius.circular(16),
           ),
+          child: Obx(() {
+            final pageContent = controller.selectedPage.value;
+            return pageContent ?? const Center(child: Text('请选择一个页面'));
+          }),
         ),
       ),
     );

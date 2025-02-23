@@ -3,25 +3,19 @@ import 'package:final_assignment_front/features/api/driver_information_controlle
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
+import 'package:get/Get.dart';
 
 class ChangeMobilePhoneNumber extends StatefulWidget {
   const ChangeMobilePhoneNumber({super.key});
 
   @override
-  State<ChangeMobilePhoneNumber> createState() =>
-      _ChangeMobilePhoneNumberState();
+  State<ChangeMobilePhoneNumber> createState() => _ChangeMobilePhoneNumberState();
 }
 
 class _ChangeMobilePhoneNumberState extends State<ChangeMobilePhoneNumber> {
-  // 输入框控制器
   final _phoneController = TextEditingController();
-
-  // 用于与后端交互
   late DriverInformationControllerApi driverApi;
-
-  final UserDashboardController controller =
-  Get.find<UserDashboardController>();
+  final UserDashboardController controller = Get.find<UserDashboardController>();
 
   @override
   void initState() {
@@ -29,19 +23,31 @@ class _ChangeMobilePhoneNumberState extends State<ChangeMobilePhoneNumber> {
     driverApi = DriverInformationControllerApi();
   }
 
-  /// 调用后端接口更新手机号码
   Future<void> _updatePhoneNumber() async {
     final newPhone = _phoneController.text.trim();
     if (newPhone.isEmpty) {
-      return; // 简单校验
+      showCupertinoDialog(
+        context: context,
+        builder: (_) => CupertinoAlertDialog(
+          title: const Text('错误'),
+          content: const Text('请输入新的手机号码'),
+          actions: [
+            CupertinoDialogAction(
+              child: const Text('确定'),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ],
+        ),
+      );
+      return;
     }
     try {
       await driverApi.apiDriversDriverIdPut(
-        driverId: '123', // 示例写死
-        updateValue: 999, // 示例
+        driverId: '123', // 示例写死，应替换为动态值
+        updateValue: 999, // 示例，应替换为实际更新逻辑
       );
       if (!mounted) return;
-      Navigator.pop(context); // 更新成功后返回
+      Get.back(); // 更新成功后返回
     } catch (e) {
       if (!mounted) return;
       showCupertinoDialog(
@@ -62,61 +68,80 @@ class _ChangeMobilePhoneNumberState extends State<ChangeMobilePhoneNumber> {
 
   @override
   Widget build(BuildContext context) {
-    // Get current theme from context
     final currentTheme = Theme.of(context);
     final bool isLight = currentTheme.brightness == Brightness.light;
 
     return CupertinoPageScaffold(
-      backgroundColor: isLight
-          ? CupertinoColors.white.withOpacity(0.9)
-          : CupertinoColors.black.withOpacity(0.4), // Adjust background opacity
+      backgroundColor: isLight ? CupertinoColors.extraLightBackgroundGray : CupertinoColors.darkBackgroundGray,
       navigationBar: CupertinoNavigationBar(
-        middle: Text(
-          '修改手机号', // Theme-dependent text
+        middle: const Text(
+          '修改手机号',
           style: TextStyle(
-            color: isLight ? CupertinoColors.black : CupertinoColors.white,
-            fontWeight: FontWeight.bold, // Make text bold for better visibility
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
           ),
         ),
         leading: GestureDetector(
           onTap: () {
-            controller.exitSidebarContent();
-            Get.offNamed(Routes.userDashboard);
+            controller.navigateToPage(AppPages.personalMain);
           },
-          child: const Icon(CupertinoIcons.back),
+          child: Icon(
+            CupertinoIcons.back,
+            color: isLight ? CupertinoColors.black : CupertinoColors.white,
+          ),
         ),
-        backgroundColor:
-        isLight ? CupertinoColors.systemGrey5 : CupertinoColors.systemGrey,
-        brightness:
-        isLight ? Brightness.light : Brightness.dark, // Set brightness
+        backgroundColor: isLight ? CupertinoColors.lightBackgroundGray : CupertinoColors.black.withOpacity(0.8),
+        brightness: isLight ? Brightness.light : Brightness.dark,
       ),
       child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: [
-              CupertinoTextField(
-                controller: _phoneController,
-                placeholder: '请输入新的手机号码',
-                keyboardType: TextInputType.phone,
-                padding: const EdgeInsets.all(12.0),
-                decoration: BoxDecoration(
-                  color: isLight
-                      ? CupertinoColors.white
-                      : CupertinoColors.systemGrey.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(8.0),
-                  border: Border.all(
-                    color: CupertinoColors.systemGrey,
-                    width: 1.0,
+        child: Center(
+          child: Container(
+            width: double.infinity,
+            margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0), // 添加外边距
+            padding: const EdgeInsets.all(20.0), // 增加内边距
+            decoration: BoxDecoration(
+              color: isLight ? Colors.white : CupertinoColors.darkBackgroundGray.withOpacity(0.9),
+              borderRadius: BorderRadius.circular(12.0),
+              boxShadow: [
+                BoxShadow(
+                  color: isLight ? Colors.grey.withOpacity(0.2) : Colors.black.withOpacity(0.3),
+                  blurRadius: 8.0,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '修改手机号',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: CupertinoColors.activeBlue,
                   ),
                 ),
-              ),
-              const SizedBox(height: 20.0),
-              CupertinoButton.filled(
-                onPressed: _updatePhoneNumber,
-                child: const Text('提交'),
-              ),
-            ],
+                const SizedBox(height: 20),
+                CupertinoTextField(
+                  controller: _phoneController,
+                  placeholder: '请输入新的手机号码',
+                  keyboardType: TextInputType.phone,
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                  decoration: BoxDecoration(
+                    color: isLight ? CupertinoColors.lightBackgroundGray : CupertinoColors.systemGrey6,
+                    borderRadius: BorderRadius.circular(8.0),
+                  ),
+                ),
+                const SizedBox(height: 25),
+                Center(
+                  child: CupertinoButton.filled(
+                    onPressed: _updatePhoneNumber,
+                    child: const Text('提交'),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

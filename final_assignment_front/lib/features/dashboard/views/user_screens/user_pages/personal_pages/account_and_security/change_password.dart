@@ -1,42 +1,116 @@
+import 'package:final_assignment_front/config/routes/app_pages.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
-class ChangePassword extends StatelessWidget {
+class ChangePassword extends StatefulWidget{
   const ChangePassword({super.key});
 
   @override
+  State<ChangePassword> createState() => _ChangePasswordState();
+}
+
+class _ChangePasswordState extends State<ChangePassword>{
+  final UserDashboardController controller = Get.find<UserDashboardController>();
+
+  @override
   Widget build(BuildContext context) {
-    // Get current theme from context
     final currentTheme = Theme.of(context);
     final bool isLight = currentTheme.brightness == Brightness.light;
 
     return CupertinoPageScaffold(
-      backgroundColor: isLight
-          ? CupertinoColors.white.withOpacity(0.9)
-          : CupertinoColors.black.withOpacity(0.4), // Adjust background opacity
+      backgroundColor: isLight ? CupertinoColors.extraLightBackgroundGray : CupertinoColors.darkBackgroundGray,
       navigationBar: CupertinoNavigationBar(
-        middle: const Text('修改密码'),
+        middle: const Text(
+          '修改密码',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+          ),
+        ),
         leading: GestureDetector(
           onTap: () {
-            Navigator.pop(context);
+            controller.navigateToPage(AppPages.accountAndSecurity);
           },
-          child: const Icon(CupertinoIcons.back),
+          child: Icon(
+            CupertinoIcons.back,
+            color: isLight ? CupertinoColors.black : CupertinoColors.white,
+          ),
         ),
-        backgroundColor: CupertinoColors.systemBlue,
-        brightness: Brightness.dark,
+        backgroundColor: isLight ? CupertinoColors.lightBackgroundGray : CupertinoColors.black.withOpacity(0.8),
+        brightness: isLight ? Brightness.light : Brightness.dark,
       ),
       child: SafeArea(
         child: Center(
           child: Container(
-            padding: const EdgeInsets.all(16.0),
+            width: double.infinity,
+            margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0), // 添加外边距
+            padding: const EdgeInsets.all(20.0), // 增加内边距
             decoration: BoxDecoration(
-              border: Border.all(color: CupertinoColors.systemGrey, width: 2.0),
-              borderRadius: BorderRadius.circular(12.0),
-              color: isLight ? CupertinoColors.white : CupertinoColors.systemGrey.withOpacity(0.1),
+              color: isLight ? Colors.white : CupertinoColors.darkBackgroundGray.withOpacity(0.9),
+              borderRadius: BorderRadius.circular(12.0), // 统一圆角
+              boxShadow: [
+                BoxShadow(
+                  color: isLight ? Colors.grey.withOpacity(0.2) : Colors.black.withOpacity(0.3),
+                  blurRadius: 8.0,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
-            child: const Text(
-              '修改密码内容', // Placeholder content
-              style: TextStyle(fontSize: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '修改密码',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: CupertinoColors.activeBlue,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                CupertinoTextField(
+                  placeholder: '旧密码',
+                  obscureText: true,
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                  decoration: BoxDecoration(
+                    color: isLight ? CupertinoColors.lightBackgroundGray : CupertinoColors.systemGrey6,
+                    borderRadius: BorderRadius.circular(8.0),
+                  ),
+                ),
+                const SizedBox(height: 15),
+                CupertinoTextField(
+                  placeholder: '新密码',
+                  obscureText: true,
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                  decoration: BoxDecoration(
+                    color: isLight ? CupertinoColors.lightBackgroundGray : CupertinoColors.systemGrey6,
+                    borderRadius: BorderRadius.circular(8.0),
+                  ),
+                ),
+                const SizedBox(height: 15),
+                CupertinoTextField(
+                  placeholder: '确认新密码',
+                  obscureText: true,
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                  decoration: BoxDecoration(
+                    color: isLight ? CupertinoColors.lightBackgroundGray : CupertinoColors.systemGrey6,
+                    borderRadius: BorderRadius.circular(8.0),
+                  ),
+                ),
+                const SizedBox(height: 25),
+                Center(
+                  child: CupertinoButton.filled(
+                    onPressed: () {
+                      // TODO: 实现密码修改逻辑
+                      debugPrint('Password change submitted');
+                    },
+                    child: const Text('提交'),
+                  ),
+                ),
+              ],
             ),
           ),
         ),

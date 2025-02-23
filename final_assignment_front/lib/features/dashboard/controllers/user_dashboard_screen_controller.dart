@@ -102,14 +102,16 @@ class UserDashboardController extends GetxController with NavigationMixin {
 
   /// 通过路由名称进入指定的页面，并设置 isShowingSidebarContent 为 true。
   void navigateToPage(String routeName) {
-    selectedPage.value = getPageForRoute(routeName);
-    isShowingSidebarContent.value = true; // 点击侧边栏时，显示侧边栏内容
+    debugPrint('Navigating to: $routeName');
+    selectedPage.value = getPageForRoute(routeName); // 设置页面内容
+    isShowingSidebarContent.value = true; // 显示侧边栏内容
   }
 
   /// 退出侧边栏内容，将 isShowingSidebarContent 设置为 false，并设置 selectedPage 为 null。
   void exitSidebarContent() {
-    isShowingSidebarContent.value = false; // 退出侧边栏内容时，恢复原来组件
-    selectedPage.value = null;
+    debugPrint('Exiting sidebar content');
+    isShowingSidebarContent.value = false; // 隐藏侧边栏内容
+    selectedPage.value = null; // 清空页面
   }
 
   /// 构建当前选择的页面内容。如果没有选择页面，返回空组件。

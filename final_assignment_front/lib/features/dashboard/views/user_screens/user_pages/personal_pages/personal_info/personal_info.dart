@@ -76,8 +76,7 @@ class _PersonalInformationPageState extends State<PersonalInformationPage> {
         ),
         leading: GestureDetector(
           onTap: () {
-            controller.exitSidebarContent();
-            Get.offNamed(Routes.userDashboard);
+            controller.navigateToPage(Routes.personalMain);
           },
           child: const Icon(CupertinoIcons.back),
         ),

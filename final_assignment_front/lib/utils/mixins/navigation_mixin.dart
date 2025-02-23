@@ -1,15 +1,16 @@
 part of 'app_mixins.dart';
 
-/// 包含所有实例路由的方法。
-/// 该 mixin 提供了在应用内导航到不同屏幕或路由的方法。
 mixin NavigationMixin {
-  /// 根据路由名称返回对应的页面小部件。
   Widget? getPageForRoute(String routeName) {
     switch (routeName) {
+      case "homePage":
+        return const SizedBox.shrink(); // 主页返回空视图，显示默认内容
       case AppPages.onlineProcessingProgress:
         return const OnlineProcessingProgress();
       case AppPages.map:
         return const MapPage();
+      case "businessProgressPage":
+        return const Center(child: Text('业务办理页面')); // 示例页面
       case AppPages.personalMain:
         return const PersonalMainPage();
       case AppPages.userSetting:
@@ -39,7 +40,8 @@ mixin NavigationMixin {
       case AppPages.changeThemes:
         return const ChangeThemes();
       default:
-        return const Placeholder();
+        debugPrint('Unknown route: $routeName');
+        return const Center(child: Text('页面未找到'));
     }
   }
 }

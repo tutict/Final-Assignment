@@ -1,34 +1,35 @@
+import 'package:card_swiper/card_swiper.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
 import 'package:flutter/material.dart';
-import 'package:card_swiper/card_swiper.dart';
 
 /// 用户屏幕上的轮播图组件
-///
-/// 该组件展示一个可以滑动切换的图片轮播图，并在用户点击图片时触发回调函数
 class UserScreenSwiper extends StatelessWidget {
-  /// 构造函数
-  ///
-  /// @param onPressed 当用户点击轮播图中的图片时回调的函数
   const UserScreenSwiper({
     required this.onPressed,
     super.key,
   });
 
-  final Function() onPressed; // 当用户点击图片时触发的回调函数
+  final Function() onPressed;
 
   @override
   Widget build(BuildContext context) {
-    // 图片路径列表，用于轮播图展示
+    // 图片路径列表
     final List<String> imageUrls = [
       ImageRasterPath.liangnv1,
       ImageRasterPath.liangnv2,
       ImageRasterPath.liangnv3,
     ];
 
+    // 交通安全警示标语列表，与图片一一对应
+    final List<String> safetySlogans = [
+      '安全驾驶，文明出行',
+      '遵守交规，平安回家',
+      '减速慢行，生命至上',
+    ];
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 32.0, horizontal: 16.0),
       child: Swiper(
-        // 构建每个轮播图项的函数
         itemBuilder: (BuildContext context, int index) {
           return GestureDetector(
             onTap: onPressed,
@@ -37,31 +38,43 @@ class UserScreenSwiper extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
+                  // 图片
                   Image.asset(
-                    imageUrls[index], // Use Image.asset for local images
+                    imageUrls[index],
                     fit: BoxFit.cover,
                   ),
+                  // 渐变遮罩
                   Container(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
-                          Colors.black.withAlpha((0.4 * 255).toInt()),
+                          Colors.black.withOpacity(0.5),
                           Colors.transparent,
                         ],
                         begin: Alignment.bottomCenter,
-                        end: Alignment.topCenter,
+                        end: Alignment.center,
                       ),
                     ),
                   ),
+                  // 警示标语
                   Positioned(
                     bottom: 16.0,
                     left: 16.0,
-                    child: Text(
-                      '图片 ${index + 1}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                    right: 16.0,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.6),
+                        borderRadius: BorderRadius.circular(8.0),
+                      ),
+                      child: Text(
+                        safetySlogans[index],
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
                     ),
                   ),
@@ -70,25 +83,25 @@ class UserScreenSwiper extends StatelessWidget {
             ),
           );
         },
-        // 轮播图项的数量，基于图片URL列表的长度
         itemCount: imageUrls.length,
-        // 轮播图的分页配置
         pagination: const SwiperPagination(
-          builder: DotSwiperPaginationBuilder(
+          builder: RectSwiperPaginationBuilder(
             activeColor: Colors.blueAccent,
             color: Colors.grey,
-            size: 8.0,
-            activeSize: 10.0,
+            size: Size(10.0, 2.0),
+            activeSize: Size(20.0, 2.0),
           ),
         ),
-        // 轮播图的控制配置，如前进后退按钮
         control: const SwiperControl(
           color: Colors.blueAccent,
+          size: 24.0,
         ),
         autoplay: true,
         autoplayDelay: 3000,
         viewportFraction: 0.9,
         scale: 0.95,
+        fade: 0.8, // 添加淡入淡出动画
+        duration: 500, // 动画时长
       ),
     );
   }

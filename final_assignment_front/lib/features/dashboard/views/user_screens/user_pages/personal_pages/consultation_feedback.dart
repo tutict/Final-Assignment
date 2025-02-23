@@ -2,7 +2,7 @@ import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
+import 'package:get/Get.dart';
 
 class ConsultationFeedback extends StatefulWidget {
   const ConsultationFeedback({super.key});
@@ -12,71 +12,89 @@ class ConsultationFeedback extends StatefulWidget {
 }
 
 class _ConsultationFeedbackState extends State<ConsultationFeedback> {
-  final UserDashboardController controller =
-      Get.find<UserDashboardController>();
+  final UserDashboardController controller = Get.find<UserDashboardController>();
+  final _feedbackController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
-    // Get current theme from context
     final currentTheme = Theme.of(context);
     final bool isLight = currentTheme.brightness == Brightness.light;
 
     return CupertinoPageScaffold(
-      backgroundColor: isLight
-          ? CupertinoColors.white.withOpacity(0.9)
-          : CupertinoColors.black.withOpacity(0.4), // Adjust background opacity
+      backgroundColor: isLight ? CupertinoColors.extraLightBackgroundGray : CupertinoColors.darkBackgroundGray,
       navigationBar: CupertinoNavigationBar(
-        middle: Text(
-          '咨询反馈', // Theme-dependent text
+        middle: const Text(
+          '咨询反馈',
           style: TextStyle(
-            color: isLight ? CupertinoColors.black : CupertinoColors.white,
-            fontWeight: FontWeight.bold, // Make text bold for better visibility
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
           ),
         ),
         leading: GestureDetector(
           onTap: () {
-            controller.exitSidebarContent();
-            Get.offNamed(Routes.userDashboard);
+            controller.navigateToPage(Routes.personalMain);
           },
-          child: const Icon(CupertinoIcons.back),
+          child: Icon(
+            CupertinoIcons.back,
+            color: isLight ? CupertinoColors.black : CupertinoColors.white,
+          ),
         ),
-        backgroundColor:
-            isLight ? CupertinoColors.systemGrey5 : CupertinoColors.systemGrey,
-        brightness:
-            isLight ? Brightness.light : Brightness.dark, // Set brightness
+        backgroundColor: isLight ? CupertinoColors.lightBackgroundGray : CupertinoColors.black.withOpacity(0.8),
+        brightness: isLight ? Brightness.light : Brightness.dark,
       ),
       child: SafeArea(
-        child: CupertinoScrollbar(
-          child: ListView(
-            padding: const EdgeInsets.all(16.0),
-            children: [
-              Container(
-                decoration: BoxDecoration(
-                  color: isLight
-                      ? CupertinoColors.extraLightBackgroundGray
-                      : CupertinoColors.systemGrey.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12.0),
-                  border: Border.all(
-                    color: CupertinoColors.separator,
-                    width: 0.5,
+        child: Center(
+          child: Container(
+            width: double.infinity,
+            margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0), // 添加外边距
+            padding: const EdgeInsets.all(20.0), // 增加内边距
+            decoration: BoxDecoration(
+              color: isLight ? Colors.white : CupertinoColors.darkBackgroundGray.withOpacity(0.9),
+              borderRadius: BorderRadius.circular(12.0),
+              boxShadow: [
+                BoxShadow(
+                  color: isLight ? Colors.grey.withOpacity(0.2) : Colors.black.withOpacity(0.3),
+                  blurRadius: 8.0,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '咨询反馈',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: CupertinoColors.activeBlue,
                   ),
                 ),
-                child: const CupertinoTextField(
+                const SizedBox(height: 20),
+                CupertinoTextField(
+                  controller: _feedbackController,
                   placeholder: '请输入您的反馈...',
                   maxLines: 6,
-                  padding: EdgeInsets.all(12.0),
-                  decoration: null,
+                  padding: const EdgeInsets.all(12.0),
+                  decoration: BoxDecoration(
+                    color: isLight ? CupertinoColors.lightBackgroundGray : CupertinoColors.systemGrey6,
+                    borderRadius: BorderRadius.circular(8.0),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 20.0),
-              CupertinoButton.filled(
-                borderRadius: BorderRadius.circular(10.0),
-                child: const Text('提交反馈'),
-                onPressed: () {
-                  // Handle submission
-                },
-              ),
-            ],
+                const SizedBox(height: 25),
+                Center(
+                  child: CupertinoButton.filled(
+                    borderRadius: BorderRadius.circular(10.0),
+                    onPressed: () {
+                      // TODO: Handle submission logic
+                      debugPrint('Feedback submitted: ${_feedbackController.text}');
+                    },
+                    child: const Text('提交反馈'),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
