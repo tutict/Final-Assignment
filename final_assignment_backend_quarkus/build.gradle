@@ -41,6 +41,8 @@ dependencies {
     implementation 'io.quarkus:quarkus-rest:3.19.0'
     implementation 'io.quarkus:quarkus-rest-client:3.19.0'
     implementation 'io.quarkus:quarkus-rest-jsonb:3.19.0'
+    implementation 'com.manticoresearch:manticoresearch:7.0.0'
+    implementation 'org.testcontainers:testcontainers:1.20.5'
     compileOnly 'org.projectlombok:lombok:1.18.36'
     annotationProcessor 'org.projectlombok:lombok:1.18.36'
     annotationProcessor 'org.openjdk.jmh:jmh-generator-annprocess:1.37'
