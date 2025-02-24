@@ -1,118 +1,149 @@
 import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
+import 'package:get/Get.dart';
 
-class ChangePassword extends StatefulWidget{
+class ChangePassword extends StatefulWidget {
   const ChangePassword({super.key});
 
   @override
   State<ChangePassword> createState() => _ChangePasswordState();
 }
 
-class _ChangePasswordState extends State<ChangePassword>{
-  final UserDashboardController controller = Get.find<UserDashboardController>();
+class _ChangePasswordState extends State<ChangePassword> {
+  final UserDashboardController controller =
+      Get.find<UserDashboardController>();
+  final _oldPasswordController = TextEditingController();
+  final _newPasswordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+
+  void _submitPasswordChange() {
+    final oldPassword = _oldPasswordController.text.trim();
+    final newPassword = _newPasswordController.text.trim();
+    final confirmPassword = _confirmPasswordController.text.trim();
+
+    if (oldPassword.isEmpty || newPassword.isEmpty || confirmPassword.isEmpty) {
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('错误'),
+          content: const Text('请填写所有密码字段'),
+          actions: [
+            TextButton(
+              child: const Text('确定'),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    if (newPassword != confirmPassword) {
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('错误'),
+          content: const Text('新密码和确认密码不匹配'),
+          actions: [
+            TextButton(
+              child: const Text('确定'),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    // 处理密码修改逻辑
+    debugPrint(
+        'Password change submitted: Old: $oldPassword, New: $newPassword');
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('提交成功'),
+        content: const Text('密码已成功修改'),
+        actions: [
+          TextButton(
+            child: const Text('确定'),
+            onPressed: () {
+              Navigator.pop(context);
+              Get.back(); // 返回上一页
+            },
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final currentTheme = Theme.of(context);
-    final bool isLight = currentTheme.brightness == Brightness.light;
-
-    return CupertinoPageScaffold(
-      backgroundColor: isLight ? CupertinoColors.extraLightBackgroundGray : CupertinoColors.darkBackgroundGray,
-      navigationBar: CupertinoNavigationBar(
-        middle: const Text(
-          '修改密码',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-          ),
-        ),
-        leading: GestureDetector(
-          onTap: () {
-            controller.navigateToPage(AppPages.accountAndSecurity);
-          },
-          child: Icon(
-            CupertinoIcons.back,
-            color: isLight ? CupertinoColors.black : CupertinoColors.white,
-          ),
-        ),
-        backgroundColor: isLight ? CupertinoColors.lightBackgroundGray : CupertinoColors.black.withOpacity(0.8),
-        brightness: isLight ? Brightness.light : Brightness.dark,
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('修改密码'), // Material 风格标题
       ),
-      child: SafeArea(
-        child: Center(
-          child: Container(
-            width: double.infinity,
-            margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0), // 添加外边距
-            padding: const EdgeInsets.all(20.0), // 增加内边距
-            decoration: BoxDecoration(
-              color: isLight ? Colors.white : CupertinoColors.darkBackgroundGray.withOpacity(0.9),
-              borderRadius: BorderRadius.circular(12.0), // 统一圆角
-              boxShadow: [
-                BoxShadow(
-                  color: isLight ? Colors.grey.withOpacity(0.2) : Colors.black.withOpacity(0.3),
-                  blurRadius: 8.0,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+      body: Padding(
+        padding: const EdgeInsets.all(16.0), // 与 ManagerSetting.dart 一致的内边距
+        child: ListView(
+          children: [
+            const Text(
+              '修改密码',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.blue, // Material 风格蓝色
+              ),
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  '修改密码',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: CupertinoColors.activeBlue,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                CupertinoTextField(
-                  placeholder: '旧密码',
-                  obscureText: true,
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                  decoration: BoxDecoration(
-                    color: isLight ? CupertinoColors.lightBackgroundGray : CupertinoColors.systemGrey6,
-                    borderRadius: BorderRadius.circular(8.0),
-                  ),
-                ),
-                const SizedBox(height: 15),
-                CupertinoTextField(
-                  placeholder: '新密码',
-                  obscureText: true,
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                  decoration: BoxDecoration(
-                    color: isLight ? CupertinoColors.lightBackgroundGray : CupertinoColors.systemGrey6,
-                    borderRadius: BorderRadius.circular(8.0),
-                  ),
-                ),
-                const SizedBox(height: 15),
-                CupertinoTextField(
-                  placeholder: '确认新密码',
-                  obscureText: true,
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                  decoration: BoxDecoration(
-                    color: isLight ? CupertinoColors.lightBackgroundGray : CupertinoColors.systemGrey6,
-                    borderRadius: BorderRadius.circular(8.0),
-                  ),
-                ),
-                const SizedBox(height: 25),
-                Center(
-                  child: CupertinoButton.filled(
-                    onPressed: () {
-                      // TODO: 实现密码修改逻辑
-                      debugPrint('Password change submitted');
-                    },
-                    child: const Text('提交'),
-                  ),
-                ),
-              ],
+            const SizedBox(height: 16.0), // 与 ManagerSetting.dart 的间距一致
+            TextField(
+              controller: _oldPasswordController,
+              decoration: const InputDecoration(
+                labelText: '旧密码',
+                border: OutlineInputBorder(), // Material 风格边框
+              ),
+              obscureText: true,
             ),
-          ),
+            const SizedBox(height: 16.0), // 与 ManagerSetting.dart 的间距一致
+            TextField(
+              controller: _newPasswordController,
+              decoration: const InputDecoration(
+                labelText: '新密码',
+                border: OutlineInputBorder(),
+              ),
+              obscureText: true,
+            ),
+            const SizedBox(height: 16.0),
+            TextField(
+              controller: _confirmPasswordController,
+              decoration: const InputDecoration(
+                labelText: '确认新密码',
+                border: OutlineInputBorder(),
+              ),
+              obscureText: true,
+            ),
+            const SizedBox(height: 20.0), // 与 ManagerSetting.dart 的按钮间距一致
+            ElevatedButton(
+              onPressed: _submitPasswordChange,
+              style: ElevatedButton.styleFrom(
+                minimumSize:
+                    const Size.fromHeight(50), // 全宽按钮，与 ManagerSetting.dart 一致
+              ),
+              child: const Text('提交'),
+            ),
+            const SizedBox(height: 20.0), // 与 ManagerSetting.dart 的按钮间距一致
+            ElevatedButton(
+              onPressed: () {
+                controller.navigateToPage(Routes.personalMain); // 返回个人主页
+              },
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size.fromHeight(50),
+                // 全宽按钮，与 ManagerSetting.dart 一致
+                backgroundColor: Colors.grey, // 灰色表示返回操作
+              ),
+              child: const Text('返回上一级'),
+            ),
+          ],
         ),
       ),
     );

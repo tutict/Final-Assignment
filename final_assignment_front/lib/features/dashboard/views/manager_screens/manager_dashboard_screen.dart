@@ -1,7 +1,7 @@
-// manager_dashboard.dart
 library manager_dashboard;
 
 import 'dart:developer';
+import 'dart:ui';
 
 import 'package:chinese_font_library/chinese_font_library.dart';
 import 'package:eva_icons_flutter/eva_icons_flutter.dart';
@@ -20,7 +20,9 @@ import 'package:final_assignment_front/shared_components/selection_button.dart';
 import 'package:final_assignment_front/shared_components/today_text.dart';
 import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
 import 'package:final_assignment_front/utils/mixins/app_mixins.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:get/get.dart';
 
 // binding
@@ -35,7 +37,8 @@ part '../../models/manager_profile.dart';
 // components
 part '../components/active_project_card.dart';
 
-part '../components/header.dart'; // 其中 _Header 内部已用局部常量 kSpacing 等。
+part '../components/header.dart';
+
 part '../components/overview_header.dart';
 
 part '../components/profile_tile.dart';
@@ -46,25 +49,22 @@ part '../components/sidebar.dart';
 
 part '../components/team_member.dart';
 
-class DashboardScreen extends GetView<DashboardController> with NavigationMixin{
+class DashboardScreen extends GetView<DashboardController>
+    with NavigationMixin {
   const DashboardScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // 获取屏幕尺寸
     final double screenWidth = MediaQuery.of(context).size.width;
     final double screenHeight = MediaQuery.of(context).size.height;
-    // 计算顶栏总高度（例如：上边距 32 + header 行 50 + 下边距 15 + Divider 高度 1）
     const double kHeaderTotalHeight = 32 + 50 + 15 + 1;
 
     return Scaffold(
       key: controller.scaffoldKey,
-      // 将顶栏固定在 appBar 中
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(kHeaderTotalHeight),
         child: _buildHeaderSection(context, screenWidth),
       ),
-      // 移除 drawer，改为在 mobile 模式下使用 Stack 叠加侧边栏
       body: Obx(
         () => Theme(
           data: controller.currentBodyTheme.value,
@@ -73,35 +73,14 @@ class DashboardScreen extends GetView<DashboardController> with NavigationMixin{
               mobileBuilder: (context, constraints) {
                 return Stack(
                   children: [
-                    // 主要内容区域（可滚动）
                     SingleChildScrollView(
-                      child: Column(
-                        children: [
-                          _buildProfileSection(context),
-                          _buildProgressSection(Axis.vertical, context),
-                          _buildTeamMemberSection(context),
-                          _buildPremiumCard(context),
-                          _buildTaskOverviewSection(
-                            context,
-                            crossAxisCount: 2,
-                            childAspectRatio: 1.2,
-                          ),
-                          _buildActiveProjectSection(
-                            context,
-                            crossAxisCount: 2,
-                            childAspectRatio: 1.2,
-                          ),
-                          _buildRecentMessagesSection(context),
-                        ],
-                      ),
+                      child: _buildLayout(context),
                     ),
-                    // 侧边栏：使用 AnimatedContainer 以及 Obx 根据状态显示
                     Obx(() => _buildSidebar(context)),
                   ],
                 );
               },
               tabletBuilder: (context, constraints) {
-                // 平板端布局：固定侧边栏
                 return Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -112,59 +91,45 @@ class DashboardScreen extends GetView<DashboardController> with NavigationMixin{
                     SizedBox(
                       width: screenWidth * 0.7,
                       child: SingleChildScrollView(
-                        child: Column(
-                          children: [
-                            _buildProfileSection(context),
-                            _buildProgressSection(Axis.horizontal, context),
-                            _buildTaskOverviewSection(
-                              context,
-                              crossAxisCount: 3,
-                              childAspectRatio: 1.2,
-                            ),
-                            _buildActiveProjectSection(
-                              context,
-                              crossAxisCount: 3,
-                              childAspectRatio: 1.2,
-                            ),
-                          ],
-                        ),
+                        child: _buildLayout(context),
                       ),
                     ),
                   ],
                 );
               },
               desktopBuilder: (context, constraints) {
-                // 桌面端布局：左侧侧边栏、中间滚动内容、右侧固定聊天栏
                 return Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    SizedBox(
+                    Container(
                       width: screenWidth * 0.2,
                       height: screenHeight,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).cardColor,
+                        border: Border(
+                            right: BorderSide(color: Colors.grey.shade300)),
+                        boxShadow: kBoxShadows,
+                      ),
                       child: _Sidebar(data: controller.getSelectedProject()),
                     ),
                     Expanded(
-                      child: SingleChildScrollView(
-                        child: Column(
-                          children: [
-                            _buildProgressSection(Axis.horizontal, context),
-                            _buildTaskOverviewSection(
-                              context,
-                              crossAxisCount: 4,
-                              childAspectRatio: 1.1,
-                            ),
-                            _buildActiveProjectSection(
-                              context,
-                              crossAxisCount: 4,
-                              childAspectRatio: 1.1,
-                            ),
-                          ],
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).scaffoldBackgroundColor,
+                          border: Border(
+                              right: BorderSide(color: Colors.grey.shade300)),
+                        ),
+                        child: SingleChildScrollView(
+                          child: _buildLayout(context, isDesktop: true),
                         ),
                       ),
                     ),
-                    SizedBox(
+                    Container(
                       width: screenWidth * 0.3,
                       height: screenHeight,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).cardColor.withOpacity(0.9),
+                      ),
                       child: _buildSideContent(context),
                     ),
                   ],
@@ -177,50 +142,136 @@ class DashboardScreen extends GetView<DashboardController> with NavigationMixin{
     );
   }
 
-  /// 构建顶栏区域（包含上下间距和分割线）
+  /// 构建右侧工具/聊天区域
+  Widget _buildSideContent(BuildContext context) {
+    return Container(
+      color: Theme.of(context).scaffoldBackgroundColor,
+      child: SingleChildScrollView(
+        child: Column(
+          children: [
+            _buildProfileSection(context),
+            const Divider(thickness: 1),
+            _buildTeamMemberSection(context),
+            _buildPremiumCard(context),
+            const Divider(thickness: 1),
+            _buildRecentMessagesSection(context),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 构建整体布局区域
+  Widget _buildLayout(BuildContext context, {bool isDesktop = false}) {
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+            horizontal: kSpacing, vertical: kSpacing),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(height: kSpacing * (kIsWeb || isDesktop ? 2.5 : 3.5)),
+            const Divider(),
+            Obx(() {
+              final pageContent = controller.selectedPage.value;
+              if (pageContent != null) {
+                return Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(kBorderRadius),
+                    boxShadow: kBoxShadows,
+                  ),
+                  child: _buildUserScreenSidebarTools(context),
+                );
+              } else {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildProfileSection(context),
+                    _buildProgressSection(
+                        isDesktop ? Axis.horizontal : Axis.vertical, context),
+                    _buildTeamMemberSection(context),
+                    _buildPremiumCard(context),
+                    _buildTaskOverviewSection(
+                      context,
+                      crossAxisCount: isDesktop ? 4 : 2,
+                      childAspectRatio: isDesktop ? 1.1 : 1.2,
+                    ),
+                    _buildActiveProjectSection(
+                      context,
+                      crossAxisCount: isDesktop ? 4 : 2,
+                      childAspectRatio: isDesktop ? 1.1 : 1.2,
+                    ),
+                    _buildRecentMessagesSection(context),
+                  ],
+                );
+              }
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 构建用户屏幕侧边工具区域
+  Widget _buildUserScreenSidebarTools(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          width: double.infinity,
+          height: MediaQuery.of(context).size.height * 0.8,
+          padding: const EdgeInsets.all(8.0),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor.withOpacity(0.9),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Obx(() {
+            final pageContent = controller.selectedPage.value;
+            return pageContent ?? const Center(child: Text('请选择一个页面'));
+          }),
+        ),
+      ),
+    );
+  }
+
+  /// 构建顶部 Header 区域（包含上下间距和分割线）
   Widget _buildHeaderSection(BuildContext context, double screenWidth) {
     return Container(
       color: Colors.blueAccent,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const SizedBox(height: 32), // 固定上边距 32
+          const SizedBox(height: 32),
           _buildHeader(
             onPressedMenu: () => controller.openDrawer(),
             screenWidth: screenWidth,
           ),
-          const SizedBox(height: 15), // 固定下边距 15
-          // 设置 Divider 高度和厚度为 1 像素，避免过高导致溢出
-          const Divider(
-            height: 1,
-            thickness: 1,
-          ),
+          const SizedBox(height: 15),
+          const Divider(height: 1, thickness: 1),
         ],
       ),
     );
   }
 
-  /// 构建顶栏的内容行（父级）
+  /// 构建顶部 Header 区域
   Widget _buildHeader({
     Function()? onPressedMenu,
     required double screenWidth,
   }) {
-    const double horizontalPadding = kSpacing / 2; // 使用较小的内边距
+    const double horizontalPadding = kSpacing / 2;
     final double availableWidth = screenWidth - 2 * horizontalPadding;
     const double mobileBreakpoint = 600.0;
-
-    // 菜单图标和右侧图标的固定宽度（可根据实际情况调整）
     final double menuIconWidth = onPressedMenu != null ? 48.0 : 0.0;
-    const double iconWidth = 48.0; // 右侧每个图标宽度预估值
-    const double iconSpacing = 4.0; // 两个图标之间的间隔
+    const double iconWidth = 48.0;
+    const double iconSpacing = 4.0;
     const double iconsTotalWidth = iconWidth * 2 + iconSpacing;
-
-    // 剩余给中间部分的宽度
     final double headerContentAvailableWidth =
         availableWidth - menuIconWidth - iconsTotalWidth;
 
     return SizedBox(
-      height: 50, // 固定高度 50 像素
+      height: 50,
       child: Container(
         width: availableWidth,
         padding: const EdgeInsets.symmetric(horizontal: horizontalPadding),
@@ -232,24 +283,21 @@ class DashboardScreen extends GetView<DashboardController> with NavigationMixin{
                 icon: const Icon(Icons.menu),
                 tooltip: "菜单",
               ),
-            // 中间区域使用 ConstrainedBox 限制最大宽度
             ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth: headerContentAvailableWidth,
-              ),
-              child: const _Header(), // 该组件定义在 part '../components/header.dart'
+              constraints:
+                  BoxConstraints(maxWidth: headerContentAvailableWidth),
+              child: const _Header(),
             ),
-            // 右侧固定的图标区域
             IconButton(
               onPressed: () => log("Chat icon pressed"),
               icon: const Icon(Icons.chat_bubble_outline),
               tooltip: "Chat",
             ),
-            const SizedBox(width: 4), // 图标之间的小间隔
+            const SizedBox(width: 4),
             IconButton(
               onPressed: () => controller.toggleBodyTheme(),
               icon: const Icon(Icons.brightness_6),
-              tooltip: "切换主题",
+              tooltip: "切换明暗主题",
             ),
           ],
         ),
@@ -424,35 +472,30 @@ class DashboardScreen extends GetView<DashboardController> with NavigationMixin{
       padding: const EdgeInsets.symmetric(horizontal: kSpacing),
       child: _ActiveProjectCard(
         onPressedSeeAll: () => log("查看所有项目"),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return SizedBox(
-              height: gridHeight,
-              child: GridView.builder(
-                itemCount: controller.getActiveProject().length,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: crossAxisCount,
-                  crossAxisSpacing: kSpacing,
-                  mainAxisSpacing: kSpacing,
-                  childAspectRatio: childAspectRatio,
-                ),
-                itemBuilder: (context, index) {
-                  final data = controller.getActiveProject()[index];
-                  return ProjectCard(data: data);
-                },
-              ),
-            );
-          },
+        child: SizedBox(
+          height: gridHeight,
+          child: GridView.builder(
+            itemCount: controller.getActiveProject().length,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: crossAxisCount,
+              crossAxisSpacing: kSpacing,
+              mainAxisSpacing: kSpacing,
+              childAspectRatio: childAspectRatio,
+            ),
+            itemBuilder: (context, index) {
+              final data = controller.getActiveProject()[index];
+              return ProjectCard(data: data);
+            },
+          ),
         ),
       ),
     );
   }
 
   Widget _buildRecentMessagesSection(BuildContext context) {
-    double listHeight =
-        MediaQuery.of(context).size.height * 0.333; // 大约屏幕高度的1/3
+    double listHeight = MediaQuery.of(context).size.height * 0.333;
     final chattingList = controller.getChatting();
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: kSpacing),
@@ -489,7 +532,6 @@ class DashboardScreen extends GetView<DashboardController> with NavigationMixin{
   /// 构建侧边栏，使用 AnimatedContainer 实现平滑过渡
   Widget _buildSidebar(BuildContext context) {
     final bool isDesktop = ResponsiveBuilder.isDesktop(context);
-    // 对于桌面端侧边栏一直显示；对于手机端，根据控制器状态决定是否显示
     final bool showSidebar = isDesktop || controller.isSidebarOpen.value;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
@@ -498,35 +540,15 @@ class DashboardScreen extends GetView<DashboardController> with NavigationMixin{
       height: double.infinity,
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
-        boxShadow: kBoxShadows, // 使用全局阴影效果
+        boxShadow: kBoxShadows,
       ),
       child: showSidebar
           ? Padding(
               padding:
                   const EdgeInsets.fromLTRB(16.0, kSpacing * 2, 16.0, kSpacing),
-              child: _Sidebar(
-                data: controller.getSelectedProject(),
-              ),
+              child: _Sidebar(data: controller.getSelectedProject()),
             )
           : null,
-    );
-  }
-
-  /// 构建右侧侧边/聊天内容区域
-  /// 这里可根据需要决定是否允许内部滚动（此处独立于中间内容滚动）
-  Widget _buildSideContent(BuildContext context) {
-    return SingleChildScrollView(
-      // 如果希望此区域固定高度且内容全部展示，可去掉 SingleChildScrollView
-      child: Column(
-        children: [
-          _buildProfileSection(context),
-          const Divider(thickness: 1),
-          _buildTeamMemberSection(context),
-          _buildPremiumCard(context),
-          const Divider(thickness: 1),
-          _buildRecentMessagesSection(context),
-        ],
-      ),
     );
   }
 }

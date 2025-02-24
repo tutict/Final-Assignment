@@ -1,12 +1,11 @@
 import 'dart:io';
 import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:get/Get.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // 添加 SharedPreferences 依赖
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingPage extends StatefulWidget {
   const SettingPage({super.key});
@@ -17,14 +16,17 @@ class SettingPage extends StatefulWidget {
 
 class _SettingPageState extends State<SettingPage> {
   double _cacheSize = -1.0;
-  final String _selectedTheme = 'Material Light';
+  final TextEditingController _themeController = TextEditingController();
 
-  final UserDashboardController controller = Get.find<UserDashboardController>();
+  final UserDashboardController controller =
+      Get.find<UserDashboardController>();
 
   @override
   void initState() {
     super.initState();
     _calculateCacheSize();
+    _themeController.text =
+        '${controller.selectedStyle.value} ${controller.currentTheme.value}';
   }
 
   Future<void> _calculateCacheSize() async {
@@ -59,281 +61,241 @@ class _SettingPageState extends State<SettingPage> {
   Future<void> _clearCache() async {
     await DefaultCacheManager().emptyCache();
     await _calculateCacheSize();
+    _showSuccessDialog('缓存已清除');
   }
 
   Future<void> _logout() async {
-    // 清除 JWT token
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('jwtToken');
-    // 跳转到登录页面
-    Get.offAllNamed(AppPages.login); // 假设登录页面路由为 AppPages.login
+    Get.offAllNamed(AppPages.login);
   }
+
+  void _saveSettings() {
+    _showSuccessDialog('设置已保存');
+  }
+
+  void _showSuccessDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('操作成功'),
+          content: Text('$message\n'
+              '深色模式: ${controller.currentTheme.value == "Dark" ? "已启用" : "已禁用"}\n'
+              '当前主题: ${_themeController.text}\n'
+              '缓存大小: ${_cacheSize.toStringAsFixed(2)} MB'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                controller.exitSidebarContent();
+              },
+              child: const Text('确定'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // 统一的 TextStyle，避免插值问题
+  static const TextStyle _buttonTextStyle = TextStyle(
+    fontSize: 16.0,
+    fontWeight: FontWeight.normal,
+    color: Colors.white,
+    inherit: true, // 确保与主题一致
+  );
 
   @override
   Widget build(BuildContext context) {
-    final currentTheme = Theme.of(context);
-    final bool isLight = currentTheme.brightness == Brightness.light;
-
-    return CupertinoPageScaffold(
-      backgroundColor: isLight ? CupertinoColors.extraLightBackgroundGray : CupertinoColors.darkBackgroundGray,
-      navigationBar: CupertinoNavigationBar(
-        middle: Text(
-          '设置',
-          style: TextStyle(
-            color: isLight ? CupertinoColors.black : CupertinoColors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-          ),
-        ),
-        leading: GestureDetector(
-          onTap: () {
-            controller.exitSidebarContent();
-            Get.offNamed(Routes.userDashboard);
-          },
-          child: Icon(
-            CupertinoIcons.back,
-            color: isLight ? CupertinoColors.black : CupertinoColors.white,
-          ),
-        ),
-        backgroundColor: isLight ? CupertinoColors.lightBackgroundGray : CupertinoColors.black.withOpacity(0.8),
-        brightness: isLight ? Brightness.light : Brightness.dark,
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('设置管理'),
       ),
-      child: SafeArea(
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
         child: ListView(
-          padding: const EdgeInsets.symmetric(vertical: 10.0),
           children: [
-            CupertinoListTile(
-              title: const Text('选择显示主题'),
-              leading: const Icon(CupertinoIcons.app_badge, color: CupertinoColors.activeBlue),
-              trailing: Text(
-                _selectedTheme,
-                style: TextStyle(
-                  color: isLight ? CupertinoColors.black : CupertinoColors.white,
+            const SizedBox(height: 16.0),
+            TextField(
+              controller: _themeController,
+              readOnly: true,
+              decoration: InputDecoration(
+                labelText: '选择显示主题',
+                border: const OutlineInputBorder(),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.arrow_drop_down),
+                  onPressed: _showThemeDialog,
                 ),
               ),
-              backgroundColor: isLight ? Colors.white : CupertinoColors.darkBackgroundGray.withOpacity(0.9),
-              onTap: () {
-                showCupertinoDialog(
-                  context: context,
-                  builder: (context) {
-                    return CupertinoAlertDialog(
-                      title: const Text('选择显示主题'),
-                      content: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          CupertinoDialogAction(
-                            child: const Text('Material Light'),
-                            onPressed: () {
-                              controller.setSelectedStyle('Material');
-                              controller.toggleBodyTheme();
-                              Navigator.pop(context);
-                            },
-                          ),
-                          CupertinoDialogAction(
-                            child: const Text('Material Dark'),
-                            onPressed: () {
-                              controller.setSelectedStyle('Material');
-                              controller.toggleBodyTheme();
-                              Navigator.pop(context);
-                            },
-                          ),
-                          CupertinoDialogAction(
-                            child: const Text('Ionic Light'),
-                            onPressed: () {
-                              controller.setSelectedStyle('Ionic');
-                              controller.toggleBodyTheme();
-                              Navigator.pop(context);
-                            },
-                          ),
-                          CupertinoDialogAction(
-                            child: const Text('Ionic Dark'),
-                            onPressed: () {
-                              controller.setSelectedStyle('Ionic');
-                              controller.toggleBodyTheme();
-                              Navigator.pop(context);
-                            },
-                          ),
-                          CupertinoDialogAction(
-                            child: const Text('Basic Light'),
-                            onPressed: () {
-                              controller.setSelectedStyle('Basic');
-                              controller.toggleBodyTheme();
-                              Navigator.pop(context);
-                            },
-                          ),
-                          CupertinoDialogAction(
-                            child: const Text('Basic Dark'),
-                            onPressed: () {
-                              controller.setSelectedStyle('Basic');
-                              controller.toggleBodyTheme();
-                              Navigator.pop(context);
-                            },
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                );
-              },
             ),
-            const SizedBox(height: 10),
-            CupertinoListTile(
-              title: const Text('清除缓存'),
+            const SizedBox(height: 16.0),
+            ListTile(
+              title: const Text('缓存大小'),
               subtitle: Text(
-                '${_cacheSize.toStringAsFixed(2)} MB',
-                style: TextStyle(
-                  color: isLight ? CupertinoColors.systemGrey : CupertinoColors.systemGrey2,
+                  '${_cacheSize >= 0 ? _cacheSize.toStringAsFixed(2) : "计算中..."} MB'),
+              trailing: SizedBox(
+                width: 100,
+                child: ElevatedButton(
+                  onPressed: _clearCache,
+                  style: ElevatedButton.styleFrom(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8.0), // 调整内边距
+                  ),
+                  child: const Text('清除缓存', style: _buttonTextStyle),
                 ),
               ),
-              leading: const Icon(CupertinoIcons.trash, color: CupertinoColors.systemRed),
-              backgroundColor: isLight ? Colors.white : CupertinoColors.darkBackgroundGray.withOpacity(0.9),
-              onTap: () {
-                showCupertinoDialog(
+            ),
+            const SizedBox(height: 20.0),
+            ElevatedButton(
+              onPressed: _saveSettings,
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size.fromHeight(50),
+              ),
+              child: const Text('保存设置', style: _buttonTextStyle),
+            ),
+            const SizedBox(height: 16.0),
+            ElevatedButton(
+              onPressed: () {
+                showDialog(
                   context: context,
-                  builder: (context) {
-                    return CupertinoAlertDialog(
-                      title: const Text('清除缓存'),
-                      content: const Text('确定要清除缓存吗？'),
+                  builder: (BuildContext context) {
+                    return AlertDialog(
+                      title: const Text('登出'),
+                      content: const Text('确定要登出吗？'),
                       actions: [
-                        CupertinoDialogAction(
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
                           child: const Text('取消'),
-                          onPressed: () {
-                            Navigator.pop(context);
-                          },
                         ),
-                        CupertinoDialogAction(
-                          child: const Text('确定'),
+                        TextButton(
                           onPressed: () {
-                            _clearCache();
+                            _logout();
                             Navigator.pop(context);
                           },
+                          child: const Text('确定'),
                         ),
                       ],
                     );
                   },
                 );
               },
-            ),
-            const SizedBox(height: 20), // 与上方按钮保持一致的间距
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: CupertinoButton(
-                color: CupertinoColors.link,
-                child: const Text('登出'),
-                onPressed: () {
-                  showCupertinoDialog(
-                    context: context,
-                    builder: (context) {
-                      return CupertinoAlertDialog(
-                        title: const Text('登出'),
-                        content: const Text('确定要登出吗？'),
-                        actions: [
-                          CupertinoDialogAction(
-                            child: const Text('取消'),
-                            onPressed: () {
-                              Navigator.pop(context);
-                            },
-                          ),
-                          CupertinoDialogAction(
-                            child: const Text('确定'),
-                            onPressed: () {
-                              _logout();
-                              Navigator.pop(context);
-                            },
-                          ),
-                        ],
-                      );
-                    },
-                  );
-                },
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size.fromHeight(50),
+                backgroundColor: Colors.red,
               ),
+              child: const Text('登出', style: _buttonTextStyle),
+            ),
+            const SizedBox(height: 16.0),
+            ElevatedButton(
+              onPressed: () {
+                controller.exitSidebarContent();
+              },
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size.fromHeight(50),
+                backgroundColor: Colors.grey,
+              ),
+              child: const Text('返回上一级', style: _buttonTextStyle),
             ),
           ],
         ),
       ),
     );
   }
-}
 
-class CupertinoListTile extends StatelessWidget {
-  final Widget title;
-  final Widget? subtitle;
-  final Widget? leading;
-  final Widget? trailing;
-  final VoidCallback? onTap;
-  final Color backgroundColor;
-
-  const CupertinoListTile({
-    required this.title,
-    this.subtitle,
-    this.leading,
-    this.trailing,
-    this.onTap,
-    required this.backgroundColor,
-    super.key,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isLight = Theme.of(context).brightness == Brightness.light;
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
-        margin: const EdgeInsets.symmetric(horizontal: 12.0),
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          borderRadius: BorderRadius.circular(12.0),
-          boxShadow: [
-            BoxShadow(
-              color: isLight ? Colors.grey.withOpacity(0.2) : Colors.black.withOpacity(0.3),
-              blurRadius: 8.0,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            if (leading != null) ...[
-              leading!,
-              const SizedBox(width: 16.0),
-            ],
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  DefaultTextStyle(
-                    style: TextStyle(
-                      color: isLight ? CupertinoColors.black : CupertinoColors.white,
-                      fontSize: 16.0,
-                    ),
-                    child: title,
-                  ),
-                  if (subtitle != null) ...[
-                    const SizedBox(height: 4.0),
-                    DefaultTextStyle(
-                      style: TextStyle(
-                        color: isLight ? CupertinoColors.systemGrey : CupertinoColors.systemGrey2,
-                        fontSize: 14.0,
-                      ),
-                      child: subtitle!,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            if (trailing != null)
-              DefaultTextStyle(
-                style: TextStyle(
-                  color: isLight ? CupertinoColors.black : CupertinoColors.white,
-                  fontSize: 16.0,
+  void _showThemeDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('选择显示主题'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  title: const Text('Material Light'),
+                  onTap: () {
+                    controller.setSelectedStyle('Material');
+                    if (controller.currentTheme.value == 'Dark') {
+                      controller.toggleBodyTheme();
+                    }
+                    _themeController.text =
+                        '${controller.selectedStyle.value} ${controller.currentTheme.value}';
+                    Navigator.pop(context);
+                  },
                 ),
-                child: trailing!,
-              ),
+                ListTile(
+                  title: const Text('Material Dark'),
+                  onTap: () {
+                    controller.setSelectedStyle('Material');
+                    if (controller.currentTheme.value == 'Light') {
+                      controller.toggleBodyTheme();
+                    }
+                    _themeController.text =
+                        '${controller.selectedStyle.value} ${controller.currentTheme.value}';
+                    Navigator.pop(context);
+                  },
+                ),
+                ListTile(
+                  title: const Text('Ionic Light'),
+                  onTap: () {
+                    controller.setSelectedStyle('Ionic');
+                    if (controller.currentTheme.value == 'Dark') {
+                      controller.toggleBodyTheme();
+                    }
+                    _themeController.text =
+                        '${controller.selectedStyle.value} ${controller.currentTheme.value}';
+                    Navigator.pop(context);
+                  },
+                ),
+                ListTile(
+                  title: const Text('Ionic Dark'),
+                  onTap: () {
+                    controller.setSelectedStyle('Ionic');
+                    if (controller.currentTheme.value == 'Light') {
+                      controller.toggleBodyTheme();
+                    }
+                    _themeController.text =
+                        '${controller.selectedStyle.value} ${controller.currentTheme.value}';
+                    Navigator.pop(context);
+                  },
+                ),
+                ListTile(
+                  title: const Text('Basic Light'),
+                  onTap: () {
+                    controller.setSelectedStyle('Basic');
+                    if (controller.currentTheme.value == 'Dark') {
+                      controller.toggleBodyTheme();
+                    }
+                    _themeController.text =
+                        '${controller.selectedStyle.value} ${controller.currentTheme.value}';
+                    Navigator.pop(context);
+                  },
+                ),
+                ListTile(
+                  title: const Text('Basic Dark'),
+                  onTap: () {
+                    controller.setSelectedStyle('Basic');
+                    if (controller.currentTheme.value == 'Light') {
+                      controller.toggleBodyTheme();
+                    }
+                    _themeController.text =
+                        '${controller.selectedStyle.value} ${controller.currentTheme.value}';
+                    Navigator.pop(context);
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('取消'),
+            ),
           ],
-        ),
-      ),
+        );
+      },
     );
   }
 }

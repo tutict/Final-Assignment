@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
-class ManageSetting extends StatefulWidget {
-  const ManageSetting({super.key});
+class ManagerSetting extends StatefulWidget {
+  const ManagerSetting({super.key});
 
   @override
-  State<ManageSetting> createState() => _ManageSettingPage();
+  State<ManagerSetting> createState() => _ManageSettingPage();
 }
 
-class _ManageSettingPage extends State<ManageSetting> {
+class _ManageSettingPage extends State<ManagerSetting> {
   bool _notificationEnabled = false;
   bool _darkModeEnabled = false;
   String _serverUrl = '';

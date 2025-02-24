@@ -218,7 +218,7 @@ class AppPages {
     GetPage(
         name: _Paths.managerPersonalPage,
         page: () => const ManagerPersonalPage()),
-    GetPage(name: _Paths.managerSetting, page: () => const ManageSetting()),
+    GetPage(name: _Paths.managerSetting, page: () => const ManagerSetting()),
     GetPage(name: _Paths.offenseList, page: () => const OffenseList()),
     GetPage(name: _Paths.vehicleList, page: () => const VehicleList()),
     GetPage(

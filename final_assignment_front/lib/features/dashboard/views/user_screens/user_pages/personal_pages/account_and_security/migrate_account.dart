@@ -1,6 +1,5 @@
 import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/Get.dart';
 
@@ -12,99 +11,110 @@ class MigrateAccount extends StatefulWidget {
 }
 
 class _MigrateAccountState extends State<MigrateAccount> {
-  final controller = Get.find<UserDashboardController>();
+  final UserDashboardController controller =
+      Get.find<UserDashboardController>();
   final _targetAccountController = TextEditingController();
   final _passwordController = TextEditingController();
 
+  void _submitMigration() {
+    final targetAccount = _targetAccountController.text.trim();
+    final password = _passwordController.text.trim();
+
+    if (targetAccount.isEmpty || password.isEmpty) {
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('错误'),
+          content: const Text('请输入目标账号和验证密码'),
+          actions: [
+            TextButton(
+              child: const Text('确定'),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    // 处理提交逻辑
+    debugPrint('Account migration submitted: $targetAccount');
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('提交成功'),
+        content: Text('目标账号: $targetAccount'),
+        actions: [
+          TextButton(
+            child: const Text('确定'),
+            onPressed: () {
+              Navigator.pop(context);
+              controller
+                  .navigateToPage(AppPages.accountAndSecurity); // 返回账号与安全页面
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final currentTheme = Theme.of(context);
-    final bool isLight = currentTheme.brightness == Brightness.light;
-
-    return CupertinoPageScaffold(
-      backgroundColor: isLight ? CupertinoColors.extraLightBackgroundGray : CupertinoColors.darkBackgroundGray,
-      navigationBar: CupertinoNavigationBar(
-        middle: const Text(
-          '迁移账号',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-          ),
-        ),
-        leading: GestureDetector(
-          onTap: () {
-            controller.navigateToPage(AppPages.accountAndSecurity);
-            },
-          child: Icon(
-            CupertinoIcons.back,
-            color: isLight ? CupertinoColors.black : CupertinoColors.white,
-          ),
-        ),
-        backgroundColor: isLight ? CupertinoColors.lightBackgroundGray : CupertinoColors.black.withOpacity(0.8),
-        brightness: isLight ? Brightness.light : Brightness.dark,
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('迁移账号'), // Material 风格标题
       ),
-      child: SafeArea(
-        child: Center(
-          child: Container(
-            width: double.infinity,
-            margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
-            padding: const EdgeInsets.all(20.0),
-            decoration: BoxDecoration(
-              color: isLight ? Colors.white : CupertinoColors.darkBackgroundGray.withOpacity(0.9),
-              borderRadius: BorderRadius.circular(12.0),
-              boxShadow: [
-                BoxShadow(
-                  color: isLight ? Colors.grey.withOpacity(0.2) : Colors.black.withOpacity(0.3),
-                  blurRadius: 8.0,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+      body: Padding(
+        padding: const EdgeInsets.all(16.0), // 与 ManagerSetting.dart 一致的内边距
+        child: ListView(
+          children: [
+            const Text(
+              '迁移账号',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.blue, // Material 风格蓝色
+              ),
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  '迁移账号',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: CupertinoColors.activeBlue,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                CupertinoTextField(
-                  controller: _targetAccountController,
-                  placeholder: '请输入目标账号ID或用户名',
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                  decoration: BoxDecoration(
-                    color: isLight ? CupertinoColors.lightBackgroundGray : CupertinoColors.systemGrey6,
-                    borderRadius: BorderRadius.circular(8.0),
-                  ),
-                ),
-                const SizedBox(height: 15),
-                CupertinoTextField(
-                  controller: _passwordController,
-                  placeholder: '请输入验证密码',
-                  obscureText: true,
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                  decoration: BoxDecoration(
-                    color: isLight ? CupertinoColors.lightBackgroundGray : CupertinoColors.systemGrey6,
-                    borderRadius: BorderRadius.circular(8.0),
-                  ),
-                ),
-                const SizedBox(height: 25),
-                Center(
-                  child: CupertinoButton.filled(
-                    onPressed: () {
-                      debugPrint('Account migration submitted: ${_targetAccountController.text}');
-                    },
-                    child: const Text('提交'),
-                  ),
-                ),
-              ],
+            const SizedBox(height: 16.0), // 与 ManagerSetting.dart 的间距一致
+            TextField(
+              controller: _targetAccountController,
+              decoration: const InputDecoration(
+                labelText: '请输入目标账号ID或用户名',
+                border: OutlineInputBorder(), // Material 风格边框
+              ),
             ),
-          ),
+            const SizedBox(height: 16.0), // 与 ManagerSetting.dart 的间距一致
+            TextField(
+              controller: _passwordController,
+              decoration: const InputDecoration(
+                labelText: '请输入验证密码',
+                border: OutlineInputBorder(),
+              ),
+              obscureText: true,
+            ),
+            const SizedBox(height: 20.0), // 与 ManagerSetting.dart 的按钮间距一致
+            ElevatedButton(
+              onPressed: _submitMigration,
+              style: ElevatedButton.styleFrom(
+                minimumSize:
+                    const Size.fromHeight(50), // 全宽按钮，与 ManagerSetting.dart 一致
+              ),
+              child: const Text('提交'),
+            ),
+            const SizedBox(height: 20.0), // 与 ManagerSetting.dart 的按钮间距一致
+            ElevatedButton(
+              onPressed: () {
+                controller.navigateToPage(Routes.personalMain); // 返回个人主页
+              },
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size.fromHeight(50),
+                // 全宽按钮，与 ManagerSetting.dart 一致
+                backgroundColor: Colors.grey, // 灰色表示返回操作
+              ),
+              child: const Text('返回上一级'),
+            ),
+          ],
         ),
       ),
     );

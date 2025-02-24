@@ -72,6 +72,7 @@ class _PersonalInformationPageState extends State<PersonalInformationPage> {
           style: TextStyle(
             color: isLight ? CupertinoColors.black : CupertinoColors.white,
             fontWeight: FontWeight.bold, // Make text bold for better visibility
+            fontSize: 20, // 稍增大字体
           ),
         ),
         leading: GestureDetector(

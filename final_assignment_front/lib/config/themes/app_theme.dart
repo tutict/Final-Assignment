@@ -12,11 +12,24 @@ class AppTheme {
           seedColor: const Color.fromRGBO(128, 109, 255, 1),
           brightness: Brightness.light,
         ),
-        // 自定义 ElevatedButton 样式，取消阴影
+        // 自定义 ElevatedButton 样式
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color.fromRGBO(128, 109, 255, 1),
-            elevation: 0,
+            foregroundColor: Colors.white,
+            elevation: 2,
+            // 添加微妙阴影
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16), // 更柔和的圆角
+            ),
+            textStyle: const TextStyle(
+              inherit: true,
+              // 确保插值兼容
+              fontFamily: Font.poppins,
+              fontSize: 16.0,
+              fontWeight: FontWeight.w500,
+              color: Colors.white,
+            ),
           ),
         ),
         // 设置画布与卡片颜色
@@ -27,12 +40,14 @@ class AppTheme {
           backgroundColor: Color.fromRGBO(248, 248, 255, 1),
           foregroundColor: Colors.black,
           elevation: 1,
+          centerTitle: true, // 标题居中，提升美观
         ),
         // 自定义底部导航栏样式
         bottomNavigationBarTheme: const BottomNavigationBarThemeData(
           backgroundColor: Color.fromRGBO(255, 255, 255, 1),
           selectedItemColor: Color.fromRGBO(0, 122, 255, 1),
           unselectedItemColor: Color.fromRGBO(142, 142, 147, 1),
+          elevation: 8, // 添加阴影
         ),
         // 自定义文本主题
         textTheme: const TextTheme(
@@ -40,19 +55,29 @@ class AppTheme {
             fontSize: 32,
             fontWeight: FontWeight.bold,
             color: Colors.black,
+            inherit: true, // 统一 inherit 值
           ),
           titleLarge: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
             color: Colors.black,
+            inherit: true,
           ),
           bodyLarge: TextStyle(
             fontSize: 16,
             color: Colors.black87,
+            inherit: true,
           ),
           bodyMedium: TextStyle(
             fontSize: 14,
             color: Colors.black54,
+            inherit: true,
+          ),
+          labelLarge: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+            color: Colors.black,
+            inherit: true,
           ),
         ),
         // 自定义输入框装饰主题
@@ -61,7 +86,7 @@ class AppTheme {
           fillColor: const Color.fromRGBO(255, 255, 255, 1),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
+            borderSide: const BorderSide(color: Colors.grey, width: 1), // 添加微边框
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
@@ -73,12 +98,10 @@ class AppTheme {
         ),
       );
 
-  /// 返回一个基本的深色主题样式，使用 Material 3 的动态色彩
   static ThemeData get basicDark => ThemeData(
         useMaterial3: true,
         fontFamily: Font.poppins,
         brightness: Brightness.dark,
-        // 根据相同种子颜色生成深色版 ColorScheme
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color.fromRGBO(128, 109, 255, 1),
           brightness: Brightness.dark,
@@ -86,54 +109,70 @@ class AppTheme {
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color.fromRGBO(128, 109, 255, 1),
-            elevation: 0,
+            foregroundColor: Colors.white,
+            elevation: 2,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            textStyle: const TextStyle(
+              inherit: true,
+              fontFamily: Font.poppins,
+              fontSize: 16.0,
+              fontWeight: FontWeight.w500,
+              color: Colors.white,
+            ),
           ),
         ),
-        // 保持之前的深色调
         canvasColor: const Color.fromRGBO(31, 29, 44, 1),
-        // 旧的深色背景
         cardColor: const Color.fromRGBO(38, 40, 55, 1),
-        // 旧的卡片背景色
-        // 自定义 AppBar 样式
         appBarTheme: const AppBarTheme(
           backgroundColor: Color.fromRGBO(38, 40, 55, 1),
           foregroundColor: Colors.white,
           elevation: 1,
+          centerTitle: true,
         ),
-        // 自定义底部导航栏样式
         bottomNavigationBarTheme: const BottomNavigationBarThemeData(
           backgroundColor: Color.fromRGBO(38, 40, 55, 1),
           selectedItemColor: Color.fromRGBO(128, 109, 255, 1),
           unselectedItemColor: Color.fromRGBO(142, 142, 147, 1),
+          elevation: 8,
         ),
-        // 自定义文本主题
         textTheme: const TextTheme(
           displayLarge: TextStyle(
             fontSize: 32,
             fontWeight: FontWeight.bold,
             color: Colors.white,
+            inherit: true,
           ),
           titleLarge: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
             color: Colors.white,
+            inherit: true,
           ),
           bodyLarge: TextStyle(
             fontSize: 16,
             color: Colors.white70,
+            inherit: true,
           ),
           bodyMedium: TextStyle(
             fontSize: 14,
             color: Colors.white60,
+            inherit: true,
+          ),
+          labelLarge: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+            color: Colors.white,
+            inherit: true,
           ),
         ),
-        // 自定义输入框装饰主题
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
           fillColor: const Color.fromRGBO(38, 40, 55, 1),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
+            borderSide: const BorderSide(color: Colors.grey, width: 1),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
@@ -145,69 +184,81 @@ class AppTheme {
         ),
       );
 
-  /// 返回一个基于 Ionic 风格的浅色主题样式（动态色彩）。
   static ThemeData get ionicLightTheme => ThemeData(
         useMaterial3: true,
         fontFamily: 'Helvetica',
         brightness: Brightness.light,
-        // 根据种子颜色自动生成完整的 ColorScheme
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color.fromRGBO(0, 122, 255, 1),
           brightness: Brightness.light,
         ),
-        // 自定义 ElevatedButton 样式
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color.fromRGBO(0, 122, 255, 1),
-            textStyle: const TextStyle(color: Colors.white),
+            foregroundColor: Colors.white,
+            elevation: 2,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            textStyle: const TextStyle(
+              inherit: true,
+              fontFamily: 'Helvetica',
+              fontSize: 16.0,
+              fontWeight: FontWeight.w500,
+              color: Colors.white,
             ),
           ),
         ),
-        // 设置画布与卡片颜色（可根据需要调整）
         canvasColor: const Color.fromRGBO(248, 248, 255, 1),
         cardColor: const Color.fromRGBO(255, 255, 255, 1),
-        // 自定义 AppBar 样式
         appBarTheme: const AppBarTheme(
           backgroundColor: Color.fromRGBO(248, 248, 255, 1),
           foregroundColor: Colors.black,
           elevation: 1,
+          centerTitle: true,
         ),
-        // 自定义底部导航栏样式
         bottomNavigationBarTheme: const BottomNavigationBarThemeData(
           backgroundColor: Color.fromRGBO(255, 255, 255, 1),
           selectedItemColor: Color.fromRGBO(0, 122, 255, 1),
           unselectedItemColor: Color.fromRGBO(142, 142, 147, 1),
+          elevation: 8,
         ),
-        // 自定义文本主题
         textTheme: const TextTheme(
           displayLarge: TextStyle(
             fontSize: 32,
             fontWeight: FontWeight.bold,
             color: Colors.black,
+            inherit: true,
           ),
           titleLarge: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
             color: Colors.black,
+            inherit: true,
           ),
           bodyLarge: TextStyle(
             fontSize: 16,
             color: Colors.black87,
+            inherit: true,
           ),
           bodyMedium: TextStyle(
             fontSize: 14,
             color: Colors.black54,
+            inherit: true,
+          ),
+          labelLarge: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+            color: Colors.black,
+            inherit: true,
           ),
         ),
-        // 自定义输入框装饰主题
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
           fillColor: const Color.fromRGBO(255, 255, 255, 1),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
+            borderSide: const BorderSide(color: Colors.grey, width: 1),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
@@ -219,12 +270,10 @@ class AppTheme {
         ),
       );
 
-  /// 返回一个基于 Ionic 风格的深色主题样式（动态色彩）。
   static ThemeData get ionicDarkTheme => ThemeData(
         useMaterial3: true,
         fontFamily: 'Helvetica',
         brightness: Brightness.dark,
-        // 根据种子颜色自动生成完整的深色 ColorScheme
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color.fromRGBO(10, 132, 255, 1),
           brightness: Brightness.dark,
@@ -232,9 +281,17 @@ class AppTheme {
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color.fromRGBO(10, 132, 255, 1),
-            textStyle: const TextStyle(color: Colors.white),
+            foregroundColor: Colors.white,
+            elevation: 2,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            textStyle: const TextStyle(
+              inherit: true,
+              fontFamily: 'Helvetica',
+              fontSize: 16.0,
+              fontWeight: FontWeight.w500,
+              color: Colors.white,
             ),
           ),
         ),
@@ -244,30 +301,42 @@ class AppTheme {
           backgroundColor: Color.fromRGBO(44, 44, 46, 1),
           foregroundColor: Colors.white,
           elevation: 1,
+          centerTitle: true,
         ),
         bottomNavigationBarTheme: const BottomNavigationBarThemeData(
           backgroundColor: Color.fromRGBO(44, 44, 46, 1),
           selectedItemColor: Color.fromRGBO(10, 132, 255, 1),
           unselectedItemColor: Color.fromRGBO(142, 142, 147, 1),
+          elevation: 8,
         ),
         textTheme: const TextTheme(
           displayLarge: TextStyle(
             fontSize: 32,
             fontWeight: FontWeight.bold,
             color: Colors.white,
+            inherit: true,
           ),
           titleLarge: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
             color: Colors.white,
+            inherit: true,
           ),
           bodyLarge: TextStyle(
             fontSize: 16,
             color: Colors.white70,
+            inherit: true,
           ),
           bodyMedium: TextStyle(
             fontSize: 14,
             color: Colors.white60,
+            inherit: true,
+          ),
+          labelLarge: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+            color: Colors.white,
+            inherit: true,
           ),
         ),
         inputDecorationTheme: InputDecorationTheme(
@@ -275,7 +344,7 @@ class AppTheme {
           fillColor: const Color.fromRGBO(44, 44, 46, 1),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
+            borderSide: const BorderSide(color: Colors.grey, width: 1),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
@@ -287,12 +356,10 @@ class AppTheme {
         ),
       );
 
-  /// 返回一个基于Material风格的浅色主题样式，使用 Material 3 的动态色彩特性。
   static ThemeData get materialLightTheme => ThemeData(
         useMaterial3: true,
         fontFamily: 'Helvetica',
         brightness: Brightness.light,
-        // 根据种子颜色自动生成完整的 ColorScheme
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color.fromRGBO(25, 118, 210, 1),
           brightness: Brightness.light,
@@ -300,9 +367,17 @@ class AppTheme {
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color.fromRGBO(25, 118, 210, 1),
-            textStyle: const TextStyle(color: Colors.white),
+            foregroundColor: Colors.white,
+            elevation: 2,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            textStyle: const TextStyle(
+              inherit: true,
+              fontFamily: 'Helvetica',
+              fontSize: 16.0,
+              fontWeight: FontWeight.w500,
+              color: Colors.white,
             ),
           ),
         ),
@@ -312,30 +387,42 @@ class AppTheme {
           backgroundColor: Color.fromRGBO(255, 255, 255, 1),
           foregroundColor: Colors.black,
           elevation: 1,
+          centerTitle: true,
         ),
         bottomNavigationBarTheme: const BottomNavigationBarThemeData(
           backgroundColor: Color.fromRGBO(255, 255, 255, 1),
           selectedItemColor: Color.fromRGBO(25, 118, 210, 1),
           unselectedItemColor: Color.fromRGBO(158, 158, 158, 1),
+          elevation: 8,
         ),
         textTheme: const TextTheme(
           displayLarge: TextStyle(
             fontSize: 32,
             fontWeight: FontWeight.bold,
             color: Colors.black,
+            inherit: true,
           ),
           titleLarge: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
             color: Colors.black,
+            inherit: true,
           ),
           bodyLarge: TextStyle(
             fontSize: 16,
             color: Colors.black87,
+            inherit: true,
           ),
           bodyMedium: TextStyle(
             fontSize: 14,
             color: Colors.black54,
+            inherit: true,
+          ),
+          labelLarge: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+            color: Colors.black,
+            inherit: true,
           ),
         ),
         inputDecorationTheme: InputDecorationTheme(
@@ -343,7 +430,7 @@ class AppTheme {
           fillColor: const Color.fromRGBO(255, 255, 255, 1),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
+            borderSide: const BorderSide(color: Colors.grey, width: 1),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
@@ -355,12 +442,10 @@ class AppTheme {
         ),
       );
 
-  /// 返回一个基于Material风格的深色主题样式，使用 Material 3 的动态色彩特性。
   static ThemeData get materialDarkTheme => ThemeData(
         useMaterial3: true,
         fontFamily: 'Helvetica',
         brightness: Brightness.dark,
-        // 根据种子颜色自动生成完整的深色 ColorScheme
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color.fromRGBO(33, 150, 243, 1),
           brightness: Brightness.dark,
@@ -368,9 +453,17 @@ class AppTheme {
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color.fromRGBO(33, 150, 243, 1),
-            textStyle: const TextStyle(color: Colors.white),
+            foregroundColor: Colors.white,
+            elevation: 2,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            textStyle: const TextStyle(
+              inherit: true,
+              fontFamily: 'Helvetica',
+              fontSize: 16.0,
+              fontWeight: FontWeight.w500,
+              color: Colors.white,
             ),
           ),
         ),
@@ -380,30 +473,42 @@ class AppTheme {
           backgroundColor: Color.fromRGBO(28, 28, 30, 1),
           foregroundColor: Colors.white,
           elevation: 1,
+          centerTitle: true,
         ),
         bottomNavigationBarTheme: const BottomNavigationBarThemeData(
           backgroundColor: Color.fromRGBO(28, 28, 30, 1),
           selectedItemColor: Color.fromRGBO(33, 150, 243, 1),
           unselectedItemColor: Color.fromRGBO(142, 142, 147, 1),
+          elevation: 8,
         ),
         textTheme: const TextTheme(
           displayLarge: TextStyle(
             fontSize: 32,
             fontWeight: FontWeight.bold,
             color: Colors.white,
+            inherit: true,
           ),
           titleLarge: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
             color: Colors.white,
+            inherit: true,
           ),
           bodyLarge: TextStyle(
             fontSize: 16,
             color: Colors.white70,
+            inherit: true,
           ),
           bodyMedium: TextStyle(
             fontSize: 14,
             color: Colors.white60,
+            inherit: true,
+          ),
+          labelLarge: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+            color: Colors.white,
+            inherit: true,
           ),
         ),
         inputDecorationTheme: InputDecorationTheme(
@@ -411,7 +516,7 @@ class AppTheme {
           fillColor: const Color.fromRGBO(28, 28, 30, 1),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
+            borderSide: const BorderSide(color: Colors.grey, width: 1),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),

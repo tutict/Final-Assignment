@@ -65,7 +65,7 @@ class _Sidebar extends StatelessWidget {
                         SelectionButtonData(
                           activeIcon: EvaIcons.map,
                           icon: EvaIcons.archiveOutline,
-                          label: "业务点",
+                          label: "地图",
                           routeName: Routes.map,
                         ),
                         SelectionButtonData(

@@ -39,6 +39,10 @@ mixin NavigationMixin {
         return const NewsDetailScreen();
       case AppPages.changeThemes:
         return const ChangeThemes();
+      case AppPages.managerSetting:
+        return const ManagerSetting();
+      case AppPages.managerPersonalPage:
+        return const ManagerPersonalPage();
       default:
         debugPrint('Unknown route: $routeName');
         return const Center(child: Text('页面未找到'));
