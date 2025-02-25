@@ -9,6 +9,7 @@ import 'package:final_assignment_front/features/dashboard/views/manager_screens/
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/appeal_management.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/backup_and_restore.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/driver_list.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/manager_business_processing.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/manager_personal_page.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/manager_setting.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/offense_list.dart';
@@ -134,6 +135,8 @@ class AppPages {
   // 业务办理
   static const businessProgress = Routes.businessProgress;
 
+  static const managerBusinessProcessing = Routes.managerBusinessProcessing;
+
   // 配置应用中的所有页面路由
   static final routes = [
     GetPage(
@@ -233,5 +236,8 @@ class AppPages {
     GetPage(
         name: _Paths.businessProgress,
         page: () => const BusinessProgressPage()),
+    GetPage(
+        name: _Paths.managerBusinessProcessing,
+        page: () => const ManagerBusinessProcessing()),
   ];
 }

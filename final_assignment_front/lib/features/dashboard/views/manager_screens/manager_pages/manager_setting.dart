@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/Get.dart';
 import 'package:final_assignment_front/config/routes/app_pages.dart';
-import 'package:final_assignment_front/features/dashboard/controllers/chat_controller.dart'; // 添加 ChatController 导入
+import 'package:final_assignment_front/features/dashboard/controllers/chat_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_dashboard_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -17,14 +17,6 @@ class _ManageSettingPage extends State<ManagerSetting> {
   final DashboardController controller = Get.find<DashboardController>();
   final TextEditingController _themeController = TextEditingController();
 
-  // 统一的 TextStyle，避免插值问题
-  static const TextStyle _buttonTextStyle = TextStyle(
-    fontSize: 16.0,
-    fontWeight: FontWeight.normal,
-    color: Colors.white,
-    inherit: true,
-  );
-
   @override
   void initState() {
     super.initState();
@@ -33,86 +25,19 @@ class _ManageSettingPage extends State<ManagerSetting> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('设置管理'),
-      ),
-      body: Obx(
-        () => Theme(
-          data: controller.currentBodyTheme.value,
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: ListView(
-              children: [
-                SwitchListTile(
-                  title: const Text('启用通知'),
-                  value: _notificationEnabled,
-                  onChanged: (bool value) {
-                    setState(() {
-                      _notificationEnabled = value;
-                    });
-                  },
-                ),
-                const SizedBox(height: 16.0),
-                TextField(
-                  controller: _themeController,
-                  readOnly: true,
-                  decoration: InputDecoration(
-                    labelText: '选择显示主题',
-                    border: const OutlineInputBorder(),
-                    suffixIcon: IconButton(
-                      icon: const Icon(Icons.arrow_drop_down),
-                      onPressed: _showThemeDialog,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20.0),
-                ElevatedButton(
-                  onPressed: _saveSettings,
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(50),
-                  ),
-                  child: const Text('保存设置', style: _buttonTextStyle),
-                ),
-                const SizedBox(height: 16.0),
-                ElevatedButton(
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (BuildContext context) {
-                        return AlertDialog(
-                          title: const Text('登出'),
-                          content: const Text('确定要登出吗？'),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: const Text('取消'),
-                            ),
-                            TextButton(
-                              onPressed: () {
-                                _logout();
-                                Navigator.pop(context);
-                              },
-                              child: const Text('确定'),
-                            ),
-                          ],
-                        );
-                      },
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(50),
-                    backgroundColor: Colors.red,
-                  ),
-                  child: const Text('登出', style: _buttonTextStyle),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
+  void dispose() {
+    _themeController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('jwtToken');
+    if (Get.isRegistered<ChatController>()) {
+      final chatController = Get.find<ChatController>();
+      chatController.clearMessages();
+    }
+    Get.offAllNamed(AppPages.login);
   }
 
   void _saveSettings() {
@@ -133,17 +58,6 @@ class _ManageSettingPage extends State<ManagerSetting> {
         );
       },
     );
-  }
-
-  Future<void> _logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('jwtToken');
-
-    // 清空 AI 聊天页面
-    final chatController = Get.find<ChatController>();
-    chatController.clearMessages();
-
-    Get.offAllNamed(AppPages.login);
   }
 
   void _showThemeDialog() {
@@ -239,6 +153,118 @@ class _ManageSettingPage extends State<ManagerSetting> {
           ],
         );
       },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('设置管理'),
+      ),
+      body: Obx(
+        () => Theme(
+          data: controller.currentBodyTheme.value,
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: ListView(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.notifications, color: Colors.blue),
+                  title: Text(
+                    '启用通知',
+                    style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurface),
+                  ),
+                  subtitle: Text(
+                    _notificationEnabled ? '已启用' : '已禁用',
+                    style: TextStyle(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withOpacity(0.7)),
+                  ),
+                  trailing: Switch(
+                    value: _notificationEnabled,
+                    onChanged: (bool value) {
+                      setState(() {
+                        _notificationEnabled = value;
+                      });
+                    },
+                  ),
+                ),
+                const SizedBox(height: 16.0),
+                ListTile(
+                  leading: const Icon(Icons.palette, color: Colors.blue),
+                  title: Text(
+                    '选择显示主题',
+                    style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurface),
+                  ),
+                  subtitle: Text(
+                    _themeController.text,
+                    style: TextStyle(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withOpacity(0.7)),
+                  ),
+                  trailing:
+                      const Icon(Icons.arrow_forward_ios, color: Colors.grey),
+                  onTap: _showThemeDialog,
+                ),
+                const SizedBox(height: 16.0),
+                ListTile(
+                  leading: const Icon(Icons.save, color: Colors.blue),
+                  title: Text(
+                    '保存设置',
+                    style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurface),
+                  ),
+                  trailing:
+                      const Icon(Icons.arrow_forward_ios, color: Colors.grey),
+                  onTap: _saveSettings,
+                ),
+                const SizedBox(height: 16.0),
+                ListTile(
+                  leading: const Icon(Icons.logout, color: Colors.blue),
+                  title: Text(
+                    '登出',
+                    style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurface),
+                  ),
+                  trailing:
+                      const Icon(Icons.arrow_forward_ios, color: Colors.grey),
+                  onTap: () {
+                    showDialog(
+                      context: context,
+                      builder: (BuildContext context) {
+                        return AlertDialog(
+                          title: const Text('登出'),
+                          content: const Text('确定要登出吗？'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('取消'),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                _logout();
+                                Navigator.pop(context);
+                              },
+                              child: const Text('确定'),
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

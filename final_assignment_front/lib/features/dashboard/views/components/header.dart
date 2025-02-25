@@ -3,38 +3,51 @@ part of '../manager_screens/manager_dashboard_screen.dart';
 class _Header extends StatelessWidget {
   const _Header();
 
-  // 基础设计稿中的固定宽度
-  static const double _baseHeaderWidth = 1248.0;
-  static const double _baseTodayTextWidth = 300.0;
-  static const double _baseSearchFieldWidth = 932.0;
-
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final double maxWidth = constraints.maxWidth;
-        // 当分配的宽度小于设计稿宽度时，计算缩放因子
-        final double scaleFactor =
-            maxWidth < _baseHeaderWidth ? maxWidth / _baseHeaderWidth : 1.0;
+
+        // TodayText 宽度占屏幕宽度的 25%，收缩 1.5cm（38 像素）
+        final double todayTextWidth = maxWidth * 0.25;
+        final double clampedTodayTextWidth =
+            (todayTextWidth - 38.0).clamp(80.0, 262.0);
+
+        // 动态调整字体大小，确保总高度不超过 38（50 - 12 padding）
+        final double locationFontSize =
+            (10.0 + (maxWidth - 300) / 100).clamp(10.0, 14.0);
+        final double dateFontSize =
+            (8.0 + (maxWidth - 300) / 100).clamp(8.0, 10.0);
+
         return SizedBox(
           width: maxWidth,
-          height: 50.0, // 顶栏高度保持 50
+          height: 50.0, // 保持顶栏高度为 50 像素
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // TodayText 区域
               SizedBox(
-                width: _baseTodayTextWidth * scaleFactor,
-                child: const FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: TodayText(),
+                width: clampedTodayTextWidth,
+                child: TodayText(
+                  locationStyle: TextStyle(
+                    fontSize: locationFontSize,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue[900],
+                  ),
+                  dateStyle: TextStyle(
+                    fontSize: dateFontSize,
+                    color: Colors.grey[900],
+                  ),
                 ),
               ),
-              // 较小的间距
-              SizedBox(width: (kSpacing / 2) * scaleFactor),
-              // SearchField 区域
-              SizedBox(
-                width: _baseSearchFieldWidth * scaleFactor,
-                child: SearchField(),
+              const SizedBox(width: 16.0), // 固定间距，与 UserHeader 一致
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8.0),
+                  ),
+                  child: SearchField(),
+                ),
               ),
             ],
           ),

@@ -43,6 +43,8 @@ mixin NavigationMixin {
         return const ManagerSetting();
       case AppPages.managerPersonalPage:
         return const ManagerPersonalPage();
+      case AppPages.managerBusinessProcessing:
+        return const ManagerBusinessProcessing();
       default:
         debugPrint('Unknown route: $routeName');
         return const Center(child: Text('页面未找到'));

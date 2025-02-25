@@ -95,8 +95,11 @@ class Routes {
   // 切换主题
   static const changeThemes = _Paths.changeThemes;
 
-  //
+  // 用户业务办理页面
   static const businessProgress = _Paths.businessProgress;
+
+  // 管理员用户业务处理页面
+  static const managerBusinessProcessing = _Paths.managerBusinessProcessing;
 }
 
 /// 包含路由名称列表。
@@ -197,6 +200,10 @@ class _Paths {
 
   // 用户业务办理页面
   static const businessProgress = '/businessProgress';
+
+  // 管理员用户业务处理页面
+  static const managerBusinessProcessing = '/managerBusinessProcessing';
+
 // 示例：
 // static const index = '/';
 // static const splash = '/splash';

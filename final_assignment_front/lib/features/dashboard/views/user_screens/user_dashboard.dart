@@ -20,7 +20,6 @@ import 'package:final_assignment_front/shared_components/user_screen_swiper.dart
 import 'package:final_assignment_front/shared_components/user_tools_card.dart';
 import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
 import 'package:final_assignment_front/utils/mixins/app_mixins.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -344,7 +343,7 @@ class UserDashboard extends GetView<UserDashboardController>
             IconButton(
               onPressed: () => controller.toggleChat(), // 更新：切换 AiChat 展开状态
               icon: const Icon(Icons.chat_bubble_outline),
-              tooltip: "Chat",
+              tooltip: "AIChat",
             ),
             const SizedBox(width: 4),
             IconButton(

@@ -72,7 +72,7 @@ class _Sidebar extends StatelessWidget {
                           activeIcon: EvaIcons.calendar,
                           icon: EvaIcons.calendarOutline,
                           label: "业务处理",
-                          routeName: "businessProgressPage",
+                          routeName: Routes.managerBusinessProcessing,
                         ),
                         SelectionButtonData(
                           activeIcon: EvaIcons.email,
