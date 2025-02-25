@@ -35,6 +35,9 @@ class DashboardController extends GetxController with NavigationMixin {
   /// 当前选择的页面。
   final selectedPage = Rx<Widget?>(null);
 
+  /// 是否展开 AiChat 的状态。
+  final isChatExpanded = true.obs; // 新增：默认展开
+
   @override
   void onInit() {
     super.onInit();
@@ -52,11 +55,17 @@ class DashboardController extends GetxController with NavigationMixin {
     _applyTheme();
   }
 
+  /// 切换 AiChat 的展开/收缩状态。
+  void toggleChat() {
+    // 新增：切换 AiChat 展开状态
+    isChatExpanded.value = !isChatExpanded.value;
+  }
+
   /// 根据选中的样式和明暗模式应用主题。
   void _applyTheme() {
     String theme = selectedStyle.value;
 
-    // 统一 ThemeData 规范化
+    // 选择基础主题
     ThemeData baseTheme;
     if (theme == 'Material') {
       baseTheme = currentTheme.value == 'Light'
@@ -72,15 +81,40 @@ class DashboardController extends GetxController with NavigationMixin {
           : AppTheme.basicDark;
     }
 
-    // 规范化 ThemeData，确保 TextStyle 兼容
+    // 根据 selectedStyle 设置字体家族
+    String fontFamily;
+    if (theme == 'Basic') {
+      fontFamily = Font.poppins; // 与 AppTheme.dart 的 basicLight 和 basicDark 一致
+    } else {
+      fontFamily = 'Helvetica'; // 与 materialLightTheme, ionicDarkTheme 等一致
+    }
+
+    // 规范化 ThemeData，确保 TextStyle 和 ElevatedButton 兼容
     currentBodyTheme.value = baseTheme.copyWith(
       textTheme: baseTheme.textTheme.copyWith(
         labelLarge: baseTheme.textTheme.labelLarge?.copyWith(
           inherit: true,
-          fontFamily: 'Poppins', // 如需保持字体一致
+          fontFamily: fontFamily,
           fontSize: 16.0,
           fontWeight: FontWeight.normal,
           color: currentTheme.value == 'Light' ? Colors.black : Colors.white,
+        ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: baseTheme.colorScheme.primary,
+          foregroundColor: baseTheme.colorScheme.onPrimary,
+          elevation: 2,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16.0),
+          ),
+          textStyle: TextStyle(
+            inherit: true,
+            fontFamily: fontFamily,
+            fontSize: 16.0,
+            fontWeight: FontWeight.normal,
+            color: baseTheme.colorScheme.onPrimary,
+          ),
         ),
       ),
     );
@@ -98,7 +132,8 @@ class DashboardController extends GetxController with NavigationMixin {
   void closeSidebar() => isDesktop.value ? isSidebarOpen.value = false : null;
 
   /// 当用户选择案件类型时，更新 selectedCaseType。
-  void onCaseTypeSelected(CaseType selectedType) => selectedCaseType.value = selectedType;
+  void onCaseTypeSelected(CaseType selectedType) =>
+      selectedCaseType.value = selectedType;
 
   /// 根据案件类型返回相应的案件卡片数据。
   List<CaseCardData> getCaseByType(CaseType type) =>
@@ -128,43 +163,31 @@ class DashboardController extends GetxController with NavigationMixin {
 
   /// 获取用户资料。
   _Profile getProfil() => const _Profile(
-    photo: AssetImage(ImageRasterPath.avatar1),
-    name: "tutict",
-    email: "tutict@163.com",
-  );
+        photo: AssetImage(ImageRasterPath.avatar1),
+        name: "tutict",
+        email: "tutict@163.com",
+      );
 
   /// 获取当前选中的项目信息。
   ProjectCardData getSelectedProject() => ProjectCardData(
-    percent: .3,
-    projectImage: const AssetImage(ImageRasterPath.logo4),
-    projectName: "交通违法行为处理管理系统",
-    releaseTime: DateTime.now(),
-  );
+        percent: .3,
+        projectImage: const AssetImage(ImageRasterPath.logo4),
+        projectName: "交通违法行为处理管理系统",
+        releaseTime: DateTime.now(),
+      );
 
   /// 获取活动项目列表（当前为空）。
   List<ProjectCardData> getActiveProject() => [];
 
   /// 获取顾问头像列表。
   List<ImageProvider<Object>> getMember() => const [
-    AssetImage(ImageRasterPath.avatar1),
-    AssetImage(ImageRasterPath.avatar2),
-    AssetImage(ImageRasterPath.avatar3),
-    AssetImage(ImageRasterPath.avatar4),
-    AssetImage(ImageRasterPath.avatar5),
-    AssetImage(ImageRasterPath.avatar6),
-  ];
-
-  /// 获取聊天卡片数据列表。
-  List<ChattingCardData> getChatting() => const [
-    ChattingCardData(
-      image: AssetImage(ImageRasterPath.avatar6),
-      isOnline: true,
-      name: "Samantha",
-      lastMessage: "我处理了新的申诉",
-      isRead: false,
-      totalUnread: 1,
-    ),
-  ];
+        AssetImage(ImageRasterPath.avatar1),
+        AssetImage(ImageRasterPath.avatar2),
+        AssetImage(ImageRasterPath.avatar3),
+        AssetImage(ImageRasterPath.avatar4),
+        AssetImage(ImageRasterPath.avatar5),
+        AssetImage(ImageRasterPath.avatar6),
+      ];
 
   /// 更新滑动方向，通过监听滚动控制器检测是否向下滚动。
   void updateScrollDirection(ScrollController scrollController) {

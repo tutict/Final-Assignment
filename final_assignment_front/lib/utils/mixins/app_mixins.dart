@@ -20,6 +20,7 @@ import 'package:final_assignment_front/features/dashboard/views/user_screens/use
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/personal_info/personal_info.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/personal_main.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/setting/setting_main.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/process_pages/business_progress.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/process_pages/online_processing_progress.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/scanner/main_scan.dart';
 import 'package:flutter/material.dart';

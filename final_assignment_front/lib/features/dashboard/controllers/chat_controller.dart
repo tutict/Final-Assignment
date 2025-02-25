@@ -61,4 +61,10 @@ class ChatController extends GetxController {
       }
     });
   }
+
+  /// 清空消息列表和输入框
+  void clearMessages() {
+    messages.clear();
+    textController.clear();
+  }
 }

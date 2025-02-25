@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:final_assignment_front/config/routes/app_pages.dart';
+import 'package:final_assignment_front/features/dashboard/controllers/chat_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
@@ -17,7 +18,6 @@ class SettingPage extends StatefulWidget {
 class _SettingPageState extends State<SettingPage> {
   double _cacheSize = -1.0;
   final TextEditingController _themeController = TextEditingController();
-
   final UserDashboardController controller =
       Get.find<UserDashboardController>();
 
@@ -29,13 +29,21 @@ class _SettingPageState extends State<SettingPage> {
         '${controller.selectedStyle.value} ${controller.currentTheme.value}';
   }
 
+  @override
+  void dispose() {
+    _themeController.dispose();
+    super.dispose();
+  }
+
   Future<void> _calculateCacheSize() async {
     try {
       Directory cacheDir = await getTemporaryDirectory();
       double totalSize = await _getTotalSizeOfFilesInDir(cacheDir);
-      setState(() {
-        _cacheSize = totalSize;
-      });
+      if (mounted) {
+        setState(() {
+          _cacheSize = totalSize;
+        });
+      }
     } catch (e) {
       debugPrint('Failed to calculate cache size: $e');
     }
@@ -67,14 +75,13 @@ class _SettingPageState extends State<SettingPage> {
   Future<void> _logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('jwtToken');
+    final chatController = Get.find<ChatController>();
+    chatController.clearMessages();
     Get.offAllNamed(AppPages.login);
   }
 
-  void _saveSettings() {
-    _showSuccessDialog('设置已保存');
-  }
-
   void _showSuccessDialog(String message) {
+    if (!mounted) return;
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -98,12 +105,11 @@ class _SettingPageState extends State<SettingPage> {
     );
   }
 
-  // 统一的 TextStyle，避免插值问题
   static const TextStyle _buttonTextStyle = TextStyle(
-    fontSize: 16.0,
-    fontWeight: FontWeight.normal,
+    fontSize: 14.0, // 减小字体大小
+    fontWeight: FontWeight.w600,
     color: Colors.white,
-    inherit: true, // 确保与主题一致
+    inherit: true,
   );
 
   @override
@@ -112,95 +118,130 @@ class _SettingPageState extends State<SettingPage> {
       appBar: AppBar(
         title: const Text('设置管理'),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: ListView(
-          children: [
-            const SizedBox(height: 16.0),
-            TextField(
-              controller: _themeController,
-              readOnly: true,
-              decoration: InputDecoration(
-                labelText: '选择显示主题',
-                border: const OutlineInputBorder(),
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.arrow_drop_down),
-                  onPressed: _showThemeDialog,
-                ),
-              ),
-            ),
-            const SizedBox(height: 16.0),
-            ListTile(
-              title: const Text('缓存大小'),
-              subtitle: Text(
-                  '${_cacheSize >= 0 ? _cacheSize.toStringAsFixed(2) : "计算中..."} MB'),
-              trailing: SizedBox(
-                width: 100,
-                child: ElevatedButton(
-                  onPressed: _clearCache,
-                  style: ElevatedButton.styleFrom(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8.0), // 调整内边距
+      body: Obx(
+        () => Theme(
+          data: controller.currentBodyTheme.value,
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: ListView(
+              children: [
+                const SizedBox(height: 16.0),
+                TextField(
+                  controller: _themeController,
+                  readOnly: true,
+                  decoration: InputDecoration(
+                    labelText: '选择显示主题',
+                    border: const OutlineInputBorder(),
+                    suffixIcon: IconButton(
+                      icon: const Icon(Icons.arrow_drop_down),
+                      onPressed: _showThemeDialog,
+                    ),
                   ),
-                  child: const Text('清除缓存', style: _buttonTextStyle),
                 ),
-              ),
-            ),
-            const SizedBox(height: 20.0),
-            ElevatedButton(
-              onPressed: _saveSettings,
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size.fromHeight(50),
-              ),
-              child: const Text('保存设置', style: _buttonTextStyle),
-            ),
-            const SizedBox(height: 16.0),
-            ElevatedButton(
-              onPressed: () {
-                showDialog(
-                  context: context,
-                  builder: (BuildContext context) {
-                    return AlertDialog(
-                      title: const Text('登出'),
-                      content: const Text('确定要登出吗？'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text('取消'),
+                const SizedBox(height: 16.0),
+                ListTile(
+                  title: const Text('缓存大小'),
+                  subtitle: Text(
+                      '${_cacheSize >= 0 ? _cacheSize.toStringAsFixed(2) : "计算中..."} MB'),
+                  trailing: SizedBox(
+                    width: 100,
+                    child: ElevatedButton(
+                      onPressed: _clearCache,
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16.0, vertical: 8.0),
+                        elevation: 2,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12.0),
                         ),
-                        TextButton(
-                          onPressed: () {
-                            _logout();
-                            Navigator.pop(context);
-                          },
-                          child: const Text('确定'),
-                        ),
-                      ],
-                    );
-                  },
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size.fromHeight(50),
-                backgroundColor: Colors.red,
-              ),
-              child: const Text('登出', style: _buttonTextStyle),
+                      ),
+                      child: const Text('清除缓存', style: _buttonTextStyle),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20.0),
+                Center(
+                  child: ElevatedButton(
+                    onPressed: _saveSettings,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 24.0, vertical: 12.0),
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12.0),
+                      ),
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                    ),
+                    child: const Text('保存设置', style: _buttonTextStyle),
+                  ),
+                ),
+                const SizedBox(height: 16.0),
+                Center(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      controller.exitSidebarContent();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 24.0, vertical: 12.0),
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12.0),
+                      ),
+                      backgroundColor: Colors.grey,
+                    ),
+                    child: const Text('返回首页', style: _buttonTextStyle),
+                  ),
+                ),
+                const SizedBox(height: 16.0),
+                Center(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (BuildContext context) {
+                          return AlertDialog(
+                            title: const Text('登出'),
+                            content: const Text('确定要登出吗？'),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text('取消'),
+                              ),
+                              TextButton(
+                                onPressed: () {
+                                  _logout();
+                                  Navigator.pop(context);
+                                },
+                                child: const Text('确定'),
+                              ),
+                            ],
+                          );
+                        },
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 24.0, vertical: 12.0),
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12.0),
+                      ),
+                      backgroundColor: Colors.red,
+                    ),
+                    child: const Text('登出', style: _buttonTextStyle),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 16.0),
-            ElevatedButton(
-              onPressed: () {
-                controller.exitSidebarContent();
-              },
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size.fromHeight(50),
-                backgroundColor: Colors.grey,
-              ),
-              child: const Text('返回上一级', style: _buttonTextStyle),
-            ),
-          ],
+          ),
         ),
       ),
     );
+  }
+
+  void _saveSettings() {
+    _showSuccessDialog('设置已保存');
   }
 
   void _showThemeDialog() {

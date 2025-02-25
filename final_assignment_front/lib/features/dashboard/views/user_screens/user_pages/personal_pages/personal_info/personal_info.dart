@@ -6,7 +6,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-/// PersonalInformationPage is a StatefulWidget for displaying driver's personal information.
 class PersonalInformationPage extends StatefulWidget {
   const PersonalInformationPage({super.key});
 
@@ -15,8 +14,6 @@ class PersonalInformationPage extends StatefulWidget {
       _PersonalInformationPageState();
 }
 
-/// _PersonalInformationPageState is the state class for PersonalInformationPage.
-/// It manages the driver's information via DriverInformationControllerApi.
 class _PersonalInformationPageState extends State<PersonalInformationPage> {
   // 用于与后端交互的API
   late DriverInformationControllerApi driverApi;

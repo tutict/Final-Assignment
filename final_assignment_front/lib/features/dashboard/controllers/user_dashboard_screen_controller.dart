@@ -34,6 +34,9 @@ class UserDashboardController extends GetxController with NavigationMixin {
   /// 当前选择的页面。
   final selectedPage = Rx<Widget?>(null);
 
+  /// 是否展开 AiChat 的状态。
+  final isChatExpanded = true.obs; // 新增：默认展开
+
   @override
   void onInit() {
     super.onInit();
@@ -52,6 +55,10 @@ class UserDashboardController extends GetxController with NavigationMixin {
       currentTheme.value = 'Light';
     }
     _applyTheme();
+  }
+
+  void toggleChat() { // 新增：切换 AiChat 展开状态
+    isChatExpanded.value = !isChatExpanded.value;
   }
 
   void _applyTheme() {
@@ -79,7 +86,7 @@ class UserDashboardController extends GetxController with NavigationMixin {
         // 确保 button 样式使用 inherit: true，避免插值冲突
         labelLarge: baseTheme.textTheme.labelLarge?.copyWith(
           inherit: true,
-          fontFamily: 'Poppins', // 若需要保持字体一致
+          fontFamily: 'Poppins',
           fontSize: 16.0,
           fontWeight: FontWeight.normal,
           color: currentTheme.value == 'Light' ? Colors.black : Colors.white,
@@ -100,7 +107,8 @@ class UserDashboardController extends GetxController with NavigationMixin {
   void closeSidebar() => isDesktop.value ? isSidebarOpen.value = false : null;
 
   /// 当用户选择一个案件类型时，更新 selectedCaseType。
-  void onCaseTypeSelected(CaseType selectedType) => selectedCaseType.value = selectedType;
+  void onCaseTypeSelected(CaseType selectedType) =>
+      selectedCaseType.value = selectedType;
 
   /// 根据案件类型返回相应的案件卡片数据。
   List<CaseCardData> getCaseByType(CaseType type) =>
@@ -154,18 +162,6 @@ class UserDashboardController extends GetxController with NavigationMixin {
     AssetImage(ImageRasterPath.avatar4),
     AssetImage(ImageRasterPath.avatar5),
     AssetImage(ImageRasterPath.avatar6),
-  ];
-
-  /// 获取聊天卡片数据的列表。
-  List<ChattingCardData> getChatting() => const [
-    ChattingCardData(
-      image: AssetImage(ImageRasterPath.avatar6),
-      isOnline: true,
-      name: "Samantha",
-      lastMessage: "",
-      isRead: false,
-      totalUnread: 1,
-    ),
   ];
 
   /// 更新滑动方向。添加滑动监听器，检测用户是否在向下滑动。

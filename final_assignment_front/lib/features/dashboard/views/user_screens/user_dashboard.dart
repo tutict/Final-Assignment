@@ -9,7 +9,6 @@ import 'package:final_assignment_front/config/themes/app_theme.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
 import 'package:final_assignment_front/features/dashboard/views/components/ai_chat.dart';
 import 'package:final_assignment_front/shared_components/case_card.dart';
-import 'package:final_assignment_front/shared_components/chatting_card.dart';
 import 'package:final_assignment_front/shared_components/floating_window.dart';
 import 'package:final_assignment_front/shared_components/post_card.dart';
 import 'package:final_assignment_front/shared_components/project_card.dart';
@@ -37,10 +36,6 @@ part '../components/user_sidebar.dart';
 
 part '../../models/user_profile.dart';
 
-/// 用户仪表板页面
-///
-/// 此页面在 appBar 中固定显示 Header 区域，主体内容根据设备类型构建响应式布局，
-/// 所有平台均使用 AnimatedContainer 显示侧边栏（与 manager_dashboard 保持一致）。
 class UserDashboard extends GetView<UserDashboardController>
     with FloatingBase, NavigationMixin {
   const UserDashboard({super.key});
@@ -58,7 +53,7 @@ class UserDashboard extends GetView<UserDashboardController>
         child: _buildHeaderSection(context, screenWidth),
       ),
       body: Obx(
-            () => Theme(
+        () => Theme(
           data: controller.currentBodyTheme.value,
           child: Material(
             child: ResponsiveBuilder(
@@ -93,37 +88,55 @@ class UserDashboard extends GetView<UserDashboardController>
                 return Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 侧边栏
                     Container(
                       width: screenWidth * 0.2,
                       height: screenHeight,
                       decoration: BoxDecoration(
                         color: Theme.of(context).cardColor,
-                        border: Border(right: BorderSide(color: Colors.grey.shade300)),
+                        border: Border(
+                            right: BorderSide(color: Colors.grey.shade300)),
                         boxShadow: kBoxShadows,
                       ),
                       child: UserSidebar(data: controller.getSelectedProject()),
                     ),
-                    // 内容区
                     Expanded(
                       child: Container(
                         decoration: BoxDecoration(
                           color: Theme.of(context).scaffoldBackgroundColor,
-                          border: Border(right: BorderSide(color: Colors.grey.shade300)),
+                          border: Border(
+                              right: BorderSide(color: Colors.grey.shade300)),
                         ),
                         child: SingleChildScrollView(
                           child: _buildLayout(context),
                         ),
                       ),
                     ),
-                    // 聊天区
-                    Container(
-                      width: screenWidth * 0.3,
-                      height: screenHeight,
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).cardColor.withOpacity(0.9),
+                    Obx(
+                      () => TweenAnimationBuilder<double>(
+                        tween: Tween(
+                          begin: controller.isChatExpanded.value ? 0 : 150,
+                          end: controller.isChatExpanded.value
+                              ? (screenWidth * 0.3 > 150
+                                  ? screenWidth * 0.3
+                                  : 150)
+                              : 0,
+                        ),
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                        builder: (context, width, child) {
+                          return Container(
+                            width: width,
+                            height: screenHeight,
+                            decoration: BoxDecoration(
+                              color:
+                                  Theme.of(context).cardColor.withOpacity(0.9),
+                            ),
+                            child: width >= 150
+                                ? _buildSideContent(context)
+                                : null, // 仅在宽度足够时渲染
+                          );
+                        },
                       ),
-                      child: _buildSideContent(context),
                     ),
                   ],
                 );
@@ -135,9 +148,6 @@ class UserDashboard extends GetView<UserDashboardController>
     );
   }
 
-  /// 构建右侧工具/聊天区域
-  ///
-  /// 此处嵌入 AI 聊天对话组件，与 manager_dashboard 保持一致。
   Widget _buildSideContent(BuildContext context) {
     return Container(
       color: Theme.of(context).scaffoldBackgroundColor,
@@ -145,13 +155,11 @@ class UserDashboard extends GetView<UserDashboardController>
     );
   }
 
-  /// 构建整体布局区域
-  ///
-  /// 包含用户信息、页面主体（或用户屏幕轮播和工具卡片）。
   Widget _buildLayout(BuildContext context, {bool isDesktop = false}) {
     return SingleChildScrollView(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: kSpacing, vertical: kSpacing),
+        padding: const EdgeInsets.symmetric(
+            horizontal: kSpacing, vertical: kSpacing),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -185,7 +193,6 @@ class UserDashboard extends GetView<UserDashboardController>
     );
   }
 
-  /// 构建用户屏幕轮播
   Widget _buildUserScreenSwiper(BuildContext context) {
     return SizedBox(
       height: MediaQuery.of(context).size.height * 0.55,
@@ -196,7 +203,6 @@ class UserDashboard extends GetView<UserDashboardController>
     );
   }
 
-  /// 构建用户屏幕侧边工具区域
   Widget _buildUserScreenSidebarTools(BuildContext context) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
@@ -204,7 +210,7 @@ class UserDashboard extends GetView<UserDashboardController>
         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: Container(
           width: double.infinity,
-          height: MediaQuery.of(context).size.height * 0.8, // 设置明确高度
+          height: MediaQuery.of(context).size.height * 0.8,
           padding: const EdgeInsets.all(8.0),
           decoration: BoxDecoration(
             color: Theme.of(context).cardColor.withOpacity(0.9),
@@ -219,7 +225,6 @@ class UserDashboard extends GetView<UserDashboardController>
     );
   }
 
-  /// 构建用户工具卡片
   Widget _buildUserToolsCard(BuildContext context) {
     return SizedBox(
       height: MediaQuery.of(context).size.height * 0.45,
@@ -264,10 +269,8 @@ class UserDashboard extends GetView<UserDashboardController>
     );
   }
 
-  /// 构建侧边栏，使用 AnimatedContainer 实现平滑过渡
   Widget _buildSidebar(BuildContext context) {
     final bool isDesktop = ResponsiveBuilder.isDesktop(context);
-    // 对于桌面端侧边栏一直显示；对于手机端，根据控制器状态决定是否显示
     final bool showSidebar = isDesktop || controller.isSidebarOpen.value;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
@@ -276,21 +279,18 @@ class UserDashboard extends GetView<UserDashboardController>
       height: double.infinity,
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
-        boxShadow: kBoxShadows, // 使用全局阴影效果
+        boxShadow: kBoxShadows,
       ),
       child: showSidebar
           ? Padding(
               padding:
                   const EdgeInsets.fromLTRB(16.0, kSpacing * 2, 16.0, kSpacing),
-              child: UserSidebar(
-                data: controller.getSelectedProject(),
-              ),
+              child: UserSidebar(data: controller.getSelectedProject()),
             )
           : null,
     );
   }
 
-  /// 构建顶部 Header 区域（包含上下间距和分割线）
   Widget _buildHeaderSection(BuildContext context, double screenWidth) {
     return Container(
       color: Colors.blueAccent,
@@ -303,38 +303,28 @@ class UserDashboard extends GetView<UserDashboardController>
             screenWidth: screenWidth,
           ),
           const SizedBox(height: 15),
-          const Divider(
-            height: 1,
-            thickness: 1,
-          ),
+          const Divider(height: 1, thickness: 1),
         ],
       ),
     );
   }
 
-  /// 构建顶部 Header 区域
-  ///
-  /// 包含菜单按钮、用户头像和主题切换按钮。
   Widget _buildHeader({
     Function()? onPressedMenu,
     required double screenWidth,
   }) {
-    const double horizontalPadding = kSpacing / 2; // 使用较小的内边距
+    const double horizontalPadding = kSpacing / 2;
     final double availableWidth = screenWidth - 2 * horizontalPadding;
     const double mobileBreakpoint = 600.0;
-
-    // 菜单图标和右侧图标的固定宽度（可根据实际情况调整）
     final double menuIconWidth = onPressedMenu != null ? 48.0 : 0.0;
-    const double iconWidth = 48.0; // 右侧每个图标宽度预估值
-    const double iconSpacing = 4.0; // 两个图标之间的间隔
+    const double iconWidth = 48.0;
+    const double iconSpacing = 4.0;
     const double iconsTotalWidth = iconWidth * 2 + iconSpacing;
-
-    // 剩余给中间部分的宽度
     final double headerContentAvailableWidth =
         availableWidth - menuIconWidth - iconsTotalWidth;
 
     return SizedBox(
-      height: 50, // 固定高度 50 像素
+      height: 50,
       child: Container(
         width: availableWidth,
         padding: const EdgeInsets.symmetric(horizontal: horizontalPadding),
@@ -346,21 +336,17 @@ class UserDashboard extends GetView<UserDashboardController>
                 icon: const Icon(Icons.menu),
                 tooltip: "菜单",
               ),
-            // 中间区域使用 ConstrainedBox 限制最大宽度
             ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth: headerContentAvailableWidth,
-              ),
-              child:
-                  const UserHeader(), // 该组件定义在 part '../components/header.dart'
+              constraints:
+                  BoxConstraints(maxWidth: headerContentAvailableWidth),
+              child: const UserHeader(),
             ),
-            // 右侧固定的图标区域
             IconButton(
-              onPressed: () => log("Chat icon pressed"),
+              onPressed: () => controller.toggleChat(), // 更新：切换 AiChat 展开状态
               icon: const Icon(Icons.chat_bubble_outline),
               tooltip: "Chat",
             ),
-            const SizedBox(width: 4), // 图标之间的小间隔
+            const SizedBox(width: 4),
             IconButton(
               onPressed: () => controller.toggleBodyTheme(),
               icon: const Icon(Icons.brightness_6),

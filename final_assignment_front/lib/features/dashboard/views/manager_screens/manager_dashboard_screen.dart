@@ -8,8 +8,8 @@ import 'package:eva_icons_flutter/eva_icons_flutter.dart';
 import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/config/themes/app_theme.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
+import 'package:final_assignment_front/features/dashboard/views/components/ai_chat.dart';
 import 'package:final_assignment_front/shared_components/case_card.dart';
-import 'package:final_assignment_front/shared_components/chatting_card.dart';
 import 'package:final_assignment_front/shared_components/list_profil_image.dart';
 import 'package:final_assignment_front/shared_components/police_card.dart';
 import 'package:final_assignment_front/shared_components/post_card.dart';
@@ -124,38 +124,46 @@ class DashboardScreen extends GetView<DashboardController>
                         ),
                       ),
                     ),
-                    Container(
-                      width: screenWidth * 0.3,
-                      height: screenHeight,
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).cardColor.withOpacity(0.9),
+                    Obx(
+                      () => TweenAnimationBuilder<double>(
+                        tween: Tween(
+                          begin: controller.isChatExpanded.value ? 0 : 150,
+                          end: controller.isChatExpanded.value
+                              ? (screenWidth * 0.3 > 150
+                                  ? screenWidth * 0.3
+                                  : 150)
+                              : 0,
+                        ),
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                        builder: (context, width, child) {
+                          return Container(
+                            width: width,
+                            height: screenHeight,
+                            decoration: BoxDecoration(
+                              color:
+                                  Theme.of(context).cardColor.withOpacity(0.9),
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Colors.black12,
+                                  blurRadius: 8,
+                                  offset: Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: width >= 150
+                                ? _buildSideContent(context)
+                                : null,
+                          );
+                        },
                       ),
-                      child: _buildSideContent(context),
                     ),
                   ],
                 );
               },
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  /// 构建右侧工具/聊天区域
-  Widget _buildSideContent(BuildContext context) {
-    return Container(
-      color: Theme.of(context).scaffoldBackgroundColor,
-      child: SingleChildScrollView(
-        child: Column(
-          children: [
-            _buildProfileSection(context),
-            const Divider(thickness: 1),
-            _buildTeamMemberSection(context),
-            _buildPremiumCard(context),
-            const Divider(thickness: 1),
-            _buildRecentMessagesSection(context),
-          ],
         ),
       ),
     );
@@ -202,7 +210,7 @@ class DashboardScreen extends GetView<DashboardController>
                       crossAxisCount: isDesktop ? 4 : 2,
                       childAspectRatio: isDesktop ? 1.1 : 1.2,
                     ),
-                    _buildRecentMessagesSection(context),
+                    if (!isDesktop) _buildSideContent(context),
                   ],
                 );
               }
@@ -289,7 +297,7 @@ class DashboardScreen extends GetView<DashboardController>
               child: const _Header(),
             ),
             IconButton(
-              onPressed: () => log("Chat icon pressed"),
+              onPressed: () => controller.toggleChat(), // 更新：切换 AiChat 展开状态
               icon: const Icon(Icons.chat_bubble_outline),
               tooltip: "Chat",
             ),
@@ -494,38 +502,11 @@ class DashboardScreen extends GetView<DashboardController>
     );
   }
 
-  Widget _buildRecentMessagesSection(BuildContext context) {
-    double listHeight = MediaQuery.of(context).size.height * 0.333;
-    final chattingList = controller.getChatting();
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: kSpacing),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: kSpacing),
-            child: _RecentMessages(
-              onPressedMore: () => log("More recent messages clicked"),
-            ),
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            height: listHeight,
-            child: ListView.builder(
-              itemCount: chattingList.length,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemBuilder: (context, index) {
-                final data = chattingList[index];
-                return ChattingCard(
-                  data: data,
-                  onPressed: () => log("Chat with ${data.name}"),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
+  /// 构建右侧工具/聊天区域
+  Widget _buildSideContent(BuildContext context) {
+    return Container(
+      color: Theme.of(context).scaffoldBackgroundColor,
+      child: const AiChat(),
     );
   }
 

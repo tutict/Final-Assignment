@@ -38,25 +38,11 @@ class _FloatingWindowState extends State<FloatingWindow> {
               ],
             ),
             width: isFullScreen
-                ? MediaQueryData.fromView(
-                        WidgetsBinding.instance.platformDispatcher.views.first)
-                    .size
-                    .width
-                : MediaQueryData.fromView(WidgetsBinding
-                            .instance.platformDispatcher.views.first)
-                        .size
-                        .width *
-                    0.8,
+                ? MediaQuery.of(context).size.width
+                : MediaQuery.of(context).size.width * 0.8,
             height: isFullScreen
-                ? MediaQueryData.fromView(
-                        WidgetsBinding.instance.platformDispatcher.views.first)
-                    .size
-                    .height
-                : MediaQueryData.fromView(WidgetsBinding
-                            .instance.platformDispatcher.views.first)
-                        .size
-                        .height *
-                    0.6,
+                ? MediaQuery.of(context).size.height
+                : MediaQuery.of(context).size.height * 0.6,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -73,9 +59,7 @@ class _FloatingWindowState extends State<FloatingWindow> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Row(
-                        children: [],
-                      ),
+                      const Row(children: []),
                       Row(
                         children: [
                           IconButton(
@@ -100,9 +84,7 @@ class _FloatingWindowState extends State<FloatingWindow> {
                 ),
                 const SizedBox(height: 16),
                 const Expanded(
-                  child: Center(
-                    child: Text(''),
-                  ),
+                  child: Center(child: Text('')),
                 ),
               ],
             ),
@@ -116,33 +98,15 @@ class _FloatingWindowState extends State<FloatingWindow> {
 mixin FloatingBase {
   void initializeFloating(BuildContext context, Widget content) {
     final floating = Floating(
-      context as Widget,
+      content, // 正确传入 Widget 作为位置参数
       slideType: FloatingSlideType.onPoint,
       point: Point(
-        MediaQueryData.fromView(
-                        WidgetsBinding.instance.platformDispatcher.views.first)
-                    .size
-                    .width /
-                2 -
-            (MediaQueryData.fromView(
-                        WidgetsBinding.instance.platformDispatcher.views.first)
-                    .size
-                    .width *
-                0.4),
-        MediaQueryData.fromView(
-                        WidgetsBinding.instance.platformDispatcher.views.first)
-                    .size
-                    .height /
-                2 -
-            (MediaQueryData.fromView(
-                        WidgetsBinding.instance.platformDispatcher.views.first)
-                    .size
-                    .height *
-                0.3),
+        MediaQuery.of(context).size.width / 2 -
+            (MediaQuery.of(context).size.width * 0.4),
+        MediaQuery.of(context).size.height / 2 -
+            (MediaQuery.of(context).size.height * 0.3),
       ),
       isSnapToEdge: false,
-
-      /// 是否自动吸附到屏幕边缘
     );
 
     floating.open(context);

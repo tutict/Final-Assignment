@@ -9,8 +9,8 @@ mixin NavigationMixin {
         return const OnlineProcessingProgress();
       case AppPages.map:
         return const MapPage();
-      case "businessProgressPage":
-        return const Center(child: Text('业务办理页面')); // 示例页面
+      case AppPages.businessProgress:
+        return const BusinessProgressPage();
       case AppPages.personalMain:
         return const PersonalMainPage();
       case AppPages.userSetting:

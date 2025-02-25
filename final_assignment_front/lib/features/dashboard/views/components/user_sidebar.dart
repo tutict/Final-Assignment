@@ -56,12 +56,12 @@ class UserSidebar extends StatelessWidget {
                           activeIcon: EvaIcons.calendar,
                           icon: EvaIcons.calendarOutline,
                           label: "业务办理",
-                          routeName: "businessProgressPage",
+                          routeName: Routes.businessProgress,
                         ),
                         SelectionButtonData(
                           activeIcon: EvaIcons.email,
                           icon: EvaIcons.emailOutline,
-                          label: "消息",
+                          label: "进度消息",
                           routeName: Routes.onlineProcessingProgress,
                         ),
                         SelectionButtonData(
