@@ -7,11 +7,10 @@ import com.tutict.finalassignmentbackend.config.login.jwt.TokenProvider;
 import com.tutict.finalassignmentbackend.config.websocket.WsActionRegistry;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.vertx.core.AbstractVerticle;
-import io.vertx.core.http.HttpServerResponse;
+import io.vertx.core.MultiMap;
+import io.vertx.core.http.*;
+import io.vertx.ext.web.client.HttpResponse;
 import io.vertx.ext.web.client.WebClient;
-import io.vertx.core.http.HttpServerOptions;
-import io.vertx.core.http.HttpServerRequest;
-import io.vertx.core.http.ServerWebSocket;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.handler.CorsHandler;
@@ -252,7 +251,7 @@ public class NetWorkHandler extends AbstractVerticle {
     private void forwardHttpRequest(HttpServerRequest request) {
         String requestId = UUID.randomUUID().toString();
         String path = request.path();
-        String targetUrl = backendUrl + ":" + backendPort + path; // http://localhost:8080/api/auth/register
+        String targetUrl = backendUrl + ":" + backendPort + path;
         log.info("[{}] Forwarding request from path: {} to targetUrl: {}", requestId, path, targetUrl);
 
         if (request.headers().contains("X-Forwarded-By")) {
@@ -263,55 +262,77 @@ public class NetWorkHandler extends AbstractVerticle {
 
         request.headers().add("X-Forwarded-By", "NetWorkHandler");
 
-        request.bodyHandler(body -> {
-            try {
-                JsonObject jsonBody = body.toJsonObject();
-                log.info("[{}] body2: {}", requestId, jsonBody);
+        if (request.method() == HttpMethod.GET) {
+            MultiMap queryParams = request.params();
+            log.info("[{}] Forwarding GET request with query params: {}", requestId, queryParams);
 
-                webClient.postAbs(targetUrl)
-                        .putHeader("X-Forwarded-By", "NetWorkHandler")
-                        .putHeader("Content-Type", "application/json") // 确保 Content-Type
-                        .sendJsonObject(jsonBody)
-                        .onSuccess(response -> {
-                            log.info("[{}] Response status code: {}", requestId, response.statusCode());
-                            log.info("[{}] Response headers: {}", requestId, response.headers());
-                            String responseBody = response.bodyAsString();
-                            log.info("[{}] Backend response body: {}", requestId, responseBody != null ? responseBody : "null");
+            var httpRequest = webClient.getAbs(targetUrl)
+                    .putHeader("X-Forwarded-By", "NetWorkHandler");
 
-                            HttpServerResponse clientResponse = request.response();
-                            clientResponse.setStatusCode(response.statusCode());
+            queryParams.forEach(entry ->
+                    httpRequest.addQueryParam(entry.getKey(), entry.getValue())
+            );
 
-                            String statusMessage = response.statusMessage();
-                            if (statusMessage != null) {
-                                clientResponse.setStatusMessage(statusMessage);
-                            } else {
-                                log.warn("[{}] Backend response statusMessage is null", requestId);
-                                clientResponse.setStatusMessage(HttpResponseStatus.valueOf(response.statusCode()).reasonPhrase());
-                            }
+            httpRequest.send()
+                    .onSuccess(response -> handleResponse(request, response, requestId))
+                    .onFailure(failure -> {
+                        log.error("[{}] Forwarding GET request failed: {}", requestId, failure.getMessage(), failure);
+                        request.response().setStatusCode(500).setStatusMessage("Forwarding failed").end();
+                    });
+        } else {
+            request.bodyHandler(body -> {
+                try {
+                    JsonObject jsonBody = body.toJsonObject();
+                    log.info("[{}] body2: {}", requestId, jsonBody);
 
-                            response.headers().forEach(entry -> {
-                                if (!entry.getKey().equalsIgnoreCase("Transfer-Encoding")) {
-                                    clientResponse.putHeader(entry.getKey(), entry.getValue());
-                                }
+                    webClient.postAbs(targetUrl)
+                            .putHeader("X-Forwarded-By", "NetWorkHandler")
+                            .putHeader("Content-Type", "application/json")
+                            .sendJsonObject(jsonBody)
+                            .onSuccess(response -> handleResponse(request, response, requestId))
+                            .onFailure(failure -> {
+                                log.error("[{}] Forwarding HTTP request failed: {}", requestId, failure.getMessage(), failure);
+                                request.response().setStatusCode(500).setStatusMessage("Forwarding failed").end();
                             });
+                } catch (Exception e) {
+                    log.error("[{}] Request body parsing failed: {}", requestId, e.getMessage(), e);
+                    request.response().setStatusCode(400).setStatusMessage("Request body parsing failed").end();
+                }
+            });
+        }
+    }
 
-                            if (responseBody != null && !responseBody.isEmpty()) {
-                                clientResponse.putHeader("Content-Type", "application/json");
-                                clientResponse.end(responseBody); // 使用 end() 代替 send()
-                            } else {
-                                log.warn("[{}] Response body is null or empty, status: {}", requestId, response.statusCode());
-                                clientResponse.putHeader("Content-Type", "application/json");
-                                clientResponse.end(); // 无响应体时结束
-                            }
-                        })
-                        .onFailure(failure -> {
-                            log.error("[{}] Forwarding HTTP request failed: {}", requestId, failure.getMessage(), failure);
-                            request.response().setStatusCode(500).setStatusMessage("Forwarding failed").end();
-                        });
-            } catch (Exception e) {
-                log.error("[{}] Request body parsing failed: {}", requestId, e.getMessage(), e);
-                request.response().setStatusCode(400).setStatusMessage("Request body parsing failed").end();
+    // 显式指定 io.vertx.core.buffer.Buffer
+    private void handleResponse(HttpServerRequest request, HttpResponse<io.vertx.core.buffer.Buffer> response, String requestId) {
+        log.info("[{}] Response status code: {}", requestId, response.statusCode());
+        log.info("[{}] Response headers: {}", requestId, response.headers());
+        String responseBody = response.bodyAsString();
+        log.info("[{}] Backend response body: {}", requestId, responseBody != null ? responseBody : "null");
+
+        HttpServerResponse clientResponse = request.response();
+        clientResponse.setStatusCode(response.statusCode());
+
+        String statusMessage = response.statusMessage();
+        if (statusMessage != null) {
+            clientResponse.setStatusMessage(statusMessage);
+        } else {
+            log.warn("[{}] Backend response statusMessage is null", requestId);
+            clientResponse.setStatusMessage(HttpResponseStatus.valueOf(response.statusCode()).reasonPhrase());
+        }
+
+        response.headers().forEach(entry -> {
+            if (!entry.getKey().equalsIgnoreCase("Transfer-Encoding")) {
+                clientResponse.putHeader(entry.getKey(), entry.getValue());
             }
         });
+
+        if (responseBody != null && !responseBody.isEmpty()) {
+            clientResponse.putHeader("Content-Type", "application/json");
+            clientResponse.end(responseBody);
+        } else {
+            log.warn("[{}] Response body is null or empty, status: {}", requestId, response.statusCode());
+            clientResponse.putHeader("Content-Type", "application/json");
+            clientResponse.end();
+        }
     }
 }

@@ -1,43 +1,36 @@
 package com.tutict.finalassignmentbackend.config.shell;
 
 import jakarta.annotation.PostConstruct;
-import java.io.BufferedReader;
+import org.springframework.context.annotation.Configuration;
+
 import java.io.IOException;
-import java.io.InputStreamReader;
 
-@Deprecated
+@Configuration
 public class ShellScriptConfig {
-
-    public ShellScriptConfig() {
-    }
 
     @PostConstruct
     public void executeShellScript() {
-        String os = System.getProperty("os.name");
+        String os = System.getProperty("os.name").toLowerCase();
         String path = System.getProperty("user.dir");
-        String PowerShell = path + "/finalAssignmentTools/use_docker/run.bat";
-        String shell = path + "/finalAssignmentTools/use_docker/run.sh";
+        String powerShell = path + "/finalAssignmentTools/use_deepseek/run.bat"; // 更新文件名
+        String shell = path + "/finalAssignmentTools/use_deepseek/run.sh";     // 更新文件名
 
         ProcessBuilder builder;
-        if (os != null && os.toLowerCase().startsWith("windows")) {
-            builder = new ProcessBuilder("cmd.exe", "/c", PowerShell);
-        } else if (os != null && os.toLowerCase().startsWith("linux")) {
+        if (os.startsWith("windows")) {
+            builder = new ProcessBuilder("cmd.exe", "/c", powerShell);
+        } else if (os.startsWith("linux") || os.startsWith("mac")) {
             builder = new ProcessBuilder("sh", shell);
         } else {
-            System.out.printf("您的%s系统暂时不支持", os);
+            System.out.printf("您的%s系统暂时不支持%n", os);
             return;
         }
 
         try {
+            // 异步启动脚本，不等待完成
             Process process = builder.start();
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    System.out.println(line);
-                }
-            }
-            process.waitFor();
-        } catch (IOException | InterruptedException e) {
+            System.out.println("Ollama script started in background.");
+            // 不调用 waitFor() 或读取输出，避免阻塞
+        } catch (IOException e) {
             throw new RuntimeException("Failed to execute shell script", e);
         }
     }

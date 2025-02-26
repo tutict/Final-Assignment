@@ -29,7 +29,7 @@ class AiChat extends GetView<ChatController> {
                           : Theme.of(context).colorScheme.surface,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Text(
+                    child: SelectableText(
                       msg.message,
                       style: TextStyle(
                         color: msg.isUser
@@ -58,7 +58,7 @@ class AiChat extends GetView<ChatController> {
                   child: TextField(
                     controller: controller.textController,
                     decoration: InputDecoration(
-                      hintText: "Type your message...",
+                      hintText: "请输入你的问题...",
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),

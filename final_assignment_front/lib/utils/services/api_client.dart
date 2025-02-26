@@ -1,5 +1,5 @@
 import 'dart:convert';
-
+import 'package:http/http.dart' as http;
 import 'package:final_assignment_front/features/model/appeal_management.dart';
 import 'package:final_assignment_front/features/model/backup_restore.dart';
 import 'package:final_assignment_front/features/model/category.dart';
@@ -24,11 +24,10 @@ import 'package:final_assignment_front/features/model/vehicle_information.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:final_assignment_front/utils/services/authentication.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart';
 import 'package:web_socket_channel/io.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
-/// 用于表达Query参数的结构
+/// 用于表达 Query 参数的结构
 class QueryParam {
   String name;
   String value;
@@ -41,13 +40,13 @@ class ApiClient {
   /// 默认的 BaseURL，一般写成后端服务的地址
   String basePath;
 
-  /// http.Client，用于执行HTTP请求
-  Client client;
+  /// http.Client，用于执行 HTTP 请求
+  http.Client client;
 
   /// 默认请求头
   final Map<String, String> _defaultHeaderMap = {};
 
-  /// 认证集合 (token等)
+  /// 认证集合 (token 等)
   final Map<String, Authentication> _authentications = {};
 
   /// 正则，用于匹配 List<T> 的类型
@@ -56,17 +55,16 @@ class ApiClient {
   /// 正则，用于匹配 Map<String, T> 的类型
   final RegExp _regMap = RegExp(r'^Map<String,(.*)>$');
 
-  /// =================== 新增: WebSocket 相关字段 ====================
   /// WebSocketChannel 引用
   WebSocketChannel? _wsChannel;
 
-  /// 当前 WebSocket 连接对应的URL
+  /// 当前 WebSocket 连接对应的 URL
   String? _wsUrl;
 
   /// 连接后端的构造函数
-  ApiClient({this.basePath = "http://localhost:8081"}) : client = Client();
+  ApiClient({this.basePath = "http://localhost:8081"}) : client = http.Client();
 
-  /// 添加默认的Header，可在后续请求中自动带上
+  /// 添加默认的 Header，可在后续请求中自动带上
   void addDefaultHeader(String key, String value) {
     _defaultHeaderMap[key] = value;
   }
@@ -85,7 +83,7 @@ class ApiClient {
           return value is double ? value : double.parse('$value');
         case 'DateTime':
           return value != null ? DateTime.parse(value as String) : null;
-        case 'Map<String, dynamic>': // 新增支持
+        case 'Map<String, dynamic>':
           return value as Map<String, dynamic>;
         case 'AppealManagement':
           return AppealManagement.fromJson(value);
@@ -133,10 +131,12 @@ class ApiClient {
         default:
           {
             RegExpMatch? match;
-            if (value is List && (match = _regList.firstMatch(targetType)) != null) {
+            if (value is List &&
+                (match = _regList.firstMatch(targetType)) != null) {
               var newTargetType = match!.group(1)!;
               return value.map((v) => _deserialize(v, newTargetType)).toList();
-            } else if (value is Map && (match = _regMap.firstMatch(targetType)) != null) {
+            } else if (value is Map &&
+                (match = _regMap.firstMatch(targetType)) != null) {
               var newTargetType = match!.group(1)!;
               if (newTargetType == 'dynamic') {
                 return value as Map<String, dynamic>;
@@ -146,11 +146,13 @@ class ApiClient {
                 value.values.map((v) => _deserialize(v, newTargetType)),
               );
             }
-            throw ApiException(500, 'Could not find a suitable class for deserialization: $targetType');
+            throw ApiException(500,
+                'Could not find a suitable class for deserialization: $targetType');
           }
       }
     } on Exception catch (e, stack) {
-      throw ApiException.withInner(500, 'Exception during deserialization: $e', e, stack);
+      throw ApiException.withInner(
+          500, 'Exception during deserialization: $e', e, stack);
     }
   }
 
@@ -171,9 +173,7 @@ class ApiClient {
   }
 
   /// 发起 HTTP / WebSocket 调用的通用方法
-  /// 这里加了判断：如果 method == 'WS_CONNECT' / 'WS_SEND' / 'WS_CLOSE' 等，就走 WebSocket 逻辑；
-  /// 否则走传统的 HTTP 请求逻辑。
-  Future<Response> invokeAPI(
+  Future<http.Response> invokeAPI(
     String path,
     String method,
     Iterable<QueryParam> queryParams,
@@ -183,81 +183,79 @@ class ApiClient {
     String? nullableContentType,
     List<String> authNames,
   ) async {
-    // ============ 判断是否为 WebSocket 相关操作 =============
     if (method.toUpperCase() == 'WS_CONNECT') {
       await connectWebSocket(path, queryParams);
-      return Response('', 200); // 模拟成功
+      return http.Response('', 200);
     }
     if (method.toUpperCase() == 'WS_SEND') {
       sendWsMessage(body as Map<String, dynamic>);
-      return Response('', 200);
+      return http.Response('', 200);
     }
     if (method.toUpperCase() == 'WS_CLOSE') {
       closeWebSocket();
-      return Response('', 200);
+      return http.Response('', 200);
     }
 
-    // ============ 如果不是 WebSocket，则按原有HTTP逻辑处理 =============
     List<QueryParam> queryParamsList = queryParams.toList();
-
-    // 根据 authNames 更新鉴权参数
     _updateParamsForAuth(authNames, queryParamsList, headerParams);
 
-    // 构建 queryString
     var ps = queryParamsList.where((p) => p.value.isNotEmpty).map((p) =>
         '${Uri.encodeQueryComponent(p.name)}=${Uri.encodeQueryComponent(p.value)}');
     String queryString = ps.isNotEmpty ? '?${ps.join('&')}' : '';
 
     String url = basePath + path + queryString;
-
-    // 合并 header
     headerParams.addAll(_defaultHeaderMap);
-    final contentType = nullableContentType ?? 'application/json';
+    final contentType =
+        nullableContentType ?? 'application/json; charset=utf-8';
     headerParams['Content-Type'] = contentType;
 
-    // 解析为 URI
-    Uri uri;
-    try {
-      uri = Uri.parse(url);
-    } catch (e) {
-      throw ApiException(500, 'Invalid URL: $url');
-    }
+    Uri uri = Uri.parse(url);
 
-    // 如果是 MultipartRequest
-    if (body is MultipartRequest) {
-      var request = MultipartRequest(method, uri);
+    if (body is http.MultipartRequest) {
+      var request = http.MultipartRequest(method, uri);
       request.fields.addAll(body.fields);
       request.files.addAll(body.files);
       request.headers.addAll(body.headers);
       request.headers.addAll(headerParams);
 
       var streamedResponse = await client.send(request);
-      return Response.fromStream(streamedResponse);
-    }
-    // 否则是普通 body
-    else {
-      var msgBody = (nullableContentType == "application/x-www-form-urlencoded")
+      return await http.Response.fromStream(streamedResponse);
+    } else {
+      var msgBody = (contentType == "application/x-www-form-urlencoded")
           ? formParams
           : serialize(body ?? {});
 
       final Map<String, String>? finalHeaderParams =
           headerParams.isEmpty ? null : headerParams;
 
+      http.Response response;
       switch (method.toUpperCase()) {
         case "POST":
-          return client.post(uri, headers: finalHeaderParams, body: msgBody);
+          response =
+              await client.post(uri, headers: finalHeaderParams, body: msgBody);
+          break;
         case "PUT":
-          return client.put(uri, headers: finalHeaderParams, body: msgBody);
+          response =
+              await client.put(uri, headers: finalHeaderParams, body: msgBody);
+          break;
         case "DELETE":
-          return client.delete(uri, headers: finalHeaderParams);
+          response = await client.delete(uri, headers: finalHeaderParams);
+          break;
         case "PATCH":
-          return client.patch(uri, headers: finalHeaderParams, body: msgBody);
+          response = await client.patch(uri,
+              headers: finalHeaderParams, body: msgBody);
+          break;
         case "HEAD":
-          return client.head(uri, headers: finalHeaderParams);
+          response = await client.head(uri, headers: finalHeaderParams);
+          break;
         case "GET":
         default:
-          return client.get(uri, headers: finalHeaderParams);
+          response = await client.get(uri, headers: finalHeaderParams);
+          break;
       }
+
+      // 直接返回原始的 http.Response，不进行手动解码
+      return response;
     }
   }
 
@@ -291,8 +289,6 @@ class ApiClient {
     String queryString = ps.isNotEmpty ? '?${ps.join('&')}' : '';
 
     // 将 http:// 或 https:// 替换为 ws:// 或 wss://
-    // 假设 basePath = http://localhost:8081
-    // 那么就改成 ws://localhost:8081
     String wsScheme = basePath.startsWith('https') ? 'wss://' : 'ws://';
     String stripped = basePath.replaceFirst(RegExp(r'^https?://'), '');
     String wsUrl = wsScheme + stripped + path + queryString;
@@ -306,7 +302,6 @@ class ApiClient {
       (message) {
         // 收到服务端消息
         debugPrint('【WebSocket收到消息】: $message');
-        // TODO: 可在这里写事件分发或自定义处理逻辑
       },
       onDone: () {
         debugPrint('【WebSocket连接已关闭】');
@@ -320,6 +315,7 @@ class ApiClient {
     debugPrint('【WebSocket连接已建立】: $_wsUrl');
   }
 
+  /// 发送 WebSocket 消息并接收响应
   Future<Map<String, dynamic>> sendWsMessage(
       Map<String, dynamic> message) async {
     if (_wsChannel == null) {
@@ -329,10 +325,9 @@ class ApiClient {
     _wsChannel!.sink.add(encoded);
 
     try {
-      final responseRaw = await _wsChannel!.stream.first; // simplistic approach
+      final responseRaw = await _wsChannel!.stream.first;
       final respMap = jsonDecode(responseRaw as String);
       if (respMap is Map<String, dynamic>) {
-        // check error
         if (respMap.containsKey('error')) {
           throw ApiException(400, respMap['error']);
         }
