@@ -17,7 +17,7 @@ import 'package:final_assignment_front/shared_components/search_field.dart';
 import 'package:final_assignment_front/shared_components/selection_button.dart';
 import 'package:final_assignment_front/shared_components/today_text.dart';
 import 'package:final_assignment_front/shared_components/user_screen_swiper.dart';
-import 'package:final_assignment_front/shared_components/user_tools_card.dart';
+import 'package:final_assignment_front/shared_components/user_news_card.dart';
 import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
 import 'package:final_assignment_front/utils/mixins/app_mixins.dart';
 import 'package:flutter/foundation.dart';
@@ -226,42 +226,51 @@ class UserDashboard extends GetView<UserDashboardController>
 
   Widget _buildUserToolsCard(BuildContext context) {
     return SizedBox(
-      height: MediaQuery.of(context).size.height * 0.45,
+      height: MediaQuery.of(context).size.height * 0.5, // 略微增加高度以适应新闻卡片
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: kSpacing),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-            child: AnimatedOpacity(
-              opacity: 1.0,
-              duration: const Duration(milliseconds: 500),
-              child: UserToolsCard(
-                onPressed: () {
-                  initializeFloating(
-                      context, getPageForRoute('fineInformation')!);
-                },
-                onPressedSecond: () {
-                  initializeFloating(
-                      context, getPageForRoute('onlineProcessingProgress')!);
-                },
-                onPressedThird: () {
-                  initializeFloating(context, getPageForRoute('userAppeal')!);
-                },
-                onPressedFourth: () {
-                  initializeFloating(
-                      context, getPageForRoute('vehicleManagement')!);
-                },
-                onPressedFifth: () {
-                  initializeFloating(
-                      context, getPageForRoute('managerPersonalPage')!);
-                },
-                onPressedSixth: () {
-                  initializeFloating(
-                      context, getPageForRoute('managerSetting')!);
-                },
-              ),
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+        // 调整边距
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                Theme.of(context).colorScheme.surface.withOpacity(0.9),
+              ],
             ),
+            borderRadius: BorderRadius.circular(20.0),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0.0, end: 1.0),
+            duration: const Duration(milliseconds: 800),
+            builder: (context, opacity, child) {
+              return Opacity(
+                opacity: opacity,
+                child: child,
+              );
+            },
+            child: UserNewsCard(onPressed: () {
+              controller.navigateToPage(Routes.latestTrafficViolationNewsPage);
+            }, onPressedSecond: () {
+              controller.navigateToPage(Routes.finePaymentNoticePage);
+            }, onPressedThird: () {
+              controller.navigateToPage(Routes.accidentQuickGuidePage);
+            }, onPressedFourth: () {
+              controller.navigateToPage(Routes.accidentProgressPage);
+            }, onPressedFifth: () {
+              controller.navigateToPage(Routes.accidentEvidencePage);
+            }, onPressedSixth: () {
+              controller.navigateToPage(Routes.accidentVideoQuickPage);
+            }),
           ),
         ),
       ),

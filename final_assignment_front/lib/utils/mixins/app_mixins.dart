@@ -9,8 +9,12 @@ import 'package:final_assignment_front/features/dashboard/views/components/map.d
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/manager_business_processing.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/manager_personal_page.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/manager_setting.dart';
-// import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/map/map.dart';
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/news/news_detail_screen.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/news/AccidentEvidencePage.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/news/AccidentProgressPage.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/news/AccidentQuickGuidePage.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/news/AccidentVideoQuickPage.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/news/FinePaymentNoticePage.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/news/LatestTrafficViolationNewsPage.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/account_and_security/account_and_security_main.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/account_and_security/change_password.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/account_and_security/delete_account.dart';
@@ -25,6 +29,7 @@ import 'package:final_assignment_front/features/dashboard/views/user_screens/use
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/process_pages/online_processing_progress.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/scanner/main_scan.dart';
 import 'package:flutter/material.dart';
+
 
 // 引入导航混入功能。
 part 'navigation_mixin.dart';

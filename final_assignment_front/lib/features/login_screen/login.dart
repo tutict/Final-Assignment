@@ -5,10 +5,11 @@ import 'package:final_assignment_front/features/api/auth_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/chat_controller.dart';
 import 'package:final_assignment_front/features/model/login_request.dart';
 import 'package:final_assignment_front/features/model/register_request.dart';
+import 'package:final_assignment_front/shared_components/local_captcha_main.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_login/flutter_login.dart';
-import 'package:get/get.dart';
+import 'package:get/Get.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -41,7 +42,6 @@ class _LoginScreenState extends State<LoginScreen> {
     super.initState();
     authApi = AuthControllerApi();
     _userRole = null;
-    // 确保 ChatController 是全局单例
     if (!Get.isRegistered<ChatController>()) {
       Get.put(ChatController());
     }
@@ -58,32 +58,37 @@ class _LoginScreenState extends State<LoginScreen> {
     final username = data.name;
     final password = data.password;
 
-    if (username.isEmpty) return '用户名不能为空';
+    if (username.isEmpty) return '用户邮箱不能为空';
     if (password.isEmpty) return '密码不能为空';
+
+    final emailRegex =
+        RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+    if (!emailRegex.hasMatch(username)) {
+      return '请输入有效的邮箱地址';
+    }
 
     try {
       final result = await authApi.apiAuthLoginPost(
         loginRequest: LoginRequest(username: username, password: password),
       );
 
-      debugPrint('Raw result: $result');
+      debugPrint('Login raw result: $result');
 
       if (result.containsKey('jwtToken')) {
         _userRole = determineRole(username);
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('jwtToken', result['jwtToken']);
         debugPrint('User Role: $_userRole');
-        // 设置 ChatController 的用户角色
         Get.find<ChatController>().setUserRole(_userRole!);
         return null;
       } else {
         return result['message'] ?? '登录失败';
       }
     } on ApiException catch (e) {
-      debugPrint('ApiException: ${e.message}');
+      debugPrint('ApiException in login: ${e.message}');
       return '登录失败: ${e.message}';
     } catch (e) {
-      debugPrint('General Exception: $e');
+      debugPrint('General Exception in login: $e');
       return '登录异常: $e';
     }
   }
@@ -92,8 +97,26 @@ class _LoginScreenState extends State<LoginScreen> {
     final username = data.name?.trim();
     final password = data.password?.trim();
 
-    if (username == null || username.isEmpty) return '用户名不能为空';
+    if (username == null || username.isEmpty) return '用户邮箱不能为空';
     if (password == null || password.isEmpty) return '密码不能为空';
+
+    final emailRegex =
+        RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+    if (!emailRegex.hasMatch(username)) {
+      return '请输入有效的邮箱地址';
+    }
+
+    final bool? isCaptchaValid = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const LocalCaptchaMain(),
+    );
+
+    debugPrint('Signup captcha result: $isCaptchaValid');
+
+    if (isCaptchaValid != true) {
+      return '用户已取消注册账号';
+    }
 
     String uniqueKey = DateTime.now().millisecondsSinceEpoch.toString();
 
@@ -106,6 +129,8 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
 
+      debugPrint('Signup raw result: $result');
+
       if (result['status'] == 'CREATED') {
         _userRole = determineRole(username);
         Get.find<ChatController>().setUserRole(_userRole!);
@@ -114,13 +139,28 @@ class _LoginScreenState extends State<LoginScreen> {
       }
       return result['error'] ?? '注册失败：未知错误';
     } on ApiException catch (e) {
+      debugPrint('ApiException in signup: ${e.message}');
       return '注册失败: ${e.code} - ${e.message}';
     } catch (e) {
+      debugPrint('General Exception in signup: $e');
       return '注册异常: $e';
     }
   }
 
   Future<String?> _recoverPassword(String name) async {
+    final bool? isCaptchaValid = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const LocalCaptchaMain(),
+    );
+
+    debugPrint('Recover captcha result: $isCaptchaValid');
+
+    if (isCaptchaValid != true) {
+      debugPrint('Captcha validation failed or cancelled');
+      return '密码重置已取消';
+    }
+
     try {
       const url = 'http://localhost:8081/api/auth/recoverPassword';
       final response = await http.post(
@@ -128,17 +168,24 @@ class _LoginScreenState extends State<LoginScreen> {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'username': name}),
       );
+      debugPrint(
+          'Recover password response: ${response.statusCode} ${response.body}');
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['status'] == 'success') {
+          debugPrint('Password recovery successful');
           return '密码恢复成功';
         } else {
+          debugPrint('Password recovery failed: ${data['message']}');
           return data['message'] ?? '密码恢复失败';
         }
       } else {
+        debugPrint(
+            'Recover password failed with status: ${response.statusCode}');
         return '密码恢复失败：状态码 ${response.statusCode}';
       }
     } catch (e) {
+      debugPrint('Recover password exception: $e');
       return '密码恢复异常: $e';
     }
   }

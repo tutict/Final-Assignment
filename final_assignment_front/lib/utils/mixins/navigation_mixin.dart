@@ -35,8 +35,6 @@ mixin NavigationMixin {
         return const ConsultationFeedback();
       case AppPages.mainScan:
         return const MainScan();
-      case AppPages.newsDetailScreen:
-        return const NewsDetailScreen();
       case AppPages.changeThemes:
         return const ChangeThemes();
       case AppPages.managerSetting:
@@ -45,6 +43,18 @@ mixin NavigationMixin {
         return const ManagerPersonalPage();
       case AppPages.managerBusinessProcessing:
         return const ManagerBusinessProcessing();
+      case AppPages.accidentEvidencePage:
+        return const AccidentEvidencePage();
+      case AppPages.accidentVideoQuickPage:
+        return const AccidentVideoQuickPage();
+      case AppPages.accidentQuickGuidePage:
+        return const AccidentQuickGuidePage();
+      case AppPages.accidentProgressPage:
+        return const AccidentProgressPage();
+      case AppPages.finePaymentNoticePage:
+        return const FinePaymentNoticePage();
+      case AppPages.latestTrafficViolationNewsPage:
+        return const LatestTrafficViolationNewsPage();
       default:
         debugPrint('Unknown route: $routeName');
         return const Center(child: Text('页面未找到'));

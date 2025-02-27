@@ -100,6 +100,24 @@ class Routes {
 
   // 管理员用户业务处理页面
   static const managerBusinessProcessing = _Paths.managerBusinessProcessing;
+
+  // 事故现场证据介绍页路由
+  static const accidentEvidencePage = _Paths.accidentEvidencePage;
+
+  // 事故现场证据介绍页路由
+  static const accidentProgressPage = _Paths.accidentProgressPage;
+
+  // 事故现场快速处理介绍页路由
+  static const accidentQuickGuidePage = _Paths.accidentQuickGuidePage;
+
+  // 事故现场处理视频介绍页路由
+  static const accidentVideoQuickPage = _Paths.accidentVideoQuickPage;
+
+  // 罚款支付介绍页路由
+  static const finePaymentNoticePage = _Paths.finePaymentNoticePage;
+
+  // 最新交通违章新闻介绍路由
+  static const latestTrafficViolationNewsPage = _Paths.latestTrafficViolationNewsPage;
 }
 
 /// 包含路由名称列表。
@@ -203,6 +221,24 @@ class _Paths {
 
   // 管理员用户业务处理页面
   static const managerBusinessProcessing = '/managerBusinessProcessing';
+
+  // 事故现场证据介绍页路由
+  static const accidentEvidencePage = '/accidentEvidencePage';
+
+  // 事故现场处理介绍页路由
+  static const accidentProgressPage = '/accidentProgressPage';
+
+  // 事故现场快速处理介绍页路由
+  static const accidentQuickGuidePage = '/accidentQuickGuidePage';
+
+  // 事故现场处理视频介绍页路由
+  static const accidentVideoQuickPage = '/accidentVideoQuickPage';
+
+  // 罚款支付介绍页路由
+  static const finePaymentNoticePage = '/finePaymentNoticePage';
+
+  // 最新交通违章新闻路由
+  static const latestTrafficViolationNewsPage = '/latestTrafficViolationNewsPage';
 
 // 示例：
 // static const index = '/';

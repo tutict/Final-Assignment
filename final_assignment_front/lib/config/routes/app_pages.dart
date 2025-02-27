@@ -15,8 +15,13 @@ import 'package:final_assignment_front/features/dashboard/views/manager_screens/
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/offense_list.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/vehicle_list.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/news/AccidentEvidencePage.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/news/AccidentProgressPage.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/news/AccidentQuickGuidePage.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/news/AccidentVideoQuickPage.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/news/FinePaymentNoticePage.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/news/LatestTrafficViolationNewsPage.dart';
 
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/news/news_detail_screen.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/account_and_security/account_and_security_main.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/account_and_security/change_password.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/account_and_security/delete_account.dart';
@@ -135,7 +140,21 @@ class AppPages {
   // 业务办理
   static const businessProgress = Routes.businessProgress;
 
+  // 管理员业务办理
   static const managerBusinessProcessing = Routes.managerBusinessProcessing;
+
+  static const accidentEvidencePage = Routes.accidentEvidencePage;
+
+  static const accidentProgressPage = Routes.accidentProgressPage;
+
+  static const accidentQuickGuidePage = Routes.accidentQuickGuidePage;
+
+  static const accidentVideoQuickPage = Routes.accidentVideoQuickPage;
+
+  static const finePaymentNoticePage = Routes.finePaymentNoticePage;
+
+  static const latestTrafficViolationNewsPage =
+      Routes.latestTrafficViolationNewsPage;
 
   // 配置应用中的所有页面路由
   static final routes = [
@@ -210,10 +229,6 @@ class AppPages {
       page: () => const MainScan(),
     ),
     GetPage(
-      name: _Paths.newsDetailScreen,
-      page: () => const NewsDetailScreen(),
-    ),
-    GetPage(
         name: _Paths.appealManagement,
         page: () => const AppealManagementAdmin()),
     GetPage(
@@ -239,5 +254,23 @@ class AppPages {
     GetPage(
         name: _Paths.managerBusinessProcessing,
         page: () => const ManagerBusinessProcessing()),
+    GetPage(
+        name: _Paths.accidentEvidencePage,
+        page: () => const AccidentEvidencePage()),
+    GetPage(
+        name: _Paths.accidentProgressPage,
+        page: () => const AccidentProgressPage()),
+    GetPage(
+        name: _Paths.accidentQuickGuidePage,
+        page: () => const AccidentQuickGuidePage()),
+    GetPage(
+        name: _Paths.accidentVideoQuickPage,
+        page: () => const AccidentVideoQuickPage()),
+    GetPage(
+        name: _Paths.finePaymentNoticePage,
+        page: () => const FinePaymentNoticePage()),
+    GetPage(
+        name: _Paths.latestTrafficViolationNewsPage,
+        page: () => const LatestTrafficViolationNewsPage()),
   ];
 }
