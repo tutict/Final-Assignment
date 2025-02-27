@@ -38,10 +38,8 @@ class ChatControllerApi {
   Future<String?> apiAiChatGet(String message) async {
     try {
       http.Response response = await apiAiChatGetWithHttpInfo(message);
-      developer.log("Raw response bodyBytes: ${response.bodyBytes}",
-          name: 'ChatControllerApi');
       String decodedBody =
-      utf8.decode(response.bodyBytes, allowMalformed: true);
+          utf8.decode(response.bodyBytes, allowMalformed: true);
       developer.log("Decoded response body: $decodedBody",
           name: 'ChatControllerApi');
 
@@ -50,7 +48,6 @@ class ChatControllerApi {
       }
       if (decodedBody.isNotEmpty) {
         final jsonResponse = jsonDecode(decodedBody);
-        developer.log("Parsed JSON: $jsonResponse", name: 'ChatControllerApi');
         if (jsonResponse is Map<String, dynamic> &&
             jsonResponse['message'] != null) {
           String rawMessage = jsonResponse['message'].toString();
@@ -77,8 +74,8 @@ class ChatControllerApi {
     text = text.replaceAllMapped(
         RegExp(r'\*\*(.*?)\*\*'), (match) => match.group(1)!);
     // 如果有斜体 *text*，也可以移除
-    text = text.replaceAllMapped(
-        RegExp(r'\*(.*?)\*'), (match) => match.group(1)!);
+    text =
+        text.replaceAllMapped(RegExp(r'\*(.*?)\*'), (match) => match.group(1)!);
     return text;
   }
 

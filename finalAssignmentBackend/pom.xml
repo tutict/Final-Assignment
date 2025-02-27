@@ -236,6 +236,23 @@
             <artifactId>spring-ai-ollama-spring-boot-starter</artifactId>
             <version>1.0.0-M6</version>
         </dependency>
+        <dependency>
+            <groupId>com.manticoresearch</groupId>
+            <artifactId>manticoresearch</artifactId>
+            <version>7.0.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.graalvm.polyglot</groupId>
+            <artifactId>polyglot</artifactId>
+            <version>24.1.2</version>
+        </dependency>
+        <dependency>
+            <groupId>org.graalvm.polyglot</groupId>
+            <artifactId>python</artifactId>
+            <version>24.1.2</version>
+            <type>pom</type>
+            <scope>runtime</scope>
+        </dependency>
     </dependencies>
 
     <pluginRepositories>

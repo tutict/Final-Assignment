@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
 import 'package:final_assignment_front/features/api/auth_controller_api.dart';
+import 'package:final_assignment_front/features/dashboard/controllers/chat_controller.dart';
 import 'package:final_assignment_front/features/model/login_request.dart';
 import 'package:final_assignment_front/features/model/register_request.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
@@ -40,6 +41,10 @@ class _LoginScreenState extends State<LoginScreen> {
     super.initState();
     authApi = AuthControllerApi();
     _userRole = null;
+    // 确保 ChatController 是全局单例
+    if (!Get.isRegistered<ChatController>()) {
+      Get.put(ChatController());
+    }
   }
 
   static String determineRole(String username) {
@@ -68,17 +73,19 @@ class _LoginScreenState extends State<LoginScreen> {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('jwtToken', result['jwtToken']);
         debugPrint('User Role: $_userRole');
+        // 设置 ChatController 的用户角色
+        Get.find<ChatController>().setUserRole(_userRole!);
         return null;
       } else {
         return result['message'] ?? '登录失败';
       }
-        } on ApiException catch (e) {
-      debugPrint('ApiException: ${e.message}'); // 调试输出
+    } on ApiException catch (e) {
+      debugPrint('ApiException: ${e.message}');
       return '登录失败: ${e.message}';
     } catch (e) {
-      debugPrint('General Exception: $e'); // 调试输出 return '登录异常: $e';
+      debugPrint('General Exception: $e');
+      return '登录异常: $e';
     }
-    return null;
   }
 
   Future<String?> _signupUser(SignupData data) async {
@@ -101,6 +108,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (result['status'] == 'CREATED') {
         _userRole = determineRole(username);
+        Get.find<ChatController>().setUserRole(_userRole!);
+        debugPrint('User Role after signup: $_userRole');
         return null;
       }
       return result['error'] ?? '注册失败：未知错误';
@@ -158,7 +167,8 @@ class _LoginScreenState extends State<LoginScreen> {
           color: Colors.white,
           elevation: 8.0,
           margin: const EdgeInsets.symmetric(horizontal: 20.0),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
         ),
         titleStyle: const TextStyle(
           color: Colors.white,
@@ -168,12 +178,14 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         bodyStyle: const TextStyle(color: Colors.black),
         textFieldStyle: const TextStyle(color: Colors.black, fontSize: 16.0),
-        buttonStyle: const TextStyle(fontWeight: FontWeight.w800, color: Colors.white),
+        buttonStyle:
+            const TextStyle(fontWeight: FontWeight.w800, color: Colors.white),
         inputTheme: InputDecorationTheme(
           filled: true,
           fillColor: Colors.grey.shade200,
           contentPadding: EdgeInsets.zero,
-          errorStyle: const TextStyle(backgroundColor: Colors.orange, color: Colors.white),
+          errorStyle: const TextStyle(
+              backgroundColor: Colors.orange, color: Colors.white),
           labelStyle: const TextStyle(fontSize: 16.0),
         ),
         cardInitialHeight: 300.0,
@@ -196,7 +208,8 @@ class _LoginScreenState extends State<LoginScreen> {
         recoverPasswordIntro: '重置密码',
       ),
       onSubmitAnimationCompleted: () {
-        Get.offAllNamed(_userRole == 'ADMIN' ? AppPages.initial : AppPages.userInitial);
+        Get.offAllNamed(
+            _userRole == 'ADMIN' ? AppPages.initial : AppPages.userInitial);
       },
       onRecoverPassword: _recoverPassword,
     );

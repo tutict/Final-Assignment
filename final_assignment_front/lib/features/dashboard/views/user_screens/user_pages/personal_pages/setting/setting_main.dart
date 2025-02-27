@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/chat_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
+import 'package:final_assignment_front/shared_components/local_captcha_main.dart'; // 新增导入
 import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:get/Get.dart';
@@ -73,13 +74,31 @@ class _SettingPageState extends State<SettingPage> {
   }
 
   Future<void> _logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('jwtToken');
-    if (Get.isRegistered<ChatController>()) {
-      final chatController = Get.find<ChatController>();
-      chatController.clearMessages();
+    // 显示验证码对话框
+    final bool? isCaptchaValid = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false, // 禁止点击外部关闭
+      builder: (context) => const LocalCaptchaMain(),
+    );
+
+    if (isCaptchaValid == true) {
+      // 验证码验证通过，执行登出
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('jwtToken');
+      if (Get.isRegistered<ChatController>()) {
+        final chatController = Get.find<ChatController>();
+        chatController.clearMessages();
+        chatController.setUserRole('USER'); // 重置为默认角色
+      }
+      Get.offAllNamed(AppPages.login);
+    } else {
+      // 验证码未通过，提示用户
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('验证码验证失败，请重试')),
+        );
+      }
     }
-    Get.offAllNamed(AppPages.login);
   }
 
   void _showSuccessDialog(String message) {
@@ -308,9 +327,9 @@ class _SettingPageState extends State<SettingPage> {
                               child: const Text('取消'),
                             ),
                             TextButton(
-                              onPressed: () {
-                                _logout();
-                                Navigator.pop(context);
+                              onPressed: () async {
+                                Navigator.pop(context); // 关闭确认对话框
+                                await _logout(); // 调用登出逻辑
                               },
                               child: const Text('确定'),
                             ),

@@ -10,10 +10,21 @@ class ChatMessage {
 }
 
 class ChatController extends GetxController {
+  static ChatController get to => Get.find(); // 添加静态 getter 确保单例
+
   final messages = <ChatMessage>[].obs;
   final TextEditingController textController = TextEditingController();
   final ScrollController scrollController = ScrollController();
   final ChatControllerApi chatApi = ChatControllerApi();
+
+  // 用户角色状态，默认值为 "USER"
+  final RxString userRole = "USER".obs;
+
+  // 设置用户角色的方法
+  void setUserRole(String role) {
+    userRole.value = role.toUpperCase();
+    print('ChatController: User role set to $role'); // 添加调试日志
+  }
 
   Future<void> sendMessage() async {
     final String text = textController.text.trim();
@@ -26,7 +37,7 @@ class ChatController extends GetxController {
     try {
       final result = await chatApi.apiAiChatGet(text);
       if (result != null && result.isNotEmpty) {
-        messages.add(ChatMessage(message: result, isUser: false)); // 直接显示纯文本
+        messages.add(ChatMessage(message: "AI: $result", isUser: false));
       } else {
         messages.add(ChatMessage(
             message: "AI did not return any message.", isUser: false));

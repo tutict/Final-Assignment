@@ -25,7 +25,7 @@ public class RunDocker {
     String manticoreImage;
 
     void onStart(@Observes StartupEvent ev) {
-        startManticore();
+        startManticoreSearch();
     }
 
     void onStop(@Observes ShutdownEvent ev) {
@@ -33,7 +33,7 @@ public class RunDocker {
     }
 
     @SuppressWarnings("resource")
-    public void startManticore() {
+    public void startManticoreSearch() {
         try {
             manticoreContainer = new GenericContainer<>(DockerImageName.parse(manticoreImage))
                     .withExposedPorts(9306, 9308)

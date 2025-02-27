@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/chat_controller.dart';
-import 'package:final_assignment_front/shared_components/predefined_questions.dart';
+import 'package:final_assignment_front/shared_components/user_predefined_questions.dart';
+import 'package:final_assignment_front/shared_components/manager_predefined_questions.dart';
 
 class AiChat extends GetView<ChatController> {
   const AiChat({super.key});
@@ -19,9 +20,11 @@ class AiChat extends GetView<ChatController> {
               itemBuilder: (context, index) {
                 final msg = controller.messages[index];
                 return Align(
-                  alignment: msg.isUser ? Alignment.centerRight : Alignment.centerLeft,
+                  alignment:
+                      msg.isUser ? Alignment.centerRight : Alignment.centerLeft,
                   child: Container(
-                    margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                    margin:
+                        const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: msg.isUser
@@ -43,8 +46,10 @@ class AiChat extends GetView<ChatController> {
             );
           }),
         ),
-        // 预制问题选项栏
-        const PredefinedQuestions(),
+        // 根据角色切换预定义问题框
+        Obx(() => controller.userRole.value == "ADMIN"
+            ? const ManagerPredefinedQuestions()
+            : const UserPredefinedQuestions()),
         // 输入区域
         Padding(
           padding: const EdgeInsets.all(8.0),
@@ -54,7 +59,8 @@ class AiChat extends GetView<ChatController> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 ConstrainedBox(
-                  constraints: const BoxConstraints(minWidth: 100, maxWidth: 300),
+                  constraints:
+                      const BoxConstraints(minWidth: 100, maxWidth: 300),
                   child: TextField(
                     controller: controller.textController,
                     decoration: InputDecoration(
