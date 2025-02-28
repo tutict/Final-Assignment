@@ -1,8 +1,17 @@
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-class AccidentQuickGuidePage extends StatelessWidget {
+class AccidentQuickGuidePage extends StatefulWidget {
   const AccidentQuickGuidePage({super.key});
+
+  @override
+  State<AccidentQuickGuidePage> createState() => _AccidentQuickGuidePageState();
+}
+
+class _AccidentQuickGuidePageState extends State<AccidentQuickGuidePage> {
+  final controller = Get.find<UserDashboardController>();
 
   @override
   Widget build(BuildContext context) {
@@ -52,7 +61,7 @@ class AccidentQuickGuidePage extends StatelessWidget {
         children: [
           IconButton(
             icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => controller.exitSidebarContent(),
           ),
           Expanded(
             child: Text(

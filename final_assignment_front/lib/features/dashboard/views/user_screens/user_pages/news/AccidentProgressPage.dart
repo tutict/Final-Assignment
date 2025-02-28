@@ -1,8 +1,17 @@
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 import 'package:flutter/material.dart';
+import 'package:get/Get.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-class AccidentProgressPage extends StatelessWidget {
+class AccidentProgressPage extends StatefulWidget {
   const AccidentProgressPage({super.key});
+
+  @override
+  State<AccidentProgressPage> createState() => _AccidentProgressPageState();
+}
+
+class _AccidentProgressPageState extends State<AccidentProgressPage> {
+  final controller = Get.find<UserDashboardController>();
 
   @override
   Widget build(BuildContext context) {
@@ -21,34 +30,40 @@ class AccidentProgressPage extends StatelessWidget {
         child: SafeArea(
           child: Column(
             children: [
-              _buildHeader(context, '事故处理进度'),
+              _buildHeader(context, '事故处理状态追踪'),
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildSectionTitle(context, '当前进度'),
-                      _buildProgressCard(
+                      _buildSectionTitle(context, '如何跟踪事故处理状态'),
+                      _buildStepCard(
                         context,
-                        '事故编号: 20250227-001',
-                        '已提交',
-                        '等待审核，已上传照片和描述。',
-                        0.5,
+                        '1. 登录系统',
+                        '使用您的账号登录交通违法处理管理系统，进入用户仪表板。',
                       ),
-                      _buildProgressCard(
+                      _buildStepCard(
                         context,
-                        '事故编号: 20250225-002',
-                        '处理完成',
-                        '已结案，罚款已缴纳。',
-                        1.0,
+                        '2. 进入事故管理',
+                        '在仪表板中选择“事故管理”选项，查看所有已提交的事故记录。',
+                      ),
+                      _buildStepCard(
+                        context,
+                        '3. 查看进度详情',
+                        '点击具体事故编号，查看当前状态（如“已提交”、“审核中”或“已完成”）。',
                       ),
                       const SizedBox(height: 16.0),
-                      _buildSectionTitle(context, '操作建议'),
+                      _buildSectionTitle(context, '实用建议'),
                       _buildContentCard(
                         context,
-                        '实时跟踪',
-                        '定期检查进度，确保及时缴纳罚款或补充材料。',
+                        '定期检查',
+                        '建议每周登录系统检查事故处理进度，确保及时响应审核要求。',
+                      ),
+                      _buildContentCard(
+                        context,
+                        '通知设置',
+                        '启用系统通知，获取状态更新的实时提醒，避免遗漏重要信息。',
                       ),
                     ],
                   ),
@@ -68,7 +83,7 @@ class AccidentProgressPage extends StatelessWidget {
         children: [
           IconButton(
             icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => controller.exitSidebarContent(),
           ),
           Expanded(
             child: Text(
@@ -99,56 +114,30 @@ class AccidentProgressPage extends StatelessWidget {
     );
   }
 
-  Widget _buildProgressCard(BuildContext context, String id, String status,
-      String detail, double progress) {
+  Widget _buildStepCard(BuildContext context, String title, String content) {
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       margin: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              id,
-              style: GoogleFonts.roboto(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '状态: $status',
-                  style: GoogleFonts.roboto(fontSize: 16),
-                ),
-                Text(
-                  '${(progress * 100).toInt()}%',
-                  style: GoogleFonts.roboto(fontSize: 16),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            LinearProgressIndicator(
-              value: progress,
-              backgroundColor: Colors.grey[300],
-              valueColor: AlwaysStoppedAnimation<Color>(
-                Theme.of(context).colorScheme.primary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              detail,
-              style: GoogleFonts.roboto(
-                fontSize: 14,
-                color: Colors.grey[600],
-              ),
-            ),
-          ],
+      color: Colors.white.withOpacity(0.9),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          child: Text(
+            title.split('.')[0], // 提取步骤编号
+            style: const TextStyle(color: Colors.white),
+          ),
+        ),
+        title: Text(
+          title,
+          style: GoogleFonts.roboto(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        subtitle: Text(
+          content,
+          style: GoogleFonts.roboto(fontSize: 16),
         ),
       ),
     );
@@ -175,7 +164,10 @@ class AccidentProgressPage extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               content,
-              style: GoogleFonts.roboto(fontSize: 16),
+              style: GoogleFonts.roboto(
+                fontSize: 16,
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+              ),
             ),
           ],
         ),

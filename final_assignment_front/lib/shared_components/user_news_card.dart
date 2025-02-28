@@ -69,7 +69,7 @@ class UserNewsCard extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: Text(
-        "用户新闻",
+        "用户指南",
         style: Theme.of(context).textTheme.titleLarge?.copyWith(
               color: Theme.of(context).colorScheme.onSurface,
             ),
@@ -102,8 +102,8 @@ class UserNewsCard extends StatelessWidget {
         },
       if (onPressedFourth != null)
         {
-          'title': '事故处理进度',
-          'description': '实时跟踪事故处理状态',
+          'title': '事故处理进度介绍',
+          'description': '了解如何跟踪事故处理状态',
           'onPressed': onPressedFourth,
           'icon': EvaIcons.clockOutline,
         },

@@ -1,8 +1,17 @@
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-class FinePaymentNoticePage extends StatelessWidget {
+class FinePaymentNoticePage extends StatefulWidget {
   const FinePaymentNoticePage({super.key});
+
+  @override
+  State<FinePaymentNoticePage> createState() => _FinePaymentNoticePageState();
+}
+
+class _FinePaymentNoticePageState extends State<FinePaymentNoticePage> {
+  final controller = Get.find<UserDashboardController>();
 
   @override
   Widget build(BuildContext context) {
@@ -63,7 +72,7 @@ class FinePaymentNoticePage extends StatelessWidget {
         children: [
           IconButton(
             icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => controller.exitSidebarContent(),
           ),
           Expanded(
             child: Text(

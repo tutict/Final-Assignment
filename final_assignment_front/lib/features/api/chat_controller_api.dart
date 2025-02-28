@@ -15,6 +15,7 @@ class ChatControllerApi {
   ChatControllerApi([ApiClient? apiClient])
       : apiClient = apiClient ?? defaultApiClient;
 
+  // 非流式 GET 请求（保留原有方法）
   Future<http.Response> apiAiChatGetWithHttpInfo(String message) async {
     Object postBody = '';
     String path = "/api/ai/chat".replaceAll("{format}", "json");
@@ -54,7 +55,7 @@ class ChatControllerApi {
           String noMarkdownMessage = removeMarkdown(rawMessage);
           developer.log("Processed AI response: $noMarkdownMessage",
               name: 'ChatControllerApi');
-          return noMarkdownMessage; // 返回去掉了 Markdown 的纯文本
+          return noMarkdownMessage;
         }
         developer.log("No valid 'message' field in response: $decodedBody",
             name: 'ChatControllerApi');
@@ -68,17 +69,104 @@ class ChatControllerApi {
     }
   }
 
-  // 移除 Markdown 语法的函数
+// 流式 GET 请求方法
+  Stream<String> apiAiChatStream(String message) async* {
+    final prefs = await SharedPreferences.getInstance();
+    String? jwtToken = prefs.getString('jwtToken');
+    Map<String, String> headers = {
+      'Accept': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+    };
+
+    if (jwtToken != null) {
+      headers['Authorization'] = 'Bearer $jwtToken';
+      developer.log("JWT Token for stream: $jwtToken",
+          name: 'ChatControllerApi');
+    } else {
+      developer.log("No JWT token found for stream", name: 'ChatControllerApi');
+    }
+
+    final uri = Uri.parse('http://localhost:8080/api/ai/chat?massage=$message');
+    final request = http.Request('GET', uri)..headers.addAll(headers);
+
+    final client = http.Client();
+    try {
+      final response = await client.send(request);
+
+      if (response.statusCode >= 400) {
+        developer.log(
+            "Stream request failed with status: ${response.statusCode}",
+            name: 'ChatControllerApi');
+        throw Exception('Stream request failed: ${response.statusCode}');
+      }
+
+      StringBuffer dataBuffer = StringBuffer();
+      await for (final data in response.stream.transform(utf8.decoder)) {
+        dataBuffer.write(data);
+
+        String bufferedData = dataBuffer.toString();
+
+        // 按行分割缓冲数据
+        List<String> lines = bufferedData.split('\n');
+        for (int i = 0; i < lines.length - 1; i++) {
+          String line = lines[i].trim();
+          if (line.startsWith('data:')) {
+            int colonIndex = line.indexOf(':');
+            if (colonIndex != -1) {
+              String jsonString = line.substring(colonIndex + 1).trim();
+              try {
+                final jsonData = jsonDecode(jsonString);
+                if (jsonData is Map<String, dynamic> &&
+                    jsonData['message'] != null) {
+                  String rawMessage = jsonData['message'].toString();
+                  String noMarkdownMessage = removeMarkdown(rawMessage);
+                  if (noMarkdownMessage.isNotEmpty) {
+                    yield noMarkdownMessage;
+                  }
+                }
+              } catch (e) {
+                developer.log(
+                    "Failed to parse SSE chunk: '$jsonString', error: $e",
+                    name: 'ChatControllerApi');
+              }
+            }
+          }
+        }
+
+        // 保留最后一行（可能不完整）
+        if (lines.last.isNotEmpty) {
+          dataBuffer = StringBuffer(lines.last);
+        } else {
+          dataBuffer.clear();
+        }
+      }
+    } catch (e) {
+      developer.log("Stream error: $e", name: 'ChatControllerApi');
+      rethrow;
+    } finally {
+      client.close();
+    }
+  }
+
+// 移除 Markdown 语法的函数
   String removeMarkdown(String text) {
-    // 移除粗体：**text**
+    // 移除 <think>...</think> 标签，包括跨行情况
+    text = text.replaceAll(RegExp(r'<think>[\s\S]*?</think>'), '');
+    // 移除单独的 <think> 或 </think>
+    text = text.replaceAll(RegExp(r'</?think>'), '');
+    // 其他 Markdown 处理
     text = text.replaceAllMapped(
         RegExp(r'\*\*(.*?)\*\*'), (match) => match.group(1)!);
-    // 如果有斜体 *text*，也可以移除
     text =
         text.replaceAllMapped(RegExp(r'\*(.*?)\*'), (match) => match.group(1)!);
+    text =
+        text.replaceAllMapped(RegExp(r'##(.*?)##'), (match) => match.group(1)!);
+    text =
+        text.replaceAllMapped(RegExp(r'_(.*?)_'), (match) => match.group(1)!);
     return text;
   }
 
+  // WebSocket 方法（保留）
   Future<ChatResponse?> eventbusAiChatGet() async {
     final msg = {
       "service": "AiService",

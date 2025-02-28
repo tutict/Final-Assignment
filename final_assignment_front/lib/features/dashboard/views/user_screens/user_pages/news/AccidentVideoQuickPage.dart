@@ -1,8 +1,17 @@
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-class AccidentVideoQuickPage extends StatelessWidget {
+class AccidentVideoQuickPage extends StatefulWidget {
   const AccidentVideoQuickPage({super.key});
+
+  @override
+  State<AccidentVideoQuickPage> createState() => _AccidentVideoQuickPageState();
+}
+
+class _AccidentVideoQuickPageState extends State<AccidentVideoQuickPage> {
+  final controller = Get.find<UserDashboardController>();
 
   @override
   Widget build(BuildContext context) {
@@ -56,7 +65,7 @@ class AccidentVideoQuickPage extends StatelessWidget {
         children: [
           IconButton(
             icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => controller.exitSidebarContent(),
           ),
           Expanded(
             child: Text(

@@ -10,58 +10,64 @@ class ChatMessage {
 }
 
 class ChatController extends GetxController {
-  static ChatController get to => Get.find(); // 添加静态 getter 确保单例
+  static ChatController get to => Get.find();
 
   final messages = <ChatMessage>[].obs;
   final TextEditingController textController = TextEditingController();
-  final ScrollController scrollController = ScrollController();
   final ChatControllerApi chatApi = ChatControllerApi();
 
-  // 用户角色状态，默认值为 "USER"
   final RxString userRole = "USER".obs;
 
-  // 设置用户角色的方法
   void setUserRole(String role) {
     userRole.value = role.toUpperCase();
-    print('ChatController: User role set to $role'); // 添加调试日志
+    debugPrint('ChatController: User role set to $role');
   }
 
   Future<void> sendMessage() async {
     final String text = textController.text.trim();
     if (text.isEmpty) return;
 
+    // 添加用户消息
     messages.add(ChatMessage(message: text, isUser: true));
+    debugPrint('添加用户消息: $text');
     textController.clear();
-    scrollToBottom();
 
     try {
-      final result = await chatApi.apiAiChatGet(text);
-      if (result != null && result.isNotEmpty) {
-        messages.add(ChatMessage(message: "AI: $result", isUser: false));
-      } else {
-        messages.add(ChatMessage(
-            message: "AI did not return any message.", isUser: false));
+      // 添加初始 AI 消息
+      messages.add(ChatMessage(message: "DeepSeek: ", isUser: false));
+      int aiMessageIndex = messages.length - 1; // 记录 AI 消息的索引
+      StringBuffer currentMessage = StringBuffer();
+
+      await for (String chunk in chatApi.apiAiChatStream(text)) {
+        String cleanChunk = chatApi.removeMarkdown(chunk); // 移除标签
+
+        // 将片段拆分为字符并逐个显示
+        for (int i = 0; i < cleanChunk.length; i++) {
+          currentMessage.write(cleanChunk[i]);
+          // 更新最后一条 AI 消息，而不是添加新消息
+          messages[aiMessageIndex] = ChatMessage(
+            message: "DeepSeek: ${currentMessage.toString()}",
+            isUser: false,
+          );
+          await Future.delayed(const Duration(milliseconds: 50)); // 每个字符延迟 50ms
+        }
       }
+
+      debugPrint('AI 流完成: $text');
     } catch (e) {
+      debugPrint('流式 AI 响应错误: $e');
       messages.add(ChatMessage(message: "错误: $e", isUser: false));
     }
-    scrollToBottom();
-  }
-
-  void scrollToBottom() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (scrollController.hasClients) {
-        scrollController.animateTo(
-          scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      }
-    });
   }
 
   void clearMessages() {
     messages.clear();
     textController.clear();
+  }
+
+  @override
+  void onClose() {
+    textController.dispose();
+    super.onClose();
   }
 }

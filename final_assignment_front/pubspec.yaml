@@ -198,6 +198,10 @@ flutter:
         - asset: assets/fonts/poppins/Poppins-BlackItalic.ttf
           weight: 900
           style: italic
+    - family: SimsunExtG
+      fonts:
+        - asset: assets/fonts/SimsunExtG.ttf
+          weight: 200
 
 
   # To add assets to your application, add an assets section, like this:

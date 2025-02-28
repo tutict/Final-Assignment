@@ -1,8 +1,19 @@
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-class LatestTrafficViolationNewsPage extends StatelessWidget {
+class LatestTrafficViolationNewsPage extends StatefulWidget {
   const LatestTrafficViolationNewsPage({super.key});
+
+  @override
+  State<LatestTrafficViolationNewsPage> createState() =>
+      _LatestTrafficViolationNewsPageState();
+}
+
+class _LatestTrafficViolationNewsPageState
+    extends State<LatestTrafficViolationNewsPage> {
+  final controller = Get.find<UserDashboardController>();
 
   @override
   Widget build(BuildContext context) {
@@ -72,7 +83,7 @@ class LatestTrafficViolationNewsPage extends StatelessWidget {
         children: [
           IconButton(
             icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => controller.exitSidebarContent(),
           ),
           Expanded(
             child: Text(

@@ -2,15 +2,16 @@ package com.tutict.finalassignmentbackend.controller.ai;
 
 import org.json.JSONObject;
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import reactor.core.publisher.Flux;
 
+import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/ai")
@@ -25,34 +26,67 @@ public class ChatController {
 
     @RequestMapping(
             value = "/chat",
-            produces = "application/json;charset=UTF-8"
+            produces = MediaType.TEXT_EVENT_STREAM_VALUE // 设置为 SSE 流式输出
     )
-    public ResponseEntity<String> chat(@RequestParam(value = "massage") String message) {
+    public SseEmitter chat(@RequestParam(value = "massage") String message) {
+        // 创建 SseEmitter 用于流式输出
+        SseEmitter emitter = new SseEmitter(Long.MAX_VALUE); // 设置无超时
+
         try {
-            Flux<String> responseFlux = chatClient.prompt(message).stream().content();
-            StringBuilder responseBuilder = new StringBuilder();
+            // 获取 AI 的流式响应
+            Flux<String> responseFlux = chatClient.prompt(message)
+                    .stream()
+                    .content()
+                    .map(response -> response.replaceAll("(?s)<think>.*?</think>", "").trim());
 
-            List<String> responseList = responseFlux.collectList().block();
-            if (responseList != null && !responseList.isEmpty()) {
-                responseList.forEach(responseBuilder::append);
-            } else {
-                responseBuilder.append("AI 未返回有效响应，请稍后重试。");
-                LOG.log(Level.WARNING, "Empty or null response from AI for message: " + message);
-            }
-
-            String responseStr = responseBuilder.toString()
-                    .replaceAll("(?s)<think>.*?</think>", "")
-                    .trim();
-
-            String jsonResponse = "{\"message\": " + JSONObject.quote(responseStr) + "}";
-            return ResponseEntity.ok()
-                    .header("Content-Type", "application/json; charset=UTF-8")
-                    .body(jsonResponse);
+            // 订阅 Flux，逐步发送响应
+            responseFlux.subscribe(
+                    response -> {
+                        try {
+                            // 将每段响应包装为 JSON 并发送
+                            String jsonResponse = "{\"message\": " + JSONObject.quote(response) + "}";
+                            emitter.send(SseEmitter.event()
+                                    .data(jsonResponse)
+                                    .name("message"));
+                        } catch (IOException e) {
+                            LOG.log(Level.WARNING, "Failed to send SSE event: " + e.getMessage(), e);
+                            emitter.completeWithError(e);
+                        }
+                    },
+                    error -> {
+                        // 处理错误
+                        LOG.log(Level.WARNING, "Chat stream failed: " + error.getMessage(), error);
+                        try {
+                            String jsonError = "{\"error\": \"Chat failed: " + error.getMessage() + "\"}";
+                            emitter.send(SseEmitter.event()
+                                    .data(jsonError)
+                                    .name("error"));
+                        } catch (IOException e) {
+                            LOG.log(Level.WARNING, "Failed to send error event: " + e.getMessage(), e);
+                        } finally {
+                            emitter.completeWithError(error);
+                        }
+                    },
+                    () -> {
+                        // 流完成
+                        LOG.log(Level.INFO, "Chat stream completed for message: " + message);
+                        emitter.complete();
+                    }
+            );
         } catch (Exception e) {
-            LOG.log(Level.WARNING, "Chat failed: " + e.getMessage(), e);
-            return ResponseEntity.badRequest()
-                    .header("Content-Type", "application/json; charset=UTF-8")
-                    .body("{\"error\": \"Chat failed: " + e.getMessage() + "\"}");
+            LOG.log(Level.SEVERE, "Failed to initialize chat stream: " + e.getMessage(), e);
+            try {
+                String jsonError = "{\"error\": \"Chat initialization failed: " + e.getMessage() + "\"}";
+                emitter.send(SseEmitter.event()
+                        .data(jsonError)
+                        .name("error"));
+            } catch (IOException ex) {
+                LOG.log(Level.WARNING, "Failed to send initial error: " + ex.getMessage(), ex);
+            } finally {
+                emitter.completeWithError(e);
+            }
         }
+
+        return emitter;
     }
 }

@@ -5,88 +5,87 @@ import 'package:final_assignment_front/constants/app_constants.dart';
 class AppTheme {
   static ThemeData get basicLight => ThemeData(
         useMaterial3: true,
-        fontFamily: Font.poppins,
+        fontFamily: 'SimSunExtG',
+        // 设置全局字体为 SimSunExtG
         brightness: Brightness.light,
-        // 根据种子颜色自动生成完整的 ColorScheme
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color.fromRGBO(128, 109, 255, 1),
           brightness: Brightness.light,
         ),
-        // 自定义 ElevatedButton 样式
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color.fromRGBO(128, 109, 255, 1),
             foregroundColor: Colors.white,
             elevation: 2,
-            // 添加微妙阴影
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16), // 更柔和的圆角
+              borderRadius: BorderRadius.circular(16),
             ),
             textStyle: const TextStyle(
               inherit: true,
-              // 确保插值兼容
-              fontFamily: Font.poppins,
+              fontFamily: 'SimSunExtG',
+              // 按钮字体改为 SimSunExtG
               fontSize: 16.0,
               fontWeight: FontWeight.w500,
               color: Colors.white,
             ),
           ),
         ),
-        // 设置画布与卡片颜色
         canvasColor: const Color.fromRGBO(248, 248, 255, 1),
         cardColor: const Color.fromRGBO(255, 255, 255, 1),
-        // 自定义 AppBar 样式
         appBarTheme: const AppBarTheme(
           backgroundColor: Color.fromRGBO(248, 248, 255, 1),
           foregroundColor: Colors.black,
           elevation: 1,
-          centerTitle: true, // 标题居中，提升美观
+          centerTitle: true,
         ),
-        // 自定义底部导航栏样式
         bottomNavigationBarTheme: const BottomNavigationBarThemeData(
           backgroundColor: Color.fromRGBO(255, 255, 255, 1),
           selectedItemColor: Color.fromRGBO(0, 122, 255, 1),
           unselectedItemColor: Color.fromRGBO(142, 142, 147, 1),
-          elevation: 8, // 添加阴影
+          elevation: 8,
         ),
-        // 自定义文本主题
         textTheme: const TextTheme(
           displayLarge: TextStyle(
             fontSize: 32,
             fontWeight: FontWeight.bold,
             color: Colors.black,
-            inherit: true, // 统一 inherit 值
+            fontFamily: 'SimSunExtG',
+            // 改为 SimSunExtG
+            inherit: true,
           ),
           titleLarge: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
             color: Colors.black,
+            fontFamily: 'SimSunExtG',
             inherit: true,
           ),
           bodyLarge: TextStyle(
             fontSize: 16,
             color: Colors.black87,
+            fontFamily: 'SimSunExtG',
             inherit: true,
           ),
           bodyMedium: TextStyle(
             fontSize: 14,
             color: Colors.black54,
+            fontFamily: 'SimSunExtG',
             inherit: true,
           ),
           labelLarge: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w500,
             color: Colors.black,
+            fontFamily: 'SimSunExtG',
             inherit: true,
           ),
         ),
-        // 自定义输入框装饰主题
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
           fillColor: const Color.fromRGBO(255, 255, 255, 1),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Colors.grey, width: 1), // 添加微边框
+            borderSide: const BorderSide(color: Colors.grey, width: 1),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
@@ -100,7 +99,8 @@ class AppTheme {
 
   static ThemeData get basicDark => ThemeData(
         useMaterial3: true,
-        fontFamily: Font.poppins,
+        fontFamily: 'SimSunExtG',
+        // 设置全局字体为 SimSunExtG
         brightness: Brightness.dark,
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color.fromRGBO(128, 109, 255, 1),
@@ -116,7 +116,8 @@ class AppTheme {
             ),
             textStyle: const TextStyle(
               inherit: true,
-              fontFamily: Font.poppins,
+              fontFamily: 'SimSunExtG',
+              // 按钮字体改为 SimSunExtG
               fontSize: 16.0,
               fontWeight: FontWeight.w500,
               color: Colors.white,
@@ -142,28 +143,34 @@ class AppTheme {
             fontSize: 32,
             fontWeight: FontWeight.bold,
             color: Colors.white,
+            fontFamily: 'SimSunExtG',
+            // 改为 SimSunExtG
             inherit: true,
           ),
           titleLarge: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
             color: Colors.white,
+            fontFamily: 'SimSunExtG',
             inherit: true,
           ),
           bodyLarge: TextStyle(
             fontSize: 16,
             color: Colors.white70,
+            fontFamily: 'SimSunExtG',
             inherit: true,
           ),
           bodyMedium: TextStyle(
             fontSize: 14,
             color: Colors.white60,
+            fontFamily: 'SimSunExtG',
             inherit: true,
           ),
           labelLarge: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w500,
             color: Colors.white,
+            fontFamily: 'SimSunExtG',
             inherit: true,
           ),
         ),
@@ -186,7 +193,8 @@ class AppTheme {
 
   static ThemeData get ionicLightTheme => ThemeData(
         useMaterial3: true,
-        fontFamily: 'Helvetica',
+        fontFamily: 'SimSunExtG',
+        // 设置全局字体为 SimSunExtG
         brightness: Brightness.light,
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color.fromRGBO(0, 122, 255, 1),
@@ -202,7 +210,8 @@ class AppTheme {
             ),
             textStyle: const TextStyle(
               inherit: true,
-              fontFamily: 'Helvetica',
+              fontFamily: 'SimSunExtG',
+              // 按钮字体改为 SimSunExtG
               fontSize: 16.0,
               fontWeight: FontWeight.w500,
               color: Colors.white,
@@ -228,28 +237,34 @@ class AppTheme {
             fontSize: 32,
             fontWeight: FontWeight.bold,
             color: Colors.black,
+            fontFamily: 'SimSunExtG',
+            // 改为 SimSunExtG
             inherit: true,
           ),
           titleLarge: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
             color: Colors.black,
+            fontFamily: 'SimSunExtG',
             inherit: true,
           ),
           bodyLarge: TextStyle(
             fontSize: 16,
             color: Colors.black87,
+            fontFamily: 'SimSunExtG',
             inherit: true,
           ),
           bodyMedium: TextStyle(
             fontSize: 14,
             color: Colors.black54,
+            fontFamily: 'SimSunExtG',
             inherit: true,
           ),
           labelLarge: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w500,
             color: Colors.black,
+            fontFamily: 'SimSunExtG',
             inherit: true,
           ),
         ),
@@ -272,7 +287,8 @@ class AppTheme {
 
   static ThemeData get ionicDarkTheme => ThemeData(
         useMaterial3: true,
-        fontFamily: 'Helvetica',
+        fontFamily: 'SimSunExtG',
+        // 设置全局字体为 SimSunExtG
         brightness: Brightness.dark,
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color.fromRGBO(10, 132, 255, 1),
@@ -288,7 +304,8 @@ class AppTheme {
             ),
             textStyle: const TextStyle(
               inherit: true,
-              fontFamily: 'Helvetica',
+              fontFamily: 'SimSunExtG',
+              // 按钮字体改为 SimSunExtG
               fontSize: 16.0,
               fontWeight: FontWeight.w500,
               color: Colors.white,
@@ -314,28 +331,34 @@ class AppTheme {
             fontSize: 32,
             fontWeight: FontWeight.bold,
             color: Colors.white,
+            fontFamily: 'SimSunExtG',
+            // 改为 SimSunExtG
             inherit: true,
           ),
           titleLarge: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
             color: Colors.white,
+            fontFamily: 'SimSunExtG',
             inherit: true,
           ),
           bodyLarge: TextStyle(
             fontSize: 16,
             color: Colors.white70,
+            fontFamily: 'SimSunExtG',
             inherit: true,
           ),
           bodyMedium: TextStyle(
             fontSize: 14,
             color: Colors.white60,
+            fontFamily: 'SimSunExtG',
             inherit: true,
           ),
           labelLarge: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w500,
             color: Colors.white,
+            fontFamily: 'SimSunExtG',
             inherit: true,
           ),
         ),
@@ -358,7 +381,8 @@ class AppTheme {
 
   static ThemeData get materialLightTheme => ThemeData(
         useMaterial3: true,
-        fontFamily: 'Helvetica',
+        fontFamily: 'SimSunExtG',
+        // 设置全局字体为 SimSunExtG
         brightness: Brightness.light,
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color.fromRGBO(25, 118, 210, 1),
@@ -374,7 +398,8 @@ class AppTheme {
             ),
             textStyle: const TextStyle(
               inherit: true,
-              fontFamily: 'Helvetica',
+              fontFamily: 'SimSunExtG',
+              // 按钮字体改为 SimSunExtG
               fontSize: 16.0,
               fontWeight: FontWeight.w500,
               color: Colors.white,
@@ -400,28 +425,34 @@ class AppTheme {
             fontSize: 32,
             fontWeight: FontWeight.bold,
             color: Colors.black,
+            fontFamily: 'SimSunExtG',
+            // 改为 SimSunExtG
             inherit: true,
           ),
           titleLarge: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
             color: Colors.black,
+            fontFamily: 'SimSunExtG',
             inherit: true,
           ),
           bodyLarge: TextStyle(
             fontSize: 16,
             color: Colors.black87,
+            fontFamily: 'SimSunExtG',
             inherit: true,
           ),
           bodyMedium: TextStyle(
             fontSize: 14,
             color: Colors.black54,
+            fontFamily: 'SimSunExtG',
             inherit: true,
           ),
           labelLarge: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w500,
             color: Colors.black,
+            fontFamily: 'SimSunExtG',
             inherit: true,
           ),
         ),
@@ -444,7 +475,8 @@ class AppTheme {
 
   static ThemeData get materialDarkTheme => ThemeData(
         useMaterial3: true,
-        fontFamily: 'Helvetica',
+        fontFamily: 'SimSunExtG',
+        // 设置全局字体为 SimSunExtG
         brightness: Brightness.dark,
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color.fromRGBO(33, 150, 243, 1),
@@ -460,7 +492,8 @@ class AppTheme {
             ),
             textStyle: const TextStyle(
               inherit: true,
-              fontFamily: 'Helvetica',
+              fontFamily: 'SimSunExtG',
+              // 按钮字体改为 SimSunExtG
               fontSize: 16.0,
               fontWeight: FontWeight.w500,
               color: Colors.white,
@@ -486,28 +519,34 @@ class AppTheme {
             fontSize: 32,
             fontWeight: FontWeight.bold,
             color: Colors.white,
+            fontFamily: 'SimSunExtG',
+            // 改为 SimSunExtG
             inherit: true,
           ),
           titleLarge: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
             color: Colors.white,
+            fontFamily: 'SimSunExtG',
             inherit: true,
           ),
           bodyLarge: TextStyle(
             fontSize: 16,
             color: Colors.white70,
+            fontFamily: 'SimSunExtG',
             inherit: true,
           ),
           bodyMedium: TextStyle(
             fontSize: 14,
             color: Colors.white60,
+            fontFamily: 'SimSunExtG',
             inherit: true,
           ),
           labelLarge: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w500,
             color: Colors.white,
+            fontFamily: 'SimSunExtG',
             inherit: true,
           ),
         ),

@@ -1,8 +1,17 @@
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-class AccidentEvidencePage extends StatelessWidget {
+class AccidentEvidencePage extends StatefulWidget {
   const AccidentEvidencePage({super.key});
+
+  @override
+  State<AccidentEvidencePage> createState() => _AccidentEvidencePageState();
+}
+
+class _AccidentEvidencePageState extends State<AccidentEvidencePage> {
+  final controller = Get.find<UserDashboardController>();
 
   @override
   Widget build(BuildContext context) {
@@ -68,7 +77,7 @@ class AccidentEvidencePage extends StatelessWidget {
         children: [
           IconButton(
             icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => controller.exitSidebarContent(),
           ),
           Expanded(
             child: Text(
