@@ -87,61 +87,66 @@ class _Button extends StatelessWidget {
 
   final bool selected;
   final SelectionButtonData data;
-  final Function() onPressed;
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
-    // 获取当前主题亮度，判断是否为亮色模式
     final bool isLight = Theme.of(context).brightness == Brightness.light;
 
-    // 根据当前状态设置背景色：
-    // 未选中状态：亮色模式下使用白色，暗色模式下使用卡片背景色
-    // 选中状态：在亮色模式下使用 primaryColor 的浅色透明效果，
-    //           在暗色模式下可以稍微加深透明度以提高对比度
-    final Color backgroundColor = !selected
-        ? (isLight ? Colors.white : Theme.of(context).cardColor)
-        : (isLight
-            ? Theme.of(context).primaryColor.withAlpha((0.1 * 255).toInt())
-            : Theme.of(context).primaryColor.withAlpha((0.2 * 255).toInt()));
+    // 未选中时背景色为透明，选中时使用 primaryColor 的浅透明效果
+    final Color backgroundColor = selected
+        ? Theme.of(context).primaryColor.withOpacity(isLight ? 0.15 : 0.25)
+        : Colors.transparent;
 
-    // 阴影颜色，根据选中状态和当前主题调整
-    final Color shadowColor = selected
-        ? (isLight
-            ? Colors.blueAccent.withAlpha((0.3 * 255).toInt())
-            : Colors.black87.withAlpha((0.3 * 255).toInt()))
-        : (isLight ? Colors.black12 : Colors.black26);
+    // 阴影颜色，根据选中状态调整
+    final Color shadowColor =
+        isLight ? Colors.black.withOpacity(0.1) : Colors.black.withOpacity(0.3);
 
-    // 未选中时图标和文字颜色：
-    // 在亮色模式下使用较深色（例如 Colors.black87），暗色模式下使用白色
-    final Color defaultIconColor = !selected
-        ? (isLight ? Colors.black87 : Colors.white70)
-        : Theme.of(context).primaryColor;
-    final Color defaultTextColor = !selected
-        ? (isLight ? Colors.black87 : Colors.white70)
-        : Theme.of(context).primaryColor;
+    // 图标和文字颜色
+    final Color defaultIconColor = selected
+        ? Theme.of(context).primaryColor
+        : Theme.of(context).iconTheme.color!;
+    final Color defaultTextColor = selected
+        ? Theme.of(context).primaryColor
+        : Theme.of(context).textTheme.bodyLarge!.color!;
 
     return Material(
       color: backgroundColor,
       borderRadius: BorderRadius.circular(12),
-      elevation: selected ? 6.0 : 3.0,
+      elevation: selected ? 4.0 : 0.0,
+      // 选中时增加阴影
       shadowColor: shadowColor,
       child: InkWell(
         onTap: onPressed,
         borderRadius: BorderRadius.circular(12),
-        splashColor:
-            Theme.of(context).primaryColor.withAlpha((0.2 * 255).toInt()),
-        child: Padding(
-          padding: const EdgeInsets.all(kSpacing),
+        splashColor: Theme.of(context).primaryColor.withOpacity(0.3),
+        // 增强涟漪效果
+        highlightColor: Theme.of(context).primaryColor.withOpacity(0.1),
+        // 添加高亮反馈
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeInOut,
+          padding: const EdgeInsets.symmetric(vertical: 14.0, horizontal: 16.0),
+          // 增加内边距
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: selected
+                  ? Theme.of(context).primaryColor.withOpacity(0.5)
+                  : Colors.transparent,
+              width: 1.5,
+            ),
+          ),
           child: Row(
             children: [
               _icon(
-                  data: (!selected) ? data.icon : data.activeIcon,
+                  data: selected ? data.activeIcon : data.icon,
                   color: defaultIconColor),
-              const SizedBox(width: kSpacing / 2),
+              const SizedBox(width: 12.0), // 增加图标与文字间距
               Expanded(child: _labelText(data.label, color: defaultTextColor)),
               if (data.totalNotif != null)
                 Padding(
-                  padding: const EdgeInsets.only(left: kSpacing / 2),
+                  padding: const EdgeInsets.only(left: 12.0),
                   child: _notif(total: data.totalNotif!),
                 ),
             ],
@@ -166,9 +171,9 @@ class _Button extends StatelessWidget {
       text,
       style: TextStyle(
         color: color,
-        fontWeight: FontWeight.w700,
-        letterSpacing: 1.0,
-        fontSize: 15,
+        fontWeight: selected ? FontWeight.w700 : FontWeight.w500, // 选中时加粗
+        letterSpacing: 0.5, // 减小字符间距
+        fontSize: 16, // 增大字体
       ).useSystemChineseFont(),
     );
   }

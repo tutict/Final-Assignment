@@ -3,9 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
 
-/// 参数:
-/// - onPressed: 当用户点击卡片时的回调函数。
-/// - backgroundColor: 卡片的背景颜色，如果未提供，则使用主题的默认卡片颜色。
 class PoliceCard extends StatelessWidget {
   const PoliceCard({
     required this.onPressed,
@@ -14,44 +11,77 @@ class PoliceCard extends StatelessWidget {
   });
 
   final Color? backgroundColor;
-  final Function() onPressed;
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
-    // 返回一个Material组件，用于提供卡片的基本形状和颜色。
+    final bool isLight = Theme.of(context).brightness == Brightness.light;
+
     return Material(
-      borderRadius: BorderRadius.circular(kBorderRadius),
-      color: backgroundColor ?? Theme.of(context).cardColor,
+      borderRadius: BorderRadius.circular(18),
+      color: backgroundColor ?? Colors.transparent,
+      elevation: 4.0,
+      shadowColor: Colors.black.withOpacity(0.2),
       child: InkWell(
-        borderRadius: BorderRadius.circular(kBorderRadius),
+        borderRadius: BorderRadius.circular(18),
         onTap: onPressed,
-        child: Container(
+        splashColor: Theme.of(context).primaryColor.withOpacity(0.3),
+        highlightColor: Colors.transparent,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeInOut,
           constraints: const BoxConstraints(
             minWidth: 250,
             maxWidth: 350,
             minHeight: 200,
             maxHeight: 200,
           ),
-          padding: const EdgeInsets.all(10),
-          child: Stack(
-            children: [
-              // 在卡片的右上角放置一个SVG图片，用以装饰。
-              Positioned(
-                top: -15,
-                right: -30,
-                child: SvgPicture.asset(
-                  ImageVectorPath.police,
-                  width: 180,
-                  height: 180,
-                  fit: BoxFit.contain,
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            gradient: LinearGradient(
+              colors: [
+                isLight
+                    ? Colors.blue.shade50.withOpacity(0.9)
+                    : Theme.of(context).canvasColor.withOpacity(0.8),
+                isLight
+                    ? Colors.white.withOpacity(0.95)
+                    : Theme.of(context).cardColor.withOpacity(0.9),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            border: Border.all(
+              color: isLight
+                  ? Colors.blue.shade100
+                  : Colors.white.withOpacity(0.3),
+              width: 1,
+            ),
+          ),
+          child: ClipRect(
+            // 添加 ClipRect 防止溢出
+            child: Stack(
+              children: [
+                Positioned(
+                  top: -25,
+                  right: -25,
+                  child: SvgPicture.asset(
+                    ImageVectorPath.police,
+                    width: 130,
+                    height: 130,
+                    fit: BoxFit.contain,
+                    colorFilter: ColorFilter.mode(
+                      Theme.of(context).primaryColor.withOpacity(0.25),
+                      BlendMode.srcIn,
+                    ),
+                  ),
                 ),
-              ),
-              // 在卡片的内部放置一个包含卡片信息的Padding组件。
-              const Padding(
-                padding: EdgeInsets.all(15),
-                child: _Info(),
-              ),
-            ],
+                const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: _Info(),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -59,33 +89,53 @@ class PoliceCard extends StatelessWidget {
   }
 }
 
-// 一个内部使用的 StatelessWidget，用于展示卡片的信息。
 class _Info extends StatelessWidget {
   const _Info();
 
   @override
   Widget build(BuildContext context) {
-    // 返回一个Column组件，包含卡片的信息文本。
     return Column(
       mainAxisAlignment: MainAxisAlignment.end,
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min, // 限制 Column 高度
       children: [
-        // 显示卡片的主要信息文本，并使用系统默认的中文字体。
-        Padding(
-          padding: const EdgeInsets.only(bottom: 10),
+        Flexible(
+          // 使用 Flexible 包裹标题
           child: Text(
             "执法为民\n公正廉洁\n无私奉献",
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
+            style: Theme.of(context).textTheme.titleLarge!.copyWith(
+              fontSize: 20,
+              // 减小字体以适应空间
+              fontWeight: FontWeight.w700,
+              color: Theme.of(context).brightness == Brightness.light
+                  ? Colors.black.withOpacity(0.9)
+                  : Colors.white.withOpacity(0.9),
+              height: 1.4,
+              // 减小行高
+              letterSpacing: 0.6,
+              shadows: [
+                Shadow(
+                  color: Colors.black.withOpacity(0.1),
+                  offset: const Offset(0, 1),
+                  blurRadius: 2,
+                ),
+              ],
             ).useSystemChineseFont(),
           ),
         ),
-        // 显示卡片的次要信息文本。
-        Padding(
-          padding: const EdgeInsets.only(top: 10),
+        const SizedBox(height: 10), // 减小间距
+        Flexible(
+          // 使用 Flexible 包裹描述
           child: Text(
             "加强综合治理，保障交通安全",
-            style: Theme.of(context).textTheme.bodySmall,
+            style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+                  fontSize: 14, // 减小字体以适应空间
+                  color: Theme.of(context).brightness == Brightness.light
+                      ? Colors.black.withOpacity(0.8)
+                      : Colors.white.withOpacity(0.8),
+                  height: 1.3, // 减小行高
+                  fontWeight: FontWeight.w500,
+                ),
           ),
         ),
       ],

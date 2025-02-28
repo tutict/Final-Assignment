@@ -3,36 +3,28 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
 
 /// 一个展示帖子的卡片组件
-///
-/// 该组件可以配置背景颜色和点击事件的回调函数。它通常用于展示一些信息或数据，
-/// 并鼓励用户通过点击卡片来获取更多信息。
 class PostCard extends StatelessWidget {
-  /// 构造函数
-  ///
-  /// 参数:
-  /// - onPressed: 当用户点击卡片时的回调函数
-  /// - backgroundColor: 卡片的背景颜色，如果未提供，则使用主题的默认卡片颜色
   const PostCard({
     required this.onPressed,
     this.backgroundColor,
     super.key,
   });
 
-  // 卡片的背景颜色
   final Color? backgroundColor;
-
-  // 当用户点击卡片时的回调函数
-  final Function() onPressed;
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      borderRadius: BorderRadius.circular(kBorderRadius),
+      borderRadius: BorderRadius.circular(kBorderRadius + 4),
+      // 稍微增大圆角
       color: backgroundColor ?? Theme.of(context).cardColor,
-      elevation: 6.0,
-      shadowColor: Colors.black45,
+      elevation: 4.0,
+      // 降低阴影高度，更柔和
+      shadowColor: Colors.black.withOpacity(0.2),
+      // 阴影颜色更自然
       child: InkWell(
-        borderRadius: BorderRadius.circular(kBorderRadius),
+        borderRadius: BorderRadius.circular(kBorderRadius + 4),
         onTap: onPressed,
         child: Container(
           constraints: const BoxConstraints(
@@ -41,36 +33,42 @@ class PostCard extends StatelessWidget {
             minHeight: 180,
             maxHeight: 300,
           ),
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(20), // 增加内边距
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(kBorderRadius),
+            borderRadius: BorderRadius.circular(kBorderRadius + 4),
             gradient: LinearGradient(
               colors: [
-                Colors.lightBlueAccent.withAlpha((0.4 * 255).toInt()),
-                Colors.blue.withAlpha((0.4 * 255).toInt()),
+                Colors.lightBlueAccent.withOpacity(0.2), // 渐变更柔和
+                Colors.blue.withOpacity(0.1),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
+            border: Border.all(
+              color: Colors.blueAccent.withOpacity(0.1), // 添加微边框
+              width: 1,
+            ),
           ),
           child: Stack(
             children: [
+              // SVG 背景图标
               Positioned(
-                bottom: 0,
-                right: 0,
+                bottom: 8,
+                right: 8,
                 child: SvgPicture.asset(
                   ImageVectorPath.happy,
-                  width: 100,
-                  height: 100,
+                  width: 80, // 缩小图标尺寸
+                  height: 80,
                   colorFilter: ColorFilter.mode(
-                    Colors.blueAccent.withAlpha((0.4 * 255).toInt()),
+                    Colors.blueAccent.withOpacity(0.3), // 更淡的颜色
                     BlendMode.srcIn,
                   ),
                   fit: BoxFit.contain,
                 ),
               ),
+              // 信息区域
               const Padding(
-                padding: EdgeInsets.all(12),
+                padding: EdgeInsets.all(8),
                 child: _Info(),
               ),
             ],
@@ -82,9 +80,6 @@ class PostCard extends StatelessWidget {
 }
 
 /// 卡片上的信息部分
-///
-/// 该组件展示了卡片上的标题和描述信息。它通常用于提供关于帖子的一些关键信息，
-/// 以吸引用户的注意力。
 class _Info extends StatelessWidget {
   const _Info();
 
@@ -94,39 +89,35 @@ class _Info extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        _title(),
-        const SizedBox(height: 8),
-        _description(),
+        _title(context),
+        const SizedBox(height: 12), // 增加间距
+        _description(context),
       ],
     );
   }
 
   /// 标题文本
-  ///
-  /// 返回一个展示卡片标题的文本组件。该标题旨在简洁明了地传达帖子的主题或要点。
-  Widget _title() {
-    return const Text(
+  Widget _title(BuildContext context) {
+    return Text(
       "交通安全时时不忘",
-      style: TextStyle(
-        fontSize: 20,
-        fontWeight: FontWeight.bold,
-        color: Colors.black87,
-      ),
+      style: Theme.of(context).textTheme.titleLarge!.copyWith(
+            fontSize: 22, // 稍微增大标题
+            fontWeight: FontWeight.w600, // 加粗
+            color: Colors.black87,
+            letterSpacing: 0.5, // 微调字符间距
+          ),
     );
   }
 
   /// 描述文本
-  ///
-  /// 返回一个展示卡片描述的文本组件。该描述提供了关于帖子的一些额外信息或背景，
-  /// 以帮助用户更好地理解帖子的内容。
-  Widget _description() {
-    return const Text(
+  Widget _description(BuildContext context) {
+    return Text(
       "幸福生活天天拥有",
-      style: TextStyle(
-        fontSize: 16,
-        color: Colors.black54,
-      ),
+      style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+            fontSize: 16,
+            color: Colors.black.withOpacity(0.7), // 稍微加深颜色
+            height: 1.5, // 增加行高
+          ),
     );
   }
 }
-

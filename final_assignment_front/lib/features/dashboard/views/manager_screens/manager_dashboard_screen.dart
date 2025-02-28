@@ -15,7 +15,6 @@ import 'package:final_assignment_front/shared_components/police_card.dart';
 import 'package:final_assignment_front/shared_components/post_card.dart';
 import 'package:final_assignment_front/shared_components/project_card.dart';
 import 'package:final_assignment_front/shared_components/responsive_builder.dart';
-import 'package:final_assignment_front/shared_components/search_field.dart';
 import 'package:final_assignment_front/shared_components/selection_button.dart';
 import 'package:final_assignment_front/shared_components/today_text.dart';
 import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
@@ -199,7 +198,6 @@ class DashboardScreen extends GetView<DashboardController>
                     _buildProgressSection(
                         isDesktop ? Axis.horizontal : Axis.vertical, context),
                     _buildTeamMemberSection(context),
-                    _buildPremiumCard(context),
                     _buildTaskOverviewSection(
                       context,
                       crossAxisCount: isDesktop ? 4 : 2,
@@ -405,13 +403,6 @@ class DashboardScreen extends GetView<DashboardController>
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildPremiumCard(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: kSpacing),
-      child: PoliceCard(onPressed: () => log("PoliceCard clicked")),
     );
   }
 

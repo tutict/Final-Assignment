@@ -2,9 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:eva_icons_flutter/eva_icons_flutter.dart';
 
 /// 用户新闻卡片组件
-///
-/// 此组件用于展示用户相关的新闻小卡片，每个卡片代表一条新闻。
-/// 卡片数量和内容根据传入的回调函数决定，最多支持六个新闻条目。
 class UserNewsCard extends StatelessWidget {
   const UserNewsCard({
     super.key,
@@ -16,10 +13,10 @@ class UserNewsCard extends StatelessWidget {
     this.onPressedSixth,
   });
 
-  // 第一个新闻的回调函数，必传
+  // 第一个新闻的回调函数
   final Function()? onPressed;
 
-  // 以下为可选的新闻回调函数
+  // 以下为可选的新闻回调函数,依此类推
   final Function()? onPressedSecond;
   final Function()? onPressedThird;
   final Function()? onPressedFourth;

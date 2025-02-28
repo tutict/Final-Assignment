@@ -40,13 +40,85 @@ class _Header extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(width: 16.0), // 固定间距，与 UserHeader 一致
+              const SizedBox(width: 105.0), // 固定间距，与 UserHeader 一致
               Expanded(
                 child: Container(
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8.0),
+                    borderRadius: BorderRadius.circular(12), // 与 SearchField 一致
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.white.withOpacity(0.98),
+                        Colors.grey.shade100.withOpacity(0.9),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        offset: const Offset(0, 6),
+                        blurRadius: 12,
+                        spreadRadius: 1,
+                      ),
+                    ],
                   ),
-                  child: SearchField(),
+                  child: TextField(
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: Colors.transparent,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: Colors.grey.withOpacity(0.4),
+                          width: 1.2,
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .primary
+                              .withOpacity(0.8),
+                          width: 2,
+                        ),
+                      ),
+                      prefixIcon: Icon(
+                        EvaIcons.search,
+                        color: Colors.grey.shade700,
+                        size: 24,
+                      ),
+                      hintText: "请输入...",
+                      hintStyle: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w400,
+                      ),
+                      contentPadding: const EdgeInsets.only(
+                        left: 20.0,
+                        right: 20.0,
+                        top: 18.0, // 提示文字稍微下移
+                        bottom: 14.0,
+                      ),
+                      isDense: false,
+                      alignLabelWithHint: true,
+                    ),
+                    textAlignVertical: const TextAlignVertical(y: -0.2),
+                    onSubmitted: (value) {
+                      FocusScope.of(context).unfocus();
+                    },
+                    textInputAction: TextInputAction.search,
+                    style: const TextStyle(
+                      color: Colors.black87,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w400,
+                      letterSpacing: 0.2,
+                    ).useSystemChineseFont(),
+                  ),
                 ),
               ),
             ],
