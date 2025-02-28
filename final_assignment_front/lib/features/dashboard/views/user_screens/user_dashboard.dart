@@ -8,13 +8,14 @@ import 'package:eva_icons_flutter/eva_icons_flutter.dart';
 import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/config/themes/app_theme.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
+import 'package:final_assignment_front/features/dashboard/models/profile.dart';
 import 'package:final_assignment_front/features/dashboard/views/components/ai_chat.dart';
+import 'package:final_assignment_front/features/dashboard/views/components/profile_tile.dart';
 import 'package:final_assignment_front/shared_components/case_card.dart';
 import 'package:final_assignment_front/shared_components/floating_window.dart';
 import 'package:final_assignment_front/shared_components/post_card.dart';
 import 'package:final_assignment_front/shared_components/project_card.dart';
 import 'package:final_assignment_front/shared_components/responsive_builder.dart';
-import 'package:final_assignment_front/shared_components/search_field.dart';
 import 'package:final_assignment_front/shared_components/selection_button.dart';
 import 'package:final_assignment_front/shared_components/today_text.dart';
 import 'package:final_assignment_front/shared_components/user_screen_swiper.dart';
@@ -25,6 +26,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:get/get.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 part '../../bindings/user_dashboard_binding.dart';
 
@@ -33,8 +35,6 @@ part '../../controllers/user_dashboard_screen_controller.dart';
 part '../components/user_header.dart';
 
 part '../components/user_sidebar.dart';
-
-part '../../models/user_profile.dart';
 
 class UserDashboard extends GetView<UserDashboardController>
     with FloatingBase, NavigationMixin {
@@ -133,7 +133,7 @@ class UserDashboard extends GetView<UserDashboardController>
                             ),
                             child: width >= 150
                                 ? _buildSideContent(context)
-                                : null, // 仅在宽度足够时渲染
+                                : null,
                           );
                         },
                       ),
@@ -180,6 +180,7 @@ class UserDashboard extends GetView<UserDashboardController>
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    _buildProfileSection(context),
                     _buildUserScreenSwiper(context),
                     const SizedBox(height: kSpacing),
                     _buildUserToolsCard(context),
@@ -227,10 +228,9 @@ class UserDashboard extends GetView<UserDashboardController>
 
   Widget _buildUserToolsCard(BuildContext context) {
     return SizedBox(
-      height: MediaQuery.of(context).size.height * 0.5, // 略微增加高度以适应新闻卡片
+      height: MediaQuery.of(context).size.height * 0.5,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-        // 调整边距
         child: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -259,19 +259,27 @@ class UserDashboard extends GetView<UserDashboardController>
                 child: child,
               );
             },
-            child: UserNewsCard(onPressed: () {
-              controller.navigateToPage(Routes.latestTrafficViolationNewsPage);
-            }, onPressedSecond: () {
-              controller.navigateToPage(Routes.finePaymentNoticePage);
-            }, onPressedThird: () {
-              controller.navigateToPage(Routes.accidentQuickGuidePage);
-            }, onPressedFourth: () {
-              controller.navigateToPage(Routes.accidentProgressPage);
-            }, onPressedFifth: () {
-              controller.navigateToPage(Routes.accidentEvidencePage);
-            }, onPressedSixth: () {
-              controller.navigateToPage(Routes.accidentVideoQuickPage);
-            }),
+            child: UserNewsCard(
+              onPressed: () {
+                controller
+                    .navigateToPage(Routes.latestTrafficViolationNewsPage);
+              },
+              onPressedSecond: () {
+                controller.navigateToPage(Routes.finePaymentNoticePage);
+              },
+              onPressedThird: () {
+                controller.navigateToPage(Routes.accidentQuickGuidePage);
+              },
+              onPressedFourth: () {
+                controller.navigateToPage(Routes.accidentProgressPage);
+              },
+              onPressedFifth: () {
+                controller.navigateToPage(Routes.accidentEvidencePage);
+              },
+              onPressedSixth: () {
+                controller.navigateToPage(Routes.accidentVideoQuickPage);
+              },
+            ),
           ),
         ),
       ),
@@ -297,6 +305,19 @@ class UserDashboard extends GetView<UserDashboardController>
               child: UserSidebar(data: controller.getSelectedProject()),
             )
           : null,
+    );
+  }
+
+  Widget _buildProfileSection(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: kSpacing),
+      child: Obx(() {
+        final Profile profile = controller.currentProfile; // 使用 Profile 类型
+        return ProfilTile(
+          data: profile,
+          onPressedNotification: () => log("Notification clicked"),
+        );
+      }),
     );
   }
 
@@ -351,7 +372,7 @@ class UserDashboard extends GetView<UserDashboardController>
               child: const UserHeader(),
             ),
             IconButton(
-              onPressed: () => controller.toggleChat(), // 更新：切换 AiChat 展开状态
+              onPressed: () => controller.toggleChat(),
               icon: const Icon(Icons.chat_bubble_outline),
               tooltip: "AIChat",
             ),

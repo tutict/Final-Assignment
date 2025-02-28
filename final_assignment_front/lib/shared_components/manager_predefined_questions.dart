@@ -1,4 +1,5 @@
 import 'dart:ui'; // 用于 BackdropFilter
+import 'package:chinese_font_library/chinese_font_library.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/chat_controller.dart';
@@ -75,7 +76,8 @@ class ManagerPredefinedQuestions extends StatelessWidget {
                             .copyWith(
                               fontWeight: FontWeight.w600,
                               color: Theme.of(context).colorScheme.onSurface,
-                            ),
+                            )
+                            .useSystemChineseFont(),
                       ),
                     ),
                     IconButton(

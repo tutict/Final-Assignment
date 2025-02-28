@@ -3,13 +3,15 @@ import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
 import 'package:final_assignment_front/features/api/auth_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/chat_controller.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_dashboard_screen.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 import 'package:final_assignment_front/features/model/login_request.dart';
 import 'package:final_assignment_front/features/model/register_request.dart';
 import 'package:final_assignment_front/shared_components/local_captcha_main.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_login/flutter_login.dart';
-import 'package:get/Get.dart';
+import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -45,6 +47,9 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!Get.isRegistered<ChatController>()) {
       Get.put(ChatController());
     }
+    if (!Get.isRegistered<DashboardController>()) {
+      Get.put(DashboardController());
+    }
   }
 
   static String determineRole(String username) {
@@ -78,8 +83,31 @@ class _LoginScreenState extends State<LoginScreen> {
         _userRole = determineRole(username);
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('jwtToken', result['jwtToken']);
-        debugPrint('User Role: $_userRole');
+        await prefs.setString('userRole', _userRole!);
+
+        // 从 API 结果中获取用户数据（假设 API 返回了 user 字段）
+        final userData = result['user'] ?? {}; // 假设 API 返回包含 user 的 JSON
+        final String name = userData['name'] ?? username.split('@').first;
+        final String email = userData['email'] ?? username;
+
+        // 更新 ManagerDashboardController 的当前用户
+        final DashboardController dashboardController =
+            Get.find<DashboardController>();
+        dashboardController.updateCurrentUser(
+          name,
+          email,
+        );
+
+        // 更新 ManagerDashboardController 的当前用户
+        final UserDashboardController userDashboardController=
+        Get.find<UserDashboardController>();
+        userDashboardController.updateCurrentUser(
+          name,
+          email,
+        );
+
         Get.find<ChatController>().setUserRole(_userRole!);
+        debugPrint('User Role: $_userRole, Name: $name, Email: $email');
         return null;
       } else {
         return result['message'] ?? '登录失败';
@@ -133,8 +161,35 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (result['status'] == 'CREATED') {
         _userRole = determineRole(username);
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(
+            'jwtToken', result['jwtToken'] ?? ''); // 假设注册返回 token
+        await prefs.setString('userRole', _userRole!);
+
+        // 从 API 结果中获取用户数据
+        final userData = result['user'] ?? {}; // 假设 API 返回包含 user 的 JSON
+        final String name = userData['name'] ?? username.split('@').first;
+        final String email = userData['email'] ?? username;
+
+       // 更新 ManagerDashboardController 的当前用户
+        final DashboardController dashboardController =
+            Get.find<DashboardController>();
+        dashboardController.updateCurrentUser(
+          name,
+          email,
+        );
+
+        // 更新 ManagerDashboardController 的当前用户
+        final UserDashboardController userDashboardController=
+        Get.find<UserDashboardController>();
+        userDashboardController.updateCurrentUser(
+          name,
+          email,
+        );
+
         Get.find<ChatController>().setUserRole(_userRole!);
-        debugPrint('User Role after signup: $_userRole');
+        debugPrint(
+            'User Role after signup: $_userRole, Name: $name, Email: $email');
         return null;
       }
       return result['error'] ?? '注册失败：未知错误';

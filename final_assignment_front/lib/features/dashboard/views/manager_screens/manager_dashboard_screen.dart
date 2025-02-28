@@ -8,11 +8,12 @@ import 'package:eva_icons_flutter/eva_icons_flutter.dart';
 import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/config/themes/app_theme.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
+import 'package:final_assignment_front/features/dashboard/models/profile.dart';
 import 'package:final_assignment_front/features/dashboard/views/components/ai_chat.dart';
+import 'package:final_assignment_front/features/dashboard/views/components/profile_tile.dart';
 import 'package:final_assignment_front/shared_components/case_card.dart';
 import 'package:final_assignment_front/shared_components/list_profil_image.dart';
 import 'package:final_assignment_front/shared_components/police_card.dart';
-import 'package:final_assignment_front/shared_components/post_card.dart';
 import 'package:final_assignment_front/shared_components/project_card.dart';
 import 'package:final_assignment_front/shared_components/responsive_builder.dart';
 import 'package:final_assignment_front/shared_components/selection_button.dart';
@@ -23,6 +24,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:get/get.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // binding
 part '../../bindings/manager_dashboard_binding.dart';
@@ -30,17 +32,12 @@ part '../../bindings/manager_dashboard_binding.dart';
 // controller
 part '../../controllers/manager_dashboard_controller.dart';
 
-// models
-part '../../models/manager_profile.dart';
-
 // components
 part '../components/active_project_card.dart';
 
 part '../components/header.dart';
 
 part '../components/overview_header.dart';
-
-part '../components/profile_tile.dart';
 
 part '../components/recent_messages.dart';
 
@@ -295,7 +292,7 @@ class DashboardScreen extends GetView<DashboardController>
               child: const _Header(),
             ),
             IconButton(
-              onPressed: () => controller.toggleChat(), // 更新：切换 AiChat 展开状态
+              onPressed: () => controller.toggleChat(),
               icon: const Icon(Icons.chat_bubble_outline),
               tooltip: "Chat",
             ),
@@ -314,10 +311,13 @@ class DashboardScreen extends GetView<DashboardController>
   Widget _buildProfileSection(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: kSpacing),
-      child: _ProfilTile(
-        data: controller.getProfil(),
-        onPressedNotification: () => log("Notification clicked"),
-      ),
+      child: Obx(() {
+        final Profile profile = controller.currentProfile; // 使用 Profile 类型
+        return ProfilTile(
+          data: profile,
+          onPressedNotification: () => log("Notification clicked"),
+        );
+      }),
     );
   }
 
