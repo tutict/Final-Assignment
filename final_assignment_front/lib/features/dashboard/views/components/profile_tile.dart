@@ -1,5 +1,6 @@
 import 'package:chinese_font_library/chinese_font_library.dart';
 import 'package:eva_icons_flutter/eva_icons_flutter.dart';
+import 'package:final_assignment_front/constants/app_constants.dart';
 import 'package:final_assignment_front/features/dashboard/models/profile.dart';
 import 'package:flutter/material.dart';
 
@@ -17,7 +18,7 @@ class ProfilTile extends StatelessWidget {
         isLight ? Colors.white : Theme.of(context).cardColor.withOpacity(0.9);
     final Color shadowColor = Colors.black.withOpacity(isLight ? 0.1 : 0.2);
     final Color defaultTextColor = isLight
-        ? Colors.black87 // 亮色模式下使用深灰色或黑色，确保可见
+        ? Colors.black87 // 亮色模式下使用深灰色，确保可见
         : Colors.white;
     final Color subtitleTextColor = isLight
         ? Colors.grey.shade600 // 亮色模式下使用较深的灰色
@@ -39,7 +40,8 @@ class ProfilTile extends StatelessWidget {
       ),
       child: ListTile(
         contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
+            const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+        // 增加垂直内边距以适应更大文本
         leading: GestureDetector(
           onTap: () {
             // 头像点击逻辑（可选：导航到个人详情）
@@ -47,7 +49,7 @@ class ProfilTile extends StatelessWidget {
           },
           child: CircleAvatar(
             backgroundImage: data.photo,
-            radius: 24, // 增大头像大小
+            radius: 24, // 保持头像大小
             backgroundColor:
                 isLight ? Colors.grey.shade200 : Colors.grey.shade800,
           ),
@@ -58,7 +60,7 @@ class ProfilTile extends StatelessWidget {
               .textTheme
               .titleMedium!
               .copyWith(
-                fontSize: 16, // 保持字体大小
+                fontSize: 18, // 增大字体到 18
                 fontWeight: FontWeight.w600, // 保持加粗
                 color: defaultTextColor, // 使用调整后的颜色
               )
@@ -72,7 +74,7 @@ class ProfilTile extends StatelessWidget {
               .textTheme
               .bodySmall!
               .copyWith(
-                fontSize: 14, // 保持字体大小
+                fontSize: 16, // 增大字体到 16
                 color: subtitleTextColor, // 使用调整后的颜色
                 fontWeight: FontWeight.w400,
               )
@@ -94,7 +96,6 @@ class ProfilTile extends StatelessWidget {
           // 保持点击反馈
           highlightColor: Colors.transparent,
         ),
-        // 移除 onTap，确保整个 ListTile 不可点击
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12), // 保持圆角一致
         ),

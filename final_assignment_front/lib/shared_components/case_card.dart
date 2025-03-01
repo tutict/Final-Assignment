@@ -50,7 +50,6 @@ class CaseCard extends StatelessWidget {
   });
 
   final CaseCardData data;
-
   final Function() onPressedMore;
   final Function() onPressedTask;
   final Function() onPressedContributors;
@@ -59,12 +58,14 @@ class CaseCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: const BoxConstraints(maxWidth: 300), // 设置最大宽度
+      constraints: const BoxConstraints(maxWidth: 300, maxHeight: 150),
+      // 限制最大宽度和高度
       child: Card(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(kBorderRadius), // 圆角设置
         ),
         child: Column(
+          mainAxisSize: MainAxisSize.min, // 限制高度为最小值
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
@@ -72,8 +73,8 @@ class CaseCard extends StatelessWidget {
               child: _Tile(
                 title: data.title,
                 subtitle: (data.dueDay < 0)
-                    ? "Late in ${data.dueDay * -1} days" // 已逾期的情况
-                    : "Due in ${(data.dueDay > 1) ? "${data.dueDay} days" : "today"}", // 未逾期的情况
+                    ? "Late in ${data.dueDay * -1} days"
+                    : "Due in ${(data.dueDay > 1) ? "${data.dueDay} days" : "today"}",
                 onPressedMore: onPressedMore,
               ),
             ),
@@ -81,12 +82,14 @@ class CaseCard extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: kSpacing),
               // 水平内边距
               child: Row(
+                mainAxisSize: MainAxisSize.min, // 限制宽度为最小值
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   ListProfilImage(
+                    // 移除 Flexible，直接使用 ListProfilImage
                     images: data.profilContributors,
                     onPressed: onPressedContributors,
-                  ), // 贡献者头像列表
+                  ),
                 ],
               ),
             ),
@@ -95,6 +98,7 @@ class CaseCard extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: kSpacing / 2),
               // 水平内边距
               child: Row(
+                mainAxisSize: MainAxisSize.min, // 限制宽度为最小值
                 children: [
                   _IconButton(
                     iconData: EvaIcons.messageCircleOutline, // 评论图标
@@ -139,26 +143,28 @@ class _Tile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
+      mainAxisSize: MainAxisSize.min, // 限制高度为最小值
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 16), // 左侧内边距
           child: Row(
+            mainAxisSize: MainAxisSize.min, // 限制宽度为最小值
             crossAxisAlignment: CrossAxisAlignment.center,
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
               const SizedBox(width: 8), // 水平间距
-              Expanded(child: _title(title)), // 标题文本
+              _title(title), // 移除 Flexible，直接使用 _title
               _moreButton(onPressed: onPressedMore), // 更多按钮
             ],
           ),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16), // 水平内边距
-          child: _subtitle(subtitle), // 副标题文本
+          child: _subtitle(subtitle), // 移除 Flexible，直接使用 _subtitle
         ),
-        const SizedBox(height: 12), // 垂直间距
+        const SizedBox(height: 8), // 减少垂直间距
       ],
     );
   }
@@ -170,6 +176,7 @@ class _Tile extends StatelessWidget {
       textAlign: TextAlign.left,
       maxLines: 1,
       overflow: TextOverflow.ellipsis, // 超出部分省略号显示
+      style: Theme.of(Get.context!).textTheme.titleMedium, // 使用主题中的标题样式
     );
   }
 
@@ -187,10 +194,19 @@ class _Tile extends StatelessWidget {
   /// 渲染更多按钮。
   Widget _moreButton({required Function() onPressed}) {
     return IconButton(
-      iconSize: 20, // 图标大小
+      iconSize: 20,
+      // 图标大小
       onPressed: onPressed,
-      icon: const Icon(Icons.more_vert_rounded), // 更多图标
-      splashRadius: 20, // 按下时的水波纹半径
+      icon: const Icon(Icons.more_vert_rounded),
+      // 更多图标
+      splashRadius: 20,
+      // 按下时的水波纹半径
+      padding: const EdgeInsets.all(4),
+      // 减少内边距
+      constraints: const BoxConstraints(
+        minWidth: 0,
+        minHeight: 0,
+      ), // 最小宽度和高度为 0
     );
   }
 }
@@ -219,6 +235,8 @@ class _IconButton extends StatelessWidget {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(kBorderRadius), // 圆角设置
         ),
+        padding:
+            const EdgeInsets.symmetric(horizontal: 8, vertical: 4), // 减少内边距
       ),
       onPressed: onPressed,
       icon: _icon(iconData), // 图标

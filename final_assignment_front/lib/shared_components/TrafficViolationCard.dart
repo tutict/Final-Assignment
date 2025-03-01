@@ -1,33 +1,16 @@
 import 'package:chinese_font_library/chinese_font_library.dart';
 import 'package:flutter/material.dart';
-import 'package:percent_indicator/percent_indicator.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
+import 'package:percent_indicator/circular_percent_indicator.dart';
 
-// 定义进度报告卡片数据模型
-class ProgressReportCardData {
-  final double percent;
-  final String title;
-  final int task;
-  final int doneTask;
-  final int undoneTask;
-
-  const ProgressReportCardData({
-    required this.percent,
-    required this.title,
-    required this.task,
-    required this.doneTask,
-    required this.undoneTask,
-  });
-}
-
-// 定义进度报告卡片组件
-class ProgressReportCard extends StatelessWidget {
-  const ProgressReportCard({
+// 定义交通违法行为卡片组件
+class TrafficViolationCard extends StatelessWidget {
+  const TrafficViolationCard({
     required this.data,
     super.key,
   });
 
-  final ProgressReportCardData data;
+  final TrafficViolationCardData data;
 
   @override
   Widget build(BuildContext context) {
@@ -40,11 +23,11 @@ class ProgressReportCard extends StatelessWidget {
         gradient: LinearGradient(
           colors: [
             isLight
-                ? const Color.fromRGBO(111, 88, 255, 1)
-                : const Color.fromRGBO(63, 40, 207, 1),
+                ? const Color.fromRGBO(220, 53, 69, 1)
+                : const Color.fromRGBO(165, 42, 42, 1),
             isLight
-                ? const Color.fromRGBO(157, 86, 248, 1)
-                : const Color.fromRGBO(107, 66, 198, 1),
+                ? const Color.fromRGBO(245, 90, 107, 1)
+                : const Color.fromRGBO(200, 60, 60, 1),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -82,17 +65,24 @@ class ProgressReportCard extends StatelessWidget {
                       .useSystemChineseFont(),
                 ),
                 const SizedBox(height: 8), // 减少间距
-                _RichText(value1: "${data.task}", value2: " 申诉"),
+                _ViolationRichText(
+                    value1: "${data.totalViolations}", value2: " 总违法行为"),
                 const SizedBox(height: 6), // 减少间距
-                _RichText(value1: "${data.doneTask}", value2: " 已处理的申诉"),
+                _ViolationRichText(
+                    value1: "${data.handledViolations}", value2: " 已处理的违法"),
                 const SizedBox(height: 6), // 减少间距
-                _RichText(value1: "${data.undoneTask}", value2: " 未处理的申诉"),
+                _ViolationRichText(
+                    value1: "${data.unhandledViolations}", value2: " 未处理的违法"),
               ],
             ),
           ),
           Expanded(
             flex: 1,
-            child: _Indicator(percent: data.percent, isLight: isLight),
+            child: _ViolationIndicator(
+              total: data.totalViolations,
+              handled: data.handledViolations,
+              isLight: isLight,
+            ),
           ),
         ],
       ),
@@ -100,9 +90,9 @@ class ProgressReportCard extends StatelessWidget {
   }
 }
 
-// 定义富文本组件，用于显示带有强调的文本
-class _RichText extends StatelessWidget {
-  const _RichText({
+// 定义交通违法富文本组件
+class _ViolationRichText extends StatelessWidget {
+  const _ViolationRichText({
     required this.value1,
     required this.value2,
   });
@@ -136,15 +126,22 @@ class _RichText extends StatelessWidget {
   }
 }
 
-// 定义进度指示器组件，用于显示进度百分比
-class _Indicator extends StatelessWidget {
-  const _Indicator({required this.percent, required this.isLight});
+// 定义交通违法进度指示器组件
+class _ViolationIndicator extends StatelessWidget {
+  const _ViolationIndicator({
+    required this.total,
+    required this.handled,
+    required this.isLight,
+  });
 
-  final double percent;
+  final int total;
+  final int handled;
   final bool isLight;
 
   @override
   Widget build(BuildContext context) {
+    final double percent = total > 0 ? handled / total : 0.0;
+
     return CircularPercentIndicator(
       radius: 70,
       // 进一步减小半径
@@ -169,7 +166,7 @@ class _Indicator extends StatelessWidget {
                 .useSystemChineseFont(),
           ),
           Text(
-            "完成度",
+            "处理率",
             style: Theme.of(context)
                 .textTheme
                 .bodySmall!
@@ -186,4 +183,19 @@ class _Indicator extends StatelessWidget {
       backgroundColor: Colors.white.withAlpha((0.2 * 255).toInt()),
     );
   }
+}
+
+// 定义交通违法卡片数据模型
+class TrafficViolationCardData {
+  final int totalViolations;
+  final int handledViolations;
+  final int unhandledViolations;
+  final String title;
+
+  const TrafficViolationCardData({
+    required this.totalViolations,
+    required this.handledViolations,
+    required this.unhandledViolations,
+    required this.title,
+  });
 }
