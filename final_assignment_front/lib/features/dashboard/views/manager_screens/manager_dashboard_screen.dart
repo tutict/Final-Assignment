@@ -8,12 +8,16 @@ import 'package:eva_icons_flutter/eva_icons_flutter.dart';
 import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/config/themes/app_theme.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
+import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/models/profile.dart';
 import 'package:final_assignment_front/features/dashboard/views/components/ai_chat.dart';
 import 'package:final_assignment_front/features/dashboard/views/components/profile_tile.dart';
+import 'package:final_assignment_front/features/model/offense_information.dart';
 import 'package:final_assignment_front/shared_components/TrafficViolationCard.dart';
+import 'package:final_assignment_front/shared_components/bar_charts.dart';
 import 'package:final_assignment_front/shared_components/case_card.dart';
 import 'package:final_assignment_front/shared_components/list_profil_image.dart';
+import 'package:final_assignment_front/shared_components/pie_chart.dart';
 import 'package:final_assignment_front/shared_components/police_card.dart';
 import 'package:final_assignment_front/shared_components/progress_report_card.dart';
 import 'package:final_assignment_front/shared_components/project_card.dart';
@@ -252,8 +256,8 @@ class DashboardScreen extends GetView<DashboardController>
     );
 
     return const Padding(
-      padding: EdgeInsets.symmetric(
-          horizontal: kSpacing, vertical: kSpacing / 2),
+      padding:
+          EdgeInsets.symmetric(horizontal: kSpacing, vertical: kSpacing / 2),
       child: Row(
         mainAxisSize: MainAxisSize.max,
         children: [
@@ -299,25 +303,55 @@ class DashboardScreen extends GetView<DashboardController>
     } else {
       gridHeight = MediaQuery.of(context).size.height * 0.78;
     }
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: kSpacing),
       child: _ActiveProjectCard(
         onPressedSeeAll: () => log("查看所有项目"),
         child: SizedBox(
           height: gridHeight,
-          child: GridView.builder(
-            itemCount: controller.getActiveProject().length,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: crossAxisCount,
-              crossAxisSpacing: kSpacing,
-              mainAxisSpacing: kSpacing,
-              childAspectRatio: childAspectRatio,
-            ),
-            itemBuilder: (context, index) {
-              final data = controller.getActiveProject()[index];
-              return ProjectCard(data: data);
+          child: FutureBuilder<Map<String, int>>(
+            future: controller.getOffenseTypeDistribution(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              } else if (snapshot.hasError) {
+                return Center(
+                  child: Text('Error loading offense data: ${snapshot.error}'),
+                );
+              } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                return const Center(
+                  child: Text('No offense data available'),
+                );
+              } else {
+                final offenseDistribution = snapshot.data!;
+                final startTime = DateTime.now(); // 假设使用当前时间作为起始时间
+
+                return GridView.builder(
+                  itemCount: crossAxisCount >= 2 ? 2 : 1,
+                  // 显示1个或2个图表
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: crossAxisCount,
+                    crossAxisSpacing: kSpacing,
+                    mainAxisSpacing: kSpacing,
+                    childAspectRatio: childAspectRatio,
+                  ),
+                  itemBuilder: (context, index) {
+                    if (index == 0) {
+                      return TrafficViolationBarChart(
+                        typeCountMap: offenseDistribution,
+                        startTime: startTime,
+                      );
+                    } else {
+                      return TrafficViolationPieChart(
+                        typeCountMap: offenseDistribution,
+                      );
+                    }
+                  },
+                );
+              }
             },
           ),
         ),

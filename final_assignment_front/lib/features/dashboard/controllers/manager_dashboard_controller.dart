@@ -14,12 +14,15 @@ class DashboardController extends GetxController with NavigationMixin {
   final selectedPage = Rx<Widget?>(null);
   final isChatExpanded = true.obs;
   final Rx<Profile?> currentUser = Rx<Profile?>(null); // 更新为 Profile 类型
+  // 新增：获取交通违法数据
+  late Rx<Future<List<OffenseInformation>>> offensesFuture;
 
   @override
   void onInit() {
     super.onInit();
     _initializeCaseCardData();
     _loadUserFromPrefs(); // 加载已保存的用户数据
+    offensesFuture = Rx<Future<List<OffenseInformation>>>(_fetchAllOffenses());
   }
 
   // 加载保存的用户数据
@@ -182,6 +185,45 @@ class DashboardController extends GetxController with NavigationMixin {
         AssetImage(ImageRasterPath.avatar5),
         AssetImage(ImageRasterPath.avatar6),
       ];
+
+  Future<Map<String, int>> getOffenseTypeDistribution() async {
+    try {
+      final offenses = await offensesFuture.value; // Await the Future
+      final Map<String, int> typeCountMap = {};
+      for (var o in offenses) {
+        final type = o.offenseType ?? 'Unknown Type';
+        typeCountMap[type] = (typeCountMap[type] ?? 0) + 1;
+      }
+      return typeCountMap;
+    } catch (e) {
+      debugPrint('Error fetching offense distribution: $e');
+      return {}; // Return an empty map on error to avoid crashing
+    }
+  }
+
+  Future<List<OffenseInformation>> _fetchAllOffenses() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jwtToken = prefs
+          .getString('jwtToken'); // Get the JWT token from SharedPreferences
+      if (jwtToken == null) {
+        throw Exception('No JWT token found');
+      }
+
+      final listObj = await OffenseInformationControllerApi().apiOffensesGet(
+        headers: {
+          'Authorization': 'Bearer $jwtToken'
+        }, // Pass the JWT token in the header
+      );
+      if (listObj == null) return [];
+      return listObj.map((item) {
+        return OffenseInformation.fromJson(item as Map<String, dynamic>);
+      }).toList();
+    } catch (e) {
+      debugPrint('Failed to fetch offense information: $e');
+      throw Exception('Failed to fetch offense information: $e');
+    }
+  }
 
   // 更新滑动方向
   void updateScrollDirection(ScrollController scrollController) {

@@ -1,76 +1,85 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_chart_plus/flutter_chart.dart';
+import 'package:final_assignment_front/features/model/offense_information.dart';
 
-/// 计算两个日期之间的天数差值
-/// 
-/// 参数:
-/// - dateTime: 要计算的日期
-/// - startTime: 起始日期
-/// 
-/// 返回:
-/// - 两个日期之间的天数差值
-double parserDateTimeToDayValue(DateTime dateTime, DateTime startTime) {
-  return dateTime.difference(startTime).inDays.toDouble();
-}
-
-/// BarChart 组件用于展示条形图。
-/// 它继承自StatelessWidget，用于在Flutter应用中展示静态的条形图表。
-class BarChart extends StatelessWidget {
-  final List<Map<String, dynamic>> dataList;
+/// 条形图组件，用于展示交通违法类型的分布
+class TrafficViolationBarChart extends StatelessWidget {
+  final Map<String, int> typeCountMap;
   final DateTime startTime;
 
-  const BarChart({
+  const TrafficViolationBarChart({
     super.key,
-    required this.dataList,
+    required this.typeCountMap,
     required this.startTime,
   });
 
-  /// 构建并返回一个Widget树，用于展示条形图。
-  ///
-  /// 参数:
-  /// - context: BuildContext对象，用于获取有关构建上下文的信息。
-  ///
-  /// 返回:
-  /// - 一个SizedBox widget，包含一个ChartWidget，用于实际展示条形图。
   @override
   Widget build(BuildContext context) {
+    // Handle empty or null typeCountMap
+    if (typeCountMap.isEmpty) {
+      return const Center(
+        child: Text('No offense data available'),
+      );
+    }
+
+    // 转换为数据列表
+    final dataList = typeCountMap.entries.map((entry) {
+      return {
+        'time': startTime, // 固定起始时间，条形图按类型分组
+        'value1': entry.value.toDouble(), // 数量作为值
+        'value2': 0.0, // 仅使用一个值，剩余设为 0
+        'value3': 0.0,
+      };
+    }).toList();
+
+    // Handle case where dataList is empty
+    if (dataList.isEmpty) {
+      return const Center(
+        child: Text('No offense data available'),
+      );
+    }
+
     return SizedBox(
-        height: 300,
-        child: ChartWidget(
-          coordinateRender: ChartDimensionsCoordinateRender(
-            yAxis: [YAxis(min: 0, max: 500)],
-            margin:
-                const EdgeInsets.only(left: 40, top: 0, right: 0, bottom: 30),
-            xAxis: XAxis(
-              count: 7,
-              max: 30,
-              zoom: true,
-              formatter: (index) {
-                // 确保startTime存在，使用format来格式化日期
-                return startTime
-                    .add(Duration(days: index.toInt()))
-                    .toIso8601String()
-                    .substring(8, 10); // 只获取日期中的日部分
-              },
-            ),
-            charts: [
-              StackBar(
-                data: dataList,
-                position: (item) {
-                  return parserDateTimeToDayValue(
-                      item['time'] as DateTime, startTime);
-                },
-                direction: Axis.horizontal,
-                itemWidth: 10,
-                highlightColor: Colors.yellow,
-                values: (item) => [
-                  double.parse(item['value1'].toString()),
-                  double.parse(item['value2'].toString()),
-                  double.parse(item['value3'].toString()),
-                ],
-              ),
-            ],
+      height: 300,
+      child: ChartWidget(
+        coordinateRender: ChartDimensionsCoordinateRender(
+          yAxis: [
+            YAxis(
+              min: 0,
+              max: typeCountMap.values.isNotEmpty
+                  ? (typeCountMap.values.reduce((a, b) => a > b ? a : b) * 1.2)
+                  .toDouble()
+                  : 100.0, // Default max if empty
+            )
+          ],
+          margin: const EdgeInsets.only(left: 40, top: 0, right: 0, bottom: 30),
+          xAxis: XAxis(
+            count: typeCountMap.length,
+            max: typeCountMap.length.toDouble(),
+            zoom: false, // 禁用缩放
+            formatter: (index) {
+              return typeCountMap.keys.elementAt(index.toInt());
+            },
           ),
-        ));
+          charts: [
+            StackBar(
+              data: dataList,
+              position: (item) => indexOfType(
+                  item['time'] as DateTime, typeCountMap.keys.toList()),
+              direction: Axis.horizontal,
+              itemWidth: 20,
+              highlightColor: Colors.yellow,
+              values: (item) => [item['value1']],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  double indexOfType(DateTime time, List<String> types) {
+    return types
+        .indexOf(typeCountMap.keys.firstWhere((k) => true))
+        .toDouble(); // 简化为顺序索引
   }
 }

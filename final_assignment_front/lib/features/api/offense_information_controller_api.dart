@@ -103,7 +103,7 @@ class OffenseInformationControllerApi {
   /// 获取所有违法行为的信息。
   ///
   ///
-  Future<List<Object>?> apiOffensesGet() async {
+  Future<List<Object>?> apiOffensesGet({required Map<String, String> headers}) async {
     Response response = await apiOffensesGetWithHttpInfo();
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
