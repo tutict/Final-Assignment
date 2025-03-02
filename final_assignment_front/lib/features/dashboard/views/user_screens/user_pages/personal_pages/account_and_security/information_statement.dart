@@ -19,23 +19,21 @@ class _InformationStatementPageState extends State<InformationStatementPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('信息申述'), // Material 风格标题
+        title: const Text('信息申述'),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16.0), // 与 ManagerSetting.dart 一致的内边距
+        padding: const EdgeInsets.all(16.0),
         child: ListView(
           children: [
             ListTile(
               title: const Text('黑名单手机号码申述'),
               leading: const Icon(Icons.info, color: Colors.blue),
-              // Material 风格图标
               trailing: const Icon(Icons.arrow_forward_ios, color: Colors.grey),
-              // Material 风格右侧箭头
               onTap: () {
                 Get.toNamed('/blacklistPhoneAppeal');
               },
             ),
-            const SizedBox(height: 16.0), // 与 ManagerSetting.dart 的间距一致
+            const SizedBox(height: 16.0),
             ListTile(
               title: const Text('黑名单用户申述'),
               leading: const Icon(Icons.info, color: Colors.blue),
@@ -44,15 +42,14 @@ class _InformationStatementPageState extends State<InformationStatementPage> {
                 Get.toNamed('/blacklistUserAppeal');
               },
             ),
-            const SizedBox(height: 20.0), // 与 ManagerSetting.dart 的按钮间距一致
+            const SizedBox(height: 20.0),
             ElevatedButton(
               onPressed: () {
-                controller.navigateToPage(Routes.personalMain); // 返回个人主页
+                controller.navigateToPage(Routes.personalMain);
               },
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size.fromHeight(50),
-                // 全宽按钮，与 ManagerSetting.dart 一致
-                backgroundColor: Colors.grey, // 灰色表示返回操作
+                backgroundColor: Colors.grey,
               ),
               child: const Text('返回上一级'),
             ),

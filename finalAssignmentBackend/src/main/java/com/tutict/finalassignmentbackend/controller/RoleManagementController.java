@@ -6,15 +6,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -33,9 +26,10 @@ public class RoleManagementController {
         this.roleManagementService = roleManagementService;
     }
 
-    // 创建新的角色记录
+    // 创建新的角色记录 (仅 ADMIN)
     @PostMapping
     @Async
+    @PreAuthorize("hasRole('ADMIN')")
     public CompletableFuture<ResponseEntity<Void>> createRole(@RequestBody RoleManagement role, @RequestParam String idempotencyKey) {
         return CompletableFuture.supplyAsync(() -> {
             roleManagementService.checkAndInsertIdempotency(idempotencyKey, role, "create");
@@ -43,9 +37,10 @@ public class RoleManagementController {
         }, virtualThreadExecutor);
     }
 
-    // 根据角色ID获取角色信息
+    // 根据角色ID获取角色信息 (USER 和 ADMIN)
     @GetMapping("/{roleId}")
     @Async
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public CompletableFuture<ResponseEntity<RoleManagement>> getRoleById(@PathVariable int roleId) {
         return CompletableFuture.supplyAsync(() -> {
             RoleManagement role = roleManagementService.getRoleById(roleId);
@@ -57,9 +52,10 @@ public class RoleManagementController {
         }, virtualThreadExecutor);
     }
 
-    // 获取所有角色信息
+    // 获取所有角色信息 (USER 和 ADMIN)
     @GetMapping
     @Async
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public CompletableFuture<ResponseEntity<List<RoleManagement>>> getAllRoles() {
         return CompletableFuture.supplyAsync(() -> {
             List<RoleManagement> roles = roleManagementService.getAllRoles();
@@ -67,9 +63,10 @@ public class RoleManagementController {
         }, virtualThreadExecutor);
     }
 
-    // 根据角色名称获取角色信息
+    // 根据角色名称获取角色信息 (USER 和 ADMIN)
     @GetMapping("/name/{roleName}")
     @Async
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public CompletableFuture<ResponseEntity<RoleManagement>> getRoleByName(@PathVariable String roleName) {
         return CompletableFuture.supplyAsync(() -> {
             RoleManagement role = roleManagementService.getRoleByName(roleName);
@@ -81,9 +78,10 @@ public class RoleManagementController {
         }, virtualThreadExecutor);
     }
 
-    // 根据角色名称模糊匹配获取角色信息
+    // 根据角色名称模糊匹配获取角色信息 (USER 和 ADMIN)
     @GetMapping("/search")
     @Async
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public CompletableFuture<ResponseEntity<List<RoleManagement>>> getRolesByNameLike(@RequestParam String name) {
         return CompletableFuture.supplyAsync(() -> {
             List<RoleManagement> roles = roleManagementService.getRolesByNameLike(name);
@@ -91,10 +89,11 @@ public class RoleManagementController {
         }, virtualThreadExecutor);
     }
 
-    // 更新指定角色的信息
+    // 更新指定角色的信息 (仅 ADMIN)
     @PutMapping("/{roleId}")
     @Async
     @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
     public CompletableFuture<ResponseEntity<RoleManagement>> updateRole(@PathVariable int roleId, @RequestBody RoleManagement updatedRole, @RequestParam String idempotencyKey) {
         return CompletableFuture.supplyAsync(() -> {
             RoleManagement existingRole = roleManagementService.getRoleById(roleId);
@@ -108,9 +107,10 @@ public class RoleManagementController {
         }, virtualThreadExecutor);
     }
 
-    // 删除指定角色记录
+    // 删除指定角色记录 (仅 ADMIN)
     @DeleteMapping("/{roleId}")
     @Async
+    @PreAuthorize("hasRole('ADMIN')")
     public CompletableFuture<ResponseEntity<Void>> deleteRole(@PathVariable int roleId) {
         return CompletableFuture.supplyAsync(() -> {
             roleManagementService.deleteRole(roleId);
@@ -118,9 +118,10 @@ public class RoleManagementController {
         }, virtualThreadExecutor);
     }
 
-    // 根据角色名称删除角色记录
+    // 根据角色名称删除角色记录 (仅 ADMIN)
     @DeleteMapping("/name/{roleName}")
     @Async
+    @PreAuthorize("hasRole('ADMIN')")
     public CompletableFuture<ResponseEntity<Void>> deleteRoleByName(@PathVariable String roleName) {
         return CompletableFuture.supplyAsync(() -> {
             roleManagementService.deleteRoleByName(roleName);

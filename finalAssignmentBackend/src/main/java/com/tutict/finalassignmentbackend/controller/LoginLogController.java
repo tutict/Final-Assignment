@@ -6,15 +6,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.util.Date;
 import java.util.List;
@@ -34,9 +27,10 @@ public class LoginLogController {
         this.loginLogService = loginLogService;
     }
 
-    // 创建新的登录日志
+    // 创建新的登录日志 (仅 ADMIN)
     @PostMapping
     @Async
+    @PreAuthorize("hasRole('ADMIN')")
     public CompletableFuture<ResponseEntity<Void>> createLoginLog(@RequestBody LoginLog loginLog, @RequestParam String idempotencyKey) {
         return CompletableFuture.supplyAsync(() -> {
             loginLogService.checkAndInsertIdempotency(idempotencyKey, loginLog, "create");
@@ -44,9 +38,10 @@ public class LoginLogController {
         }, virtualThreadExecutor);
     }
 
-    // 根据日志ID获取登录日志
+    // 根据日志ID获取登录日志 (USER 和 ADMIN)
     @GetMapping("/{logId}")
     @Async
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public CompletableFuture<ResponseEntity<LoginLog>> getLoginLog(@PathVariable int logId) {
         return CompletableFuture.supplyAsync(() -> {
             LoginLog loginLog = loginLogService.getLoginLog(logId);
@@ -58,9 +53,10 @@ public class LoginLogController {
         }, virtualThreadExecutor);
     }
 
-    // 获取所有登录日志
+    // 获取所有登录日志 (USER 和 ADMIN)
     @GetMapping
     @Async
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public CompletableFuture<ResponseEntity<List<LoginLog>>> getAllLoginLogs() {
         return CompletableFuture.supplyAsync(() -> {
             List<LoginLog> loginLogs = loginLogService.getAllLoginLogs();
@@ -68,10 +64,11 @@ public class LoginLogController {
         }, virtualThreadExecutor);
     }
 
-    // 更新登录日志
+    // 更新登录日志 (仅 ADMIN)
     @PutMapping("/{logId}")
     @Async
     @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
     public CompletableFuture<ResponseEntity<LoginLog>> updateLoginLog(@PathVariable int logId, @RequestBody LoginLog updatedLoginLog, @RequestParam String idempotencyKey) {
         return CompletableFuture.supplyAsync(() -> {
             LoginLog existingLoginLog = loginLogService.getLoginLog(logId);
@@ -85,9 +82,10 @@ public class LoginLogController {
         }, virtualThreadExecutor);
     }
 
-    // 删除指定ID的登录日志
+    // 删除指定ID的登录日志 (仅 ADMIN)
     @DeleteMapping("/{logId}")
     @Async
+    @PreAuthorize("hasRole('ADMIN')")
     public CompletableFuture<ResponseEntity<Void>> deleteLoginLog(@PathVariable int logId) {
         return CompletableFuture.supplyAsync(() -> {
             loginLogService.deleteLoginLog(logId);
@@ -95,9 +93,10 @@ public class LoginLogController {
         }, virtualThreadExecutor);
     }
 
-    // 根据时间范围获取登录日志
+    // 根据时间范围获取登录日志 (USER 和 ADMIN)
     @GetMapping("/timeRange")
     @Async
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public CompletableFuture<ResponseEntity<List<LoginLog>>> getLoginLogsByTimeRange(
             @RequestParam(defaultValue = "1970-01-01") Date startTime,
             @RequestParam(defaultValue = "2100-01-01") Date endTime) {
@@ -107,9 +106,10 @@ public class LoginLogController {
         }, virtualThreadExecutor);
     }
 
-    // 根据用户名获取登录日志
+    // 根据用户名获取登录日志 (USER 和 ADMIN)
     @GetMapping("/username/{username}")
     @Async
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public CompletableFuture<ResponseEntity<List<LoginLog>>> getLoginLogsByUsername(@PathVariable String username) {
         return CompletableFuture.supplyAsync(() -> {
             List<LoginLog> loginLogs = loginLogService.getLoginLogsByUsername(username);
@@ -117,9 +117,10 @@ public class LoginLogController {
         }, virtualThreadExecutor);
     }
 
-    // 根据登录结果获取登录日志
+    // 根据登录结果获取登录日志 (USER 和 ADMIN)
     @GetMapping("/loginResult/{loginResult}")
     @Async
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public CompletableFuture<ResponseEntity<List<LoginLog>>> getLoginLogsByLoginResult(@PathVariable String loginResult) {
         return CompletableFuture.supplyAsync(() -> {
             List<LoginLog> loginLogs = loginLogService.getLoginLogsByLoginResult(loginResult);

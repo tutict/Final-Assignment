@@ -60,52 +60,52 @@ class _ManagerBusinessProcessingState extends State<ManagerBusinessProcessing> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('业务处理菜单'),
-      ),
-      body: controller != null
-          ? Obx(
-              () => Theme(
-                data: controller!.currentBodyTheme.value,
-                child: _buildBody(context),
-              ),
-            )
-          : _buildBody(context),
-    );
-  }
+    final currentTheme = Theme.of(context);
+    final bool isLight = currentTheme.brightness == Brightness.light;
 
-  Widget _buildBody(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: ListView.builder(
-        itemCount: businessOptions.length,
-        itemBuilder: (context, index) {
-          final option = businessOptions[index];
-          return Column(
-            children: [
-              ListTile(
-                leading: Icon(
-                  option['icon'],
-                  color: Colors.blue,
-                ),
-                title: Text(
-                  option['title'],
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
-                ),
-                trailing: const Icon(
-                  Icons.arrow_forward_ios,
-                  color: Colors.grey,
-                ),
-                onTap: () => _navigateToBusiness(option['route']),
-              ),
-              if (index < businessOptions.length - 1)
-                const SizedBox(height: 16.0),
-            ],
-          );
-        },
+    return Obx(
+      () => Theme(
+        data: controller?.currentBodyTheme.value ?? currentTheme,
+        child: Scaffold(
+          appBar: AppBar(
+            title: const Text('业务处理菜单'),
+            backgroundColor: isLight ? Colors.blue : Colors.blueGrey,
+            foregroundColor: isLight ? Colors.white : Colors.white,
+          ),
+          body: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: ListView.builder(
+              itemCount: businessOptions.length,
+              itemBuilder: (context, index) {
+                final option = businessOptions[index];
+                return Column(
+                  children: [
+                    ListTile(
+                      leading: Icon(
+                        option['icon'],
+                        color:
+                            isLight ? Colors.blue : Colors.blueAccent, // 适配主题
+                      ),
+                      title: Text(
+                        option['title'],
+                        style: TextStyle(
+                          color: currentTheme.colorScheme.onSurface,
+                        ),
+                      ),
+                      trailing: Icon(
+                        Icons.arrow_forward_ios,
+                        color: isLight ? Colors.grey : Colors.grey[400], // 适配主题
+                      ),
+                      onTap: () => _navigateToBusiness(option['route']),
+                    ),
+                    if (index < businessOptions.length - 1)
+                      const SizedBox(height: 16.0),
+                  ],
+                );
+              },
+            ),
+          ),
+        ),
       ),
     );
   }

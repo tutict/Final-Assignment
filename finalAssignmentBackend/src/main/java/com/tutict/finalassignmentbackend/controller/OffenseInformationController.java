@@ -6,15 +6,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.util.Date;
 import java.util.List;
@@ -34,9 +27,10 @@ public class OffenseInformationController {
         this.offenseInformationService = offenseInformationService;
     }
 
-    // 创建新的违法行为信息
+    // 创建新的违法行为信息 (仅 ADMIN)
     @PostMapping
     @Async
+    @PreAuthorize("hasRole('ADMIN')")
     public CompletableFuture<ResponseEntity<Void>> createOffense(@RequestBody OffenseInformation offenseInformation, @RequestParam String idempotencyKey) {
         return CompletableFuture.supplyAsync(() -> {
             offenseInformationService.checkAndInsertIdempotency(idempotencyKey, offenseInformation, "create");
@@ -44,9 +38,10 @@ public class OffenseInformationController {
         }, virtualThreadExecutor);
     }
 
-    // 根据违法行为ID获取违法行为信息
+    // 根据违法行为ID获取违法行为信息 (USER 和 ADMIN)
     @GetMapping("/{offenseId}")
     @Async
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public CompletableFuture<ResponseEntity<OffenseInformation>> getOffenseByOffenseId(@PathVariable int offenseId) {
         return CompletableFuture.supplyAsync(() -> {
             OffenseInformation offenseInformation = offenseInformationService.getOffenseByOffenseId(offenseId);
@@ -58,9 +53,10 @@ public class OffenseInformationController {
         }, virtualThreadExecutor);
     }
 
-    // 获取所有违法行为的信息
+    // 获取所有违法行为的信息 (USER 和 ADMIN)
     @GetMapping
     @Async
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public CompletableFuture<ResponseEntity<List<OffenseInformation>>> getOffensesInformation() {
         return CompletableFuture.supplyAsync(() -> {
             List<OffenseInformation> offensesInformation = offenseInformationService.getOffensesInformation();
@@ -68,10 +64,11 @@ public class OffenseInformationController {
         }, virtualThreadExecutor);
     }
 
-    // 更新指定违法行为的信息
+    // 更新指定违法行为的信息 (仅 ADMIN)
     @PutMapping("/{offenseId}")
     @Async
     @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
     public CompletableFuture<ResponseEntity<OffenseInformation>> updateOffense(@PathVariable int offenseId, @RequestBody OffenseInformation updatedOffenseInformation, @RequestParam String idempotencyKey) {
         return CompletableFuture.supplyAsync(() -> {
             OffenseInformation existingOffenseInformation = offenseInformationService.getOffenseByOffenseId(offenseId);
@@ -85,9 +82,10 @@ public class OffenseInformationController {
         }, virtualThreadExecutor);
     }
 
-    // 删除指定违法行为的信息
+    // 删除指定违法行为的信息 (仅 ADMIN)
     @DeleteMapping("/{offenseId}")
     @Async
+    @PreAuthorize("hasRole('ADMIN')")
     public CompletableFuture<ResponseEntity<Void>> deleteOffense(@PathVariable int offenseId) {
         return CompletableFuture.supplyAsync(() -> {
             offenseInformationService.deleteOffense(offenseId);
@@ -95,9 +93,10 @@ public class OffenseInformationController {
         }, virtualThreadExecutor);
     }
 
-    // 根据时间范围获取违法行为信息
+    // 根据时间范围获取违法行为信息 (USER 和 ADMIN)
     @GetMapping("/timeRange")
     @Async
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public CompletableFuture<ResponseEntity<List<OffenseInformation>>> getOffensesByTimeRange(
             @RequestParam(defaultValue = "1970-01-01") Date startTime,
             @RequestParam(defaultValue = "2100-01-01") Date endTime) {
@@ -107,9 +106,10 @@ public class OffenseInformationController {
         }, virtualThreadExecutor);
     }
 
-    // 根据处理状态获取违法行为信息
+    // 根据处理状态获取违法行为信息 (USER 和 ADMIN)
     @GetMapping("/processState/{processState}")
     @Async
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public CompletableFuture<ResponseEntity<List<OffenseInformation>>> getOffensesByProcessState(@PathVariable String processState) {
         return CompletableFuture.supplyAsync(() -> {
             List<OffenseInformation> offenses = offenseInformationService.getOffensesByProcessState(processState);
@@ -117,9 +117,10 @@ public class OffenseInformationController {
         }, virtualThreadExecutor);
     }
 
-    // 根据司机姓名获取违法行为信息
+    // 根据司机姓名获取违法行为信息 (USER 和 ADMIN)
     @GetMapping("/driverName/{driverName}")
     @Async
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public CompletableFuture<ResponseEntity<List<OffenseInformation>>> getOffensesByDriverName(@PathVariable String driverName) {
         return CompletableFuture.supplyAsync(() -> {
             List<OffenseInformation> offenses = offenseInformationService.getOffensesByDriverName(driverName);
@@ -127,9 +128,10 @@ public class OffenseInformationController {
         }, virtualThreadExecutor);
     }
 
-    // 根据车牌号获取违法行为信息
+    // 根据车牌号获取违法行为信息 (USER 和 ADMIN)
     @GetMapping("/licensePlate/{licensePlate}")
     @Async
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public CompletableFuture<ResponseEntity<List<OffenseInformation>>> getOffensesByLicensePlate(@PathVariable String licensePlate) {
         return CompletableFuture.supplyAsync(() -> {
             List<OffenseInformation> offenses = offenseInformationService.getOffensesByLicensePlate(licensePlate);

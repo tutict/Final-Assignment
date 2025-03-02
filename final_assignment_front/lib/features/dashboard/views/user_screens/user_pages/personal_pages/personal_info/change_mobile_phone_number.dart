@@ -3,20 +3,21 @@ import 'package:final_assignment_front/features/api/driver_information_controlle
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 import 'package:flutter/material.dart';
 import 'package:get/Get.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 class ChangeMobilePhoneNumber extends StatefulWidget {
   const ChangeMobilePhoneNumber({super.key});
 
   @override
-  State<ChangeMobilePhoneNumber> createState() =>
-      _ChangeMobilePhoneNumberState();
+  State<ChangeMobilePhoneNumber> createState() => _ChangeMobilePhoneNumberState();
 }
 
 class _ChangeMobilePhoneNumberState extends State<ChangeMobilePhoneNumber> {
   final _phoneController = TextEditingController();
   late DriverInformationControllerApi driverApi;
-  final UserDashboardController controller =
-      Get.find<UserDashboardController>();
+  final UserDashboardController controller = Get.find<UserDashboardController>();
 
   @override
   void initState() {
@@ -42,26 +43,58 @@ class _ChangeMobilePhoneNumberState extends State<ChangeMobilePhoneNumber> {
       );
       return;
     }
+
     try {
-      await driverApi.apiDriversDriverIdPut(
-        driverId: '123', // 示例写死，应替换为动态值
-        updateValue: 999, // 示例，应替换为实际更新逻辑
+      final prefs = await SharedPreferences.getInstance();
+      final jwtToken = prefs.getString('jwtToken');
+      final driverId = prefs.getString('driverId'); // 假设存储了 driverId
+      if (jwtToken == null || driverId == null) {
+        throw Exception('No JWT token or driverId found');
+      }
+
+      final response = await http.put(
+        Uri.parse('http://your-backend-api/api/drivers/$driverId'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $jwtToken',
+        },
+        body: jsonEncode({
+          'contactNumber': newPhone, // 假设后端字段为 contactNumber
+        }),
       );
-      if (!mounted) return;
-      Get.back(); // 更新成功后返回
-      showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: const Text('成功'),
-          content: const Text('手机号码已更新'),
-          actions: [
-            TextButton(
-              child: const Text('确定'),
-              onPressed: () => Navigator.pop(context),
-            ),
-          ],
-        ),
-      );
+
+      if (response.statusCode == 200) {
+        if (!mounted) return;
+        Get.back(); // 更新成功后返回
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text('成功'),
+            content: const Text('手机号码已更新'),
+            actions: [
+              TextButton(
+                child: const Text('确定'),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+        );
+      } else {
+        final error = jsonDecode(response.body)['error'] ?? '更新手机号码失败';
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text('错误'),
+            content: Text(error),
+            actions: [
+              TextButton(
+                child: const Text('确定'),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       showDialog(
@@ -84,10 +117,10 @@ class _ChangeMobilePhoneNumberState extends State<ChangeMobilePhoneNumber> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('修改手机号'), // Material 风格标题
+        title: const Text('修改手机号'),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16.0), // 与 ManagerSetting.dart 一致的内边距
+        padding: const EdgeInsets.all(16.0),
         child: ListView(
           children: [
             const Text(
@@ -95,36 +128,34 @@ class _ChangeMobilePhoneNumberState extends State<ChangeMobilePhoneNumber> {
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: Colors.blue, // Material 风格蓝色
+                color: Colors.blue,
               ),
             ),
-            const SizedBox(height: 16.0), // 与 ManagerSetting.dart 的间距一致
+            const SizedBox(height: 16.0),
             TextField(
               controller: _phoneController,
               decoration: const InputDecoration(
                 labelText: '请输入新的手机号码',
-                border: OutlineInputBorder(), // Material 风格边框
+                border: OutlineInputBorder(),
               ),
               keyboardType: TextInputType.phone,
             ),
-            const SizedBox(height: 20.0), // 与 ManagerSetting.dart 的按钮间距一致
+            const SizedBox(height: 20.0),
             ElevatedButton(
               onPressed: _updatePhoneNumber,
               style: ElevatedButton.styleFrom(
-                minimumSize:
-                    const Size.fromHeight(50), // 全宽按钮，与 ManagerSetting.dart 一致
+                minimumSize: const Size.fromHeight(50),
               ),
               child: const Text('提交'),
             ),
-            const SizedBox(height: 20.0), // 与 ManagerSetting.dart 的按钮间距一致
+            const SizedBox(height: 20.0),
             ElevatedButton(
               onPressed: () {
-                controller.navigateToPage(Routes.personalMain); // 返回个人主页
+                controller.navigateToPage(Routes.personalMain);
               },
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size.fromHeight(50),
-                // 全宽按钮，与 ManagerSetting.dart 一致
-                backgroundColor: Colors.grey, // 灰色表示返回操作
+                backgroundColor: Colors.grey,
               ),
               child: const Text('返回上一级'),
             ),
@@ -132,5 +163,11 @@ class _ChangeMobilePhoneNumberState extends State<ChangeMobilePhoneNumber> {
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _phoneController.dispose();
+    super.dispose();
   }
 }

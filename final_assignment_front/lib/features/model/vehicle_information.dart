@@ -35,18 +35,18 @@ class VehicleInformation {
   String? idempotencyKey;
 
   VehicleInformation({
-    required int? vehicleId,
-    required String? licensePlate,
-    required String? vehicleType,
-    required String? ownerName,
-    required String? idCardNumber,
-    required String? contactNumber,
-    required String? engineNumber,
-    required String? frameNumber,
-    required String? vehicleColor,
-    required String? firstRegistrationDate,
-    required String? currentStatus,
-    required String idempotencyKey,
+    this.vehicleId,
+    this.licensePlate,
+    this.vehicleType,
+    this.ownerName,
+    this.idCardNumber,
+    this.contactNumber,
+    this.engineNumber,
+    this.frameNumber,
+    this.vehicleColor,
+    this.firstRegistrationDate,
+    this.currentStatus,
+    this.idempotencyKey, // Optional, nullable
   });
 
   @override
@@ -66,7 +66,7 @@ class VehicleInformation {
     vehicleColor = json['vehicleColor'];
     firstRegistrationDate = json['firstRegistrationDate'];
     currentStatus = json['currentStatus'];
-    idempotencyKey = json['idempotencyKey'];
+    idempotencyKey = json['idempotencyKey']; // Handle null
   }
 
   Map<String, dynamic> toJson() {
@@ -82,6 +82,7 @@ class VehicleInformation {
     json['vehicleColor'] = vehicleColor;
     json['firstRegistrationDate'] = firstRegistrationDate;
     json['currentStatus'] = currentStatus;
+    json['idempotencyKey'] = idempotencyKey; // Include in JSON, can be null
     return json;
   }
 

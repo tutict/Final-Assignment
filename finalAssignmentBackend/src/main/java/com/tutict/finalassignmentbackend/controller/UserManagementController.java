@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -31,6 +32,7 @@ public class UserManagementController {
 
     @PostMapping
     @Async
+    @PreAuthorize("hasRole('ADMIN')")
     public CompletableFuture<ResponseEntity<Void>> createUser(@RequestBody UserManagement user, @RequestParam String idempotencyKey) {
         return CompletableFuture.supplyAsync(() -> {
             logger.info("Attempting to create user: {}", user.getUsername());
@@ -46,6 +48,7 @@ public class UserManagementController {
 
     @GetMapping("/me")
     @Async
+    @PreAuthorize("hasRole('USER')")
     public CompletableFuture<ResponseEntity<UserManagement>> getCurrentUser(@RequestParam String username) {
         return CompletableFuture.supplyAsync(() -> {
             logger.info("Fetching current user by username: {}", username);
@@ -63,6 +66,7 @@ public class UserManagementController {
     @PutMapping("/me")
     @Async
     @Transactional
+    @PreAuthorize("hasRole('USER')")
     public CompletableFuture<ResponseEntity<Void>> updateCurrentUser(@RequestBody UserManagement updatedUser, @RequestParam String idempotencyKey) {
         return CompletableFuture.supplyAsync(() -> {
             String username = updatedUser.getUsername();
@@ -82,6 +86,7 @@ public class UserManagementController {
 
     @GetMapping
     @Async
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public CompletableFuture<ResponseEntity<List<UserManagement>>> getAllUsers() {
         return CompletableFuture.supplyAsync(() -> {
             logger.info("Fetching all users");
@@ -93,6 +98,7 @@ public class UserManagementController {
 
     @GetMapping("/{userId}")
     @Async
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public CompletableFuture<ResponseEntity<UserManagement>> getUserById(@PathVariable int userId) {
         return CompletableFuture.supplyAsync(() -> {
             logger.info("Fetching user by ID: {}", userId);
@@ -109,6 +115,7 @@ public class UserManagementController {
 
     @GetMapping("/username/{username}")
     @Async
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public CompletableFuture<ResponseEntity<UserManagement>> getUserByUsername(@PathVariable String username) {
         return CompletableFuture.supplyAsync(() -> {
             logger.info("Fetching user by username: {}", username);
@@ -125,6 +132,7 @@ public class UserManagementController {
 
     @GetMapping("/role/{roleName}")
     @Async
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public CompletableFuture<ResponseEntity<List<UserManagement>>> getUsersByRole(@PathVariable String roleName) {
         return CompletableFuture.supplyAsync(() -> {
             logger.info("Fetching users by role: {}", roleName);
@@ -136,6 +144,7 @@ public class UserManagementController {
 
     @GetMapping("/status/{status}")
     @Async
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public CompletableFuture<ResponseEntity<List<UserManagement>>> getUsersByStatus(@PathVariable String status) {
         return CompletableFuture.supplyAsync(() -> {
             logger.info("Fetching users by status: {}", status);
@@ -147,6 +156,7 @@ public class UserManagementController {
 
     @PutMapping("/{userId}")
     @Async
+    @PreAuthorize("hasRole('ADMIN')")
     public CompletableFuture<ResponseEntity<Void>> updateUser(@PathVariable int userId, @RequestBody UserManagement updatedUser, @RequestParam String idempotencyKey) {
         return CompletableFuture.supplyAsync(() -> {
             logger.info("Attempting to update user: {}", userId);
@@ -165,6 +175,7 @@ public class UserManagementController {
 
     @DeleteMapping("/{userId}")
     @Async
+    @PreAuthorize("hasRole('ADMIN')")
     public CompletableFuture<ResponseEntity<Void>> deleteUser(@PathVariable int userId) {
         return CompletableFuture.supplyAsync(() -> {
             logger.info("Attempting to delete user: {}", userId);
@@ -187,6 +198,7 @@ public class UserManagementController {
 
     @DeleteMapping("/username/{username}")
     @Async
+    @PreAuthorize("hasRole('ADMIN')")
     public CompletableFuture<ResponseEntity<Void>> deleteUserByUsername(@PathVariable String username) {
         return CompletableFuture.supplyAsync(() -> {
             logger.info("Attempting to delete user by username: {}", username);

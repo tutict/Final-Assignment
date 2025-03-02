@@ -6,15 +6,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.util.Date;
 import java.util.List;
@@ -34,9 +27,10 @@ public class FineInformationController {
         this.fineInformationService = fineInformationService;
     }
 
-    // 创建新的罚款记录
+    // 创建新的罚款记录 (仅 ADMIN)
     @PostMapping
     @Async
+    @PreAuthorize("hasRole('ADMIN')")
     public CompletableFuture<ResponseEntity<Void>> createFine(@RequestBody FineInformation fineInformation, @RequestParam String idempotencyKey) {
         return CompletableFuture.supplyAsync(() -> {
             fineInformationService.checkAndInsertIdempotency(idempotencyKey, fineInformation, "create");
@@ -44,9 +38,10 @@ public class FineInformationController {
         }, virtualThreadExecutor);
     }
 
-    // 根据罚款ID获取罚款信息
+    // 根据罚款ID获取罚款信息 (USER 和 ADMIN)
     @GetMapping("/{fineId}")
     @Async
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public CompletableFuture<ResponseEntity<FineInformation>> getFineById(@PathVariable int fineId) {
         return CompletableFuture.supplyAsync(() -> {
             FineInformation fineInformation = fineInformationService.getFineById(fineId);
@@ -58,9 +53,10 @@ public class FineInformationController {
         }, virtualThreadExecutor);
     }
 
-    // 获取所有罚款信息
+    // 获取所有罚款信息 (USER 和 ADMIN)
     @GetMapping
     @Async
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public CompletableFuture<ResponseEntity<List<FineInformation>>> getAllFines() {
         return CompletableFuture.supplyAsync(() -> {
             List<FineInformation> fines = fineInformationService.getAllFines();
@@ -68,10 +64,11 @@ public class FineInformationController {
         }, virtualThreadExecutor);
     }
 
-    // 更新罚款信息
+    // 更新罚款信息 (仅 ADMIN)
     @PutMapping("/{fineId}")
     @Async
     @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
     public CompletableFuture<ResponseEntity<FineInformation>> updateFine(@PathVariable int fineId, @RequestBody FineInformation updatedFineInformation, @RequestParam String idempotencyKey) {
         return CompletableFuture.supplyAsync(() -> {
             FineInformation existingFineInformation = fineInformationService.getFineById(fineId);
@@ -85,9 +82,10 @@ public class FineInformationController {
         }, virtualThreadExecutor);
     }
 
-    // 删除指定ID的罚款记录
+    // 删除指定ID的罚款记录 (仅 ADMIN)
     @DeleteMapping("/{fineId}")
     @Async
+    @PreAuthorize("hasRole('ADMIN')")
     public CompletableFuture<ResponseEntity<Void>> deleteFine(@PathVariable int fineId) {
         return CompletableFuture.supplyAsync(() -> {
             fineInformationService.deleteFine(fineId);
@@ -95,9 +93,10 @@ public class FineInformationController {
         }, virtualThreadExecutor);
     }
 
-    // 根据支付方获取罚款记录
+    // 根据支付方获取罚款记录 (USER 和 ADMIN)
     @GetMapping("/payee/{payee}")
     @Async
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public CompletableFuture<ResponseEntity<List<FineInformation>>> getFinesByPayee(@PathVariable String payee) {
         return CompletableFuture.supplyAsync(() -> {
             List<FineInformation> fines = fineInformationService.getFinesByPayee(payee);
@@ -105,9 +104,10 @@ public class FineInformationController {
         }, virtualThreadExecutor);
     }
 
-    // 根据时间范围获取罚款记录
+    // 根据时间范围获取罚款记录 (USER 和 ADMIN)
     @GetMapping("/timeRange")
     @Async
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public CompletableFuture<ResponseEntity<List<FineInformation>>> getFinesByTimeRange(
             @RequestParam(defaultValue = "1970-01-01") Date startTime,
             @RequestParam(defaultValue = "2100-01-01") Date endTime) {
@@ -117,9 +117,10 @@ public class FineInformationController {
         }, virtualThreadExecutor);
     }
 
-    // 根据收据编号获取罚款信息
+    // 根据收据编号获取罚款信息 (USER 和 ADMIN)
     @GetMapping("/receiptNumber/{receiptNumber}")
     @Async
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public CompletableFuture<ResponseEntity<FineInformation>> getFineByReceiptNumber(@PathVariable String receiptNumber) {
         return CompletableFuture.supplyAsync(() -> {
             FineInformation fineInformation = fineInformationService.getFineByReceiptNumber(receiptNumber);

@@ -29,9 +29,14 @@ public class ShellScriptConfig {
 
             try {
                 Process process = builder.start();
-                System.out.println("Ollama script started in background.");
-            } catch (IOException e) {
-                throw new RuntimeException("Failed to execute shell script", e);
+                // 等待脚本执行完成
+                int exitCode = process.waitFor();
+                if (exitCode != 0) {
+                    throw new RuntimeException("Shell script failed with exit code: " + exitCode);
+                }
+                System.out.println("Ollama script completed successfully.");
+            } catch (IOException | InterruptedException e) {
+                throw new RuntimeException("Failed to execute or wait for shell script", e);
             }
         };
     }

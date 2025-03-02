@@ -6,15 +6,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -33,9 +26,10 @@ public class DriverInformationController {
         this.driverInformationService = driverInformationService;
     }
 
-    // 创建司机信息
+    // 创建司机信息 (仅 ADMIN)
     @PostMapping
     @Async
+    @PreAuthorize("hasRole('ADMIN')")
     public CompletableFuture<ResponseEntity<Void>> createDriver(@RequestBody DriverInformation driverInformation, @RequestParam String idempotencyKey) {
         return CompletableFuture.supplyAsync(() -> {
             driverInformationService.checkAndInsertIdempotency(idempotencyKey, driverInformation, "create");
@@ -43,9 +37,10 @@ public class DriverInformationController {
         }, virtualThreadExecutor);
     }
 
-    // 根据司机ID获取司机信息
+    // 根据司机ID获取司机信息 (USER 和 ADMIN)
     @GetMapping("/{driverId}")
     @Async
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public CompletableFuture<ResponseEntity<DriverInformation>> getDriverById(@PathVariable int driverId) {
         return CompletableFuture.supplyAsync(() -> {
             DriverInformation driverInformation = driverInformationService.getDriverById(driverId);
@@ -57,9 +52,10 @@ public class DriverInformationController {
         }, virtualThreadExecutor);
     }
 
-    // 获取所有司机信息
+    // 获取所有司机信息 (USER 和 ADMIN)
     @GetMapping
     @Async
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public CompletableFuture<ResponseEntity<List<DriverInformation>>> getAllDrivers() {
         return CompletableFuture.supplyAsync(() -> {
             List<DriverInformation> drivers = driverInformationService.getAllDrivers();
@@ -67,10 +63,11 @@ public class DriverInformationController {
         }, virtualThreadExecutor);
     }
 
-    // 更新司机信息
+    // 更新司机信息 (仅 ADMIN)
     @PutMapping("/{driverId}")
     @Async
     @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
     public CompletableFuture<ResponseEntity<DriverInformation>> updateDriver(@PathVariable int driverId, @RequestBody DriverInformation updatedDriverInformation, @RequestParam String idempotencyKey) {
         return CompletableFuture.supplyAsync(() -> {
             DriverInformation existingDriverInformation = driverInformationService.getDriverById(driverId);
@@ -84,9 +81,10 @@ public class DriverInformationController {
         }, virtualThreadExecutor);
     }
 
-    // 删除指定ID的司机信息
+    // 删除指定ID的司机信息 (仅 ADMIN)
     @DeleteMapping("/{driverId}")
     @Async
+    @PreAuthorize("hasRole('ADMIN')")
     public CompletableFuture<ResponseEntity<Void>> deleteDriver(@PathVariable int driverId) {
         return CompletableFuture.supplyAsync(() -> {
             driverInformationService.deleteDriver(driverId);
@@ -94,9 +92,10 @@ public class DriverInformationController {
         }, virtualThreadExecutor);
     }
 
-    // 根据身份证号获取司机信息
+    // 根据身份证号获取司机信息 (USER 和 ADMIN)
     @GetMapping("/idCardNumber/{idCardNumber}")
     @Async
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public CompletableFuture<ResponseEntity<List<DriverInformation>>> getDriversByIdCardNumber(@PathVariable String idCardNumber) {
         return CompletableFuture.supplyAsync(() -> {
             List<DriverInformation> drivers = driverInformationService.getDriversByIdCardNumber(idCardNumber);
@@ -104,9 +103,10 @@ public class DriverInformationController {
         }, virtualThreadExecutor);
     }
 
-    // 根据驾驶证号获取司机信息
+    // 根据驾驶证号获取司机信息 (USER 和 ADMIN)
     @GetMapping("/driverLicenseNumber/{driverLicenseNumber}")
     @Async
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public CompletableFuture<ResponseEntity<DriverInformation>> getDriverByDriverLicenseNumber(@PathVariable String driverLicenseNumber) {
         return CompletableFuture.supplyAsync(() -> {
             DriverInformation driverInformation = driverInformationService.getDriverByDriverLicenseNumber(driverLicenseNumber);
@@ -118,9 +118,10 @@ public class DriverInformationController {
         }, virtualThreadExecutor);
     }
 
-    // 根据司机姓名获取司机信息
+    // 根据司机姓名获取司机信息 (USER 和 ADMIN)
     @GetMapping("/name/{name}")
     @Async
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public CompletableFuture<ResponseEntity<List<DriverInformation>>> getDriversByName(@PathVariable String name) {
         return CompletableFuture.supplyAsync(() -> {
             List<DriverInformation> drivers = driverInformationService.getDriversByName(name);

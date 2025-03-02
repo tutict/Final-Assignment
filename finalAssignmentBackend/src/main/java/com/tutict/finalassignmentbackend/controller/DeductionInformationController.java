@@ -6,15 +6,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.util.Date;
 import java.util.List;
@@ -29,7 +22,6 @@ public class DeductionInformationController {
 
     private static final Logger logger = Logger.getLogger(DeductionInformationController.class.getName());
 
-    // 创建虚拟线程池
     private static final ExecutorService virtualThreadExecutor = Executors.newVirtualThreadPerTaskExecutor();
 
     private final DeductionInformationService deductionInformationService;
@@ -38,9 +30,10 @@ public class DeductionInformationController {
         this.deductionInformationService = deductionInformationService;
     }
 
-    // 创建新的扣除记录
+    // 创建新的扣除记录 (仅 ADMIN)
     @PostMapping
     @Async
+    @PreAuthorize("hasRole('ADMIN')")
     public CompletableFuture<ResponseEntity<Void>> createDeduction(@RequestBody DeductionInformation deduction, @RequestParam String idempotencyKey) {
         return CompletableFuture.supplyAsync(() -> {
             logger.info("Attempting to create deduction with idempotency key: " + idempotencyKey);
@@ -50,9 +43,10 @@ public class DeductionInformationController {
         }, virtualThreadExecutor);
     }
 
-    // 根据扣除ID获取扣除信息
+    // 根据扣除ID获取扣除信息 (USER 和 ADMIN)
     @GetMapping("/{deductionId}")
     @Async
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public CompletableFuture<ResponseEntity<DeductionInformation>> getDeductionById(@PathVariable int deductionId) {
         return CompletableFuture.supplyAsync(() -> {
             DeductionInformation deduction = deductionInformationService.getDeductionById(deductionId);
@@ -64,9 +58,10 @@ public class DeductionInformationController {
         }, virtualThreadExecutor);
     }
 
-    // 获取所有扣除记录
+    // 获取所有扣除记录 (USER 和 ADMIN)
     @GetMapping
     @Async
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public CompletableFuture<ResponseEntity<List<DeductionInformation>>> getAllDeductions() {
         return CompletableFuture.supplyAsync(() -> {
             List<DeductionInformation> deductions = deductionInformationService.getAllDeductions();
@@ -74,10 +69,11 @@ public class DeductionInformationController {
         }, virtualThreadExecutor);
     }
 
-    // 更新扣除记录
+    // 更新扣除记录 (仅 ADMIN)
     @PutMapping("/{deductionId}")
     @Async
     @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
     public CompletableFuture<ResponseEntity<Void>> updateDeduction(@PathVariable int deductionId, @RequestBody DeductionInformation updatedDeduction, @RequestParam String idempotencyKey) {
         return CompletableFuture.supplyAsync(() -> {
             DeductionInformation existingDeduction = deductionInformationService.getDeductionById(deductionId);
@@ -96,9 +92,10 @@ public class DeductionInformationController {
         }, virtualThreadExecutor);
     }
 
-    // 删除扣除记录
+    // 删除扣除记录 (仅 ADMIN)
     @DeleteMapping("/{deductionId}")
     @Async
+    @PreAuthorize("hasRole('ADMIN')")
     public CompletableFuture<ResponseEntity<Void>> deleteDeduction(@PathVariable int deductionId) {
         return CompletableFuture.supplyAsync(() -> {
             deductionInformationService.deleteDeduction(deductionId);
@@ -106,9 +103,10 @@ public class DeductionInformationController {
         }, virtualThreadExecutor);
     }
 
-    // 根据处理人获取扣除记录
+    // 根据处理人获取扣除记录 (USER 和 ADMIN)
     @GetMapping("/handler/{handler}")
     @Async
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public CompletableFuture<ResponseEntity<List<DeductionInformation>>> getDeductionsByHandler(@PathVariable String handler) {
         return CompletableFuture.supplyAsync(() -> {
             List<DeductionInformation> deductions = deductionInformationService.getDeductionsByHandler(handler);
@@ -116,9 +114,10 @@ public class DeductionInformationController {
         }, virtualThreadExecutor);
     }
 
-    // 根据时间范围获取扣除记录
+    // 根据时间范围获取扣除记录 (USER 和 ADMIN)
     @GetMapping("/timeRange")
     @Async
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public CompletableFuture<ResponseEntity<List<DeductionInformation>>> getDeductionsByTimeRange(@RequestParam Date startTime, @RequestParam Date endTime) {
         return CompletableFuture.supplyAsync(() -> {
             List<DeductionInformation> deductions = deductionInformationService.getDeductionsByTimeRange(startTime, endTime);

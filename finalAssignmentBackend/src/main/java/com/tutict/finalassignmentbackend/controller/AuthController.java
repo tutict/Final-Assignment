@@ -28,7 +28,6 @@ public class AuthController {
 
     private static final Logger logger = Logger.getLogger(AuthController.class.getName());
 
-    // Creating virtual thread pool
     private static final ExecutorService virtualThreadExecutor = Executors.newVirtualThreadPerTaskExecutor();
 
     private final AuthWsService authWsService;
@@ -37,7 +36,7 @@ public class AuthController {
         this.authWsService = authWsService;
     }
 
-    // Login method
+    // Login method (无需认证)
     @PostMapping("/login")
     @PermitAll
     @Async
@@ -61,7 +60,7 @@ public class AuthController {
         }, virtualThreadExecutor);
     }
 
-    // Register method
+    // Register method (无需认证)
     @PostMapping("/register")
     @PermitAll
     @Async
@@ -90,7 +89,7 @@ public class AuthController {
                 });
     }
 
-    // Get all users (Admin only)
+    // Get all users (仅 ADMIN)
     @GetMapping("/users")
     @RolesAllowed("ADMIN")
     @Async

@@ -7,15 +7,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -29,7 +22,6 @@ public class AppealManagementController {
 
     private static final Logger logger = Logger.getLogger(AppealManagementController.class.getName());
 
-    // Creating virtual thread pool
     private static final ExecutorService virtualThreadExecutor = Executors.newVirtualThreadPerTaskExecutor();
 
     private final AppealManagementService appealManagementService;
@@ -38,9 +30,10 @@ public class AppealManagementController {
         this.appealManagementService = appealManagementService;
     }
 
-    // Create a new appeal
+    // Create a new appeal (仅 ADMIN)
     @PostMapping
     @Async
+    @PreAuthorize("hasRole('ADMIN')")
     public CompletableFuture<ResponseEntity<Void>> createAppeal(@RequestBody AppealManagement appeal, @RequestParam String idempotencyKey) {
         return CompletableFuture.supplyAsync(() -> {
             try {
@@ -53,9 +46,10 @@ public class AppealManagementController {
         }, virtualThreadExecutor);
     }
 
-    // Get appeal by ID
+    // Get appeal by ID (USER 和 ADMIN)
     @GetMapping("/{appealId}")
     @Async
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public CompletableFuture<ResponseEntity<AppealManagement>> getAppealById(@PathVariable Integer appealId) {
         return CompletableFuture.supplyAsync(() -> {
             AppealManagement appeal = appealManagementService.getAppealById(appealId);
@@ -67,9 +61,10 @@ public class AppealManagementController {
         }, virtualThreadExecutor);
     }
 
-    // Get all appeals
+    // Get all appeals (USER 和 ADMIN)
     @GetMapping
     @Async
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public CompletableFuture<ResponseEntity<List<AppealManagement>>> getAllAppeals() {
         return CompletableFuture.supplyAsync(() -> {
             List<AppealManagement> appeals = appealManagementService.getAllAppeals();
@@ -77,10 +72,11 @@ public class AppealManagementController {
         }, virtualThreadExecutor);
     }
 
-    // Update appeal information
+    // Update appeal information (仅 ADMIN)
     @PutMapping("/{appealId}")
     @Async
     @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
     public CompletableFuture<ResponseEntity<Void>> updateAppeal(@PathVariable Integer appealId, @RequestBody AppealManagement updatedAppeal, @RequestParam String idempotencyKey) {
         return CompletableFuture.supplyAsync(() -> {
             AppealManagement existingAppeal = appealManagementService.getAppealById(appealId);
@@ -102,9 +98,10 @@ public class AppealManagementController {
         }, virtualThreadExecutor);
     }
 
-    // Delete appeal
+    // Delete appeal (仅 ADMIN)
     @DeleteMapping("/{appealId}")
     @Async
+    @PreAuthorize("hasRole('ADMIN')")
     public CompletableFuture<ResponseEntity<Void>> deleteAppeal(@PathVariable Integer appealId) {
         return CompletableFuture.supplyAsync(() -> {
             appealManagementService.deleteAppeal(appealId);
@@ -112,9 +109,10 @@ public class AppealManagementController {
         }, virtualThreadExecutor);
     }
 
-    // Get appeals by process status
+    // Get appeals by process status (USER 和 ADMIN)
     @GetMapping("/status/{processStatus}")
     @Async
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public CompletableFuture<ResponseEntity<List<AppealManagement>>> getAppealsByProcessStatus(@PathVariable String processStatus) {
         return CompletableFuture.supplyAsync(() -> {
             List<AppealManagement> appeals = appealManagementService.getAppealsByProcessStatus(processStatus);
@@ -122,9 +120,10 @@ public class AppealManagementController {
         }, virtualThreadExecutor);
     }
 
-    // Get appeals by appellant name
+    // Get appeals by appellant name (USER 和 ADMIN)
     @GetMapping("/name/{appealName}")
     @Async
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public CompletableFuture<ResponseEntity<List<AppealManagement>>> getAppealsByAppealName(@PathVariable String appealName) {
         return CompletableFuture.supplyAsync(() -> {
             List<AppealManagement> appeals = appealManagementService.getAppealsByAppealName(appealName);
@@ -132,9 +131,10 @@ public class AppealManagementController {
         }, virtualThreadExecutor);
     }
 
-    // Get offense information by appeal ID
+    // Get offense information by appeal ID (USER 和 ADMIN)
     @GetMapping("/{appealId}/offense")
     @Async
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public CompletableFuture<ResponseEntity<OffenseInformation>> getOffenseByAppealId(@PathVariable Integer appealId) {
         return CompletableFuture.supplyAsync(() -> {
             OffenseInformation offense = appealManagementService.getOffenseByAppealId(appealId);

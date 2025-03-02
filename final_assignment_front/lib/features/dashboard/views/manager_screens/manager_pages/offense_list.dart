@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 // 导入你的 OffenseInformationControllerApi、OffenseInformation
 import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
 import 'package:final_assignment_front/features/model/offense_information.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // For JWT token
 
 class OffenseList extends StatefulWidget {
   const OffenseList({super.key});
@@ -22,7 +23,17 @@ class _OffenseListPageState extends State<OffenseList> {
   void initState() {
     super.initState();
     offenseApi = OffenseInformationControllerApi();
-    _offensesFuture = _fetchOffenses();
+    _offensesFuture = _fetchOffenses(); // Initial fetch without filters
+  }
+
+  /// 获取 JWT 令牌
+  Future<Map<String, String>> _getAuthHeaders() async {
+    final prefs = await SharedPreferences.getInstance();
+    final jwtToken = prefs.getString('jwtToken');
+    if (jwtToken == null) {
+      throw Exception('No JWT token found');
+    }
+    return {'Authorization': 'Bearer $jwtToken'};
   }
 
   /// 根据可选条件（driverName, licensePlate, timeRange等）获取违法行为信息
@@ -33,18 +44,21 @@ class _OffenseListPageState extends State<OffenseList> {
     DateTime? endTime,
   }) async {
     try {
+      final headers = await _getAuthHeaders(); // Get authentication headers
+
       // 1) 按司机姓名
       if (driverName != null && driverName.isNotEmpty) {
         final result = await offenseApi.apiOffensesDriverNameDriverNameGet(
           driverName: driverName,
+          headers: headers, // Pass headers
         );
-        // result 可能是单个对象(Map)或列表(List)
         return _parseOffensesResult(result);
       }
       // 2) 按车牌号
       else if (licensePlate != null && licensePlate.isNotEmpty) {
         final result = await offenseApi.apiOffensesLicensePlateLicensePlateGet(
           licensePlate: licensePlate,
+          headers: headers, // Pass headers
         );
         return _parseOffensesResult(result);
       }
@@ -53,16 +67,18 @@ class _OffenseListPageState extends State<OffenseList> {
         final listObj = await offenseApi.apiOffensesTimeRangeGet(
           startTime: startTime.toIso8601String(),
           endTime: endTime.toIso8601String(),
+          headers: headers, // Pass headers
         );
         return _parseOffensesList(listObj);
       }
       // 4) 否则获取所有
       else {
-        final listObj = await offenseApi.apiOffensesGet();
+        final listObj =
+            await offenseApi.apiOffensesGet(headers: headers); // Pass headers
         return _parseOffensesList(listObj);
       }
     } catch (e) {
-      // 处理或 rethrow
+      debugPrint('获取违法行为信息失败: $e');
       throw Exception('获取违法行为信息失败: $e');
     }
   }
@@ -70,9 +86,11 @@ class _OffenseListPageState extends State<OffenseList> {
   /// 删除违法行为
   Future<void> _deleteOffense(int offenseId) async {
     try {
+      final headers = await _getAuthHeaders(); // Get authentication headers
       // 调用 apiOffensesOffenseIdDelete
       final responseObj = await offenseApi.apiOffensesOffenseIdDelete(
         offenseId: offenseId.toString(),
+        headers: headers, // Pass headers
       );
       // 如果成功，刷新列表
       if (!mounted) return;

@@ -28,9 +28,10 @@ class OffenseInformationControllerApi {
 
   /// 根据司机姓名获取违法行为信息。 with HTTP info returned
   ///
-  ///
-  Future<Response> apiOffensesDriverNameDriverNameGetWithHttpInfo(
-      {required String driverName}) async {
+  Future<Response> apiOffensesDriverNameDriverNameGetWithHttpInfo({
+    required String driverName,
+    Map<String, String>? headers,
+  }) async {
     Object postBody = ''; // GET 请求通常没有 body
 
     // 创建路径和映射变量
@@ -40,7 +41,8 @@ class OffenseInformationControllerApi {
 
     // 查询参数
     List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
+    Map<String, String> headerParams =
+        headers ?? {}; // Use provided headers or empty
     Map<String, String> formParams = {};
 
     List<String> contentTypes = [];
@@ -49,8 +51,6 @@ class OffenseInformationControllerApi {
         contentTypes.isNotEmpty ? contentTypes[0] : null;
     List<String> authNames = [];
 
-    // 已移除与 MultipartRequest 相关的死代码
-
     var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
         headerParams, formParams, nullableContentType, authNames);
     return response;
@@ -58,11 +58,12 @@ class OffenseInformationControllerApi {
 
   /// 根据司机姓名获取违法行为信息。
   ///
-  ///
-  Future<Object?> apiOffensesDriverNameDriverNameGet(
-      {required String driverName}) async {
+  Future<Object?> apiOffensesDriverNameDriverNameGet({
+    required String driverName,
+    Map<String, String>? headers,
+  }) async {
     Response response = await apiOffensesDriverNameDriverNameGetWithHttpInfo(
-        driverName: driverName);
+        driverName: driverName, headers: headers);
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     } else if (response.body.isNotEmpty) {
@@ -75,8 +76,9 @@ class OffenseInformationControllerApi {
 
   /// 获取所有违法行为的信息。 with HTTP info returned
   ///
-  ///
-  Future<Response> apiOffensesGetWithHttpInfo() async {
+  Future<Response> apiOffensesGetWithHttpInfo({
+    Map<String, String>? headers,
+  }) async {
     Object postBody = ''; // GET 请求通常没有 body
 
     // 创建路径和映射变量
@@ -84,7 +86,8 @@ class OffenseInformationControllerApi {
 
     // 查询参数
     List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
+    Map<String, String> headerParams =
+        headers ?? {}; // Use provided headers or empty
     Map<String, String> formParams = {};
 
     List<String> contentTypes = [];
@@ -93,8 +96,6 @@ class OffenseInformationControllerApi {
         contentTypes.isNotEmpty ? contentTypes[0] : null;
     List<String> authNames = [];
 
-    // 已移除与 MultipartRequest 相关的死代码
-
     var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
         headerParams, formParams, nullableContentType, authNames);
     return response;
@@ -102,9 +103,10 @@ class OffenseInformationControllerApi {
 
   /// 获取所有违法行为的信息。
   ///
-  ///
-  Future<List<Object>?> apiOffensesGet({required Map<String, String> headers}) async {
-    Response response = await apiOffensesGetWithHttpInfo();
+  Future<List<Object>?> apiOffensesGet({
+    required Map<String, String> headers,
+  }) async {
+    Response response = await apiOffensesGetWithHttpInfo(headers: headers);
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     } else if (response.body.isNotEmpty) {
@@ -117,9 +119,10 @@ class OffenseInformationControllerApi {
 
   /// 根据车牌号获取违法行为信息。 with HTTP info returned
   ///
-  ///
-  Future<Response> apiOffensesLicensePlateLicensePlateGetWithHttpInfo(
-      {required String licensePlate}) async {
+  Future<Response> apiOffensesLicensePlateLicensePlateGetWithHttpInfo({
+    required String licensePlate,
+    Map<String, String>? headers,
+  }) async {
     Object postBody = ''; // GET 请求通常没有 body
 
     // 创建路径和映射变量
@@ -129,7 +132,8 @@ class OffenseInformationControllerApi {
 
     // 查询参数
     List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
+    Map<String, String> headerParams =
+        headers ?? {}; // Use provided headers or empty
     Map<String, String> formParams = {};
 
     List<String> contentTypes = [];
@@ -138,8 +142,6 @@ class OffenseInformationControllerApi {
         contentTypes.isNotEmpty ? contentTypes[0] : null;
     List<String> authNames = [];
 
-    // 已移除与 MultipartRequest 相关的死代码
-
     var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
         headerParams, formParams, nullableContentType, authNames);
     return response;
@@ -147,12 +149,13 @@ class OffenseInformationControllerApi {
 
   /// 根据车牌号获取违法行为信息。
   ///
-  ///
-  Future<Object?> apiOffensesLicensePlateLicensePlateGet(
-      {required String licensePlate}) async {
+  Future<Object?> apiOffensesLicensePlateLicensePlateGet({
+    required String licensePlate,
+    Map<String, String>? headers,
+  }) async {
     Response response =
         await apiOffensesLicensePlateLicensePlateGetWithHttpInfo(
-            licensePlate: licensePlate);
+            licensePlate: licensePlate, headers: headers);
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     } else if (response.body.isNotEmpty) {
@@ -165,9 +168,10 @@ class OffenseInformationControllerApi {
 
   /// 删除指定违法行为的信息。 with HTTP info returned
   ///
-  ///
-  Future<Response> apiOffensesOffenseIdDeleteWithHttpInfo(
-      {required String offenseId}) async {
+  Future<Response> apiOffensesOffenseIdDeleteWithHttpInfo({
+    required String offenseId,
+    Map<String, String>? headers,
+  }) async {
     Object postBody = ''; // DELETE 请求通常没有 body
 
     // 创建路径和映射变量
@@ -177,7 +181,8 @@ class OffenseInformationControllerApi {
 
     // 查询参数
     List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
+    Map<String, String> headerParams =
+        headers ?? {}; // Use provided headers or empty
     Map<String, String> formParams = {};
 
     List<String> contentTypes = [];
@@ -186,8 +191,6 @@ class OffenseInformationControllerApi {
         contentTypes.isNotEmpty ? contentTypes[0] : null;
     List<String> authNames = [];
 
-    // 已移除与 MultipartRequest 相关的死代码
-
     var response = await apiClient.invokeAPI(path, 'DELETE', queryParams,
         postBody, headerParams, formParams, nullableContentType, authNames);
     return response;
@@ -195,11 +198,12 @@ class OffenseInformationControllerApi {
 
   /// 删除指定违法行为的信息。
   ///
-  ///
-  Future<Object?> apiOffensesOffenseIdDelete(
-      {required String offenseId}) async {
-    Response response =
-        await apiOffensesOffenseIdDeleteWithHttpInfo(offenseId: offenseId);
+  Future<Object?> apiOffensesOffenseIdDelete({
+    required String offenseId,
+    Map<String, String>? headers,
+  }) async {
+    Response response = await apiOffensesOffenseIdDeleteWithHttpInfo(
+        offenseId: offenseId, headers: headers);
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     } else if (response.body.isNotEmpty) {
@@ -212,9 +216,10 @@ class OffenseInformationControllerApi {
 
   /// 根据违法行为ID获取违法行为信息。 with HTTP info returned
   ///
-  ///
-  Future<Response> apiOffensesOffenseIdGetWithHttpInfo(
-      {required String offenseId}) async {
+  Future<Response> apiOffensesOffenseIdGetWithHttpInfo({
+    required String offenseId,
+    Map<String, String>? headers,
+  }) async {
     Object postBody = ''; // GET 请求通常没有 body
 
     // 创建路径和映射变量
@@ -224,7 +229,8 @@ class OffenseInformationControllerApi {
 
     // 查询参数
     List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
+    Map<String, String> headerParams =
+        headers ?? {}; // Use provided headers or empty
     Map<String, String> formParams = {};
 
     List<String> contentTypes = [];
@@ -233,8 +239,6 @@ class OffenseInformationControllerApi {
         contentTypes.isNotEmpty ? contentTypes[0] : null;
     List<String> authNames = [];
 
-    // 已移除与 MultipartRequest 相关的死代码
-
     var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
         headerParams, formParams, nullableContentType, authNames);
     return response;
@@ -242,10 +246,12 @@ class OffenseInformationControllerApi {
 
   /// 根据违法行为ID获取违法行为信息。
   ///
-  ///
-  Future<Object?> apiOffensesOffenseIdGet({required String offenseId}) async {
-    Response response =
-        await apiOffensesOffenseIdGetWithHttpInfo(offenseId: offenseId);
+  Future<Object?> apiOffensesOffenseIdGet({
+    required String offenseId,
+    Map<String, String>? headers,
+  }) async {
+    Response response = await apiOffensesOffenseIdGetWithHttpInfo(
+        offenseId: offenseId, headers: headers);
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     } else if (response.body.isNotEmpty) {
@@ -258,9 +264,11 @@ class OffenseInformationControllerApi {
 
   /// 更新指定违法行为的信息。 with HTTP info returned
   ///
-  ///
-  Future<Response> apiOffensesOffenseIdPutWithHttpInfo(
-      {required String offenseId, int? updateValue}) async {
+  Future<Response> apiOffensesOffenseIdPutWithHttpInfo({
+    required String offenseId,
+    int? updateValue,
+    Map<String, String>? headers,
+  }) async {
     Object postBody = updateValue ?? 0; // 根据实际需求设置默认值
 
     // 创建路径和映射变量
@@ -270,7 +278,8 @@ class OffenseInformationControllerApi {
 
     // 查询参数
     List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
+    Map<String, String> headerParams =
+        headers ?? {}; // Use provided headers or empty
     Map<String, String> formParams = {};
 
     List<String> contentTypes = ["application/json"];
@@ -279,8 +288,6 @@ class OffenseInformationControllerApi {
         contentTypes.isNotEmpty ? contentTypes[0] : null;
     List<String> authNames = [];
 
-    // 已移除与 MultipartRequest 相关的死代码
-
     var response = await apiClient.invokeAPI(path, 'PUT', queryParams, postBody,
         headerParams, formParams, nullableContentType, authNames);
     return response;
@@ -288,11 +295,13 @@ class OffenseInformationControllerApi {
 
   /// 更新指定违法行为的信息。
   ///
-  ///
-  Future<Object?> apiOffensesOffenseIdPut(
-      {required String offenseId, int? updateValue}) async {
+  Future<Object?> apiOffensesOffenseIdPut({
+    required String offenseId,
+    int? updateValue,
+    Map<String, String>? headers,
+  }) async {
     Response response = await apiOffensesOffenseIdPutWithHttpInfo(
-        offenseId: offenseId, updateValue: updateValue);
+        offenseId: offenseId, updateValue: updateValue, headers: headers);
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     } else if (response.body.isNotEmpty) {
@@ -305,9 +314,10 @@ class OffenseInformationControllerApi {
 
   /// 创建新的违法行为信息。 with HTTP info returned
   ///
-  ///
-  Future<Response> apiOffensesPostWithHttpInfo(
-      {required OffenseInformation offenseInformation}) async {
+  Future<Response> apiOffensesPostWithHttpInfo({
+    required OffenseInformation offenseInformation,
+    Map<String, String>? headers,
+  }) async {
     Object postBody = offenseInformation;
 
     // 创建路径和映射变量
@@ -315,7 +325,8 @@ class OffenseInformationControllerApi {
 
     // 查询参数
     List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
+    Map<String, String> headerParams =
+        headers ?? {}; // Use provided headers or empty
     Map<String, String> formParams = {};
 
     List<String> contentTypes = ["application/json"];
@@ -324,8 +335,6 @@ class OffenseInformationControllerApi {
         contentTypes.isNotEmpty ? contentTypes[0] : null;
     List<String> authNames = [];
 
-    // 已移除与 MultipartRequest 相关的死代码
-
     var response = await apiClient.invokeAPI(path, 'POST', queryParams,
         postBody, headerParams, formParams, nullableContentType, authNames);
     return response;
@@ -333,11 +342,12 @@ class OffenseInformationControllerApi {
 
   /// 创建新的违法行为信息。
   ///
-  ///
-  Future<Object?> apiOffensesPost(
-      {required OffenseInformation offenseInformation}) async {
+  Future<Object?> apiOffensesPost({
+    required OffenseInformation offenseInformation,
+    Map<String, String>? headers,
+  }) async {
     Response response = await apiOffensesPostWithHttpInfo(
-        offenseInformation: offenseInformation);
+        offenseInformation: offenseInformation, headers: headers);
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     } else if (response.body.isNotEmpty) {
@@ -350,9 +360,10 @@ class OffenseInformationControllerApi {
 
   /// 根据处理状态获取违法行为信息。 with HTTP info returned
   ///
-  ///
-  Future<Response> apiOffensesProcessStateProcessStateGetWithHttpInfo(
-      {required String processState}) async {
+  Future<Response> apiOffensesProcessStateProcessStateGetWithHttpInfo({
+    required String processState,
+    Map<String, String>? headers,
+  }) async {
     Object postBody = ''; // GET 请求通常没有 body
 
     // 创建路径和映射变量
@@ -362,7 +373,8 @@ class OffenseInformationControllerApi {
 
     // 查询参数
     List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
+    Map<String, String> headerParams =
+        headers ?? {}; // Use provided headers or empty
     Map<String, String> formParams = {};
 
     List<String> contentTypes = [];
@@ -371,8 +383,6 @@ class OffenseInformationControllerApi {
         contentTypes.isNotEmpty ? contentTypes[0] : null;
     List<String> authNames = [];
 
-    // 已移除与 MultipartRequest 相关的死代码
-
     var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
         headerParams, formParams, nullableContentType, authNames);
     return response;
@@ -380,12 +390,13 @@ class OffenseInformationControllerApi {
 
   /// 根据处理状态获取违法行为信息。
   ///
-  ///
-  Future<Object?> apiOffensesProcessStateProcessStateGet(
-      {required String processState}) async {
+  Future<Object?> apiOffensesProcessStateProcessStateGet({
+    required String processState,
+    Map<String, String>? headers,
+  }) async {
     Response response =
         await apiOffensesProcessStateProcessStateGetWithHttpInfo(
-            processState: processState);
+            processState: processState, headers: headers);
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     } else if (response.body.isNotEmpty) {
@@ -398,9 +409,11 @@ class OffenseInformationControllerApi {
 
   /// 根据时间范围获取违法行为信息。 with HTTP info returned
   ///
-  ///
-  Future<Response> apiOffensesTimeRangeGetWithHttpInfo(
-      {String? startTime, String? endTime}) async {
+  Future<Response> apiOffensesTimeRangeGetWithHttpInfo({
+    String? startTime,
+    String? endTime,
+    Map<String, String>? headers,
+  }) async {
     Object postBody = ''; // GET 请求通常没有 body
 
     // 创建路径和映射变量
@@ -408,7 +421,8 @@ class OffenseInformationControllerApi {
 
     // 查询参数
     List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
+    Map<String, String> headerParams =
+        headers ?? {}; // Use provided headers or empty
     Map<String, String> formParams = {};
     if (startTime != null) {
       queryParams.addAll(
@@ -425,8 +439,6 @@ class OffenseInformationControllerApi {
         contentTypes.isNotEmpty ? contentTypes[0] : null;
     List<String> authNames = [];
 
-    // 已移除与 MultipartRequest 相关的死代码
-
     var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
         headerParams, formParams, nullableContentType, authNames);
     return response;
@@ -434,11 +446,13 @@ class OffenseInformationControllerApi {
 
   /// 根据时间范围获取违法行为信息。
   ///
-  ///
-  Future<List<Object>?> apiOffensesTimeRangeGet(
-      {String? startTime, String? endTime}) async {
+  Future<List<Object>?> apiOffensesTimeRangeGet({
+    String? startTime,
+    String? endTime,
+    Map<String, String>? headers,
+  }) async {
     Response response = await apiOffensesTimeRangeGetWithHttpInfo(
-        startTime: startTime, endTime: endTime);
+        startTime: startTime, endTime: endTime, headers: headers);
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     } else if (response.body.isNotEmpty) {

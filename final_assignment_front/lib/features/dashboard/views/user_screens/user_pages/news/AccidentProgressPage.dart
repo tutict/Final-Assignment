@@ -15,6 +15,8 @@ class _AccidentProgressPageState extends State<AccidentProgressPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
@@ -22,8 +24,11 @@ class _AccidentProgressPageState extends State<AccidentProgressPage> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Colors.deepPurple,
-              Theme.of(context).colorScheme.background,
+              isDarkMode ? Colors.deepPurple[900]! : Colors.deepPurple,
+              // 暗色模式使用更深的紫色
+              isDarkMode
+                  ? Theme.of(context).colorScheme.background
+                  : Theme.of(context).colorScheme.background,
             ],
           ),
         ),
@@ -77,12 +82,14 @@ class _AccidentProgressPageState extends State<AccidentProgressPage> {
   }
 
   Widget _buildHeader(BuildContext context, String title) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            icon: Icon(Icons.arrow_back,
+                color: isDarkMode ? Colors.white : Colors.white),
             onPressed: () => controller.exitSidebarContent(),
           ),
           Expanded(
@@ -91,7 +98,7 @@ class _AccidentProgressPageState extends State<AccidentProgressPage> {
               style: GoogleFonts.roboto(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: isDarkMode ? Colors.white : Colors.white,
               ),
             ),
           ),
@@ -101,6 +108,7 @@ class _AccidentProgressPageState extends State<AccidentProgressPage> {
   }
 
   Widget _buildSectionTitle(BuildContext context, String title) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Text(
@@ -108,21 +116,24 @@ class _AccidentProgressPageState extends State<AccidentProgressPage> {
         style: GoogleFonts.roboto(
           fontSize: 20,
           fontWeight: FontWeight.bold,
-          color: Colors.white,
+          color: isDarkMode ? Colors.white : Colors.white,
         ),
       ),
     );
   }
 
   Widget _buildStepCard(BuildContext context, String title, String content) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       margin: const EdgeInsets.symmetric(vertical: 8.0),
-      color: Colors.white.withOpacity(0.9),
+      color: isDarkMode ? Colors.grey[800] : Colors.white.withOpacity(0.9),
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: Theme.of(context).colorScheme.primary,
+          backgroundColor: isDarkMode
+              ? Colors.deepPurple
+              : Theme.of(context).colorScheme.primary,
           child: Text(
             title.split('.')[0], // 提取步骤编号
             style: const TextStyle(color: Colors.white),
@@ -133,21 +144,27 @@ class _AccidentProgressPageState extends State<AccidentProgressPage> {
           style: GoogleFonts.roboto(
             fontSize: 18,
             fontWeight: FontWeight.bold,
+            color: isDarkMode ? Colors.white : Colors.black87,
           ),
         ),
         subtitle: Text(
           content,
-          style: GoogleFonts.roboto(fontSize: 16),
+          style: GoogleFonts.roboto(
+            fontSize: 16,
+            color: isDarkMode ? Colors.white70 : Colors.black54,
+          ),
         ),
       ),
     );
   }
 
   Widget _buildContentCard(BuildContext context, String title, String content) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       margin: const EdgeInsets.symmetric(vertical: 8.0),
+      color: isDarkMode ? Colors.grey[800] : Colors.white,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -158,7 +175,9 @@ class _AccidentProgressPageState extends State<AccidentProgressPage> {
               style: GoogleFonts.roboto(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.primary,
+                color: isDarkMode
+                    ? Colors.deepPurpleAccent
+                    : Theme.of(context).colorScheme.primary,
               ),
             ),
             const SizedBox(height: 8),
@@ -166,7 +185,7 @@ class _AccidentProgressPageState extends State<AccidentProgressPage> {
               content,
               style: GoogleFonts.roboto(
                 fontSize: 16,
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+                color: isDarkMode ? Colors.white70 : Colors.black87,
               ),
             ),
           ],

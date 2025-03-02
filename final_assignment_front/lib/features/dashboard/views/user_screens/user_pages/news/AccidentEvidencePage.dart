@@ -15,6 +15,8 @@ class _AccidentEvidencePageState extends State<AccidentEvidencePage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
@@ -22,8 +24,10 @@ class _AccidentEvidencePageState extends State<AccidentEvidencePage> {
             begin: Alignment.topRight,
             end: Alignment.bottomLeft,
             colors: [
-              Colors.orangeAccent,
-              Theme.of(context).colorScheme.background,
+              isDarkMode ? Colors.orange : Colors.orangeAccent, // 暗色模式使用纯橙色
+              isDarkMode
+                  ? Theme.of(context).colorScheme.background
+                  : Theme.of(context).colorScheme.background,
             ],
           ),
         ),
@@ -71,12 +75,14 @@ class _AccidentEvidencePageState extends State<AccidentEvidencePage> {
   }
 
   Widget _buildHeader(BuildContext context, String title) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            icon: Icon(Icons.arrow_back,
+                color: isDarkMode ? Colors.white : Colors.white),
             onPressed: () => controller.exitSidebarContent(),
           ),
           Expanded(
@@ -85,7 +91,7 @@ class _AccidentEvidencePageState extends State<AccidentEvidencePage> {
               style: GoogleFonts.roboto(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: isDarkMode ? Colors.white : Colors.white,
               ),
             ),
           ),
@@ -95,6 +101,7 @@ class _AccidentEvidencePageState extends State<AccidentEvidencePage> {
   }
 
   Widget _buildSectionTitle(BuildContext context, String title) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Text(
@@ -102,7 +109,7 @@ class _AccidentEvidencePageState extends State<AccidentEvidencePage> {
         style: GoogleFonts.roboto(
           fontSize: 20,
           fontWeight: FontWeight.bold,
-          color: Colors.white,
+          color: isDarkMode ? Colors.white : Colors.white,
         ),
       ),
     );
@@ -110,10 +117,12 @@ class _AccidentEvidencePageState extends State<AccidentEvidencePage> {
 
   Widget _buildEvidenceCard(
       BuildContext context, String title, String content) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       margin: const EdgeInsets.symmetric(vertical: 8.0),
+      color: isDarkMode ? Colors.grey[800] : Colors.white,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -124,13 +133,18 @@ class _AccidentEvidencePageState extends State<AccidentEvidencePage> {
               style: GoogleFonts.roboto(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.primary,
+                color: isDarkMode
+                    ? Colors.orangeAccent
+                    : Theme.of(context).colorScheme.primary,
               ),
             ),
             const SizedBox(height: 8),
             Text(
               content,
-              style: GoogleFonts.roboto(fontSize: 16),
+              style: GoogleFonts.roboto(
+                fontSize: 16,
+                color: isDarkMode ? Colors.white70 : Colors.black87,
+              ),
             ),
           ],
         ),
@@ -139,10 +153,12 @@ class _AccidentEvidencePageState extends State<AccidentEvidencePage> {
   }
 
   Widget _buildContentCard(BuildContext context, String title, String content) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       margin: const EdgeInsets.symmetric(vertical: 8.0),
+      color: isDarkMode ? Colors.grey[800] : Colors.white,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -153,13 +169,18 @@ class _AccidentEvidencePageState extends State<AccidentEvidencePage> {
               style: GoogleFonts.roboto(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.primary,
+                color: isDarkMode
+                    ? Colors.orangeAccent
+                    : Theme.of(context).colorScheme.primary,
               ),
             ),
             const SizedBox(height: 8),
             Text(
               content,
-              style: GoogleFonts.roboto(fontSize: 16),
+              style: GoogleFonts.roboto(
+                fontSize: 16,
+                color: isDarkMode ? Colors.white70 : Colors.black87,
+              ),
             ),
           ],
         ),

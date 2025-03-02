@@ -8,6 +8,7 @@ class FineInformation {
   String? bank;
   String? receiptNumber;
   String? remarks;
+  String? status; // 添加 status 字段
   String idempotencyKey;
 
   FineInformation({
@@ -20,6 +21,7 @@ class FineInformation {
     this.bank,
     this.receiptNumber,
     this.remarks,
+    this.status, // 初始化 status
     required this.idempotencyKey,
   });
 
@@ -34,6 +36,8 @@ class FineInformation {
       bank: json['bank'],
       receiptNumber: json['receiptNumber'],
       remarks: json['remarks'],
+      status: json['status'],
+      // 解析 status
       idempotencyKey: json['idempotencyKey'] ?? '',
     );
   }
@@ -49,6 +53,7 @@ class FineInformation {
       if (bank != null) 'bank': bank,
       if (receiptNumber != null) 'receiptNumber': receiptNumber,
       if (remarks != null) 'remarks': remarks,
+      if (status != null) 'status': status, // 包含 status 在 JSON 中
       'idempotencyKey': idempotencyKey,
     };
   }
@@ -61,7 +66,7 @@ class FineInformation {
     var map = <String, FineInformation>{};
     if (json.isNotEmpty) {
       json.forEach((String key, dynamic value) =>
-      map[key] = FineInformation.fromJson(value));
+          map[key] = FineInformation.fromJson(value));
     }
     return map;
   }

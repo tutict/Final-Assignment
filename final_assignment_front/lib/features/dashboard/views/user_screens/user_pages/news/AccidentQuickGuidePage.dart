@@ -15,6 +15,8 @@ class _AccidentQuickGuidePageState extends State<AccidentQuickGuidePage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
@@ -22,8 +24,10 @@ class _AccidentQuickGuidePageState extends State<AccidentQuickGuidePage> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Colors.teal,
-              Theme.of(context).colorScheme.background,
+              isDarkMode ? Colors.teal[900]! : Colors.teal, // 暗色模式使用更深的青色
+              isDarkMode
+                  ? Theme.of(context).colorScheme.background
+                  : Theme.of(context).colorScheme.background,
             ],
           ),
         ),
@@ -55,12 +59,14 @@ class _AccidentQuickGuidePageState extends State<AccidentQuickGuidePage> {
   }
 
   Widget _buildHeader(BuildContext context, String title) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            icon: Icon(Icons.arrow_back,
+                color: isDarkMode ? Colors.white : Colors.white),
             onPressed: () => controller.exitSidebarContent(),
           ),
           Expanded(
@@ -69,7 +75,7 @@ class _AccidentQuickGuidePageState extends State<AccidentQuickGuidePage> {
               style: GoogleFonts.roboto(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: isDarkMode ? Colors.white : Colors.white,
               ),
             ),
           ),
@@ -79,6 +85,7 @@ class _AccidentQuickGuidePageState extends State<AccidentQuickGuidePage> {
   }
 
   Widget _buildSectionTitle(BuildContext context, String title) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Text(
@@ -86,21 +93,23 @@ class _AccidentQuickGuidePageState extends State<AccidentQuickGuidePage> {
         style: GoogleFonts.roboto(
           fontSize: 20,
           fontWeight: FontWeight.bold,
-          color: Colors.white,
+          color: isDarkMode ? Colors.white : Colors.white,
         ),
       ),
     );
   }
 
   Widget _buildStepCard(BuildContext context, String title, String content) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       margin: const EdgeInsets.symmetric(vertical: 8.0),
-      color: Colors.white.withOpacity(0.9),
+      color: isDarkMode ? Colors.grey[800] : Colors.white.withOpacity(0.9),
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: Theme.of(context).colorScheme.primary,
+          backgroundColor:
+              isDarkMode ? Colors.teal : Theme.of(context).colorScheme.primary,
           child: Text(
             title.split('.')[0],
             style: const TextStyle(color: Colors.white),
@@ -111,11 +120,15 @@ class _AccidentQuickGuidePageState extends State<AccidentQuickGuidePage> {
           style: GoogleFonts.roboto(
             fontSize: 18,
             fontWeight: FontWeight.bold,
+            color: isDarkMode ? Colors.white : Colors.black87,
           ),
         ),
         subtitle: Text(
           content,
-          style: GoogleFonts.roboto(fontSize: 16),
+          style: GoogleFonts.roboto(
+            fontSize: 16,
+            color: isDarkMode ? Colors.white70 : Colors.black54,
+          ),
         ),
       ),
     );

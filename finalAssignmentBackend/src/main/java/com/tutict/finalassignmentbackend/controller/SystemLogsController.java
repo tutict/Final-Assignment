@@ -6,15 +6,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.util.Date;
 import java.util.List;
@@ -34,9 +27,10 @@ public class SystemLogsController {
         this.systemLogsService = systemLogsService;
     }
 
-    // 创建新的系统日志记录
+    // 创建新的系统日志记录 (仅 ADMIN)
     @PostMapping
     @Async
+    @PreAuthorize("hasRole('ADMIN')")
     public CompletableFuture<ResponseEntity<Void>> createSystemLog(@RequestBody SystemLogs systemLog, @RequestParam String idempotencyKey) {
         return CompletableFuture.supplyAsync(() -> {
             systemLogsService.checkAndInsertIdempotency(idempotencyKey, systemLog, "create");
@@ -44,9 +38,10 @@ public class SystemLogsController {
         }, virtualThreadExecutor);
     }
 
-    // 根据日志ID获取系统日志信息
+    // 根据日志ID获取系统日志信息 (USER 和 ADMIN)
     @GetMapping("/{logId}")
     @Async
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public CompletableFuture<ResponseEntity<SystemLogs>> getSystemLogById(@PathVariable int logId) {
         return CompletableFuture.supplyAsync(() -> {
             SystemLogs systemLog = systemLogsService.getSystemLogById(logId);
@@ -58,9 +53,10 @@ public class SystemLogsController {
         }, virtualThreadExecutor);
     }
 
-    // 获取所有系统日志
+    // 获取所有系统日志 (USER 和 ADMIN)
     @GetMapping
     @Async
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public CompletableFuture<ResponseEntity<List<SystemLogs>>> getAllSystemLogs() {
         return CompletableFuture.supplyAsync(() -> {
             List<SystemLogs> systemLogs = systemLogsService.getAllSystemLogs();
@@ -68,9 +64,10 @@ public class SystemLogsController {
         }, virtualThreadExecutor);
     }
 
-    // 根据日志类型获取系统日志
+    // 根据日志类型获取系统日志 (USER 和 ADMIN)
     @GetMapping("/type/{logType}")
     @Async
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public CompletableFuture<ResponseEntity<List<SystemLogs>>> getSystemLogsByType(@PathVariable String logType) {
         return CompletableFuture.supplyAsync(() -> {
             List<SystemLogs> systemLogs = systemLogsService.getSystemLogsByType(logType);
@@ -78,9 +75,10 @@ public class SystemLogsController {
         }, virtualThreadExecutor);
     }
 
-    // 根据时间范围获取系统日志
+    // 根据时间范围获取系统日志 (USER 和 ADMIN)
     @GetMapping("/timeRange")
     @Async
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public CompletableFuture<ResponseEntity<List<SystemLogs>>> getSystemLogsByTimeRange(
             @RequestParam Date startTime,
             @RequestParam Date endTime) {
@@ -90,9 +88,10 @@ public class SystemLogsController {
         }, virtualThreadExecutor);
     }
 
-    // 根据操作用户获取系统日志
+    // 根据操作用户获取系统日志 (USER 和 ADMIN)
     @GetMapping("/operationUser/{operationUser}")
     @Async
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public CompletableFuture<ResponseEntity<List<SystemLogs>>> getSystemLogsByOperationUser(@PathVariable String operationUser) {
         return CompletableFuture.supplyAsync(() -> {
             List<SystemLogs> systemLogs = systemLogsService.getSystemLogsByOperationUser(operationUser);
@@ -100,10 +99,11 @@ public class SystemLogsController {
         }, virtualThreadExecutor);
     }
 
-    // 更新指定系统日志信息
+    // 更新指定系统日志信息 (仅 ADMIN)
     @PutMapping("/{logId}")
     @Async
     @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
     public CompletableFuture<ResponseEntity<SystemLogs>> updateSystemLog(@PathVariable int logId, @RequestBody SystemLogs updatedSystemLog, @RequestParam String idempotencyKey) {
         return CompletableFuture.supplyAsync(() -> {
             SystemLogs existingSystemLog = systemLogsService.getSystemLogById(logId);
@@ -117,9 +117,10 @@ public class SystemLogsController {
         }, virtualThreadExecutor);
     }
 
-    // 删除指定系统日志记录
+    // 删除指定系统日志记录 (仅 ADMIN)
     @DeleteMapping("/{logId}")
     @Async
+    @PreAuthorize("hasRole('ADMIN')")
     public CompletableFuture<ResponseEntity<Void>> deleteSystemLog(@PathVariable int logId) {
         return CompletableFuture.supplyAsync(() -> {
             systemLogsService.deleteSystemLog(logId);

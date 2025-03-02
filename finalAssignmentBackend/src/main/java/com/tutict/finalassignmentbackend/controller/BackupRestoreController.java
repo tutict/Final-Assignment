@@ -6,15 +6,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.scheduling.annotation.Async;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -28,7 +21,6 @@ public class BackupRestoreController {
 
     private static final Logger logger = Logger.getLogger(BackupRestoreController.class.getName());
 
-    // Creating virtual thread pool
     private static final ExecutorService virtualThreadExecutor = Executors.newVirtualThreadPerTaskExecutor();
 
     private final BackupRestoreService backupRestoreService;
@@ -37,10 +29,11 @@ public class BackupRestoreController {
         this.backupRestoreService = backupRestoreService;
     }
 
-    // Create new backup record
+    // Create new backup record (仅 ADMIN)
     @PostMapping
     @Async
     @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
     public CompletableFuture<ResponseEntity<Void>> createBackup(@RequestBody BackupRestore backup, @RequestParam String idempotencyKey) {
         return CompletableFuture.supplyAsync(() -> {
             logger.info("Attempting to create backup with idempotency key: " + idempotencyKey);
@@ -50,9 +43,10 @@ public class BackupRestoreController {
         }, virtualThreadExecutor);
     }
 
-    // Get all backups
+    // Get all backups (USER 和 ADMIN)
     @GetMapping
     @Async
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public CompletableFuture<ResponseEntity<List<BackupRestore>>> getAllBackups() {
         return CompletableFuture.supplyAsync(() -> {
             logger.info("Fetching all backups.");
@@ -62,9 +56,10 @@ public class BackupRestoreController {
         }, virtualThreadExecutor);
     }
 
-    // Get backup by ID
+    // Get backup by ID (USER 和 ADMIN)
     @GetMapping("/{backupId}")
     @Async
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public CompletableFuture<ResponseEntity<BackupRestore>> getBackupById(@PathVariable int backupId) {
         return CompletableFuture.supplyAsync(() -> {
             logger.info("Fetching backup by ID: " + backupId);
@@ -77,9 +72,10 @@ public class BackupRestoreController {
         }, virtualThreadExecutor);
     }
 
-    // Delete backup by ID
+    // Delete backup by ID (仅 ADMIN)
     @DeleteMapping("/{backupId}")
     @Async
+    @PreAuthorize("hasRole('ADMIN')")
     public CompletableFuture<ResponseEntity<Void>> deleteBackup(@PathVariable int backupId) {
         return CompletableFuture.supplyAsync(() -> {
             logger.info("Attempting to delete backup with ID: " + backupId);
@@ -89,10 +85,11 @@ public class BackupRestoreController {
         }, virtualThreadExecutor);
     }
 
-    // Update backup by ID
+    // Update backup by ID (仅 ADMIN)
     @PutMapping("/{backupId}")
     @Async
     @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
     public CompletableFuture<ResponseEntity<Void>> updateBackup(@PathVariable int backupId, @RequestBody BackupRestore updatedBackup, @RequestParam String idempotencyKey) {
         return CompletableFuture.supplyAsync(() -> {
             logger.info("Attempting to update backup with ID: " + backupId);
@@ -108,9 +105,10 @@ public class BackupRestoreController {
         }, virtualThreadExecutor);
     }
 
-    // Get backup by file name
+    // Get backup by file name (USER 和 ADMIN)
     @GetMapping("/filename/{backupFileName}")
     @Async
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public CompletableFuture<ResponseEntity<BackupRestore>> getBackupByFileName(@PathVariable String backupFileName) {
         return CompletableFuture.supplyAsync(() -> {
             logger.info("Fetching backup by file name: " + backupFileName);
@@ -123,9 +121,10 @@ public class BackupRestoreController {
         }, virtualThreadExecutor);
     }
 
-    // Get backups by backup time
+    // Get backups by backup time (USER 和 ADMIN)
     @GetMapping("/time/{backupTime}")
     @Async
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public CompletableFuture<ResponseEntity<List<BackupRestore>>> getBackupsByTime(@PathVariable String backupTime) {
         return CompletableFuture.supplyAsync(() -> {
             logger.info("Fetching backups by time: " + backupTime);

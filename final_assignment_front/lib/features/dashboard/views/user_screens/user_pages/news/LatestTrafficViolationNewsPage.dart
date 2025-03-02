@@ -17,6 +17,8 @@ class _LatestTrafficViolationNewsPageState
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
@@ -24,8 +26,10 @@ class _LatestTrafficViolationNewsPageState
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Colors.blueAccent, // 蓝色渐变，突出交通主题
-              Theme.of(context).colorScheme.background,
+              isDarkMode ? Colors.blue[900]! : Colors.blueAccent, // 暗色模式使用更深的蓝色
+              isDarkMode
+                  ? Theme.of(context).colorScheme.background
+                  : Theme.of(context).colorScheme.background,
             ],
           ),
         ),
@@ -77,12 +81,13 @@ class _LatestTrafficViolationNewsPageState
   }
 
   Widget _buildHeader(BuildContext context, String title) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            icon: Icon(Icons.arrow_back, color: isDarkMode ? Colors.white : Colors.white),
             onPressed: () => controller.exitSidebarContent(),
           ),
           Expanded(
@@ -91,7 +96,7 @@ class _LatestTrafficViolationNewsPageState
               style: GoogleFonts.roboto(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: isDarkMode ? Colors.white : Colors.white,
               ),
             ),
           ),
@@ -101,6 +106,7 @@ class _LatestTrafficViolationNewsPageState
   }
 
   Widget _buildSectionTitle(BuildContext context, String title) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Text(
@@ -108,7 +114,7 @@ class _LatestTrafficViolationNewsPageState
         style: GoogleFonts.roboto(
           fontSize: 20,
           fontWeight: FontWeight.bold,
-          color: Colors.white,
+          color: isDarkMode ? Colors.white : Colors.white,
         ),
       ),
     );
@@ -116,11 +122,12 @@ class _LatestTrafficViolationNewsPageState
 
   Widget _buildNewsCard(
       BuildContext context, String title, String content, String date) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       margin: const EdgeInsets.symmetric(vertical: 8.0),
-      color: Colors.white.withOpacity(0.95),
+      color: isDarkMode ? Colors.grey[800] : Colors.white.withOpacity(0.95),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -131,7 +138,7 @@ class _LatestTrafficViolationNewsPageState
               style: GoogleFonts.roboto(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.primary,
+                color: isDarkMode ? Colors.blueAccent : Theme.of(context).colorScheme.primary,
               ),
             ),
             const SizedBox(height: 8),
@@ -139,7 +146,7 @@ class _LatestTrafficViolationNewsPageState
               content,
               style: GoogleFonts.roboto(
                 fontSize: 16,
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+                color: isDarkMode ? Colors.white70 : Colors.black87,
               ),
             ),
             const SizedBox(height: 8),
@@ -149,7 +156,7 @@ class _LatestTrafficViolationNewsPageState
                 '发布日期: $date',
                 style: GoogleFonts.roboto(
                   fontSize: 14,
-                  color: Colors.grey[600],
+                  color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
                   fontStyle: FontStyle.italic,
                 ),
               ),
@@ -161,10 +168,12 @@ class _LatestTrafficViolationNewsPageState
   }
 
   Widget _buildContentCard(BuildContext context, String title, String content) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       margin: const EdgeInsets.symmetric(vertical: 8.0),
+      color: isDarkMode ? Colors.grey[800] : Colors.white,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -175,7 +184,7 @@ class _LatestTrafficViolationNewsPageState
               style: GoogleFonts.roboto(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.primary,
+                color: isDarkMode ? Colors.blueAccent : Theme.of(context).colorScheme.primary,
               ),
             ),
             const SizedBox(height: 8),
@@ -183,7 +192,7 @@ class _LatestTrafficViolationNewsPageState
               content,
               style: GoogleFonts.roboto(
                 fontSize: 16,
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+                color: isDarkMode ? Colors.white70 : Colors.black87,
               ),
             ),
           ],

@@ -15,6 +15,8 @@ class _FinePaymentNoticePageState extends State<FinePaymentNoticePage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
@@ -22,8 +24,12 @@ class _FinePaymentNoticePageState extends State<FinePaymentNoticePage> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Theme.of(context).colorScheme.primary,
-              Theme.of(context).colorScheme.background,
+              isDarkMode
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.primary, // 保持主题主色
+              isDarkMode
+                  ? Theme.of(context).colorScheme.background
+                  : Theme.of(context).colorScheme.background,
             ],
           ),
         ),
@@ -66,12 +72,14 @@ class _FinePaymentNoticePageState extends State<FinePaymentNoticePage> {
   }
 
   Widget _buildHeader(BuildContext context, String title) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            icon: Icon(Icons.arrow_back,
+                color: isDarkMode ? Colors.white : Colors.white),
             onPressed: () => controller.exitSidebarContent(),
           ),
           Expanded(
@@ -80,7 +88,7 @@ class _FinePaymentNoticePageState extends State<FinePaymentNoticePage> {
               style: GoogleFonts.roboto(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: isDarkMode ? Colors.white : Colors.white,
               ),
             ),
           ),
@@ -90,6 +98,7 @@ class _FinePaymentNoticePageState extends State<FinePaymentNoticePage> {
   }
 
   Widget _buildSectionTitle(BuildContext context, String title) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Text(
@@ -97,17 +106,21 @@ class _FinePaymentNoticePageState extends State<FinePaymentNoticePage> {
         style: GoogleFonts.roboto(
           fontSize: 20,
           fontWeight: FontWeight.bold,
-          color: Theme.of(context).colorScheme.onBackground,
+          color: isDarkMode
+              ? Colors.white
+              : Theme.of(context).colorScheme.onBackground,
         ),
       ),
     );
   }
 
   Widget _buildContentCard(BuildContext context, String title, String content) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       margin: const EdgeInsets.symmetric(vertical: 8.0),
+      color: isDarkMode ? Colors.grey[800] : Colors.white,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -118,7 +131,9 @@ class _FinePaymentNoticePageState extends State<FinePaymentNoticePage> {
               style: GoogleFonts.roboto(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.primary,
+                color: isDarkMode
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context).colorScheme.primary,
               ),
             ),
             const SizedBox(height: 8),
@@ -126,7 +141,7 @@ class _FinePaymentNoticePageState extends State<FinePaymentNoticePage> {
               content,
               style: GoogleFonts.roboto(
                 fontSize: 16,
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+                color: isDarkMode ? Colors.white70 : Colors.black87,
               ),
             ),
           ],
