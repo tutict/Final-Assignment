@@ -67,7 +67,7 @@ class _Sidebar extends StatelessWidget {
                           icon: EvaIcons.emailOutline,
                           label: "消息",
                           totalNotif: 20,
-                          routeName: "messagePage",
+                          routeName: Routes.progressManagement,
                         ),
                         SelectionButtonData(
                           activeIcon: EvaIcons.person,

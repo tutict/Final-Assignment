@@ -55,6 +55,8 @@ mixin NavigationMixin {
         return const FinePaymentNoticePage();
       case AppPages.latestTrafficViolationNewsPage:
         return const LatestTrafficViolationNewsPage();
+      case AppPages.progressManagement:
+        return const ProgressManagementPage();
       default:
         debugPrint('Unknown route: $routeName');
         return const Center(child: Text('页面未找到'));

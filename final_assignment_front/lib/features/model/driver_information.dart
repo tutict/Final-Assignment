@@ -32,21 +32,21 @@ class DriverInformation {
   /* 驾驶证有效期截止日期 */
   String? expiryDate;
 
-  String? idempotencyKey;
+  String? idempotencyKey; // 改为可选
 
   DriverInformation({
-    required int driverId,
-    required String? name,
-    required String? idCardNumber,
-    required String? contactNumber,
-    required String? driverLicenseNumber,
-    required String? gender,
-    required String? birthdate,
-    required String? firstLicenseDate,
-    required String? allowedVehicleType,
-    required String? issueDate,
-    required String? expiryDate,
-    required String idempotencyKey,
+    this.driverId, // 改为可选
+    this.name,
+    this.idCardNumber,
+    this.contactNumber,
+    this.driverLicenseNumber,
+    this.gender,
+    this.birthdate,
+    this.firstLicenseDate,
+    this.allowedVehicleType,
+    this.issueDate,
+    this.expiryDate,
+    this.idempotencyKey, // 改为可选
   });
 
   @override
@@ -54,57 +54,40 @@ class DriverInformation {
     return 'DriverInformation[driverId=$driverId, name=$name, idCardNumber=$idCardNumber, contactNumber=$contactNumber, driverLicenseNumber=$driverLicenseNumber, gender=$gender, birthdate=$birthdate, firstLicenseDate=$firstLicenseDate, allowedVehicleType=$allowedVehicleType, issueDate=$issueDate, expiryDate=$expiryDate, idempotencyKey=$idempotencyKey,]';
   }
 
-  DriverInformation.fromJson(Map<String, dynamic> json) {
-    driverId = json['driverId'];
-    name = json['name'];
-    idCardNumber = json['idCardNumber'];
-    contactNumber = json['contactNumber'];
-    driverLicenseNumber = json['driverLicenseNumber'];
-    gender = json['gender'];
-    birthdate = json['birthdate'];
-    firstLicenseDate = json['firstLicenseDate'];
-    allowedVehicleType = json['allowedVehicleType'];
-    issueDate = json['issueDate'];
-    expiryDate = json['expiryDate'];
-    idempotencyKey = json['idempotencyKey'];
+  factory DriverInformation.fromJson(Map<String, dynamic> json) {
+    return DriverInformation(
+      driverId: json['driverId'] as int?,
+      // 匹配后端字段
+      name: json['name'] as String?,
+      idCardNumber: json['idCardNumber'] as String?,
+      contactNumber: json['contactNumber'] as String?,
+      driverLicenseNumber: json['driverLicenseNumber'] as String?,
+      gender: json['gender'] as String?,
+      birthdate: json['birthdate'] as String?,
+      firstLicenseDate: json['firstLicenseDate'] as String?,
+      allowedVehicleType: json['allowedVehicleType'] as String?,
+      issueDate: json['issueDate'] as String?,
+      expiryDate: json['expiryDate'] as String?,
+      idempotencyKey: json['idempotencyKey'] as String?,
+    );
   }
 
   Map<String, dynamic> toJson() {
-    Map<String, dynamic> json = {};
-    if (driverId != null) {
-      json['driverId'] = driverId;
-    }
-    if (name != null) {
-      json['name'] = name;
-    }
-    if (idCardNumber != null) {
-      json['idCardNumber'] = idCardNumber;
-    }
-    if (contactNumber != null) {
-      json['contactNumber'] = contactNumber;
-    }
-    if (driverLicenseNumber != null) {
-      json['driverLicenseNumber'] = driverLicenseNumber;
-    }
-    if (gender != null) {
-      json['gender'] = gender;
-    }
-    if (birthdate != null) {
-      json['birthdate'] = birthdate;
-    }
-    if (firstLicenseDate != null) {
-      json['firstLicenseDate'] = firstLicenseDate;
-    }
-    if (allowedVehicleType != null) {
-      json['allowedVehicleType'] = allowedVehicleType;
-    }
-    if (issueDate != null) {
-      json['issueDate'] = issueDate;
-    }
-    if (expiryDate != null) {
-      json['expiryDate'] = expiryDate;
-    }
-    return json;
+    return {
+      if (driverId != null) 'driverId': driverId,
+      if (name != null) 'name': name,
+      if (idCardNumber != null) 'idCardNumber': idCardNumber,
+      if (contactNumber != null) 'contactNumber': contactNumber,
+      if (driverLicenseNumber != null)
+        'driverLicenseNumber': driverLicenseNumber,
+      if (gender != null) 'gender': gender,
+      if (birthdate != null) 'birthdate': birthdate,
+      if (firstLicenseDate != null) 'firstLicenseDate': firstLicenseDate,
+      if (allowedVehicleType != null) 'allowedVehicleType': allowedVehicleType,
+      if (issueDate != null) 'issueDate': issueDate,
+      if (expiryDate != null) 'expiryDate': expiryDate,
+      if (idempotencyKey != null) 'idempotencyKey': idempotencyKey,
+    };
   }
 
   static List<DriverInformation> listFromJson(List<dynamic> json) {

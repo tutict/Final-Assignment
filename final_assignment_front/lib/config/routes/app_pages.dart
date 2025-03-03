@@ -13,6 +13,7 @@ import 'package:final_assignment_front/features/dashboard/views/manager_screens/
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/manager_personal_page.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/manager_setting.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/offense_list.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/progress_management.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/vehicle_list.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/news/AccidentEvidencePage.dart';
@@ -143,18 +144,26 @@ class AppPages {
   // 管理员业务办理
   static const managerBusinessProcessing = Routes.managerBusinessProcessing;
 
+  // 事故处理须知
   static const accidentEvidencePage = Routes.accidentEvidencePage;
 
+  // 事故进度须知
   static const accidentProgressPage = Routes.accidentProgressPage;
 
+  // 事故快速处理须知
   static const accidentQuickGuidePage = Routes.accidentQuickGuidePage;
 
   static const accidentVideoQuickPage = Routes.accidentVideoQuickPage;
 
+  // 罚款缴费须知
   static const finePaymentNoticePage = Routes.finePaymentNoticePage;
 
+  // 最新交通违法新闻消息
   static const latestTrafficViolationNewsPage =
       Routes.latestTrafficViolationNewsPage;
+
+  // 管理员进度管理
+  static const progressManagement = Routes.progressManagement;
 
   // 配置应用中的所有页面路由
   static final routes = [
@@ -272,5 +281,8 @@ class AppPages {
     GetPage(
         name: _Paths.latestTrafficViolationNewsPage,
         page: () => const LatestTrafficViolationNewsPage()),
+    GetPage(
+        name: _Paths.progressManagement,
+        page: () => const ProgressManagementPage()),
   ];
 }

@@ -118,6 +118,9 @@ class Routes {
 
   // 最新交通违章新闻介绍路由
   static const latestTrafficViolationNewsPage = _Paths.latestTrafficViolationNewsPage;
+
+  // 管理员管理进度页面
+  static const progressManagement = _Paths.progressManagement;
 }
 
 /// 包含路由名称列表。
@@ -239,6 +242,9 @@ class _Paths {
 
   // 最新交通违章新闻路由
   static const latestTrafficViolationNewsPage = '/latestTrafficViolationNewsPage';
+
+  // 管理员进度管理页面
+  static const progressManagement = '/progressManagement';
 
 // 示例：
 // static const index = '/';

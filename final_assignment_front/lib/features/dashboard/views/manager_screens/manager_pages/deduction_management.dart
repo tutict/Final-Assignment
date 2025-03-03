@@ -1,4 +1,3 @@
-import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/features/api/deduction_information_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 import 'package:final_assignment_front/features/model/deduction_information.dart';
@@ -8,6 +7,12 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import 'dart:convert';
+
+/// 唯一标识生成工具
+String generateIdempotencyKey() {
+  const uuid = Uuid();
+  return uuid.v4(); // 使用 UUID 生成更可靠的唯一标识
+}
 
 /// 扣分信息管理页面
 class DeductionManagement extends StatefulWidget {
@@ -25,6 +30,7 @@ class _DeductionManagementState extends State<DeductionManagement> {
   bool _isLoading = true;
   bool _isAdmin = false; // 确保是管理员
   String _errorMessage = '';
+
   final TextEditingController _driverLicenseController =
       TextEditingController();
   final TextEditingController _handlerController = TextEditingController();
@@ -672,6 +678,7 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
   final TextEditingController _dateController = TextEditingController();
   bool _isLoading = false;
   bool _isAdmin = false; // 添加 _isAdmin
+  String _errorMessage = ''; // 添加 _errorMessage
 
   @override
   void initState() {
@@ -695,7 +702,17 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
         setState(() {
           _isAdmin = (roleData['roles'] as List<dynamic>).contains('ADMIN');
         });
+      } else {
+        setState(() {
+          _errorMessage = '验证失败：${response.statusCode} - ${response.body}';
+          _isLoading = false;
+        });
       }
+    } else {
+      setState(() {
+        _errorMessage = '未登录，请重新登录';
+        _isLoading = false;
+      });
     }
   }
 
@@ -715,6 +732,10 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
     });
 
     try {
+      if (!_isAdmin) {
+        throw Exception('权限不足：仅管理员可创建扣分记录');
+      }
+
       final deduction = DeductionInformation(
         deductionId: null,
         driverLicenseNumber: _driverLicenseNumberController.text.trim(),
@@ -746,8 +767,8 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final jwtToken = prefs.getString('jwtToken');
-      if (jwtToken == null || !_isAdmin) {
-        throw Exception('No JWT token found or insufficient permissions');
+      if (jwtToken == null) {
+        throw Exception('No JWT token found');
       }
 
       final String idempotencyKey = generateIdempotencyKey();
@@ -802,7 +823,7 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
       return Scaffold(
         body: Center(
           child: Text(
-            '权限不足：仅管理员可访问此页面',
+            _errorMessage,
             style: TextStyle(
               color: isLight ? Colors.black : Colors.white,
             ),
@@ -1027,6 +1048,7 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
   final TextEditingController _dateController = TextEditingController();
   bool _isLoading = false;
   bool _isAdmin = false; // 添加 _isAdmin
+  String _errorMessage = ''; // 添加 _errorMessage
 
   @override
   void initState() {
@@ -1061,7 +1083,17 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
         setState(() {
           _isAdmin = (roleData['roles'] as List<dynamic>).contains('ADMIN');
         });
+      } else {
+        setState(() {
+          _errorMessage = '验证失败：${response.statusCode} - ${response.body}';
+          _isLoading = false;
+        });
       }
+    } else {
+      setState(() {
+        _errorMessage = '未登录，请重新登录';
+        _isLoading = false;
+      });
     }
   }
 
@@ -1081,6 +1113,10 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
     });
 
     try {
+      if (!_isAdmin) {
+        throw Exception('权限不足：仅管理员可编辑扣分记录');
+      }
+
       final deduction = DeductionInformation(
         deductionId: widget.deduction.deductionId,
         driverLicenseNumber: _driverLicenseNumberController.text.trim(),
@@ -1113,8 +1149,8 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final jwtToken = prefs.getString('jwtToken');
-      if (jwtToken == null || !_isAdmin) {
-        throw Exception('No JWT token found or insufficient permissions');
+      if (jwtToken == null) {
+        throw Exception('No JWT token found');
       }
 
       final String idempotencyKey = generateIdempotencyKey();
@@ -1169,7 +1205,7 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
       return Scaffold(
         body: Center(
           child: Text(
-            '权限不足：仅管理员可访问此页面',
+            _errorMessage,
             style: TextStyle(
               color: isLight ? Colors.black : Colors.white,
             ),
@@ -1388,12 +1424,18 @@ class _DeductionDetailPageState extends State<DeductionDetailPage> {
   bool _isLoading = false;
   bool _isAdmin = false; // 确保是管理员
   final TextEditingController _remarksController = TextEditingController();
+  late Future<List<DeductionInformation>>
+      _deductionsFuture; // 添加 _deductionsFuture
+  final UserDashboardController controller =
+      Get.find<UserDashboardController>(); // 确保导入正确的控制器
+  String _errorMessage = ''; // 添加 _errorMessage
 
   @override
   void initState() {
     super.initState();
     _remarksController.text = widget.deduction.remarks ?? '';
     _checkUserRole();
+    _deductionsFuture = _loadDeductions(); // 初始化 _deductionsFuture
   }
 
   Future<void> _checkUserRole() async {
@@ -1412,7 +1454,58 @@ class _DeductionDetailPageState extends State<DeductionDetailPage> {
         setState(() {
           _isAdmin = (roleData['roles'] as List<dynamic>).contains('ADMIN');
         });
+      } else {
+        setState(() {
+          _errorMessage = '验证失败：${response.statusCode} - ${response.body}';
+          _isLoading = false;
+        });
       }
+    } else {
+      setState(() {
+        _errorMessage = '未登录，请重新登录';
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<List<DeductionInformation>> _loadDeductions() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jwtToken = prefs.getString('jwtToken');
+      if (jwtToken == null) {
+        throw Exception('No JWT token found');
+      }
+
+      final response = await http.get(
+        Uri.parse('http://localhost:8081/api/deductions'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $jwtToken',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        final deductions =
+            data.map((json) => DeductionInformation.fromJson(json)).toList();
+        setState(() {
+          _isLoading = false;
+        });
+        return deductions;
+      } else {
+        throw Exception('加载扣分信息失败: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = '加载扣分信息失败: $e';
+      });
+      return [];
     }
   }
 
@@ -1426,10 +1519,14 @@ class _DeductionDetailPageState extends State<DeductionDetailPage> {
     });
 
     try {
+      if (!_isAdmin) {
+        throw Exception('权限不足：仅管理员可更新扣分记录');
+      }
+
       final prefs = await SharedPreferences.getInstance();
       final jwtToken = prefs.getString('jwtToken');
-      if (jwtToken == null || !_isAdmin) {
-        throw Exception('No JWT token found or insufficient permissions');
+      if (jwtToken == null) {
+        throw Exception('No JWT token found');
       }
 
       final String idempotencyKey = generateIdempotencyKey();
@@ -1478,10 +1575,14 @@ class _DeductionDetailPageState extends State<DeductionDetailPage> {
 
     final scaffoldMessenger = ScaffoldMessenger.of(context); // 保存 context
     try {
+      if (!_isAdmin) {
+        throw Exception('权限不足：仅管理员可删除扣分记录');
+      }
+
       final prefs = await SharedPreferences.getInstance();
       final jwtToken = prefs.getString('jwtToken');
-      if (jwtToken == null || !_isAdmin) {
-        throw Exception('No JWT token found or insufficient permissions');
+      if (jwtToken == null) {
+        throw Exception('No JWT token found');
       }
 
       setState(() {
@@ -1547,7 +1648,7 @@ class _DeductionDetailPageState extends State<DeductionDetailPage> {
       return Scaffold(
         body: Center(
           child: Text(
-            '权限不足：仅管理员可访问此页面',
+            _errorMessage,
             style: TextStyle(
               color: isLight ? Colors.black : Colors.white,
             ),
@@ -1592,69 +1693,90 @@ class _DeductionDetailPageState extends State<DeductionDetailPage> {
             padding: const EdgeInsets.all(16.0),
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
-                : ListView(
-                    children: [
-                      _buildDetailRow(context, '扣分 ID',
-                          widget.deduction.deductionId?.toString() ?? '无'),
-                      _buildDetailRow(context, '扣分分数', '$points 分'),
-                      _buildDetailRow(context, '扣分时间', time),
-                      _buildDetailRow(context, '处理人', handler),
-                      ListTile(
-                        title: Text('备注',
+                : FutureBuilder<List<DeductionInformation>>(
+                    future: _deductionsFuture,
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      } else if (snapshot.hasError) {
+                        return Center(
+                          child: Text(
+                            '加载扣分信息失败: ${snapshot.error}',
                             style: TextStyle(
-                                color: currentTheme.colorScheme.onSurface)),
-                        subtitle: TextField(
-                          controller: _remarksController,
-                          decoration: InputDecoration(
-                            border: const OutlineInputBorder(),
-                            labelStyle: TextStyle(
-                              color: isLight ? Colors.black87 : Colors.white,
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderSide: BorderSide(
-                                color:
-                                    isLight ? Colors.grey : Colors.grey[500]!,
-                              ),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderSide: BorderSide(
-                                color: isLight ? Colors.blue : Colors.blueGrey,
-                              ),
+                              color: isLight ? Colors.black : Colors.white,
                             ),
                           ),
-                          maxLines: 3,
-                          style: TextStyle(
-                            color: isLight ? Colors.black : Colors.white,
-                          ),
-                          onSubmitted: (value) => _updateDeduction(
-                              widget.deduction.deductionId ?? 0,
-                              widget.deduction.copyWith(
-                                  remarks: value.trim(),
-                                  handler: widget.deduction.handler,
-                                  deductedPoints:
-                                      widget.deduction.deductedPoints,
-                                  deductionTime: widget.deduction.deductionTime,
-                                  driverLicenseNumber:
-                                      widget.deduction.driverLicenseNumber)),
-                        ),
-                      ),
-                      if (_isAdmin) // 仅 ADMIN 可以删除
-                        Column(
-                          children: [
-                            const SizedBox(height: 16),
-                            ElevatedButton(
-                              onPressed: () => _deleteDeduction(
-                                  widget.deduction.deductionId ?? 0),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.red,
-                                foregroundColor: Colors.white,
-                                minimumSize: const Size.fromHeight(50),
+                        );
+                      }
+                      return ListView(
+                        children: [
+                          _buildDetailRow(context, '扣分 ID',
+                              widget.deduction.deductionId?.toString() ?? '无'),
+                          _buildDetailRow(context, '扣分分数', '$points 分'),
+                          _buildDetailRow(context, '扣分时间', time),
+                          _buildDetailRow(context, '处理人', handler),
+                          ListTile(
+                            title: Text('备注',
+                                style: TextStyle(
+                                    color: currentTheme.colorScheme.onSurface)),
+                            subtitle: TextField(
+                              controller: _remarksController,
+                              decoration: InputDecoration(
+                                border: const OutlineInputBorder(),
+                                labelStyle: TextStyle(
+                                  color:
+                                      isLight ? Colors.black87 : Colors.white,
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderSide: BorderSide(
+                                    color: isLight
+                                        ? Colors.grey
+                                        : Colors.grey[500]!,
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderSide: BorderSide(
+                                    color:
+                                        isLight ? Colors.blue : Colors.blueGrey,
+                                  ),
+                                ),
                               ),
-                              child: const Text('删除扣分'),
+                              maxLines: 3,
+                              style: TextStyle(
+                                color: isLight ? Colors.black : Colors.white,
+                              ),
+                              onSubmitted: (value) => _updateDeduction(
+                                  widget.deduction.deductionId ?? 0,
+                                  widget.deduction.copyWith(
+                                      remarks: value.trim(),
+                                      handler: widget.deduction.handler,
+                                      deductedPoints:
+                                          widget.deduction.deductedPoints,
+                                      deductionTime:
+                                          widget.deduction.deductionTime,
+                                      driverLicenseNumber: widget
+                                          .deduction.driverLicenseNumber)),
                             ),
-                          ],
-                        ),
-                    ],
+                          ),
+                          if (_isAdmin) // 仅 ADMIN 可以删除
+                            Column(
+                              children: [
+                                const SizedBox(height: 16),
+                                ElevatedButton(
+                                  onPressed: () => _deleteDeduction(
+                                      widget.deduction.deductionId ?? 0),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.red,
+                                    foregroundColor: Colors.white,
+                                    minimumSize: const Size.fromHeight(50),
+                                  ),
+                                  child: const Text('删除扣分'),
+                                ),
+                              ],
+                            ),
+                        ],
+                      );
+                    },
                   ),
           ),
         ),

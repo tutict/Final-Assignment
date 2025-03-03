@@ -9,6 +9,7 @@ import 'package:final_assignment_front/features/dashboard/views/components/map.d
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/manager_business_processing.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/manager_personal_page.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/manager_setting.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/progress_management.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/news/AccidentEvidencePage.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/news/AccidentProgressPage.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/news/AccidentQuickGuidePage.dart';

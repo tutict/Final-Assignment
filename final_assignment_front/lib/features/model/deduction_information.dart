@@ -1,75 +1,56 @@
 class DeductionInformation {
   int? deductionId;
-
-  /* 违纪行为ID */
-  int? offenseId;
-
-  /* 扣除分数 该字段表示因违纪行为而扣除的分数 */
+  String? driverLicenseNumber; // 替换 offenseId 为 driverLicenseNumber
   int? deductedPoints;
-
-  /* 扣分时间 该字段记录执行扣分的具体时间 */
   String? deductionTime;
-
-  /* 处理人 该字段记录负责处理此次扣分的人员姓名 */
   String? handler;
-
-  /* 审批人 该字段记录对此次扣分进行审批的人员姓名 */
   String? approver;
-
-  /* 备注 该字段用于记录关于此次扣分的额外说明或备注信息 */
   String? remarks;
-
-  String? idempotencyKey;
+  String? idempotencyKey; // 改为可选
 
   DeductionInformation({
-    required String? deductionId,
-    required String? offenseId,
-    required String? deductedPoints,
-    required String? deductionTime,
-    required String? handler,
-    required String? approver,
-    required String? remarks,
-    required String idempotencyKey,
+    this.deductionId,
+    this.driverLicenseNumber, // 驾驶证号
+    this.deductedPoints,
+    this.deductionTime,
+    this.handler,
+    this.approver,
+    this.remarks,
+    this.idempotencyKey, // 改为可选
   });
 
   @override
   String toString() {
-    return 'DeductionInformation[deductionId=$deductionId, offenseId=$offenseId, deductedPoints=$deductedPoints, deductionTime=$deductionTime, handler=$handler, approver=$approver, remarks=$remarks, idempotencyKey=$idempotencyKey, ]';
+    return 'DeductionInformation[deductionId=$deductionId, driverLicenseNumber=$driverLicenseNumber, deductedPoints=$deductedPoints, deductionTime=$deductionTime, handler=$handler, approver=$approver, remarks=$remarks, idempotencyKey=$idempotencyKey, ]';
   }
 
-  DeductionInformation.fromJson(Map<String, dynamic> json) {
-    deductionId = json['deductionId'];
-    offenseId = json['offenseId'];
-    deductedPoints = json['deductedPoints'];
-    deductionTime = json['deductionTime'];
-    handler = json['handler'];
-    approver = json['approver'];
-    remarks = json['remarks'];
-    idempotencyKey = json['idempotencyKey'];
+  factory DeductionInformation.fromJson(Map<String, dynamic> json) {
+    return DeductionInformation(
+      deductionId: json['deductionId'] as int?,
+      driverLicenseNumber: json['driverLicenseNumber'] as String?,
+      // 匹配后端字段
+      deductedPoints: json['deductedPoints'] as int?,
+      // 改为 int?
+      deductionTime: json['deductionTime'] as String?,
+      handler: json['handler'] as String?,
+      approver: json['approver'] as String?,
+      remarks: json['remarks'] as String?,
+      idempotencyKey: json['idempotencyKey'] as String?,
+    );
   }
 
   Map<String, dynamic> toJson() {
-    Map<String, dynamic> json = {};
-    if (deductionId != null) {
-      json['deductionId'] = deductionId;
-    }
-    if (offenseId != null) {
-      json['offenseId'] = offenseId;
-    }
-    if (deductedPoints != null) {
-      json['deductedPoints'] = deductedPoints;
-    }
-    if (deductionTime != null) {
-      json['deductionTime'] = deductionTime;
-    }
-    if (handler != null) {
-      json['handler'] = handler;
-    }
-    if (approver != null) {
-      json['approver'] = approver;
-    }
-    json['remarks'] = remarks;
-    return json;
+    return {
+      if (deductionId != null) 'deductionId': deductionId,
+      if (driverLicenseNumber != null)
+        'driverLicenseNumber': driverLicenseNumber, // 匹配后端字段
+      if (deductedPoints != null) 'deductedPoints': deductedPoints,
+      if (deductionTime != null) 'deductionTime': deductionTime,
+      if (handler != null) 'handler': handler,
+      if (approver != null) 'approver': approver,
+      if (remarks != null) 'remarks': remarks,
+      if (idempotencyKey != null) 'idempotencyKey': idempotencyKey,
+    };
   }
 
   static List<DeductionInformation> listFromJson(List<dynamic> json) {
@@ -86,7 +67,7 @@ class DeductionInformation {
     return map;
   }
 
-// maps a json object with a list of DeductionInformation-objects as value to a dart map
+  // maps a json object with a list of DeductionInformation-objects as value to a dart map
   static Map<String, List<DeductionInformation>> mapListFromJson(
       Map<String, dynamic> json) {
     var map = <String, List<DeductionInformation>>{};
@@ -96,5 +77,28 @@ class DeductionInformation {
       });
     }
     return map;
+  }
+
+  // 添加 copyWith 方法
+  DeductionInformation copyWith({
+    int? deductionId,
+    String? driverLicenseNumber,
+    int? deductedPoints,
+    String? deductionTime,
+    String? handler,
+    String? approver,
+    String? remarks,
+    String? idempotencyKey,
+  }) {
+    return DeductionInformation(
+      deductionId: deductionId ?? this.deductionId,
+      driverLicenseNumber: driverLicenseNumber ?? this.driverLicenseNumber,
+      deductedPoints: deductedPoints ?? this.deductedPoints,
+      deductionTime: deductionTime ?? this.deductionTime,
+      handler: handler ?? this.handler,
+      approver: approver ?? this.approver,
+      remarks: remarks ?? this.remarks,
+      idempotencyKey: idempotencyKey ?? this.idempotencyKey,
+    );
   }
 }
