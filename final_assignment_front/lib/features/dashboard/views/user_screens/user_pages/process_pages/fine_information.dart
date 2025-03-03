@@ -23,7 +23,7 @@ class FineInformationPage extends StatefulWidget {
 
 class _FineInformationPageState extends State<FineInformationPage> {
   late FineInformationControllerApi fineApi;
-  late Future<List<FineInformation>> _finesFuture;
+  late Future<List<FineInformation>> _finesFuture; // 声明为 late，但需确保初始化
   final UserDashboardController controller =
       Get.find<UserDashboardController>();
   bool _isLoading = false;
@@ -44,7 +44,8 @@ class _FineInformationPageState extends State<FineInformationPage> {
   void initState() {
     super.initState();
     fineApi = FineInformationControllerApi();
-    _checkUserRole(); // 检查用户角色
+    _finesFuture = _loadUserFines(); // 在 initState 中初始化 _finesFuture
+    _checkUserRole(); // 检查用户角色（异步，但不阻塞 _finesFuture 初始化）
   }
 
   @override
@@ -78,16 +79,17 @@ class _FineInformationPageState extends State<FineInformationPage> {
       );
       if (roleResponse.statusCode == 200) {
         final roleData = jsonDecode(roleResponse.body);
-        _isUser = (roleData['roles'] as List<dynamic>).contains('USER');
-        if (!_isUser) {
-          throw Exception('权限不足：仅用户可访问此页面');
-        }
+        setState(() {
+          _isUser = (roleData['roles'] as List<dynamic>).contains('USER');
+          if (!_isUser) {
+            _errorMessage = '权限不足：仅用户可访问此页面';
+            _isLoading = false;
+          }
+        });
       } else {
         throw Exception(
             '验证失败：${roleResponse.statusCode} - ${roleResponse.body}');
       }
-
-      await _loadUserFines(); // 仅加载当前用户的罚款
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -96,12 +98,7 @@ class _FineInformationPageState extends State<FineInformationPage> {
     }
   }
 
-  Future<void> _loadUserFines() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = '';
-    });
-
+  Future<List<FineInformation>> _loadUserFines() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final jwtToken = prefs.getString('jwtToken');
@@ -120,20 +117,12 @@ class _FineInformationPageState extends State<FineInformationPage> {
 
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
-        final fines =
-            data.map((json) => FineInformation.fromJson(json)).toList();
-        setState(() {
-          _finesFuture = Future.value(fines);
-          _isLoading = false;
-        });
+        return data.map((json) => FineInformation.fromJson(json)).toList();
       } else {
         throw Exception('加载用户罚款失败: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-        _errorMessage = '加载罚款信息失败: $e';
-      });
+      throw Exception('加载罚款信息失败: $e');
     }
   }
 
@@ -213,6 +202,7 @@ class _FineInformationPageState extends State<FineInformationPage> {
           const SnackBar(content: Text('罚款信息已提交，等待管理员审批')),
         );
         _clearForm();
+        _loadUserFines(); // 提交后刷新罚款列表
       } else {
         throw Exception(
             '提交失败: ${response.statusCode} - ${jsonDecode(response.body)['error'] ?? '未知错误'}');

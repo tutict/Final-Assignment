@@ -121,6 +121,9 @@ class Routes {
 
   // 管理员管理进度页面
   static const progressManagement = _Paths.progressManagement;
+
+  // 进度详情页面
+  static const progressDetailPage = _Paths.progressDetailPage;
 }
 
 /// 包含路由名称列表。
@@ -245,6 +248,9 @@ class _Paths {
 
   // 管理员进度管理页面
   static const progressManagement = '/progressManagement';
+
+  // 进度详情页面
+  static const progressDetailPage = '/progressDetailPage';
 
 // 示例：
 // static const index = '/';

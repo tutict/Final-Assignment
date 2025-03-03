@@ -36,9 +36,11 @@ import 'package:final_assignment_front/features/dashboard/views/user_screens/use
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/process_pages/business_progress.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/process_pages/fine_information.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/process_pages/online_processing_progress.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/process_pages/progress_detail_page.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/process_pages/vehicle_management.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/scanner/main_scan.dart';
 import 'package:final_assignment_front/features/login_screen/login.dart';
+import 'package:final_assignment_front/features/model/progress_item.dart';
 
 // 导入Get库，用于页面路由管理
 import 'package:get/get.dart';
@@ -165,6 +167,9 @@ class AppPages {
   // 管理员进度管理
   static const progressManagement = Routes.progressManagement;
 
+  // 进度详情
+  static const progressDetailPage = Routes.progressDetailPage;
+
   // 配置应用中的所有页面路由
   static final routes = [
     GetPage(
@@ -284,5 +289,12 @@ class AppPages {
     GetPage(
         name: _Paths.progressManagement,
         page: () => const ProgressManagementPage()),
+    GetPage(
+      name: _Paths.progressDetailPage,
+      page: () => ProgressDetailPage(
+        item: Get.arguments as ProgressItem, // 通过 Get.arguments 接收 ProgressItem
+      ),
+      transition: Transition.fadeIn,
+    ),
   ];
 }

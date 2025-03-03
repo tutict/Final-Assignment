@@ -14,8 +14,9 @@ class DashboardController extends GetxController with NavigationMixin {
   final selectedPage = Rx<Widget?>(null);
   final isChatExpanded = true.obs;
   final Rx<Profile?> currentUser = Rx<Profile?>(null); // 更新为 Profile 类型
-  // 新增：获取交通违法数据
+  // 新增：获取交通违法数据和角色数据
   late Rx<Future<List<OffenseInformation>>> offensesFuture;
+  late Rx<Future<List<RoleManagement>>> rolesFuture;
 
   @override
   void onInit() {
@@ -23,6 +24,7 @@ class DashboardController extends GetxController with NavigationMixin {
     _initializeCaseCardData();
     _loadUserFromPrefs(); // 加载已保存的用户数据
     offensesFuture = Rx<Future<List<OffenseInformation>>>(_fetchAllOffenses());
+    rolesFuture = Rx<Future<List<RoleManagement>>>(_fetchAllRoles());
   }
 
   // 加载保存的用户数据
@@ -33,15 +35,29 @@ class DashboardController extends GetxController with NavigationMixin {
     final userEmail = prefs.getString('userEmail');
     final userRole = prefs.getString('userRole');
 
-    if (jwtToken != null &&
-        userName != null &&
-        userEmail != null &&
+    if (jwtToken != null && userName != null && userEmail != null &&
         userRole != null) {
       currentUser.value = Profile(
         photo: const AssetImage(ImageRasterPath.avatar1), // 默认头像，可根据 API 动态更新
         name: userName,
         email: userEmail,
       );
+    } else {
+      // 如果没有令牌或用户信息，提示用户登录
+      _showErrorSnackBar('请先登录以访问管理功能');
+    }
+  }
+
+  // 验证 JWT 令牌和角色
+  Future<void> _validateTokenAndRole() async {
+    final roleApi = RoleManagementControllerApi();
+    try {
+      final role = await roleApi.getCurrentUserRole();
+      if (role != 'ADMIN') {
+        throw Exception('权限不足：仅管理员可访问此功能');
+      }
+    } catch (e) {
+      throw Exception('令牌验证失败：$e');
     }
   }
 
@@ -52,23 +68,24 @@ class DashboardController extends GetxController with NavigationMixin {
       name: name,
       email: email,
     );
-    _saveUserToPrefs(name, email); // 保存到 SharedPreferences
+    _saveUserToPrefs(name, email, 'ADMIN'); // 保存为 ADMIN 角色
   }
 
   // 保存用户数据到 SharedPreferences
-  Future<void> _saveUserToPrefs(String name, String email) async {
+  Future<void> _saveUserToPrefs(String name, String email, String role) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('userName', name);
     await prefs.setString('userEmail', email);
+    await prefs.setString('userRole', role);
   }
 
   // 获取当前用户
   Profile get currentProfile =>
       currentUser.value ??
-      const Profile(
-          photo: AssetImage(ImageRasterPath.avatar1),
-          name: "Guest",
-          email: "guest@example.com");
+          const Profile(
+              photo: AssetImage(ImageRasterPath.avatar1),
+              name: "Guest",
+              email: "guest@example.com");
 
   // 切换侧边栏状态
   void toggleSidebar() => isSidebarOpen.value = !isSidebarOpen.value;
@@ -87,15 +104,15 @@ class DashboardController extends GetxController with NavigationMixin {
     String theme = selectedStyle.value;
     ThemeData baseTheme = theme == 'Material'
         ? (currentTheme.value == 'Light'
-            ? AppTheme.materialLightTheme
-            : AppTheme.materialDarkTheme)
+        ? AppTheme.materialLightTheme
+        : AppTheme.materialDarkTheme)
         : (theme == 'Ionic'
-            ? (currentTheme.value == 'Light'
-                ? AppTheme.ionicLightTheme
-                : AppTheme.ionicDarkTheme)
-            : (currentTheme.value == 'Light'
-                ? AppTheme.basicLight
-                : AppTheme.basicDark));
+        ? (currentTheme.value == 'Light'
+        ? AppTheme.ionicLightTheme
+        : AppTheme.ionicDarkTheme)
+        : (currentTheme.value == 'Light'
+        ? AppTheme.basicLight
+        : AppTheme.basicDark));
 
     String fontFamily = theme == 'Basic' ? Font.poppins : 'Helvetica';
 
@@ -132,9 +149,10 @@ class DashboardController extends GetxController with NavigationMixin {
   }
 
   // 打开抽屉
-  void openDrawer() => isDesktop.value
-      ? isSidebarOpen.value = true
-      : scaffoldKey.currentState?.openDrawer();
+  void openDrawer() =>
+      isDesktop.value
+          ? isSidebarOpen.value = true
+          : scaffoldKey.currentState?.openDrawer();
 
   // 关闭侧边栏
   void closeSidebar() => isDesktop.value ? isSidebarOpen.value = false : null;
@@ -166,7 +184,8 @@ class DashboardController extends GetxController with NavigationMixin {
       Obx(() => selectedPage.value ?? const SizedBox.shrink());
 
   // 获取项目信息
-  ProjectCardData getSelectedProject() => ProjectCardData(
+  ProjectCardData getSelectedProject() =>
+      ProjectCardData(
         percent: .3,
         projectImage: const AssetImage(ImageRasterPath.logo4),
         projectName: "交通违法行为处理管理系统",
@@ -177,7 +196,8 @@ class DashboardController extends GetxController with NavigationMixin {
   List<ProjectCardData> getActiveProject() => [];
 
   // 获取顾问头像
-  List<ImageProvider<Object>> getMember() => const [
+  List<ImageProvider<Object>> getMember() =>
+      const [
         AssetImage(ImageRasterPath.avatar1),
         AssetImage(ImageRasterPath.avatar2),
         AssetImage(ImageRasterPath.avatar3),
@@ -188,7 +208,7 @@ class DashboardController extends GetxController with NavigationMixin {
 
   Future<Map<String, int>> getOffenseTypeDistribution() async {
     try {
-      final offenses = await offensesFuture.value; // Await the Future
+      final offenses = await _fetchAllOffenses();
       final Map<String, int> typeCountMap = {};
       for (var o in offenses) {
         final type = o.offenseType ?? 'Unknown Type';
@@ -203,9 +223,10 @@ class DashboardController extends GetxController with NavigationMixin {
 
   Future<List<OffenseInformation>> _fetchAllOffenses() async {
     try {
+      await _validateTokenAndRole();
+
       final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs
-          .getString('jwtToken'); // Get the JWT token from SharedPreferences
+      final jwtToken = prefs.getString('jwtToken');
       if (jwtToken == null) {
         throw Exception('No JWT token found');
       }
@@ -213,7 +234,7 @@ class DashboardController extends GetxController with NavigationMixin {
       final listObj = await OffenseInformationControllerApi().apiOffensesGet(
         headers: {
           'Authorization': 'Bearer $jwtToken'
-        }, // Pass the JWT token in the header
+        },
       );
       if (listObj == null) return [];
       return listObj.map((item) {
@@ -221,8 +242,31 @@ class DashboardController extends GetxController with NavigationMixin {
       }).toList();
     } catch (e) {
       debugPrint('Failed to fetch offense information: $e');
-      throw Exception('Failed to fetch offense information: $e');
+      rethrow;
     }
+  }
+
+  Future<List<RoleManagement>> _fetchAllRoles() async {
+    try {
+      await _validateTokenAndRole();
+
+      final roleApi = RoleManagementControllerApi();
+      final roles = await roleApi.getAllRoles();
+      return roles
+          .where((role) => role.status == 'Active')
+          .toList(); // 使用 status
+    } catch (e) {
+      debugPrint('Failed to fetch roles: $e');
+      rethrow;
+    }
+  }
+
+  // 显示错误提示
+  void _showErrorSnackBar(String message) {
+    Get.snackbar('错误', message,
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white);
   }
 
   // 更新滑动方向

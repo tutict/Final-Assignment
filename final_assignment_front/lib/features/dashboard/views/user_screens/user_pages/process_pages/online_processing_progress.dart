@@ -1,12 +1,11 @@
 import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/features/api/progress_item_controller_api.dart';
+import 'package:final_assignment_front/features/api/role_management_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 import 'package:final_assignment_front/features/model/progress_item.dart';
 import 'package:flutter/material.dart';
 import 'package:get/Get.dart';
-import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
 
 class OnlineProcessingProgress extends StatefulWidget {
   const OnlineProcessingProgress({super.key});
@@ -22,6 +21,7 @@ class OnlineProcessingProgressState extends State<OnlineProcessingProgress>
   final UserDashboardController controller =
       Get.find<UserDashboardController>();
   final ProgressControllerApi progressApi = ProgressControllerApi();
+  final RoleManagementControllerApi roleApi = RoleManagementControllerApi();
   late List<Future<List<ProgressItem>>> _progressFutures;
   bool _isLoading = false;
   bool _isAdmin = false; // 确保是普通用户（非管理员）
@@ -47,21 +47,14 @@ class OnlineProcessingProgressState extends State<OnlineProcessingProgress>
         _isAdmin = false;
         _isLoading = false;
       });
+      _showErrorSnackBar('请先登录以访问此页面');
       return;
     }
 
-    final response = await http.get(
-      Uri.parse('http://localhost:8081/api/auth/me'), // 更新为后端地址
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $jwtToken',
-      },
-    );
-
-    if (response.statusCode == 200) {
-      final roleData = jsonDecode(response.body);
+    try {
+      final role = await roleApi.getCurrentUserRole();
       setState(() {
-        _isAdmin = (roleData['roles'] as List<dynamic>).contains('ADMIN');
+        _isAdmin = role == 'ADMIN';
         if (!_isAdmin) {
           // 仅普通用户（USER）加载进度
           _loadProgress();
@@ -69,11 +62,12 @@ class OnlineProcessingProgressState extends State<OnlineProcessingProgress>
           _isLoading = false; // 管理员不应访问此页面，直接关闭加载
         }
       });
-    } else {
+    } catch (e) {
       setState(() {
         _isAdmin = false;
         _isLoading = false;
       });
+      _showErrorSnackBar('角色验证失败: $e');
     }
   }
 
@@ -162,8 +156,7 @@ class OnlineProcessingProgressState extends State<OnlineProcessingProgress>
   }
 
   void _goToDetailPage(ProgressItem item) {
-    Get.toNamed(AppPages.onlineProcessingProgress,
-        arguments: item); // 使用 Get.toNamed 传递 item
+    Get.toNamed(AppPages.progressDetailPage, arguments: item);
   }
 
   void _showSubmitProgressDialog() {
