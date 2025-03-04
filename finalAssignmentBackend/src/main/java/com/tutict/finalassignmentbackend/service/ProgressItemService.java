@@ -13,8 +13,6 @@ import java.util.List;
 @Service
 public class ProgressItemService {
 
-    private static final java.util.logging.Logger log = java.util.logging.Logger.getLogger(ProgressItemService.class.getName());
-
     private final ProgressItemMapper progressRepository;
 
     public ProgressItemService(ProgressItemMapper progressRepository) {
@@ -25,7 +23,7 @@ public class ProgressItemService {
     @CacheEvict(cacheNames = "progressCache", allEntries = true)
     public ProgressItem createProgress(ProgressItem progressItem) {
         progressItem.setStatus("Pending"); // 初始状态
-        progressItem.setSubmitTime(LocalDateTime.now().toString()); // 设置当前时间
+        progressItem.setSubmitTime(LocalDateTime.now()); // 设置当前时间
         progressRepository.insert(progressItem); // 使用 insert 方法
         return progressItem;
     }

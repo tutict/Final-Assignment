@@ -67,7 +67,7 @@ public class AppealManagementService {
 
         Integer appealId = appealManagement.getAppealId();
         newRequest.setBusinessStatus("SUCCESS");
-        newRequest.setBusinessId(appealId);
+        newRequest.setBusinessId(appealId != null ? appealId.longValue() : null);
         requestHistoryMapper.updateById(newRequest);
     }
 

@@ -59,7 +59,7 @@ public class PermissionManagementService {
 
         Integer permissionId = permissionManagement.getPermissionId();
         newRequest.setBusinessStatus("SUCCESS");
-        newRequest.setBusinessId(permissionId);
+        newRequest.setBusinessId(permissionId != null ? permissionId.longValue() : null);
         requestHistoryMapper.updateById(newRequest);
     }
 

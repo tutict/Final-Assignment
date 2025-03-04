@@ -8,6 +8,7 @@ import lombok.Data;
 
 import java.io.Serial;
 import java.io.Serializable;
+import java.time.LocalDateTime;
 
 @Data
 @TableName("progress_items") // 指定表名
@@ -25,8 +26,8 @@ public class ProgressItem implements Serializable {
     @TableField("status") // 映射字段
     private String status; // "Pending", "Processing", "Completed", "Archived"
 
-    @TableField("submit_time") // 映射字段
-    private String submitTime; // ISO 8601 格式
+    @TableField("submit_time")
+    private LocalDateTime submitTime;
 
     @TableField("details") // 映射字段，允许为空
     private String details;

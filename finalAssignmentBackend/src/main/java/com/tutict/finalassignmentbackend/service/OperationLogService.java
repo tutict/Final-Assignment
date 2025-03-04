@@ -62,7 +62,7 @@ public class OperationLogService {
 
         Integer operationId = operationLog.getLogId();
         newRequest.setBusinessStatus("SUCCESS");
-        newRequest.setBusinessId(operationId);
+        newRequest.setBusinessId(operationId != null ? operationId.longValue() : null);
         requestHistoryMapper.updateById(newRequest);
     }
 

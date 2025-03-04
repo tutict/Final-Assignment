@@ -61,7 +61,7 @@ public class DriverInformationService {
 
         Integer driverId = driverInformation.getDriverId();
         newRequest.setBusinessStatus("SUCCESS");
-        newRequest.setBusinessId(driverId);
+        newRequest.setBusinessId(driverId != null ? driverId.longValue() : null);
         requestHistoryMapper.updateById(newRequest);
     }
 

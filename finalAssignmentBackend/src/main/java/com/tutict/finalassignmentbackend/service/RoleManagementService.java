@@ -74,7 +74,7 @@ public class RoleManagementService {
             requestHistoryMapper.insert(newRequest);
             sendKafkaMessage("role_" + action, roleManagement);
             newRequest.setBusinessStatus("SUCCESS");
-            newRequest.setBusinessId(roleManagement.getRoleId());
+            newRequest.setBusinessId(roleManagement.getRoleId() != null ? roleManagement.getRoleId().longValue() : null);
             requestHistoryMapper.updateById(newRequest);
         } catch (Exception e) {
             log.severe("Failed to process idempotencyKey=" + idempotencyKey + ", " + e.getMessage());

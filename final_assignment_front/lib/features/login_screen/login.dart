@@ -38,12 +38,14 @@ class LoginScreen extends StatefulWidget with ValidatorMixin {
 class _LoginScreenState extends State<LoginScreen> {
   late AuthControllerApi authApi;
   late String? _userRole;
+  bool _hasSentRegisterRequest = false; // 新增标志位，追踪是否已发送注册请求
 
   @override
   void initState() {
     super.initState();
     authApi = AuthControllerApi();
     _userRole = null;
+    _hasSentRegisterRequest = false; // 初始化标志位
     if (!Get.isRegistered<ChatController>()) {
       Get.put(ChatController());
     }
@@ -85,26 +87,17 @@ class _LoginScreenState extends State<LoginScreen> {
         await prefs.setString('jwtToken', result['jwtToken']);
         await prefs.setString('userRole', _userRole!);
 
-        // 从 API 结果中获取用户数据（假设 API 返回了 user 字段）
-        final userData = result['user'] ?? {}; // 假设 API 返回包含 user 的 JSON
+        final userData = result['user'] ?? {};
         final String name = userData['name'] ?? username.split('@').first;
         final String email = userData['email'] ?? username;
 
-        // 更新 ManagerDashboardController 的当前用户
         final DashboardController dashboardController =
             Get.find<DashboardController>();
-        dashboardController.updateCurrentUser(
-          name,
-          email,
-        );
+        dashboardController.updateCurrentUser(name, email);
 
-        // 更新 ManagerDashboardController 的当前用户
-        final UserDashboardController userDashboardController=
-        Get.find<UserDashboardController>();
-        userDashboardController.updateCurrentUser(
-          name,
-          email,
-        );
+        final UserDashboardController userDashboardController =
+            Get.find<UserDashboardController>();
+        userDashboardController.updateCurrentUser(name, email);
 
         Get.find<ChatController>().setUserRole(_userRole!);
         debugPrint('User Role: $_userRole, Name: $name, Email: $email');
@@ -134,16 +127,24 @@ class _LoginScreenState extends State<LoginScreen> {
       return '请输入有效的邮箱地址';
     }
 
-    final bool? isCaptchaValid = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const LocalCaptchaMain(),
-    );
+    // 如果已经发送过注册请求，则不再重复发送
+    if (_hasSentRegisterRequest) {
+      return '注册请求已发送，请等待处理';
+    }
 
-    debugPrint('Signup captcha result: $isCaptchaValid');
+    // 验证码验证（只在首次请求时触发）
+    if (!_hasSentRegisterRequest) {
+      final bool? isCaptchaValid = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const LocalCaptchaMain(),
+      );
 
-    if (isCaptchaValid != true) {
-      return '用户已取消注册账号';
+      debugPrint('Signup captcha result: $isCaptchaValid');
+
+      if (isCaptchaValid != true) {
+        return '用户已取消注册账号';
+      }
     }
 
     String uniqueKey = DateTime.now().millisecondsSinceEpoch.toString();
@@ -160,32 +161,23 @@ class _LoginScreenState extends State<LoginScreen> {
       debugPrint('Signup raw result: $result');
 
       if (result['status'] == 'CREATED') {
+        _hasSentRegisterRequest = true; // 标记请求已发送成功
         _userRole = determineRole(username);
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString(
-            'jwtToken', result['jwtToken'] ?? ''); // 假设注册返回 token
+        await prefs.setString('jwtToken', result['jwtToken'] ?? '');
         await prefs.setString('userRole', _userRole!);
 
-        // 从 API 结果中获取用户数据
-        final userData = result['user'] ?? {}; // 假设 API 返回包含 user 的 JSON
+        final userData = result['user'] ?? {};
         final String name = userData['name'] ?? username.split('@').first;
         final String email = userData['email'] ?? username;
 
-       // 更新 ManagerDashboardController 的当前用户
         final DashboardController dashboardController =
             Get.find<DashboardController>();
-        dashboardController.updateCurrentUser(
-          name,
-          email,
-        );
+        dashboardController.updateCurrentUser(name, email);
 
-        // 更新 ManagerDashboardController 的当前用户
-        final UserDashboardController userDashboardController=
-        Get.find<UserDashboardController>();
-        userDashboardController.updateCurrentUser(
-          name,
-          email,
-        );
+        final UserDashboardController userDashboardController =
+            Get.find<UserDashboardController>();
+        userDashboardController.updateCurrentUser(name, email);
 
         Get.find<ChatController>().setUserRole(_userRole!);
         debugPrint(

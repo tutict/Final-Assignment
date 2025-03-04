@@ -36,12 +36,12 @@ public class AuthController {
         this.authWsService = authWsService;
     }
 
-    // Login method (无需认证)
     @PostMapping("/login")
     @PermitAll
     @Async
     public CompletableFuture<ResponseEntity<Map<String, Object>>> login(@RequestBody AuthWsService.LoginRequest loginRequest) {
         if (loginRequest == null || loginRequest.getUsername() == null || loginRequest.getPassword() == null) {
+            logger.log(Level.SEVERE, "Login request invalid: null or missing username/password");
             return CompletableFuture.completedFuture(
                     ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", "Username and password are required")));
         }
@@ -49,58 +49,60 @@ public class AuthController {
             try {
                 Map<String, Object> result = authWsService.login(loginRequest);
                 if (result.containsKey("jwtToken")) {
+                    logger.log(Level.INFO, "Login succeeded for username: {0}", loginRequest.getUsername());
                     return ResponseEntity.ok(result);
                 } else {
+                    logger.log(Level.WARNING, "Login failed for username: {0}", loginRequest.getUsername());
                     return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(result);
                 }
             } catch (Exception e) {
-                logger.warning("Login failed: " + e.getMessage());
+                logger.log(Level.SEVERE, "Login failed for username: {0}, error: {1}", new Object[]{loginRequest.getUsername(), e.getMessage()});
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", e.getMessage()));
             }
         }, virtualThreadExecutor);
     }
 
-    // Register method (无需认证)
     @PostMapping("/register")
     @PermitAll
     @Async
     @Transactional
     public CompletableFuture<ResponseEntity<Map<String, String>>> registerUser(@RequestBody AuthWsService.RegisterRequest registerRequest) {
-        logger.log(Level.WARNING, "Received register request for username: {}", registerRequest.getUsername());
+        logger.log(Level.INFO, "Received register request for username: {0}", registerRequest.getUsername());
         return CompletableFuture.supplyAsync(() -> {
                     try {
                         String res = authWsService.registerUser(registerRequest);
-                        logger.log(Level.WARNING, "Register succeeded for username: {}", registerRequest.getUsername());
+                        logger.log(Level.INFO, "Register succeeded for username: {0}", registerRequest.getUsername());
                         return ResponseEntity.status(HttpStatus.CREATED)
                                 .header("Content-Type", "application/json")
                                 .body(Map.of("status", res));
                     } catch (Exception e) {
-                        logger.log(Level.WARNING, "Register failed for username: {} ", registerRequest.getUsername());
+                        logger.log(Level.SEVERE, "Register failed for username: {0}, error: {1}", new Object[]{registerRequest.getUsername(), e.getMessage()});
                         return ResponseEntity.status(HttpStatus.CONFLICT)
                                 .header("Content-Type", "application/json")
                                 .body(Map.of("error", e.getMessage()));
                     }
                 }, virtualThreadExecutor)
                 .exceptionally(throwable -> {
-                    logger.log(Level.WARNING, "Unexpected error in registerUser for username: {}", registerRequest.getUsername());
+                    logger.log(Level.SEVERE, "Unexpected error in registerUser for username: {0}, error: {1}",
+                            new Object[]{registerRequest.getUsername(), throwable.getMessage()});
                     return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                             .header("Content-Type", "application/json")
                             .body(Map.of("error", "Internal server error"));
                 });
     }
 
-    // Get all users (仅 ADMIN)
     @GetMapping("/users")
     @RolesAllowed("ADMIN")
     @Async
-    public CompletableFuture<ResponseEntity<? extends List<?>>> getAllUsers() {
+    public CompletableFuture<ResponseEntity<List<UserManagement>>> getAllUsers() {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 List<UserManagement> users = authWsService.getAllUsers();
+                logger.log(Level.INFO, "Fetched {0} users successfully", users.size());
                 return ResponseEntity.ok(users);
             } catch (Exception e) {
-                logger.warning("GetAllUsers failed: " + e.getMessage());
-                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(List.of(Map.of("error", e.getMessage())));
+                logger.log(Level.SEVERE, "GetAllUsers failed: {0}", e.getMessage());
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(List.of());
             }
         }, virtualThreadExecutor);
     }

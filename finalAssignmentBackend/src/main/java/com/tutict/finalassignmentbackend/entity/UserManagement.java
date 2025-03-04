@@ -24,9 +24,6 @@ public class UserManagement implements Serializable {
     @TableId(value = "user_id", type = IdType.AUTO)
     private Integer userId;
 
-    @TableField("name")
-    private String name;
-
     @TableField("username")
     private String username;
 

@@ -63,7 +63,7 @@ public class OffenseInformationService {
 
         Integer offenseId = offenseInformation.getOffenseId();
         newRequest.setBusinessStatus("SUCCESS");
-        newRequest.setBusinessId(offenseId);
+        newRequest.setBusinessId(offenseId != null ? offenseId.longValue() : null);
         requestHistoryMapper.updateById(newRequest);
     }
 

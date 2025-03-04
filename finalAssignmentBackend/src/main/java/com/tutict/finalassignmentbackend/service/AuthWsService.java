@@ -94,9 +94,6 @@ public class AuthWsService {
         newUser.setPassword(registerRequest.getPassword());
         newUser.setCreatedTime(LocalDateTime.now());
 
-        String idempotencyKey = registerRequest.getIdempotencyKey();
-        userManagementService.checkAndInsertIdempotency(idempotencyKey, newUser, "create");
-
         userManagementService.createUser(newUser);
 
         String roleName = registerRequest.getRole();

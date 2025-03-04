@@ -60,7 +60,7 @@ public class DeductionInformationService {
 
         Integer deductionId = deductionInformation.getDeductionId();
         newRequest.setBusinessStatus("SUCCESS");
-        newRequest.setBusinessId(deductionId);
+        newRequest.setBusinessId(deductionId != null ? deductionId.longValue() : null);
         requestHistoryMapper.updateById(newRequest);
     }
 

@@ -65,7 +65,7 @@ class _PersonalInformationPageState extends State<PersonalInformationPage> {
 
       // 检查用户角色（假设从后端获取）
       final roleResponse = await http.get(
-        Uri.parse('http://localhost:8081/api/auth/me'), // 后端提供用户信息
+        Uri.parse('http://localhost:8081/api/roles'), // 后端提供用户信息
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $jwtToken',
@@ -398,8 +398,8 @@ class _PersonalInformationPageState extends State<PersonalInformationPage> {
         ),
         const SizedBox(height: 20.0),
         CupertinoButton.filled(
-          child: const Text('保存所有更改'),
           onPressed: _updateUserInfo,
+          child: const Text('保存所有更改'),
         ),
       ],
     );

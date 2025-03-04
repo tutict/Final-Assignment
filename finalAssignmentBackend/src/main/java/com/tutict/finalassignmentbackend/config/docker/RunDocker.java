@@ -23,14 +23,14 @@ public class RunDocker {
     private RedpandaContainer redpandaContainer;
     private GenericContainer<?> manticoreContainer;
 
-    @Value("${manticore.image:manticoresearch/manticore:latest}")
+    @Value("${manticore.image:manticoresearch/manticore:dev}")
     private String manticoreImage;
 
     @PostConstruct
     public void init() {
         startRedis();
         startRedpanda();
-        startManticoreSearch();
+//        startManticoreSearch();
     }
 
     public void startRedis() {

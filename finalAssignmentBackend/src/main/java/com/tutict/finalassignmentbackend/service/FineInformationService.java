@@ -62,7 +62,7 @@ public class FineInformationService {
 
         Integer fineId = fineInformation.getFineId();
         newRequest.setBusinessStatus("SUCCESS");
-        newRequest.setBusinessId(fineId);
+        newRequest.setBusinessId(fineId != null ? fineId.longValue() : null);
         requestHistoryMapper.updateById(newRequest);
     }
 

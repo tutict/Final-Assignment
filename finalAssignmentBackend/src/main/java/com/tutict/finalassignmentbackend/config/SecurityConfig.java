@@ -7,17 +7,18 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
 @EnableWebSecurity
-public class SecurityConfig {
+public class SecurityConfig implements WebMvcConfigurer {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .authorizeHttpRequests(authorize -> authorize
                         // 公共接口（无需认证）
-                        .requestMatchers("/api/auth/register", "/api/auth/login", "/api/ai/chat").permitAll()
+                        .requestMatchers("/api/auth/register", "/api/auth/login", "/api/ai/chat", "/api/auth/refresh").permitAll()
                         // 所有 /api/** 接口需要认证（具体权限由 @PreAuthorize 控制）
                         .requestMatchers("/api/**").authenticated()
                         // EventBus 相关接口需要认证（具体权限由 @PreAuthorize 或其他配置控制）

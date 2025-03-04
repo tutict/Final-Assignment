@@ -59,7 +59,7 @@ public class UserManagementService {
 
         Integer userId = user.getUserId();
         newRequest.setBusinessStatus("SUCCESS");
-        newRequest.setBusinessId(userId);
+        newRequest.setBusinessId(userId != null ? userId.longValue() : null);
         requestHistoryMapper.updateById(newRequest);
     }
 

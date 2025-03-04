@@ -40,6 +40,7 @@ import 'package:final_assignment_front/features/dashboard/views/user_screens/use
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/process_pages/vehicle_management.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/scanner/main_scan.dart';
 import 'package:final_assignment_front/features/login_screen/login.dart';
+import 'package:final_assignment_front/features/model/appeal_management.dart';
 import 'package:final_assignment_front/features/model/progress_item.dart';
 
 // 导入Get库，用于页面路由管理
@@ -244,7 +245,7 @@ class AppPages {
     ),
     GetPage(
         name: _Paths.appealManagement,
-        page: () => const AppealManagementAdmin()),
+        page: () => AppealManagementAdmin(appeal: Get.arguments as AppealManagement)),
     GetPage(
         name: _Paths.backupAndRestore, page: () => const BackupAndRestore()),
     GetPage(name: _Paths.driverList, page: () => const DriverList()),

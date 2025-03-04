@@ -34,7 +34,7 @@ public class OffenseInformation implements Serializable {
     @TableField("license_plate")
     private String licensePlate;
 
-    // 司机姓名
+    // 驾驶员姓名
     @TableField("driver_name")
     private String driverName;
 
@@ -61,4 +61,13 @@ public class OffenseInformation implements Serializable {
     // 处理结果
     @TableField("process_result")
     private String processResult;
+
+    // 驾驶员ID
+    @TableField("driver_id")
+    private Integer driverId;
+
+    // 车辆ID
+    @TableField("vehicle_id")
+    private Integer vehicleId;
+
 }

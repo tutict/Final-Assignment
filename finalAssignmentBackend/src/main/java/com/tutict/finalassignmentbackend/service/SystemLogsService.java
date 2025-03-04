@@ -60,7 +60,7 @@ public class SystemLogsService {
 
         Integer systemLogsId = systemLogs.getLogId();
         newRequest.setBusinessStatus("SUCCESS");
-        newRequest.setBusinessId(systemLogsId);
+        newRequest.setBusinessId(systemLogsId != null ? systemLogsId.longValue() : null);
         requestHistoryMapper.updateById(newRequest);
     }
 

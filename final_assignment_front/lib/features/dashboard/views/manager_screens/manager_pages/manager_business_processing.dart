@@ -3,6 +3,7 @@ import 'package:final_assignment_front/features/dashboard/views/manager_screens/
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/driver_list.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/fine_list.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/vehicle_list.dart';
+import 'package:final_assignment_front/features/model/appeal_management.dart';
 import 'package:flutter/material.dart';
 import 'package:get/Get.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
@@ -27,7 +28,7 @@ class _ManagerBusinessProcessingState extends State<ManagerBusinessProcessing> {
     {
       'title': '申诉管理',
       'icon': Icons.gavel,
-      'route': const AppealManagementAdmin(),
+      'route': AppealManagementAdmin(appeal: Get.arguments as AppealManagement),
     },
     {
       'title': '扣分管理',

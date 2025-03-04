@@ -62,7 +62,7 @@ public class BackupRestoreService {
 
         Integer backupId = backupRestore.getBackupId();
         newRequest.setBusinessStatus("SUCCESS");
-        newRequest.setBusinessId(backupId);
+        newRequest.setBusinessId(backupId != null ? backupId.longValue() : null);
         requestHistoryMapper.updateById(newRequest);
     }
 

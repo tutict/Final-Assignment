@@ -1,5 +1,6 @@
 package com.tutict.finalassignmentbackend.config.login.jwt;
 
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -10,9 +11,12 @@ import jakarta.annotation.PostConstruct;
 
 import javax.crypto.SecretKey;
 import java.util.Base64;
+import java.util.Arrays;
 import java.util.Date;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 @Service
 public class TokenProvider {
@@ -26,55 +30,77 @@ public class TokenProvider {
 
     @PostConstruct
     public void init() {
-        // Decode base64 secret key into byte array
+        // 将 Base64 编码的密钥解码为 byte 数组
         byte[] keyBytes = Base64.getDecoder().decode(base64Secret);
-        // Use the Keys utility class to create the SecretKey for HMACSHA256
+        // 使用 Keys 工具类生成用于 HMACSHA256 的 SecretKey
         this.secretKey = Keys.hmacShaKeyFor(keyBytes);
-
         LOG.info("TokenProvider initialized with HS256 secret key");
     }
 
-
     /**
-     * Creates a JWT token with the provided username and roles.
+     * 创建 JWT 令牌，并将角色作为 claim 存入
      *
-     * @param username the username (subject)
-     * @param roles    the roles
-     * @return the generated JWT token
+     * @param username 用户名（主体）
+     * @param roles    用户角色，如 "USER" 或 "ADMIN"，多个角色以逗号分隔
+     * @return 生成的 JWT 令牌
      */
     public String createToken(String username, String roles) {
         long now = System.currentTimeMillis();
-        Date expirationDate = new Date(now + 86400000L); // 24 hours expiration
+        Date expirationDate = new Date(now + 86400000L); // 令牌有效期 24 小时
 
-        // Create JWT
         return Jwts.builder()
                 .subject(username)
-                .claim("roles", roles) // Adding roles as a claim
+                .claim("roles", roles) // 将角色加入到 token 中
                 .issuedAt(new Date(now))
                 .expiration(expirationDate)
-                .signWith(secretKey) // Using SecretKey for signing
+                .signWith(secretKey)
                 .compact();
     }
 
     /**
-     * Validates the provided JWT token.
+     * 验证 JWT 令牌
      *
-     * @param token the JWT token
-     * @return true if the token is valid, false otherwise
+     * @param token 令牌字符串
+     * @return 若令牌有效返回 true，否则返回 false
      */
     public boolean validateToken(String token) {
         try {
-            // Parse and validate the token
             Jwts.parser()
-                    .verifyWith(secretKey) // Set the signing key explicitly
+                    .verifyWith(secretKey)
                     .build()
-                    .parseSignedClaims(token); // Throws exception if the token is invalid
-
+                    .parseSignedClaims(token);
             LOG.log(Level.INFO, "Token validated successfully: " + token);
             return true;
         } catch (JwtException e) {
             LOG.log(Level.WARNING, "Invalid token: " + e.getMessage(), e);
             return false;
+        }
+    }
+
+    /**
+     * 从 JWT 中提取角色列表
+     *
+     * @param token 令牌字符串
+     * @return 角色列表，例如 ["ROLE_USER", "ROLE_ADMIN"]
+     */
+    public List<String> extractRoles(String token) {
+        try {
+            Claims claims = Jwts.parser()
+                    .verifyWith(secretKey)
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload();
+            String roles = claims.get("roles", String.class);
+            if (roles != null && !roles.isEmpty()) {
+                return Arrays.stream(roles.split(","))
+                        .map(String::trim)
+                        .map(role -> "ROLE_" + role)
+                        .collect(Collectors.toList());
+            }
+            return List.of();
+        } catch (JwtException e) {
+            LOG.log(Level.WARNING, "Failed to extract roles from token: " + e.getMessage(), e);
+            return List.of();
         }
     }
 }

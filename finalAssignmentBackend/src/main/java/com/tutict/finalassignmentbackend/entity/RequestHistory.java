@@ -19,19 +19,19 @@ public class RequestHistory implements Serializable {
     private static final long serialVersionUID = 1L;
 
     @TableId(value = "id", type = IdType.AUTO)
-    private Integer id;
+    private Long id;
 
     @TableField("idempotency_key")
     private String idempotentKey;
 
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    @TableField("created_time")
-    private LocalDateTime createdTime;
+    @TableField("create_time")
+    private LocalDateTime createTime;
 
     @TableField("business_status")
     private String businessStatus;
 
     @TableField("business_id")
-    private Integer businessId;
+    private Long businessId;
 
 }

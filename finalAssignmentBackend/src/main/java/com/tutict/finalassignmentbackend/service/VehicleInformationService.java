@@ -62,7 +62,7 @@ public class VehicleInformationService {
 
         Integer vehicleId = vehicleInformation.getVehicleId();
         newRequest.setBusinessStatus("SUCCESS");
-        newRequest.setBusinessId(vehicleId);
+        newRequest.setBusinessId(vehicleId != null ? vehicleId.longValue() : null);
         requestHistoryMapper.updateById(newRequest);
     }
 
