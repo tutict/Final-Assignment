@@ -28,7 +28,7 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
   final UserDashboardController controller =
       Get.find<UserDashboardController>();
   bool _isLoading = true;
-  bool _isUser = false; // 假设为普通用户（USER 角色）
+  bool _isUser = false;
   String _errorMessage = '';
 
   final TextEditingController _nameController = TextEditingController();
@@ -41,7 +41,7 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
   @override
   void initState() {
     super.initState();
-    _checkUserRole(); // 检查用户角色并加载用户信息
+    _checkUserRole();
   }
 
   @override
@@ -58,19 +58,20 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final jwtToken = prefs.getString('jwtToken');
+      debugPrint('JWT Token in _checkUserRole: $jwtToken');
       if (jwtToken == null) {
         throw Exception('No JWT token found');
       }
 
-      // 检查用户角色（假设从后端获取）
       final roleResponse = await http.get(
-        Uri.parse('http://localhost:8081/api/users/me?username=' +
-            (prefs.getString('username') ?? '')), // 使用 /api/users/me 获取当前用户信息
+        Uri.parse('http://localhost:8081/api/users/me'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $jwtToken',
         },
       );
+      debugPrint(
+          'Role Response: ${roleResponse.statusCode} - ${roleResponse.body}');
       if (roleResponse.statusCode == 200) {
         final roleData = jsonDecode(roleResponse.body);
         _isUser = (roleData['roles'] as List<dynamic>).contains('USER');
@@ -82,7 +83,7 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
             '验证失败：${roleResponse.statusCode} - ${roleResponse.body}');
       }
 
-      await _loadCurrentUser(); // 仅加载当前用户的用户信息
+      await _loadCurrentUser();
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -100,21 +101,19 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final jwtToken = prefs.getString('jwtToken');
-      final username = prefs.getString('username'); // 从 SharedPreferences 获取用户名
-      if (jwtToken == null || username == null) {
-        throw Exception('No JWT token or username found');
+      debugPrint('JWT Token in _loadCurrentUser: $jwtToken');
+      if (jwtToken == null) {
+        throw Exception('No JWT token found');
       }
 
-      // 使用后端 API 获取当前用户信息
       final response = await http.get(
-        Uri.parse('http://localhost:8081/api/users/me?username=$username'),
-        // 后端 API 地址
+        Uri.parse('http://localhost:8081/api/users/me'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $jwtToken',
         },
       );
-
+      debugPrint('User Response: ${response.statusCode} - ${response.body}');
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final user = UserManagement.fromJson(data);
@@ -122,11 +121,15 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
           _userFuture = Future.value(user);
           _nameController.text = user.name ?? '';
           _usernameController.text = user.username ?? '';
-          _passwordController.text = ''; // 密码不显示，需用户输入新密码
+          _passwordController.text = '';
           _contactNumberController.text = user.contactNumber ?? '';
           _emailController.text = user.email ?? '';
           _isLoading = false;
         });
+        controller.updateCurrentUser(
+          user.name ?? '',
+          user.username ?? '',
+        );
       } else {
         throw Exception('加载用户信息失败: ${response.statusCode} - ${response.body}');
       }
@@ -139,9 +142,9 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
   }
 
   Future<void> _updateUserInfo() async {
-    if (!mounted) return; // 确保 widget 仍然挂载
+    if (!mounted) return;
 
-    final scaffoldMessenger = ScaffoldMessenger.of(context); // 保存 context
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
     setState(() {
       _isLoading = true;
     });
@@ -156,30 +159,23 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
       final String idempotencyKey = generateIdempotencyKey();
       final user = UserManagement(
         userId: (await _userFuture)?.userId,
-        // 保持现有的 userId
         username: _usernameController.text.trim(),
         password: _passwordController.text.trim().isNotEmpty
             ? _passwordController.text.trim()
             : null,
-        // 仅在有新密码时更新
         name: _nameController.text.trim(),
         contactNumber: _contactNumberController.text.trim(),
         email: _emailController.text.trim(),
         status: (await _userFuture)?.status ?? 'ACTIVE',
-        // 保持现有状态
         createdTime: (await _userFuture)?.createdTime,
-        // 不更新创建时间
         modifiedTime: DateTime.now(),
-        // 更新修改时间
         remarks: (await _userFuture)?.remarks,
-        // 保持现有备注
-        idempotencyKey: idempotencyKey, // 幂等键
+        idempotencyKey: idempotencyKey,
       );
 
       final response = await http.put(
         Uri.parse(
             'http://localhost:8081/api/users/me?idempotencyKey=$idempotencyKey'),
-        // 修改为正确的 PUT 路径
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $jwtToken',
@@ -191,7 +187,11 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
         scaffoldMessenger.showSnackBar(
           const SnackBar(content: Text('用户信息更新成功！')),
         );
-        await _loadCurrentUser(); // 刷新用户信息
+        controller.updateCurrentUser(
+          user.name ?? '',
+          user.username ?? '',
+        );
+        await _loadCurrentUser();
       } else {
         throw Exception(
             '更新失败: ${response.statusCode} - ${jsonDecode(response.body)['error'] ?? '未知错误'}');
@@ -300,7 +300,7 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
                             const SizedBox(height: 16.0),
                             CupertinoButton(
                               onPressed: _loadCurrentUser,
-                              child: const Text('重试'), // 允许用户重试
+                              child: const Text('重试'),
                             ),
                           ],
                         ),
@@ -347,7 +347,7 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
           onTap: () {
             _passwordController.clear();
             _showEditDialog('新密码', _passwordController, (value) {
-              userInfo.password = value; // 假设密码直接更新，需加密处理
+              userInfo.password = value;
               _updateUserInfo();
             });
           },

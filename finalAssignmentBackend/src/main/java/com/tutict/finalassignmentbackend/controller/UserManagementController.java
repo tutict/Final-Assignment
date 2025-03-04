@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.access.prepost.PreAuthorize;
 
+import java.security.Principal;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -48,10 +49,15 @@ public class UserManagementController {
 
     @GetMapping("/me")
     @Async
-    @PreAuthorize("hasRole('USER')")
-    public CompletableFuture<ResponseEntity<UserManagement>> getCurrentUser(@RequestParam String username) {
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    public CompletableFuture<ResponseEntity<UserManagement>> getCurrentUser(Principal principal) {
         return CompletableFuture.supplyAsync(() -> {
-            logger.info("Fetching current user by username: {}", username);
+            if (principal == null) {
+                logger.warn("Principal is null, no authenticated user");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+            String username = principal.getName();
+            logger.info("Fetching current user from JWT: {}", username);
             UserManagement existingUser = userManagementService.getUserByUsername(username);
             if (existingUser != null) {
                 logger.info("User found: {}", username);
@@ -66,10 +72,13 @@ public class UserManagementController {
     @PutMapping("/me")
     @Async
     @Transactional
-    @PreAuthorize("hasRole('USER')")
-    public CompletableFuture<ResponseEntity<Void>> updateCurrentUser(@RequestBody UserManagement updatedUser, @RequestParam String idempotencyKey) {
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')") // 支持 USER 和 ADMIN
+    public CompletableFuture<ResponseEntity<Void>> updateCurrentUser(
+            @RequestBody UserManagement updatedUser,
+            @RequestParam String idempotencyKey,
+            Principal principal) {
         return CompletableFuture.supplyAsync(() -> {
-            String username = updatedUser.getUsername();
+            String username = principal.getName();
             logger.info("Attempting to update current user: {}", username);
             UserManagement existingUser = userManagementService.getUserByUsername(username);
             if (existingUser != null) {

@@ -94,6 +94,9 @@ public class AuthWsService {
         newUser.setPassword(registerRequest.getPassword());
         newUser.setCreatedTime(LocalDateTime.now());
 
+        // TODO: 有空可以在这里结合idempotencyKey，搞一个分布式锁玩玩
+        // String idempotencyKey = registerRequest.getIdempotencyKey();
+
         userManagementService.createUser(newUser);
 
         String roleName = registerRequest.getRole();
