@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 import 'package:final_assignment_front/features/model/user_management.dart';
@@ -6,8 +7,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/Get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
-
 import 'package:uuid/uuid.dart';
 
 String generateIdempotencyKey() {
@@ -38,9 +37,12 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
       TextEditingController();
   final TextEditingController _emailController = TextEditingController();
 
+  late ScrollController _scrollController;
+
   @override
   void initState() {
     super.initState();
+    _scrollController = ScrollController();
     _checkUserRole();
   }
 
@@ -51,6 +53,7 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
     _passwordController.dispose();
     _contactNumberController.dispose();
     _emailController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -67,6 +70,14 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
       }
       apiClient.setJwtToken(jwtToken);
 
+      final decodedJwt = _decodeJwt(jwtToken);
+      final roles = decodedJwt['roles']?.toString().split(',') ?? [];
+      debugPrint('Decoded JWT roles: $roles');
+      _isUser = roles.contains('USER');
+      if (!_isUser) {
+        throw Exception('权限不足：此页面仅限 USER 角色访问');
+      }
+
       final response = await apiClient.invokeAPI(
         '/api/users/me',
         'GET',
@@ -77,14 +88,8 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
         'application/json',
         ['bearerAuth'],
       );
-      debugPrint('Role Response: ${response.statusCode} - ${response.body}');
-      if (response.statusCode == 200) {
-        final roleData = jsonDecode(response.body);
-        _isUser = (roleData['roles'] as List<dynamic>).contains('USER');
-        if (!_isUser) {
-          throw Exception('权限不足：仅用户可访问此页面');
-        }
-      } else {
+      debugPrint('User Response: ${response.statusCode} - ${response.body}');
+      if (response.statusCode != 200) {
         throw Exception('验证失败：${response.statusCode} - ${response.body}');
       }
 
@@ -94,6 +99,20 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
         _isLoading = false;
         _errorMessage = '加载失败: $e';
       });
+    }
+  }
+
+  Map<String, dynamic> _decodeJwt(String token) {
+    try {
+      final parts = token.split('.');
+      if (parts.length != 3) {
+        throw Exception('Invalid JWT format');
+      }
+      final payload = base64Url.decode(base64Url.normalize(parts[1]));
+      return jsonDecode(utf8.decode(payload)) as Map<String, dynamic>;
+    } catch (e) {
+      debugPrint('JWT Decode Error: $e');
+      return {};
     }
   }
 
@@ -107,7 +126,7 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
         {},
         {},
         'application/json',
-        [], // 登录无需认证
+        [],
       );
       debugPrint('Login Response: ${response.statusCode} - ${response.body}');
       if (response.statusCode == 200) {
@@ -149,7 +168,7 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
         {},
         {},
         'application/json',
-        ['bearerAuth'], // 使用 Bearer 认证
+        ['bearerAuth'],
       );
       debugPrint('User Response: ${response.statusCode} - ${response.body}');
       if (response.statusCode == 200) {
@@ -267,20 +286,22 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
 
   @override
   Widget build(BuildContext context) {
-    final currentTheme = Theme.of(context);
-    final bool isLight = currentTheme.brightness == Brightness.light;
+    final isLight = controller.currentTheme.value == 'Light';
+    final themeData = controller.currentBodyTheme.value;
 
     if (!_isUser) {
       return CupertinoPageScaffold(
         backgroundColor: isLight
-            ? CupertinoColors.white.withOpacity(0.9)
-            : CupertinoColors.black.withOpacity(0.4),
+            ? themeData.colorScheme.surface.withOpacity(0.95)
+            : themeData.colorScheme.surface.withOpacity(0.85),
         child: Center(
           child: Text(
-            _errorMessage,
-            style: TextStyle(
-              color: isLight ? CupertinoColors.black : CupertinoColors.white,
-              fontSize: 16,
+            _errorMessage.isNotEmpty ? _errorMessage : '此页面仅限 USER 角色访问',
+            style: themeData.textTheme.bodyLarge?.copyWith(
+              color: isLight
+                  ? themeData.colorScheme.onSurface
+                  : themeData.colorScheme.onSurface.withOpacity(0.9),
+              fontSize: 18,
             ),
           ),
         ),
@@ -289,13 +310,15 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
 
     return CupertinoPageScaffold(
       backgroundColor: isLight
-          ? CupertinoColors.white.withOpacity(0.9)
-          : CupertinoColors.black.withOpacity(0.4),
+          ? themeData.colorScheme.surface.withOpacity(0.95)
+          : themeData.colorScheme.surface.withOpacity(0.85),
       navigationBar: CupertinoNavigationBar(
         middle: Text(
           '用户信息管理',
-          style: TextStyle(
-            color: isLight ? CupertinoColors.black : CupertinoColors.white,
+          style: themeData.textTheme.headlineSmall?.copyWith(
+            color: isLight
+                ? themeData.colorScheme.onSurface
+                : themeData.colorScheme.onSurface.withOpacity(0.95),
             fontWeight: FontWeight.bold,
             fontSize: 20,
           ),
@@ -304,172 +327,395 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
           onTap: () {
             controller.navigateToPage(Routes.personalMain);
           },
-          child: const Icon(CupertinoIcons.back),
+          child: Icon(
+            CupertinoIcons.back,
+            color: isLight
+                ? themeData.colorScheme.onSurface
+                : themeData.colorScheme.onSurface.withOpacity(0.95),
+          ),
         ),
-        backgroundColor:
-            isLight ? CupertinoColors.systemGrey5 : CupertinoColors.systemGrey,
-        brightness: isLight ? Brightness.light : Brightness.dark,
+        backgroundColor: isLight
+            ? themeData.colorScheme.surfaceContainer.withOpacity(0.9)
+            : themeData.colorScheme.surfaceContainer.withOpacity(0.7),
+        border: Border(
+          bottom: BorderSide(
+            color: isLight
+                ? themeData.colorScheme.outline.withOpacity(0.2)
+                : themeData.colorScheme.outline.withOpacity(0.1),
+            width: 1.0,
+          ),
+        ),
       ),
       child: SafeArea(
-        child: CupertinoScrollbar(
-          child: _isLoading
-              ? const Center(child: CupertinoActivityIndicator())
-              : FutureBuilder<UserManagement?>(
-                  future: _userFuture,
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CupertinoActivityIndicator());
-                    } else if (snapshot.hasError ||
-                        !snapshot.hasData ||
-                        snapshot.data == null) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              snapshot.hasError
-                                  ? '加载用户信息失败: ${snapshot.error}'
-                                  : '没有找到用户信息',
-                              style: TextStyle(
-                                color: isLight
-                                    ? CupertinoColors.black
-                                    : CupertinoColors.white,
+        child: _isLoading
+            ? Center(
+                child: CupertinoActivityIndicator(
+                  color: themeData.colorScheme.primary,
+                  radius: 16.0,
+                ),
+              )
+            : FutureBuilder<UserManagement?>(
+                future: _userFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return Center(
+                      child: CupertinoActivityIndicator(
+                        color: themeData.colorScheme.primary,
+                        radius: 16.0,
+                      ),
+                    );
+                  } else if (snapshot.hasError ||
+                      !snapshot.hasData ||
+                      snapshot.data == null) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            snapshot.hasError
+                                ? '加载用户信息失败: ${snapshot.error}'
+                                : '没有找到用户信息',
+                            style: themeData.textTheme.bodyLarge?.copyWith(
+                              color: isLight
+                                  ? themeData.colorScheme.onSurface
+                                  : themeData.colorScheme.onSurface
+                                      .withOpacity(0.9),
+                              fontSize: 18,
+                            ),
+                          ),
+                          const SizedBox(height: 20.0),
+                          ElevatedButton(
+                            onPressed: _loadCurrentUser,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: themeData.colorScheme.primary,
+                              foregroundColor: themeData.colorScheme.onPrimary,
+                              elevation: 4,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12.0),
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 24.0, vertical: 12.0),
+                            ),
+                            child: Text(
+                              '重试',
+                              style: themeData.textTheme.labelLarge?.copyWith(
+                                color: themeData.colorScheme.onPrimary,
                                 fontSize: 16,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                            const SizedBox(height: 16.0),
-                            CupertinoButton(
-                              onPressed: _loadCurrentUser,
-                              child: const Text('重试'),
-                            ),
-                          ],
-                        ),
-                      );
-                    } else {
-                      final userInfo = snapshot.data!;
-                      return _buildUserInfoList(userInfo, isLight);
-                    }
-                  },
-                ),
-        ),
+                          ),
+                        ],
+                      ),
+                    );
+                  } else {
+                    final userInfo = snapshot.data!;
+                    return _buildUserInfoList(userInfo, isLight, themeData);
+                  }
+                },
+              ),
       ),
     );
   }
 
-  Widget _buildUserInfoList(UserManagement userInfo, bool isLight) {
-    return ListView(
-      children: [
-        CupertinoListTile(
-          title: const Text('姓名'),
-          subtitle: Text(userInfo.name ?? '无数据'),
-          onTap: () {
-            _nameController.text = userInfo.name ?? '';
-            _showEditDialog('姓名', _nameController, (value) {
-              userInfo.name = value;
-              _updateUserInfo();
-            });
-          },
-        ),
-        CupertinoListTile(
-          title: const Text('用户名'),
-          subtitle: Text(userInfo.username ?? '无数据'),
-          onTap: () {
-            _usernameController.text = userInfo.username ?? '';
-            _showEditDialog('用户名', _usernameController, (value) {
-              userInfo.username = value;
-              _updateUserInfo();
-            });
-          },
-        ),
-        CupertinoListTile(
-          title: const Text('密码'),
-          subtitle: const Text('点击修改密码'),
-          onTap: () {
-            _passwordController.clear();
-            _showEditDialog('新密码', _passwordController, (value) {
-              userInfo.password = value;
-              _updateUserInfo();
-            });
-          },
-        ),
-        CupertinoListTile(
-          title: const Text('联系电话'),
-          subtitle: Text(userInfo.contactNumber ?? '无数据'),
-          onTap: () {
-            _contactNumberController.text = userInfo.contactNumber ?? '';
-            _showEditDialog('联系电话', _contactNumberController, (value) {
-              userInfo.contactNumber = value;
-              _updateUserInfo();
-            });
-          },
-        ),
-        CupertinoListTile(
-          title: const Text('邮箱'),
-          subtitle: Text(userInfo.email ?? '无数据'),
-          onTap: () {
-            _emailController.text = userInfo.email ?? '';
-            _showEditDialog('邮箱', _emailController, (value) {
-              userInfo.email = value;
-              _updateUserInfo();
-            });
-          },
-        ),
-        CupertinoListTile(
-          title: const Text('状态'),
-          subtitle: Text(userInfo.status ?? '无数据'),
-        ),
-        CupertinoListTile(
-          title: const Text('创建时间'),
-          subtitle: Text(userInfo.createdTime?.toString() ?? '无数据'),
-        ),
-        CupertinoListTile(
-          title: const Text('修改时间'),
-          subtitle: Text(userInfo.modifiedTime?.toString() ?? '无数据'),
-        ),
-        CupertinoListTile(
-          title: const Text('备注'),
-          subtitle: Text(userInfo.remarks ?? '无数据'),
-          onTap: () {
-            _showEditDialog(
-                '备注', TextEditingController(text: userInfo.remarks ?? ''),
-                (value) {
-              userInfo.remarks = value;
-              _updateUserInfo();
-            });
-          },
-        ),
-        const SizedBox(height: 20.0),
-        CupertinoButton.filled(
-          onPressed: _updateUserInfo,
-          child: const Text('保存所有更改'),
-        ),
-      ],
+  Widget _buildUserInfoList(
+      UserManagement userInfo, bool isLight, ThemeData themeData) {
+    return CupertinoScrollbar(
+      controller: _scrollController,
+      thumbVisibility: true,
+      thickness: 6.0,
+      thicknessWhileDragging: 10.0,
+      child: ListView(
+        controller: _scrollController,
+        padding: const EdgeInsets.all(16.0),
+        children: [
+          _buildListTile(
+            title: '姓名',
+            subtitle: userInfo.name ?? '无数据',
+            themeData: themeData,
+            isLight: isLight,
+            onTap: () {
+              _nameController.text = userInfo.name ?? '';
+              _showEditDialog('姓名', _nameController, (value) {
+                userInfo.name = value;
+                _updateUserInfo();
+              });
+            },
+          ),
+          _buildListTile(
+            title: '用户名',
+            subtitle: userInfo.username ?? '无数据',
+            themeData: themeData,
+            isLight: isLight,
+            onTap: () {
+              _usernameController.text = userInfo.username ?? '';
+              _showEditDialog('用户名', _usernameController, (value) {
+                userInfo.username = value;
+                _updateUserInfo();
+              });
+            },
+          ),
+          _buildListTile(
+            title: '密码',
+            subtitle: '点击修改密码',
+            themeData: themeData,
+            isLight: isLight,
+            onTap: () {
+              _passwordController.clear();
+              _showEditDialog('新密码', _passwordController, (value) {
+                userInfo.password = value;
+                _updateUserInfo();
+              });
+            },
+          ),
+          _buildListTile(
+            title: '联系电话',
+            subtitle: userInfo.contactNumber ?? '无数据',
+            themeData: themeData,
+            isLight: isLight,
+            onTap: () {
+              _contactNumberController.text = userInfo.contactNumber ?? '';
+              _showEditDialog('联系电话', _contactNumberController, (value) {
+                userInfo.contactNumber = value;
+                _updateUserInfo();
+              });
+            },
+          ),
+          _buildListTile(
+            title: '邮箱',
+            subtitle: userInfo.email ?? '无数据',
+            themeData: themeData,
+            isLight: isLight,
+            onTap: () {
+              _emailController.text = userInfo.email ?? '';
+              _showEditDialog('邮箱', _emailController, (value) {
+                userInfo.email = value;
+                _updateUserInfo();
+              });
+            },
+          ),
+          _buildListTile(
+            title: '状态',
+            subtitle: userInfo.status ?? '无数据',
+            themeData: themeData,
+            isLight: isLight,
+          ),
+          _buildListTile(
+            title: '创建时间',
+            subtitle: userInfo.createdTime?.toString() ?? '无数据',
+            themeData: themeData,
+            isLight: isLight,
+          ),
+          _buildListTile(
+            title: '修改时间',
+            subtitle: userInfo.modifiedTime?.toString() ?? '无数据',
+            themeData: themeData,
+            isLight: isLight,
+          ),
+          _buildListTile(
+            title: '备注',
+            subtitle: userInfo.remarks ?? '无数据',
+            themeData: themeData,
+            isLight: isLight,
+            onTap: () {
+              _showEditDialog(
+                  '备注', TextEditingController(text: userInfo.remarks ?? ''),
+                  (value) {
+                userInfo.remarks = value;
+                _updateUserInfo();
+              });
+            },
+          ),
+          const SizedBox(height: 24.0),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: ElevatedButton(
+              onPressed: _updateUserInfo,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: themeData.colorScheme.primary,
+                foregroundColor: themeData.colorScheme.onPrimary,
+                elevation: 4,
+                shadowColor: themeData.colorScheme.shadow.withOpacity(0.3),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12.0),
+                ),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 32.0, vertical: 14.0),
+              ),
+              child: Text(
+                '保存所有更改',
+                style: themeData.textTheme.labelLarge?.copyWith(
+                  color: themeData.colorScheme.onPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16.0),
+        ],
+      ),
     );
   }
 
-  void _showEditDialog(String field, TextEditingController controller,
-      void Function(String) onSave) {
-    showCupertinoDialog(
-      context: context,
-      builder: (_) => CupertinoAlertDialog(
-        title: Text('编辑 $field'),
-        content: CupertinoTextField(
-          controller: controller,
-          placeholder: '输入新的 $field',
+  Widget _buildListTile({
+    required String title,
+    required String subtitle,
+    required ThemeData themeData,
+    required bool isLight,
+    VoidCallback? onTap,
+  }) {
+    return Card(
+      elevation: 2,
+      shadowColor: themeData.colorScheme.shadow.withOpacity(0.2),
+      color: isLight
+          ? themeData.colorScheme.surfaceContainerLow
+          : themeData.colorScheme.surfaceContainerHigh,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+      margin: const EdgeInsets.symmetric(vertical: 6.0),
+      child: ListTile(
+        title: Text(
+          title,
+          style: themeData.textTheme.bodyLarge?.copyWith(
+            color: isLight
+                ? themeData.colorScheme.onSurface
+                : themeData.colorScheme.onSurface.withOpacity(0.95),
+            fontWeight: FontWeight.w600,
+          ),
         ),
-        actions: [
-          CupertinoDialogAction(
-            child: const Text('取消'),
-            onPressed: () => Navigator.pop(context),
+        subtitle: Text(
+          subtitle,
+          style: themeData.textTheme.bodyMedium?.copyWith(
+            color: isLight
+                ? themeData.colorScheme.onSurfaceVariant
+                : themeData.colorScheme.onSurfaceVariant.withOpacity(0.85),
           ),
-          CupertinoDialogAction(
-            child: const Text('保存'),
-            onPressed: () {
-              Navigator.pop(context);
-              onSave(controller.text.trim());
-            },
+        ),
+        onTap: onTap,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      ),
+    );
+  }
+
+  void _showEditDialog(String field, TextEditingController textController,
+      void Function(String) onSave) {
+    final isLight = controller.currentTheme.value == 'Light';
+    final themeData = controller.currentBodyTheme.value;
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        backgroundColor: isLight
+            ? themeData.colorScheme.surfaceContainer
+            : themeData.colorScheme.surfaceContainerHigh,
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            maxWidth: 300.0, // 限制最大宽度
+            minHeight: 150.0, // 最小高度
           ),
-        ],
+          child: Padding(
+            padding: const EdgeInsets.all(12.0), // 缩小内边距
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  '编辑 $field',
+                  style: themeData.textTheme.titleMedium?.copyWith(
+                    color: isLight
+                        ? themeData.colorScheme.onSurface
+                        : themeData.colorScheme.onSurface.withOpacity(0.95),
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12.0),
+                TextField(
+                  controller: textController,
+                  style: themeData.textTheme.bodyMedium?.copyWith(
+                    color: isLight
+                        ? themeData.colorScheme.onSurface
+                        : themeData.colorScheme.onSurface.withOpacity(0.95),
+                  ),
+                  decoration: InputDecoration(
+                    hintText: '输入新的 $field',
+                    hintStyle: themeData.textTheme.bodyMedium?.copyWith(
+                      color: isLight
+                          ? themeData.colorScheme.onSurfaceVariant
+                              .withOpacity(0.6)
+                          : themeData.colorScheme.onSurfaceVariant
+                              .withOpacity(0.5),
+                    ),
+                    filled: true,
+                    fillColor: isLight
+                        ? themeData.colorScheme.surfaceContainerLowest
+                        : themeData.colorScheme.surfaceContainerLow,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8.0),
+                      borderSide: BorderSide(
+                        color: themeData.colorScheme.outline.withOpacity(0.3),
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8.0),
+                      borderSide: BorderSide(
+                        color: themeData.colorScheme.primary,
+                        width: 2.0,
+                      ),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12.0, vertical: 10.0), // 缩小输入框内边距
+                  ),
+                ),
+                const SizedBox(height: 16.0),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: TextButton.styleFrom(
+                        foregroundColor: themeData.colorScheme.onSurface,
+                      ),
+                      child: Text(
+                        '取消',
+                        style: themeData.textTheme.labelMedium?.copyWith(
+                          color: themeData.colorScheme.onSurface,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        onSave(textController.text.trim());
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: themeData.colorScheme.primary,
+                        foregroundColor: themeData.colorScheme.onPrimary,
+                        elevation: 2,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10.0),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20.0, vertical: 10.0), // 缩小按钮
+                      ),
+                      child: Text(
+                        '保存',
+                        style: themeData.textTheme.labelMedium?.copyWith(
+                          color: themeData.colorScheme.onPrimary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

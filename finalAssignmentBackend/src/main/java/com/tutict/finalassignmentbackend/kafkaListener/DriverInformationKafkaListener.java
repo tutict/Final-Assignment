@@ -7,7 +7,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -29,15 +28,13 @@ public class DriverInformationKafkaListener {
     }
 
     @KafkaListener(topics = "driver_create", groupId = "driverGroup")
-    @Transactional
     public void onDriverCreateReceived(String message) {
-        processMessage(message, "create", driverInformationService::createDriver);
+        Thread.ofVirtual().start(() -> processMessage(message, "create", driverInformationService::createDriver));
     }
 
     @KafkaListener(topics = "driver_update", groupId = "driverGroup")
-    @Transactional
     public void onDriverUpdateReceived(String message) {
-        processMessage(message, "update", driverInformationService::updateDriver);
+        Thread.ofVirtual().start(() -> processMessage(message, "update", driverInformationService::updateDriver));
     }
 
     private void processMessage(String message, String action, MessageProcessor<DriverInformation> processor) {
@@ -45,8 +42,8 @@ public class DriverInformationKafkaListener {
             DriverInformation driverInformation = deserializeMessage(message);
             if ("create".equals(action)) {
                 driverInformation.setDriverId(null);
-                processor.process(driverInformation);
             }
+            processor.process(driverInformation);
             log.info(String.format("Driver %s action processed successfully: %s", action, message));
         } catch (Exception e) {
             log.log(Level.SEVERE, String.format("Error processing %s driver message: %s", action, message), e);

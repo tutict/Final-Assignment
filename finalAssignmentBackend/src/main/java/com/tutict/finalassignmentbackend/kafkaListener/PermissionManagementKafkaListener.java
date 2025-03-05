@@ -7,7 +7,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -30,15 +29,13 @@ public class PermissionManagementKafkaListener {
     }
 
     @KafkaListener(topics = "permission_create", groupId = "permissionGroup")
-    @Transactional
     public void onPermissionCreateReceived(String message) {
-        processMessage(message, "create", permissionManagementService::createPermission);
+        Thread.ofVirtual().start(() -> processMessage(message, "create", permissionManagementService::createPermission));
     }
 
     @KafkaListener(topics = "permission_update", groupId = "permissionGroup")
-    @Transactional
     public void onPermissionUpdateReceived(String message) {
-        processMessage(message, "update", permissionManagementService::updatePermission);
+        Thread.ofVirtual().start(() -> processMessage(message, "update", permissionManagementService::updatePermission));
     }
 
     private void processMessage(String message, String action, MessageProcessor<PermissionManagement> processor) {
@@ -46,8 +43,8 @@ public class PermissionManagementKafkaListener {
             PermissionManagement permission = deserializeMessage(message);
             if ("create".equals(action)) {
                 permission.setPermissionId(null);
-                processor.process(permission);
             }
+            processor.process(permission);
             log.info(String.format("Permission %s action processed successfully: %s", action, message));
         } catch (Exception e) {
             log.log(Level.SEVERE, String.format("Error processing %s permission message: %s", action, message), e);

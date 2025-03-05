@@ -7,7 +7,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -28,10 +27,10 @@ public class SystemSettingsKafkaListener {
         this.objectMapper = objectMapper;
     }
 
-    @KafkaListener(topics = "system_settings_update", groupId = "systemSettingsGroup")
-    @Transactional
+    @KafkaListener(topics = "system_settings_update", groupId = "systemSettingsGroup", concurrency = "3")
     public void onSystemSettingsUpdateReceived(String message) {
-        processMessage(message, systemSettingsService::updateSystemSettings);
+        // 使用虚拟线程处理消息
+        Thread.ofVirtual().start(() -> processMessage(message, systemSettingsService::updateSystemSettings));
     }
 
     private void processMessage(String message, MessageProcessor<SystemSettings> processor) {

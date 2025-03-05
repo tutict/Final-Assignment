@@ -7,7 +7,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -29,15 +28,13 @@ public class RoleManagementKafkaListener {
     }
 
     @KafkaListener(topics = "role_create", groupId = "roleGroup")
-    @Transactional
     public void onRoleCreateReceived(String message) {
-        processMessage(message, "create", roleManagementService::createRole);
+        Thread.ofVirtual().start(() -> processMessage(message, "create", roleManagementService::createRole));
     }
 
     @KafkaListener(topics = "role_update", groupId = "roleGroup")
-    @Transactional
     public void onRoleUpdateReceived(String message) {
-        processMessage(message, "update", roleManagementService::updateRole);
+        Thread.ofVirtual().start(() -> processMessage(message, "update", roleManagementService::updateRole));
     }
 
     private void processMessage(String message, String action, MessageProcessor<RoleManagement> processor) {
@@ -45,8 +42,8 @@ public class RoleManagementKafkaListener {
             RoleManagement role = deserializeMessage(message);
             if ("create".equals(action)) {
                 role.setRoleId(null);
-                processor.process(role);
             }
+            processor.process(role);
             log.info(String.format("Role %s action processed successfully: %s", action, message));
         } catch (Exception e) {
             log.log(Level.SEVERE, String.format("Error processing %s role message: %s", action, message), e);

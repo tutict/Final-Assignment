@@ -7,7 +7,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -28,25 +27,25 @@ public class VehicleInformationKafkaListener {
         this.objectMapper = objectMapper;
     }
 
-    @KafkaListener(topics = "vehicle_create", groupId = "vehicleGroup")
-    @Transactional
+    @KafkaListener(topics = "vehicle_create", groupId = "vehicleGroup", concurrency = "3")
     public void onVehicleCreateReceived(String message) {
-        processMessage(message, "create", vehicleInformationService::createVehicleInformation);
+        // 使用虚拟线程处理消息
+        Thread.ofVirtual().start(() -> processMessage(message, "create", vehicleInformationService::createVehicleInformation));
     }
 
-    @KafkaListener(topics = "vehicle_update", groupId = "vehicleGroup")
-    @Transactional
+    @KafkaListener(topics = "vehicle_update", groupId = "vehicleGroup", concurrency = "3")
     public void onVehicleUpdateReceived(String message) {
-        processMessage(message, "update", vehicleInformationService::updateVehicleInformation);
+        // 使用虚拟线程处理消息
+        Thread.ofVirtual().start(() -> processMessage(message, "update", vehicleInformationService::updateVehicleInformation));
     }
 
     private void processMessage(String message, String action, MessageProcessor<VehicleInformation> processor) {
         try {
             VehicleInformation vehicleInformation = deserializeMessage(message);
             if ("create".equals(action)) {
-                vehicleInformation.setVehicleId(null);
-                processor.process(vehicleInformation);
+                vehicleInformation.setVehicleId(null); // 让数据库自增
             }
+            processor.process(vehicleInformation);
             log.info(String.format("Vehicle %s action processed successfully: %s", action, message));
         } catch (Exception e) {
             log.log(Level.SEVERE, String.format("Error processing %s vehicle information message: %s", action, message), e);

@@ -24,9 +24,9 @@ public class AppealManagementController {
         this.appealManagementService = appealManagementService;
     }
 
-    // Create a new appeal (仅 ADMIN)
+    // Create a new appeal (改为 USER 权限)
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('USER')") // 修改权限为 USER
     public ResponseEntity<Void> createAppeal(@RequestBody AppealManagement appeal, @RequestParam String idempotencyKey) {
         try {
             appealManagementService.checkAndInsertIdempotency(idempotencyKey, appeal, "create");

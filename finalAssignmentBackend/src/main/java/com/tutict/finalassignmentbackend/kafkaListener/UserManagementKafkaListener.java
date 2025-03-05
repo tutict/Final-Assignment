@@ -7,11 +7,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
 
 @Service
 @EnableKafka
@@ -28,28 +26,26 @@ public class UserManagementKafkaListener {
         this.objectMapper = objectMapper;
     }
 
-    @KafkaListener(topics = "user_create", groupId = "userGroup")
-    @Transactional
+    @KafkaListener(topics = "user_create", groupId = "userGroup", concurrency = "3")
     public void onUserCreateReceived(String message) {
-        processMessage(message, "create", userManagementService::createUser);
+        // 使用虚拟线程处理消息
+        Thread.ofVirtual().start(() -> processMessage(message, "create", userManagementService::createUser));
     }
 
-    @KafkaListener(topics = "user_update", groupId = "userGroup")
-    @Transactional
+    @KafkaListener(topics = "user_update", groupId = "userGroup", concurrency = "3")
     public void onUserUpdateReceived(String message) {
-        processMessage(message, "update", userManagementService::updateUser);
+        // 使用虚拟线程处理消息
+        Thread.ofVirtual().start(() -> processMessage(message, "update", userManagementService::updateUser));
     }
 
     private void processMessage(String message, String action, MessageProcessor<UserManagement> processor) {
         try {
             UserManagement user = deserializeMessage(message);
-
             if ("create".equals(action)) {
                 // 让数据库自增
                 user.setUserId(null);
-                processor.process(user);
             }
-
+            processor.process(user);
             log.info(String.format("User %s action processed successfully: %s", action, message));
         } catch (Exception e) {
             log.log(Level.SEVERE, String.format("Error processing %s user message: %s", action, message), e);

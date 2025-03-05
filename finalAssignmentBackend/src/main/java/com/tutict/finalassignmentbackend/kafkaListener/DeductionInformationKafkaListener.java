@@ -7,7 +7,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -30,15 +29,13 @@ public class DeductionInformationKafkaListener {
     }
 
     @KafkaListener(topics = "deduction_create", groupId = "deductionGroup")
-    @Transactional
     public void onDeductionCreateReceived(String message) {
-        processMessage(message, "create", deductionInformationService::createDeduction);
+        Thread.ofVirtual().start(() -> processMessage(message, "create", deductionInformationService::createDeduction));
     }
 
     @KafkaListener(topics = "deduction_update", groupId = "deductionGroup")
-    @Transactional
     public void onDeductionUpdateReceived(String message) {
-        processMessage(message, "update", deductionInformationService::updateDeduction);
+        Thread.ofVirtual().start(() -> processMessage(message, "update", deductionInformationService::updateDeduction));
     }
 
     private void processMessage(String message, String action, MessageProcessor<DeductionInformation> processor) {
@@ -46,8 +43,8 @@ public class DeductionInformationKafkaListener {
             DeductionInformation deductionInformation = deserializeMessage(message);
             if ("create".equals(action)) {
                 deductionInformation.setDeductionId(null);
-                processor.process(deductionInformation);
             }
+            processor.process(deductionInformation);
             log.info(String.format("Deduction %s action processed successfully: %s", action, message));
         } catch (Exception e) {
             log.log(Level.SEVERE, String.format("Error processing %s deduction message: %s", action, message), e);

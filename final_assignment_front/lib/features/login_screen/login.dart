@@ -38,14 +38,14 @@ class LoginScreen extends StatefulWidget with ValidatorMixin {
 class _LoginScreenState extends State<LoginScreen> {
   late AuthControllerApi authApi;
   late String? _userRole;
-  bool _hasSentRegisterRequest = false; // 新增标志位，追踪是否已发送注册请求
+  bool _hasSentRegisterRequest = false; // 追踪是否已发送注册请求
 
   @override
   void initState() {
     super.initState();
     authApi = AuthControllerApi();
     _userRole = null;
-    _hasSentRegisterRequest = false; // 初始化标志位
+    _hasSentRegisterRequest = false;
     if (!Get.isRegistered<ChatController>()) {
       Get.put(ChatController());
     }
@@ -127,30 +127,27 @@ class _LoginScreenState extends State<LoginScreen> {
       return '请输入有效的邮箱地址';
     }
 
-    // 如果已经发送过注册请求，则不再重复发送
     if (_hasSentRegisterRequest) {
       return '注册请求已发送，请等待处理';
     }
 
-    // 验证码验证（只在首次请求时触发）
-    if (!_hasSentRegisterRequest) {
-      final bool? isCaptchaValid = await showDialog<bool>(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const LocalCaptchaMain(),
-      );
+    final bool? isCaptchaValid = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const LocalCaptchaMain(),
+    );
 
-      debugPrint('Signup captcha result: $isCaptchaValid');
-
-      if (isCaptchaValid != true) {
-        return '用户已取消注册账号';
-      }
+    debugPrint('Signup captcha result: $isCaptchaValid');
+    if (isCaptchaValid != true) {
+      return '用户已取消注册账号';
     }
 
     String uniqueKey = DateTime.now().millisecondsSinceEpoch.toString();
 
     try {
-      final result = await authApi.apiAuthRegisterPost(
+      // 注册请求
+      debugPrint('Sending register request for $username');
+      final registerResult = await authApi.apiAuthRegisterPost(
         registerRequest: RegisterRequest(
           username: username,
           password: password,
@@ -158,35 +155,52 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
 
-      debugPrint('Signup raw result: $result');
+      debugPrint('Signup raw result: $registerResult');
 
-      if (result['status'] == 'CREATED') {
-        _hasSentRegisterRequest = true; // 标记请求已发送成功
-        _userRole = determineRole(username);
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('jwtToken', result['jwtToken'] ?? '');
-        await prefs.setString('userRole', _userRole!);
+      if (registerResult['status'] == 'CREATED') {
+        _hasSentRegisterRequest = true;
 
-        final userData = result['user'] ?? {};
-        final String name = userData['name'] ?? username.split('@').first;
-        final String email = userData['email'] ?? username;
+        // 立即调用登录请求
+        debugPrint('Sending login request for $username after signup');
+        final loginResult = await authApi.apiAuthLoginPost(
+          loginRequest: LoginRequest(username: username, password: password),
+        );
 
-        final DashboardController dashboardController =
-            Get.find<DashboardController>();
-        dashboardController.updateCurrentUser(name, email);
+        debugPrint('Login after signup raw result: $loginResult');
 
-        final UserDashboardController userDashboardController =
-            Get.find<UserDashboardController>();
-        userDashboardController.updateCurrentUser(name, email);
+        if (loginResult.containsKey('jwtToken')) {
+          _userRole = determineRole(username);
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('jwtToken', loginResult['jwtToken']);
+          await prefs.setString('userRole', _userRole!);
+          debugPrint('JWT saved: ${loginResult['jwtToken']}');
+          debugPrint('Role saved: $_userRole');
 
-        Get.find<ChatController>().setUserRole(_userRole!);
-        debugPrint(
-            'User Role after signup: $_userRole, Name: $name, Email: $email');
-        return null;
+          final userData = loginResult['user'] ?? {};
+          final String name = userData['name'] ?? username.split('@').first;
+          final String email = userData['email'] ?? username;
+
+          final DashboardController dashboardController =
+              Get.find<DashboardController>();
+          dashboardController.updateCurrentUser(name, email);
+
+          final UserDashboardController userDashboardController =
+              Get.find<UserDashboardController>();
+          userDashboardController.updateCurrentUser(name, email);
+
+          Get.find<ChatController>().setUserRole(_userRole!);
+          debugPrint(
+              'User Role after signup and login: $_userRole, Name: $name, Email: $email');
+          return null;
+        } else {
+          debugPrint('Login failed after signup: $loginResult');
+          return loginResult['message'] ?? '注册成功，但登录失败';
+        }
       }
-      return result['error'] ?? '注册失败：未知错误';
+      debugPrint('Register failed: $registerResult');
+      return registerResult['error'] ?? '注册失败：未知错误';
     } on ApiException catch (e) {
-      debugPrint('ApiException in signup: ${e.message}');
+      debugPrint('ApiException in signup: ${e.code} - ${e.message}');
       return '注册失败: ${e.code} - ${e.message}';
     } catch (e) {
       debugPrint('General Exception in signup: $e');

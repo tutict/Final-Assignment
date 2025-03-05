@@ -7,7 +7,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -30,15 +29,13 @@ public class FineInformationKafkaListener {
     }
 
     @KafkaListener(topics = "fine_create", groupId = "fineGroup")
-    @Transactional
     public void onFineCreateReceived(String message) {
-        processMessage(message, "create", fineInformationService::createFine);
+        Thread.ofVirtual().start(() -> processMessage(message, "create", fineInformationService::createFine));
     }
 
     @KafkaListener(topics = "fine_update", groupId = "fineGroup")
-    @Transactional
     public void onFineUpdateReceived(String message) {
-        processMessage(message, "update", fineInformationService::updateFine);
+        Thread.ofVirtual().start(() -> processMessage(message, "update", fineInformationService::updateFine));
     }
 
     private void processMessage(String message, String action, MessageProcessor<FineInformation> processor) {
@@ -46,8 +43,8 @@ public class FineInformationKafkaListener {
             FineInformation fineInformation = deserializeMessage(message);
             if ("create".equals(action)) {
                 fineInformation.setFineId(null);
-                processor.process(fineInformation);
             }
+            processor.process(fineInformation);
             log.info(String.format("Fine %s action processed successfully: %s", action, message));
         } catch (Exception e) {
             log.log(Level.SEVERE, String.format("Error processing %s fine message: %s", action, message), e);

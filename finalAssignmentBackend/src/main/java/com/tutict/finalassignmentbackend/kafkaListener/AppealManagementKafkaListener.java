@@ -7,11 +7,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
 
 // 声明一个Kafka监听器组件，用于处理申诉管理相关的消息
 @Service
@@ -29,16 +27,14 @@ public class AppealManagementKafkaListener {
         this.objectMapper = objectMapper;
     }
 
-    @KafkaListener(topics = "appeal_create", groupId = "appealGroup")
-    @Transactional
+    @KafkaListener(topics = "appeal_create", groupId = "appealGroup", concurrency = "3")
     public void onAppealCreateReceived(String message) {
-        processMessage(message, "create", appealManagementService::createAppeal);
+        Thread.ofVirtual().start(() -> processMessage(message, "create", appealManagementService::createAppeal));
     }
 
-    @KafkaListener(topics = "appeal_updated", groupId = "appealGroup")
-    @Transactional
+    @KafkaListener(topics = "appeal_updated", groupId = "appealGroup", concurrency = "3")
     public void onAppealUpdateReceived(String message) {
-        processMessage(message, "update", appealManagementService::updateAppeal);
+        Thread.ofVirtual().start(() -> processMessage(message, "update", appealManagementService::updateAppeal));
     }
 
     private void processMessage(String message, String action, MessageProcessor<AppealManagement> processor) {
@@ -46,15 +42,14 @@ public class AppealManagementKafkaListener {
             AppealManagement appealManagement = deserializeMessage(message);
             if ("create".equals(action)) {
                 appealManagement.setAppealId(null);
-                processor.process(appealManagement);
             }
+            processor.process(appealManagement);
             log.info(String.format("Appeal %s action processed successfully: %s", action, message));
         } catch (Exception e) {
             log.log(Level.SEVERE, String.format("Error processing %s appeal message: %s", action, message), e);
             throw new RuntimeException(String.format("Failed to process %s appeal message", action), e);
         }
     }
-
     private AppealManagement deserializeMessage(String message) {
         try {
             return objectMapper.readValue(message, AppealManagement.class);

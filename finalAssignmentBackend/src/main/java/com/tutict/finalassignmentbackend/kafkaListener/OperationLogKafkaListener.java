@@ -7,7 +7,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -29,15 +28,13 @@ public class OperationLogKafkaListener {
     }
 
     @KafkaListener(topics = "operation_create", groupId = "operationLogGroup")
-    @Transactional
     public void onOperationLogCreateReceived(String message) {
-        processMessage(message, "create", operationLogService::createOperationLog);
+        Thread.ofVirtual().start(() -> processMessage(message, "create", operationLogService::createOperationLog));
     }
 
     @KafkaListener(topics = "operation_update", groupId = "operationLogGroup")
-    @Transactional
     public void onOperationLogUpdateReceived(String message) {
-        processMessage(message, "update", operationLogService::updateOperationLog);
+        Thread.ofVirtual().start(() -> processMessage(message, "update", operationLogService::updateOperationLog));
     }
 
     private void processMessage(String message, String action, MessageProcessor<OperationLog> processor) {
@@ -45,8 +42,8 @@ public class OperationLogKafkaListener {
             OperationLog operationLog = deserializeMessage(message);
             if ("create".equals(action)) {
                 operationLog.setLogId(null);
-                processor.process(operationLog);
             }
+            processor.process(operationLog);
             log.info(String.format("Operation log %s action processed successfully: %s", action, message));
         } catch (Exception e) {
             log.log(Level.SEVERE, String.format("Error processing %s operation log message: %s", action, message), e);

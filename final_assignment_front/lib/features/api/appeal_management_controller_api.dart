@@ -1,329 +1,206 @@
 import 'dart:convert';
 import 'package:final_assignment_front/features/model/appeal_management.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
-import 'package:http/http.dart'; // 用于 Response 和 MultipartRequest
+import 'package:http/http.dart' as http;
 import 'package:final_assignment_front/utils/services/api_client.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-/// 定义一个全局的 defaultApiClient
 final ApiClient defaultApiClient = ApiClient();
 
 class AppealManagementControllerApi {
   final ApiClient apiClient;
 
-  /// 构造函数允许传入自定义 ApiClient，否则使用全局 defaultApiClient
   AppealManagementControllerApi([ApiClient? apiClient])
       : apiClient = apiClient ?? defaultApiClient;
 
-  // 解码响应体的辅助方法
-  String _decodeBodyBytes(Response response) {
-    return response.body;
+  String _decodeBodyBytes(http.Response response) => response.body;
+
+  Future<Map<String, String>> _getHeaders() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('jwtToken') ?? '';
+    return {
+      'Content-Type': 'application/json; charset=utf-8',
+      if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+    };
   }
 
-  /// DELETE 申诉（HTTP DELETE）
-  Future<Response> apiAppealsAppealIdDeleteWithHttpInfo(
-      {required String appealId}) async {
-    Object postBody = ''; // DELETE 请求通常没有 body
+  // --- GET /api/appeals ---
+  Future<http.Response> apiAppealsGetWithHttpInfo() async {
+    final path = "/api/appeals";
+    final headerParams = await _getHeaders();
 
-    if (appealId.isEmpty) {
-      throw ApiException(400, "Missing required param: appealId");
-    }
-
-    String path = "/api/appeals/{appealId}"
-        .replaceAll("{format}", "json")
-        .replaceAll("{appealId}", appealId);
-
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    var response = await apiClient.invokeAPI(path, 'DELETE', queryParams,
-        postBody, headerParams, formParams, nullableContentType, authNames);
-    return response;
+    return await apiClient.invokeAPI(
+      path,
+      'GET',
+      [],
+      null,
+      headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
   }
 
-  Future<Object?> apiAppealsAppealIdDelete({required String appealId}) async {
-    Response response =
-        await apiAppealsAppealIdDeleteWithHttpInfo(appealId: appealId);
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
-    }
-  }
-
-  /// GET 通过 ID 获取申诉详情（HTTP GET）
-  Future<Response> apiAppealsAppealIdGetWithHttpInfo(
-      {required String appealId}) async {
-    Object postBody = ''; // GET 请求通常没有 body
-
-    if (appealId.isEmpty) {
-      throw ApiException(400, "Missing required param: appealId");
-    }
-
-    String path = "/api/appeals/{appealId}"
-        .replaceAll("{format}", "json")
-        .replaceAll("{appealId}", appealId);
-
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-    List<String> contentTypes = [];
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  Future<Object?> apiAppealsAppealIdGet({required String appealId}) async {
-    Response response =
-        await apiAppealsAppealIdGetWithHttpInfo(appealId: appealId);
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
-    }
-  }
-
-  /// GET 获取指定申诉的关联违法信息（HTTP GET）
-  Future<Response> apiAppealsAppealIdOffenseGetWithHttpInfo(
-      {required String appealId}) async {
-    Object postBody = '';
-
-    if (appealId.isEmpty) {
-      throw ApiException(400, "Missing required param: appealId");
-    }
-
-    String path = "/api/appeals/{appealId}/offense"
-        .replaceAll("{format}", "json")
-        .replaceAll("{appealId}", appealId);
-
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-    List<String> contentTypes = [];
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  Future<Object?> apiAppealsAppealIdOffenseGet(
-      {required String appealId}) async {
-    Response response =
-        await apiAppealsAppealIdOffenseGetWithHttpInfo(appealId: appealId);
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
-    }
-  }
-
-  /// PUT 更新申诉，传递完整的 AppealManagement 对象（HTTP PUT）
-  Future<Response> apiAppealsAppealIdPutWithHttpInfo({
-    required String appealId,
-    required AppealManagement appealManagement,
-  }) async {
-    Object postBody = appealManagement; // 传递完整对象
-
-    if (appealId.isEmpty) {
-      throw ApiException(400, "Missing required param: appealId");
-    }
-
-    String path = "/api/appeals/{appealId}"
-        .replaceAll("{format}", "json")
-        .replaceAll("{appealId}", appealId);
-
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-    List<String> contentTypes = ["application/json"];
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    var response = await apiClient.invokeAPI(path, 'PUT', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  Future<Object?> apiAppealsAppealIdPut({
-    required String appealId,
-    required AppealManagement appealManagement,
-  }) async {
-    Response response = await apiAppealsAppealIdPutWithHttpInfo(
-        appealId: appealId, appealManagement: appealManagement);
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
-    }
-  }
-
-  /// GET 获取所有申诉记录（HTTP GET）
-  Future<Response> apiAppealsGetWithHttpInfo() async {
-    Object postBody = '';
-
-    String path = "/api/appeals".replaceAll("{format}", "json");
-
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-    List<String> contentTypes = [];
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  Future<List<AppealManagement>?> apiAppealsGet() async {
-    Response response = await apiAppealsGetWithHttpInfo();
+  Future<List<AppealManagement>> apiAppealsGet() async {
+    final response = await apiAppealsGetWithHttpInfo();
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     } else if (response.body.isNotEmpty) {
       final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-      return AppealManagement.listFromJson(jsonList);
+      return jsonList.map((json) => AppealManagement.fromJson(json)).toList();
     } else {
-      return null;
+      return [];
     }
   }
 
-  /// GET 根据上诉人姓名查询申诉记录（HTTP GET）
-  Future<Response> apiAppealsNameAppealNameGetWithHttpInfo(
-      {required String appealName}) async {
-    Object postBody = '';
-
+  // --- GET /api/appeals/name/{appealName} ---
+  Future<http.Response> apiAppealsNameAppealNameGetWithHttpInfo({
+    required String appealName,
+  }) async {
     if (appealName.isEmpty) {
       throw ApiException(400, "Missing required param: appealName");
     }
 
-    String path = "/api/appeals/name/{appealName}"
-        .replaceAll("{format}", "json")
-        .replaceAll("{appealName}", appealName);
+    final path = "/api/appeals/name/${Uri.encodeComponent(appealName)}";
+    final headerParams = await _getHeaders();
 
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-    List<String> contentTypes = [];
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
+    return await apiClient.invokeAPI(
+      path,
+      'GET',
+      [],
+      null,
+      headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
   }
 
-  Future<Object?> apiAppealsNameAppealNameGet(
-      {required String appealName}) async {
-    Response response =
+  Future<List<AppealManagement>> apiAppealsNameAppealNameGet({
+    required String appealName,
+  }) async {
+    final response =
         await apiAppealsNameAppealNameGetWithHttpInfo(appealName: appealName);
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
+      final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+      return jsonList.map((json) => AppealManagement.fromJson(json)).toList();
     } else {
-      return null;
+      return [];
     }
   }
 
-  /// POST 创建申诉（HTTP POST）
-  Future<Response> apiAppealsPostWithHttpInfo(
-      {required AppealManagement appealManagement}) async {
-    Object postBody = appealManagement;
+  // --- POST /api/appeals ---
+  Future<http.Response> apiAppealsPostWithHttpInfo({
+    required AppealManagement appealManagement,
+    required String idempotencyKey,
+  }) async {
+    if (idempotencyKey.isEmpty) {
+      throw ApiException(400, "Missing required param: idempotencyKey");
+    }
 
-    String path = "/api/appeals".replaceAll("{format}", "json");
+    final path = "/api/appeals?idempotencyKey=$idempotencyKey";
+    final headerParams = await _getHeaders();
 
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-    List<String> contentTypes = ["application/json"];
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    var response = await apiClient.invokeAPI(path, 'POST', queryParams,
-        postBody, headerParams, formParams, nullableContentType, authNames);
-    return response;
+    return await apiClient.invokeAPI(
+      path,
+      'POST',
+      [],
+      appealManagement.toJson(),
+      headerParams,
+      {},
+      'application/json',
+      ['bearerAuth'],
+    );
   }
 
-  Future<Object?> apiAppealsPost(
-      {required AppealManagement appealManagement}) async {
-    Response response =
-        await apiAppealsPostWithHttpInfo(appealManagement: appealManagement);
+  Future<void> apiAppealsPost({
+    required AppealManagement appealManagement,
+    required String idempotencyKey,
+  }) async {
+    final response = await apiAppealsPostWithHttpInfo(
+      appealManagement: appealManagement,
+      idempotencyKey: idempotencyKey,
+    );
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
     }
   }
 
-  /// GET 根据处理状态查询申诉记录（HTTP GET）
-  Future<Response> apiAppealsStatusProcessStatusGetWithHttpInfo(
-      {required String processStatus}) async {
-    Object postBody = '';
-
-    if (processStatus.isEmpty) {
-      throw ApiException(400, "Missing required param: processStatus");
+  // --- PUT /api/appeals/{appealId} ---
+  Future<http.Response> apiAppealsAppealIdPutWithHttpInfo({
+    required String appealId,
+    required AppealManagement appealManagement,
+    required String idempotencyKey,
+  }) async {
+    if (appealId.isEmpty) {
+      throw ApiException(400, "Missing required param: appealId");
+    }
+    if (idempotencyKey.isEmpty) {
+      throw ApiException(400, "Missing required param: idempotencyKey");
     }
 
-    String path = "/api/appeals/status/{processStatus}"
-        .replaceAll("{format}", "json")
-        .replaceAll("{processStatus}", processStatus);
+    final path = "/api/appeals/$appealId?idempotencyKey=$idempotencyKey";
+    final headerParams = await _getHeaders();
 
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-    List<String> contentTypes = [];
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
+    return await apiClient.invokeAPI(
+      path,
+      'PUT',
+      [],
+      appealManagement.toJson(),
+      headerParams,
+      {},
+      'application/json',
+      ['bearerAuth'],
+    );
   }
 
-  Future<List<Object>?> apiAppealsStatusProcessStatusGet(
-      {required String processStatus}) async {
-    Response response = await apiAppealsStatusProcessStatusGetWithHttpInfo(
-        processStatus: processStatus);
+  Future<void> apiAppealsAppealIdPut({
+    required String appealId,
+    required AppealManagement appealManagement,
+    required String idempotencyKey,
+  }) async {
+    final response = await apiAppealsAppealIdPutWithHttpInfo(
+      appealId: appealId,
+      appealManagement: appealManagement,
+      idempotencyKey: idempotencyKey,
+    );
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'List<Object>')
-          as List<Object>;
-    } else {
-      return null;
+    }
+  }
+
+  // --- DELETE /api/appeals/{appealId} ---
+  Future<http.Response> apiAppealsAppealIdDeleteWithHttpInfo({
+    required String appealId,
+  }) async {
+    if (appealId.isEmpty) {
+      throw ApiException(400, "Missing required param: appealId");
+    }
+
+    final path = "/api/appeals/$appealId";
+    final headerParams = await _getHeaders();
+
+    return await apiClient.invokeAPI(
+      path,
+      'DELETE',
+      [],
+      null,
+      headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
+  }
+
+  Future<void> apiAppealsAppealIdDelete({
+    required String appealId,
+  }) async {
+    final response =
+        await apiAppealsAppealIdDeleteWithHttpInfo(appealId: appealId);
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
     }
   }
 

@@ -7,7 +7,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -29,15 +28,13 @@ public class BackupRestoreKafkaListener {
     }
 
     @KafkaListener(topics = "backup_create", groupId = "backupRestoreGroup")
-    @Transactional
     public void onBackupCreateReceived(String message) {
-        processMessage(message, "create", backupRestoreService::createBackup);
+        Thread.ofVirtual().start(() -> processMessage(message, "create", backupRestoreService::createBackup));
     }
 
     @KafkaListener(topics = "backup_update", groupId = "backupRestoreGroup")
-    @Transactional
     public void onBackupUpdateReceived(String message) {
-        processMessage(message, "update", backupRestoreService::updateBackup);
+        Thread.ofVirtual().start(() -> processMessage(message, "update", backupRestoreService::updateBackup));
     }
 
     private void processMessage(String message, String action, MessageProcessor<BackupRestore> processor) {
@@ -45,8 +42,8 @@ public class BackupRestoreKafkaListener {
             BackupRestore backupRestore = deserializeMessage(message);
             if ("create".equals(action)) {
                 backupRestore.setBackupId(null);
-                processor.process(backupRestore);
             }
+            processor.process(backupRestore);
             log.info(String.format("Backup %s action processed successfully: %s", action, message));
         } catch (Exception e) {
             log.log(Level.SEVERE, String.format("Error processing %s backup message: %s", action, message), e);
