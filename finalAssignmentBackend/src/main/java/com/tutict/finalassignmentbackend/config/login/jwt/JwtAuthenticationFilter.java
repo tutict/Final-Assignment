@@ -1,23 +1,25 @@
 package com.tutict.finalassignmentbackend.config.login.jwt;
 
-import com.tutict.finalassignmentbackend.config.login.jwt.TokenProvider;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+
 import java.io.IOException;
 import java.util.List;
 import java.util.stream.Collectors;
 
-@Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    private static final Logger logger = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
     private final TokenProvider tokenProvider;
 
@@ -29,23 +31,24 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(@NotNull HttpServletRequest request, @NotNull HttpServletResponse response, @NotNull FilterChain filterChain)
             throws ServletException, IOException {
         String jwt = getJwtFromRequest(request);
-        log.info("Extracted JWT from request: {}", jwt);
+        logger.info("Extracted JWT from request: {}", jwt);
 
         if (jwt != null && tokenProvider.validateToken(jwt)) {
             String username = tokenProvider.getUsernameFromToken(jwt);
             List<String> roles = tokenProvider.extractRoles(jwt);
-            log.info("JWT validated. Username: {}, Roles: {}", username, roles);
+            logger.info("JWT validated. Username: {}, Roles: {}", username, roles);
 
             List<SimpleGrantedAuthority> authorities = roles.stream()
                     .map(SimpleGrantedAuthority::new)
                     .collect(Collectors.toList());
+            logger.info("Authorities set: {}", authorities);
 
             UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(username, null, authorities);
             SecurityContextHolder.getContext().setAuthentication(authentication);
-            log.info("Authentication set for user: {}", username);
+            logger.info("Authentication set for user: {}", username);
         } else {
-            log.warn("Invalid or missing JWT in request: {}", request.getRequestURI());
+            logger.warn("Invalid or missing JWT in request: {}", request.getRequestURI());
         }
 
         filterChain.doFilter(request, response);

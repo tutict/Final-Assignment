@@ -262,16 +262,22 @@ public class NetWorkHandler extends AbstractVerticle {
 
         request.headers().add("X-Forwarded-By", "NetWorkHandler");
 
+        // 复制所有请求头
+        MultiMap headers = MultiMap.caseInsensitiveMultiMap();
+        request.headers().forEach(entry -> {
+            headers.add(entry.getKey(), entry.getValue());
+            log.info("[{}] Forwarded header: {} = {}", requestId, entry.getKey(), entry.getValue());
+        });
+
         if (request.method() == HttpMethod.GET) {
             MultiMap queryParams = request.params();
             log.info("[{}] Forwarding GET request with query params: {}", requestId, queryParams);
 
             var httpRequest = webClient.getAbs(targetUrl)
-                    .putHeader("X-Forwarded-By", "NetWorkHandler");
+                    .putHeaders(headers); // 设置所有头
 
-            queryParams.forEach(entry ->
-                    httpRequest.addQueryParam(entry.getKey(), entry.getValue())
-            );
+            // 添加查询参数
+            queryParams.forEach(entry -> httpRequest.addQueryParam(entry.getKey(), entry.getValue()));
 
             httpRequest.send()
                     .onSuccess(response -> handleResponse(request, response, requestId))
@@ -285,10 +291,11 @@ public class NetWorkHandler extends AbstractVerticle {
                     JsonObject jsonBody = body.toJsonObject();
                     log.info("[{}] body2: {}", requestId, jsonBody);
 
-                    webClient.postAbs(targetUrl)
-                            .putHeader("X-Forwarded-By", "NetWorkHandler")
-                            .putHeader("Content-Type", "application/json")
-                            .sendJsonObject(jsonBody)
+                    var httpRequest = webClient.postAbs(targetUrl)
+                            .putHeaders(headers) // 设置所有头
+                            .putHeader("Content-Type", "application/json");
+
+                    httpRequest.sendJsonObject(jsonBody) // 使用 sendJsonObject 发送 JSON
                             .onSuccess(response -> handleResponse(request, response, requestId))
                             .onFailure(failure -> {
                                 log.error("[{}] Forwarding HTTP request failed: {}", requestId, failure.getMessage(), failure);
@@ -302,7 +309,6 @@ public class NetWorkHandler extends AbstractVerticle {
         }
     }
 
-    // 显式指定 io.vertx.core.buffer.Buffer
     private void handleResponse(HttpServerRequest request, HttpResponse<io.vertx.core.buffer.Buffer> response, String requestId) {
         log.info("[{}] Response status code: {}", requestId, response.statusCode());
         log.info("[{}] Response headers: {}", requestId, response.headers());

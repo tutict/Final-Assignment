@@ -93,17 +93,14 @@ public class AuthController {
 
     @GetMapping("/users")
     @RolesAllowed("ADMIN")
-    @Async
-    public CompletableFuture<ResponseEntity<List<UserManagement>>> getAllUsers() {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                List<UserManagement> users = authWsService.getAllUsers();
-                logger.log(Level.INFO, "Fetched {0} users successfully", users.size());
-                return ResponseEntity.ok(users);
-            } catch (Exception e) {
-                logger.log(Level.SEVERE, "GetAllUsers failed: {0}", e.getMessage());
-                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(List.of());
-            }
-        }, virtualThreadExecutor);
+    public ResponseEntity<List<UserManagement>> getAllUsers() {
+        try {
+            List<UserManagement> users = authWsService.getAllUsers();
+            logger.log(Level.INFO, "Fetched {0} users successfully", users.size());
+            return ResponseEntity.ok(users);
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "GetAllUsers failed: {0}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(List.of());
+        }
     }
 }

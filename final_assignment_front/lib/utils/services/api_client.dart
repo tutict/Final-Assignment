@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:final_assignment_front/utils/services/http_bearer_auth.dart';
 import 'package:http/http.dart' as http;
 import 'package:final_assignment_front/features/model/appeal_management.dart';
 import 'package:final_assignment_front/features/model/backup_restore.dart';
@@ -47,7 +48,9 @@ class ApiClient {
   final Map<String, String> _defaultHeaderMap = {};
 
   /// 认证集合 (token 等)
-  final Map<String, Authentication> _authentications = {};
+  final Map<String, Authentication> _authentications = {
+    'bearerAuth': HttpBearerAuth(), // 添加默认 Bearer 认证
+  };
 
   /// 正则，用于匹配 List<T> 的类型
   final RegExp _regList = RegExp(r'^List<(.*)>$');
@@ -67,6 +70,12 @@ class ApiClient {
   /// 添加默认的 Header，可在后续请求中自动带上
   void addDefaultHeader(String key, String value) {
     _defaultHeaderMap[key] = value;
+  }
+
+  void setJwtToken(String token) {
+    final bearerAuth = _authentications['bearerAuth'] as HttpBearerAuth;
+    bearerAuth.setAccessToken(token);
+    debugPrint('JWT Token set in ApiClient: $token');
   }
 
   /// 主要的反序列化方法，将 JSON 数据反序列化成对应的模型
@@ -198,6 +207,7 @@ class ApiClient {
 
     List<QueryParam> queryParamsList = queryParams.toList();
     _updateParamsForAuth(authNames, queryParamsList, headerParams);
+    debugPrint('Headers after auth: $headerParams');
 
     var ps = queryParamsList.where((p) => p.value.isNotEmpty).map((p) =>
         '${Uri.encodeQueryComponent(p.name)}=${Uri.encodeQueryComponent(p.value)}');
@@ -210,53 +220,39 @@ class ApiClient {
     headerParams['Content-Type'] = contentType;
 
     Uri uri = Uri.parse(url);
+    debugPrint('Request URL: $url');
+    debugPrint('Final Request Headers: $headerParams');
 
-    if (body is http.MultipartRequest) {
-      var request = http.MultipartRequest(method, uri);
-      request.fields.addAll(body.fields);
-      request.files.addAll(body.files);
-      request.headers.addAll(body.headers);
-      request.headers.addAll(headerParams);
+    var msgBody = (contentType == "application/x-www-form-urlencoded")
+        ? formParams
+        : serialize(body ?? {});
 
-      var streamedResponse = await client.send(request);
-      return await http.Response.fromStream(streamedResponse);
-    } else {
-      var msgBody = (contentType == "application/x-www-form-urlencoded")
-          ? formParams
-          : serialize(body ?? {});
-
-      final Map<String, String>? finalHeaderParams =
-          headerParams.isEmpty ? null : headerParams;
-
-      http.Response response;
-      switch (method.toUpperCase()) {
-        case "POST":
-          response =
-              await client.post(uri, headers: finalHeaderParams, body: msgBody);
-          break;
-        case "PUT":
-          response =
-              await client.put(uri, headers: finalHeaderParams, body: msgBody);
-          break;
-        case "DELETE":
-          response = await client.delete(uri, headers: finalHeaderParams);
-          break;
-        case "PATCH":
-          response = await client.patch(uri,
-              headers: finalHeaderParams, body: msgBody);
-          break;
-        case "HEAD":
-          response = await client.head(uri, headers: finalHeaderParams);
-          break;
-        case "GET":
-        default:
-          response = await client.get(uri, headers: finalHeaderParams);
-          break;
-      }
-
-      // 直接返回原始的 http.Response，不进行手动解码
-      return response;
+    http.Response response;
+    switch (method.toUpperCase()) {
+      case "POST":
+        response = await client.post(uri, headers: headerParams, body: msgBody);
+        break;
+      case "PUT":
+        response = await client.put(uri, headers: headerParams, body: msgBody);
+        break;
+      case "DELETE":
+        response = await client.delete(uri, headers: headerParams);
+        break;
+      case "PATCH":
+        response =
+            await client.patch(uri, headers: headerParams, body: msgBody);
+        break;
+      case "HEAD":
+        response = await client.head(uri, headers: headerParams);
+        break;
+      case "GET":
+      default:
+        response = await client.get(uri, headers: headerParams);
+        break;
     }
+
+    debugPrint('Response: ${response.statusCode} - ${response.body}');
+    return response;
   }
 
   /// 更新鉴权参数

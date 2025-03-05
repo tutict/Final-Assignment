@@ -4,19 +4,14 @@ import com.tutict.finalassignmentbackend.config.login.jwt.JwtAuthenticationFilte
 import com.tutict.finalassignmentbackend.config.login.jwt.TokenProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
-import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
+
 
 @Configuration
-@EnableWebSecurity
-@EnableMethodSecurity(prePostEnabled = true) // 替换 EnableGlobalMethodSecurity
 public class SecurityConfig {
 
     private final TokenProvider tokenProvider;
@@ -28,25 +23,13 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                // 禁用 CSRF，使用新的 lambda 语法
-                .csrf(AbstractHttpConfigurer::disable)
-                // 禁用表单登录
-                .formLogin(AbstractHttpConfigurer::disable)
-                // 禁用 HTTP Basic 认证
-                .httpBasic(AbstractHttpConfigurer::disable)
-                // 设置无状态会话
-                .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                // 配置请求授权
-                .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers("/api/auth/register", "/api/auth/login", "/api/ai/chat", "/api/auth/refresh").permitAll()
-                        .requestMatchers("/api/users/**").authenticated()
-                        .requestMatchers("/api/roles/**").authenticated()
-                        .requestMatchers("/eventbus/**").authenticated()
-                        .anyRequest().authenticated()
-                )
-                // 添加 JWT 过滤器
-                .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
+                .csrf(AbstractHttpConfigurer::disable) // 禁用 CSRF，因为使用 JWT 无状态认证
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // 无状态会话
+                .authorizeHttpRequests(authz -> authz
+                        .requestMatchers("/api/auth/register", "/api/auth/login", "/api/ai/chat", "/api/auth/refresh").permitAll() // 公开端点
+                        .requestMatchers("/api/users/me").authenticated() // 需要认证的端点
+                        .anyRequest().authenticated()) // 其他所有请求需要认证
+                .addFilterBefore(jwtAuthenticationFilter(), AnonymousAuthenticationFilter.class); // JWT 过滤器在匿名过滤器之前
 
         return http.build();
     }
@@ -54,10 +37,5 @@ public class SecurityConfig {
     @Bean
     public JwtAuthenticationFilter jwtAuthenticationFilter() {
         return new JwtAuthenticationFilter(tokenProvider);
-    }
-
-    @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
-        return authenticationConfiguration.getAuthenticationManager();
     }
 }

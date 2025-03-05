@@ -1,16 +1,15 @@
 import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 import 'package:final_assignment_front/features/model/user_management.dart';
+import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/Get.dart';
-import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
 import 'package:uuid/uuid.dart';
 
-/// 唯一标识生成工具
 String generateIdempotencyKey() {
   const uuid = Uuid();
   return uuid.v4();
@@ -27,6 +26,7 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
   late Future<UserManagement?> _userFuture;
   final UserDashboardController controller =
       Get.find<UserDashboardController>();
+  final ApiClient apiClient = ApiClient();
   bool _isLoading = true;
   bool _isUser = false;
   String _errorMessage = '';
@@ -57,30 +57,35 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
   Future<void> _checkUserRole() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken');
+      String? jwtToken = prefs.getString('jwtToken');
       debugPrint('JWT Token in _checkUserRole: $jwtToken');
       if (jwtToken == null) {
-        throw Exception('No JWT token found');
+        jwtToken = await _loginAndGetToken();
+        if (jwtToken == null) {
+          throw Exception('No JWT token found after login attempt');
+        }
       }
+      apiClient.setJwtToken(jwtToken);
 
-      final roleResponse = await http.get(
-        Uri.parse('http://localhost:8081/api/users/me'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $jwtToken',
-        },
+      final response = await apiClient.invokeAPI(
+        '/api/users/me',
+        'GET',
+        [],
+        null,
+        {},
+        {},
+        'application/json',
+        ['bearerAuth'],
       );
-      debugPrint(
-          'Role Response: ${roleResponse.statusCode} - ${roleResponse.body}');
-      if (roleResponse.statusCode == 200) {
-        final roleData = jsonDecode(roleResponse.body);
+      debugPrint('Role Response: ${response.statusCode} - ${response.body}');
+      if (response.statusCode == 200) {
+        final roleData = jsonDecode(response.body);
         _isUser = (roleData['roles'] as List<dynamic>).contains('USER');
         if (!_isUser) {
           throw Exception('权限不足：仅用户可访问此页面');
         }
       } else {
-        throw Exception(
-            '验证失败：${roleResponse.statusCode} - ${roleResponse.body}');
+        throw Exception('验证失败：${response.statusCode} - ${response.body}');
       }
 
       await _loadCurrentUser();
@@ -89,6 +94,35 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
         _isLoading = false;
         _errorMessage = '加载失败: $e';
       });
+    }
+  }
+
+  Future<String?> _loginAndGetToken() async {
+    try {
+      final response = await apiClient.invokeAPI(
+        '/api/auth/login',
+        'POST',
+        [],
+        {"username": "hgl@hgl.com", "password": "123456"},
+        {},
+        {},
+        'application/json',
+        [], // 登录无需认证
+      );
+      debugPrint('Login Response: ${response.statusCode} - ${response.body}');
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final jwtToken = data['jwtToken'] as String;
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('jwtToken', jwtToken);
+        controller.updateCurrentUser('hgl@hgl.com', 'hgl@hgl.com');
+        return jwtToken;
+      } else {
+        throw Exception('Login failed: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('Login Error: $e');
+      return null;
     }
   }
 
@@ -105,13 +139,17 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
       if (jwtToken == null) {
         throw Exception('No JWT token found');
       }
+      apiClient.setJwtToken(jwtToken);
 
-      final response = await http.get(
-        Uri.parse('http://localhost:8081/api/users/me'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $jwtToken',
-        },
+      final response = await apiClient.invokeAPI(
+        '/api/users/me',
+        'GET',
+        [],
+        null,
+        {},
+        {},
+        'application/json',
+        ['bearerAuth'], // 使用 Bearer 认证
       );
       debugPrint('User Response: ${response.statusCode} - ${response.body}');
       if (response.statusCode == 200) {
@@ -155,6 +193,7 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
       if (jwtToken == null) {
         throw Exception('No JWT token found');
       }
+      apiClient.setJwtToken(jwtToken);
 
       final String idempotencyKey = generateIdempotencyKey();
       final user = UserManagement(
@@ -173,14 +212,15 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
         idempotencyKey: idempotencyKey,
       );
 
-      final response = await http.put(
-        Uri.parse(
-            'http://localhost:8081/api/users/me?idempotencyKey=$idempotencyKey'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $jwtToken',
-        },
-        body: jsonEncode(user.toJson()),
+      final response = await apiClient.invokeAPI(
+        '/api/users/me?idempotencyKey=$idempotencyKey',
+        'PUT',
+        [],
+        user.toJson(),
+        {},
+        {},
+        'application/json',
+        ['bearerAuth'],
       );
 
       if (response.statusCode == 200) {
