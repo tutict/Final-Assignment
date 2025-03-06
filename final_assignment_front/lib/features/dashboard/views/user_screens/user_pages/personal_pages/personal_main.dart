@@ -7,11 +7,10 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/Get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:uuid/uuid.dart';
 
 String generateIdempotencyKey() {
-  const uuid = Uuid();
-  return uuid.v4();
+  /// 生成幂等性键的全局方法
+    return DateTime.now().millisecondsSinceEpoch.toString();
 }
 
 class PersonalMainPage extends StatefulWidget {

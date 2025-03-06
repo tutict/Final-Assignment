@@ -24,11 +24,15 @@ class AppealManagementControllerApi {
     };
   }
 
+  /// 辅助方法：将幂等性键添加为查询参数
+  List<QueryParam> _addIdempotencyKey(String idempotencyKey) {
+    return [QueryParam('idempotencyKey', idempotencyKey)];
+  }
+
   // --- GET /api/appeals ---
   Future<http.Response> apiAppealsGetWithHttpInfo() async {
     const path = "/api/appeals";
     final headerParams = await _getHeaders();
-
     return await apiClient.invokeAPI(
       path,
       'GET',
@@ -60,10 +64,8 @@ class AppealManagementControllerApi {
     if (appealName.isEmpty) {
       throw ApiException(400, "Missing required param: appealName");
     }
-
     final path = "/api/appeals/name/${Uri.encodeComponent(appealName)}";
     final headerParams = await _getHeaders();
-
     return await apiClient.invokeAPI(
       path,
       'GET',
@@ -92,44 +94,32 @@ class AppealManagementControllerApi {
   }
 
   // --- POST /api/appeals ---
-  Future<http.Response> apiAppealsPostWithHttpInfo({
+  Future<AppealManagement> apiAppealsPost({
     required AppealManagement appealManagement,
     required String idempotencyKey,
   }) async {
-    if (idempotencyKey.isEmpty) {
-      throw ApiException(400, "Missing required param: idempotencyKey");
-    }
-
-    final path = "/api/appeals?idempotencyKey=$idempotencyKey";
+    const path = "/api/appeals";
     final headerParams = await _getHeaders();
-
-    return await apiClient.invokeAPI(
+    final response = await apiClient.invokeAPI(
       path,
       'POST',
-      [],
+      _addIdempotencyKey(idempotencyKey),
       appealManagement.toJson(),
       headerParams,
       {},
       'application/json',
       ['bearerAuth'],
     );
-  }
-
-  Future<void> apiAppealsPost({
-    required AppealManagement appealManagement,
-    required String idempotencyKey,
-  }) async {
-    final response = await apiAppealsPostWithHttpInfo(
-      appealManagement: appealManagement,
-      idempotencyKey: idempotencyKey,
-    );
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     }
+    final data = apiClient.deserialize(
+        _decodeBodyBytes(response), 'Map<String, dynamic>');
+    return AppealManagement.fromJson(data);
   }
 
   // --- PUT /api/appeals/{appealId} ---
-  Future<http.Response> apiAppealsAppealIdPutWithHttpInfo({
+  Future<void> apiAppealsAppealIdPut({
     required String appealId,
     required AppealManagement appealManagement,
     required String idempotencyKey,
@@ -137,34 +127,17 @@ class AppealManagementControllerApi {
     if (appealId.isEmpty) {
       throw ApiException(400, "Missing required param: appealId");
     }
-    if (idempotencyKey.isEmpty) {
-      throw ApiException(400, "Missing required param: idempotencyKey");
-    }
-
-    final path = "/api/appeals/$appealId?idempotencyKey=$idempotencyKey";
+    final path = "/api/appeals/$appealId";
     final headerParams = await _getHeaders();
-
-    return await apiClient.invokeAPI(
+    final response = await apiClient.invokeAPI(
       path,
       'PUT',
-      [],
+      _addIdempotencyKey(idempotencyKey),
       appealManagement.toJson(),
       headerParams,
       {},
       'application/json',
       ['bearerAuth'],
-    );
-  }
-
-  Future<void> apiAppealsAppealIdPut({
-    required String appealId,
-    required AppealManagement appealManagement,
-    required String idempotencyKey,
-  }) async {
-    final response = await apiAppealsAppealIdPutWithHttpInfo(
-      appealId: appealId,
-      appealManagement: appealManagement,
-      idempotencyKey: idempotencyKey,
     );
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
@@ -172,17 +145,15 @@ class AppealManagementControllerApi {
   }
 
   // --- DELETE /api/appeals/{appealId} ---
-  Future<http.Response> apiAppealsAppealIdDeleteWithHttpInfo({
+  Future<void> apiAppealsAppealIdDelete({
     required String appealId,
   }) async {
     if (appealId.isEmpty) {
       throw ApiException(400, "Missing required param: appealId");
     }
-
     final path = "/api/appeals/$appealId";
     final headerParams = await _getHeaders();
-
-    return await apiClient.invokeAPI(
+    final response = await apiClient.invokeAPI(
       path,
       'DELETE',
       [],
@@ -192,13 +163,6 @@ class AppealManagementControllerApi {
       null,
       ['bearerAuth'],
     );
-  }
-
-  Future<void> apiAppealsAppealIdDelete({
-    required String appealId,
-  }) async {
-    final response =
-        await apiAppealsAppealIdDeleteWithHttpInfo(appealId: appealId);
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     }
@@ -214,7 +178,6 @@ class AppealManagementControllerApi {
       "action": "deleteAppeal",
       "args": [int.parse(appealId)],
     };
-
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("result")) {
       return respMap["result"];
@@ -275,7 +238,6 @@ class AppealManagementControllerApi {
       "action": "getAllAppeals",
       "args": []
     };
-
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("result") && respMap["result"] is List) {
       return respMap["result"] as List<Object>;

@@ -7,12 +7,8 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
-import 'package:uuid/uuid.dart';
-
-/// 唯一标识生成工具
 String generateIdempotencyKey() {
-  const uuid = Uuid();
-  return uuid.v4(); // 使用 UUID 生成更可靠的唯一标识
+  return DateTime.now().millisecondsSinceEpoch.toString();
 }
 
 /// 备份与恢复管理页面
@@ -59,7 +55,7 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
     }
 
     final response = await http.get(
-      Uri.parse('http://localhost:8081/api/auth/me'), // 后端地址
+      Uri.parse('http://localhost:8081/api/users/me'), // 后端地址
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $jwtToken',

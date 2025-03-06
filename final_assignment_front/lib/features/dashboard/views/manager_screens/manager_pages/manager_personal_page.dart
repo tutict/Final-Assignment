@@ -8,12 +8,11 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/Get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:uuid/uuid.dart';
 
 String generateIdempotencyKey() {
-  const uuid = Uuid();
-  return uuid.v4();
+  return DateTime.now().millisecondsSinceEpoch.toString();
 }
+
 
 class ManagerPersonalPage extends StatefulWidget {
   const ManagerPersonalPage({super.key});

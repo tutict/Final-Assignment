@@ -17,8 +17,6 @@ mixin NavigationMixin {
         return const SettingPage();
       case AppPages.aiChat:
         return const AiChat();
-      case AppPages.changeMobilePhoneNumber:
-        return const ChangeMobilePhoneNumber();
       case AppPages.personalInfo:
         return const PersonalInformationPage();
       case AppPages.consultation:

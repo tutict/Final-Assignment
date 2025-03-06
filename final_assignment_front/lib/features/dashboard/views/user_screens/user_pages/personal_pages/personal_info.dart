@@ -8,13 +8,12 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
-import 'package:uuid/uuid.dart';
 
 /// 唯一标识生成工具
 String generateIdempotencyKey() {
-  const uuid = Uuid();
-  return uuid.v4();
+  return DateTime.now().millisecondsSinceEpoch.toString();
 }
+
 
 class PersonalInformationPage extends StatefulWidget {
   const PersonalInformationPage({super.key});

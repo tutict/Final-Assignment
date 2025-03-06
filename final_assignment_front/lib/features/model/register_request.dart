@@ -2,7 +2,7 @@ class RegisterRequest {
   final String username;
   final String password;
   final String role;
-  final String idempotencyKey;
+  final String? idempotencyKey;
 
   // 使用静态常量正则表达式，提高效率和可读性
   static final RegExp _domainRegExp = RegExp(r'@([^.]+)\.');

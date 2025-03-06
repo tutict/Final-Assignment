@@ -23,24 +23,16 @@ class DeductionInformationControllerApi {
       throw Exception('未登录，请重新登录');
     }
     apiClient.setJwtToken(jwtToken);
-    debugPrint(
-        'Initialized DeductionInformationControllerApi with token: $jwtToken');
+    debugPrint('Initialized DeductionInformationControllerApi with token: $jwtToken');
   }
 
   /// 解码响应体字节到字符串
   String _decodeBodyBytes(Response response) => response.body;
 
-  /// 辅助方法：添加查询参数（如时间范围）
-  List<QueryParam> _addQueryParams({String? startTime, String? endTime}) {
-    final queryParams = <QueryParam>[];
-    if (startTime != null) queryParams.add(QueryParam('startTime', startTime));
-    if (endTime != null) queryParams.add(QueryParam('endTime', endTime));
-    return queryParams;
-  }
+  // HTTP Methods
 
-  /// DELETE /api/deductions/{deductionId} - 删除扣分记录 (仅管理员)
-  Future<void> apiDeductionsDeductionIdDelete(
-      {required String deductionId}) async {
+  /// DELETE /api/deductions/{deductionId} - 删除扣分信息 (仅管理员)
+  Future<void> apiDeductionsDeductionIdDelete({required String deductionId}) async {
     if (deductionId.isEmpty) {
       throw ApiException(400, "Missing required param: deductionId");
     }
@@ -59,9 +51,8 @@ class DeductionInformationControllerApi {
     }
   }
 
-  /// GET /api/deductions/{deductionId} - 根据ID获取扣分记录
-  Future<DeductionInformation?> apiDeductionsDeductionIdGet(
-      {required String deductionId}) async {
+  /// GET /api/deductions/{deductionId} - 根据ID获取扣分信息
+  Future<DeductionInformation?> apiDeductionsDeductionIdGet({required String deductionId}) async {
     if (deductionId.isEmpty) {
       throw ApiException(400, "Missing required param: deductionId");
     }
@@ -79,21 +70,25 @@ class DeductionInformationControllerApi {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     }
     if (response.body.isEmpty) return null;
-    final data = apiClient.deserialize(
-        _decodeBodyBytes(response), 'Map<String, dynamic>');
+    final data = apiClient.deserialize(_decodeBodyBytes(response), 'Map<String, dynamic>');
     return DeductionInformation.fromJson(data);
   }
 
-  /// PUT /api/deductions/{deductionId} - 更新扣分记录 (仅管理员)
+  /// PUT /api/deductions/{deductionId} - 更新扣分信息 (仅管理员)
   Future<DeductionInformation> apiDeductionsDeductionIdPut({
     required String deductionId,
     required DeductionInformation deductionInformation,
+    required String idempotencyKey,
   }) async {
     if (deductionId.isEmpty) {
       throw ApiException(400, "Missing required param: deductionId");
     }
+    if (idempotencyKey.isEmpty) {
+      throw ApiException(400, "Missing required param: idempotencyKey");
+    }
+    final path = '/api/deductions/$deductionId?idempotencyKey=${Uri.encodeComponent(idempotencyKey)}';
     final response = await apiClient.invokeAPI(
-      '/api/deductions/$deductionId',
+      path,
       'PUT',
       [],
       deductionInformation.toJson(),
@@ -105,12 +100,34 @@ class DeductionInformationControllerApi {
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     }
-    final data = apiClient.deserialize(
-        _decodeBodyBytes(response), 'Map<String, dynamic>');
+    final data = apiClient.deserialize(_decodeBodyBytes(response), 'Map<String, dynamic>');
     return DeductionInformation.fromJson(data);
   }
 
-  /// GET /api/deductions - 获取所有扣分记录
+  /// GET /api/drivers/driverLicenseNumber/{license} - 根据驾驶证号获取扣分信息
+  Future<DeductionInformation?> apiDeductionsLicenseLicenseGet({required String license}) async {
+    if (license.isEmpty) {
+      throw ApiException(400, "Missing required param: license");
+    }
+    final response = await apiClient.invokeAPI(
+      '/api/drivers/driverLicenseNumber/$license',
+      'GET',
+      [],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    if (response.body.isEmpty) return null;
+    final data = apiClient.deserialize(_decodeBodyBytes(response), 'Map<String, dynamic>');
+    return DeductionInformation.fromJson(data);
+  }
+
+  /// GET /api/deductions - 获取所有扣分信息
   Future<List<DeductionInformation>> apiDeductionsGet() async {
     final response = await apiClient.invokeAPI(
       '/api/deductions',
@@ -125,14 +142,12 @@ class DeductionInformationControllerApi {
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     }
-    final List<dynamic> data =
-        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    final List<dynamic> data = apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
     return DeductionInformation.listFromJson(data);
   }
 
-  /// GET /api/deductions/handler/{handler} - 根据处理人获取扣分记录
-  Future<List<DeductionInformation>> apiDeductionsHandlerHandlerGet(
-      {required String handler}) async {
+  /// GET /api/deductions/handler/{handler} - 根据处理人获取扣分信息
+  Future<List<DeductionInformation>> apiDeductionsHandlerHandlerGet({required String handler}) async {
     if (handler.isEmpty) {
       throw ApiException(400, "Missing required param: handler");
     }
@@ -149,17 +164,46 @@ class DeductionInformationControllerApi {
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     }
-    final List<dynamic> data =
-        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    final List<dynamic> data = apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
     return DeductionInformation.listFromJson(data);
   }
 
-  /// POST /api/deductions - 创建扣分记录 (仅管理员)
+  /// GET /api/deductions/timeRange - 根据时间范围获取扣分信息
+  Future<List<DeductionInformation>> apiDeductionsTimeRangeGet({
+    required String startTime,
+    required String endTime,
+  }) async {
+    if (startTime.isEmpty || endTime.isEmpty) {
+      throw ApiException(400, "Missing required param: startTime or endTime");
+    }
+    final response = await apiClient.invokeAPI(
+      '/api/deductions/timeRange',
+      'GET',
+      [QueryParam('startTime', startTime), QueryParam('endTime', endTime)],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    final List<dynamic> data = apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    return DeductionInformation.listFromJson(data);
+  }
+
+  /// POST /api/deductions - 创建扣分信息 (仅管理员)
   Future<DeductionInformation> apiDeductionsPost({
     required DeductionInformation deductionInformation,
+    required String idempotencyKey,
   }) async {
+    if (idempotencyKey.isEmpty) {
+      throw ApiException(400, "Missing required param: idempotencyKey");
+    }
+    final path = '/api/deductions?idempotencyKey=${Uri.encodeComponent(idempotencyKey)}';
     final response = await apiClient.invokeAPI(
-      '/api/deductions',
+      path,
       'POST',
       [],
       deductionInformation.toJson(),
@@ -171,40 +215,14 @@ class DeductionInformationControllerApi {
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     }
-    final data = apiClient.deserialize(
-        _decodeBodyBytes(response), 'Map<String, dynamic>');
+    final data = apiClient.deserialize(_decodeBodyBytes(response), 'Map<String, dynamic>');
     return DeductionInformation.fromJson(data);
-  }
-
-  /// GET /api/deductions/timeRange - 根据时间范围获取扣分记录
-  Future<List<DeductionInformation>> apiDeductionsTimeRangeGet({
-    String? startTime,
-    String? endTime,
-  }) async {
-    final response = await apiClient.invokeAPI(
-      '/api/deductions/timeRange',
-      'GET',
-      _addQueryParams(startTime: startTime, endTime: endTime),
-      '',
-      {},
-      {},
-      null,
-      ['bearerAuth'],
-    );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
-    final List<dynamic> data =
-        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
-    return DeductionInformation.listFromJson(data);
   }
 
   // WebSocket Methods (Aligned with HTTP Endpoints)
 
   /// DELETE /api/deductions/{deductionId} (WebSocket)
-  /// 对应后端: @WsAction(service="DeductionInformation", action="deleteDeduction")
-  Future<bool> eventbusDeductionsDeductionIdDelete(
-      {required String deductionId}) async {
+  Future<bool> eventbusDeductionsDeductionIdDelete({required String deductionId}) async {
     if (deductionId.isEmpty) {
       throw ApiException(400, "Missing required param: deductionId");
     }
@@ -217,13 +235,11 @@ class DeductionInformationControllerApi {
     if (respMap.containsKey("error")) {
       throw ApiException(400, respMap["error"]);
     }
-    return true; // Success if no error
+    return true;
   }
 
   /// GET /api/deductions/{deductionId} (WebSocket)
-  /// 对应后端: @WsAction(service="DeductionInformation", action="getDeductionById")
-  Future<Object?> eventbusDeductionsDeductionIdGet(
-      {required String deductionId}) async {
+  Future<Object?> eventbusDeductionsDeductionIdGet({required String deductionId}) async {
     if (deductionId.isEmpty) {
       throw ApiException(400, "Missing required param: deductionId");
     }
@@ -240,18 +256,38 @@ class DeductionInformationControllerApi {
   }
 
   /// PUT /api/deductions/{deductionId} (WebSocket)
-  /// 对应后端: @WsAction(service="DeductionInformation", action="updateDeduction")
   Future<Object?> eventbusDeductionsDeductionIdPut({
     required String deductionId,
     required DeductionInformation deductionInformation,
+    required String idempotencyKey,
   }) async {
     if (deductionId.isEmpty) {
       throw ApiException(400, "Missing required param: deductionId");
     }
+    if (idempotencyKey.isEmpty) {
+      throw ApiException(400, "Missing required param: idempotencyKey");
+    }
     final msg = {
       "service": "DeductionInformation",
       "action": "updateDeduction",
-      "args": [int.parse(deductionId), deductionInformation.toJson()]
+      "args": [int.parse(deductionId), deductionInformation.toJson(), idempotencyKey]
+    };
+    final respMap = await apiClient.sendWsMessage(msg);
+    if (respMap.containsKey("error")) {
+      throw ApiException(400, respMap["error"]);
+    }
+    return respMap["result"];
+  }
+
+  /// GET /api/deductions/license/{license} (WebSocket)
+  Future<Object?> eventbusDeductionsLicenseLicenseGet({required String license}) async {
+    if (license.isEmpty) {
+      throw ApiException(400, "Missing required param: license");
+    }
+    final msg = {
+      "service": "DeductionInformation",
+      "action": "getDeductionByLicense",
+      "args": [license]
     };
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
@@ -261,7 +297,6 @@ class DeductionInformationControllerApi {
   }
 
   /// GET /api/deductions (WebSocket)
-  /// 对应后端: @WsAction(service="DeductionInformation", action="getAllDeductions")
   Future<List<Object>?> eventbusDeductionsGet() async {
     final msg = {
       "service": "DeductionInformation",
@@ -279,9 +314,7 @@ class DeductionInformationControllerApi {
   }
 
   /// GET /api/deductions/handler/{handler} (WebSocket)
-  /// 对应后端: @WsAction(service="DeductionInformation", action="getDeductionsByHandler")
-  Future<List<Object>?> eventbusDeductionsHandlerHandlerGet(
-      {required String handler}) async {
+  Future<List<Object>?> eventbusDeductionsHandlerHandlerGet({required String handler}) async {
     if (handler.isEmpty) {
       throw ApiException(400, "Missing required param: handler");
     }
@@ -300,30 +333,18 @@ class DeductionInformationControllerApi {
     return null;
   }
 
-  /// POST /api/deductions (WebSocket)
-  /// 对应后端: @WsAction(service="DeductionInformation", action="createDeduction")
-  Future<Object?> eventbusDeductionsPost(
-      {required DeductionInformation deductionInformation}) async {
-    final msg = {
-      "service": "DeductionInformation",
-      "action": "createDeduction",
-      "args": [deductionInformation.toJson()]
-    };
-    final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
-    }
-    return respMap["result"];
-  }
-
   /// GET /api/deductions/timeRange (WebSocket)
-  /// 对应后端: @WsAction(service="DeductionInformation", action="getDeductionsByTimeRange")
-  Future<List<Object>?> eventbusDeductionsTimeRangeGet(
-      {String? startTime, String? endTime}) async {
+  Future<List<Object>?> eventbusDeductionsTimeRangeGet({
+    required String startTime,
+    required String endTime,
+  }) async {
+    if (startTime.isEmpty || endTime.isEmpty) {
+      throw ApiException(400, "Missing required param: startTime or endTime");
+    }
     final msg = {
       "service": "DeductionInformation",
       "action": "getDeductionsByTimeRange",
-      "args": [startTime ?? "", endTime ?? ""]
+      "args": [startTime, endTime]
     };
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
@@ -333,5 +354,25 @@ class DeductionInformationControllerApi {
       return (respMap["result"] as List).cast<Object>();
     }
     return null;
+  }
+
+  /// POST /api/deductions (WebSocket)
+  Future<Object?> eventbusDeductionsPost({
+    required DeductionInformation deductionInformation,
+    required String idempotencyKey,
+  }) async {
+    if (idempotencyKey.isEmpty) {
+      throw ApiException(400, "Missing required param: idempotencyKey");
+    }
+    final msg = {
+      "service": "DeductionInformation",
+      "action": "createDeduction",
+      "args": [deductionInformation.toJson(), idempotencyKey]
+    };
+    final respMap = await apiClient.sendWsMessage(msg);
+    if (respMap.containsKey("error")) {
+      throw ApiException(400, respMap["error"]);
+    }
+    return respMap["result"];
   }
 }

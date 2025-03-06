@@ -23,8 +23,7 @@ import 'package:final_assignment_front/features/dashboard/views/user_screens/use
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/news/FinePaymentNoticePage.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/news/LatestTrafficViolationNewsPage.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/consultation_feedback.dart';
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/personal_info/change_mobile_phone_number.dart';
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/personal_info/personal_info.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/personal_info.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/personal_main.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/setting/setting_main.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/process_pages/business_progress.dart';
@@ -34,7 +33,6 @@ import 'package:final_assignment_front/features/dashboard/views/user_screens/use
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/process_pages/vehicle_management.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/scanner/main_scan.dart';
 import 'package:final_assignment_front/features/login_screen/login.dart';
-import 'package:final_assignment_front/features/model/appeal_management.dart';
 import 'package:final_assignment_front/features/model/progress_item.dart';
 
 // 导入Get库，用于页面路由管理
@@ -194,10 +192,6 @@ class AppPages {
       page: () => const OnlineProcessingProgress(),
     ),
     GetPage(
-      name: _Paths.changeMobilePhoneNumber,
-      page: () => const ChangeMobilePhoneNumber(),
-    ),
-    GetPage(
       name: _Paths.personalInfo,
       page: () => const PersonalInformationPage(),
     ),
@@ -219,8 +213,7 @@ class AppPages {
     ),
     GetPage(
         name: _Paths.appealManagement,
-        page: () =>
-            AppealManagementAdmin(appeal: Get.arguments as AppealManagement)),
+        page: () => const AppealManagementAdmin()),
     GetPage(
         name: _Paths.backupAndRestore, page: () => const BackupAndRestore()),
     GetPage(name: _Paths.driverList, page: () => const DriverList()),

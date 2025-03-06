@@ -2,16 +2,16 @@ import 'dart:convert';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:uuid/uuid.dart';
 import 'package:final_assignment_front/features/model/appeal_management.dart';
 import 'package:final_assignment_front/features/api/appeal_management_controller_api.dart';
 import 'package:get/Get.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 
 String generateIdempotencyKey() {
-  const uuid = Uuid();
-  return uuid.v4();
+  /// 生成幂等性键的全局方法
+    return DateTime.now().millisecondsSinceEpoch.toString();
 }
+
 
 class UserAppealPage extends StatefulWidget {
   const UserAppealPage({super.key});

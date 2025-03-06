@@ -6,13 +6,12 @@ import 'package:get/Get.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
-import 'package:uuid/uuid.dart';
 
 /// 唯一标识生成工具
 String generateIdempotencyKey() {
-  const uuid = Uuid();
-  return uuid.v4();
+  return DateTime.now().millisecondsSinceEpoch.toString();
 }
+
 
 /// FineList 页面：管理员才能访问
 class FineList extends StatefulWidget {

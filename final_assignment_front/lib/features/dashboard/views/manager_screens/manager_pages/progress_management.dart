@@ -35,7 +35,7 @@ class _ProgressManagementPageState extends State<ProgressManagementPage> {
     final jwtToken = prefs.getString('jwtToken');
     if (jwtToken != null) {
       final response = await http.get(
-        Uri.parse('http://localhost:8081/api/auth/me'), // 更新为后端地址
+        Uri.parse('http://localhost:8081/api/users/me'), // 更新为后端地址
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $jwtToken',

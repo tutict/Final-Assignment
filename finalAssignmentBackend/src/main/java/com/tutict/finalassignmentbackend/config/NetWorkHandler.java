@@ -48,12 +48,10 @@ public class NetWorkHandler extends AbstractVerticle {
     private final ObjectMapper objectMapper;
     private WebClient webClient;
 
-
     public NetWorkHandler(TokenProvider tokenProvider, ObjectMapper objectMapper) {
         this.tokenProvider = tokenProvider;
         this.objectMapper = objectMapper;
     }
-
 
     @PostConstruct
     public void init() {
@@ -63,7 +61,6 @@ public class NetWorkHandler extends AbstractVerticle {
 
     @Override
     public void start() {
-        // 在此处初始化 webClient，确保 vertx 已可用
         this.webClient = WebClient.create(vertx);
 
         Router router = Router.router(vertx);
@@ -72,8 +69,6 @@ public class NetWorkHandler extends AbstractVerticle {
     }
 
     private void setupNetWorksServer(Router router) {
-
-        // 将 HTTP 转发请求挂载到 /api/* 路径下
         router.route("/api/*").handler(ctx -> {
             HttpServerRequest request = ctx.request();
             forwardHttpRequest(request);
@@ -81,15 +76,11 @@ public class NetWorkHandler extends AbstractVerticle {
 
         router.route("/eventbus/*").handler(ctx -> {
             HttpServerRequest request = ctx.request();
-
-            // 使用异步方式将请求升级为 WebSocket
             request.toWebSocket().onSuccess(ws -> {
                 log.info("WebSocket 连接已建立, path={}", ws.path());
-
                 if (ws.path().contains("/eventbus")) {
                     handleWebSocketConnection(ws);
                 } else {
-                    // 如果路径不匹配，关闭连接并返回错误码 1003
                     ws.close((short) 1003, "Unsupported path").onSuccess(success ->
                             log.info("关闭 {} WebSocket 连接成功 {}", ws.path(), success)
                     ).onFailure(failure ->
@@ -102,7 +93,6 @@ public class NetWorkHandler extends AbstractVerticle {
             });
         });
 
-        // 处理未匹配的路由（使用正则）
         router.routeWithRegex("^/(?!api(/|$)|eventbus(/|$)).*")
                 .handler(ctx -> ctx.response().setStatusCode(404)
                         .setStatusMessage("未找到资源")
@@ -112,10 +102,9 @@ public class NetWorkHandler extends AbstractVerticle {
                 .setMaxWebSocketFrameSize(1000000)
                 .setTcpKeepAlive(true);
 
-        // 启动 Network 服务
         vertx.createHttpServer(options)
                 .requestHandler(router)
-                .listen(port)  // 确保这里使用了指定的端口
+                .listen(port)
                 .onSuccess(server -> log.info("Network服务器已在端口 {} 启动", server.actualPort()))
                 .onFailure(failure -> log.error("Network服务器启动失败: {}", failure.getMessage(), failure));
     }
@@ -191,7 +180,6 @@ public class NetWorkHandler extends AbstractVerticle {
                     for (int i = 0; i < paramCount; i++) {
                         Class<?> pt = paramTypes[i];
                         JsonNode argNode = argsArray.get(i);
-
                         invokeArgs[i] = convertJsonToParam(argNode, pt);
                     }
 
@@ -251,7 +239,8 @@ public class NetWorkHandler extends AbstractVerticle {
     private void forwardHttpRequest(HttpServerRequest request) {
         String requestId = UUID.randomUUID().toString();
         String path = request.path();
-        String targetUrl = backendUrl + ":" + backendPort + path;
+        String query = request.query(); // Extract query string
+        String targetUrl = backendUrl + ":" + backendPort + path + (query != null ? "?" + query : "");
         log.info("[{}] Forwarding request from path: {} to targetUrl: {}", requestId, path, targetUrl);
 
         if (request.headers().contains("X-Forwarded-By")) {
@@ -262,21 +251,21 @@ public class NetWorkHandler extends AbstractVerticle {
 
         request.headers().add("X-Forwarded-By", "NetWorkHandler");
 
-        // 复制所有请求头
         MultiMap headers = MultiMap.caseInsensitiveMultiMap();
         request.headers().forEach(entry -> {
             headers.add(entry.getKey(), entry.getValue());
             log.info("[{}] Forwarded header: {} = {}", requestId, entry.getKey(), entry.getValue());
         });
 
+        MultiMap queryParams = request.params(); // Get query parameters
+        log.info("[{}] Query params: {}", requestId, queryParams);
+
         if (request.method() == HttpMethod.GET) {
-            MultiMap queryParams = request.params();
             log.info("[{}] Forwarding GET request with query params: {}", requestId, queryParams);
 
             var httpRequest = webClient.getAbs(targetUrl)
-                    .putHeaders(headers); // 设置所有头
+                    .putHeaders(headers);
 
-            // 添加查询参数
             queryParams.forEach(entry -> httpRequest.addQueryParam(entry.getKey(), entry.getValue()));
 
             httpRequest.send()
@@ -292,10 +281,13 @@ public class NetWorkHandler extends AbstractVerticle {
                     log.info("[{}] body2: {}", requestId, jsonBody);
 
                     var httpRequest = webClient.postAbs(targetUrl)
-                            .putHeaders(headers) // 设置所有头
+                            .putHeaders(headers)
                             .putHeader("Content-Type", "application/json");
 
-                    httpRequest.sendJsonObject(jsonBody) // 使用 sendJsonObject 发送 JSON
+                    // Add query parameters to POST request
+                    queryParams.forEach(entry -> httpRequest.addQueryParam(entry.getKey(), entry.getValue()));
+
+                    httpRequest.sendJsonObject(jsonBody)
                             .onSuccess(response -> handleResponse(request, response, requestId))
                             .onFailure(failure -> {
                                 log.error("[{}] Forwarding HTTP request failed: {}", requestId, failure.getMessage(), failure);

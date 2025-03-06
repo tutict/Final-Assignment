@@ -9,7 +9,7 @@ class FineInformation {
   String? receiptNumber;
   String? remarks;
   String? status; // 添加 status 字段
-  String idempotencyKey;
+  String? idempotencyKey;
 
   FineInformation({
     this.fineId,

@@ -34,7 +34,7 @@ class _ManagerBusinessProcessingState extends State<ManagerBusinessProcessing> {
       {
         'title': '申诉管理',
         'icon': Icons.gavel,
-        'route': AppealManagementAdmin(appeal: appealArgument),
+        'route': const AppealManagementAdmin(),
         // Nullable AppealManagement
       },
       {
