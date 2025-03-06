@@ -35,7 +35,9 @@ class DashboardController extends GetxController with NavigationMixin {
     final userEmail = prefs.getString('userEmail');
     final userRole = prefs.getString('userRole');
 
-    if (jwtToken != null && userName != null && userEmail != null &&
+    if (jwtToken != null &&
+        userName != null &&
+        userEmail != null &&
         userRole != null) {
       currentUser.value = Profile(
         photo: const AssetImage(ImageRasterPath.avatar1), // 默认头像，可根据 API 动态更新
@@ -82,10 +84,10 @@ class DashboardController extends GetxController with NavigationMixin {
   // 获取当前用户
   Profile get currentProfile =>
       currentUser.value ??
-          const Profile(
-              photo: AssetImage(ImageRasterPath.avatar1),
-              name: "Guest",
-              email: "guest@example.com");
+      const Profile(
+          photo: AssetImage(ImageRasterPath.avatar1),
+          name: "Guest",
+          email: "guest@example.com");
 
   // 切换侧边栏状态
   void toggleSidebar() => isSidebarOpen.value = !isSidebarOpen.value;
@@ -104,15 +106,15 @@ class DashboardController extends GetxController with NavigationMixin {
     String theme = selectedStyle.value;
     ThemeData baseTheme = theme == 'Material'
         ? (currentTheme.value == 'Light'
-        ? AppTheme.materialLightTheme
-        : AppTheme.materialDarkTheme)
+            ? AppTheme.materialLightTheme
+            : AppTheme.materialDarkTheme)
         : (theme == 'Ionic'
-        ? (currentTheme.value == 'Light'
-        ? AppTheme.ionicLightTheme
-        : AppTheme.ionicDarkTheme)
-        : (currentTheme.value == 'Light'
-        ? AppTheme.basicLight
-        : AppTheme.basicDark));
+            ? (currentTheme.value == 'Light'
+                ? AppTheme.ionicLightTheme
+                : AppTheme.ionicDarkTheme)
+            : (currentTheme.value == 'Light'
+                ? AppTheme.basicLight
+                : AppTheme.basicDark));
 
     String fontFamily = theme == 'Basic' ? Font.poppins : 'Helvetica';
 
@@ -149,10 +151,9 @@ class DashboardController extends GetxController with NavigationMixin {
   }
 
   // 打开抽屉
-  void openDrawer() =>
-      isDesktop.value
-          ? isSidebarOpen.value = true
-          : scaffoldKey.currentState?.openDrawer();
+  void openDrawer() => isDesktop.value
+      ? isSidebarOpen.value = true
+      : scaffoldKey.currentState?.openDrawer();
 
   // 关闭侧边栏
   void closeSidebar() => isDesktop.value ? isSidebarOpen.value = false : null;
@@ -184,8 +185,7 @@ class DashboardController extends GetxController with NavigationMixin {
       Obx(() => selectedPage.value ?? const SizedBox.shrink());
 
   // 获取项目信息
-  ProjectCardData getSelectedProject() =>
-      ProjectCardData(
+  ProjectCardData getSelectedProject() => ProjectCardData(
         percent: .3,
         projectImage: const AssetImage(ImageRasterPath.logo4),
         projectName: "交通违法行为处理管理系统",
@@ -196,8 +196,7 @@ class DashboardController extends GetxController with NavigationMixin {
   List<ProjectCardData> getActiveProject() => [];
 
   // 获取顾问头像
-  List<ImageProvider<Object>> getMember() =>
-      const [
+  List<ImageProvider<Object>> getMember() => const [
         AssetImage(ImageRasterPath.avatar1),
         AssetImage(ImageRasterPath.avatar2),
         AssetImage(ImageRasterPath.avatar3),
@@ -232,9 +231,7 @@ class DashboardController extends GetxController with NavigationMixin {
       }
 
       final listObj = await OffenseInformationControllerApi().apiOffensesGet(
-        headers: {
-          'Authorization': 'Bearer $jwtToken'
-        },
+        headers: {'Authorization': 'Bearer $jwtToken'},
       );
       if (listObj == null) return [];
       return listObj.map((item) {
@@ -251,7 +248,7 @@ class DashboardController extends GetxController with NavigationMixin {
       await _validateTokenAndRole();
 
       final roleApi = RoleManagementControllerApi();
-      final roles = await roleApi.getAllRoles();
+      final roles = await roleApi.apiRolesGet();
       return roles
           .where((role) => role.status == 'Active')
           .toList(); // 使用 status

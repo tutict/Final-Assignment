@@ -16,11 +16,6 @@ import 'package:final_assignment_front/features/dashboard/views/user_screens/use
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/news/AccidentVideoQuickPage.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/news/FinePaymentNoticePage.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/news/LatestTrafficViolationNewsPage.dart';
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/account_and_security/account_and_security_main.dart';
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/account_and_security/change_password.dart';
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/account_and_security/delete_account.dart';
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/account_and_security/information_statement.dart';
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/account_and_security/migrate_account.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/consultation_feedback.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/personal_info/change_mobile_phone_number.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/personal_info/personal_info.dart';

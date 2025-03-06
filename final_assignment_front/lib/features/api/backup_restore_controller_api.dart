@@ -1,7 +1,9 @@
 import 'package:final_assignment_front/features/model/backup_restore.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
-import 'package:http/http.dart'; // 用于 Response 和 MultipartRequest
 import 'package:final_assignment_front/utils/services/api_client.dart';
+import 'package:flutter/material.dart';
+import 'package:http/http.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// 定义一个全局的 defaultApiClient
 final ApiClient defaultApiClient = ApiClient();
@@ -9,428 +11,246 @@ final ApiClient defaultApiClient = ApiClient();
 class BackupRestoreControllerApi {
   final ApiClient apiClient;
 
-  // 更新后的构造函数，apiClient 参数可为空
+  /// 构造函数，可传入 ApiClient，否则使用全局默认实例
   BackupRestoreControllerApi([ApiClient? apiClient])
       : apiClient = apiClient ?? defaultApiClient;
 
-  // 解码响应体的辅助方法
-  String _decodeBodyBytes(Response response) {
-    return response.body;
+  /// 从 SharedPreferences 中读取 jwtToken 并设置到 ApiClient 中
+  Future<void> initializeWithJwt() async {
+    final prefs = await SharedPreferences.getInstance();
+    final jwtToken = prefs.getString('jwtToken');
+    if (jwtToken == null) {
+      throw Exception('未登录，请重新登录');
+    }
+    apiClient.setJwtToken(jwtToken);
+    debugPrint('Initialized BackupRestoreControllerApi with token: $jwtToken');
   }
 
-  /// deleteBackup with HTTP info returned
-  ///
-  ///
-  Future<Response> apiBackupsBackupIdDeleteWithHttpInfo(String backupId) async {
-    Object postBody = ''; // DELETE 请求通常没有 body
+  /// 解码响应体字节到字符串
+  String _decodeBodyBytes(Response response) => response.body;
 
-    // 验证必需参数已设置
+  /// DELETE /api/backups/{backupId} - 删除备份 (仅管理员)
+  Future<void> apiBackupsBackupIdDelete(String backupId) async {
     if (backupId.isEmpty) {
       throw ApiException(400, "Missing required param: backupId");
     }
-
-    // 创建路径和映射变量
-    String path = "/api/backups/{backupId}"
-        .replaceAll("{format}", "json")
-        .replaceAll("{backupId}", backupId);
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'DELETE', queryParams,
-        postBody, headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// deleteBackup
-  ///
-  ///
-  Future<Object?> apiBackupsBackupIdDelete(String backupId) async {
-    Response response = await apiBackupsBackupIdDeleteWithHttpInfo(backupId);
+    final response = await apiClient.invokeAPI(
+      '/api/backups/$backupId',
+      'DELETE',
+      [],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
     }
   }
 
-  /// getBackupById with HTTP info returned
-  ///
-  ///
-  Future<Response> apiBackupsBackupIdGetWithHttpInfo(String backupId) async {
-    Object postBody = ''; // GET 请求通常没有 body
-
-    // 验证必需参数已设置
+  /// GET /api/backups/{backupId} - 根据ID获取备份
+  Future<BackupRestore?> apiBackupsBackupIdGet(String backupId) async {
     if (backupId.isEmpty) {
       throw ApiException(400, "Missing required param: backupId");
     }
-
-    // 创建路径和映射变量
-    String path = "/api/backups/{backupId}"
-        .replaceAll("{format}", "json")
-        .replaceAll("{backupId}", backupId);
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// getBackupById
-  ///
-  ///
-  Future<Object?> apiBackupsBackupIdGet(String backupId) async {
-    Response response = await apiBackupsBackupIdGetWithHttpInfo(backupId);
+    final response = await apiClient.invokeAPI(
+      '/api/backups/$backupId',
+      'GET',
+      [],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
     }
+    if (response.body.isEmpty) return null;
+    final data = apiClient.deserialize(
+        _decodeBodyBytes(response), 'Map<String, dynamic>');
+    return BackupRestore.fromJson(data);
   }
 
-  /// updateBackup with HTTP info returned
-  ///
-  ///
-  Future<Response> apiBackupsBackupIdPutWithHttpInfo(String backupId,
-      {int? backupNumber}) async {
-    Object postBody = backupNumber ?? 0; // 根据实际需求设置默认值
-
-    // 验证必需参数已设置
+  /// PUT /api/backups/{backupId} - 更新备份 (仅管理员)
+  Future<BackupRestore> apiBackupsBackupIdPut({
+    required String backupId,
+    required BackupRestore backupRestore,
+  }) async {
     if (backupId.isEmpty) {
       throw ApiException(400, "Missing required param: backupId");
     }
-
-    // 创建路径和映射变量
-    String path = "/api/backups/{backupId}"
-        .replaceAll("{format}", "json")
-        .replaceAll("{backupId}", backupId);
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = ["application/json"];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'PUT', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// updateBackup
-  ///
-  ///
-  Future<Object?> apiBackupsBackupIdPut(String backupId,
-      {int? backupNumber}) async {
-    Response response = await apiBackupsBackupIdPutWithHttpInfo(backupId,
-        backupNumber: backupNumber);
+    final response = await apiClient.invokeAPI(
+      '/api/backups/$backupId',
+      'PUT',
+      [],
+      backupRestore.toJson(),
+      {},
+      {},
+      'application/json',
+      ['bearerAuth'],
+    );
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
     }
+    final data = apiClient.deserialize(
+        _decodeBodyBytes(response), 'Map<String, dynamic>');
+    return BackupRestore.fromJson(data);
   }
 
-  /// getBackupByFileName with HTTP info returned
-  ///
-  ///
-  Future<Response> apiBackupsFilenameBackupFileNameGetWithHttpInfo(
+  /// GET /api/backups/filename/{backupFileName} - 根据文件名获取备份
+  Future<BackupRestore?> apiBackupsFilenameBackupFileNameGet(
       String backupFileName) async {
-    Object postBody = ''; // GET 请求通常没有 body
-
-    // 验证必需参数已设置
     if (backupFileName.isEmpty) {
       throw ApiException(400, "Missing required param: backupFileName");
     }
-
-    // 创建路径和映射变量
-    String path = "/api/backups/filename/{backupFileName}"
-        .replaceAll("{format}", "json")
-        .replaceAll("{backupFileName}", backupFileName);
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// getBackupByFileName
-  ///
-  ///
-  Future<Object?> apiBackupsFilenameBackupFileNameGet(
-      String backupFileName) async {
-    Response response =
-        await apiBackupsFilenameBackupFileNameGetWithHttpInfo(backupFileName);
+    final response = await apiClient.invokeAPI(
+      '/api/backups/filename/$backupFileName',
+      'GET',
+      [],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
     }
+    if (response.body.isEmpty) return null;
+    final data = apiClient.deserialize(
+        _decodeBodyBytes(response), 'Map<String, dynamic>');
+    return BackupRestore.fromJson(data);
   }
 
-  /// getAllBackups with HTTP info returned
-  ///
-  ///
-  Future<Response> apiBackupsGetWithHttpInfo() async {
-    Object postBody = ''; // GET 请求通常没有 body
-
-    // 验证必需参数已设置
-    // 假设此端点无需必需参数
-
-    // 创建路径和映射变量
-    String path = "/api/backups".replaceAll("{format}", "json");
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// getAllBackups
-  ///
-  ///
-  Future<Object?> apiBackupsGet() async {
-    Response response = await apiBackupsGetWithHttpInfo();
+  /// GET /api/backups - 获取所有备份
+  Future<List<BackupRestore>> apiBackupsGet() async {
+    final response = await apiClient.invokeAPI(
+      '/api/backups',
+      'GET',
+      [],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
     }
+    final List<dynamic> data =
+        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    return BackupRestore.listFromJson(data);
   }
 
-  /// createBackup with HTTP info returned
-  ///
-  ///
-  Future<Response> apiBackupsPostWithHttpInfo(
+  /// POST /api/backups - 创建备份 (仅管理员)
+  Future<BackupRestore> apiBackupsPost(
       {required BackupRestore backupRestore}) async {
-    Object postBody = backupRestore;
-
-    // 验证必需参数已设置
-    // 因为使用了 'required'，无需检查是否为 null
-
-    // 创建路径和映射变量
-    String path = "/api/backups".replaceAll("{format}", "json");
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = ["application/json"];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'POST', queryParams,
-        postBody, headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// createBackup
-  ///
-  ///
-  Future<Object?> apiBackupsPost({required BackupRestore backupRestore}) async {
-    Response response =
-        await apiBackupsPostWithHttpInfo(backupRestore: backupRestore);
+    final response = await apiClient.invokeAPI(
+      '/api/backups',
+      'POST',
+      [],
+      backupRestore.toJson(),
+      {},
+      {},
+      'application/json',
+      ['bearerAuth'],
+    );
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
     }
+    final data = apiClient.deserialize(
+        _decodeBodyBytes(response), 'Map<String, dynamic>');
+    return BackupRestore.fromJson(data);
   }
 
-  /// getBackupsByTime with HTTP info returned
-  ///
-  ///
-  Future<Response> apiBackupsTimeBackupTimeGetWithHttpInfo(
+  /// GET /api/backups/time/{backupTime} - 根据时间获取备份
+  Future<List<BackupRestore>> apiBackupsTimeBackupTimeGet(
       String backupTime) async {
-    Object postBody = ''; // GET 请求通常没有 body
-
-    // 验证必需参数已设置
     if (backupTime.isEmpty) {
       throw ApiException(400, "Missing required param: backupTime");
     }
-
-    // 创建路径和映射变量
-    String path = "/api/backups/time/{backupTime}"
-        .replaceAll("{format}", "json")
-        .replaceAll("{backupTime}", backupTime);
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// getBackupsByTime
-  ///
-  ///
-  Future<Object?> apiBackupsTimeBackupTimeGet(String backupTime) async {
-    Response response =
-        await apiBackupsTimeBackupTimeGetWithHttpInfo(backupTime);
+    final response = await apiClient.invokeAPI(
+      '/api/backups/time/$backupTime',
+      'GET',
+      [],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
     }
+    final List<dynamic> data =
+        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    return BackupRestore.listFromJson(data);
   }
 
-  /// deleteBackup (WebSocket)
-  /// 对应后端 @WsAction(service='BackupRestore', action='deleteBackup')
-  Future<Object?> eventbusBackupsBackupIdDelete(String backupId) async {
-    // 构造消息
+  // WebSocket Methods (Aligned with HTTP Endpoints)
+
+  /// DELETE /api/backups/{backupId} (WebSocket)
+  /// 对应后端: @WsAction(service="BackupRestore", action="deleteBackup")
+  Future<bool> eventbusBackupsBackupIdDelete(String backupId) async {
+    if (backupId.isEmpty) {
+      throw ApiException(400, "Missing required param: backupId");
+    }
     final msg = {
       "service": "BackupRestore",
       "action": "deleteBackup",
-      "args": [
-        int.parse(backupId) // 取决于后端的签名 (Integer backupId)
-      ]
+      "args": [int.parse(backupId)]
     };
-
-    // 调用 apiClient.sendWsMessage
     final respMap = await apiClient.sendWsMessage(msg);
-
-    // 判断 result/error
     if (respMap.containsKey("error")) {
       throw ApiException(400, respMap["error"]);
     }
-    if (respMap.containsKey("result")) {
-      return respMap["result"];
-    }
-    return null;
+    return true; // Success if no error
   }
 
-  /// getBackupById (WebSocket)
-  /// 对应 @WsAction(service='BackupRestore', action='getBackupById')
+  /// GET /api/backups/{backupId} (WebSocket)
+  /// 对应后端: @WsAction(service="BackupRestore", action="getBackupById")
   Future<Object?> eventbusBackupsBackupIdGet(String backupId) async {
+    if (backupId.isEmpty) {
+      throw ApiException(400, "Missing required param: backupId");
+    }
     final msg = {
       "service": "BackupRestore",
       "action": "getBackupById",
       "args": [int.parse(backupId)]
     };
-
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
       throw ApiException(400, respMap["error"]);
     }
-    if (respMap.containsKey("result")) {
-      return respMap["result"];
-    }
-    return null;
+    return respMap["result"];
   }
 
-  /// updateBackup (WebSocket)
-  /// 对应 @WsAction(service='BackupRestore', action='updateBackup')
-  /// 例如: updateBackup(String backupId, int backupNumber)
-  Future<Object?> eventbusBackupsBackupIdPut(String backupId,
-      {int? backupNumber}) async {
+  /// PUT /api/backups/{backupId} (WebSocket)
+  /// 对应后端: @WsAction(service="BackupRestore", action="updateBackup")
+  Future<Object?> eventbusBackupsBackupIdPut({
+    required String backupId,
+    required BackupRestore backupRestore,
+  }) async {
+    if (backupId.isEmpty) {
+      throw ApiException(400, "Missing required param: backupId");
+    }
     final msg = {
       "service": "BackupRestore",
       "action": "updateBackup",
-      "args": [int.parse(backupId), backupNumber ?? 0]
+      "args": [int.parse(backupId), backupRestore.toJson()]
     };
-
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
       throw ApiException(400, respMap["error"]);
     }
-    if (respMap.containsKey("result")) {
-      return respMap["result"];
-    }
-    return null;
+    return respMap["result"];
   }
 
-  /// getBackupByFileName (WebSocket)
-  /// 对应 @WsAction(service='BackupRestore', action='getBackupByFileName')
-  Future<Object?> apiBackupsEventbusFilenameBackupFileNameGet(
+  /// GET /api/backups/filename/{backupFileName} (WebSocket)
+  /// 对应后端: @WsAction(service="BackupRestore", action="getBackupByFileName")
+  Future<Object?> eventbusBackupsFilenameBackupFileNameGet(
       String backupFileName) async {
     if (backupFileName.isEmpty) {
       throw ApiException(400, "Missing required param: backupFileName");
@@ -440,32 +260,65 @@ class BackupRestoreControllerApi {
       "action": "getBackupByFileName",
       "args": [backupFileName]
     };
-
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
       throw ApiException(400, respMap["error"]);
     }
-    if (respMap.containsKey("result")) {
-      return respMap["result"];
-    }
-    return null;
+    return respMap["result"];
   }
 
-  /// getAllBackups (WebSocket)
-  /// 对应 @WsAction(service='BackupRestore', action='getAllBackups')
-  Future<Object?> apiBackupsGetEventbus() async {
+  /// GET /api/backups (WebSocket)
+  /// 对应后端: @WsAction(service="BackupRestore", action="getAllBackups")
+  Future<List<Object>?> eventbusBackupsGet() async {
     final msg = {
       "service": "BackupRestore",
       "action": "getAllBackups",
       "args": []
     };
-
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
       throw ApiException(400, respMap["error"]);
     }
-    if (respMap.containsKey("result")) {
-      return respMap["result"];
+    if (respMap["result"] is List) {
+      return (respMap["result"] as List).cast<Object>();
+    }
+    return null;
+  }
+
+  /// POST /api/backups (WebSocket)
+  /// 对应后端: @WsAction(service="BackupRestore", action="createBackup")
+  Future<Object?> eventbusBackupsPost(
+      {required BackupRestore backupRestore}) async {
+    final msg = {
+      "service": "BackupRestore",
+      "action": "createBackup",
+      "args": [backupRestore.toJson()]
+    };
+    final respMap = await apiClient.sendWsMessage(msg);
+    if (respMap.containsKey("error")) {
+      throw ApiException(400, respMap["error"]);
+    }
+    return respMap["result"];
+  }
+
+  /// GET /api/backups/time/{backupTime} (WebSocket)
+  /// 对应后端: @WsAction(service="BackupRestore", action="getBackupsByTime")
+  Future<List<Object>?> eventbusBackupsTimeBackupTimeGet(
+      String backupTime) async {
+    if (backupTime.isEmpty) {
+      throw ApiException(400, "Missing required param: backupTime");
+    }
+    final msg = {
+      "service": "BackupRestore",
+      "action": "getBackupsByTime",
+      "args": [backupTime]
+    };
+    final respMap = await apiClient.sendWsMessage(msg);
+    if (respMap.containsKey("error")) {
+      throw ApiException(400, respMap["error"]);
+    }
+    if (respMap["result"] is List) {
+      return (respMap["result"] as List).cast<Object>();
     }
     return null;
   }

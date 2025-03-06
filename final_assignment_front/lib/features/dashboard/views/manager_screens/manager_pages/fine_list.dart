@@ -6,7 +6,6 @@ import 'package:get/Get.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
-
 import 'package:uuid/uuid.dart';
 
 /// 唯一标识生成工具
@@ -15,6 +14,7 @@ String generateIdempotencyKey() {
   return uuid.v4();
 }
 
+/// FineList 页面：管理员才能访问
 class FineList extends StatefulWidget {
   const FineList({super.key});
 
@@ -28,7 +28,7 @@ class _FineListPageState extends State<FineList> {
   final UserDashboardController controller =
       Get.find<UserDashboardController>();
   bool _isLoading = true;
-  bool _isAdmin = false; // 假设从状态管理或 SharedPreferences 获取
+  bool _isAdmin = false;
   String _errorMessage = '';
   final TextEditingController _payeeController = TextEditingController();
   DateTimeRange? _dateRange;
@@ -46,6 +46,22 @@ class _FineListPageState extends State<FineList> {
     super.dispose();
   }
 
+  /// 解析 JWT 的方法
+  Map<String, dynamic> _decodeJwt(String token) {
+    try {
+      final parts = token.split('.');
+      if (parts.length != 3) {
+        throw Exception('Invalid JWT format');
+      }
+      final payload = base64Url.decode(base64Url.normalize(parts[1]));
+      return jsonDecode(utf8.decode(payload)) as Map<String, dynamic>;
+    } catch (e) {
+      debugPrint('JWT Decode Error: $e');
+      return {};
+    }
+  }
+
+  /// 根据 JWT 判断是否为管理员
   Future<void> _checkUserRole() async {
     final prefs = await SharedPreferences.getInstance();
     final jwtToken = prefs.getString('jwtToken');
@@ -56,37 +72,17 @@ class _FineListPageState extends State<FineList> {
       });
       return;
     }
-
-    final response = await http.get(
-      Uri.parse('http://localhost:8081/api/auth/me'), // 后端地址
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $jwtToken',
-      },
-    );
-
-    if (response.statusCode == 200) {
-      final roleData = jsonDecode(response.body);
-      final userRole = (roleData['roles'] as List<dynamic>).firstWhere(
-        (role) => role == 'ADMIN',
-        orElse: () => 'USER',
-      );
-
-      setState(() {
-        _isAdmin = userRole == 'ADMIN';
-        if (_isAdmin) {
-          _loadFines(); // 仅管理员加载所有罚款
-        } else {
-          _errorMessage = '权限不足：仅管理员可访问此页面';
-          _isLoading = false;
-        }
-      });
-    } else {
-      setState(() {
-        _errorMessage = '验证失败：${response.statusCode} - ${response.body}';
+    final decodedJwt = _decodeJwt(jwtToken);
+    final roles = decodedJwt['roles']?.toString().split(',') ?? [];
+    setState(() {
+      _isAdmin = roles.contains('ADMIN');
+      if (_isAdmin) {
+        _loadFines(); // 管理员加载所有罚款
+      } else {
+        _errorMessage = '权限不足：仅管理员可访问此页面';
         _isLoading = false;
-      });
-    }
+      }
+    });
   }
 
   Future<void> _loadFines() async {
@@ -181,16 +177,14 @@ class _FineListPageState extends State<FineList> {
   }
 
   Future<void> _createFine(FineInformation fine) async {
-    if (!mounted) return; // 确保 widget 仍然挂载
-
-    final scaffoldMessenger = ScaffoldMessenger.of(context); // 保存 context
+    if (!mounted) return;
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
     try {
       final prefs = await SharedPreferences.getInstance();
       final jwtToken = prefs.getString('jwtToken');
       if (jwtToken == null || !_isAdmin) {
         throw Exception('No JWT token found or insufficient permissions');
       }
-
       final idempotencyKey = generateIdempotencyKey();
       final response = await http.post(
         Uri.parse(
@@ -201,13 +195,11 @@ class _FineListPageState extends State<FineList> {
         },
         body: jsonEncode(fine.toJson()),
       );
-
       if (response.statusCode == 201) {
-        // 201 Created
         scaffoldMessenger.showSnackBar(
           const SnackBar(content: Text('创建罚款成功！')),
         );
-        _loadFines(); // 刷新列表
+        _loadFines();
       } else {
         throw Exception('创建失败: ${response.statusCode} - ${response.body}');
       }
@@ -221,20 +213,17 @@ class _FineListPageState extends State<FineList> {
   }
 
   Future<void> _updateFineStatus(int fineId, String status) async {
-    if (!mounted) return; // 确保 widget 仍然挂载
-
-    final scaffoldMessenger = ScaffoldMessenger.of(context); // 保存 context
+    if (!mounted) return;
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
     setState(() {
       _isLoading = true;
     });
-
     try {
       final prefs = await SharedPreferences.getInstance();
       final jwtToken = prefs.getString('jwtToken');
       if (jwtToken == null || !_isAdmin) {
         throw Exception('No JWT token found or insufficient permissions');
       }
-
       final response = await http.put(
         Uri.parse('http://localhost:8081/api/fines/$fineId'),
         headers: {
@@ -246,12 +235,11 @@ class _FineListPageState extends State<FineList> {
           'timestamp': DateTime.now().toIso8601String(),
         }),
       );
-
       if (response.statusCode == 200) {
         scaffoldMessenger.showSnackBar(
           SnackBar(content: Text('罚款记录已${status == 'Approved' ? '批准' : '拒绝'}')),
         );
-        _loadFines(); // 刷新列表
+        _loadFines();
       } else {
         throw Exception('更新失败: ${response.statusCode} - ${response.body}');
       }
@@ -271,16 +259,14 @@ class _FineListPageState extends State<FineList> {
   }
 
   Future<void> _deleteFine(int fineId) async {
-    if (!mounted) return; // 确保 widget 仍然挂载
-
-    final scaffoldMessenger = ScaffoldMessenger.of(context); // 保存 context
+    if (!mounted) return;
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
     try {
       final prefs = await SharedPreferences.getInstance();
       final jwtToken = prefs.getString('jwtToken');
       if (jwtToken == null || !_isAdmin) {
         throw Exception('No JWT token found or insufficient permissions');
       }
-
       final response = await http.delete(
         Uri.parse('http://localhost:8081/api/fines/$fineId'),
         headers: {
@@ -288,13 +274,11 @@ class _FineListPageState extends State<FineList> {
           'Authorization': 'Bearer $jwtToken',
         },
       );
-
       if (response.statusCode == 204) {
-        // 204 No Content
         scaffoldMessenger.showSnackBar(
           const SnackBar(content: Text('删除罚款成功！')),
         );
-        _loadFines(); // 刷新列表
+        _loadFines();
       } else {
         throw Exception('删除失败: ${response.statusCode} - ${response.body}');
       }
@@ -305,14 +289,6 @@ class _FineListPageState extends State<FineList> {
                 Text('删除失败: $e', style: const TextStyle(color: Colors.red))),
       );
     }
-  }
-
-  void _showErrorSnackBar(String message) {
-    if (!mounted) return; // 确保 widget 仍然挂载
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-          content: Text(message, style: const TextStyle(color: Colors.red))),
-    );
   }
 
   List<FineInformation> _parseFineResult(dynamic result) {
@@ -335,7 +311,7 @@ class _FineListPageState extends State<FineList> {
       ),
     ).then((value) {
       if (value == true && mounted) {
-        _loadFines(); // 详情页更新后刷新列表
+        _loadFines();
       }
     });
   }
@@ -496,7 +472,6 @@ class _FineListPageState extends State<FineList> {
                           final time = fine.fineTime ?? '';
                           final status = fine.status ?? 'Pending';
                           final fid = fine.fineId ?? 0;
-
                           return Card(
                             margin: const EdgeInsets.symmetric(
                                 vertical: 8.0, horizontal: 16.0),
@@ -570,6 +545,7 @@ class _FineListPageState extends State<FineList> {
   }
 }
 
+/// 添加罚款页面（无需角色校验示例，此处保持原逻辑）
 class AddFinePage extends StatefulWidget {
   const AddFinePage({super.key});
 
@@ -604,9 +580,8 @@ class _AddFinePageState extends State<AddFinePage> {
   }
 
   Future<void> _submitFine() async {
-    if (!mounted) return; // 确保 widget 仍然挂载
-
-    final scaffoldMessenger = ScaffoldMessenger.of(context); // 保存 context
+    if (!mounted) return;
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
     setState(() {
       _isLoading = true;
     });
@@ -615,7 +590,6 @@ class _AddFinePageState extends State<AddFinePage> {
       final fine = FineInformation(
         fineId: null,
         offenseId: 0,
-        // 示例，需根据实际业务从前端获取或从上下文推导
         fineAmount: double.tryParse(_fineAmountController.text.trim()) ?? 0.0,
         payee: _payeeController.text.trim(),
         accountNumber: _accountNumberController.text.trim(),
@@ -624,13 +598,11 @@ class _AddFinePageState extends State<AddFinePage> {
         remarks: _remarksController.text.trim(),
         fineTime: _dateController.text.trim(),
         idempotencyKey: generateIdempotencyKey(),
-        status: 'Pending', // 初始状态为待审批
+        status: 'Pending',
       );
-
       final prefs = await SharedPreferences.getInstance();
       final jwtToken = prefs.getString('jwtToken');
       if (jwtToken == null) throw Exception('No JWT token found');
-
       final response = await http.post(
         Uri.parse(
             'http://localhost:8081/api/fines?idempotencyKey=${generateIdempotencyKey()}'),
@@ -640,14 +612,12 @@ class _AddFinePageState extends State<AddFinePage> {
         },
         body: jsonEncode(fine.toJson()),
       );
-
       if (response.statusCode == 201) {
-        // 201 Created
         scaffoldMessenger.showSnackBar(
           const SnackBar(content: Text('创建罚款成功！')),
         );
         if (mounted) {
-          Navigator.pop(context, true); // 返回并刷新列表
+          Navigator.pop(context, true);
         }
       } else {
         throw Exception('创建失败: ${response.statusCode} - ${response.body}');
@@ -667,19 +637,10 @@ class _AddFinePageState extends State<AddFinePage> {
     }
   }
 
-  void _showErrorSnackBar(String message) {
-    if (!mounted) return; // 确保 widget 仍然挂载
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-          content: Text(message, style: const TextStyle(color: Colors.red))),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final currentTheme = Theme.of(context);
     final bool isLight = currentTheme.brightness == Brightness.light;
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('添加新罚款'),
@@ -901,7 +862,7 @@ class _AddFinePageState extends State<AddFinePage> {
             color: isLight ? Colors.black : Colors.white,
           ),
           onTap: () async {
-            FocusScope.of(context).requestFocus(FocusNode()); // 关闭键盘
+            FocusScope.of(context).requestFocus(FocusNode());
             final pickedDate = await showDatePicker(
               context: context,
               initialDate: DateTime.now(),
@@ -951,6 +912,7 @@ class _AddFinePageState extends State<AddFinePage> {
   }
 }
 
+/// 罚款详情页面
 class FineDetailPage extends StatefulWidget {
   final FineInformation fine;
 
@@ -962,8 +924,8 @@ class FineDetailPage extends StatefulWidget {
 
 class _FineDetailPageState extends State<FineDetailPage> {
   bool _isLoading = false;
-  bool _isAdmin = false; // 管理员权限标识
-  String _errorMessage = ''; // 错误消息
+  bool _isAdmin = false;
+  String _errorMessage = '';
   final TextEditingController _remarksController = TextEditingController();
 
   @override
@@ -973,6 +935,22 @@ class _FineDetailPageState extends State<FineDetailPage> {
     _checkUserRole(); // 检查用户角色
   }
 
+  /// 解析 JWT 的方法
+  Map<String, dynamic> _decodeJwt(String token) {
+    try {
+      final parts = token.split('.');
+      if (parts.length != 3) {
+        throw Exception('Invalid JWT format');
+      }
+      final payload = base64Url.decode(base64Url.normalize(parts[1]));
+      return jsonDecode(utf8.decode(payload)) as Map<String, dynamic>;
+    } catch (e) {
+      debugPrint('JWT Decode Error: $e');
+      return {};
+    }
+  }
+
+  /// 使用 JWT 解码判断管理员权限
   Future<void> _checkUserRole() async {
     final prefs = await SharedPreferences.getInstance();
     final jwtToken = prefs.getString('jwtToken');
@@ -983,49 +961,26 @@ class _FineDetailPageState extends State<FineDetailPage> {
       });
       return;
     }
-
-    final response = await http.get(
-      Uri.parse('http://localhost:8081/api/auth/me'), // 后端地址
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $jwtToken',
-      },
-    );
-
-    if (response.statusCode == 200) {
-      final roleData = jsonDecode(response.body);
-      final userRole = (roleData['roles'] as List<dynamic>).firstWhere(
-        (role) => role == 'ADMIN',
-        orElse: () => 'USER',
-      );
-
-      setState(() {
-        _isAdmin = userRole == 'ADMIN';
-        _isLoading = false;
-      });
-    } else {
-      setState(() {
-        _errorMessage = '验证失败：${response.statusCode} - ${response.body}';
-        _isLoading = false;
-      });
-    }
+    final decodedJwt = _decodeJwt(jwtToken);
+    final roles = decodedJwt['roles']?.toString().split(',') ?? [];
+    setState(() {
+      _isAdmin = roles.contains('ADMIN');
+      _isLoading = false;
+    });
   }
 
   Future<void> _updateFineStatus(int fineId, String status) async {
-    if (!mounted) return; // 确保 widget 仍然挂载
-
-    final scaffoldMessenger = ScaffoldMessenger.of(context); // 保存 context
+    if (!mounted) return;
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
     setState(() {
       _isLoading = true;
     });
-
     try {
       final prefs = await SharedPreferences.getInstance();
       final jwtToken = prefs.getString('jwtToken');
       if (jwtToken == null || !_isAdmin) {
         throw Exception('No JWT token found or insufficient permissions');
       }
-
       final response = await http.put(
         Uri.parse('http://localhost:8081/api/fines/$fineId'),
         headers: {
@@ -1038,7 +993,6 @@ class _FineDetailPageState extends State<FineDetailPage> {
           'remarks': _remarksController.text.trim(),
         }),
       );
-
       if (response.statusCode == 200) {
         scaffoldMessenger.showSnackBar(
           SnackBar(content: Text('罚款记录已${status == 'Approved' ? '批准' : '拒绝'}')),
@@ -1048,7 +1002,7 @@ class _FineDetailPageState extends State<FineDetailPage> {
           widget.fine.remarks = _remarksController.text.trim();
         });
         if (mounted) {
-          Navigator.pop(context, true); // 返回并刷新列表
+          Navigator.pop(context, true);
         }
       } else {
         throw Exception('更新失败: ${response.statusCode} - ${response.body}');
@@ -1069,20 +1023,17 @@ class _FineDetailPageState extends State<FineDetailPage> {
   }
 
   Future<void> _deleteFine(int fineId) async {
-    if (!mounted) return; // 确保 widget 仍然挂载
-
-    final scaffoldMessenger = ScaffoldMessenger.of(context); // 保存 context
+    if (!mounted) return;
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
     try {
       final prefs = await SharedPreferences.getInstance();
       final jwtToken = prefs.getString('jwtToken');
       if (jwtToken == null || !_isAdmin) {
         throw Exception('No JWT token found or insufficient permissions');
       }
-
       setState(() {
         _isLoading = true;
       });
-
       final response = await http.delete(
         Uri.parse('http://localhost:8081/api/fines/$fineId'),
         headers: {
@@ -1090,14 +1041,12 @@ class _FineDetailPageState extends State<FineDetailPage> {
           'Authorization': 'Bearer $jwtToken',
         },
       );
-
       if (response.statusCode == 204) {
-        // 204 No Content
         scaffoldMessenger.showSnackBar(
           const SnackBar(content: Text('罚款删除成功！')),
         );
         if (mounted) {
-          Navigator.pop(context, true); // 返回并刷新列表
+          Navigator.pop(context, true);
         }
       } else {
         throw Exception('删除失败: ${response.statusCode} - ${response.body}');
@@ -1117,18 +1066,9 @@ class _FineDetailPageState extends State<FineDetailPage> {
     }
   }
 
-  void _showErrorSnackBar(String message) {
-    if (!mounted) return; // 确保 widget 仍然挂载
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-          content: Text(message, style: const TextStyle(color: Colors.red))),
-    );
-  }
-
   Widget _buildDetailRow(BuildContext context, String label, String value) {
     final currentTheme = Theme.of(context);
     final bool isLight = currentTheme.brightness == Brightness.light;
-
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
@@ -1158,7 +1098,6 @@ class _FineDetailPageState extends State<FineDetailPage> {
   Widget build(BuildContext context) {
     final currentTheme = Theme.of(context);
     final bool isLight = currentTheme.brightness == Brightness.light;
-
     final amount = widget.fine.fineAmount ?? 0;
     final payee = widget.fine.payee ?? '';
     final time = widget.fine.fineTime ?? '';
@@ -1184,7 +1123,7 @@ class _FineDetailPageState extends State<FineDetailPage> {
         backgroundColor: isLight ? Colors.blue : Colors.blueGrey,
         foregroundColor: isLight ? Colors.white : Colors.white,
         actions: [
-          if (_isAdmin) // 仅 ADMIN 显示操作按钮
+          if (_isAdmin)
             PopupMenuButton<String>(
               onSelected: (value) {
                 if (value == 'approve' && status == 'Pending') {

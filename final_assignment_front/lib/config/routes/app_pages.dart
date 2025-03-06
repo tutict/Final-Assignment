@@ -22,12 +22,6 @@ import 'package:final_assignment_front/features/dashboard/views/user_screens/use
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/news/AccidentVideoQuickPage.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/news/FinePaymentNoticePage.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/news/LatestTrafficViolationNewsPage.dart';
-
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/account_and_security/account_and_security_main.dart';
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/account_and_security/change_password.dart';
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/account_and_security/delete_account.dart';
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/account_and_security/information_statement.dart';
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/account_and_security/migrate_account.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/consultation_feedback.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/personal_info/change_mobile_phone_number.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/personal_info/personal_info.dart';
@@ -200,26 +194,6 @@ class AppPages {
       page: () => const OnlineProcessingProgress(),
     ),
     GetPage(
-      name: _Paths.accountAndSecurity,
-      page: () => const AccountAndSecurityPage(),
-    ),
-    GetPage(
-      name: _Paths.changePassword,
-      page: () => const ChangePassword(),
-    ),
-    GetPage(
-      name: _Paths.deleteAccount,
-      page: () => const DeleteAccount(),
-    ),
-    GetPage(
-      name: _Paths.informationStatement,
-      page: () => const InformationStatementPage(),
-    ),
-    GetPage(
-      name: _Paths.migrateAccount,
-      page: () => const MigrateAccount(),
-    ),
-    GetPage(
       name: _Paths.changeMobilePhoneNumber,
       page: () => const ChangeMobilePhoneNumber(),
     ),
@@ -245,7 +219,8 @@ class AppPages {
     ),
     GetPage(
         name: _Paths.appealManagement,
-        page: () => AppealManagementAdmin(appeal: Get.arguments as AppealManagement)),
+        page: () =>
+            AppealManagementAdmin(appeal: Get.arguments as AppealManagement)),
     GetPage(
         name: _Paths.backupAndRestore, page: () => const BackupAndRestore()),
     GetPage(name: _Paths.driverList, page: () => const DriverList()),

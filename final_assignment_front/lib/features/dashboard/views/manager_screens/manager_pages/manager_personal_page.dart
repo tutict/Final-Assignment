@@ -585,9 +585,9 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
                                       onPressed: () => Navigator.pop(context),
                                     ),
                                     CupertinoDialogAction(
-                                      child: const Text('确定'),
                                       isDestructiveAction: true,
                                       onPressed: _logout,
+                                      child: const Text('确定'),
                                     ),
                                   ],
                                 ),

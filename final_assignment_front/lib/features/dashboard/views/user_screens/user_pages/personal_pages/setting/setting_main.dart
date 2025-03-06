@@ -287,6 +287,20 @@ class _SettingPageState extends State<SettingPage> {
                 ),
                 const SizedBox(height: 16.0),
                 ListTile(
+                  leading: const Icon(Icons.home, color: Colors.blue),
+                  title: Text(
+                    '反馈',
+                    style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurface),
+                  ),
+                  trailing:
+                  const Icon(Icons.arrow_forward_ios, color: Colors.grey),
+                  onTap: () {
+                    controller.navigateToPage(Routes.consultation);
+                  },
+                ),
+                const SizedBox(height: 16.0),
+                ListTile(
                   leading: const Icon(Icons.logout, color: Colors.blue),
                   title: Text(
                     '登出',

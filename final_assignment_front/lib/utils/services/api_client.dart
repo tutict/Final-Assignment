@@ -264,10 +264,10 @@ class ApiClient {
         throw ArgumentError("Authentication undefined: $authName");
       }
       auth.applyToParams(queryParams, headerParams);
+      debugPrint('Applied $authName authentication: $headerParams');
     }
   }
 
-  /// 获取指定类型的 Authentication
   T? getAuthentication<T extends Authentication>(String name) {
     var authentication = _authentications[name];
     return authentication is T ? authentication : null;

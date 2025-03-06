@@ -22,7 +22,7 @@ public class VehicleInformationController {
 
     @PostMapping
     @Transactional
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN', 'USER')")
     public ResponseEntity<Void> createVehicleInformation(@RequestBody VehicleInformation vehicleInformation, @RequestParam String idempotencyKey) {
         vehicleInformationService.checkAndInsertIdempotency(idempotencyKey, vehicleInformation, "create");
         return ResponseEntity.status(HttpStatus.CREATED).build();
@@ -80,7 +80,7 @@ public class VehicleInformationController {
 
     @PutMapping("/{vehicleId}")
     @Transactional
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public ResponseEntity<VehicleInformation> updateVehicleInformation(@PathVariable int vehicleId, @RequestBody VehicleInformation vehicleInformation, @RequestParam String idempotencyKey) {
         vehicleInformation.setVehicleId(vehicleId);
         vehicleInformationService.checkAndInsertIdempotency(idempotencyKey, vehicleInformation, "update");
@@ -88,14 +88,14 @@ public class VehicleInformationController {
     }
 
     @DeleteMapping("/{vehicleId}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public ResponseEntity<Void> deleteVehicleInformation(@PathVariable int vehicleId) {
         vehicleInformationService.deleteVehicleInformation(vehicleId);
         return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/license-plate/{licensePlate}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public ResponseEntity<Void> deleteVehicleInformationByLicensePlate(@PathVariable String licensePlate) {
         vehicleInformationService.deleteVehicleInformationByLicensePlate(licensePlate);
         return ResponseEntity.noContent().build();

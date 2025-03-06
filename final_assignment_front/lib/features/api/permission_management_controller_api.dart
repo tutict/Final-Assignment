@@ -1,7 +1,9 @@
 import 'package:final_assignment_front/features/model/permission_management.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
-import 'package:http/http.dart'; // 用于 Response 和 MultipartRequest
-import 'package:final_assignment_front/utils/services/api_client.dart'; // 替换为实际路径
+import 'package:final_assignment_front/utils/services/api_client.dart';
+import 'package:flutter/material.dart';
+import 'package:http/http.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// 定义一个全局的 defaultApiClient
 final ApiClient defaultApiClient = ApiClient();
@@ -9,401 +11,222 @@ final ApiClient defaultApiClient = ApiClient();
 class PermissionManagementControllerApi {
   final ApiClient apiClient;
 
-  // 更新后的构造函数，apiClient 参数可为空
+  /// 构造函数，可传入 ApiClient，否则使用全局默认实例
   PermissionManagementControllerApi([ApiClient? apiClient])
       : apiClient = apiClient ?? defaultApiClient;
 
-  // 解码响应体的辅助方法
-  String _decodeBodyBytes(Response response) {
-    return response.body;
+  /// 从 SharedPreferences 中读取 jwtToken 并设置到 ApiClient 中
+  Future<void> initializeWithJwt() async {
+    final prefs = await SharedPreferences.getInstance();
+    final jwtToken = prefs.getString('jwtToken');
+    if (jwtToken == null) {
+      throw Exception('未登录，请重新登录');
+    }
+    apiClient.setJwtToken(jwtToken);
+    debugPrint(
+        'Initialized PermissionManagementControllerApi with token: $jwtToken');
   }
 
-  // 辅助方法：转换查询参数
-  List<QueryParam> _convertParametersForCollectionFormat(
-      String collectionFormat, String name, dynamic value) {
-    // 根据 collectionFormat 实现参数转换逻辑
-    // 这里提供一个简单的实现示例
-    return [QueryParam(name, value.toString())];
+  /// 解码响应体字节到字符串
+  String _decodeBodyBytes(Response response) => response.body;
+
+  /// 辅助方法：添加查询参数（如名称搜索）
+  List<QueryParam> _addQueryParams({String? name}) {
+    final queryParams = <QueryParam>[];
+    if (name != null) queryParams.add(QueryParam('name', name));
+    return queryParams;
   }
 
-  /// getAllPermissions with HTTP info returned
-  ///
-  ///
-  Future<Response> apiPermissionsGetWithHttpInfo() async {
-    Object postBody = ''; // GET 请求通常没有 body
-
-    // 创建路径和映射变量
-    String path = "/api/permissions".replaceAll("{format}", "json");
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// getAllPermissions
-  ///
-  ///
-  Future<List<Object>?> apiPermissionsGet() async {
-    Response response = await apiPermissionsGetWithHttpInfo();
+  /// GET /api/permissions - 获取所有权限
+  Future<List<PermissionManagement>> apiPermissionsGet() async {
+    final response = await apiClient.invokeAPI(
+      '/api/permissions',
+      'GET',
+      [],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'List<Object>')
-          as List<Object>;
-    } else {
-      return null;
     }
+    final List<dynamic> data =
+        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    return PermissionManagement.listFromJson(data);
   }
 
-  /// deletePermissionByName with HTTP info returned
-  ///
-  ///
-  Future<Response> apiPermissionsNamePermissionNameDeleteWithHttpInfo(
+  /// DELETE /api/permissions/name/{permissionName} - 根据名称删除权限 (仅管理员)
+  Future<void> apiPermissionsNamePermissionNameDelete(
       {required String permissionName}) async {
-    Object postBody = ''; // DELETE 请求通常没有 body
-
-    // 创建路径和映射变量
-    String path = "/api/permissions/name/{permissionName}"
-        .replaceAll("{format}", "json")
-        .replaceAll("{permissionName}", permissionName);
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'DELETE', queryParams,
-        postBody, headerParams, formParams, nullableContentType, authNames);
-    return response;
+    if (permissionName.isEmpty) {
+      throw ApiException(400, "Missing required param: permissionName");
+    }
+    final response = await apiClient.invokeAPI(
+      '/api/permissions/name/$permissionName',
+      'DELETE',
+      [],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
   }
 
-  /// deletePermissionByName
-  ///
-  ///
-  Future<Object?> apiPermissionsNamePermissionNameDelete(
+  /// GET /api/permissions/name/{permissionName} - 根据名称获取权限
+  Future<PermissionManagement?> apiPermissionsNamePermissionNameGet(
       {required String permissionName}) async {
-    Response response =
-        await apiPermissionsNamePermissionNameDeleteWithHttpInfo(
-            permissionName: permissionName);
+    if (permissionName.isEmpty) {
+      throw ApiException(400, "Missing required param: permissionName");
+    }
+    final response = await apiClient.invokeAPI(
+      '/api/permissions/name/$permissionName',
+      'GET',
+      [],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
     }
+    if (response.body.isEmpty) return null;
+    final data = apiClient.deserialize(
+        _decodeBodyBytes(response), 'Map<String, dynamic>');
+    return PermissionManagement.fromJson(data);
   }
 
-  /// getPermissionByName with HTTP info returned
-  ///
-  ///
-  Future<Response> apiPermissionsNamePermissionNameGetWithHttpInfo(
-      {required String permissionName}) async {
-    Object postBody = ''; // GET 请求通常没有 body
-
-    // 创建路径和映射变量
-    String path = "/api/permissions/name/{permissionName}"
-        .replaceAll("{format}", "json")
-        .replaceAll("{permissionName}", permissionName);
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// getPermissionByName
-  ///
-  ///
-  Future<Object?> apiPermissionsNamePermissionNameGet(
-      {required String permissionName}) async {
-    Response response = await apiPermissionsNamePermissionNameGetWithHttpInfo(
-        permissionName: permissionName);
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
-    }
-  }
-
-  /// deletePermission with HTTP info returned
-  ///
-  ///
-  Future<Response> apiPermissionsPermissionIdDeleteWithHttpInfo(
+  /// DELETE /api/permissions/{permissionId} - 根据ID删除权限 (仅管理员)
+  Future<void> apiPermissionsPermissionIdDelete(
       {required String permissionId}) async {
-    Object postBody = ''; // DELETE 请求通常没有 body
-
-    // 创建路径和映射变量
-    String path = "/api/permissions/{permissionId}"
-        .replaceAll("{format}", "json")
-        .replaceAll("{permissionId}", permissionId);
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'DELETE', queryParams,
-        postBody, headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// deletePermission
-  ///
-  ///
-  Future<Object?> apiPermissionsPermissionIdDelete(
-      {required String permissionId}) async {
-    Response response = await apiPermissionsPermissionIdDeleteWithHttpInfo(
-        permissionId: permissionId);
+    if (permissionId.isEmpty) {
+      throw ApiException(400, "Missing required param: permissionId");
+    }
+    final response = await apiClient.invokeAPI(
+      '/api/permissions/$permissionId',
+      'DELETE',
+      [],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
     }
   }
 
-  /// getPermissionById with HTTP info returned
-  ///
-  ///
-  Future<Response> apiPermissionsPermissionIdGetWithHttpInfo(
+  /// GET /api/permissions/{permissionId} - 根据ID获取权限
+  Future<PermissionManagement?> apiPermissionsPermissionIdGet(
       {required String permissionId}) async {
-    Object postBody = ''; // GET 请求通常没有 body
-
-    // 创建路径和映射变量
-    String path = "/api/permissions/{permissionId}"
-        .replaceAll("{format}", "json")
-        .replaceAll("{permissionId}", permissionId);
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// getPermissionById
-  ///
-  ///
-  Future<Object?> apiPermissionsPermissionIdGet(
-      {required String permissionId}) async {
-    Response response = await apiPermissionsPermissionIdGetWithHttpInfo(
-        permissionId: permissionId);
+    if (permissionId.isEmpty) {
+      throw ApiException(400, "Missing required param: permissionId");
+    }
+    final response = await apiClient.invokeAPI(
+      '/api/permissions/$permissionId',
+      'GET',
+      [],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
     }
+    if (response.body.isEmpty) return null;
+    final data = apiClient.deserialize(
+        _decodeBodyBytes(response), 'Map<String, dynamic>');
+    return PermissionManagement.fromJson(data);
   }
 
-  /// updatePermission with HTTP info returned
-  ///
-  ///
-  Future<Response> apiPermissionsPermissionIdPutWithHttpInfo(
-      {required String permissionId, int? updateValue}) async {
-    Object postBody = updateValue ?? 0; // 根据实际需求设置默认值
-
-    // 创建路径和映射变量
-    String path = "/api/permissions/{permissionId}"
-        .replaceAll("{format}", "json")
-        .replaceAll("{permissionId}", permissionId);
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = ["application/json"];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'PUT', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// updatePermission
-  ///
-  ///
-  Future<Object?> apiPermissionsPermissionIdPut(
-      {required String permissionId, int? updateValue}) async {
-    Response response = await apiPermissionsPermissionIdPutWithHttpInfo(
-        permissionId: permissionId, updateValue: updateValue);
+  /// PUT /api/permissions/{permissionId} - 更新权限 (仅管理员)
+  Future<PermissionManagement> apiPermissionsPermissionIdPut({
+    required String permissionId,
+    required PermissionManagement permissionManagement,
+  }) async {
+    if (permissionId.isEmpty) {
+      throw ApiException(400, "Missing required param: permissionId");
+    }
+    final response = await apiClient.invokeAPI(
+      '/api/permissions/$permissionId',
+      'PUT',
+      [],
+      permissionManagement.toJson(),
+      {},
+      {},
+      'application/json',
+      ['bearerAuth'],
+    );
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
     }
+    final data = apiClient.deserialize(
+        _decodeBodyBytes(response), 'Map<String, dynamic>');
+    return PermissionManagement.fromJson(data);
   }
 
-  /// createPermission with HTTP info returned
-  ///
-  ///
-  Future<Response> apiPermissionsPostWithHttpInfo(
+  /// POST /api/permissions - 创建权限 (仅管理员)
+  Future<PermissionManagement> apiPermissionsPost(
       {required PermissionManagement permissionManagement}) async {
-    Object postBody = permissionManagement;
-
-    // 创建路径和映射变量
-    String path = "/api/permissions".replaceAll("{format}", "json");
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = ["application/json"];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'POST', queryParams,
-        postBody, headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// createPermission
-  ///
-  ///
-  Future<Object?> apiPermissionsPost(
-      {required PermissionManagement permissionManagement}) async {
-    Response response = await apiPermissionsPostWithHttpInfo(
-        permissionManagement: permissionManagement);
+    final response = await apiClient.invokeAPI(
+      '/api/permissions',
+      'POST',
+      [],
+      permissionManagement.toJson(),
+      {},
+      {},
+      'application/json',
+      ['bearerAuth'],
+    );
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
     }
+    final data = apiClient.deserialize(
+        _decodeBodyBytes(response), 'Map<String, dynamic>');
+    return PermissionManagement.fromJson(data);
   }
 
-  /// getPermissionsByNameLike with HTTP info returned
-  ///
-  ///
-  Future<Response> apiPermissionsSearchGetWithHttpInfo({String? name}) async {
-    Object postBody = ''; // GET 请求通常没有 body
-
-    // 创建路径和映射变量
-    String path = "/api/permissions/search".replaceAll("{format}", "json");
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-    if (name != null) {
-      queryParams
-          .addAll(_convertParametersForCollectionFormat("", "name", name));
-    }
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// getPermissionsByNameLike
-  ///
-  ///
-  Future<List<Object>?> apiPermissionsSearchGet({String? name}) async {
-    Response response = await apiPermissionsSearchGetWithHttpInfo(name: name);
+  /// GET /api/permissions/search - 根据名称模糊搜索权限
+  Future<List<PermissionManagement>> apiPermissionsSearchGet(
+      {String? name}) async {
+    final response = await apiClient.invokeAPI(
+      '/api/permissions/search',
+      'GET',
+      _addQueryParams(name: name),
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'List<Object>')
-          as List<Object>;
-    } else {
-      return null;
     }
+    final List<dynamic> data =
+        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    return PermissionManagement.listFromJson(data);
   }
 
-  /// getAllPermissions (WebSocket)
-  /// 对应后端 @WsAction(service="PermissionManagement", action="getAllPermissions")
+  // WebSocket Methods (Aligned with HTTP Endpoints)
+
+  /// GET /api/permissions (WebSocket)
+  /// 对应后端: @WsAction(service="PermissionManagement", action="getAllPermissions")
   Future<List<Object>?> eventbusPermissionsGet() async {
     final msg = {
       "service": "PermissionManagement",
       "action": "getAllPermissions",
       "args": []
     };
-
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
       throw ApiException(400, respMap["error"]);
@@ -414,33 +237,37 @@ class PermissionManagementControllerApi {
     return null;
   }
 
-  /// deletePermissionByName (WebSocket)
+  /// DELETE /api/permissions/name/{permissionName} (WebSocket)
   /// 对应后端: @WsAction(service="PermissionManagement", action="deletePermissionByName")
-  Future<Object?> eventbusPermissionsNamePermissionNameDelete(
+  Future<bool> eventbusPermissionsNamePermissionNameDelete(
       {required String permissionName}) async {
+    if (permissionName.isEmpty) {
+      throw ApiException(400, "Missing required param: permissionName");
+    }
     final msg = {
       "service": "PermissionManagement",
       "action": "deletePermissionByName",
       "args": [permissionName]
     };
-
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
       throw ApiException(400, respMap["error"]);
     }
-    return respMap["result"];
+    return true; // Success if no error
   }
 
-  /// getPermissionByName (WebSocket)
+  /// GET /api/permissions/name/{permissionName} (WebSocket)
   /// 对应后端: @WsAction(service="PermissionManagement", action="getPermissionByName")
   Future<Object?> eventbusPermissionsNamePermissionNameGet(
       {required String permissionName}) async {
+    if (permissionName.isEmpty) {
+      throw ApiException(400, "Missing required param: permissionName");
+    }
     final msg = {
       "service": "PermissionManagement",
       "action": "getPermissionByName",
       "args": [permissionName]
     };
-
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
       throw ApiException(400, respMap["error"]);
@@ -448,33 +275,37 @@ class PermissionManagementControllerApi {
     return respMap["result"];
   }
 
-  /// deletePermission (WebSocket)
+  /// DELETE /api/permissions/{permissionId} (WebSocket)
   /// 对应后端: @WsAction(service="PermissionManagement", action="deletePermission")
-  Future<Object?> eventbusPermissionsPermissionIdDelete(
+  Future<bool> eventbusPermissionsPermissionIdDelete(
       {required String permissionId}) async {
+    if (permissionId.isEmpty) {
+      throw ApiException(400, "Missing required param: permissionId");
+    }
     final msg = {
       "service": "PermissionManagement",
       "action": "deletePermission",
-      "args": [int.parse(permissionId)] // 如果后端是 int
+      "args": [int.parse(permissionId)]
     };
-
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
       throw ApiException(400, respMap["error"]);
     }
-    return respMap["result"];
+    return true; // Success if no error
   }
 
-  /// getPermissionById (WebSocket)
+  /// GET /api/permissions/{permissionId} (WebSocket)
   /// 对应后端: @WsAction(service="PermissionManagement", action="getPermissionById")
   Future<Object?> eventbusPermissionsPermissionIdGet(
       {required String permissionId}) async {
+    if (permissionId.isEmpty) {
+      throw ApiException(400, "Missing required param: permissionId");
+    }
     final msg = {
       "service": "PermissionManagement",
       "action": "getPermissionById",
       "args": [int.parse(permissionId)]
     };
-
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
       throw ApiException(400, respMap["error"]);
@@ -482,17 +313,20 @@ class PermissionManagementControllerApi {
     return respMap["result"];
   }
 
-  /// updatePermission (WebSocket)
+  /// PUT /api/permissions/{permissionId} (WebSocket)
   /// 对应后端: @WsAction(service="PermissionManagement", action="updatePermission")
-  /// 可能需要2个参数, e.g. (Integer permissionId, int valueToUpdate)
-  Future<Object?> eventbusPermissionsPermissionIdPut(
-      {required String permissionId, int? updateValue}) async {
+  Future<Object?> eventbusPermissionsPermissionIdPut({
+    required String permissionId,
+    required PermissionManagement permissionManagement,
+  }) async {
+    if (permissionId.isEmpty) {
+      throw ApiException(400, "Missing required param: permissionId");
+    }
     final msg = {
       "service": "PermissionManagement",
       "action": "updatePermission",
-      "args": [int.parse(permissionId), updateValue ?? 0]
+      "args": [int.parse(permissionId), permissionManagement.toJson()]
     };
-
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
       throw ApiException(400, respMap["error"]);
@@ -500,18 +334,15 @@ class PermissionManagementControllerApi {
     return respMap["result"];
   }
 
-  /// createPermission (WebSocket)
+  /// POST /api/permissions (WebSocket)
   /// 对应后端: @WsAction(service="PermissionManagement", action="createPermission")
   Future<Object?> eventbusPermissionsPost(
       {required PermissionManagement permissionManagement}) async {
-    // 序列化
-    final pmMap = permissionManagement.toJson();
     final msg = {
       "service": "PermissionManagement",
       "action": "createPermission",
-      "args": [pmMap]
+      "args": [permissionManagement.toJson()]
     };
-
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
       throw ApiException(400, respMap["error"]);
@@ -519,16 +350,14 @@ class PermissionManagementControllerApi {
     return respMap["result"];
   }
 
-  /// getPermissionsByNameLike (WebSocket)
+  /// GET /api/permissions/search (WebSocket)
   /// 对应后端: @WsAction(service="PermissionManagement", action="getPermissionsByNameLike")
-  /// 传1个参数: name
   Future<List<Object>?> eventbusPermissionsSearchGet({String? name}) async {
     final msg = {
       "service": "PermissionManagement",
       "action": "getPermissionsByNameLike",
       "args": [name ?? ""]
     };
-
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
       throw ApiException(400, respMap["error"]);

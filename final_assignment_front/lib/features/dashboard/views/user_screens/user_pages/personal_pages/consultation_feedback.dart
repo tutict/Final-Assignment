@@ -194,7 +194,7 @@ class _ConsultationFeedbackState extends State<ConsultationFeedback> {
                   const SizedBox(height: 20.0), // 与 ManagerSetting.dart 的按钮间距一致
                   ElevatedButton(
                     onPressed: () {
-                      controller.navigateToPage(Routes.personalMain);
+                      controller.navigateToPage(Routes.userSetting);
                     },
                     style: ElevatedButton.styleFrom(
                       minimumSize: const Size.fromHeight(50),

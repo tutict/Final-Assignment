@@ -1,7 +1,9 @@
 import 'package:final_assignment_front/features/model/system_settings.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
-import 'package:http/http.dart'; // 用于 Response 和 MultipartRequest
+import 'package:flutter/material.dart';
+import 'package:http/http.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// 定义一个全局的 defaultApiClient
 final ApiClient defaultApiClient = ApiClient();
@@ -9,619 +11,306 @@ final ApiClient defaultApiClient = ApiClient();
 class SystemSettingsControllerApi {
   final ApiClient apiClient;
 
-  // 更新后的构造函数，apiClient 参数可为空
+  /// 构造函数，可传入 ApiClient，否则使用全局默认实例
   SystemSettingsControllerApi([ApiClient? apiClient])
       : apiClient = apiClient ?? defaultApiClient;
 
-  // 解码响应体的辅助方法
-  String _decodeBodyBytes(Response response) {
-    return response.body;
+  /// 从 SharedPreferences 中读取 jwtToken 并设置到 ApiClient 中
+  Future<void> initializeWithJwt() async {
+    final prefs = await SharedPreferences.getInstance();
+    final jwtToken = prefs.getString('jwtToken');
+    if (jwtToken == null) {
+      throw Exception('未登录，请重新登录');
+    }
+    apiClient.setJwtToken(jwtToken);
+    debugPrint('Initialized SystemSettingsControllerApi with token: $jwtToken');
   }
 
-  /// getCopyrightInfo with HTTP info returned
-  ///
-  ///
-  Future<Response> apiSystemSettingsCopyrightInfoGetWithHttpInfo() async {
-    Object postBody = ''; // GET 请求通常没有 body
+  /// 解码响应体字节到字符串
+  String _decodeBodyBytes(Response response) => response.body;
 
-    // 创建路径和映射变量
-    String path =
-        "/api/systemSettings/copyrightInfo".replaceAll("{format}", "json");
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// getCopyrightInfo
-  ///
-  ///
-  Future<Object?> apiSystemSettingsCopyrightInfoGet() async {
-    Response response = await apiSystemSettingsCopyrightInfoGetWithHttpInfo();
+  /// GET /api/systemSettings/copyrightInfo - 获取版权信息
+  Future<String?> apiSystemSettingsCopyrightInfoGet() async {
+    final response = await apiClient.invokeAPI(
+      '/api/systemSettings/copyrightInfo',
+      'GET',
+      [],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
     }
+    if (response.body.isEmpty) return null;
+    return apiClient.deserialize(_decodeBodyBytes(response), 'String')
+        as String?;
   }
 
-  /// getDateFormat with HTTP info returned
-  ///
-  ///
-  Future<Response> apiSystemSettingsDateFormatGetWithHttpInfo() async {
-    Object postBody = ''; // GET 请求通常没有 body
-
-    // 创建路径和映射变量
-    String path =
-        "/api/systemSettings/dateFormat".replaceAll("{format}", "json");
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// getDateFormat
-  ///
-  ///
-  Future<Object?> apiSystemSettingsDateFormatGet() async {
-    Response response = await apiSystemSettingsDateFormatGetWithHttpInfo();
+  /// GET /api/systemSettings/dateFormat - 获取日期格式
+  Future<String?> apiSystemSettingsDateFormatGet() async {
+    final response = await apiClient.invokeAPI(
+      '/api/systemSettings/dateFormat',
+      'GET',
+      [],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
     }
+    if (response.body.isEmpty) return null;
+    return apiClient.deserialize(_decodeBodyBytes(response), 'String')
+        as String?;
   }
 
-  /// getEmailAccount with HTTP info returned
-  ///
-  ///
-  Future<Response> apiSystemSettingsEmailAccountGetWithHttpInfo() async {
-    Object postBody = ''; // GET 请求通常没有 body
-
-    // 创建路径和映射变量
-    String path =
-        "/api/systemSettings/emailAccount".replaceAll("{format}", "json");
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// getEmailAccount
-  ///
-  ///
-  Future<Object?> apiSystemSettingsEmailAccountGet() async {
-    Response response = await apiSystemSettingsEmailAccountGetWithHttpInfo();
+  /// GET /api/systemSettings/emailAccount - 获取邮箱账户
+  Future<String?> apiSystemSettingsEmailAccountGet() async {
+    final response = await apiClient.invokeAPI(
+      '/api/systemSettings/emailAccount',
+      'GET',
+      [],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
     }
+    if (response.body.isEmpty) return null;
+    return apiClient.deserialize(_decodeBodyBytes(response), 'String')
+        as String?;
   }
 
-  /// getEmailPassword with HTTP info returned
-  ///
-  ///
-  Future<Response> apiSystemSettingsEmailPasswordGetWithHttpInfo() async {
-    Object postBody = ''; // GET 请求通常没有 body
-
-    // 创建路径和映射变量
-    String path =
-        "/api/systemSettings/emailPassword".replaceAll("{format}", "json");
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// getEmailPassword
-  ///
-  ///
-  Future<Object?> apiSystemSettingsEmailPasswordGet() async {
-    Response response = await apiSystemSettingsEmailPasswordGetWithHttpInfo();
+  /// GET /api/systemSettings/emailPassword - 获取邮箱密码
+  Future<String?> apiSystemSettingsEmailPasswordGet() async {
+    final response = await apiClient.invokeAPI(
+      '/api/systemSettings/emailPassword',
+      'GET',
+      [],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
     }
+    if (response.body.isEmpty) return null;
+    return apiClient.deserialize(_decodeBodyBytes(response), 'String')
+        as String?;
   }
 
-  /// getSystemSettings with HTTP info returned
-  ///
-  ///
-  Future<Response> apiSystemSettingsGetWithHttpInfo() async {
-    Object postBody = ''; // GET 请求通常没有 body
-
-    // 创建路径和映射变量
-    String path = "/api/systemSettings".replaceAll("{format}", "json");
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// getSystemSettings
-  ///
-  ///
-  Future<Object?> apiSystemSettingsGet() async {
-    Response response = await apiSystemSettingsGetWithHttpInfo();
+  /// GET /api/systemSettings - 获取所有系统设置
+  Future<SystemSettings?> apiSystemSettingsGet() async {
+    final response = await apiClient.invokeAPI(
+      '/api/systemSettings',
+      'GET',
+      [],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
     }
+    if (response.body.isEmpty) return null;
+    final data = apiClient.deserialize(
+        _decodeBodyBytes(response), 'Map<String, dynamic>');
+    return SystemSettings.fromJson(data);
   }
 
-  /// getLoginTimeout with HTTP info returned
-  ///
-  ///
-  Future<Response> apiSystemSettingsLoginTimeoutGetWithHttpInfo() async {
-    Object postBody = ''; // GET 请求通常没有 body
-
-    // 创建路径和映射变量
-    String path =
-        "/api/systemSettings/loginTimeout".replaceAll("{format}", "json");
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// getLoginTimeout
-  ///
-  ///
-  Future<Object?> apiSystemSettingsLoginTimeoutGet() async {
-    Response response = await apiSystemSettingsLoginTimeoutGetWithHttpInfo();
+  /// GET /api/systemSettings/loginTimeout - 获取登录超时时间
+  Future<int?> apiSystemSettingsLoginTimeoutGet() async {
+    final response = await apiClient.invokeAPI(
+      '/api/systemSettings/loginTimeout',
+      'GET',
+      [],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
     }
+    if (response.body.isEmpty) return null;
+    return apiClient.deserialize(_decodeBodyBytes(response), 'int') as int?;
   }
 
-  /// getPageSize with HTTP info returned
-  ///
-  ///
-  Future<Response> apiSystemSettingsPageSizeGetWithHttpInfo() async {
-    Object postBody = ''; // GET 请求通常没有 body
-
-    // 创建路径和映射变量
-    String path = "/api/systemSettings/pageSize".replaceAll("{format}", "json");
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// getPageSize
-  ///
-  ///
-  Future<Object?> apiSystemSettingsPageSizeGet() async {
-    Response response = await apiSystemSettingsPageSizeGetWithHttpInfo();
+  /// GET /api/systemSettings/pageSize - 获取分页大小
+  Future<int?> apiSystemSettingsPageSizeGet() async {
+    final response = await apiClient.invokeAPI(
+      '/api/systemSettings/pageSize',
+      'GET',
+      [],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
     }
+    if (response.body.isEmpty) return null;
+    return apiClient.deserialize(_decodeBodyBytes(response), 'int') as int?;
   }
 
-  /// updateSystemSettings with HTTP info returned
-  ///
-  ///
-  Future<Response> apiSystemSettingsPutWithHttpInfo(
+  /// PUT /api/systemSettings - 更新系统设置 (仅管理员)
+  Future<SystemSettings> apiSystemSettingsPut(
       {required SystemSettings systemSettings}) async {
-    Object postBody = systemSettings;
-
-    // 创建路径和映射变量
-    String path = "/api/systemSettings".replaceAll("{format}", "json");
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = ["application/json"];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'PUT', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// updateSystemSettings
-  ///
-  ///
-  Future<Object?> apiSystemSettingsPut(
-      {required SystemSettings systemSettings}) async {
-    Response response =
-        await apiSystemSettingsPutWithHttpInfo(systemSettings: systemSettings);
+    final response = await apiClient.invokeAPI(
+      '/api/systemSettings',
+      'PUT',
+      [],
+      systemSettings.toJson(),
+      {},
+      {},
+      'application/json',
+      ['bearerAuth'],
+    );
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
     }
+    final data = apiClient.deserialize(
+        _decodeBodyBytes(response), 'Map<String, dynamic>');
+    return SystemSettings.fromJson(data);
   }
 
-  /// getSessionTimeout with HTTP info returned
-  ///
-  ///
-  Future<Response> apiSystemSettingsSessionTimeoutGetWithHttpInfo() async {
-    Object postBody = ''; // GET 请求通常没有 body
-
-    // 创建路径和映射变量
-    String path =
-        "/api/systemSettings/sessionTimeout".replaceAll("{format}", "json");
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// getSessionTimeout
-  ///
-  ///
-  Future<Object?> apiSystemSettingsSessionTimeoutGet() async {
-    Response response = await apiSystemSettingsSessionTimeoutGetWithHttpInfo();
+  /// GET /api/systemSettings/sessionTimeout - 获取会话超时时间
+  Future<int?> apiSystemSettingsSessionTimeoutGet() async {
+    final response = await apiClient.invokeAPI(
+      '/api/systemSettings/sessionTimeout',
+      'GET',
+      [],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
     }
+    if (response.body.isEmpty) return null;
+    return apiClient.deserialize(_decodeBodyBytes(response), 'int') as int?;
   }
 
-  /// getSmtpServer with HTTP info returned
-  ///
-  ///
-  Future<Response> apiSystemSettingsSmtpServerGetWithHttpInfo() async {
-    Object postBody = ''; // GET 请求通常没有 body
-
-    // 创建路径和映射变量
-    String path =
-        "/api/systemSettings/smtpServer".replaceAll("{format}", "json");
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// getSmtpServer
-  ///
-  ///
-  Future<Object?> apiSystemSettingsSmtpServerGet() async {
-    Response response = await apiSystemSettingsSmtpServerGetWithHttpInfo();
+  /// GET /api/systemSettings/smtpServer - 获取SMTP服务器
+  Future<String?> apiSystemSettingsSmtpServerGet() async {
+    final response = await apiClient.invokeAPI(
+      '/api/systemSettings/smtpServer',
+      'GET',
+      [],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
     }
+    if (response.body.isEmpty) return null;
+    return apiClient.deserialize(_decodeBodyBytes(response), 'String')
+        as String?;
   }
 
-  /// getStoragePath with HTTP info returned
-  ///
-  ///
-  Future<Response> apiSystemSettingsStoragePathGetWithHttpInfo() async {
-    Object postBody = ''; // GET 请求通常没有 body
-
-    // 创建路径和映射变量
-    String path =
-        "/api/systemSettings/storagePath".replaceAll("{format}", "json");
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// getStoragePath
-  ///
-  ///
-  Future<Object?> apiSystemSettingsStoragePathGet() async {
-    Response response = await apiSystemSettingsStoragePathGetWithHttpInfo();
+  /// GET /api/systemSettings/storagePath - 获取存储路径
+  Future<String?> apiSystemSettingsStoragePathGet() async {
+    final response = await apiClient.invokeAPI(
+      '/api/systemSettings/storagePath',
+      'GET',
+      [],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
     }
+    if (response.body.isEmpty) return null;
+    return apiClient.deserialize(_decodeBodyBytes(response), 'String')
+        as String?;
   }
 
-  /// getSystemDescription with HTTP info returned
-  ///
-  ///
-  Future<Response> apiSystemSettingsSystemDescriptionGetWithHttpInfo() async {
-    Object postBody = ''; // GET 请求通常没有 body
-
-    // 创建路径和映射变量
-    String path =
-        "/api/systemSettings/systemDescription".replaceAll("{format}", "json");
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// getSystemDescription
-  ///
-  ///
-  Future<Object?> apiSystemSettingsSystemDescriptionGet() async {
-    Response response =
-        await apiSystemSettingsSystemDescriptionGetWithHttpInfo();
+  /// GET /api/systemSettings/systemDescription - 获取系统描述
+  Future<String?> apiSystemSettingsSystemDescriptionGet() async {
+    final response = await apiClient.invokeAPI(
+      '/api/systemSettings/systemDescription',
+      'GET',
+      [],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
     }
+    if (response.body.isEmpty) return null;
+    return apiClient.deserialize(_decodeBodyBytes(response), 'String')
+        as String?;
   }
 
-  /// getSystemName with HTTP info returned
-  ///
-  ///
-  Future<Response> apiSystemSettingsSystemNameGetWithHttpInfo() async {
-    Object postBody = ''; // GET 请求通常没有 body
-
-    // 创建路径和映射变量
-    String path =
-        "/api/systemSettings/systemName".replaceAll("{format}", "json");
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// getSystemName
-  ///
-  ///
-  Future<Object?> apiSystemSettingsSystemNameGet() async {
-    Response response = await apiSystemSettingsSystemNameGetWithHttpInfo();
+  /// GET /api/systemSettings/systemName - 获取系统名称
+  Future<String?> apiSystemSettingsSystemNameGet() async {
+    final response = await apiClient.invokeAPI(
+      '/api/systemSettings/systemName',
+      'GET',
+      [],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
     }
+    if (response.body.isEmpty) return null;
+    return apiClient.deserialize(_decodeBodyBytes(response), 'String')
+        as String?;
   }
 
-  /// getSystemVersion with HTTP info returned
-  ///
-  ///
-  Future<Response> apiSystemSettingsSystemVersionGetWithHttpInfo() async {
-    Object postBody = ''; // GET 请求通常没有 body
-
-    // 创建路径和映射变量
-    String path =
-        "/api/systemSettings/systemVersion".replaceAll("{format}", "json");
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// getSystemVersion
-  ///
-  ///
-  Future<Object?> apiSystemSettingsSystemVersionGet() async {
-    Response response = await apiSystemSettingsSystemVersionGetWithHttpInfo();
+  /// GET /api/systemSettings/systemVersion - 获取系统版本
+  Future<String?> apiSystemSettingsSystemVersionGet() async {
+    final response = await apiClient.invokeAPI(
+      '/api/systemSettings/systemVersion',
+      'GET',
+      [],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
     }
+    if (response.body.isEmpty) return null;
+    return apiClient.deserialize(_decodeBodyBytes(response), 'String')
+        as String?;
   }
 
-  /// getCopyrightInfo (WebSocket)
+  // WebSocket Methods (Aligned with HTTP Endpoints)
+
+  /// GET /api/systemSettings/copyrightInfo (WebSocket)
   /// 对应后端: @WsAction(service="SystemSettingsService", action="getCopyrightInfo")
   Future<Object?> eventbusSystemSettingsCopyrightInfoGet() async {
     final msg = {
@@ -636,7 +325,7 @@ class SystemSettingsControllerApi {
     return respMap["result"];
   }
 
-  /// getDateFormat (WebSocket)
+  /// GET /api/systemSettings/dateFormat (WebSocket)
   /// 对应后端: @WsAction(service="SystemSettingsService", action="getDateFormat")
   Future<Object?> eventbusSystemSettingsDateFormatGet() async {
     final msg = {
@@ -651,7 +340,7 @@ class SystemSettingsControllerApi {
     return respMap["result"];
   }
 
-  /// getEmailAccount (WebSocket)
+  /// GET /api/systemSettings/emailAccount (WebSocket)
   /// 对应后端: @WsAction(service="SystemSettingsService", action="getEmailAccount")
   Future<Object?> eventbusSystemSettingsEmailAccountGet() async {
     final msg = {
@@ -666,7 +355,7 @@ class SystemSettingsControllerApi {
     return respMap["result"];
   }
 
-  /// getEmailPassword (WebSocket)
+  /// GET /api/systemSettings/emailPassword (WebSocket)
   /// 对应后端: @WsAction(service="SystemSettingsService", action="getEmailPassword")
   Future<Object?> eventbusSystemSettingsEmailPasswordGet() async {
     final msg = {
@@ -681,7 +370,7 @@ class SystemSettingsControllerApi {
     return respMap["result"];
   }
 
-  /// getSystemSettings (WebSocket)
+  /// GET /api/systemSettings (WebSocket)
   /// 对应后端: @WsAction(service="SystemSettingsService", action="getSystemSettings")
   Future<Object?> eventbusSystemSettingsGet() async {
     final msg = {
@@ -696,7 +385,7 @@ class SystemSettingsControllerApi {
     return respMap["result"];
   }
 
-  /// getLoginTimeout (WebSocket)
+  /// GET /api/systemSettings/loginTimeout (WebSocket)
   /// 对应后端: @WsAction(service="SystemSettingsService", action="getLoginTimeout")
   Future<Object?> eventbusSystemSettingsLoginTimeoutGet() async {
     final msg = {
@@ -711,7 +400,7 @@ class SystemSettingsControllerApi {
     return respMap["result"];
   }
 
-  /// getPageSize (WebSocket)
+  /// GET /api/systemSettings/pageSize (WebSocket)
   /// 对应后端: @WsAction(service="SystemSettingsService", action="getPageSize")
   Future<Object?> eventbusSystemSettingsPageSizeGet() async {
     final msg = {
@@ -726,18 +415,15 @@ class SystemSettingsControllerApi {
     return respMap["result"];
   }
 
-  /// updateSystemSettings (WebSocket)
+  /// PUT /api/systemSettings (WebSocket)
   /// 对应后端: @WsAction(service="SystemSettingsService", action="updateSystemSettings")
-  /// 需要传 1 个 SystemSettings(对象)
   Future<Object?> eventbusSystemSettingsPut(
       {required SystemSettings systemSettings}) async {
-    final mapSettings = systemSettings.toJson();
     final msg = {
       "service": "SystemSettingsService",
       "action": "updateSystemSettings",
-      "args": [mapSettings]
+      "args": [systemSettings.toJson()]
     };
-
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
       throw ApiException(400, respMap["error"]);
@@ -745,7 +431,7 @@ class SystemSettingsControllerApi {
     return respMap["result"];
   }
 
-  /// getSessionTimeout (WebSocket)
+  /// GET /api/systemSettings/sessionTimeout (WebSocket)
   /// 对应后端: @WsAction(service="SystemSettingsService", action="getSessionTimeout")
   Future<Object?> eventbusSystemSettingsSessionTimeoutGet() async {
     final msg = {
@@ -760,7 +446,7 @@ class SystemSettingsControllerApi {
     return respMap["result"];
   }
 
-  /// getSmtpServer (WebSocket)
+  /// GET /api/systemSettings/smtpServer (WebSocket)
   /// 对应后端: @WsAction(service="SystemSettingsService", action="getSmtpServer")
   Future<Object?> eventbusSystemSettingsSmtpServerGet() async {
     final msg = {
@@ -775,7 +461,7 @@ class SystemSettingsControllerApi {
     return respMap["result"];
   }
 
-  /// getStoragePath (WebSocket)
+  /// GET /api/systemSettings/storagePath (WebSocket)
   /// 对应后端: @WsAction(service="SystemSettingsService", action="getStoragePath")
   Future<Object?> eventbusSystemSettingsStoragePathGet() async {
     final msg = {
@@ -790,7 +476,7 @@ class SystemSettingsControllerApi {
     return respMap["result"];
   }
 
-  /// getSystemDescription (WebSocket)
+  /// GET /api/systemSettings/systemDescription (WebSocket)
   /// 对应后端: @WsAction(service="SystemSettingsService", action="getSystemDescription")
   Future<Object?> eventbusSystemSettingsSystemDescriptionGet() async {
     final msg = {
@@ -805,7 +491,7 @@ class SystemSettingsControllerApi {
     return respMap["result"];
   }
 
-  /// getSystemName (WebSocket)
+  /// GET /api/systemSettings/systemName (WebSocket)
   /// 对应后端: @WsAction(service="SystemSettingsService", action="getSystemName")
   Future<Object?> eventbusSystemSettingsSystemNameGet() async {
     final msg = {
@@ -820,7 +506,7 @@ class SystemSettingsControllerApi {
     return respMap["result"];
   }
 
-  /// getSystemVersion (WebSocket)
+  /// GET /api/systemSettings/systemVersion (WebSocket)
   /// 对应后端: @WsAction(service="SystemSettingsService", action="getSystemVersion")
   Future<Object?> eventbusSystemSettingsSystemVersionGet() async {
     final msg = {

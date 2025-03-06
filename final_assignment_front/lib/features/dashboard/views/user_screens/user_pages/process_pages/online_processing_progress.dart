@@ -1,6 +1,5 @@
 import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/features/api/progress_item_controller_api.dart';
-import 'package:final_assignment_front/features/api/role_management_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 import 'package:final_assignment_front/features/model/progress_item.dart';
 import 'package:flutter/material.dart';
@@ -21,54 +20,20 @@ class OnlineProcessingProgressState extends State<OnlineProcessingProgress>
   final UserDashboardController controller =
       Get.find<UserDashboardController>();
   final ProgressControllerApi progressApi = ProgressControllerApi();
-  final RoleManagementControllerApi roleApi = RoleManagementControllerApi();
   late List<Future<List<ProgressItem>>> _progressFutures;
   bool _isLoading = false;
-  bool _isAdmin = false; // 确保是普通用户（非管理员）
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
-    _checkUserRole(); // 检查用户角色并加载进度
+    _loadProgress(); // Load progress directly without role check
   }
 
   @override
   void dispose() {
     _tabController.dispose();
     super.dispose();
-  }
-
-  Future<void> _checkUserRole() async {
-    final prefs = await SharedPreferences.getInstance();
-    final jwtToken = prefs.getString('jwtToken');
-    if (jwtToken == null) {
-      setState(() {
-        _isAdmin = false;
-        _isLoading = false;
-      });
-      _showErrorSnackBar('请先登录以访问此页面');
-      return;
-    }
-
-    try {
-      final role = await roleApi.getCurrentUserRole();
-      setState(() {
-        _isAdmin = role == 'ADMIN';
-        if (!_isAdmin) {
-          // 仅普通用户（USER）加载进度
-          _loadProgress();
-        } else {
-          _isLoading = false; // 管理员不应访问此页面，直接关闭加载
-        }
-      });
-    } catch (e) {
-      setState(() {
-        _isAdmin = false;
-        _isLoading = false;
-      });
-      _showErrorSnackBar('角色验证失败: $e');
-    }
   }
 
   Future<void> _loadProgress() async {
@@ -79,13 +44,14 @@ class OnlineProcessingProgressState extends State<OnlineProcessingProgress>
     try {
       final prefs = await SharedPreferences.getInstance();
       final jwtToken = prefs.getString('jwtToken');
-      final username = prefs.getString('userName'); // 假设存储了用户名
+      final username =
+          prefs.getString('userName'); // Assumes username is stored
       if (jwtToken == null || username == null) {
         throw Exception('No JWT token or username found');
       }
 
-      final progressItems = await progressApi.apiProgressUsernameGet(
-          username: username); // 使用新 API 方法
+      final progressItems =
+          await progressApi.apiProgressUsernameGet(username: username);
       _progressFutures = [
         Future.value(
             progressItems.where((item) => item.status == 'Pending').toList()),
@@ -124,12 +90,10 @@ class OnlineProcessingProgressState extends State<OnlineProcessingProgress>
         throw Exception('No JWT token found');
       }
 
-      final response = await progressApi.apiProgressPost(
-          progressItem: newItem); // 使用新 API 方法
-
+      final response = await progressApi.apiProgressPost(progressItem: newItem);
       if (response.status == 'Pending') {
         _showSuccessSnackBar('进度提交成功，等待管理员审批');
-        _loadProgress(); // 刷新列表
+        _loadProgress(); // Refresh the list
       } else {
         throw Exception('提交失败: 状态异常');
       }
@@ -143,12 +107,14 @@ class OnlineProcessingProgressState extends State<OnlineProcessingProgress>
   }
 
   void _showSuccessSnackBar(String message) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
     );
   }
 
   void _showErrorSnackBar(String message) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
           content: Text(message, style: const TextStyle(color: Colors.red))),
@@ -198,12 +164,12 @@ class OnlineProcessingProgressState extends State<OnlineProcessingProgress>
               }
               final newItem = ProgressItem(
                 id: 0,
-                // 后端自动生成
+                // Backend will generate
                 title: title,
                 status: 'Pending',
                 submitTime: DateTime.now().toIso8601String(),
                 details: details.isEmpty ? null : details,
-                username: '', // 后端会从 JWT 解析
+                username: '', // Backend will parse from JWT
               );
               _submitProgress(newItem);
               Navigator.pop(ctx);
@@ -220,20 +186,6 @@ class OnlineProcessingProgressState extends State<OnlineProcessingProgress>
     final currentTheme = Theme.of(context);
     final bool isLight = currentTheme.brightness == Brightness.light;
 
-    if (_isAdmin) {
-      // 管理员不应访问此页面，提示并返回
-      return Scaffold(
-        body: Center(
-          child: Text(
-            '权限不足：此页面仅限普通用户访问',
-            style: TextStyle(
-              color: isLight ? Colors.black : Colors.white,
-            ),
-          ),
-        ),
-      );
-    }
-
     return Obx(
       () => Theme(
         data: controller.currentBodyTheme.value,
@@ -241,7 +193,7 @@ class OnlineProcessingProgressState extends State<OnlineProcessingProgress>
           appBar: AppBar(
             title: const Text('进度消息'),
             backgroundColor: isLight ? Colors.blue : Colors.blueGrey,
-            foregroundColor: isLight ? Colors.white : Colors.white,
+            foregroundColor: Colors.white,
             bottom: TabBar(
               controller: _tabController,
               labelColor: currentTheme.colorScheme.primary,
@@ -259,7 +211,7 @@ class OnlineProcessingProgressState extends State<OnlineProcessingProgress>
                 icon: const Icon(Icons.add),
                 onPressed: _showSubmitProgressDialog,
                 tooltip: '提交新进度',
-              ), // 普通用户始终可以提交新进度
+              ),
             ],
           ),
           body: Padding(
@@ -321,15 +273,13 @@ class OnlineProcessingProgressState extends State<OnlineProcessingProgress>
                     child: Text(
                       item.title[0],
                       style: TextStyle(
-                        color: currentTheme.colorScheme.onPrimary,
-                        fontWeight: FontWeight.bold,
-                      ),
+                          color: currentTheme.colorScheme.onPrimary,
+                          fontWeight: FontWeight.bold),
                     ),
                   ),
-                  title: Text(
-                    item.title,
-                    style: TextStyle(color: currentTheme.colorScheme.onSurface),
-                  ),
+                  title: Text(item.title,
+                      style:
+                          TextStyle(color: currentTheme.colorScheme.onSurface)),
                   subtitle: Text(
                     '提交时间: ${item.submitTime}',
                     style: TextStyle(

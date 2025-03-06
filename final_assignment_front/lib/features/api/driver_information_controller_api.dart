@@ -1,7 +1,9 @@
 import 'package:final_assignment_front/features/model/driver_information.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
-import 'package:http/http.dart'; // 用于 Response 和 MultipartRequest
 import 'package:final_assignment_front/utils/services/api_client.dart';
+import 'package:flutter/material.dart';
+import 'package:http/http.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// 定义一个全局的 defaultApiClient
 final ApiClient defaultApiClient = ApiClient();
@@ -9,503 +11,348 @@ final ApiClient defaultApiClient = ApiClient();
 class DriverInformationControllerApi {
   final ApiClient apiClient;
 
-  // 更新后的构造函数，apiClient 参数可为空
+  /// 构造函数，可传入 ApiClient，否则使用全局默认实例
   DriverInformationControllerApi([ApiClient? apiClient])
       : apiClient = apiClient ?? defaultApiClient;
 
-  // 解码响应体的辅助方法
-  String _decodeBodyBytes(Response response) {
-    return response.body;
+  /// 从 SharedPreferences 中读取 jwtToken 并设置到 ApiClient 中
+  Future<void> initializeWithJwt() async {
+    final prefs = await SharedPreferences.getInstance();
+    final jwtToken = prefs.getString('jwtToken');
+    if (jwtToken == null) {
+      throw Exception('未登录，请重新登录');
+    }
+    apiClient.setJwtToken(jwtToken);
+    debugPrint('Initialized DriverInformationControllerApi with token: $jwtToken');
   }
 
-  /// deleteDriver with HTTP info returned
-  ///
-  ///
-  Future<Response> apiDriversDriverIdDeleteWithHttpInfo(
-      {required String driverId}) async {
-    Object postBody = ''; // DELETE 请求通常没有 body
+  /// 解码响应体字节到字符串
+  String _decodeBodyBytes(Response response) => response.body;
 
-    // 验证必需参数已设置
+  /// DELETE /api/drivers/{driverId} - 删除司机信息 (仅管理员)
+  Future<void> apiDriversDriverIdDelete({required String driverId}) async {
     if (driverId.isEmpty) {
       throw ApiException(400, "Missing required param: driverId");
     }
-
-    // 创建路径和映射变量
-    String path = "/api/drivers/{driverId}"
-        .replaceAll("{format}", "json")
-        .replaceAll("{driverId}", driverId);
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'DELETE', queryParams,
-        postBody, headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// deleteDriver
-  ///
-  ///
-  Future<Object?> apiDriversDriverIdDelete({required String driverId}) async {
-    Response response =
-        await apiDriversDriverIdDeleteWithHttpInfo(driverId: driverId);
+    final response = await apiClient.invokeAPI(
+      '/api/drivers/$driverId',
+      'DELETE',
+      [],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
     }
   }
 
-  /// getDriverById with HTTP info returned
-  ///
-  ///
-  Future<Response> apiDriversDriverIdGetWithHttpInfo(
-      {required String driverId}) async {
-    Object postBody = ''; // GET 请求通常没有 body
-
-    // 验证必需参数已设置
+  /// GET /api/drivers/{driverId} - 根据ID获取司机信息
+  Future<DriverInformation?> apiDriversDriverIdGet({required String driverId}) async {
     if (driverId.isEmpty) {
       throw ApiException(400, "Missing required param: driverId");
     }
-
-    // 创建路径和映射变量
-    String path = "/api/drivers/{driverId}"
-        .replaceAll("{format}", "json")
-        .replaceAll("{driverId}", driverId);
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// getDriverById
-  ///
-  ///
-  Future<Object?> apiDriversDriverIdGet({required String driverId}) async {
-    Response response =
-        await apiDriversDriverIdGetWithHttpInfo(driverId: driverId);
+    final response = await apiClient.invokeAPI(
+      '/api/drivers/$driverId',
+      'GET',
+      [],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
     }
+    if (response.body.isEmpty) return null;
+    final data = apiClient.deserialize(_decodeBodyBytes(response), 'Map<String, dynamic>');
+    return DriverInformation.fromJson(data);
   }
 
-  /// updateDriver with HTTP info returned
-  ///
-  ///
-  Future<Response> apiDriversDriverIdPutWithHttpInfo(
-      {required String driverId, int? updateValue}) async {
-    Object postBody = updateValue ?? 0; // 根据实际需求设置默认值
-
-    // 验证必需参数已设置
+  /// PUT /api/drivers/{driverId} - 更新司机信息 (仅管理员)
+  Future<DriverInformation> apiDriversDriverIdPut({
+    required String driverId,
+    required DriverInformation driverInformation,
+  }) async {
     if (driverId.isEmpty) {
       throw ApiException(400, "Missing required param: driverId");
     }
-
-    // 创建路径和映射变量
-    String path = "/api/drivers/{driverId}"
-        .replaceAll("{format}", "json")
-        .replaceAll("{driverId}", driverId);
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = ["application/json"];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'PUT', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// updateDriver
-  ///
-  ///
-  Future<Object?> apiDriversDriverIdPut(
-      {required String driverId, int? updateValue}) async {
-    Response response = await apiDriversDriverIdPutWithHttpInfo(
-        driverId: driverId, updateValue: updateValue);
+    final response = await apiClient.invokeAPI(
+      '/api/drivers/$driverId',
+      'PUT',
+      [],
+      driverInformation.toJson(),
+      {},
+      {},
+      'application/json',
+      ['bearerAuth'],
+    );
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
     }
+    final data = apiClient.deserialize(_decodeBodyBytes(response), 'Map<String, dynamic>');
+    return DriverInformation.fromJson(data);
   }
 
-  /// getDriverByDriverLicenseNumber with HTTP info returned
-  ///
-  ///
-  Future<Response>
-      apiDriversDriverLicenseNumberDriverLicenseNumberGetWithHttpInfo(
-          {required String driverLicenseNumber}) async {
-    Object postBody = ''; // GET 请求通常没有 body
-
-    // 验证必需参数已设置
+  /// GET /api/drivers/driverLicenseNumber/{driverLicenseNumber} - 根据驾照号码获取司机信息
+  Future<DriverInformation?> apiDriversDriverLicenseNumberDriverLicenseNumberGet({
+    required String driverLicenseNumber,
+  }) async {
     if (driverLicenseNumber.isEmpty) {
       throw ApiException(400, "Missing required param: driverLicenseNumber");
     }
-
-    // 创建路径和映射变量
-    String path = "/api/drivers/driverLicenseNumber/{driverLicenseNumber}"
-        .replaceAll("{format}", "json")
-        .replaceAll("{driverLicenseNumber}", driverLicenseNumber);
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// getDriverByDriverLicenseNumber
-  ///
-  ///
-  Future<Object?> apiDriversDriverLicenseNumberDriverLicenseNumberGet(
-      {required String driverLicenseNumber}) async {
-    Response response =
-        await apiDriversDriverLicenseNumberDriverLicenseNumberGetWithHttpInfo(
-            driverLicenseNumber: driverLicenseNumber);
+    final response = await apiClient.invokeAPI(
+      '/api/drivers/driverLicenseNumber/$driverLicenseNumber',
+      'GET',
+      [],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
     }
+    if (response.body.isEmpty) return null;
+    final data = apiClient.deserialize(_decodeBodyBytes(response), 'Map<String, dynamic>');
+    return DriverInformation.fromJson(data);
   }
 
-  /// getAllDrivers with HTTP info returned
-  ///
-  ///
-  Future<Response> apiDriversGetWithHttpInfo() async {
-    Object postBody = ''; // GET 请求通常没有 body
-
-    // 创建路径和映射变量
-    String path = "/api/drivers".replaceAll("{format}", "json");
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// getAllDrivers
-  ///
-  ///
-  Future<List<Object>?> apiDriversGet() async {
-    Response response = await apiDriversGetWithHttpInfo();
+  /// GET /api/drivers - 获取所有司机信息
+  Future<List<DriverInformation>> apiDriversGet() async {
+    final response = await apiClient.invokeAPI(
+      '/api/drivers',
+      'GET',
+      [],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'List<Object>')
-          as List<Object>;
-    } else {
-      return null;
     }
+    final List<dynamic> data = apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    return DriverInformation.listFromJson(data);
   }
 
-  /// getDriversByIdCardNumber with HTTP info returned
-  ///
-  ///
-  Future<Response> apiDriversIdCardNumberIdCardNumberGetWithHttpInfo(
-      {required String idCardNumber}) async {
-    Object postBody = ''; // GET 请求通常没有 body
-
-    // 验证必需参数已设置
+  /// GET /api/drivers/idCardNumber/{idCardNumber} - 根据身份证号码获取司机信息
+  Future<DriverInformation?> apiDriversIdCardNumberIdCardNumberGet({required String idCardNumber}) async {
     if (idCardNumber.isEmpty) {
       throw ApiException(400, "Missing required param: idCardNumber");
     }
-
-    // 创建路径和映射变量
-    String path = "/api/drivers/idCardNumber/{idCardNumber}"
-        .replaceAll("{format}", "json")
-        .replaceAll("{idCardNumber}", idCardNumber);
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// getDriversByIdCardNumber
-  ///
-  ///
-  Future<Object?> apiDriversIdCardNumberIdCardNumberGet(
-      {required String idCardNumber}) async {
-    Response response = await apiDriversIdCardNumberIdCardNumberGetWithHttpInfo(
-        idCardNumber: idCardNumber);
+    final response = await apiClient.invokeAPI(
+      '/api/drivers/idCardNumber/$idCardNumber',
+      'GET',
+      [],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
     }
+    if (response.body.isEmpty) return null;
+    final data = apiClient.deserialize(_decodeBodyBytes(response), 'Map<String, dynamic>');
+    return DriverInformation.fromJson(data);
   }
 
-  /// getDriversByName with HTTP info returned
-  ///
-  ///
-  Future<Response> apiDriversNameNameGetWithHttpInfo(
-      {required String name}) async {
-    Object postBody = ''; // GET 请求通常没有 body
-
-    // 验证必需参数已设置
+  /// GET /api/drivers/name/{name} - 根据姓名获取司机信息
+  Future<List<DriverInformation>> apiDriversNameNameGet({required String name}) async {
     if (name.isEmpty) {
       throw ApiException(400, "Missing required param: name");
     }
-
-    // 创建路径和映射变量
-    String path = "/api/drivers/name/{name}"
-        .replaceAll("{format}", "json")
-        .replaceAll("{name}", name);
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = [];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
-        headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// getDriversByName
-  ///
-  ///
-  Future<Object?> apiDriversNameNameGet({required String name}) async {
-    Response response = await apiDriversNameNameGetWithHttpInfo(name: name);
+    final response = await apiClient.invokeAPI(
+      '/api/drivers/name/$name',
+      'GET',
+      [],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
     }
+    final List<dynamic> data = apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    return DriverInformation.listFromJson(data);
   }
 
-  /// createDriver with HTTP info returned
-  ///
-  ///
-  Future<Response> apiDriversPostWithHttpInfo(
-      {required DriverInformation driverInformation}) async {
-    Object postBody = driverInformation;
-
-    // 创建路径和映射变量
-    String path = "/api/drivers".replaceAll("{format}", "json");
-
-    // 查询参数
-    List<QueryParam> queryParams = [];
-    Map<String, String> headerParams = {};
-    Map<String, String> formParams = {};
-
-    List<String> contentTypes = ["application/json"];
-
-    String? nullableContentType =
-        contentTypes.isNotEmpty ? contentTypes[0] : null;
-    List<String> authNames = [];
-
-    // 已移除与 MultipartRequest 相关的死代码
-
-    var response = await apiClient.invokeAPI(path, 'POST', queryParams,
-        postBody, headerParams, formParams, nullableContentType, authNames);
-    return response;
-  }
-
-  /// createDriver
-  ///
-  ///
-  Future<Object?> apiDriversPost(
-      {required DriverInformation driverInformation}) async {
-    Response response =
-        await apiDriversPostWithHttpInfo(driverInformation: driverInformation);
+  /// POST /api/drivers - 创建司机信息 (仅管理员)
+  Future<DriverInformation> apiDriversPost({required DriverInformation driverInformation}) async {
+    final response = await apiClient.invokeAPI(
+      '/api/drivers',
+      'POST',
+      [],
+      driverInformation.toJson(),
+      {},
+      {},
+      'application/json',
+      ['bearerAuth'],
+    );
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return apiClient.deserialize(_decodeBodyBytes(response), 'Object')
-          as Object;
-    } else {
-      return null;
     }
+    final data = apiClient.deserialize(_decodeBodyBytes(response), 'Map<String, dynamic>');
+    return DriverInformation.fromJson(data);
   }
 
-  /// deleteDriver (WebSocket)
+  // WebSocket Methods (Aligned with HTTP Endpoints)
+
+  /// DELETE /api/drivers/{driverId} (WebSocket)
   /// 对应后端: @WsAction(service="DriverInformation", action="deleteDriver")
-  Future<Object?> eventbusDriversDriverIdDelete(
-      {required String driverId}) async {
-    // 构造要发送的 WebSocket JSON
-    final msg = <String, dynamic>{
+  Future<bool> eventbusDriversDriverIdDelete({required String driverId}) async {
+    if (driverId.isEmpty) {
+      throw ApiException(400, "Missing required param: driverId");
+    }
+    final msg = {
       "service": "DriverInformation",
       "action": "deleteDriver",
-      "args": [
-        int.parse(driverId), // 假设deleteDriver方法签名是 (Integer driverId)
-      ],
+      "args": [int.parse(driverId)]
     };
-
-    // 调用 apiClient.sendWsMessage
     final respMap = await apiClient.sendWsMessage(msg);
-
-    // 解析 error/result
     if (respMap.containsKey("error")) {
       throw ApiException(400, respMap["error"]);
     }
-    if (respMap.containsKey("result")) {
-      return respMap["result"];
-    }
-    return null;
+    return true; // Success if no error
   }
 
-  /// getDriverById (WebSocket)
+  /// GET /api/drivers/{driverId} (WebSocket)
   /// 对应后端: @WsAction(service="DriverInformation", action="getDriverById")
   Future<Object?> eventbusDriversDriverIdGet({required String driverId}) async {
+    if (driverId.isEmpty) {
+      throw ApiException(400, "Missing required param: driverId");
+    }
     final msg = {
       "service": "DriverInformation",
       "action": "getDriverById",
       "args": [int.parse(driverId)]
     };
-
     final respMap = await apiClient.sendWsMessage(msg);
-
     if (respMap.containsKey("error")) {
       throw ApiException(400, respMap["error"]);
     }
-    if (respMap.containsKey("result")) {
-      return respMap["result"];
-    }
-    return null;
+    return respMap["result"];
   }
 
-  /// updateDriver (WebSocket)
+  /// PUT /api/drivers/{driverId} (WebSocket)
   /// 对应后端: @WsAction(service="DriverInformation", action="updateDriver")
-  Future<Object?> eventbusDriversDriverIdPut(
-      {required String driverId, int? updateValue}) async {
+  Future<Object?> eventbusDriversDriverIdPut({
+    required String driverId,
+    required DriverInformation driverInformation,
+  }) async {
+    if (driverId.isEmpty) {
+      throw ApiException(400, "Missing required param: driverId");
+    }
     final msg = {
       "service": "DriverInformation",
       "action": "updateDriver",
-      "args": [
-        int.parse(driverId),
-        updateValue ?? 0 // 看后端签名
-      ]
+      "args": [int.parse(driverId), driverInformation.toJson()]
     };
-
     final respMap = await apiClient.sendWsMessage(msg);
-
     if (respMap.containsKey("error")) {
       throw ApiException(400, respMap["error"]);
     }
-    if (respMap.containsKey("result")) {
-      return respMap["result"];
-    }
-    return null;
+    return respMap["result"];
   }
 
-  /// getDriverByDriverLicenseNumber (WebSocket)
+  /// GET /api/drivers/driverLicenseNumber/{driverLicenseNumber} (WebSocket)
   /// 对应后端: @WsAction(service="DriverInformation", action="getDriverByDriverLicenseNumber")
-  Future<Object?> eventbusDriversDriverLicenseNumberDriverLicenseNumberGet(
-      {required String driverLicenseNumber}) async {
+  Future<Object?> eventbusDriversDriverLicenseNumberDriverLicenseNumberGet({
+    required String driverLicenseNumber,
+  }) async {
     if (driverLicenseNumber.isEmpty) {
-      throw ApiException(400, "Missing driverLicenseNumber");
+      throw ApiException(400, "Missing required param: driverLicenseNumber");
     }
     final msg = {
       "service": "DriverInformation",
       "action": "getDriverByDriverLicenseNumber",
       "args": [driverLicenseNumber]
     };
-
     final respMap = await apiClient.sendWsMessage(msg);
-
     if (respMap.containsKey("error")) {
       throw ApiException(400, respMap["error"]);
     }
-    if (respMap.containsKey("result")) {
-      return respMap["result"];
+    return respMap["result"];
+  }
+
+  /// GET /api/drivers (WebSocket)
+  /// 对应后端: @WsAction(service="DriverInformation", action="getAllDrivers")
+  Future<List<Object>?> eventbusDriversGet() async {
+    final msg = {
+      "service": "DriverInformation",
+      "action": "getAllDrivers",
+      "args": []
+    };
+    final respMap = await apiClient.sendWsMessage(msg);
+    if (respMap.containsKey("error")) {
+      throw ApiException(400, respMap["error"]);
+    }
+    if (respMap["result"] is List) {
+      return (respMap["result"] as List).cast<Object>();
     }
     return null;
+  }
+
+  /// GET /api/drivers/idCardNumber/{idCardNumber} (WebSocket)
+  /// 对应后端: @WsAction(service="DriverInformation", action="getDriversByIdCardNumber")
+  Future<Object?> eventbusDriversIdCardNumberIdCardNumberGet({required String idCardNumber}) async {
+    if (idCardNumber.isEmpty) {
+      throw ApiException(400, "Missing required param: idCardNumber");
+    }
+    final msg = {
+      "service": "DriverInformation",
+      "action": "getDriversByIdCardNumber",
+      "args": [idCardNumber]
+    };
+    final respMap = await apiClient.sendWsMessage(msg);
+    if (respMap.containsKey("error")) {
+      throw ApiException(400, respMap["error"]);
+    }
+    return respMap["result"];
+  }
+
+  /// GET /api/drivers/name/{name} (WebSocket)
+  /// 对应后端: @WsAction(service="DriverInformation", action="getDriversByName")
+  Future<List<Object>?> eventbusDriversNameNameGet({required String name}) async {
+    if (name.isEmpty) {
+      throw ApiException(400, "Missing required param: name");
+    }
+    final msg = {
+      "service": "DriverInformation",
+      "action": "getDriversByName",
+      "args": [name]
+    };
+    final respMap = await apiClient.sendWsMessage(msg);
+    if (respMap.containsKey("error")) {
+      throw ApiException(400, respMap["error"]);
+    }
+    if (respMap["result"] is List) {
+      return (respMap["result"] as List).cast<Object>();
+    }
+    return null;
+  }
+
+  /// POST /api/drivers (WebSocket)
+  /// 对应后端: @WsAction(service="DriverInformation", action="createDriver")
+  Future<Object?> eventbusDriversPost({required DriverInformation driverInformation}) async {
+    final msg = {
+      "service": "DriverInformation",
+      "action": "createDriver",
+      "args": [driverInformation.toJson()]
+    };
+    final respMap = await apiClient.sendWsMessage(msg);
+    if (respMap.containsKey("error")) {
+      throw ApiException(400, respMap["error"]);
+    }
+    return respMap["result"];
   }
 }

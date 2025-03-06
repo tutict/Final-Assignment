@@ -26,7 +26,7 @@ class AppealManagementControllerApi {
 
   // --- GET /api/appeals ---
   Future<http.Response> apiAppealsGetWithHttpInfo() async {
-    final path = "/api/appeals";
+    const path = "/api/appeals";
     final headerParams = await _getHeaders();
 
     return await apiClient.invokeAPI(

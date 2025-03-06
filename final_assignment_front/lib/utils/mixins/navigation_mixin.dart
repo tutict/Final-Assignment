@@ -17,16 +17,6 @@ mixin NavigationMixin {
         return const SettingPage();
       case AppPages.aiChat:
         return const AiChat();
-      case AppPages.accountAndSecurity:
-        return const AccountAndSecurityPage();
-      case AppPages.changePassword:
-        return const ChangePassword();
-      case AppPages.deleteAccount:
-        return const DeleteAccount();
-      case AppPages.informationStatement:
-        return const InformationStatementPage();
-      case AppPages.migrateAccount:
-        return const MigrateAccount();
       case AppPages.changeMobilePhoneNumber:
         return const ChangeMobilePhoneNumber();
       case AppPages.personalInfo:
