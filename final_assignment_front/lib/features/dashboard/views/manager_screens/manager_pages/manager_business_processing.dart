@@ -3,6 +3,7 @@ import 'package:final_assignment_front/features/dashboard/views/manager_screens/
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/deduction_management.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/driver_list.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/fine_list.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/offense_list.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/vehicle_list.dart';
 import 'package:final_assignment_front/features/model/appeal_management.dart';
 import 'package:flutter/material.dart';
@@ -62,6 +63,11 @@ class _ManagerBusinessProcessingState extends State<ManagerBusinessProcessing> {
         'icon': Icons.directions_car,
         'route': const VehicleList(),
       },
+      {
+        'title': '违法行为',
+        'icon': Icons.warning,
+        'route': const OffenseList(),
+      }
     ];
   }
 

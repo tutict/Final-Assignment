@@ -410,11 +410,18 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
     setState(() => _isLoading = true);
     try {
       await deductionApi.initializeWithJwt();
+      // Parse the date and append a default time (00:00:00) to match LocalDateTime
+      DateTime parsedDate =
+          DateTime.tryParse(_dateController.text.trim()) ?? DateTime.now();
+      String formattedDateTime =
+          "${_dateController.text.trim()}T00:00:00"; // Ensure ISO 8601 format
+
       final deduction = DeductionInformation(
         driverLicenseNumber: _driverLicenseNumberController.text.trim(),
         deductedPoints:
             int.tryParse(_deductedPointsController.text.trim()) ?? 0,
-        deductionTime: _dateController.text.trim(),
+        deductionTime: DateTime.parse(formattedDateTime),
+        // Use formatted DateTime
         handler: _handlerController.text.trim(),
         remarks: _remarksController.text.trim(),
       );
@@ -637,7 +644,8 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
         (widget.deduction.deductedPoints ?? 0).toString();
     _handlerController.text = widget.deduction.handler ?? '';
     _remarksController.text = widget.deduction.remarks ?? '';
-    _dateController.text = widget.deduction.deductionTime ?? '';
+    _dateController.text =
+        widget.deduction.deductionTime?.toIso8601String() ?? '';
   }
 
   @override
@@ -654,17 +662,26 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
     setState(() => _isLoading = true);
     try {
       await deductionApi.initializeWithJwt();
+      // Parse the date and append a default time (00:00:00) to match LocalDateTime
+      DateTime parsedDate =
+          DateTime.tryParse(_dateController.text.trim()) ?? DateTime.now();
+      String formattedDateTime =
+          "${_dateController.text.trim()}T00:00:00"; // Ensure ISO 8601 format
+
       final deduction = DeductionInformation(
         deductionId: widget.deduction.deductionId,
+        // Preserve the ID for updates
         driverLicenseNumber: _driverLicenseNumberController.text.trim(),
         deductedPoints:
             int.tryParse(_deductedPointsController.text.trim()) ?? 0,
-        deductionTime: _dateController.text.trim(),
+        deductionTime: DateTime.parse(formattedDateTime),
+        // Use formatted DateTime
         handler: _handlerController.text.trim(),
         remarks: _remarksController.text.trim(),
       );
       await deductionApi.apiDeductionsDeductionIdPut(
-        deductionId: widget.deduction.deductionId?.toString() ?? '',
+        // Use PUT instead of POST for updates
+        deductionId: widget.deduction.deductionId.toString(),
         deductionInformation: deduction,
         idempotencyKey: generateIdempotencyKey(),
       );
@@ -877,9 +894,19 @@ class _DeductionDetailPageState extends State<DeductionDetailPage> {
     setState(() => _isLoading = true);
     try {
       await deductionApi.initializeWithJwt();
+      // Ensure deductionTime is in ISO 8601 format with time
+      String formattedDateTime = deduction.deductionTime != null
+          ? deduction.deductionTime!.toIso8601String()
+          : "${DateTime.now().toIso8601String().substring(0, 10)}T00:00:00";
+
+      final updatedDeduction = deduction.copyWith(
+        deductionTime: DateTime.parse(formattedDateTime),
+        remarks: _remarksController.text.trim(),
+      );
+
       await deductionApi.apiDeductionsDeductionIdPut(
         deductionId: deductionId.toString(),
-        deductionInformation: deduction,
+        deductionInformation: updatedDeduction,
         idempotencyKey: generateIdempotencyKey(),
       );
       _showSuccessSnackBar('更新扣分记录成功！');
@@ -932,7 +959,7 @@ class _DeductionDetailPageState extends State<DeductionDetailPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final points = widget.deduction.deductedPoints ?? 0;
-    final time = widget.deduction.deductionTime ?? '未知';
+    final time = widget.deduction.deductionTime?.toIso8601String() ?? '未知';
     final handler = widget.deduction.handler ?? '未记录';
 
     return Obx(

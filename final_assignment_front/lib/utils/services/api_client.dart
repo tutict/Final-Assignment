@@ -78,12 +78,18 @@ class ApiClient {
     debugPrint('JWT Token set in ApiClient: $token');
   }
 
+  /// Helper to strip extra quotes from strings
+  String? _stripQuotes(String? value) {
+    if (value == null) return null;
+    return value.replaceAll('"', '').trim();
+  }
+
   /// 主要的反序列化方法，将 JSON 数据反序列化成对应的模型
   dynamic _deserialize(dynamic value, String targetType) {
     try {
       switch (targetType) {
         case 'String':
-          return '$value';
+          return value is String ? _stripQuotes(value) : '$value';
         case 'int':
           return value is int ? value : int.parse('$value');
         case 'bool':
@@ -95,55 +101,63 @@ class ApiClient {
         case 'Map<String, dynamic>':
           return value as Map<String, dynamic>;
         case 'AppealManagement':
-          return AppealManagement.fromJson(value);
+          return AppealManagement.fromJson(value as Map<String, dynamic>);
         case 'BackupRestore':
-          return BackupRestore.fromJson(value);
+          return BackupRestore.fromJson(value as Map<String, dynamic>);
         case 'Category':
-          return Category.fromJson(value);
+          return Category.fromJson(value as Map<String, dynamic>);
         case 'DeductionInformation':
-          return DeductionInformation.fromJson(value);
+          return DeductionInformation.fromJson(value as Map<String, dynamic>);
         case 'DriverInformation':
-          return DriverInformation.fromJson(value);
+          return DriverInformation.fromJson(value as Map<String, dynamic>);
         case 'FineInformation':
-          return FineInformation.fromJson(value);
+          return FineInformation.fromJson(value as Map<String, dynamic>);
         case 'Int':
-          return Int.fromJson(value);
+          return Int.fromJson(value as Map<String, dynamic>);
         case 'Integer':
-          return Integer.fromJson(value);
+          return Integer.fromJson(value as Map<String, dynamic>);
         case 'LoginLog':
-          return LoginLog.fromJson(value);
+          return LoginLog.fromJson(value as Map<String, dynamic>);
         case 'LoginRequest':
-          return LoginRequest.fromJson(value);
+          return LoginRequest.fromJson(value as Map<String, dynamic>);
         case 'OffenseInformation':
-          return OffenseInformation.fromJson(value);
+          return OffenseInformation.fromJson(value as Map<String, dynamic>);
         case 'OperationLog':
-          return OperationLog.fromJson(value);
+          return OperationLog.fromJson(value as Map<String, dynamic>);
         case 'PermissionManagement':
-          return PermissionManagement.fromJson(value);
+          return PermissionManagement.fromJson(value as Map<String, dynamic>);
         case 'RegisterRequest':
-          return RegisterRequest.fromJson(value);
+          return RegisterRequest.fromJson(value as Map<String, dynamic>);
         case 'RoleManagement':
-          return RoleManagement.fromJson(value);
+          return RoleManagement.fromJson(value as Map<String, dynamic>);
         case 'SecurityContext':
-          return SecurityContext.fromJson(value);
+          return SecurityContext.fromJson(value as Map<String, dynamic>);
         case 'SystemLogs':
-          return SystemLogs.fromJson(value);
+          return SystemLogs.fromJson(value as Map<String, dynamic>);
         case 'SystemSettings':
-          return SystemSettings.fromJson(value);
+          return SystemSettings.fromJson(value as Map<String, dynamic>);
         case 'Tag':
-          return Tag.fromJson(value);
+          return Tag.fromJson(value as Map<String, dynamic>);
         case 'UserManagement':
-          return UserManagement.fromJson(value);
+          return UserManagement.fromJson(value as Map<String, dynamic>);
         case 'VehicleInformation':
-          return VehicleInformation.fromJson(value);
-        case 'dynamic': // Handle dynamic explicitly
+          return VehicleInformation.fromJson(value as Map<String, dynamic>);
+        case 'List<DriverInformation>':
+          if (value is List) {
+            return value
+                .map((item) =>
+                    DriverInformation.fromJson(item as Map<String, dynamic>))
+                .toList();
+          }
+          throw ApiException(
+              500, 'Expected a List for List<DriverInformation>, got $value');
+        case 'dynamic':
           if (value is Map<String, dynamic>) {
-            // Assume it’s a model object; default to a known type or throw
-            throw ApiException(
-                500, 'Dynamic type encountered; specify a concrete type');
+            debugPrint('Dynamic Map encountered: $value');
+            return value;
           } else if (value is List) {
-            throw ApiException(500,
-                'Dynamic list encountered; specify a concrete List<T> type');
+            debugPrint('Dynamic List encountered: $value');
+            return value;
           }
           return value; // Return primitive types as-is
         default:
@@ -152,10 +166,12 @@ class ApiClient {
             if (value is List &&
                 (match = _regList.firstMatch(targetType)) != null) {
               var newTargetType = match!.group(1)!;
+              debugPrint('Deserializing List with inner type: $newTargetType');
               return value.map((v) => _deserialize(v, newTargetType)).toList();
             } else if (value is Map &&
                 (match = _regMap.firstMatch(targetType)) != null) {
               var newTargetType = match!.group(1)!;
+              debugPrint('Deserializing Map with inner type: $newTargetType');
               if (newTargetType == 'dynamic') {
                 return value as Map<String, dynamic>;
               }
@@ -164,11 +180,13 @@ class ApiClient {
                 value.values.map((v) => _deserialize(v, newTargetType)),
               );
             }
+            debugPrint('Unknown target type: $targetType, value: $value');
             throw ApiException(500,
                 'Could not find a suitable class for deserialization: $targetType');
           }
       }
     } on Exception catch (e, stack) {
+      debugPrint('Deserialization error for $targetType: $e');
       throw ApiException.withInner(
           500, 'Exception during deserialization: $e', e, stack);
     }
@@ -179,9 +197,7 @@ class ApiClient {
     targetType = targetType.replaceAll(' ', '');
     if (targetType == 'String') return jsonStr;
     var decodedJson = jsonDecode(jsonStr);
-    if (targetType == 'Map<String, dynamic>') {
-      return decodedJson as Map<String, dynamic>;
-    }
+    debugPrint('Deserializing JSON: $decodedJson to $targetType');
     return _deserialize(decodedJson, targetType);
   }
 
@@ -287,25 +303,20 @@ class ApiClient {
   /// 发起 WebSocket 连接
   Future<void> connectWebSocket(
       String path, Iterable<QueryParam> queryParams) async {
-    // 组装 queryString
     var paramsList = queryParams.toList();
     var ps = paramsList.where((p) => p.value.isNotEmpty).map((p) =>
         '${Uri.encodeQueryComponent(p.name)}=${Uri.encodeQueryComponent(p.value)}');
     String queryString = ps.isNotEmpty ? '?${ps.join('&')}' : '';
 
-    // 将 http:// 或 https:// 替换为 ws:// 或 wss://
     String wsScheme = basePath.startsWith('https') ? 'wss://' : 'ws://';
     String stripped = basePath.replaceFirst(RegExp(r'^https?://'), '');
     String wsUrl = wsScheme + stripped + path + queryString;
 
-    // 创建 WebSocketChannel
     _wsChannel = IOWebSocketChannel.connect(Uri.parse(wsUrl));
     _wsUrl = wsUrl;
 
-    // 监听服务端消息
     _wsChannel?.stream.listen(
       (message) {
-        // 收到服务端消息
         debugPrint('【WebSocket收到消息】: $message');
       },
       onDone: () {

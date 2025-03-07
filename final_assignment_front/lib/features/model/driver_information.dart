@@ -35,7 +35,7 @@ class DriverInformation {
   String? idempotencyKey; // 改为可选
 
   DriverInformation({
-    this.driverId, // 改为可选
+    this.driverId,
     this.name,
     this.idCardNumber,
     this.contactNumber,
@@ -46,29 +46,28 @@ class DriverInformation {
     this.allowedVehicleType,
     this.issueDate,
     this.expiryDate,
-    this.idempotencyKey, // 改为可选
+    this.idempotencyKey,
   });
 
   @override
   String toString() {
-    return 'DriverInformation[driverId=$driverId, name=$name, idCardNumber=$idCardNumber, contactNumber=$contactNumber, driverLicenseNumber=$driverLicenseNumber, gender=$gender, birthdate=$birthdate, firstLicenseDate=$firstLicenseDate, allowedVehicleType=$allowedVehicleType, issueDate=$issueDate, expiryDate=$expiryDate, idempotencyKey=$idempotencyKey,]';
+    return 'DriverInformation[driverId=$driverId, name=$name, idCardNumber=$idCardNumber, contactNumber=$contactNumber, driverLicenseNumber=$driverLicenseNumber, gender=$gender, birthdate=$birthdate, firstLicenseDate=$firstLicenseDate, allowedVehicleType=$allowedVehicleType, issueDate=$issueDate, expiryDate=$expiryDate, idempotencyKey=$idempotencyKey]';
   }
 
   factory DriverInformation.fromJson(Map<String, dynamic> json) {
     return DriverInformation(
       driverId: json['driverId'] as int?,
-      // 匹配后端字段
-      name: json['name'] as String?,
-      idCardNumber: json['idCardNumber'] as String?,
-      contactNumber: json['contactNumber'] as String?,
-      driverLicenseNumber: json['driverLicenseNumber'] as String?,
-      gender: json['gender'] as String?,
-      birthdate: json['birthdate'] as String?,
-      firstLicenseDate: json['firstLicenseDate'] as String?,
-      allowedVehicleType: json['allowedVehicleType'] as String?,
-      issueDate: json['issueDate'] as String?,
-      expiryDate: json['expiryDate'] as String?,
-      idempotencyKey: json['idempotencyKey'] as String?,
+      name: _stripQuotes(json['name'] as String?),
+      idCardNumber: _stripQuotes(json['idCardNumber'] as String?),
+      contactNumber: _stripQuotes(json['contactNumber'] as String?),
+      driverLicenseNumber: _stripQuotes(json['driverLicenseNumber'] as String?),
+      gender: _stripQuotes(json['gender'] as String?),
+      birthdate: _stripQuotes(json['birthdate'] as String?),
+      firstLicenseDate: _stripQuotes(json['firstLicenseDate'] as String?),
+      allowedVehicleType: _stripQuotes(json['allowedVehicleType'] as String?),
+      issueDate: _stripQuotes(json['issueDate'] as String?),
+      expiryDate: _stripQuotes(json['expiryDate'] as String?),
+      idempotencyKey: _stripQuotes(json['idempotencyKey'] as String?),
     );
   }
 
@@ -103,7 +102,6 @@ class DriverInformation {
     return map;
   }
 
-  // maps a json object with a list of DriverInformation-objects as value to a dart map
   static Map<String, List<DriverInformation>> mapListFromJson(
       Map<String, dynamic> json) {
     var map = <String, List<DriverInformation>>{};
@@ -113,5 +111,11 @@ class DriverInformation {
       });
     }
     return map;
+  }
+
+  // Helper to strip extra quotes from strings
+  static String? _stripQuotes(String? value) {
+    if (value == null) return null;
+    return value.replaceAll('"', '').trim();
   }
 }

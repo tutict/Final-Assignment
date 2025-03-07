@@ -209,12 +209,17 @@ class OffenseInformationControllerApi {
   Future<http.Response> apiOffensesOffenseIdPutWithHttpInfo({
     required String offenseId,
     required OffenseInformation offenseInformation,
+    required String idempotencyKey,
   }) async {
     if (offenseId.isEmpty) {
       throw ApiException(400, "Missing required param: offenseId");
     }
+    if (idempotencyKey.isEmpty) {
+      throw ApiException(400, "Missing required param: idempotencyKey");
+    }
 
-    final path = "/api/offenses/$offenseId";
+    final path =
+        "/api/offenses/$offenseId?idempotencyKey=${Uri.encodeComponent(idempotencyKey)}";
     final headerParams = await _getHeaders();
 
     return await apiClient.invokeAPI(
@@ -229,21 +234,33 @@ class OffenseInformationControllerApi {
     );
   }
 
-  Future<void> apiOffensesOffenseIdPut({
+  Future<OffenseInformation> apiOffensesOffenseIdPut({
     required String offenseId,
     required OffenseInformation offenseInformation,
+    required String idempotencyKey,
   }) async {
     final response = await apiOffensesOffenseIdPutWithHttpInfo(
-        offenseId: offenseId, offenseInformation: offenseInformation);
+      offenseId: offenseId,
+      offenseInformation: offenseInformation,
+      idempotencyKey: idempotencyKey,
+    );
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     }
+    return OffenseInformation.fromJson(jsonDecode(_decodeBodyBytes(response)));
   }
 
   // --- POST /api/offenses ---
-  Future<http.Response> apiOffensesPostWithHttpInfo(
-      {required OffenseInformation offenseInformation}) async {
-    const path = "/api/offenses";
+  Future<http.Response> apiOffensesPostWithHttpInfo({
+    required OffenseInformation offenseInformation,
+    required String idempotencyKey,
+  }) async {
+    if (idempotencyKey.isEmpty) {
+      throw ApiException(400, "Missing required param: idempotencyKey");
+    }
+
+    final path =
+        "/api/offenses?idempotencyKey=${Uri.encodeComponent(idempotencyKey)}";
     final headerParams = await _getHeaders();
 
     return await apiClient.invokeAPI(
@@ -258,10 +275,14 @@ class OffenseInformationControllerApi {
     );
   }
 
-  Future<OffenseInformation?> apiOffensesPost(
-      {required OffenseInformation offenseInformation}) async {
+  Future<OffenseInformation?> apiOffensesPost({
+    required OffenseInformation offenseInformation,
+    required String idempotencyKey,
+  }) async {
     final response = await apiOffensesPostWithHttpInfo(
-        offenseInformation: offenseInformation);
+      offenseInformation: offenseInformation,
+      idempotencyKey: idempotencyKey,
+    );
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     } else if (response.body.isNotEmpty) {
@@ -427,28 +448,41 @@ class OffenseInformationControllerApi {
   }
 
   // updateOffense (WebSocket)
-  Future<void> eventbusOffensesOffenseIdPut({
+  Future<OffenseInformation?> eventbusOffensesOffenseIdPut({
     required String offenseId,
     required OffenseInformation offenseInformation,
+    required String idempotencyKey,
   }) async {
+    if (idempotencyKey.isEmpty) {
+      throw ApiException(400, "Missing required param: idempotencyKey");
+    }
     final offenseMap = offenseInformation.toJson();
     final msg = {
       "service": "OffenseInformation",
       "action": "updateOffense",
-      "args": [int.parse(offenseId), offenseMap]
+      "args": [int.parse(offenseId), offenseMap, idempotencyKey]
     };
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) throw ApiException(400, respMap["error"]);
+    if (respMap["result"] != null) {
+      return OffenseInformation.fromJson(respMap["result"]);
+    }
+    return null;
   }
 
   // createOffense (WebSocket)
-  Future<OffenseInformation?> eventbusOffensesPost(
-      {required OffenseInformation offenseInformation}) async {
+  Future<OffenseInformation?> eventbusOffensesPost({
+    required OffenseInformation offenseInformation,
+    required String idempotencyKey,
+  }) async {
+    if (idempotencyKey.isEmpty) {
+      throw ApiException(400, "Missing required param: idempotencyKey");
+    }
     final offenseMap = offenseInformation.toJson();
     final msg = {
       "service": "OffenseInformation",
       "action": "createOffense",
-      "args": [offenseMap]
+      "args": [offenseMap, idempotencyKey]
     };
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) throw ApiException(400, respMap["error"]);
