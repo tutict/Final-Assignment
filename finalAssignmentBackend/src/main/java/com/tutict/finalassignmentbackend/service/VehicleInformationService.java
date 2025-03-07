@@ -13,7 +13,9 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 @Service
@@ -38,14 +40,12 @@ public class VehicleInformationService {
     @CacheEvict(cacheNames = "vehicleCache", allEntries = true)
     @WsAction(service = "VehicleInformationService", action = "checkAndInsertIdempotency")
     public void checkAndInsertIdempotency(String idempotencyKey, VehicleInformation vehicleInformation, String action) {
-        // Query request_history
         RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
         if (existingRequest != null) {
             log.warning(String.format("Duplicate request detected (idempotencyKey=%s)", idempotencyKey));
             throw new RuntimeException("Duplicate request detected");
         }
 
-        // Insert a "PROCESSING" status if not found
         RequestHistory newRequest = new RequestHistory();
         newRequest.setIdempotentKey(idempotencyKey);
         newRequest.setBusinessStatus("PROCESSING");
@@ -57,7 +57,6 @@ public class VehicleInformationService {
             throw new RuntimeException("Duplicate request or DB insert error", e);
         }
 
-        // Notify Kafka or local events to create the vehicle information
         sendKafkaMessage(vehicleInformation, action);
 
         Integer vehicleId = vehicleInformation.getVehicleId();
@@ -79,28 +78,38 @@ public class VehicleInformationService {
         }
     }
 
-    @Cacheable(cacheNames = "vehicleCache")
+    @Cacheable(cacheNames = "vehicleCache", unless = "#result == null")
     @WsAction(service = "VehicleInformationService", action = "getVehicleInformationById")
     public VehicleInformation getVehicleInformationById(Integer vehicleId) {
         if (vehicleId == null || vehicleId == 0 || vehicleId >= Integer.MAX_VALUE) {
-            throw new IllegalArgumentException("Invalid vehicle ID" + vehicleId);
+            throw new IllegalArgumentException("Invalid vehicle ID: " + vehicleId);
         }
-        return vehicleInformationMapper.selectById(vehicleId);
+        return vehicleInformationMapper.selectById(vehicleId); // Returns null if not found
     }
 
-    @Cacheable(cacheNames = "vehicleCache")
+    @Cacheable(cacheNames = "vehicleCache", unless = "#result == null")
     @WsAction(service = "VehicleInformationService", action = "getVehicleInformationByLicensePlate")
     public VehicleInformation getVehicleInformationByLicensePlate(String licensePlate) {
         validateInput(licensePlate, "Invalid license plate number");
         QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("license_plate", licensePlate);
-        return vehicleInformationMapper.selectOne(queryWrapper);
+        // Use selectList instead of selectOne to handle multiple results
+        List<VehicleInformation> results = vehicleInformationMapper.selectList(queryWrapper);
+        if (results.isEmpty()) {
+            return null; // No vehicle found
+        } else if (results.size() > 1) {
+            // Log warning and return the first result (or throw a custom exception)
+            log.log(Level.WARNING, "Multiple vehicles found for license plate: " + licensePlate + ". Returning first result.");
+            return results.getFirst();
+        }
+        return results.getFirst();
     }
 
     @Cacheable(cacheNames = "vehicleCache")
     @WsAction(service = "VehicleInformationService", action = "getAllVehicleInformation")
     public List<VehicleInformation> getAllVehicleInformation() {
-        return vehicleInformationMapper.selectList(null);
+        List<VehicleInformation> result = vehicleInformationMapper.selectList(null);
+        return result != null ? result : Collections.emptyList(); // Never returns null
     }
 
     @Cacheable(cacheNames = "vehicleCache")
@@ -109,7 +118,8 @@ public class VehicleInformationService {
         validateInput(vehicleType, "Invalid vehicle type");
         QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("vehicle_type", vehicleType);
-        return vehicleInformationMapper.selectList(queryWrapper);
+        List<VehicleInformation> result = vehicleInformationMapper.selectList(queryWrapper);
+        return result != null ? result : Collections.emptyList(); // Never returns null
     }
 
     @Cacheable(cacheNames = "vehicleCache")
@@ -118,7 +128,8 @@ public class VehicleInformationService {
         validateInput(ownerName, "Invalid owner name");
         QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("owner_name", ownerName);
-        return vehicleInformationMapper.selectList(queryWrapper);
+        List<VehicleInformation> result = vehicleInformationMapper.selectList(queryWrapper);
+        return result != null ? result : Collections.emptyList(); // Never returns null
     }
 
     @Transactional
@@ -170,11 +181,12 @@ public class VehicleInformationService {
         validateInput(currentStatus, "Invalid current status");
         QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("current_status", currentStatus);
-        return vehicleInformationMapper.selectList(queryWrapper);
+        List<VehicleInformation> result = vehicleInformationMapper.selectList(queryWrapper);
+        return result != null ? result : Collections.emptyList(); // Never returns null
     }
 
     public void sendKafkaMessage(VehicleInformation vehicleInformation, String action) {
-        String topic = action.equals("create") ? "vehicle_create" : "vehicle_update";
+        String topic = "vehicle_" + action.toLowerCase();
         kafkaTemplate.send(topic, vehicleInformation);
         log.info(String.format("Message sent to Kafka topic %s successfully", topic));
     }

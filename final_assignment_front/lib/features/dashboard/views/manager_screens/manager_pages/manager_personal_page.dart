@@ -1,8 +1,11 @@
 import 'dart:convert';
 import 'package:final_assignment_front/config/routes/app_pages.dart';
+import 'package:final_assignment_front/constants/app_constants.dart';
+import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/user_management_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/chat_controller.dart';
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_dashboard_screen.dart';
+import 'package:final_assignment_front/features/model/driver_information.dart';
 import 'package:final_assignment_front/features/model/user_management.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -13,7 +16,6 @@ String generateIdempotencyKey() {
   return DateTime.now().millisecondsSinceEpoch.toString();
 }
 
-
 class ManagerPersonalPage extends StatefulWidget {
   const ManagerPersonalPage({super.key});
 
@@ -23,10 +25,12 @@ class ManagerPersonalPage extends StatefulWidget {
 
 class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
   late UserManagementControllerApi userApi;
+  late DriverInformationControllerApi driverApi;
   late Future<UserManagement?> _managerFuture;
-  final UserDashboardController? controller =
-      Get.isRegistered<UserDashboardController>()
-          ? Get.find<UserDashboardController>()
+  DriverInformation? _driverInfo;
+  final DashboardController? controller =
+      Get.isRegistered<DashboardController>()
+          ? Get.find<DashboardController>()
           : null;
   bool _isLoading = true;
   bool _isAdmin = false;
@@ -46,7 +50,9 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
   void initState() {
     super.initState();
     userApi = UserManagementControllerApi();
+    driverApi = DriverInformationControllerApi();
     _scrollController = ScrollController();
+    _managerFuture = Future.value(null);
     _checkUserRole();
   }
 
@@ -67,28 +73,26 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final jwtToken = prefs.getString('jwtToken');
-      debugPrint('JWT Token in _checkUserRole: $jwtToken');
       if (jwtToken == null) {
         throw Exception('未登录，请重新登录');
       }
       userApi.apiClient.setJwtToken(jwtToken);
+      driverApi.apiClient.setJwtToken(jwtToken);
 
       final decodedJwt = _decodeJwt(jwtToken);
       final roles = decodedJwt['roles']?.toString().split(',') ?? [];
-      debugPrint('Decoded JWT roles: $roles');
       _isAdmin = roles.contains('ADMIN');
       if (!_isAdmin) {
         throw Exception('权限不足：此页面仅限 ADMIN 角色访问');
       }
 
-      _managerFuture = _fetchManagerInfo();
-      setState(() => _isLoading = false);
+      await _loadCurrentManager();
     } catch (e) {
       setState(() {
         _isLoading = false;
         _errorMessage = '加载失败: $e';
-        Get.offAllNamed(AppPages.login);
       });
+      Get.offAllNamed(AppPages.login);
     }
   }
 
@@ -104,60 +108,164 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
     }
   }
 
-  Future<UserManagement?> _fetchManagerInfo() async {
+  Future<void> _loadCurrentManager() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+
     try {
-      final user = await userApi.apiUsersMeGet();
-      if (user != null) {
-        setState(() {
-          _nameController.text = user.name ?? '';
-          _usernameController.text = user.username ?? '';
-          _passwordController.text = '';
-          _contactNumberController.text = user.contactNumber ?? '';
-          _emailController.text = user.email ?? '';
-          _remarksController.text = user.remarks ?? '';
-        });
+      final userResponse = await userApi.apiClient.invokeAPI(
+        '/api/users/me',
+        'GET',
+        [],
+        null,
+        {},
+        {},
+        'application/json',
+        ['bearerAuth'],
+      );
+      if (userResponse.statusCode != 200) {
+        throw Exception('加载管理员信息失败: ${userResponse.statusCode}');
       }
-      return user;
+
+      final userData = jsonDecode(userResponse.body);
+      final manager = UserManagement.fromJson(userData);
+
+      DriverInformation? driverInfo;
+      if (manager.userId != null) {
+        try {
+          driverInfo = await driverApi.apiDriversDriverIdGet(
+              driverId: manager.userId.toString());
+        } catch (e) {
+          if (e.toString().contains('404')) {
+            final String idempotencyKey = generateIdempotencyKey();
+            driverInfo = DriverInformation(
+              name: manager.username ?? 'Unknown',
+              contactNumber: manager.contactNumber ?? '',
+              idCardNumber: '',
+            );
+            driverInfo = await driverApi.apiDriversPost(
+              driverInformation: driverInfo,
+              idempotencyKey: idempotencyKey,
+            );
+          } else {
+            rethrow;
+          }
+        }
+        _driverInfo = driverInfo;
+      }
+
+      setState(() {
+        _managerFuture = Future.value(manager);
+        _nameController.text = driverInfo?.name ?? '';
+        _usernameController.text = manager.username ?? '';
+        _passwordController.text = '';
+        _contactNumberController.text =
+            driverInfo?.contactNumber ?? manager.contactNumber ?? '';
+        _emailController.text = manager.email ?? '';
+        _remarksController.text = manager.remarks ?? '';
+        _isLoading = false;
+      });
+      controller?.updateCurrentUser(
+          driverInfo?.name ?? '', manager.username ?? '');
     } catch (e) {
-      setState(() => _errorMessage = '获取管理员信息失败: $e');
-      return null;
+      setState(() {
+        _isLoading = false;
+        _errorMessage = '加载管理员信息失败: $e';
+      });
     }
   }
 
-  Future<void> _updateManagerInfo() async {
-    if (!mounted) return;
+  Future<void> _updateField(String field, String value) async {
+    if (!mounted ||
+        (_driverInfo == null && (field == 'name' || field == 'contactNumber')))
+      return;
+
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     setState(() => _isLoading = true);
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken');
-      if (jwtToken == null) throw Exception('No JWT token found');
-      userApi.apiClient.setJwtToken(jwtToken);
+      final String idempotencyKey = generateIdempotencyKey();
+      final currentManager = await _managerFuture;
+      if (currentManager == null) {
+        throw Exception('未找到当前管理员信息');
+      }
 
-      final currentUser = await _managerFuture;
-      final updatedManager = UserManagement(
-        userId: currentUser?.userId,
-        username: _usernameController.text.trim(),
-        password: _passwordController.text.trim().isNotEmpty
-            ? _passwordController.text.trim()
-            : null,
-        name: _nameController.text.trim(),
-        contactNumber: _contactNumberController.text.trim(),
-        email: _emailController.text.trim(),
-        status: currentUser?.status ?? 'ACTIVE',
-        createdTime: currentUser?.createdTime,
-        modifiedTime: DateTime.now(),
-        remarks: _remarksController.text.trim(),
-        idempotencyKey: generateIdempotencyKey(),
-      );
+      switch (field) {
+        case 'name':
+          final response = await driverApi.apiClient.invokeAPI(
+            '/api/drivers/${_driverInfo!.driverId}/name?idempotencyKey=$idempotencyKey',
+            'PUT',
+            [],
+            value,
+            {},
+            {},
+            'text/plain',
+            ['bearerAuth'],
+          );
+          if (response.statusCode != 200) throw Exception('更新姓名失败');
+          _driverInfo = DriverInformation.fromJson(jsonDecode(response.body));
+          break;
+        case 'contactNumber':
+          final response = await driverApi.apiClient.invokeAPI(
+            '/api/drivers/${_driverInfo!.driverId}/contactNumber?idempotencyKey=$idempotencyKey',
+            'PUT',
+            [],
+            value,
+            {},
+            {},
+            'text/plain',
+            ['bearerAuth'],
+          );
+          if (response.statusCode != 200) throw Exception('更新联系电话失败');
+          _driverInfo = DriverInformation.fromJson(jsonDecode(response.body));
+          break;
+        case 'password':
+          final response = await userApi.apiClient.invokeAPI(
+            '/api/users/me/password?idempotencyKey=$idempotencyKey',
+            'PUT',
+            [],
+            value,
+            {},
+            {},
+            'text/plain',
+            ['bearerAuth'],
+          );
+          if (response.statusCode != 200) throw Exception('更新密码失败');
+          break;
+        case 'email':
+          final response = await userApi.apiClient.invokeAPI(
+            '/api/users/me/email?idempotencyKey=$idempotencyKey',
+            'PUT',
+            [],
+            value,
+            {},
+            {},
+            'text/plain',
+            ['bearerAuth'],
+          );
+          if (response.statusCode != 200) throw Exception('更新邮箱失败');
+          break;
+        case 'remarks':
+          final response = await userApi.apiClient.invokeAPI(
+            '/api/users/me/remarks?idempotencyKey=$idempotencyKey',
+            'PUT',
+            [],
+            value,
+            {},
+            {},
+            'text/plain',
+            ['bearerAuth'],
+          );
+          if (response.statusCode != 200) throw Exception('更新备注失败');
+          break;
+        default:
+          throw Exception('未知字段: $field');
+      }
 
-      await userApi.apiUsersMePut(
-          userManagement: updatedManager,
-          idempotencyKey: updatedManager.idempotencyKey!);
-      scaffoldMessenger
-          .showSnackBar(const SnackBar(content: Text('个人信息更新成功！')));
-      _managerFuture = _fetchManagerInfo();
+      scaffoldMessenger.showSnackBar(const SnackBar(content: Text('更新成功！')));
+      await _loadCurrentManager();
     } catch (e) {
       scaffoldMessenger.showSnackBar(SnackBar(content: Text('更新失败: $e')));
     } finally {
@@ -286,8 +394,6 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
                   children: [
                     TextButton(
                       onPressed: () => Navigator.pop(context),
-                      style: TextButton.styleFrom(
-                          foregroundColor: themeData.colorScheme.onSurface),
                       child: Text(
                         '取消',
                         style: themeData.textTheme.labelMedium?.copyWith(
@@ -301,14 +407,11 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
                         Navigator.pop(context);
                         onSave(textController.text.trim());
                       },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: themeData.colorScheme.primary,
-                        foregroundColor: themeData.colorScheme.onPrimary,
-                        elevation: 2,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10.0)),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 20.0, vertical: 10.0),
+                      style: themeData.elevatedButtonTheme.style?.copyWith(
+                        backgroundColor: WidgetStateProperty.all(
+                            themeData.colorScheme.primary),
+                        foregroundColor: WidgetStateProperty.all(
+                            themeData.colorScheme.onPrimary),
                       ),
                       child: Text(
                         '保存',
@@ -402,15 +505,20 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
         child: _isLoading
             ? Center(
                 child: CupertinoActivityIndicator(
-                    color: themeData.colorScheme.primary, radius: 16.0))
+                  color: themeData.colorScheme.primary,
+                  radius: 16.0,
+                ),
+              )
             : FutureBuilder<UserManagement?>(
                 future: _managerFuture,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return Center(
-                        child: CupertinoActivityIndicator(
-                            color: themeData.colorScheme.primary,
-                            radius: 16.0));
+                      child: CupertinoActivityIndicator(
+                        color: themeData.colorScheme.primary,
+                        radius: 16.0,
+                      ),
+                    );
                   } else if (snapshot.hasError ||
                       !snapshot.hasData ||
                       snapshot.data == null) {
@@ -432,16 +540,13 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
                           ),
                           const SizedBox(height: 20.0),
                           ElevatedButton(
-                            onPressed: () =>
-                                _managerFuture = _fetchManagerInfo(),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: themeData.colorScheme.primary,
-                              foregroundColor: themeData.colorScheme.onPrimary,
-                              elevation: 4,
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12.0)),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 24.0, vertical: 12.0),
+                            onPressed: _loadCurrentManager,
+                            style:
+                                themeData.elevatedButtonTheme.style?.copyWith(
+                              backgroundColor: WidgetStateProperty.all(
+                                  themeData.colorScheme.primary),
+                              foregroundColor: WidgetStateProperty.all(
+                                  themeData.colorScheme.onPrimary),
                             ),
                             child: Text(
                               '重试',
@@ -468,49 +573,61 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
                         children: [
                           _buildListTile(
                             title: '姓名',
-                            subtitle: manager.name ?? '无数据',
+                            subtitle: _driverInfo?.name ?? '无数据',
                             themeData: themeData,
                             isLight: isLight,
-                            onTap: () => _showEditDialog('姓名', _nameController,
-                                (value) => _updateManagerInfo()),
+                            onTap: () {
+                              _nameController.text = _driverInfo?.name ?? '';
+                              _showEditDialog('姓名', _nameController,
+                                  (value) => _updateField('name', value));
+                            },
                           ),
                           _buildListTile(
                             title: '用户名',
                             subtitle: manager.username ?? '无数据',
                             themeData: themeData,
                             isLight: isLight,
-                            onTap: () => _showEditDialog(
-                                '用户名',
-                                _usernameController,
-                                (value) => _updateManagerInfo()),
                           ),
                           _buildListTile(
                             title: '密码',
                             subtitle: '点击修改密码',
                             themeData: themeData,
                             isLight: isLight,
-                            onTap: () => _showEditDialog(
-                                '新密码',
-                                _passwordController,
-                                (value) => _updateManagerInfo()),
+                            onTap: () {
+                              _passwordController.clear();
+                              _showEditDialog('密码', _passwordController,
+                                  (value) => _updateField('password', value));
+                            },
                           ),
                           _buildListTile(
                             title: '联系电话',
-                            subtitle: manager.contactNumber ?? '无数据',
+                            subtitle: _driverInfo?.contactNumber ??
+                                manager.contactNumber ??
+                                '无数据',
                             themeData: themeData,
                             isLight: isLight,
-                            onTap: () => _showEditDialog(
-                                '联系电话',
-                                _contactNumberController,
-                                (value) => _updateManagerInfo()),
+                            onTap: () {
+                              _contactNumberController.text =
+                                  _driverInfo?.contactNumber ??
+                                      manager.contactNumber ??
+                                      '';
+                              _showEditDialog(
+                                  '联系电话',
+                                  _contactNumberController,
+                                  (value) =>
+                                      _updateField('contactNumber', value));
+                            },
                           ),
                           _buildListTile(
-                            title: '邮箱',
+                            title: '邮箱地址',
                             subtitle: manager.email ?? '无数据',
                             themeData: themeData,
                             isLight: isLight,
-                            onTap: () => _showEditDialog('邮箱', _emailController,
-                                (value) => _updateManagerInfo()),
+                            onTap: () {
+                              _emailController.text = manager.email ?? '';
+                              _showEditDialog('邮箱地址', _emailController,
+                                  (value) => _updateField('email', value));
+                            },
                           ),
                           _buildListTile(
                             title: '状态',
@@ -535,70 +652,24 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
                             subtitle: manager.remarks ?? '无数据',
                             themeData: themeData,
                             isLight: isLight,
-                            onTap: () => _showEditDialog(
-                                '备注',
-                                _remarksController,
-                                (value) => _updateManagerInfo()),
+                            onTap: () {
+                              _remarksController.text = manager.remarks ?? '';
+                              _showEditDialog('备注', _remarksController,
+                                  (value) => _updateField('remarks', value));
+                            },
                           ),
                           const SizedBox(height: 24.0),
                           Padding(
                             padding:
                                 const EdgeInsets.symmetric(horizontal: 16.0),
                             child: ElevatedButton(
-                              onPressed: _updateManagerInfo,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: themeData.colorScheme.primary,
-                                foregroundColor:
-                                    themeData.colorScheme.onPrimary,
-                                elevation: 4,
-                                shadowColor: themeData.colorScheme.shadow
-                                    .withOpacity(0.3),
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12.0)),
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 32.0, vertical: 14.0),
-                              ),
-                              child: Text(
-                                '保存所有更改',
-                                style: themeData.textTheme.labelLarge?.copyWith(
-                                  color: themeData.colorScheme.onPrimary,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 16.0),
-                          Padding(
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 16.0),
-                            child: ElevatedButton(
-                              onPressed: () => showCupertinoDialog(
-                                context: context,
-                                builder: (_) => CupertinoAlertDialog(
-                                  title: const Text('登出'),
-                                  content: const Text('确定要登出吗？'),
-                                  actions: [
-                                    CupertinoDialogAction(
-                                      child: const Text('取消'),
-                                      onPressed: () => Navigator.pop(context),
-                                    ),
-                                    CupertinoDialogAction(
-                                      isDestructiveAction: true,
-                                      onPressed: _logout,
-                                      child: const Text('确定'),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: themeData.colorScheme.error,
-                                foregroundColor: themeData.colorScheme.onError,
-                                elevation: 4,
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12.0)),
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 32.0, vertical: 14.0),
+                              onPressed: _logout,
+                              style:
+                                  themeData.elevatedButtonTheme.style?.copyWith(
+                                backgroundColor: WidgetStateProperty.all(
+                                    themeData.colorScheme.error),
+                                foregroundColor: WidgetStateProperty.all(
+                                    themeData.colorScheme.onError),
                               ),
                               child: Text(
                                 '退出登录',

@@ -23,13 +23,19 @@ class DriverInformationControllerApi {
       throw Exception('未登录，请重新登录');
     }
     apiClient.setJwtToken(jwtToken);
-    debugPrint('Initialized DriverInformationControllerApi with token: $jwtToken');
+    debugPrint(
+        'Initialized DriverInformationControllerApi with token: $jwtToken');
   }
 
   /// 解码响应体字节到字符串
   String _decodeBodyBytes(Response response) => response.body;
 
-  /// DELETE /api/drivers/{driverId} - 删除司机信息 (仅管理员)
+  /// 添加 idempotencyKey 作为查询参数
+  List<QueryParam> _addIdempotencyKey(String idempotencyKey) {
+    return [QueryParam('idempotencyKey', idempotencyKey)];
+  }
+
+  /// DELETE /api/drivers/{driverId} - 删除司机信息
   Future<void> apiDriversDriverIdDelete({required String driverId}) async {
     if (driverId.isEmpty) {
       throw ApiException(400, "Missing required param: driverId");
@@ -50,7 +56,8 @@ class DriverInformationControllerApi {
   }
 
   /// GET /api/drivers/{driverId} - 根据ID获取司机信息
-  Future<DriverInformation?> apiDriversDriverIdGet({required String driverId}) async {
+  Future<DriverInformation?> apiDriversDriverIdGet(
+      {required String driverId}) async {
     if (driverId.isEmpty) {
       throw ApiException(400, "Missing required param: driverId");
     }
@@ -68,7 +75,8 @@ class DriverInformationControllerApi {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     }
     if (response.body.isEmpty) return null;
-    final data = apiClient.deserialize(_decodeBodyBytes(response), 'Map<String, dynamic>');
+    final data = apiClient.deserialize(
+        _decodeBodyBytes(response), 'Map<String, dynamic>');
     return DriverInformation.fromJson(data);
   }
 
@@ -76,6 +84,7 @@ class DriverInformationControllerApi {
   Future<DriverInformation> apiDriversDriverIdPut({
     required String driverId,
     required DriverInformation driverInformation,
+    required String idempotencyKey,
   }) async {
     if (driverId.isEmpty) {
       throw ApiException(400, "Missing required param: driverId");
@@ -83,7 +92,7 @@ class DriverInformationControllerApi {
     final response = await apiClient.invokeAPI(
       '/api/drivers/$driverId',
       'PUT',
-      [],
+      _addIdempotencyKey(idempotencyKey),
       driverInformation.toJson(),
       {},
       {},
@@ -93,12 +102,14 @@ class DriverInformationControllerApi {
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     }
-    final data = apiClient.deserialize(_decodeBodyBytes(response), 'Map<String, dynamic>');
+    final data = apiClient.deserialize(
+        _decodeBodyBytes(response), 'Map<String, dynamic>');
     return DriverInformation.fromJson(data);
   }
 
   /// GET /api/drivers/driverLicenseNumber/{driverLicenseNumber} - 根据驾照号码获取司机信息
-  Future<DriverInformation?> apiDriversDriverLicenseNumberDriverLicenseNumberGet({
+  Future<DriverInformation?>
+      apiDriversDriverLicenseNumberDriverLicenseNumberGet({
     required String driverLicenseNumber,
   }) async {
     if (driverLicenseNumber.isEmpty) {
@@ -118,7 +129,8 @@ class DriverInformationControllerApi {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     }
     if (response.body.isEmpty) return null;
-    final data = apiClient.deserialize(_decodeBodyBytes(response), 'Map<String, dynamic>');
+    final data = apiClient.deserialize(
+        _decodeBodyBytes(response), 'Map<String, dynamic>');
     return DriverInformation.fromJson(data);
   }
 
@@ -137,12 +149,14 @@ class DriverInformationControllerApi {
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     }
-    final List<dynamic> data = apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    final List<dynamic> data =
+        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
     return DriverInformation.listFromJson(data);
   }
 
   /// GET /api/drivers/idCardNumber/{idCardNumber} - 根据身份证号码获取司机信息
-  Future<DriverInformation?> apiDriversIdCardNumberIdCardNumberGet({required String idCardNumber}) async {
+  Future<DriverInformation?> apiDriversIdCardNumberIdCardNumberGet(
+      {required String idCardNumber}) async {
     if (idCardNumber.isEmpty) {
       throw ApiException(400, "Missing required param: idCardNumber");
     }
@@ -160,12 +174,14 @@ class DriverInformationControllerApi {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     }
     if (response.body.isEmpty) return null;
-    final data = apiClient.deserialize(_decodeBodyBytes(response), 'Map<String, dynamic>');
+    final data = apiClient.deserialize(
+        _decodeBodyBytes(response), 'Map<String, dynamic>');
     return DriverInformation.fromJson(data);
   }
 
   /// GET /api/drivers/name/{name} - 根据姓名获取司机信息
-  Future<List<DriverInformation>> apiDriversNameNameGet({required String name}) async {
+  Future<List<DriverInformation>> apiDriversNameNameGet(
+      {required String name}) async {
     if (name.isEmpty) {
       throw ApiException(400, "Missing required param: name");
     }
@@ -182,16 +198,20 @@ class DriverInformationControllerApi {
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     }
-    final List<dynamic> data = apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    final List<dynamic> data =
+        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
     return DriverInformation.listFromJson(data);
   }
 
-  /// POST /api/drivers - 创建司机信息 (仅管理员)
-  Future<DriverInformation> apiDriversPost({required DriverInformation driverInformation}) async {
+  /// POST /api/drivers - 创建司机信息
+  Future<DriverInformation> apiDriversPost({
+    required DriverInformation driverInformation,
+    required String idempotencyKey,
+  }) async {
     final response = await apiClient.invokeAPI(
       '/api/drivers',
       'POST',
-      [],
+      _addIdempotencyKey(idempotencyKey),
       driverInformation.toJson(),
       {},
       {},
@@ -201,7 +221,8 @@ class DriverInformationControllerApi {
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     }
-    final data = apiClient.deserialize(_decodeBodyBytes(response), 'Map<String, dynamic>');
+    final data = apiClient.deserialize(
+        _decodeBodyBytes(response), 'Map<String, dynamic>');
     return DriverInformation.fromJson(data);
   }
 
@@ -248,6 +269,7 @@ class DriverInformationControllerApi {
   Future<Object?> eventbusDriversDriverIdPut({
     required String driverId,
     required DriverInformation driverInformation,
+    required String idempotencyKey,
   }) async {
     if (driverId.isEmpty) {
       throw ApiException(400, "Missing required param: driverId");
@@ -255,7 +277,7 @@ class DriverInformationControllerApi {
     final msg = {
       "service": "DriverInformation",
       "action": "updateDriver",
-      "args": [int.parse(driverId), driverInformation.toJson()]
+      "args": [int.parse(driverId), driverInformation.toJson(), idempotencyKey]
     };
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
@@ -304,7 +326,8 @@ class DriverInformationControllerApi {
 
   /// GET /api/drivers/idCardNumber/{idCardNumber} (WebSocket)
   /// 对应后端: @WsAction(service="DriverInformation", action="getDriversByIdCardNumber")
-  Future<Object?> eventbusDriversIdCardNumberIdCardNumberGet({required String idCardNumber}) async {
+  Future<Object?> eventbusDriversIdCardNumberIdCardNumberGet(
+      {required String idCardNumber}) async {
     if (idCardNumber.isEmpty) {
       throw ApiException(400, "Missing required param: idCardNumber");
     }
@@ -322,7 +345,8 @@ class DriverInformationControllerApi {
 
   /// GET /api/drivers/name/{name} (WebSocket)
   /// 对应后端: @WsAction(service="DriverInformation", action="getDriversByName")
-  Future<List<Object>?> eventbusDriversNameNameGet({required String name}) async {
+  Future<List<Object>?> eventbusDriversNameNameGet(
+      {required String name}) async {
     if (name.isEmpty) {
       throw ApiException(400, "Missing required param: name");
     }
@@ -343,11 +367,14 @@ class DriverInformationControllerApi {
 
   /// POST /api/drivers (WebSocket)
   /// 对应后端: @WsAction(service="DriverInformation", action="createDriver")
-  Future<Object?> eventbusDriversPost({required DriverInformation driverInformation}) async {
+  Future<Object?> eventbusDriversPost({
+    required DriverInformation driverInformation,
+    required String idempotencyKey,
+  }) async {
     final msg = {
       "service": "DriverInformation",
       "action": "createDriver",
-      "args": [driverInformation.toJson()]
+      "args": [driverInformation.toJson(), idempotencyKey]
     };
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {

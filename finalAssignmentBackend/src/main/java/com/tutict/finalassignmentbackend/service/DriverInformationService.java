@@ -102,7 +102,7 @@ public class DriverInformationService {
         }
     }
 
-    @Cacheable(cacheNames = "driverCache")
+    @Cacheable(cacheNames = "driverCache", unless = "#result == null")
     @WsAction(service = "DriverInformationService", action = "getDriverById")
     public DriverInformation getDriverById(Integer driverId) {
         if (driverId == null || driverId <= 0 || driverId >= Integer.MAX_VALUE) {
@@ -111,13 +111,13 @@ public class DriverInformationService {
         return driverInformationMapper.selectById(driverId);
     }
 
-    @Cacheable(cacheNames = "driverCache")
+    @Cacheable(cacheNames = "driverCache", unless = "#result == null")
     @WsAction(service = "DriverInformationService", action = "getAllDrivers")
     public List<DriverInformation> getAllDrivers() {
         return driverInformationMapper.selectList(null);
     }
 
-    @Cacheable(cacheNames = "driverCache")
+    @Cacheable(cacheNames = "driverCache", unless = "#result == null")
     @WsAction(service = "DriverInformationService", action = "getDriversByIdCardNumber")
     public List<DriverInformation> getDriversByIdCardNumber(String idCardNumber) {
         if (idCardNumber == null || idCardNumber.trim().isEmpty()) {
@@ -128,7 +128,7 @@ public class DriverInformationService {
         return driverInformationMapper.selectList(queryWrapper);
     }
 
-    @Cacheable(cacheNames = "driverCache")
+    @Cacheable(cacheNames = "driverCache", unless = "#result == null")
     @WsAction(service = "DriverInformationService", action = "getDriverByDriverLicenseNumber")
     public DriverInformation getDriverByDriverLicenseNumber(String driverLicenseNumber) {
         if (driverLicenseNumber == null || driverLicenseNumber.trim().isEmpty()) {
@@ -139,7 +139,7 @@ public class DriverInformationService {
         return driverInformationMapper.selectOne(queryWrapper);
     }
 
-    @Cacheable(cacheNames = "driverCache")
+    @Cacheable(cacheNames = "driverCache", unless = "#result == null")
     @WsAction(service = "DriverInformationService", action = "getDriversByName")
     public List<DriverInformation> getDriversByName(String name) {
         if (name == null || name.trim().isEmpty()) {

@@ -1,10 +1,11 @@
-import 'dart:convert';
 import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
 import 'package:final_assignment_front/features/api/auth_controller_api.dart';
+import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/chat_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_dashboard_screen.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
+import 'package:final_assignment_front/features/model/driver_information.dart';
 import 'package:final_assignment_front/features/model/login_request.dart';
 import 'package:final_assignment_front/features/model/register_request.dart';
 import 'package:final_assignment_front/shared_components/local_captcha_main.dart';
@@ -12,8 +13,11 @@ import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_login/flutter_login.dart';
 import 'package:get/get.dart';
-import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+
+String generateIdempotencyKey() {
+  return DateTime.now().millisecondsSinceEpoch.toString();
+}
 
 mixin ValidatorMixin {
   String? validateUsername(String? val) {
@@ -37,13 +41,15 @@ class LoginScreen extends StatefulWidget with ValidatorMixin {
 
 class _LoginScreenState extends State<LoginScreen> {
   late AuthControllerApi authApi;
+  late DriverInformationControllerApi driverApi;
   late String? _userRole;
-  bool _hasSentRegisterRequest = false; // 追踪是否已发送注册请求
+  bool _hasSentRegisterRequest = false;
 
   @override
   void initState() {
     super.initState();
     authApi = AuthControllerApi();
+    driverApi = DriverInformationControllerApi();
     _userRole = null;
     _hasSentRegisterRequest = false;
     if (!Get.isRegistered<ChatController>()) {
@@ -51,6 +57,9 @@ class _LoginScreenState extends State<LoginScreen> {
     }
     if (!Get.isRegistered<DashboardController>()) {
       Get.put(DashboardController());
+    }
+    if (!Get.isRegistered<UserDashboardController>()) {
+      Get.put(UserDashboardController());
     }
   }
 
@@ -142,10 +151,9 @@ class _LoginScreenState extends State<LoginScreen> {
       return '用户已取消注册账号';
     }
 
-    String uniqueKey = DateTime.now().millisecondsSinceEpoch.toString();
+    String uniqueKey = generateIdempotencyKey();
 
     try {
-      // 注册请求
       debugPrint('Sending register request for $username');
       final registerResult = await authApi.apiAuthRegisterPost(
         registerRequest: RegisterRequest(
@@ -160,7 +168,6 @@ class _LoginScreenState extends State<LoginScreen> {
       if (registerResult['status'] == 'CREATED') {
         _hasSentRegisterRequest = true;
 
-        // 立即调用登录请求
         debugPrint('Sending login request for $username after signup');
         final loginResult = await authApi.apiAuthLoginPost(
           loginRequest: LoginRequest(username: username, password: password),
@@ -173,12 +180,26 @@ class _LoginScreenState extends State<LoginScreen> {
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('jwtToken', loginResult['jwtToken']);
           await prefs.setString('userRole', _userRole!);
-          debugPrint('JWT saved: ${loginResult['jwtToken']}');
-          debugPrint('Role saved: $_userRole');
 
           final userData = loginResult['user'] ?? {};
+          final int? userId = userData['userId'];
           final String name = userData['name'] ?? username.split('@').first;
           final String email = userData['email'] ?? username;
+
+          if (userId != null) {
+            await driverApi.initializeWithJwt();
+            final driverInfo = DriverInformation(
+              driverId: userId,
+              name: name,
+              idCardNumber: '',
+              contactNumber: '',
+            );
+            final driverResult = await driverApi.apiDriversPost(
+              driverInformation: driverInfo,
+              idempotencyKey: generateIdempotencyKey(),
+            );
+            debugPrint('Driver created: $driverResult');
+          }
 
           final DashboardController dashboardController =
               Get.find<DashboardController>();
@@ -193,11 +214,9 @@ class _LoginScreenState extends State<LoginScreen> {
               'User Role after signup and login: $_userRole, Name: $name, Email: $email');
           return null;
         } else {
-          debugPrint('Login failed after signup: $loginResult');
           return loginResult['message'] ?? '注册成功，但登录失败';
         }
       }
-      debugPrint('Register failed: $registerResult');
       return registerResult['error'] ?? '注册失败：未知错误';
     } on ApiException catch (e) {
       debugPrint('ApiException in signup: ${e.code} - ${e.message}');
@@ -209,6 +228,13 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<String?> _recoverPassword(String name) async {
+    final emailRegex =
+        RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+    if (!emailRegex.hasMatch(name)) {
+      return '请输入有效的邮箱地址';
+    }
+
+    // Step 1: Validate CAPTCHA
     final bool? isCaptchaValid = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
@@ -216,38 +242,92 @@ class _LoginScreenState extends State<LoginScreen> {
     );
 
     debugPrint('Recover captcha result: $isCaptchaValid');
-
     if (isCaptchaValid != true) {
       debugPrint('Captcha validation failed or cancelled');
       return '密码重置已取消';
     }
 
+    // Step 2: Prompt for new password
+    final TextEditingController newPasswordController = TextEditingController();
+    final bool? passwordConfirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('重置密码'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('请输入新密码：'),
+            TextField(
+              controller: newPasswordController,
+              obscureText: true,
+              decoration: const InputDecoration(
+                hintText: '新密码',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () {
+              if (newPasswordController.text.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('新密码不能为空')),
+                );
+              } else if (newPasswordController.text.length < 3) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('密码太短')),
+                );
+              } else {
+                Navigator.pop(context, true);
+              }
+            },
+            child: const Text('确定'),
+          ),
+        ],
+      ),
+    );
+
+    if (passwordConfirmed != true) {
+      debugPrint('Password reset cancelled or invalid');
+      return '密码重置已取消';
+    }
+
+    // Step 3: Send password reset request
+    final newPassword = newPasswordController.text.trim();
+    final String idempotencyKey = generateIdempotencyKey();
+
     try {
-      const url = 'http://localhost:8081/api/auth/recoverPassword';
-      final response = await http.post(
-        Uri.parse(url),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'username': name}),
+      final response = await authApi.apiClient.invokeAPI(
+        '/api/users/password?username=$name&idempotencyKey=$idempotencyKey',
+        'PUT',
+        [],
+        newPassword,
+        {},
+        {},
+        'text/plain',
+        [], // No bearerAuth
       );
+
       debugPrint(
-          'Recover password response: ${response.statusCode} ${response.body}');
+          'Reset password response: ${response.statusCode} - ${response.body}');
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data['status'] == 'success') {
-          debugPrint('Password recovery successful');
-          return '密码恢复成功';
-        } else {
-          debugPrint('Password recovery failed: ${data['message']}');
-          return data['message'] ?? '密码恢复失败';
-        }
+        debugPrint('Password reset successful');
+        return null; // Success
+      } else if (response.statusCode == 404) {
+        return '用户不存在';
+      } else if (response.statusCode == 403) {
+        return '密码重置失败：权限不足';
       } else {
-        debugPrint(
-            'Recover password failed with status: ${response.statusCode}');
-        return '密码恢复失败：状态码 ${response.statusCode}';
+        return '密码重置失败：状态码 ${response.statusCode}';
       }
     } catch (e) {
-      debugPrint('Recover password exception: $e');
-      return '密码恢复异常: $e';
+      debugPrint('Reset password exception: $e');
+      return '密码重置异常: $e';
     }
   }
 

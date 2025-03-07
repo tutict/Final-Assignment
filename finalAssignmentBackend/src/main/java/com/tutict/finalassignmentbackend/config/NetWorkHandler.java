@@ -8,6 +8,7 @@ import com.tutict.finalassignmentbackend.config.websocket.WsActionRegistry;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.MultiMap;
+import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.*;
 import io.vertx.ext.web.client.HttpResponse;
 import io.vertx.ext.web.client.WebClient;
@@ -239,7 +240,7 @@ public class NetWorkHandler extends AbstractVerticle {
     private void forwardHttpRequest(HttpServerRequest request) {
         String requestId = UUID.randomUUID().toString();
         String path = request.path();
-        String query = request.query(); // Extract query string
+        String query = request.query();
         String targetUrl = backendUrl + ":" + backendPort + path + (query != null ? "?" + query : "");
         log.info("[{}] Forwarding request from path: {} to targetUrl: {}", requestId, path, targetUrl);
 
@@ -257,17 +258,13 @@ public class NetWorkHandler extends AbstractVerticle {
             log.info("[{}] Forwarded header: {} = {}", requestId, entry.getKey(), entry.getValue());
         });
 
-        MultiMap queryParams = request.params(); // Get query parameters
+        MultiMap queryParams = request.params();
         log.info("[{}] Query params: {}", requestId, queryParams);
 
         if (request.method() == HttpMethod.GET) {
             log.info("[{}] Forwarding GET request with query params: {}", requestId, queryParams);
-
-            var httpRequest = webClient.getAbs(targetUrl)
-                    .putHeaders(headers);
-
+            var httpRequest = webClient.getAbs(targetUrl).putHeaders(headers);
             queryParams.forEach(entry -> httpRequest.addQueryParam(entry.getKey(), entry.getValue()));
-
             httpRequest.send()
                     .onSuccess(response -> handleResponse(request, response, requestId))
                     .onFailure(failure -> {
@@ -277,22 +274,48 @@ public class NetWorkHandler extends AbstractVerticle {
         } else {
             request.bodyHandler(body -> {
                 try {
-                    JsonObject jsonBody = body.toJsonObject();
-                    log.info("[{}] body2: {}", requestId, jsonBody);
-
-                    var httpRequest = webClient.postAbs(targetUrl)
-                            .putHeaders(headers)
-                            .putHeader("Content-Type", "application/json");
-
-                    // Add query parameters to POST request
-                    queryParams.forEach(entry -> httpRequest.addQueryParam(entry.getKey(), entry.getValue()));
-
-                    httpRequest.sendJsonObject(jsonBody)
-                            .onSuccess(response -> handleResponse(request, response, requestId))
-                            .onFailure(failure -> {
-                                log.error("[{}] Forwarding HTTP request failed: {}", requestId, failure.getMessage(), failure);
-                                request.response().setStatusCode(500).setStatusMessage("Forwarding failed").end();
-                            });
+                    String contentType = request.getHeader("Content-Type");
+                    if (contentType != null && contentType.toLowerCase().contains("text/plain")) {
+                        // Handle text/plain as a raw string
+                        String rawBody = body.toString();
+                        log.info("[{}] raw body: {}", requestId, rawBody);
+                        var httpRequest = webClient.requestAbs(request.method(), targetUrl)
+                                .putHeaders(headers)
+                                .putHeader("Content-Type", contentType); // Preserve original content type
+                        queryParams.forEach(entry -> httpRequest.addQueryParam(entry.getKey(), entry.getValue()));
+                        httpRequest.sendBuffer(Buffer.buffer(rawBody))
+                                .onSuccess(response -> handleResponse(request, response, requestId))
+                                .onFailure(failure -> {
+                                    log.error("[{}] Forwarding HTTP request failed: {}", requestId, failure.getMessage(), failure);
+                                    request.response().setStatusCode(500).setStatusMessage("Forwarding failed").end();
+                                });
+                    } else if (contentType != null && contentType.toLowerCase().contains("application/json")) {
+                        // Handle application/json as a JSON object
+                        JsonObject jsonBody = body.toJsonObject();
+                        log.info("[{}] body2: {}", requestId, jsonBody);
+                        var httpRequest = webClient.requestAbs(request.method(), targetUrl)
+                                .putHeaders(headers)
+                                .putHeader("Content-Type", "application/json");
+                        queryParams.forEach(entry -> httpRequest.addQueryParam(entry.getKey(), entry.getValue()));
+                        httpRequest.sendJsonObject(jsonBody)
+                                .onSuccess(response -> handleResponse(request, response, requestId))
+                                .onFailure(failure -> {
+                                    log.error("[{}] Forwarding HTTP request failed: {}", requestId, failure.getMessage(), failure);
+                                    request.response().setStatusCode(500).setStatusMessage("Forwarding failed").end();
+                                });
+                    } else {
+                        // Default to raw buffer for unrecognized content types
+                        log.warn("[{}] Unrecognized Content-Type: {}, forwarding as raw buffer", requestId, contentType);
+                        var httpRequest = webClient.requestAbs(request.method(), targetUrl)
+                                .putHeaders(headers);
+                        queryParams.forEach(entry -> httpRequest.addQueryParam(entry.getKey(), entry.getValue()));
+                        httpRequest.sendBuffer(body)
+                                .onSuccess(response -> handleResponse(request, response, requestId))
+                                .onFailure(failure -> {
+                                    log.error("[{}] Forwarding HTTP request failed: {}", requestId, failure.getMessage(), failure);
+                                    request.response().setStatusCode(500).setStatusMessage("Forwarding failed").end();
+                                });
+                    }
                 } catch (Exception e) {
                     log.error("[{}] Request body parsing failed: {}", requestId, e.getMessage(), e);
                     request.response().setStatusCode(400).setStatusMessage("Request body parsing failed").end();

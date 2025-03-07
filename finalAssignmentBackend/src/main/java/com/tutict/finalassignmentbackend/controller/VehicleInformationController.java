@@ -22,7 +22,7 @@ public class VehicleInformationController {
 
     @PostMapping
     @Transactional
-    @PreAuthorize("hasRole('ADMIN', 'USER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public ResponseEntity<Void> createVehicleInformation(@RequestBody VehicleInformation vehicleInformation, @RequestParam String idempotencyKey) {
         vehicleInformationService.checkAndInsertIdempotency(idempotencyKey, vehicleInformation, "create");
         return ResponseEntity.status(HttpStatus.CREATED).build();

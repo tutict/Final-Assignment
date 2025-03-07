@@ -16,10 +16,10 @@ class _FineInformationPageState extends State<FineInformationPage> {
   late FineInformationControllerApi fineApi;
   late Future<List<FineInformation>> _finesFuture;
   final UserDashboardController controller =
-  Get.find<UserDashboardController>();
+      Get.find<UserDashboardController>();
   bool _isLoading = true;
   String _errorMessage = '';
-  String? _currentUsername; // 用于筛选当前用户的罚款记录
+  String? _currentUsername;
 
   @override
   void initState() {
@@ -36,11 +36,10 @@ class _FineInformationPageState extends State<FineInformationPage> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final jwtToken = prefs.getString('jwtToken');
-      _currentUsername = prefs.getString('userName'); // 假定用户名已存储
+      _currentUsername = prefs.getString('userName');
       if (jwtToken == null || _currentUsername == null) {
-        throw Exception('No JWT token or username found');
+        throw Exception('未登录或未找到用户信息');
       }
-      // 初始化 jwt 到 ApiClient
       await fineApi.initializeWithJwt();
       _finesFuture = _loadUserFines();
     } catch (e) {
@@ -72,9 +71,8 @@ class _FineInformationPageState extends State<FineInformationPage> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message,
-            style: TextStyle(color: isError ? Colors.red : Colors.white)),
-        backgroundColor: isError ? Colors.grey[800] : Colors.green,
+        content: Text(message),
+        backgroundColor: isError ? Colors.red : Colors.green,
       ),
     );
   }
@@ -87,158 +85,208 @@ class _FineInformationPageState extends State<FineInformationPage> {
     });
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final bool isLight = Theme.of(context).brightness == Brightness.light;
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('交通违法罚款记录'),
-        backgroundColor: isLight ? Colors.blue : Colors.blueGrey,
-        foregroundColor: Colors.white,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : _errorMessage.isNotEmpty
-            ? Center(
-          child: Text(
-            _errorMessage,
-            style: TextStyle(
-                color: isLight ? Colors.black : Colors.white),
-          ),
-        )
-            : Column(
-          children: [
-            Expanded(
-              child: FutureBuilder<List<FineInformation>>(
-                future: _finesFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState ==
-                      ConnectionState.waiting) {
-                    return const Center(
-                        child: CircularProgressIndicator());
-                  } else if (snapshot.hasError) {
-                    return Center(
-                      child: Text(
-                        '加载罚款信息失败: ${snapshot.error}',
-                        style: TextStyle(
-                            color: isLight
-                                ? Colors.black
-                                : Colors.white),
-                      ),
-                    );
-                  } else if (!snapshot.hasData ||
-                      snapshot.data!.isEmpty) {
-                    return Center(
-                      child: Text(
-                        '暂无罚款记录',
-                        style: TextStyle(
-                            color: isLight
-                                ? Colors.black
-                                : Colors.white),
-                      ),
-                    );
-                  } else {
-                    final fines = snapshot.data!;
-                    return ListView.builder(
-                      itemCount: fines.length,
-                      itemBuilder: (context, index) {
-                        final record = fines[index];
-                        final amount = record.fineAmount ?? 0.0;
-                        final payee = record.payee ?? '未知';
-                        final date = record.fineTime ?? '未知';
-                        final status = record.status ?? 'Pending';
-                        return Card(
-                          elevation: 2,
-                          margin: const EdgeInsets.symmetric(
-                              vertical: 8.0),
-                          color: isLight
-                              ? Colors.white
-                              : Colors.grey[800],
-                          child: ListTile(
-                            title: Text(
-                              '罚款金额: \$${amount.toStringAsFixed(2)}',
-                              style: TextStyle(
-                                  color: isLight
-                                      ? Colors.black87
-                                      : Colors.white),
-                            ),
-                            subtitle: Text(
-                              '缴款人: $payee\n时间: $date\n状态: $status',
-                              style: TextStyle(
-                                  color: isLight
-                                      ? Colors.black54
-                                      : Colors.white70),
-                            ),
-                            trailing: Icon(
-                              Icons.info,
-                              color: isLight
-                                  ? Colors.grey
-                                  : Colors.white70,
-                            ),
-                            onTap: () {
-                              _showFineDetailsDialog(record);
-                            },
-                          ),
-                        );
-                      },
-                    );
-                  }
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _refreshFines,
-        backgroundColor: isLight ? Colors.blue : Colors.blueGrey,
-        tooltip: '刷新罚款记录',
-        child: const Icon(Icons.refresh),
-      ),
-    );
-  }
-
   void _showFineDetailsDialog(FineInformation fine) {
+    final themeData = controller.currentBodyTheme.value;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('罚款详情'),
+        backgroundColor: themeData.colorScheme.surfaceContainer,
+        title: Text(
+          '罚款详情',
+          style: themeData.textTheme.titleLarge?.copyWith(
+            color: themeData.colorScheme.onSurface,
+          ),
+        ),
         content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildDetailRow(
-                  '罚款金额', '\$${fine.fineAmount?.toStringAsFixed(2) ?? "0.00"}'),
-              _buildDetailRow('缴款人', fine.payee ?? '未知'),
-              _buildDetailRow('银行账号', fine.accountNumber ?? '未知'),
-              _buildDetailRow('银行名称', fine.bank ?? '未知'),
-              _buildDetailRow('收据编号', fine.receiptNumber ?? '未知'),
-              _buildDetailRow('罚款时间', fine.fineTime ?? '未知'),
-              _buildDetailRow('状态', fine.status ?? 'Pending'),
-              _buildDetailRow('备注', fine.remarks ?? '无'),
+                  '罚款金额',
+                  '\$${fine.fineAmount?.toStringAsFixed(2) ?? "0.00"}',
+                  themeData),
+              _buildDetailRow('缴款人', fine.payee ?? '未知', themeData),
+              _buildDetailRow('银行账号', fine.accountNumber ?? '未知', themeData),
+              _buildDetailRow('银行名称', fine.bank ?? '未知', themeData),
+              _buildDetailRow('收据编号', fine.receiptNumber ?? '未知', themeData),
+              _buildDetailRow('罚款时间', fine.fineTime ?? '未知', themeData),
+              _buildDetailRow('状态', fine.status ?? 'Pending', themeData),
+              _buildDetailRow('备注', fine.remarks ?? '无', themeData),
             ],
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('关闭'),
+            child: Text(
+              '关闭',
+              style: themeData.textTheme.labelMedium?.copyWith(
+                color: themeData.colorScheme.onSurface,
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildDetailRow(String label, String value) {
+  Widget _buildDetailRow(String label, String value, ThemeData themeData) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(
         children: [
-          Text('$label: ', style: const TextStyle(fontWeight: FontWeight.bold)),
-          Expanded(child: Text(value)),
+          Text(
+            '$label: ',
+            style: themeData.textTheme.bodyLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: themeData.colorScheme.onSurface,
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: themeData.textTheme.bodyMedium?.copyWith(
+                color: themeData.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
         ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final themeData = controller.currentBodyTheme.value;
+
+    return Scaffold(
+      backgroundColor: themeData.colorScheme.surface,
+      appBar: AppBar(
+        title: Text(
+          '交通违法罚款记录',
+          style: themeData.textTheme.headlineSmall?.copyWith(
+            color: themeData.colorScheme.onSurface,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        backgroundColor: themeData.colorScheme.primaryContainer,
+        foregroundColor: themeData.colorScheme.onPrimaryContainer,
+        elevation: 2,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: _isLoading
+            ? Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                      themeData.colorScheme.primary),
+                ),
+              )
+            : _errorMessage.isNotEmpty
+                ? Center(
+                    child: Text(
+                      _errorMessage,
+                      style: themeData.textTheme.bodyLarge?.copyWith(
+                        color: themeData.colorScheme.onSurface,
+                      ),
+                    ),
+                  )
+                : Column(
+                    children: [
+                      Expanded(
+                        child: FutureBuilder<List<FineInformation>>(
+                          future: _finesFuture,
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState ==
+                                ConnectionState.waiting) {
+                              return Center(
+                                child: CircularProgressIndicator(
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                      themeData.colorScheme.primary),
+                                ),
+                              );
+                            } else if (snapshot.hasError) {
+                              return Center(
+                                child: Text(
+                                  '加载罚款信息失败: ${snapshot.error}',
+                                  style:
+                                      themeData.textTheme.bodyLarge?.copyWith(
+                                    color: themeData.colorScheme.onSurface,
+                                  ),
+                                ),
+                              );
+                            } else if (!snapshot.hasData ||
+                                snapshot.data!.isEmpty) {
+                              return Center(
+                                child: Text(
+                                  '暂无罚款记录',
+                                  style:
+                                      themeData.textTheme.bodyLarge?.copyWith(
+                                    color: themeData.colorScheme.onSurface,
+                                  ),
+                                ),
+                              );
+                            } else {
+                              final fines = snapshot.data!;
+                              return ListView.builder(
+                                itemCount: fines.length,
+                                itemBuilder: (context, index) {
+                                  final record = fines[index];
+                                  final amount = record.fineAmount ?? 0.0;
+                                  final payee = record.payee ?? '未知';
+                                  final date = record.fineTime ?? '未知';
+                                  final status = record.status ?? 'Pending';
+                                  return Card(
+                                    elevation: 2,
+                                    margin: const EdgeInsets.symmetric(
+                                        vertical: 8.0),
+                                    color:
+                                        themeData.colorScheme.surfaceContainer,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12.0),
+                                    ),
+                                    child: ListTile(
+                                      title: Text(
+                                        '罚款金额: \$${amount.toStringAsFixed(2)}',
+                                        style: themeData.textTheme.bodyLarge
+                                            ?.copyWith(
+                                          color:
+                                              themeData.colorScheme.onSurface,
+                                        ),
+                                      ),
+                                      subtitle: Text(
+                                        '缴款人: $payee\n时间: $date\n状态: $status',
+                                        style: themeData.textTheme.bodyMedium
+                                            ?.copyWith(
+                                          color: themeData
+                                              .colorScheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                      trailing: Icon(
+                                        Icons.info,
+                                        color: themeData
+                                            .colorScheme.onSurfaceVariant,
+                                      ),
+                                      onTap: () {
+                                        _showFineDetailsDialog(record);
+                                      },
+                                    ),
+                                  );
+                                },
+                              );
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _refreshFines,
+        backgroundColor: themeData.colorScheme.primary,
+        foregroundColor: themeData.colorScheme.onPrimary,
+        tooltip: '刷新罚款记录',
+        child: const Icon(Icons.refresh),
       ),
     );
   }

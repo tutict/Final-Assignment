@@ -21,12 +21,14 @@ class DriverList extends StatefulWidget {
 class _DriverListPageState extends State<DriverList> {
   late DriverInformationControllerApi driverApi;
   late Future<List<DriverInformation>> _driversFuture;
-  final UserDashboardController controller = Get.find<UserDashboardController>();
+  final UserDashboardController controller =
+      Get.find<UserDashboardController>();
   bool _isLoading = true;
   String _errorMessage = '';
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _idCardNumberController = TextEditingController();
-  final TextEditingController _driverLicenseNumberController = TextEditingController();
+  final TextEditingController _driverLicenseNumberController =
+      TextEditingController();
 
   @override
   void initState() {
@@ -50,9 +52,9 @@ class _DriverListPageState extends State<DriverList> {
       _errorMessage = '';
     });
     try {
-      await driverApi.initializeWithJwt(); // Set JWT before making the API call
-      _driversFuture = driverApi.apiDriversGet(); // Assign future after JWT is set
-      await _driversFuture; // Wait for the data
+      await driverApi.initializeWithJwt();
+      _driversFuture = driverApi.apiDriversGet();
+      await _driversFuture;
       setState(() {
         _isLoading = false;
       });
@@ -109,7 +111,8 @@ class _DriverListPageState extends State<DriverList> {
     });
     try {
       await driverApi.initializeWithJwt();
-      final driver = await driverApi.apiDriversIdCardNumberIdCardNumberGet(idCardNumber: query);
+      final driver = await driverApi.apiDriversIdCardNumberIdCardNumberGet(
+          idCardNumber: query);
       _driversFuture = Future.value(driver != null ? [driver] : []);
       await _driversFuture;
       setState(() {
@@ -139,8 +142,9 @@ class _DriverListPageState extends State<DriverList> {
     });
     try {
       await driverApi.initializeWithJwt();
-      final driver = await driverApi.apiDriversDriverLicenseNumberDriverLicenseNumberGet(
-          driverLicenseNumber: query);
+      final driver =
+          await driverApi.apiDriversDriverLicenseNumberDriverLicenseNumberGet(
+              driverLicenseNumber: query);
       _driversFuture = Future.value(driver != null ? [driver] : []);
       await _driversFuture;
       setState(() {
@@ -172,20 +176,20 @@ class _DriverListPageState extends State<DriverList> {
 
   void _redirectToLogin() {
     if (!mounted) return;
-    Navigator.pushReplacementNamed(context, '/login'); // Adjust route name as needed
+    Navigator.pushReplacementNamed(context, '/login');
   }
 
   void _showSuccessSnackBar(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _showErrorSnackBar(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message, style: const TextStyle(color: Colors.red))),
+      SnackBar(
+          content: Text(message, style: const TextStyle(color: Colors.red))),
     );
   }
 
@@ -206,7 +210,7 @@ class _DriverListPageState extends State<DriverList> {
     final bool isLight = currentTheme.brightness == Brightness.light;
 
     return Obx(
-          () => Theme(
+      () => Theme(
         data: controller.currentBodyTheme.value,
         child: Scaffold(
           appBar: AppBar(
@@ -219,15 +223,20 @@ class _DriverListPageState extends State<DriverList> {
                   if (value == 'name') {
                     _searchDriversByName(_nameController.text.trim());
                   } else if (value == 'idCard') {
-                    _searchDriversByIdCardNumber(_idCardNumberController.text.trim());
+                    _searchDriversByIdCardNumber(
+                        _idCardNumberController.text.trim());
                   } else if (value == 'license') {
-                    _searchDriversByDriverLicenseNumber(_driverLicenseNumberController.text.trim());
+                    _searchDriversByDriverLicenseNumber(
+                        _driverLicenseNumberController.text.trim());
                   }
                 },
                 itemBuilder: (context) => [
-                  const PopupMenuItem<String>(value: 'name', child: Text('按姓名搜索')),
-                  const PopupMenuItem<String>(value: 'idCard', child: Text('按身份证号搜索')),
-                  const PopupMenuItem<String>(value: 'license', child: Text('按驾驶证号搜索')),
+                  const PopupMenuItem<String>(
+                      value: 'name', child: Text('按姓名搜索')),
+                  const PopupMenuItem<String>(
+                      value: 'idCard', child: Text('按身份证号搜索')),
+                  const PopupMenuItem<String>(
+                      value: 'license', child: Text('按驾驶证号搜索')),
                 ],
                 icon: const Icon(Icons.filter_list, color: Colors.white),
               ),
@@ -236,7 +245,8 @@ class _DriverListPageState extends State<DriverList> {
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const AddDriverPage()),
+                    MaterialPageRoute(
+                        builder: (context) => const AddDriverPage()),
                   ).then((value) {
                     if (value == true && mounted) {
                       _loadDrivers();
@@ -259,23 +269,31 @@ class _DriverListPageState extends State<DriverList> {
                         decoration: InputDecoration(
                           labelText: '姓名',
                           prefixIcon: const Icon(Icons.search),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.0)),
-                          labelStyle: TextStyle(color: isLight ? Colors.black87 : Colors.white),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8.0)),
+                          labelStyle: TextStyle(
+                              color: isLight ? Colors.black87 : Colors.white),
                           enabledBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: isLight ? Colors.grey : Colors.grey[500]!),
+                            borderSide: BorderSide(
+                                color:
+                                    isLight ? Colors.grey : Colors.grey[500]!),
                           ),
                           focusedBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: isLight ? Colors.blue : Colors.blueGrey),
+                            borderSide: BorderSide(
+                                color: isLight ? Colors.blue : Colors.blueGrey),
                           ),
                         ),
-                        style: TextStyle(color: isLight ? Colors.black : Colors.white),
+                        style: TextStyle(
+                            color: isLight ? Colors.black : Colors.white),
                       ),
                     ),
                     const SizedBox(width: 8),
                     ElevatedButton(
-                      onPressed: () => _searchDriversByName(_nameController.text.trim()),
+                      onPressed: () =>
+                          _searchDriversByName(_nameController.text.trim()),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: isLight ? Colors.blue : Colors.blueGrey,
+                        backgroundColor:
+                            isLight ? Colors.blue : Colors.blueGrey,
                         foregroundColor: Colors.white,
                       ),
                       child: const Text('搜索'),
@@ -291,24 +309,32 @@ class _DriverListPageState extends State<DriverList> {
                         decoration: InputDecoration(
                           labelText: '身份证号',
                           prefixIcon: const Icon(Icons.card_membership),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.0)),
-                          labelStyle: TextStyle(color: isLight ? Colors.black87 : Colors.white),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8.0)),
+                          labelStyle: TextStyle(
+                              color: isLight ? Colors.black87 : Colors.white),
                           enabledBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: isLight ? Colors.grey : Colors.grey[500]!),
+                            borderSide: BorderSide(
+                                color:
+                                    isLight ? Colors.grey : Colors.grey[500]!),
                           ),
                           focusedBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: isLight ? Colors.blue : Colors.blueGrey),
+                            borderSide: BorderSide(
+                                color: isLight ? Colors.blue : Colors.blueGrey),
                           ),
                         ),
-                        style: TextStyle(color: isLight ? Colors.black : Colors.white),
+                        style: TextStyle(
+                            color: isLight ? Colors.black : Colors.white),
                         keyboardType: TextInputType.number,
                       ),
                     ),
                     const SizedBox(width: 8),
                     ElevatedButton(
-                      onPressed: () => _searchDriversByIdCardNumber(_idCardNumberController.text.trim()),
+                      onPressed: () => _searchDriversByIdCardNumber(
+                          _idCardNumberController.text.trim()),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: isLight ? Colors.blue : Colors.blueGrey,
+                        backgroundColor:
+                            isLight ? Colors.blue : Colors.blueGrey,
                         foregroundColor: Colors.white,
                       ),
                       child: const Text('搜索'),
@@ -324,23 +350,31 @@ class _DriverListPageState extends State<DriverList> {
                         decoration: InputDecoration(
                           labelText: '驾驶证号',
                           prefixIcon: const Icon(Icons.drive_eta),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.0)),
-                          labelStyle: TextStyle(color: isLight ? Colors.black87 : Colors.white),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8.0)),
+                          labelStyle: TextStyle(
+                              color: isLight ? Colors.black87 : Colors.white),
                           enabledBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: isLight ? Colors.grey : Colors.grey[500]!),
+                            borderSide: BorderSide(
+                                color:
+                                    isLight ? Colors.grey : Colors.grey[500]!),
                           ),
                           focusedBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: isLight ? Colors.blue : Colors.blueGrey),
+                            borderSide: BorderSide(
+                                color: isLight ? Colors.blue : Colors.blueGrey),
                           ),
                         ),
-                        style: TextStyle(color: isLight ? Colors.black : Colors.white),
+                        style: TextStyle(
+                            color: isLight ? Colors.black : Colors.white),
                       ),
                     ),
                     const SizedBox(width: 8),
                     ElevatedButton(
-                      onPressed: () => _searchDriversByDriverLicenseNumber(_driverLicenseNumberController.text.trim()),
+                      onPressed: () => _searchDriversByDriverLicenseNumber(
+                          _driverLicenseNumberController.text.trim()),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: isLight ? Colors.blue : Colors.blueGrey,
+                        backgroundColor:
+                            isLight ? Colors.blue : Colors.blueGrey,
                         foregroundColor: Colors.white,
                       ),
                       child: const Text('搜索'),
@@ -349,7 +383,8 @@ class _DriverListPageState extends State<DriverList> {
                 ),
                 const SizedBox(height: 16),
                 if (_isLoading)
-                  const Expanded(child: Center(child: CircularProgressIndicator()))
+                  const Expanded(
+                      child: Center(child: CircularProgressIndicator()))
                 else if (_errorMessage.isNotEmpty)
                   Expanded(child: Center(child: Text(_errorMessage)))
                 else
@@ -357,20 +392,25 @@ class _DriverListPageState extends State<DriverList> {
                     child: FutureBuilder<List<DriverInformation>>(
                       future: _driversFuture,
                       builder: (context, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.waiting) {
-                          return const Center(child: CircularProgressIndicator());
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Center(
+                              child: CircularProgressIndicator());
                         } else if (snapshot.hasError) {
                           return Center(
                             child: Text(
                               '加载司机信息失败: ${snapshot.error}',
-                              style: TextStyle(color: isLight ? Colors.black : Colors.white),
+                              style: TextStyle(
+                                  color: isLight ? Colors.black : Colors.white),
                             ),
                           );
-                        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                        } else if (!snapshot.hasData ||
+                            snapshot.data!.isEmpty) {
                           return Center(
                             child: Text(
                               '暂无司机信息',
-                              style: TextStyle(color: isLight ? Colors.black : Colors.white),
+                              style: TextStyle(
+                                  color: isLight ? Colors.black : Colors.white),
                             ),
                           );
                         } else {
@@ -382,18 +422,28 @@ class _DriverListPageState extends State<DriverList> {
                               itemBuilder: (context, index) {
                                 final driver = drivers[index];
                                 return Card(
-                                  margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+                                  margin: const EdgeInsets.symmetric(
+                                      vertical: 8.0, horizontal: 16.0),
                                   elevation: 4,
-                                  color: isLight ? Colors.white : Colors.grey[800],
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
+                                  color:
+                                      isLight ? Colors.white : Colors.grey[800],
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius:
+                                          BorderRadius.circular(10.0)),
                                   child: ListTile(
                                     title: Text(
                                       '司机姓名: ${driver.name ?? "未知"}',
-                                      style: TextStyle(color: isLight ? Colors.black87 : Colors.white),
+                                      style: TextStyle(
+                                          color: isLight
+                                              ? Colors.black87
+                                              : Colors.white),
                                     ),
                                     subtitle: Text(
                                       '驾驶证号: ${driver.driverLicenseNumber ?? ""}\n联系电话: ${driver.contactNumber ?? ""}',
-                                      style: TextStyle(color: isLight ? Colors.black54 : Colors.white70),
+                                      style: TextStyle(
+                                          color: isLight
+                                              ? Colors.black54
+                                              : Colors.white70),
                                     ),
                                     trailing: PopupMenuButton<String>(
                                       onSelected: (value) {
@@ -407,10 +457,15 @@ class _DriverListPageState extends State<DriverList> {
                                         }
                                       },
                                       itemBuilder: (context) => [
-                                        const PopupMenuItem<String>(value: 'edit', child: Text('编辑')),
-                                        const PopupMenuItem<String>(value: 'delete', child: Text('删除')),
+                                        const PopupMenuItem<String>(
+                                            value: 'edit', child: Text('编辑')),
+                                        const PopupMenuItem<String>(
+                                            value: 'delete', child: Text('删除')),
                                       ],
-                                      icon: Icon(Icons.more_vert, color: isLight ? Colors.black87 : Colors.white),
+                                      icon: Icon(Icons.more_vert,
+                                          color: isLight
+                                              ? Colors.black87
+                                              : Colors.white),
                                     ),
                                     onTap: () => _goToDetailPage(driver),
                                   ),
@@ -443,8 +498,10 @@ class _AddDriverPageState extends State<AddDriverPage> {
   final driverApi = DriverInformationControllerApi();
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _idCardNumberController = TextEditingController();
-  final TextEditingController _contactNumberController = TextEditingController();
-  final TextEditingController _driverLicenseNumberController = TextEditingController();
+  final TextEditingController _contactNumberController =
+      TextEditingController();
+  final TextEditingController _driverLicenseNumberController =
+      TextEditingController();
   bool _isLoading = false;
 
   @override
@@ -468,7 +525,11 @@ class _AddDriverPageState extends State<AddDriverPage> {
         contactNumber: _contactNumberController.text.trim(),
         driverLicenseNumber: _driverLicenseNumberController.text.trim(),
       );
-      await driverApi.apiDriversPost(driverInformation: driver);
+      final String idempotencyKey = generateIdempotencyKey();
+      await driverApi.apiDriversPost(
+        driverInformation: driver,
+        idempotencyKey: idempotencyKey,
+      );
       _showSuccessSnackBar('创建司机成功！');
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
@@ -480,13 +541,15 @@ class _AddDriverPageState extends State<AddDriverPage> {
 
   void _showSuccessSnackBar(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _showErrorSnackBar(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message, style: const TextStyle(color: Colors.red))),
+      SnackBar(
+          content: Text(message, style: const TextStyle(color: Colors.red))),
     );
   }
 
@@ -504,96 +567,114 @@ class _AddDriverPageState extends State<AddDriverPage> {
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : SingleChildScrollView(
-          child: Column(
-            children: [
-              TextField(
-                controller: _nameController,
-                decoration: InputDecoration(
-                  labelText: '姓名',
-                  border: const OutlineInputBorder(),
-                  labelStyle: TextStyle(color: isLight ? Colors.black87 : Colors.white),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: isLight ? Colors.grey : Colors.grey[500]!),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: isLight ? Colors.blue : Colors.blueGrey),
-                  ),
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: _nameController,
+                      decoration: InputDecoration(
+                        labelText: '姓名',
+                        border: const OutlineInputBorder(),
+                        labelStyle: TextStyle(
+                            color: isLight ? Colors.black87 : Colors.white),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                              color: isLight ? Colors.grey : Colors.grey[500]!),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                              color: isLight ? Colors.blue : Colors.blueGrey),
+                        ),
+                      ),
+                      style: TextStyle(
+                          color: isLight ? Colors.black : Colors.white),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: _idCardNumberController,
+                      decoration: InputDecoration(
+                        labelText: '身份证号码',
+                        border: const OutlineInputBorder(),
+                        labelStyle: TextStyle(
+                            color: isLight ? Colors.black87 : Colors.white),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                              color: isLight ? Colors.grey : Colors.grey[500]!),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                              color: isLight ? Colors.blue : Colors.blueGrey),
+                        ),
+                      ),
+                      style: TextStyle(
+                          color: isLight ? Colors.black : Colors.white),
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: _contactNumberController,
+                      decoration: InputDecoration(
+                        labelText: '联系电话',
+                        border: const OutlineInputBorder(),
+                        labelStyle: TextStyle(
+                            color: isLight ? Colors.black87 : Colors.white),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                              color: isLight ? Colors.grey : Colors.grey[500]!),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                              color: isLight ? Colors.blue : Colors.blueGrey),
+                        ),
+                      ),
+                      style: TextStyle(
+                          color: isLight ? Colors.black : Colors.white),
+                      keyboardType: TextInputType.phone,
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: _driverLicenseNumberController,
+                      decoration: InputDecoration(
+                        labelText: '驾驶证号',
+                        border: const OutlineInputBorder(),
+                        labelStyle: TextStyle(
+                            color: isLight ? Colors.black87 : Colors.white),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                              color: isLight ? Colors.grey : Colors.grey[500]!),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                              color: isLight ? Colors.blue : Colors.blueGrey),
+                        ),
+                      ),
+                      style: TextStyle(
+                          color: isLight ? Colors.black : Colors.white),
+                    ),
+                    const SizedBox(height: 20),
+                    ElevatedButton(
+                      onPressed: _submitDriver,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor:
+                            isLight ? Colors.blue : Colors.blueGrey,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size.fromHeight(50),
+                      ),
+                      child: const Text('提交'),
+                    ),
+                    const SizedBox(height: 20),
+                    ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(50),
+                        backgroundColor: Colors.grey,
+                        foregroundColor:
+                            isLight ? Colors.black87 : Colors.white,
+                      ),
+                      child: const Text('返回上一级'),
+                    ),
+                  ],
                 ),
-                style: TextStyle(color: isLight ? Colors.black : Colors.white),
               ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _idCardNumberController,
-                decoration: InputDecoration(
-                  labelText: '身份证号码',
-                  border: const OutlineInputBorder(),
-                  labelStyle: TextStyle(color: isLight ? Colors.black87 : Colors.white),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: isLight ? Colors.grey : Colors.grey[500]!),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: isLight ? Colors.blue : Colors.blueGrey),
-                  ),
-                ),
-                style: TextStyle(color: isLight ? Colors.black : Colors.white),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _contactNumberController,
-                decoration: InputDecoration(
-                  labelText: '联系电话',
-                  border: const OutlineInputBorder(),
-                  labelStyle: TextStyle(color: isLight ? Colors.black87 : Colors.white),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: isLight ? Colors.grey : Colors.grey[500]!),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: isLight ? Colors.blue : Colors.blueGrey),
-                  ),
-                ),
-                style: TextStyle(color: isLight ? Colors.black : Colors.white),
-                keyboardType: TextInputType.phone,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _driverLicenseNumberController,
-                decoration: InputDecoration(
-                  labelText: '驾驶证号',
-                  border: const OutlineInputBorder(),
-                  labelStyle: TextStyle(color: isLight ? Colors.black87 : Colors.white),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: isLight ? Colors.grey : Colors.grey[500]!),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: isLight ? Colors.blue : Colors.blueGrey),
-                  ),
-                ),
-                style: TextStyle(color: isLight ? Colors.black : Colors.white),
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: _submitDriver,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: isLight ? Colors.blue : Colors.blueGrey,
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size.fromHeight(50),
-                ),
-                child: const Text('提交'),
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context),
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(50),
-                  backgroundColor: Colors.grey,
-                  foregroundColor: isLight ? Colors.black87 : Colors.white,
-                ),
-                child: const Text('返回上一级'),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -613,8 +694,10 @@ class _EditDriverPageState extends State<EditDriverPage> {
   final driverApi = DriverInformationControllerApi();
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _idCardNumberController = TextEditingController();
-  final TextEditingController _contactNumberController = TextEditingController();
-  final TextEditingController _driverLicenseNumberController = TextEditingController();
+  final TextEditingController _contactNumberController =
+      TextEditingController();
+  final TextEditingController _driverLicenseNumberController =
+      TextEditingController();
   bool _isLoading = false;
 
   @override
@@ -627,7 +710,8 @@ class _EditDriverPageState extends State<EditDriverPage> {
     _nameController.text = widget.driver.name ?? '';
     _idCardNumberController.text = widget.driver.idCardNumber ?? '';
     _contactNumberController.text = widget.driver.contactNumber ?? '';
-    _driverLicenseNumberController.text = widget.driver.driverLicenseNumber ?? '';
+    _driverLicenseNumberController.text =
+        widget.driver.driverLicenseNumber ?? '';
   }
 
   @override
@@ -652,9 +736,11 @@ class _EditDriverPageState extends State<EditDriverPage> {
         contactNumber: _contactNumberController.text.trim(),
         driverLicenseNumber: _driverLicenseNumberController.text.trim(),
       );
+      final String idempotencyKey = generateIdempotencyKey();
       await driverApi.apiDriversDriverIdPut(
         driverId: widget.driver.driverId?.toString() ?? '',
         driverInformation: driver,
+        idempotencyKey: idempotencyKey,
       );
       _showSuccessSnackBar('更新司机成功！');
       if (mounted) Navigator.pop(context, true);
@@ -667,13 +753,15 @@ class _EditDriverPageState extends State<EditDriverPage> {
 
   void _showSuccessSnackBar(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _showErrorSnackBar(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message, style: const TextStyle(color: Colors.red))),
+      SnackBar(
+          content: Text(message, style: const TextStyle(color: Colors.red))),
     );
   }
 
@@ -691,96 +779,114 @@ class _EditDriverPageState extends State<EditDriverPage> {
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : SingleChildScrollView(
-          child: Column(
-            children: [
-              TextField(
-                controller: _nameController,
-                decoration: InputDecoration(
-                  labelText: '姓名',
-                  border: const OutlineInputBorder(),
-                  labelStyle: TextStyle(color: isLight ? Colors.black87 : Colors.white),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: isLight ? Colors.grey : Colors.grey[500]!),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: isLight ? Colors.blue : Colors.blueGrey),
-                  ),
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: _nameController,
+                      decoration: InputDecoration(
+                        labelText: '姓名',
+                        border: const OutlineInputBorder(),
+                        labelStyle: TextStyle(
+                            color: isLight ? Colors.black87 : Colors.white),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                              color: isLight ? Colors.grey : Colors.grey[500]!),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                              color: isLight ? Colors.blue : Colors.blueGrey),
+                        ),
+                      ),
+                      style: TextStyle(
+                          color: isLight ? Colors.black : Colors.white),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: _idCardNumberController,
+                      decoration: InputDecoration(
+                        labelText: '身份证号码',
+                        border: const OutlineInputBorder(),
+                        labelStyle: TextStyle(
+                            color: isLight ? Colors.black87 : Colors.white),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                              color: isLight ? Colors.grey : Colors.grey[500]!),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                              color: isLight ? Colors.blue : Colors.blueGrey),
+                        ),
+                      ),
+                      style: TextStyle(
+                          color: isLight ? Colors.black : Colors.white),
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: _contactNumberController,
+                      decoration: InputDecoration(
+                        labelText: '联系电话',
+                        border: const OutlineInputBorder(),
+                        labelStyle: TextStyle(
+                            color: isLight ? Colors.black87 : Colors.white),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                              color: isLight ? Colors.grey : Colors.grey[500]!),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                              color: isLight ? Colors.blue : Colors.blueGrey),
+                        ),
+                      ),
+                      style: TextStyle(
+                          color: isLight ? Colors.black : Colors.white),
+                      keyboardType: TextInputType.phone,
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: _driverLicenseNumberController,
+                      decoration: InputDecoration(
+                        labelText: '驾驶证号',
+                        border: const OutlineInputBorder(),
+                        labelStyle: TextStyle(
+                            color: isLight ? Colors.black87 : Colors.white),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                              color: isLight ? Colors.grey : Colors.grey[500]!),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                              color: isLight ? Colors.blue : Colors.blueGrey),
+                        ),
+                      ),
+                      style: TextStyle(
+                          color: isLight ? Colors.black : Colors.white),
+                    ),
+                    const SizedBox(height: 20),
+                    ElevatedButton(
+                      onPressed: _submitDriver,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor:
+                            isLight ? Colors.blue : Colors.blueGrey,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size.fromHeight(50),
+                      ),
+                      child: const Text('保存'),
+                    ),
+                    const SizedBox(height: 20),
+                    ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(50),
+                        backgroundColor: Colors.grey,
+                        foregroundColor:
+                            isLight ? Colors.black87 : Colors.white,
+                      ),
+                      child: const Text('返回上一级'),
+                    ),
+                  ],
                 ),
-                style: TextStyle(color: isLight ? Colors.black : Colors.white),
               ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _idCardNumberController,
-                decoration: InputDecoration(
-                  labelText: '身份证号码',
-                  border: const OutlineInputBorder(),
-                  labelStyle: TextStyle(color: isLight ? Colors.black87 : Colors.white),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: isLight ? Colors.grey : Colors.grey[500]!),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: isLight ? Colors.blue : Colors.blueGrey),
-                  ),
-                ),
-                style: TextStyle(color: isLight ? Colors.black : Colors.white),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _contactNumberController,
-                decoration: InputDecoration(
-                  labelText: '联系电话',
-                  border: const OutlineInputBorder(),
-                  labelStyle: TextStyle(color: isLight ? Colors.black87 : Colors.white),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: isLight ? Colors.grey : Colors.grey[500]!),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: isLight ? Colors.blue : Colors.blueGrey),
-                  ),
-                ),
-                style: TextStyle(color: isLight ? Colors.black : Colors.white),
-                keyboardType: TextInputType.phone,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _driverLicenseNumberController,
-                decoration: InputDecoration(
-                  labelText: '驾驶证号',
-                  border: const OutlineInputBorder(),
-                  labelStyle: TextStyle(color: isLight ? Colors.black87 : Colors.white),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: isLight ? Colors.grey : Colors.grey[500]!),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: isLight ? Colors.blue : Colors.blueGrey),
-                  ),
-                ),
-                style: TextStyle(color: isLight ? Colors.black : Colors.white),
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: _submitDriver,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: isLight ? Colors.blue : Colors.blueGrey,
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size.fromHeight(50),
-                ),
-                child: const Text('保存'),
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context),
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(50),
-                  backgroundColor: Colors.grey,
-                  foregroundColor: isLight ? Colors.black87 : Colors.white,
-                ),
-                child: const Text('返回上一级'),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -798,8 +904,9 @@ class DriverDetailPage extends StatefulWidget {
 
 class _DriverDetailPageState extends State<DriverDetailPage> {
   final driverApi = DriverInformationControllerApi();
-  bool _isLoading = false; // Fixed: Changed to non-final to allow state updates
-  final UserDashboardController controller = Get.find<UserDashboardController>();
+  bool _isLoading = false;
+  final UserDashboardController controller =
+      Get.find<UserDashboardController>();
 
   Future<void> _deleteDriver(String driverId) async {
     setState(() {
@@ -819,13 +926,15 @@ class _DriverDetailPageState extends State<DriverDetailPage> {
 
   void _showSuccessSnackBar(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _showErrorSnackBar(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message, style: const TextStyle(color: Colors.red))),
+      SnackBar(
+          content: Text(message, style: const TextStyle(color: Colors.red))),
     );
   }
 
@@ -839,7 +948,7 @@ class _DriverDetailPageState extends State<DriverDetailPage> {
     final driverId = widget.driver.driverId?.toString() ?? '0';
 
     return Obx(
-          () => Theme(
+      () => Theme(
         data: controller.currentBodyTheme.value,
         child: Scaffold(
           appBar: AppBar(
@@ -852,7 +961,9 @@ class _DriverDetailPageState extends State<DriverDetailPage> {
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => EditDriverPage(driver: widget.driver)),
+                    MaterialPageRoute(
+                        builder: (context) =>
+                            EditDriverPage(driver: widget.driver)),
                   ).then((value) {
                     if (value == true && mounted) {
                       setState(() {}); // 刷新页面
@@ -873,14 +984,14 @@ class _DriverDetailPageState extends State<DriverDetailPage> {
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : ListView(
-              children: [
-                _buildDetailRow(context, '司机 ID', driverId),
-                _buildDetailRow(context, '姓名', name),
-                _buildDetailRow(context, '身份证号', idCard),
-                _buildDetailRow(context, '联系电话', contact),
-                _buildDetailRow(context, '驾驶证号', license),
-              ],
-            ),
+                    children: [
+                      _buildDetailRow(context, '司机 ID', driverId),
+                      _buildDetailRow(context, '姓名', name),
+                      _buildDetailRow(context, '身份证号', idCard),
+                      _buildDetailRow(context, '联系电话', contact),
+                      _buildDetailRow(context, '驾驶证号', license),
+                    ],
+                  ),
           ),
         ),
       ),
@@ -896,12 +1007,15 @@ class _DriverDetailPageState extends State<DriverDetailPage> {
         children: [
           Text(
             '$label: ',
-            style: TextStyle(fontWeight: FontWeight.bold, color: isLight ? Colors.black87 : Colors.white),
+            style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: isLight ? Colors.black87 : Colors.white),
           ),
           Expanded(
             child: Text(
               value,
-              style: TextStyle(color: isLight ? Colors.black54 : Colors.white70),
+              style:
+                  TextStyle(color: isLight ? Colors.black54 : Colors.white70),
             ),
           ),
         ],

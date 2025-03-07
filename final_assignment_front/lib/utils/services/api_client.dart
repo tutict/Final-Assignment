@@ -136,7 +136,16 @@ class ApiClient {
           return UserManagement.fromJson(value);
         case 'VehicleInformation':
           return VehicleInformation.fromJson(value);
-
+        case 'dynamic': // Handle dynamic explicitly
+          if (value is Map<String, dynamic>) {
+            // Assume it’s a model object; default to a known type or throw
+            throw ApiException(
+                500, 'Dynamic type encountered; specify a concrete type');
+          } else if (value is List) {
+            throw ApiException(500,
+                'Dynamic list encountered; specify a concrete List<T> type');
+          }
+          return value; // Return primitive types as-is
         default:
           {
             RegExpMatch? match;

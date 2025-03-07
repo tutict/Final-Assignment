@@ -1,8 +1,11 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:final_assignment_front/constants/app_constants.dart';
 import 'package:final_assignment_front/features/api/vehicle_information_controller_api.dart';
 import 'package:final_assignment_front/features/model/vehicle_information.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
+import 'package:get/Get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// 生成幂等性键的全局方法
@@ -18,7 +21,6 @@ class VehicleManagement extends StatefulWidget {
 }
 
 class _VehicleManagementState extends State<VehicleManagement> {
-  // 定义四个搜索控制器
   final TextEditingController _licensePlateController = TextEditingController();
   final TextEditingController _vehicleTypeController = TextEditingController();
   final TextEditingController _ownerNameController = TextEditingController();
@@ -30,6 +32,11 @@ class _VehicleManagementState extends State<VehicleManagement> {
   bool _isLoading = true;
   String _errorMessage = '';
   String? _currentUsername;
+
+  final UserDashboardController? controller =
+      Get.isRegistered<UserDashboardController>()
+          ? Get.find<UserDashboardController>()
+          : null;
 
   @override
   void initState() {
@@ -48,7 +55,6 @@ class _VehicleManagementState extends State<VehicleManagement> {
       });
       return;
     }
-    // 设置 JWT 到 ApiClient
     await vehicleApi.initializeWithJwt();
     _fetchUserVehicles();
   }
@@ -103,6 +109,9 @@ class _VehicleManagementState extends State<VehicleManagement> {
                     ? [vehicle]
                     : [];
             _isLoading = false;
+            if (vehicle == null) {
+              _errorMessage = '未找到车牌号为 $query 的车辆';
+            }
           });
           break;
         case 'vehicleType':
@@ -112,6 +121,9 @@ class _VehicleManagementState extends State<VehicleManagement> {
             _vehicleList =
                 vehicles.where((v) => v.ownerName == _currentUsername).toList();
             _isLoading = false;
+            if (_vehicleList.isEmpty) {
+              _errorMessage = '未找到类型为 $query 的车辆';
+            }
           });
           break;
         case 'ownerName':
@@ -121,29 +133,37 @@ class _VehicleManagementState extends State<VehicleManagement> {
             _vehicleList =
                 vehicles.where((v) => v.ownerName == _currentUsername).toList();
             _isLoading = false;
+            if (_vehicleList.isEmpty) {
+              _errorMessage = '未找到车主为 $query 的车辆';
+            }
           });
           break;
-        case 'status':
+        case 'currentStatus':
           final vehicles = await vehicleApi.apiVehiclesStatusCurrentStatusGet(
               currentStatus: query);
           setState(() {
-            _vehicleList = vehicles;
+            _vehicleList =
+                vehicles.where((v) => v.ownerName == _currentUsername).toList();
             _isLoading = false;
+            if (_vehicleList.isEmpty) {
+              _errorMessage = '未找到状态为 $query 的车辆';
+            }
           });
           break;
         default:
-          _fetchUserVehicles();
-          return;
+          setState(() {
+            _errorMessage = '无效的搜索类型';
+            _isLoading = false;
+          });
       }
     } catch (e) {
       setState(() {
+        _errorMessage = '搜索失败：$e';
         _isLoading = false;
-        _errorMessage = '搜索失败: $e';
       });
     }
   }
 
-  // 定义创建车辆的方法
   Future<void> _createVehicle() async {
     Navigator.push(
       context,
@@ -192,15 +212,16 @@ class _VehicleManagementState extends State<VehicleManagement> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message,
-            style: TextStyle(color: isError ? Colors.red : Colors.white)),
-        backgroundColor: isError ? Colors.grey[800] : Colors.green,
+        content: Text(message),
+        backgroundColor: isError
+            ? Colors.red
+            : Colors.green, // 使用主题无关的颜色，与 UserDashboardController 无直接关联
       ),
     );
   }
 
   Widget _buildSearchField(String label, TextEditingController controller,
-      String type, bool isLight) {
+      String type, ThemeData themeData) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
       child: Row(
@@ -210,28 +231,34 @@ class _VehicleManagementState extends State<VehicleManagement> {
               controller: controller,
               decoration: InputDecoration(
                 labelText: label,
-                prefixIcon: const Icon(Icons.search),
+                prefixIcon:
+                    Icon(Icons.search, color: themeData.colorScheme.primary),
                 border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8.0)),
-                labelStyle:
-                    TextStyle(color: isLight ? Colors.black87 : Colors.white),
+                  borderRadius: BorderRadius.circular(8.0),
+                  borderSide: BorderSide(color: themeData.colorScheme.outline),
+                ),
                 enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(
-                        color: isLight ? Colors.grey : Colors.grey[500]!)),
+                  borderSide: BorderSide(
+                      color: themeData.colorScheme.outline.withOpacity(0.5)),
+                ),
                 focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(
-                        color: isLight ? Colors.blue : Colors.blueGrey)),
+                  borderSide: BorderSide(color: themeData.colorScheme.primary),
+                ),
+                labelStyle: TextStyle(color: themeData.colorScheme.onSurface),
+                filled: true,
+                fillColor: themeData.colorScheme.surfaceContainerLowest,
               ),
-              onChanged: (value) => _searchVehicles(type, value),
-              style: TextStyle(color: isLight ? Colors.black : Colors.white),
+              style: TextStyle(color: themeData.colorScheme.onSurface),
             ),
           ),
           const SizedBox(width: 8),
           ElevatedButton(
             onPressed: () => _searchVehicles(type, controller.text.trim()),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isLight ? Colors.blue : Colors.blueGrey,
-              foregroundColor: Colors.white,
+            style: themeData.elevatedButtonTheme.style?.copyWith(
+              backgroundColor:
+                  WidgetStateProperty.all(themeData.colorScheme.primary),
+              foregroundColor:
+                  WidgetStateProperty.all(themeData.colorScheme.onPrimary),
             ),
             child: const Text('搜索'),
           ),
@@ -242,23 +269,32 @@ class _VehicleManagementState extends State<VehicleManagement> {
 
   @override
   Widget build(BuildContext context) {
-    final bool isLight = Theme.of(context).brightness == Brightness.light;
+    final themeData = controller?.currentBodyTheme.value ?? ThemeData.light();
+    final isLight = controller?.currentTheme.value == 'Light' ?? true;
+
     if (!_isLoading && _errorMessage.isNotEmpty) {
       return Scaffold(
+        backgroundColor: themeData.colorScheme.surface,
         body: Center(
-          child: Text(_errorMessage,
-              style: TextStyle(color: isLight ? Colors.black : Colors.white)),
+          child: Text(
+            _errorMessage,
+            style: themeData.textTheme.bodyLarge?.copyWith(
+              color: themeData.colorScheme.onSurface,
+            ),
+          ),
         ),
       );
     }
     return Scaffold(
+      backgroundColor: themeData.colorScheme.surface,
       appBar: AppBar(
-        title: const Text('车辆信息列表'),
-        backgroundColor: isLight ? Colors.blue : Colors.blueGrey,
-        foregroundColor: Colors.white,
+        title: Text('车辆信息列表', style: themeData.textTheme.titleLarge),
+        backgroundColor: themeData.colorScheme.primaryContainer,
+        foregroundColor: themeData.colorScheme.onPrimaryContainer,
         actions: [
           IconButton(
-            icon: const Icon(Icons.add),
+            icon: Icon(Icons.add,
+                color: themeData.colorScheme.onPrimaryContainer),
             onPressed: _createVehicle,
             tooltip: '添加新车辆信息',
           ),
@@ -269,23 +305,31 @@ class _VehicleManagementState extends State<VehicleManagement> {
         child: Column(
           children: [
             _buildSearchField(
-                '按车牌号搜索', _licensePlateController, 'licensePlate', isLight),
+                '按车牌号搜索', _licensePlateController, 'licensePlate', themeData),
             _buildSearchField(
-                '按车辆类型搜索', _vehicleTypeController, 'vehicleType', isLight),
+                '按车辆类型搜索', _vehicleTypeController, 'vehicleType', themeData),
             _buildSearchField(
-                '按车主名称搜索', _ownerNameController, 'ownerName', isLight),
-            _buildSearchField('按状态搜索', _statusController, 'status', isLight),
+                '按车主名称搜索', _ownerNameController, 'ownerName', themeData),
+            _buildSearchField(
+                '按状态搜索', _statusController, 'currentStatus', themeData),
             const SizedBox(height: 16),
             _isLoading
-                ? const Expanded(
-                    child: Center(child: CircularProgressIndicator()))
+                ? Expanded(
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        color: themeData.colorScheme.primary,
+                      ),
+                    ),
+                  )
                 : _vehicleList.isEmpty
                     ? Expanded(
                         child: Center(
-                          child: Text('暂无车辆信息',
-                              style: TextStyle(
-                                  color:
-                                      isLight ? Colors.black : Colors.white)),
+                          child: Text(
+                            '暂无车辆信息',
+                            style: themeData.textTheme.bodyLarge?.copyWith(
+                              color: themeData.colorScheme.onSurface,
+                            ),
+                          ),
                         ),
                       )
                     : Expanded(
@@ -301,20 +345,26 @@ class _VehicleManagementState extends State<VehicleManagement> {
                               margin: const EdgeInsets.symmetric(
                                   vertical: 8.0, horizontal: 16.0),
                               elevation: 4,
-                              color: isLight ? Colors.white : Colors.grey[800],
+                              color: themeData.colorScheme.surfaceContainer,
                               shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10.0)),
+                                borderRadius: BorderRadius.circular(10.0),
+                              ),
                               child: ListTile(
-                                title: Text('车辆类型: $type',
-                                    style: TextStyle(
-                                        color: isLight
-                                            ? Colors.black87
-                                            : Colors.white)),
-                                subtitle: Text('车牌号: $plate\n车主: $owner',
-                                    style: TextStyle(
-                                        color: isLight
-                                            ? Colors.black54
-                                            : Colors.white70)),
+                                title: Text(
+                                  '车辆类型: $type',
+                                  style:
+                                      themeData.textTheme.bodyLarge?.copyWith(
+                                    color: themeData.colorScheme.onSurface,
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  '车牌号: $plate\n车主: $owner',
+                                  style:
+                                      themeData.textTheme.bodyMedium?.copyWith(
+                                    color:
+                                        themeData.colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
                                 trailing: PopupMenuButton<String>(
                                   onSelected: (value) {
                                     if (value == 'edit') {
@@ -335,9 +385,7 @@ class _VehicleManagementState extends State<VehicleManagement> {
                                         child: Text('按车牌删除')),
                                   ],
                                   icon: Icon(Icons.more_vert,
-                                      color: isLight
-                                          ? Colors.black87
-                                          : Colors.white),
+                                      color: themeData.colorScheme.onSurface),
                                 ),
                                 onTap: () => _goToDetailPage(vehicle),
                               ),
@@ -350,7 +398,8 @@ class _VehicleManagementState extends State<VehicleManagement> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _createVehicle,
-        backgroundColor: isLight ? Colors.blue : Colors.blueGrey,
+        backgroundColor: themeData.colorScheme.primary,
+        foregroundColor: themeData.colorScheme.onPrimary,
         tooltip: '添加新车辆',
         child: const Icon(Icons.add),
       ),
@@ -358,7 +407,7 @@ class _VehicleManagementState extends State<VehicleManagement> {
   }
 }
 
-/// ==================== 添加与编辑车辆页面 ====================
+/// ==================== 添加车辆页面 ====================
 
 class AddVehiclePage extends StatefulWidget {
   const AddVehiclePage({super.key});
@@ -382,11 +431,15 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
   final _currentStatusController = TextEditingController();
   bool _isLoading = false;
 
+  final UserDashboardController? controller =
+      Get.isRegistered<UserDashboardController>()
+          ? Get.find<UserDashboardController>()
+          : null;
+
   @override
   void initState() {
     super.initState();
-    // 若需要确保 ApiClient 已设置 JWT，可在此调用 initializeWithJwt（前提是 jwt 已存储）
-    // vehicleApi.initializeWithJwt();
+    vehicleApi.initializeWithJwt();
   }
 
   @override
@@ -438,9 +491,8 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message,
-            style: TextStyle(color: isError ? Colors.red : Colors.white)),
-        backgroundColor: isError ? Colors.grey[800] : Colors.green,
+        content: Text(message),
+        backgroundColor: isError ? Colors.red : Colors.green,
       ),
     );
   }
@@ -461,7 +513,7 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
   }
 
   Widget _buildTextField(
-      String label, TextEditingController controller, bool isLight,
+      String label, TextEditingController controller, ThemeData themeData,
       {TextInputType? keyboardType,
       bool readOnly = false,
       VoidCallback? onTap}) {
@@ -471,76 +523,81 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
         controller: controller,
         decoration: InputDecoration(
           labelText: label,
-          border: const OutlineInputBorder(),
-          labelStyle: TextStyle(color: isLight ? Colors.black87 : Colors.white),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8.0),
+          ),
+          labelStyle: TextStyle(color: themeData.colorScheme.onSurface),
           enabledBorder: OutlineInputBorder(
-              borderSide:
-                  BorderSide(color: isLight ? Colors.grey : Colors.grey[500]!)),
+            borderSide: BorderSide(
+                color: themeData.colorScheme.outline.withOpacity(0.5)),
+          ),
           focusedBorder: OutlineInputBorder(
-              borderSide:
-                  BorderSide(color: isLight ? Colors.blue : Colors.blueGrey)),
+            borderSide: BorderSide(color: themeData.colorScheme.primary),
+          ),
+          filled: true,
+          fillColor: themeData.colorScheme.surfaceContainerLowest,
         ),
         keyboardType: keyboardType,
         readOnly: readOnly,
         onTap: onTap,
-        style: TextStyle(color: isLight ? Colors.black : Colors.white),
+        style: TextStyle(color: themeData.colorScheme.onSurface),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final bool isLight = Theme.of(context).brightness == Brightness.light;
+    final themeData = controller?.currentBodyTheme.value ?? ThemeData.light();
     return Scaffold(
+      backgroundColor: themeData.colorScheme.surface,
       appBar: AppBar(
-        title: const Text('添加新车辆信息'),
-        backgroundColor: isLight ? Colors.blue : Colors.blueGrey,
-        foregroundColor: Colors.white,
+        title: Text('添加新车辆信息', style: themeData.textTheme.titleLarge),
+        backgroundColor: themeData.colorScheme.primaryContainer,
+        foregroundColor: themeData.colorScheme.onPrimaryContainer,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
+            ? Center(
+                child: CircularProgressIndicator(
+                    color: themeData.colorScheme.primary))
             : SingleChildScrollView(
                 child: Column(
                   children: [
-                    _buildTextField('车牌号', _licensePlateController, isLight),
-                    _buildTextField('车辆类型', _vehicleTypeController, isLight),
-                    _buildTextField('车主姓名', _ownerNameController, isLight),
-                    _buildTextField('身份证号码', _idCardNumberController, isLight,
+                    _buildTextField('车牌号', _licensePlateController, themeData),
+                    _buildTextField('车辆类型', _vehicleTypeController, themeData),
+                    _buildTextField('车主姓名', _ownerNameController, themeData),
+                    _buildTextField('身份证号码', _idCardNumberController, themeData,
                         keyboardType: TextInputType.number),
-                    _buildTextField('联系电话', _contactNumberController, isLight,
+                    _buildTextField('联系电话', _contactNumberController, themeData,
                         keyboardType: TextInputType.phone),
-                    _buildTextField('发动机号', _engineNumberController, isLight),
-                    _buildTextField('车架号', _frameNumberController, isLight),
-                    _buildTextField('车身颜色', _vehicleColorController, isLight),
+                    _buildTextField('发动机号', _engineNumberController, themeData),
+                    _buildTextField('车架号', _frameNumberController, themeData),
+                    _buildTextField('车身颜色', _vehicleColorController, themeData),
                     _buildTextField(
-                      '首次注册日期',
-                      _firstRegistrationDateController,
-                      isLight,
-                      readOnly: true,
-                      onTap: _pickDate,
-                    ),
-                    _buildTextField('当前状态', _currentStatusController, isLight),
+                        '首次注册日期', _firstRegistrationDateController, themeData,
+                        readOnly: true, onTap: _pickDate),
+                    _buildTextField(
+                        '当前状态', _currentStatusController, themeData),
                     const SizedBox(height: 20),
                     ElevatedButton(
                       onPressed: _submitVehicle,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                            isLight ? Colors.blue : Colors.blueGrey,
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size.fromHeight(50),
+                      style: themeData.elevatedButtonTheme.style?.copyWith(
+                        minimumSize:
+                            WidgetStateProperty.all(const Size.fromHeight(50)),
                       ),
                       child: const Text('提交'),
                     ),
                     const SizedBox(height: 20),
                     ElevatedButton(
                       onPressed: () => Navigator.pop(context),
-                      style: ElevatedButton.styleFrom(
-                        minimumSize: const Size.fromHeight(50),
-                        backgroundColor: Colors.grey,
-                        foregroundColor:
-                            isLight ? Colors.black87 : Colors.white,
+                      style: themeData.elevatedButtonTheme.style?.copyWith(
+                        backgroundColor: WidgetStateProperty.all(
+                            themeData.colorScheme.secondary),
+                        foregroundColor: WidgetStateProperty.all(
+                            themeData.colorScheme.onSecondary),
+                        minimumSize:
+                            WidgetStateProperty.all(const Size.fromHeight(50)),
                       ),
                       child: const Text('返回上一级'),
                     ),
@@ -551,6 +608,8 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
     );
   }
 }
+
+/// ==================== 编辑车辆页面 ====================
 
 class EditVehiclePage extends StatefulWidget {
   final VehicleInformation vehicle;
@@ -576,10 +635,16 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
   final _currentStatusController = TextEditingController();
   bool _isLoading = false;
 
+  final UserDashboardController? controller =
+      Get.isRegistered<UserDashboardController>()
+          ? Get.find<UserDashboardController>()
+          : null;
+
   @override
   void initState() {
     super.initState();
     _initializeFields();
+    vehicleApi.initializeWithJwt();
   }
 
   void _initializeFields() {
@@ -647,9 +712,8 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message,
-            style: TextStyle(color: isError ? Colors.red : Colors.white)),
-        backgroundColor: isError ? Colors.grey[800] : Colors.green,
+        content: Text(message),
+        backgroundColor: isError ? Colors.red : Colors.green,
       ),
     );
   }
@@ -670,7 +734,7 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
   }
 
   Widget _buildTextField(
-      String label, TextEditingController controller, bool isLight,
+      String label, TextEditingController controller, ThemeData themeData,
       {TextInputType? keyboardType,
       bool readOnly = false,
       VoidCallback? onTap}) {
@@ -680,65 +744,68 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
         controller: controller,
         decoration: InputDecoration(
           labelText: label,
-          border: const OutlineInputBorder(),
-          labelStyle: TextStyle(color: isLight ? Colors.black87 : Colors.white),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8.0),
+          ),
+          labelStyle: TextStyle(color: themeData.colorScheme.onSurface),
           enabledBorder: OutlineInputBorder(
-              borderSide:
-                  BorderSide(color: isLight ? Colors.grey : Colors.grey[500]!)),
+            borderSide: BorderSide(
+                color: themeData.colorScheme.outline.withOpacity(0.5)),
+          ),
           focusedBorder: OutlineInputBorder(
-              borderSide:
-                  BorderSide(color: isLight ? Colors.blue : Colors.blueGrey)),
+            borderSide: BorderSide(color: themeData.colorScheme.primary),
+          ),
+          filled: true,
+          fillColor: themeData.colorScheme.surfaceContainerLowest,
         ),
         keyboardType: keyboardType,
         readOnly: readOnly,
         onTap: onTap,
-        style: TextStyle(color: isLight ? Colors.black : Colors.white),
+        style: TextStyle(color: themeData.colorScheme.onSurface),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final bool isLight = Theme.of(context).brightness == Brightness.light;
+    final themeData = controller?.currentBodyTheme.value ?? ThemeData.light();
     return Scaffold(
+      backgroundColor: themeData.colorScheme.surface,
       appBar: AppBar(
-        title: const Text('编辑车辆信息'),
-        backgroundColor: isLight ? Colors.blue : Colors.blueGrey,
-        foregroundColor: Colors.white,
+        title: Text('编辑车辆信息', style: themeData.textTheme.titleLarge),
+        backgroundColor: themeData.colorScheme.primaryContainer,
+        foregroundColor: themeData.colorScheme.onPrimaryContainer,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
+            ? Center(
+                child: CircularProgressIndicator(
+                    color: themeData.colorScheme.primary))
             : SingleChildScrollView(
                 child: Column(
                   children: [
-                    _buildTextField('车牌号', _licensePlateController, isLight),
-                    _buildTextField('车辆类型', _vehicleTypeController, isLight),
-                    _buildTextField('车主姓名', _ownerNameController, isLight),
-                    _buildTextField('身份证号码', _idCardNumberController, isLight,
+                    _buildTextField('车牌号', _licensePlateController, themeData),
+                    _buildTextField('车辆类型', _vehicleTypeController, themeData),
+                    _buildTextField('车主姓名', _ownerNameController, themeData),
+                    _buildTextField('身份证号码', _idCardNumberController, themeData,
                         keyboardType: TextInputType.number),
-                    _buildTextField('联系电话', _contactNumberController, isLight,
+                    _buildTextField('联系电话', _contactNumberController, themeData,
                         keyboardType: TextInputType.phone),
-                    _buildTextField('发动机号', _engineNumberController, isLight),
-                    _buildTextField('车架号', _frameNumberController, isLight),
-                    _buildTextField('车身颜色', _vehicleColorController, isLight),
+                    _buildTextField('发动机号', _engineNumberController, themeData),
+                    _buildTextField('车架号', _frameNumberController, themeData),
+                    _buildTextField('车身颜色', _vehicleColorController, themeData),
                     _buildTextField(
-                      '首次注册日期',
-                      _firstRegistrationDateController,
-                      isLight,
-                      readOnly: true,
-                      onTap: _pickDate,
-                    ),
-                    _buildTextField('当前状态', _currentStatusController, isLight),
+                        '首次注册日期', _firstRegistrationDateController, themeData,
+                        readOnly: true, onTap: _pickDate),
+                    _buildTextField(
+                        '当前状态', _currentStatusController, themeData),
                     const SizedBox(height: 20),
                     ElevatedButton(
                       onPressed: _submitVehicle,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                            isLight ? Colors.blue : Colors.blueGrey,
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size.fromHeight(50),
+                      style: themeData.elevatedButtonTheme.style?.copyWith(
+                        minimumSize:
+                            WidgetStateProperty.all(const Size.fromHeight(50)),
                       ),
                       child: const Text('保存'),
                     ),
@@ -749,6 +816,8 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
     );
   }
 }
+
+/// ==================== 车辆详情页面 ====================
 
 class VehicleDetailPage extends StatefulWidget {
   final VehicleInformation vehicle;
@@ -765,6 +834,11 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
   bool _isLoading = false;
   bool _isAdmin = false;
   String _errorMessage = '';
+
+  final UserDashboardController? controller =
+      Get.isRegistered<UserDashboardController>()
+          ? Get.find<UserDashboardController>()
+          : null;
 
   @override
   void initState() {
@@ -835,26 +909,32 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message,
-            style: TextStyle(color: isError ? Colors.red : Colors.white)),
-        backgroundColor: isError ? Colors.grey[800] : Colors.green,
+        content: Text(message),
+        backgroundColor: isError ? Colors.red : Colors.green,
       ),
     );
   }
 
-  Widget _buildDetailRow(String label, String value, bool isLight) {
+  Widget _buildDetailRow(String label, String value, ThemeData themeData) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
         children: [
-          Text('$label: ',
-              style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: isLight ? Colors.black87 : Colors.white)),
+          Text(
+            '$label: ',
+            style: themeData.textTheme.bodyLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: themeData.colorScheme.onSurface,
+            ),
+          ),
           Expanded(
-              child: Text(value,
-                  style: TextStyle(
-                      color: isLight ? Colors.black54 : Colors.white70))),
+            child: Text(
+              value,
+              style: themeData.textTheme.bodyMedium?.copyWith(
+                color: themeData.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -862,24 +942,31 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    final bool isLight = Theme.of(context).brightness == Brightness.light;
+    final themeData = controller?.currentBodyTheme.value ?? ThemeData.light();
     if (_errorMessage.isNotEmpty) {
       return Scaffold(
+        backgroundColor: themeData.colorScheme.surface,
         body: Center(
-            child: Text(_errorMessage,
-                style:
-                    TextStyle(color: isLight ? Colors.black : Colors.white))),
+          child: Text(
+            _errorMessage,
+            style: themeData.textTheme.bodyLarge?.copyWith(
+              color: themeData.colorScheme.onSurface,
+            ),
+          ),
+        ),
       );
     }
     return Scaffold(
+      backgroundColor: themeData.colorScheme.surface,
       appBar: AppBar(
-        title: const Text('车辆详细信息'),
-        backgroundColor: isLight ? Colors.blue : Colors.blueGrey,
-        foregroundColor: Colors.white,
+        title: Text('车辆详细信息', style: themeData.textTheme.titleLarge),
+        backgroundColor: themeData.colorScheme.primaryContainer,
+        foregroundColor: themeData.colorScheme.onPrimaryContainer,
         actions: _isAdmin
             ? [
                 IconButton(
-                  icon: const Icon(Icons.edit),
+                  icon: Icon(Icons.edit,
+                      color: themeData.colorScheme.onPrimaryContainer),
                   onPressed: () {
                     Navigator.push(
                       context,
@@ -888,7 +975,7 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
                               EditVehiclePage(vehicle: widget.vehicle)),
                     ).then((value) {
                       if (value == true && mounted) {
-                        Navigator.pop(context, true); // 触发父页面刷新
+                        Navigator.pop(context, true);
                       }
                     });
                   },
@@ -909,38 +996,39 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
                     const PopupMenuItem<String>(
                         value: 'deleteByPlate', child: Text('按车牌删除')),
                   ],
-                  icon: Icon(Icons.delete,
-                      color: isLight ? Colors.red : Colors.red[300]),
+                  icon: Icon(Icons.delete, color: themeData.colorScheme.error),
                 ),
               ]
             : [],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(
+              child: CircularProgressIndicator(
+                  color: themeData.colorScheme.primary))
           : Padding(
               padding: const EdgeInsets.all(16.0),
               child: ListView(
                 children: [
                   _buildDetailRow(
-                      '车辆类型', widget.vehicle.vehicleType ?? '未知类型', isLight),
+                      '车辆类型', widget.vehicle.vehicleType ?? '未知类型', themeData),
                   _buildDetailRow(
-                      '车牌号', widget.vehicle.licensePlate ?? '未知车牌', isLight),
+                      '车牌号', widget.vehicle.licensePlate ?? '未知车牌', themeData),
                   _buildDetailRow(
-                      '车主姓名', widget.vehicle.ownerName ?? '未知车主', isLight),
+                      '车主姓名', widget.vehicle.ownerName ?? '未知车主', themeData),
                   _buildDetailRow(
-                      '车辆状态', widget.vehicle.currentStatus ?? '无', isLight),
+                      '车辆状态', widget.vehicle.currentStatus ?? '无', themeData),
                   _buildDetailRow(
-                      '身份证号码', widget.vehicle.idCardNumber ?? '无', isLight),
+                      '身份证号码', widget.vehicle.idCardNumber ?? '无', themeData),
                   _buildDetailRow(
-                      '联系电话', widget.vehicle.contactNumber ?? '无', isLight),
+                      '联系电话', widget.vehicle.contactNumber ?? '无', themeData),
                   _buildDetailRow(
-                      '发动机号', widget.vehicle.engineNumber ?? '无', isLight),
+                      '发动机号', widget.vehicle.engineNumber ?? '无', themeData),
                   _buildDetailRow(
-                      '车架号', widget.vehicle.frameNumber ?? '无', isLight),
+                      '车架号', widget.vehicle.frameNumber ?? '无', themeData),
                   _buildDetailRow(
-                      '车身颜色', widget.vehicle.vehicleColor ?? '无', isLight),
+                      '车身颜色', widget.vehicle.vehicleColor ?? '无', themeData),
                   _buildDetailRow('首次注册日期',
-                      widget.vehicle.firstRegistrationDate ?? '无', isLight),
+                      widget.vehicle.firstRegistrationDate ?? '无', themeData),
                 ],
               ),
             ),

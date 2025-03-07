@@ -22,7 +22,7 @@ public class DriverInformationController {
 
     // 创建司机信息 (仅 ADMIN)
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public ResponseEntity<Void> createDriver(@RequestBody DriverInformation driverInformation, @RequestParam String idempotencyKey) {
         driverInformationService.checkAndInsertIdempotency(idempotencyKey, driverInformation, "create");
         return ResponseEntity.status(HttpStatus.CREATED).build();
@@ -48,13 +48,58 @@ public class DriverInformationController {
         return ResponseEntity.ok(drivers);
     }
 
-    // 更新司机信息 (仅 ADMIN)
+    // 更新司机姓名 (USER 和 ADMIN)
+    @PutMapping("/{driverId}/name")
+    @Transactional
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    public ResponseEntity<DriverInformation> updateDriverName(@PathVariable int driverId, @RequestBody String name, @RequestParam String idempotencyKey) {
+        DriverInformation existingDriver = driverInformationService.getDriverById(driverId);
+        if (existingDriver != null) {
+            existingDriver.setName(name);
+            driverInformationService.checkAndInsertIdempotency(idempotencyKey, existingDriver, "update");
+            return ResponseEntity.ok(existingDriver);
+        } else {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+    }
+
+    // 更新司机联系电话 (USER 和 ADMIN)
+    @PutMapping("/{driverId}/contactNumber")
+    @Transactional
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    public ResponseEntity<DriverInformation> updateDriverContactNumber(@PathVariable int driverId, @RequestBody String contactNumber, @RequestParam String idempotencyKey) {
+        DriverInformation existingDriver = driverInformationService.getDriverById(driverId);
+        if (existingDriver != null) {
+            existingDriver.setContactNumber(contactNumber);
+            driverInformationService.checkAndInsertIdempotency(idempotencyKey, existingDriver, "update");
+            return ResponseEntity.ok(existingDriver);
+        } else {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+    }
+
+    // 更新司机身份证号码 (USER 和 ADMIN)
+    @PutMapping("/{driverId}/idCardNumber")
+    @Transactional
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    public ResponseEntity<DriverInformation> updateDriverIdCardNumber(@PathVariable int driverId, @RequestBody String idCardNumber, @RequestParam String idempotencyKey) {
+        DriverInformation existingDriver = driverInformationService.getDriverById(driverId);
+        if (existingDriver != null) {
+            existingDriver.setIdCardNumber(idCardNumber);
+            driverInformationService.checkAndInsertIdempotency(idempotencyKey, existingDriver, "update");
+            return ResponseEntity.ok(existingDriver);
+        } else {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+    }
+
+    // 更新司机完整信息 (USER 和 ADMIN)
     @PutMapping("/{driverId}")
     @Transactional
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public ResponseEntity<DriverInformation> updateDriver(@PathVariable int driverId, @RequestBody DriverInformation updatedDriverInformation, @RequestParam String idempotencyKey) {
-        DriverInformation existingDriverInformation = driverInformationService.getDriverById(driverId);
-        if (existingDriverInformation != null) {
+        DriverInformation existingDriver = driverInformationService.getDriverById(driverId);
+        if (existingDriver != null) {
             updatedDriverInformation.setDriverId(driverId);
             driverInformationService.checkAndInsertIdempotency(idempotencyKey, updatedDriverInformation, "update");
             return ResponseEntity.ok(updatedDriverInformation);

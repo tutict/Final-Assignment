@@ -1,6 +1,5 @@
 class UserManagement {
   int? userId;
-  String? name;
   String? username;
   String? password;
   String? contactNumber;
@@ -13,7 +12,6 @@ class UserManagement {
 
   UserManagement({
     this.userId,
-    this.name,
     this.username,
     this.password,
     this.contactNumber,
@@ -27,13 +25,12 @@ class UserManagement {
 
   @override
   String toString() {
-    return 'UserManagement[userId=$userId, name=$name, username=$username, password=$password, contactNumber=$contactNumber, email=$email, status=$status, createdTime=$createdTime, modifiedTime=$modifiedTime, remarks=$remarks, idempotencyKey=$idempotencyKey]';
+    return 'UserManagement[userId=$userId, username=$username, password=$password, contactNumber=$contactNumber, email=$email, status=$status, createdTime=$createdTime, modifiedTime=$modifiedTime, remarks=$remarks, idempotencyKey=$idempotencyKey]';
   }
 
   factory UserManagement.fromJson(Map<String, dynamic> json) {
     return UserManagement(
       userId: json['userId'] as int?,
-      name: json['name'] as String?,
       username: json['username'] as String?,
       password: json['password'] as String?,
       contactNumber: json['contactNumber'] as String?,
@@ -49,7 +46,6 @@ class UserManagement {
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> json = {};
     if (userId != null) json['userId'] = userId;
-    if (name != null) json['name'] = name;
     if (username != null) json['username'] = username;
     if (password != null) json['password'] = password;
     if (contactNumber != null) json['contactNumber'] = contactNumber;

@@ -17,8 +17,6 @@ mixin NavigationMixin {
         return const SettingPage();
       case AppPages.aiChat:
         return const AiChat();
-      case AppPages.personalInfo:
-        return const PersonalInformationPage();
       case AppPages.consultation:
         return const ConsultationFeedback();
       case AppPages.mainScan:

@@ -9,9 +9,8 @@ import 'package:final_assignment_front/features/dashboard/views/user_screens/use
 
 String generateIdempotencyKey() {
   /// 生成幂等性键的全局方法
-    return DateTime.now().millisecondsSinceEpoch.toString();
+  return DateTime.now().millisecondsSinceEpoch.toString();
 }
-
 
 class UserAppealPage extends StatefulWidget {
   const UserAppealPage({super.key});
@@ -28,6 +27,11 @@ class _UserAppealPageState extends State<UserAppealPage> {
   bool _isUser = false;
   String _errorMessage = '';
   late ScrollController _scrollController;
+
+  final UserDashboardController? controller =
+  Get.isRegistered<UserDashboardController>()
+      ? Get.find<UserDashboardController>()
+      : null;
 
   @override
   void initState() {
@@ -111,7 +115,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
         return;
       }
       final appeals =
-          await appealApi.apiAppealsNameAppealNameGet(appealName: name);
+      await appealApi.apiAppealsNameAppealNameGet(appealName: name);
       setState(() {
         _appeals = appeals;
         _isLoading = false;
@@ -124,15 +128,14 @@ class _UserAppealPageState extends State<UserAppealPage> {
     }
   }
 
-  Future<void> _submitAppeal(
-      AppealManagement appeal, String idempotencyKey) async {
+  Future<void> _submitAppeal(AppealManagement appeal, String idempotencyKey) async {
     try {
       await appealApi.apiAppealsPost(
           appealManagement: appeal, idempotencyKey: idempotencyKey);
       _showSnackBar('申诉提交成功！');
-      await _fetchUserAppeals(); // 刷新列表
+      await _fetchUserAppeals();
     } catch (e) {
-      _showSnackBar('申诉提交失败: $e');
+      _showSnackBar('申诉提交失败: $e', isError: true);
     }
   }
 
@@ -142,19 +145,14 @@ class _UserAppealPageState extends State<UserAppealPage> {
     final TextEditingController contactController = TextEditingController();
     final TextEditingController reasonController = TextEditingController();
 
-    final UserDashboardController dashboardController =
-        Get.find<UserDashboardController>();
-    final themeData = dashboardController.currentBodyTheme.value;
-    final isLight = dashboardController.currentTheme.value == 'Light';
+    final themeData = controller?.currentBodyTheme.value ?? ThemeData.light();
+    final isLight = controller?.currentTheme.value == 'Light' ?? true;
 
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
-        backgroundColor: isLight
-            ? themeData.colorScheme.surfaceContainer
-            : themeData.colorScheme.surfaceContainerHigh,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+        backgroundColor: themeData.colorScheme.surfaceContainer,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 300.0, minHeight: 200.0),
           child: Padding(
@@ -167,9 +165,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
                   Text(
                     '提交申诉',
                     style: themeData.textTheme.titleMedium?.copyWith(
-                      color: isLight
-                          ? themeData.colorScheme.onSurface
-                          : themeData.colorScheme.onSurface.withOpacity(0.95),
+                      color: themeData.colorScheme.onSurface,
                       fontWeight: FontWeight.bold,
                     ),
                     textAlign: TextAlign.center,
@@ -179,115 +175,83 @@ class _UserAppealPageState extends State<UserAppealPage> {
                     controller: nameController,
                     decoration: InputDecoration(
                       labelText: '申诉人姓名',
-                      labelStyle: themeData.textTheme.bodyMedium?.copyWith(
-                        color: isLight
-                            ? themeData.colorScheme.onSurfaceVariant
-                            : themeData.colorScheme.onSurfaceVariant
-                                .withOpacity(0.85),
-                      ),
+                      labelStyle:
+                      TextStyle(color: themeData.colorScheme.onSurfaceVariant),
                       filled: true,
-                      fillColor: isLight
-                          ? themeData.colorScheme.surfaceContainerLowest
-                          : themeData.colorScheme.surfaceContainerLow,
+                      fillColor: themeData.colorScheme.surfaceContainerLowest,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8.0),
-                        borderSide: BorderSide(
-                            color:
-                                themeData.colorScheme.outline.withOpacity(0.3)),
+                        borderSide: BorderSide(color: themeData.colorScheme.outline.withOpacity(0.3)),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8.0),
-                        borderSide: BorderSide(
-                            color: themeData.colorScheme.primary, width: 2.0),
+                        borderSide: BorderSide(color: themeData.colorScheme.primary, width: 2.0),
                       ),
                     ),
+                    style: TextStyle(color: themeData.colorScheme.onSurface),
                   ),
                   const SizedBox(height: 12.0),
                   TextField(
                     controller: idCardController,
                     decoration: InputDecoration(
                       labelText: '身份证号码',
-                      labelStyle: themeData.textTheme.bodyMedium?.copyWith(
-                        color: isLight
-                            ? themeData.colorScheme.onSurfaceVariant
-                            : themeData.colorScheme.onSurfaceVariant
-                                .withOpacity(0.85),
-                      ),
+                      labelStyle:
+                      TextStyle(color: themeData.colorScheme.onSurfaceVariant),
                       filled: true,
-                      fillColor: isLight
-                          ? themeData.colorScheme.surfaceContainerLowest
-                          : themeData.colorScheme.surfaceContainerLow,
+                      fillColor: themeData.colorScheme.surfaceContainerLowest,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8.0),
-                        borderSide: BorderSide(
-                            color:
-                                themeData.colorScheme.outline.withOpacity(0.3)),
+                        borderSide: BorderSide(color: themeData.colorScheme.outline.withOpacity(0.3)),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8.0),
-                        borderSide: BorderSide(
-                            color: themeData.colorScheme.primary, width: 2.0),
+                        borderSide: BorderSide(color: themeData.colorScheme.primary, width: 2.0),
                       ),
                     ),
                     keyboardType: TextInputType.number,
+                    style: TextStyle(color: themeData.colorScheme.onSurface),
                   ),
                   const SizedBox(height: 12.0),
                   TextField(
                     controller: contactController,
                     decoration: InputDecoration(
                       labelText: '联系电话',
-                      labelStyle: themeData.textTheme.bodyMedium?.copyWith(
-                        color: isLight
-                            ? themeData.colorScheme.onSurfaceVariant
-                            : themeData.colorScheme.onSurfaceVariant
-                                .withOpacity(0.85),
-                      ),
+                      labelStyle:
+                      TextStyle(color: themeData.colorScheme.onSurfaceVariant),
                       filled: true,
-                      fillColor: isLight
-                          ? themeData.colorScheme.surfaceContainerLowest
-                          : themeData.colorScheme.surfaceContainerLow,
+                      fillColor: themeData.colorScheme.surfaceContainerLowest,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8.0),
-                        borderSide: BorderSide(
-                            color:
-                                themeData.colorScheme.outline.withOpacity(0.3)),
+                        borderSide: BorderSide(color: themeData.colorScheme.outline.withOpacity(0.3)),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8.0),
-                        borderSide: BorderSide(
-                            color: themeData.colorScheme.primary, width: 2.0),
+                        borderSide: BorderSide(color: themeData.colorScheme.primary, width: 2.0),
                       ),
                     ),
                     keyboardType: TextInputType.phone,
+                    style: TextStyle(color: themeData.colorScheme.onSurface),
                   ),
                   const SizedBox(height: 12.0),
                   TextField(
                     controller: reasonController,
                     decoration: InputDecoration(
                       labelText: '申诉原因',
-                      labelStyle: themeData.textTheme.bodyMedium?.copyWith(
-                        color: isLight
-                            ? themeData.colorScheme.onSurfaceVariant
-                            : themeData.colorScheme.onSurfaceVariant
-                                .withOpacity(0.85),
-                      ),
+                      labelStyle:
+                      TextStyle(color: themeData.colorScheme.onSurfaceVariant),
                       filled: true,
-                      fillColor: isLight
-                          ? themeData.colorScheme.surfaceContainerLowest
-                          : themeData.colorScheme.surfaceContainerLow,
+                      fillColor: themeData.colorScheme.surfaceContainerLowest,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8.0),
-                        borderSide: BorderSide(
-                            color:
-                                themeData.colorScheme.outline.withOpacity(0.3)),
+                        borderSide: BorderSide(color: themeData.colorScheme.outline.withOpacity(0.3)),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8.0),
-                        borderSide: BorderSide(
-                            color: themeData.colorScheme.primary, width: 2.0),
+                        borderSide: BorderSide(color: themeData.colorScheme.primary, width: 2.0),
                       ),
                     ),
                     maxLines: 3,
+                    style: TextStyle(color: themeData.colorScheme.onSurface),
                   ),
                   const SizedBox(height: 16.0),
                   Row(
@@ -295,14 +259,10 @@ class _UserAppealPageState extends State<UserAppealPage> {
                     children: [
                       TextButton(
                         onPressed: () => Navigator.pop(ctx),
-                        style: TextButton.styleFrom(
-                          foregroundColor: themeData.colorScheme.onSurface,
-                        ),
                         child: Text(
                           '取消',
                           style: themeData.textTheme.labelMedium?.copyWith(
                             color: themeData.colorScheme.onSurface,
-                            fontSize: 14,
                           ),
                         ),
                       ),
@@ -313,63 +273,42 @@ class _UserAppealPageState extends State<UserAppealPage> {
                           final String contact = contactController.text.trim();
                           final String reason = reasonController.text.trim();
 
-                          if (name.isEmpty ||
-                              idCard.isEmpty ||
-                              contact.isEmpty ||
-                              reason.isEmpty) {
-                            _showSnackBar('请填写所有必填字段');
+                          if (name.isEmpty || idCard.isEmpty || contact.isEmpty || reason.isEmpty) {
+                            _showSnackBar('请填写所有必填字段', isError: true);
                             return;
                           }
-                          final RegExp idCardRegExp =
-                              RegExp(r'^\d{15}|\d{18}$');
+                          final RegExp idCardRegExp = RegExp(r'^\d{15}|\d{18}$');
                           final RegExp contactRegExp = RegExp(r'^\d{10,15}$');
 
                           if (!idCardRegExp.hasMatch(idCard)) {
-                            _showSnackBar('身份证号码格式不正确');
+                            _showSnackBar('身份证号码格式不正确', isError: true);
                             return;
                           }
                           if (!contactRegExp.hasMatch(contact)) {
-                            _showSnackBar('联系电话格式不正确');
+                            _showSnackBar('联系电话格式不正确', isError: true);
                             return;
                           }
 
                           final newAppeal = AppealManagement(
                             appealId: null,
-                            // 由后端生成
                             offenseId: null,
-                            // 可选字段
                             appellantName: name,
                             idCardNumber: idCard,
                             contactNumber: contact,
                             appealReason: reason,
                             appealTime: DateTime.now(),
-                            // 前端设置，后端可能覆盖
                             processStatus: 'Pending',
-                            // 默认值
                             processResult: '',
-                            // 默认值
-                            idempotencyKey: generateIdempotencyKey(), // 必须提供
+                            idempotencyKey: generateIdempotencyKey(),
                           );
                           _submitAppeal(newAppeal, newAppeal.idempotencyKey!);
                           Navigator.pop(ctx);
                         },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: themeData.colorScheme.primary,
-                          foregroundColor: themeData.colorScheme.onPrimary,
-                          elevation: 2,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10.0)),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 20.0, vertical: 10.0),
+                        style: themeData.elevatedButtonTheme.style?.copyWith(
+                          backgroundColor: WidgetStateProperty.all(themeData.colorScheme.primary),
+                          foregroundColor: WidgetStateProperty.all(themeData.colorScheme.onPrimary),
                         ),
-                        child: Text(
-                          '提交',
-                          style: themeData.textTheme.labelMedium?.copyWith(
-                            color: themeData.colorScheme.onPrimary,
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        child: const Text('提交'),
                       ),
                     ],
                   ),
@@ -382,32 +321,29 @@ class _UserAppealPageState extends State<UserAppealPage> {
     );
   }
 
-  void _showSnackBar(String message) {
+  void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? Colors.red : Colors.green,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final UserDashboardController dashboardController =
-        Get.find<UserDashboardController>();
-    final isLight = dashboardController.currentTheme.value == 'Light';
-    final themeData = dashboardController.currentBodyTheme.value;
+    final themeData = controller?.currentBodyTheme.value ?? ThemeData.light();
+    final isLight = controller?.currentTheme.value == 'Light' ?? true;
 
     if (!_isUser) {
       return Scaffold(
-        backgroundColor: isLight
-            ? themeData.colorScheme.surface.withOpacity(0.95)
-            : themeData.colorScheme.surface.withOpacity(0.85),
+        backgroundColor: themeData.colorScheme.surface,
         body: Center(
           child: Text(
             _errorMessage,
             style: themeData.textTheme.bodyLarge?.copyWith(
-              color: isLight
-                  ? themeData.colorScheme.onSurface
-                  : themeData.colorScheme.onSurface.withOpacity(0.9),
-              fontSize: 18,
+              color: themeData.colorScheme.onSurface,
             ),
           ),
         ),
@@ -415,24 +351,18 @@ class _UserAppealPageState extends State<UserAppealPage> {
     }
 
     return Scaffold(
-      backgroundColor: isLight
-          ? themeData.colorScheme.surface.withOpacity(0.95)
-          : themeData.colorScheme.surface.withOpacity(0.85),
+      backgroundColor: themeData.colorScheme.surface,
       appBar: AppBar(
         title: Text(
           '用户申诉管理',
           style: themeData.textTheme.headlineSmall?.copyWith(
-            color: isLight
-                ? themeData.colorScheme.onSurface
-                : themeData.colorScheme.onSurface.withOpacity(0.95),
+            color: themeData.colorScheme.onSurface,
             fontWeight: FontWeight.bold,
           ),
         ),
-        backgroundColor: isLight
-            ? themeData.colorScheme.surfaceContainer.withOpacity(0.9)
-            : themeData.colorScheme.surfaceContainer.withOpacity(0.7),
+        backgroundColor: themeData.colorScheme.primaryContainer,
+        foregroundColor: themeData.colorScheme.onPrimaryContainer,
         elevation: 2,
-        shadowColor: themeData.colorScheme.shadow.withOpacity(0.2),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -445,40 +375,24 @@ class _UserAppealPageState extends State<UserAppealPage> {
                     controller: _searchController,
                     decoration: InputDecoration(
                       labelText: '按姓名搜索申诉',
-                      prefixIcon: Icon(Icons.search,
-                          color: themeData.colorScheme.primary),
+                      prefixIcon: Icon(Icons.search, color: themeData.colorScheme.primary),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12.0),
-                        borderSide:
-                            BorderSide(color: themeData.colorScheme.outline),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12.0),
-                        borderSide: BorderSide(
-                            color:
-                                themeData.colorScheme.outline.withOpacity(0.5)),
+                        borderSide: BorderSide(color: themeData.colorScheme.outline.withOpacity(0.5)),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12.0),
-                        borderSide: BorderSide(
-                            color: themeData.colorScheme.primary, width: 2.0),
+                        borderSide: BorderSide(color: themeData.colorScheme.primary, width: 2.0),
                       ),
-                      labelStyle: themeData.textTheme.bodyMedium?.copyWith(
-                        color: isLight
-                            ? themeData.colorScheme.onSurface
-                            : themeData.colorScheme.onSurface.withOpacity(0.9),
-                      ),
+                      labelStyle: TextStyle(color: themeData.colorScheme.onSurface),
                       filled: true,
-                      fillColor: isLight
-                          ? themeData.colorScheme.surfaceContainerLowest
-                          : themeData.colorScheme.surfaceContainerLow,
+                      fillColor: themeData.colorScheme.surfaceContainerLowest,
                     ),
                     onSubmitted: (value) => _searchAppealsByName(value.trim()),
-                    style: themeData.textTheme.bodyMedium?.copyWith(
-                      color: isLight
-                          ? themeData.colorScheme.onSurface
-                          : themeData.colorScheme.onSurface.withOpacity(0.95),
-                    ),
+                    style: TextStyle(color: themeData.colorScheme.onSurface),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -487,22 +401,11 @@ class _UserAppealPageState extends State<UserAppealPage> {
                     final query = _searchController.text.trim();
                     _searchAppealsByName(query);
                   },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: themeData.colorScheme.primary,
-                    foregroundColor: themeData.colorScheme.onPrimary,
-                    elevation: 2,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12.0)),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16.0, vertical: 12.0),
+                  style: themeData.elevatedButtonTheme.style?.copyWith(
+                    backgroundColor: WidgetStateProperty.all(themeData.colorScheme.primary),
+                    foregroundColor: WidgetStateProperty.all(themeData.colorScheme.onPrimary),
                   ),
-                  child: Text(
-                    '搜索',
-                    style: themeData.textTheme.labelLarge?.copyWith(
-                      color: themeData.colorScheme.onPrimary,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  child: const Text('搜索'),
                 ),
               ],
             ),
@@ -510,100 +413,72 @@ class _UserAppealPageState extends State<UserAppealPage> {
             Expanded(
               child: _isLoading
                   ? Center(
-                      child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                            themeData.colorScheme.primary),
-                      ),
-                    )
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(themeData.colorScheme.primary),
+                ),
+              )
                   : _errorMessage.isNotEmpty
-                      ? Center(
-                          child: Text(
-                            _errorMessage,
-                            style: themeData.textTheme.bodyLarge?.copyWith(
-                              color: isLight
-                                  ? themeData.colorScheme.onSurface
-                                  : themeData.colorScheme.onSurface
-                                      .withOpacity(0.9),
-                              fontSize: 18,
-                            ),
+                  ? Center(
+                child: Text(
+                  _errorMessage,
+                  style: themeData.textTheme.bodyLarge?.copyWith(
+                    color: themeData.colorScheme.onSurface,
+                  ),
+                ),
+              )
+                  : _appeals.isEmpty
+                  ? Center(
+                child: Text(
+                  '暂无申诉记录',
+                  style: themeData.textTheme.bodyLarge?.copyWith(
+                    color: themeData.colorScheme.onSurface,
+                  ),
+                ),
+              )
+                  : CupertinoScrollbar(
+                controller: _scrollController,
+                thumbVisibility: true,
+                thickness: 6.0,
+                thicknessWhileDragging: 10.0,
+                child: ListView.builder(
+                  controller: _scrollController,
+                  itemCount: _appeals.length,
+                  itemBuilder: (context, index) {
+                    final appeal = _appeals[index];
+                    return Card(
+                      elevation: 3,
+                      color: themeData.colorScheme.surfaceContainer,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12.0)),
+                      margin: const EdgeInsets.symmetric(vertical: 6.0),
+                      child: ListTile(
+                        title: Text(
+                          '申诉人: ${appeal.appellantName ?? "未知"} (ID: ${appeal.appealId ?? "无"})',
+                          style: themeData.textTheme.bodyLarge?.copyWith(
+                            color: themeData.colorScheme.onSurface,
+                            fontWeight: FontWeight.w600,
                           ),
-                        )
-                      : _appeals.isEmpty
-                          ? Center(
-                              child: Text(
-                                '暂无申诉记录',
-                                style: themeData.textTheme.bodyLarge?.copyWith(
-                                  color: isLight
-                                      ? themeData.colorScheme.onSurface
-                                      : themeData.colorScheme.onSurface
-                                          .withOpacity(0.9),
-                                  fontSize: 18,
-                                ),
-                              ),
-                            )
-                          : CupertinoScrollbar(
-                              controller: _scrollController,
-                              thumbVisibility: true,
-                              thickness: 6.0,
-                              thicknessWhileDragging: 10.0,
-                              child: ListView.builder(
-                                controller: _scrollController,
-                                itemCount: _appeals.length,
-                                itemBuilder: (context, index) {
-                                  final appeal = _appeals[index];
-                                  return Card(
-                                    elevation: 3,
-                                    shadowColor: themeData.colorScheme.shadow
-                                        .withOpacity(0.2),
-                                    color: isLight
-                                        ? themeData
-                                            .colorScheme.surfaceContainerLow
-                                        : themeData
-                                            .colorScheme.surfaceContainerHigh,
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(12.0)),
-                                    margin: const EdgeInsets.symmetric(
-                                        vertical: 6.0),
-                                    child: ListTile(
-                                      title: Text(
-                                        '申诉人: ${appeal.appellantName ?? "未知"} (ID: ${appeal.appealId ?? "无"})',
-                                        style: themeData.textTheme.bodyLarge
-                                            ?.copyWith(
-                                          color: isLight
-                                              ? themeData.colorScheme.onSurface
-                                              : themeData.colorScheme.onSurface
-                                                  .withOpacity(0.95),
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                      subtitle: Text(
-                                        '原因: ${appeal.appealReason ?? "无"}\n状态: ${appeal.processStatus ?? "Pending"}',
-                                        style: themeData.textTheme.bodyMedium
-                                            ?.copyWith(
-                                          color: isLight
-                                              ? themeData
-                                                  .colorScheme.onSurfaceVariant
-                                              : themeData
-                                                  .colorScheme.onSurfaceVariant
-                                                  .withOpacity(0.85),
-                                        ),
-                                      ),
-                                      onTap: () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) =>
-                                                UserAppealDetailPage(
-                                                    appeal: appeal),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  );
-                                },
-                              ),
+                        ),
+                        subtitle: Text(
+                          '原因: ${appeal.appealReason ?? "无"}\n状态: ${appeal.processStatus ?? "Pending"}',
+                          style: themeData.textTheme.bodyMedium?.copyWith(
+                            color: themeData.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  UserAppealDetailPage(appeal: appeal),
                             ),
+                          );
+                        },
+                      ),
+                    );
+                  },
+                ),
+              ),
             ),
           ],
         ),
@@ -624,8 +499,7 @@ class UserAppealDetailPage extends StatelessWidget {
 
   const UserAppealDetailPage({super.key, required this.appeal});
 
-  Widget _buildDetailRow(
-      String label, String value, ThemeData themeData, bool isLight) {
+  Widget _buildDetailRow(String label, String value, ThemeData themeData) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
@@ -635,18 +509,14 @@ class UserAppealDetailPage extends StatelessWidget {
             '$label: ',
             style: themeData.textTheme.bodyLarge?.copyWith(
               fontWeight: FontWeight.bold,
-              color: isLight
-                  ? themeData.colorScheme.onSurface
-                  : themeData.colorScheme.onSurface.withOpacity(0.95),
+              color: themeData.colorScheme.onSurface,
             ),
           ),
           Expanded(
             child: Text(
               value,
               style: themeData.textTheme.bodyMedium?.copyWith(
-                color: isLight
-                    ? themeData.colorScheme.onSurfaceVariant
-                    : themeData.colorScheme.onSurfaceVariant.withOpacity(0.85),
+                color: themeData.colorScheme.onSurfaceVariant,
               ),
             ),
           ),
@@ -657,30 +527,21 @@ class UserAppealDetailPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final UserDashboardController dashboardController =
-        Get.find<UserDashboardController>();
-    final isLight = dashboardController.currentTheme.value == 'Light';
-    final themeData = dashboardController.currentBodyTheme.value;
+    final themeData = Get.find<UserDashboardController>().currentBodyTheme.value;
 
     return Scaffold(
-      backgroundColor: isLight
-          ? themeData.colorScheme.surface.withOpacity(0.95)
-          : themeData.colorScheme.surface.withOpacity(0.85),
+      backgroundColor: themeData.colorScheme.surface,
       appBar: AppBar(
         title: Text(
           '申诉详情',
           style: themeData.textTheme.headlineSmall?.copyWith(
-            color: isLight
-                ? themeData.colorScheme.onSurface
-                : themeData.colorScheme.onSurface.withOpacity(0.95),
+            color: themeData.colorScheme.onSurface,
             fontWeight: FontWeight.bold,
           ),
         ),
-        backgroundColor: isLight
-            ? themeData.colorScheme.surfaceContainer.withOpacity(0.9)
-            : themeData.colorScheme.surfaceContainer.withOpacity(0.7),
+        backgroundColor: themeData.colorScheme.primaryContainer,
+        foregroundColor: themeData.colorScheme.onPrimaryContainer,
         elevation: 2,
-        shadowColor: themeData.colorScheme.shadow.withOpacity(0.2),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -690,25 +551,15 @@ class UserAppealDetailPage extends StatelessWidget {
           thicknessWhileDragging: 10.0,
           child: ListView(
             children: [
-              _buildDetailRow('申诉ID', appeal.appealId?.toString() ?? '无',
-                  themeData, isLight),
+              _buildDetailRow('申诉ID', appeal.appealId?.toString() ?? '无', themeData),
+              _buildDetailRow('上诉人', appeal.appellantName ?? '无', themeData),
+              _buildDetailRow('身份证号码', appeal.idCardNumber ?? '无', themeData),
+              _buildDetailRow('联系电话', appeal.contactNumber ?? '无', themeData),
+              _buildDetailRow('申诉原因', appeal.appealReason ?? '无', themeData),
               _buildDetailRow(
-                  '上诉人', appeal.appellantName ?? '无', themeData, isLight),
-              _buildDetailRow(
-                  '身份证号码', appeal.idCardNumber ?? '无', themeData, isLight),
-              _buildDetailRow(
-                  '联系电话', appeal.contactNumber ?? '无', themeData, isLight),
-              _buildDetailRow(
-                  '申诉原因', appeal.appealReason ?? '无', themeData, isLight),
-              _buildDetailRow(
-                  '申诉时间',
-                  appeal.appealTime?.toIso8601String() ?? '无',
-                  themeData,
-                  isLight),
-              _buildDetailRow('处理状态', appeal.processStatus ?? 'Pending',
-                  themeData, isLight),
-              _buildDetailRow(
-                  '处理结果', appeal.processResult ?? '无', themeData, isLight),
+                  '申诉时间', appeal.appealTime?.toIso8601String() ?? '无', themeData),
+              _buildDetailRow('处理状态', appeal.processStatus ?? 'Pending', themeData),
+              _buildDetailRow('处理结果', appeal.processResult ?? '无', themeData),
               const SizedBox(height: 20),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),

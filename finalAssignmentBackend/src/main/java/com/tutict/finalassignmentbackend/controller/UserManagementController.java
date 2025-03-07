@@ -62,10 +62,7 @@ public class UserManagementController {
     @PutMapping("/me")
     @Transactional
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
-    public ResponseEntity<Void> updateCurrentUser(
-            @RequestBody UserManagement updatedUser,
-            @RequestParam String idempotencyKey,
-            Principal principal) {
+    public ResponseEntity<Void> updateCurrentUser(@RequestBody UserManagement updatedUser, @RequestParam String idempotencyKey, Principal principal) {
         String username = principal.getName();
         logger.info("Attempting to update current user: {}", username);
         UserManagement existingUser = userManagementService.getUserByUsername(username);
@@ -73,6 +70,30 @@ public class UserManagementController {
             updatedUser.setUserId(existingUser.getUserId());
             userManagementService.checkAndInsertIdempotency(idempotencyKey, updatedUser, "update");
             logger.info("User updated successfully: {}", username);
+            return ResponseEntity.ok().build();
+        } else {
+            logger.warn("User not found: {}", username);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+    }
+
+    // New endpoint to update password
+    @PutMapping("/me/password")
+    @Transactional
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    public ResponseEntity<Void> updatePassword( @RequestBody String password, @RequestParam String idempotencyKey, Principal principal) {
+        if (principal == null) {
+            logger.warn("Principal is null, no authenticated user");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        String username = principal.getName();
+        logger.info("Attempting to update password for user: {}", username);
+        UserManagement existingUser = userManagementService.getUserByUsername(username);
+        if (existingUser != null) {
+            String cleanedPassword = password.replaceAll("^\"|\"$", "");
+            existingUser.setPassword(cleanedPassword);
+            userManagementService.checkAndInsertIdempotency(idempotencyKey, existingUser, "update");
+            logger.info("Password updated successfully for user: {}", username);
             return ResponseEntity.ok().build();
         } else {
             logger.warn("User not found: {}", username);

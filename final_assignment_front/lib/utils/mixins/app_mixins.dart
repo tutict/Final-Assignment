@@ -17,7 +17,6 @@ import 'package:final_assignment_front/features/dashboard/views/user_screens/use
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/news/FinePaymentNoticePage.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/news/LatestTrafficViolationNewsPage.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/consultation_feedback.dart';
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/personal_info.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/personal_main.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/setting/setting_main.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/process_pages/business_progress.dart';
