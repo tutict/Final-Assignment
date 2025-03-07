@@ -13,21 +13,25 @@ class DashboardController extends GetxController with NavigationMixin {
   final isSidebarOpen = false.obs;
   final selectedPage = Rx<Widget?>(null);
   final isChatExpanded = true.obs;
-  final Rx<Profile?> currentUser = Rx<Profile?>(null); // 更新为 Profile 类型
-  // 新增：获取交通违法数据和角色数据
+  final Rx<Profile?> currentUser = Rx<Profile?>(null);
   late Rx<Future<List<OffenseInformation>>> offensesFuture;
-  late Rx<Future<List<RoleManagement>>> rolesFuture;
+
+  // late Rx<Future<List<RoleManagement>>> rolesFuture;
+
+  final offenseApi = OffenseInformationControllerApi();
+  final roleApi = RoleManagementControllerApi();
 
   @override
   void onInit() {
     super.onInit();
     _initializeCaseCardData();
-    _loadUserFromPrefs(); // 加载已保存的用户数据
-    offensesFuture = Rx<Future<List<OffenseInformation>>>(_fetchAllOffenses());
-    rolesFuture = Rx<Future<List<RoleManagement>>>(_fetchAllRoles());
+    _loadUserFromPrefs();
   }
 
-  // 加载保存的用户数据
+  void loadAdminData() {
+    offensesFuture = Rx<Future<List<OffenseInformation>>>(_fetchAllOffenses());
+  }
+
   Future<void> _loadUserFromPrefs() async {
     final prefs = await SharedPreferences.getInstance();
     final jwtToken = prefs.getString('jwtToken');
@@ -40,40 +44,40 @@ class DashboardController extends GetxController with NavigationMixin {
         userEmail != null &&
         userRole != null) {
       currentUser.value = Profile(
-        photo: const AssetImage(ImageRasterPath.avatar1), // 默认头像，可根据 API 动态更新
+        photo: const AssetImage(ImageRasterPath.avatar1),
         name: userName,
         email: userEmail,
       );
+      await offenseApi.initializeWithJwt();
+      await roleApi.initializeWithJwt();
     } else {
-      // 如果没有令牌或用户信息，提示用户登录
       _showErrorSnackBar('请先登录以访问管理功能');
+      _redirectToLogin();
     }
   }
 
-  // 验证 JWT 令牌和角色
   Future<void> _validateTokenAndRole() async {
-    final roleApi = RoleManagementControllerApi();
     try {
       final role = await roleApi.getCurrentUserRole();
       if (role != 'ADMIN') {
         throw Exception('权限不足：仅管理员可访问此功能');
       }
     } catch (e) {
-      throw Exception('令牌验证失败：$e');
+      _showErrorSnackBar('令牌验证失败：$e');
+      _redirectToLogin();
+      rethrow;
     }
   }
 
-  // 更新当前用户（从 API 获取数据）
   void updateCurrentUser(String name, String email, {ImageProvider? photo}) {
     currentUser.value = Profile(
       photo: photo ?? const AssetImage(ImageRasterPath.avatar1),
       name: name,
       email: email,
     );
-    _saveUserToPrefs(name, email, 'ADMIN'); // 保存为 ADMIN 角色
+    _saveUserToPrefs(name, email, 'ADMIN');
   }
 
-  // 保存用户数据到 SharedPreferences
   Future<void> _saveUserToPrefs(String name, String email, String role) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('userName', name);
@@ -81,27 +85,23 @@ class DashboardController extends GetxController with NavigationMixin {
     await prefs.setString('userRole', role);
   }
 
-  // 获取当前用户
   Profile get currentProfile =>
       currentUser.value ??
       const Profile(
-          photo: AssetImage(ImageRasterPath.avatar1),
-          name: "Guest",
-          email: "guest@example.com");
+        photo: AssetImage(ImageRasterPath.avatar1),
+        name: "Guest",
+        email: "guest@example.com",
+      );
 
-  // 切换侧边栏状态
   void toggleSidebar() => isSidebarOpen.value = !isSidebarOpen.value;
 
-  // 切换主题
   void toggleBodyTheme() {
     currentTheme.value = currentTheme.value == 'Light' ? 'Dark' : 'Light';
     _applyTheme();
   }
 
-  // 切换 AiChat 状态
   void toggleChat() => isChatExpanded.value = !isChatExpanded.value;
 
-  // 应用主题
   void _applyTheme() {
     String theme = selectedStyle.value;
     ThemeData baseTheme = theme == 'Material'
@@ -121,11 +121,20 @@ class DashboardController extends GetxController with NavigationMixin {
     currentBodyTheme.value = baseTheme.copyWith(
       textTheme: baseTheme.textTheme.copyWith(
         labelLarge: baseTheme.textTheme.labelLarge?.copyWith(
-          inherit: true,
           fontFamily: fontFamily,
           fontSize: 16.0,
           fontWeight: FontWeight.normal,
-          color: currentTheme.value == 'Light' ? Colors.black : Colors.white,
+          color: baseTheme.colorScheme.onPrimary,
+        ),
+        bodyLarge: baseTheme.textTheme.bodyLarge?.copyWith(
+          fontFamily: fontFamily,
+          fontSize: 16.0,
+          color: baseTheme.colorScheme.onSurface,
+        ),
+        bodyMedium: baseTheme.textTheme.bodyMedium?.copyWith(
+          fontFamily: fontFamily,
+          fontSize: 14.0,
+          color: baseTheme.colorScheme.onSurface.withOpacity(0.7),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
@@ -133,11 +142,9 @@ class DashboardController extends GetxController with NavigationMixin {
           backgroundColor: baseTheme.colorScheme.primary,
           foregroundColor: baseTheme.colorScheme.onPrimary,
           elevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16.0),
-          ),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
           textStyle: TextStyle(
-            inherit: true,
             fontFamily: fontFamily,
             fontSize: 16.0,
             fontWeight: FontWeight.normal,
@@ -150,41 +157,33 @@ class DashboardController extends GetxController with NavigationMixin {
     Get.changeTheme(currentBodyTheme.value);
   }
 
-  // 打开抽屉
   void openDrawer() => isDesktop.value
       ? isSidebarOpen.value = true
       : scaffoldKey.currentState?.openDrawer();
 
-  // 关闭侧边栏
   void closeSidebar() => isDesktop.value ? isSidebarOpen.value = false : null;
 
-  // 选择案件类型
   void onCaseTypeSelected(CaseType selectedType) =>
       selectedCaseType.value = selectedType;
 
-  // 获取案件数据
   List<CaseCardData> getCaseByType(CaseType type) =>
       caseCardDataList.where((task) => task.type == type).toList();
 
-  // 导航到页面
   void navigateToPage(String routeName) {
     debugPrint('导航至: $routeName');
     selectedPage.value = getPageForRoute(routeName);
     isShowingSidebarContent.value = true;
   }
 
-  // 退出侧边栏内容
   void exitSidebarContent() {
     debugPrint('退出侧边栏内容');
     isShowingSidebarContent.value = false;
     selectedPage.value = null;
   }
 
-  // 构建选中页面内容
   Widget buildSelectedPageContent() =>
       Obx(() => selectedPage.value ?? const SizedBox.shrink());
 
-  // 获取项目信息
   ProjectCardData getSelectedProject() => ProjectCardData(
         percent: .3,
         projectImage: const AssetImage(ImageRasterPath.logo4),
@@ -192,10 +191,8 @@ class DashboardController extends GetxController with NavigationMixin {
         releaseTime: DateTime.now(),
       );
 
-  // 获取活动项目
   List<ProjectCardData> getActiveProject() => [];
 
-  // 获取顾问头像
   List<ImageProvider<Object>> getMember() => const [
         AssetImage(ImageRasterPath.avatar1),
         AssetImage(ImageRasterPath.avatar2),
@@ -207,7 +204,7 @@ class DashboardController extends GetxController with NavigationMixin {
 
   Future<Map<String, int>> getOffenseTypeDistribution() async {
     try {
-      final offenses = await _fetchAllOffenses();
+      final offenses = await offensesFuture.value;
       final Map<String, int> typeCountMap = {};
       for (var o in offenses) {
         final type = o.offenseType ?? 'Unknown Type';
@@ -216,57 +213,36 @@ class DashboardController extends GetxController with NavigationMixin {
       return typeCountMap;
     } catch (e) {
       debugPrint('Error fetching offense distribution: $e');
-      return {}; // Return an empty map on error to avoid crashing
+      return {};
     }
   }
 
   Future<List<OffenseInformation>> _fetchAllOffenses() async {
     try {
       await _validateTokenAndRole();
-
-      final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken');
-      if (jwtToken == null) {
-        throw Exception('No JWT token found');
-      }
-
-      final listObj = await OffenseInformationControllerApi().apiOffensesGet(
-        headers: {'Authorization': 'Bearer $jwtToken'},
-      );
-      if (listObj == null) return [];
-      return listObj.map((item) {
-        return OffenseInformation.fromJson(item as Map<String, dynamic>);
-      }).toList();
+      return await offenseApi.apiOffensesGet();
     } catch (e) {
       debugPrint('Failed to fetch offense information: $e');
-      rethrow;
+      _showErrorSnackBar('无法加载违法行为信息: $e');
+      return [];
     }
   }
 
-  Future<List<RoleManagement>> _fetchAllRoles() async {
-    try {
-      await _validateTokenAndRole();
-
-      final roleApi = RoleManagementControllerApi();
-      final roles = await roleApi.apiRolesGet();
-      return roles
-          .where((role) => role.status == 'Active')
-          .toList(); // 使用 status
-    } catch (e) {
-      debugPrint('Failed to fetch roles: $e');
-      rethrow;
-    }
-  }
-
-  // 显示错误提示
   void _showErrorSnackBar(String message) {
-    Get.snackbar('错误', message,
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red,
-        colorText: Colors.white);
+    Get.snackbar(
+      '错误',
+      message,
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: Colors.red.withOpacity(0.9),
+      colorText: Colors.white,
+      duration: const Duration(seconds: 3),
+    );
   }
 
-  // 更新滑动方向
+  void _redirectToLogin() {
+    Get.offAllNamed('/login'); // Adjust route name as needed
+  }
+
   void updateScrollDirection(ScrollController scrollController) {
     scrollController.addListener(() {
       isScrollingDown.value = scrollController.position.userScrollDirection ==
@@ -274,7 +250,6 @@ class DashboardController extends GetxController with NavigationMixin {
     });
   }
 
-  // 初始化案件数据
   void _initializeCaseCardData() {
     caseCardDataList.addAll([
       const CaseCardData(
@@ -304,7 +279,6 @@ class DashboardController extends GetxController with NavigationMixin {
     ]);
   }
 
-  // 设置主题样式
   void setSelectedStyle(String style) {
     selectedStyle.value = style;
     _applyTheme();

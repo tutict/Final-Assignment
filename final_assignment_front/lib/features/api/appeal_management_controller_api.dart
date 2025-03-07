@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:final_assignment_front/features/model/appeal_management.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -22,6 +23,17 @@ class AppealManagementControllerApi {
       'Content-Type': 'application/json; charset=utf-8',
       if (token.isNotEmpty) 'Authorization': 'Bearer $token',
     };
+  }
+
+  /// 从 SharedPreferences 中读取 jwtToken 并设置到 ApiClient 中
+  Future<void> initializeWithJwt() async {
+    final prefs = await SharedPreferences.getInstance();
+    final jwtToken = prefs.getString('jwtToken');
+    if (jwtToken == null) {
+      throw Exception('未登录，请重新登录');
+    }
+    apiClient.setJwtToken(jwtToken);
+    debugPrint('Initialized DeductionInformationControllerApi with token: $jwtToken');
   }
 
   /// 辅助方法：将幂等性键添加为查询参数

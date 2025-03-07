@@ -1,4 +1,3 @@
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/process_pages/vehicle_management.dart';
 import 'package:flutter/material.dart';
 import 'package:final_assignment_front/features/api/vehicle_information_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
@@ -24,8 +23,6 @@ class _VehicleListPageState extends State<VehicleList> {
       Get.find<UserDashboardController>();
   bool _isLoading = true;
   String _errorMessage = '';
-
-  // 搜索时使用的控制器
   final TextEditingController _licensePlateController = TextEditingController();
   final TextEditingController _vehicleTypeController = TextEditingController();
   final TextEditingController _ownerNameController = TextEditingController();
@@ -35,7 +32,7 @@ class _VehicleListPageState extends State<VehicleList> {
   void initState() {
     super.initState();
     vehicleApi = VehicleInformationControllerApi();
-    _loadVehicles(); // Load vehicles with proper JWT initialization
+    _loadVehicles();
   }
 
   @override
@@ -53,21 +50,15 @@ class _VehicleListPageState extends State<VehicleList> {
       _errorMessage = '';
     });
     try {
-      await vehicleApi
-          .initializeWithJwt(); // Set JWT before making the API call
-      _vehiclesFuture =
-          vehicleApi.apiVehiclesGet(); // Assign future after JWT is set
-      await _vehiclesFuture; // Wait for the data
-      setState(() {
-        _isLoading = false;
-      });
+      await vehicleApi.initializeWithJwt();
+      _vehiclesFuture = vehicleApi.apiVehiclesGet();
+      await _vehiclesFuture;
+      setState(() => _isLoading = false);
     } catch (e) {
       setState(() {
         _isLoading = false;
         _errorMessage = '加载车辆信息失败: $e';
-        if (e.toString().contains('未登录')) {
-          _redirectToLogin();
-        }
+        if (e.toString().contains('未登录')) _redirectToLogin();
       });
     }
   }
@@ -82,7 +73,7 @@ class _VehicleListPageState extends State<VehicleList> {
       _errorMessage = '';
     });
     try {
-      await vehicleApi.initializeWithJwt(); // Ensure JWT is set
+      await vehicleApi.initializeWithJwt();
       switch (type) {
         case 'licensePlate':
           final vehicle = await vehicleApi
@@ -106,46 +97,43 @@ class _VehicleListPageState extends State<VehicleList> {
           return;
       }
       await _vehiclesFuture;
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
     } catch (e) {
       setState(() {
         _isLoading = false;
         _errorMessage = '搜索失败: $e';
-        if (e.toString().contains('未登录')) {
-          _redirectToLogin();
-        }
+        if (e.toString().contains('未登录')) _redirectToLogin();
       });
     }
   }
 
   void _redirectToLogin() {
     if (!mounted) return;
-    Navigator.pushReplacementNamed(
-        context, '/login'); // Adjust route name as needed
+    Navigator.pushReplacementNamed(context, '/login');
   }
 
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message,
-            style: TextStyle(color: isError ? Colors.red : Colors.white)),
-        backgroundColor: isError ? Colors.grey[800] : Colors.green,
+        content: Text(
+          message,
+          style: Theme.of(context)
+              .textTheme
+              .bodyMedium
+              ?.copyWith(color: isError ? Colors.red : Colors.white),
+        ),
       ),
     );
   }
 
   void _goToDetailPage(VehicleInformation vehicle) {
     Navigator.push(
-      context,
-      MaterialPageRoute(
-          builder: (context) => VehicleDetailPage(vehicle: vehicle)),
-    ).then((value) {
-      if (value == true && mounted) {
-        _loadVehicles();
-      }
+            context,
+            MaterialPageRoute(
+                builder: (context) => VehicleDetailPage(vehicle: vehicle)))
+        .then((value) {
+      if (value == true && mounted) _loadVehicles();
     });
   }
 
@@ -173,7 +161,7 @@ class _VehicleListPageState extends State<VehicleList> {
   }
 
   Widget _buildSearchField(String label, TextEditingController controller,
-      String type, bool isLight) {
+      String type, ThemeData theme) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
       child: Row(
@@ -186,28 +174,21 @@ class _VehicleListPageState extends State<VehicleList> {
                 prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8.0)),
-                labelStyle:
-                    TextStyle(color: isLight ? Colors.black87 : Colors.white),
+                labelStyle: theme.textTheme.bodyMedium,
                 enabledBorder: OutlineInputBorder(
-                  borderSide: BorderSide(
-                      color: isLight ? Colors.grey : Colors.grey[500]!),
-                ),
+                    borderSide: BorderSide(
+                        color: theme.colorScheme.onSurface.withOpacity(0.5))),
                 focusedBorder: OutlineInputBorder(
-                  borderSide: BorderSide(
-                      color: isLight ? Colors.blue : Colors.blueGrey),
-                ),
+                    borderSide: BorderSide(color: theme.colorScheme.primary)),
               ),
-              onChanged: (value) => _searchVehicles(type, value),
-              style: TextStyle(color: isLight ? Colors.black : Colors.white),
+              style: theme.textTheme.bodyMedium,
+              onSubmitted: (value) => _searchVehicles(type, value.trim()),
             ),
           ),
           const SizedBox(width: 8),
           ElevatedButton(
             onPressed: () => _searchVehicles(type, controller.text.trim()),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isLight ? Colors.blue : Colors.blueGrey,
-              foregroundColor: Colors.white,
-            ),
+            style: theme.elevatedButtonTheme.style,
             child: const Text('搜索'),
           ),
         ],
@@ -217,131 +198,214 @@ class _VehicleListPageState extends State<VehicleList> {
 
   @override
   Widget build(BuildContext context) {
-    final bool isLight = Theme.of(context).brightness == Brightness.light;
+    final theme = Theme.of(context);
+    return Obx(
+      () => Theme(
+        data: controller.currentBodyTheme.value,
+        child: Scaffold(
+          appBar: AppBar(
+            title: Text('车辆信息列表',
+                style: theme.textTheme.labelLarge
+                    ?.copyWith(color: theme.colorScheme.onPrimary)),
+            backgroundColor: theme.colorScheme.primary,
+            foregroundColor: theme.colorScheme.onPrimary,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.add),
+                onPressed: () {
+                  Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => const AddVehiclePage()))
+                      .then((value) {
+                    if (value == true && mounted) _loadVehicles();
+                  });
+                },
+                tooltip: '添加新车辆信息',
+              ),
+            ],
+          ),
+          body: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Column(
+              children: [
+                _buildSearchField(
+                    '按车牌号搜索', _licensePlateController, 'licensePlate', theme),
+                _buildSearchField(
+                    '按车辆类型搜索', _vehicleTypeController, 'vehicleType', theme),
+                _buildSearchField(
+                    '按车主名称搜索', _ownerNameController, 'ownerName', theme),
+                _buildSearchField('按状态搜索', _statusController, 'status', theme),
+                const SizedBox(height: 16),
+                if (_isLoading)
+                  const Expanded(
+                      child: Center(child: CircularProgressIndicator()))
+                else if (_errorMessage.isNotEmpty)
+                  Expanded(
+                      child: Center(
+                          child: Text(_errorMessage,
+                              style: theme.textTheme.bodyLarge)))
+                else
+                  Expanded(
+                    child: FutureBuilder<List<VehicleInformation>>(
+                      future: _vehiclesFuture,
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Center(
+                              child: CircularProgressIndicator());
+                        } else if (snapshot.hasError) {
+                          return Center(
+                              child: Text('加载车辆信息时发生错误: ${snapshot.error}',
+                                  style: theme.textTheme.bodyLarge));
+                        } else if (!snapshot.hasData ||
+                            snapshot.data!.isEmpty) {
+                          return Center(
+                              child: Text('没有找到车辆信息',
+                                  style: theme.textTheme.bodyLarge));
+                        } else {
+                          final vehicles = snapshot.data!;
+                          return ListView.builder(
+                            itemCount: vehicles.length,
+                            itemBuilder: (context, index) {
+                              final v = vehicles[index];
+                              final type = v.vehicleType ?? '未知类型';
+                              final plate = v.licensePlate ?? '未知车牌';
+                              final owner = v.ownerName ?? '未知车主';
+                              final vid = v.vehicleId ?? 0;
+                              return Card(
+                                margin: const EdgeInsets.symmetric(
+                                    vertical: 8.0, horizontal: 16.0),
+                                elevation: 4,
+                                color: theme.colorScheme.surface,
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10.0)),
+                                child: ListTile(
+                                  title: Text('车辆类型: $type',
+                                      style: theme.textTheme.bodyLarge),
+                                  subtitle: Text('车牌号: $plate\n车主: $owner',
+                                      style: theme.textTheme.bodyMedium
+                                          ?.copyWith(
+                                              color: theme.colorScheme.onSurface
+                                                  .withOpacity(0.7))),
+                                  trailing: PopupMenuButton<String>(
+                                    onSelected: (value) {
+                                      if (value == 'edit') {
+                                        _goToDetailPage(v);
+                                      } else if (value == 'delete') {
+                                        _deleteVehicle(vid);
+                                      } else if (value == 'deleteByPlate') {
+                                        _deleteVehicleByLicensePlate(plate);
+                                      }
+                                    },
+                                    itemBuilder: (context) => [
+                                      const PopupMenuItem<String>(
+                                          value: 'edit', child: Text('编辑')),
+                                      const PopupMenuItem<String>(
+                                          value: 'delete',
+                                          child: Text('按ID删除')),
+                                      const PopupMenuItem<String>(
+                                          value: 'deleteByPlate',
+                                          child: Text('按车牌删除')),
+                                    ],
+                                    icon: Icon(Icons.more_vert,
+                                        color: theme.colorScheme.onSurface),
+                                  ),
+                                  onTap: () => _goToDetailPage(v),
+                                ),
+                              );
+                            },
+                          );
+                        }
+                      },
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Placeholder for AddVehiclePage and VehicleDetailPage
+class AddVehiclePage extends StatelessWidget {
+  const AddVehiclePage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('车辆信息列表'),
-        backgroundColor: isLight ? Colors.blue : Colors.blueGrey,
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const AddVehiclePage()),
-              ).then((value) {
-                if (value == true && mounted) {
-                  _loadVehicles();
-                }
-              });
-            },
-            tooltip: '添加新车辆信息',
+        title: Text('添加新车辆',
+            style: theme.textTheme.labelLarge
+                ?.copyWith(color: theme.colorScheme.onPrimary)),
+        backgroundColor: theme.colorScheme.primary,
+        foregroundColor: theme.colorScheme.onPrimary,
+      ),
+      body: Center(
+        child: Text('此页面用于添加新车辆信息（尚未实现）', style: theme.textTheme.bodyLarge),
+      ),
+    );
+  }
+}
+
+class VehicleDetailPage extends StatelessWidget {
+  final VehicleInformation vehicle;
+
+  const VehicleDetailPage({super.key, required this.vehicle});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final type = vehicle.vehicleType ?? '未知类型';
+    final plate = vehicle.licensePlate ?? '未知车牌';
+    final owner = vehicle.ownerName ?? '未知车主';
+    final status = vehicle.currentStatus ?? '未知状态';
+
+    return Obx(
+      () => Theme(
+        data: Get.find<UserDashboardController>().currentBodyTheme.value,
+        child: Scaffold(
+          appBar: AppBar(
+            title: Text('车辆详细信息',
+                style: theme.textTheme.labelLarge
+                    ?.copyWith(color: theme.colorScheme.onPrimary)),
+            backgroundColor: theme.colorScheme.primary,
+            foregroundColor: theme.colorScheme.onPrimary,
+          ),
+          body: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: ListView(
+              children: [
+                _buildDetailRow('车辆类型', type, theme),
+                _buildDetailRow('车牌号', plate, theme),
+                _buildDetailRow('车主', owner, theme),
+                _buildDetailRow('当前状态', status, theme),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value, ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('$label: ',
+              style: theme.textTheme.bodyLarge
+                  ?.copyWith(fontWeight: FontWeight.bold)),
+          Expanded(
+            child: Text(value,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurface.withOpacity(0.7))),
           ),
         ],
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Column(
-          children: [
-            _buildSearchField(
-                '按车牌号搜索', _licensePlateController, 'licensePlate', isLight),
-            _buildSearchField(
-                '按车辆类型搜索', _vehicleTypeController, 'vehicleType', isLight),
-            _buildSearchField(
-                '按车主名称搜索', _ownerNameController, 'ownerName', isLight),
-            _buildSearchField('按状态搜索', _statusController, 'status', isLight),
-            const SizedBox(height: 16),
-            if (_isLoading)
-              const Expanded(child: Center(child: CircularProgressIndicator()))
-            else if (_errorMessage.isNotEmpty)
-              Expanded(child: Center(child: Text(_errorMessage)))
-            else
-              Expanded(
-                child: FutureBuilder<List<VehicleInformation>>(
-                  future: _vehiclesFuture,
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
-                    } else if (snapshot.hasError) {
-                      return Center(
-                        child: Text(
-                          '加载车辆信息时发生错误: ${snapshot.error}',
-                          style: TextStyle(
-                              color: isLight ? Colors.black : Colors.white),
-                        ),
-                      );
-                    } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                      return Center(
-                        child: Text(
-                          '没有找到车辆信息',
-                          style: TextStyle(
-                              color: isLight ? Colors.black : Colors.white),
-                        ),
-                      );
-                    } else {
-                      final vehicles = snapshot.data!;
-                      return ListView.builder(
-                        itemCount: vehicles.length,
-                        itemBuilder: (context, index) {
-                          final v = vehicles[index];
-                          final type = v.vehicleType ?? '未知类型';
-                          final plate = v.licensePlate ?? '未知车牌';
-                          final owner = v.ownerName ?? '未知车主';
-                          final vid = v.vehicleId ?? 0;
-                          return Card(
-                            margin: const EdgeInsets.symmetric(
-                                vertical: 8.0, horizontal: 16.0),
-                            elevation: 4,
-                            color: isLight ? Colors.white : Colors.grey[800],
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10.0)),
-                            child: ListTile(
-                              title: Text('车辆类型: $type',
-                                  style: TextStyle(
-                                      color: isLight
-                                          ? Colors.black87
-                                          : Colors.white)),
-                              subtitle: Text('车牌号: $plate\n车主: $owner',
-                                  style: TextStyle(
-                                      color: isLight
-                                          ? Colors.black54
-                                          : Colors.white70)),
-                              trailing: PopupMenuButton<String>(
-                                onSelected: (value) {
-                                  if (value == 'edit') {
-                                    _goToDetailPage(v);
-                                  } else if (value == 'delete') {
-                                    _deleteVehicle(vid);
-                                  } else if (value == 'deleteByPlate') {
-                                    _deleteVehicleByLicensePlate(plate);
-                                  }
-                                },
-                                itemBuilder: (context) => [
-                                  const PopupMenuItem<String>(
-                                      value: 'edit', child: Text('编辑')),
-                                  const PopupMenuItem<String>(
-                                      value: 'delete', child: Text('按ID删除')),
-                                  const PopupMenuItem<String>(
-                                      value: 'deleteByPlate',
-                                      child: Text('按车牌删除')),
-                                ],
-                                icon: Icon(Icons.more_vert,
-                                    color: isLight
-                                        ? Colors.black87
-                                        : Colors.white),
-                              ),
-                              onTap: () => _goToDetailPage(v),
-                            ),
-                          );
-                        },
-                      );
-                    }
-                  },
-                ),
-              ),
-          ],
-        ),
       ),
     );
   }

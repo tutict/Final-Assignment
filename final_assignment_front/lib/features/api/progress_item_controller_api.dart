@@ -2,6 +2,7 @@
 import 'package:final_assignment_front/features/model/progress_item.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http; // 用于 Response
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -15,6 +16,17 @@ class ProgressControllerApi {
   // 更新后的构造函数，apiClient 参数可为空
   ProgressControllerApi([ApiClient? apiClient])
       : apiClient = apiClient ?? defaultApiClient;
+
+  /// 从 SharedPreferences 中读取 jwtToken 并设置到 ApiClient 中
+  Future<void> initializeWithJwt() async {
+    final prefs = await SharedPreferences.getInstance();
+    final jwtToken = prefs.getString('jwtToken');
+    if (jwtToken == null) {
+      throw Exception('未登录，请重新登录');
+    }
+    apiClient.setJwtToken(jwtToken);
+    debugPrint('Initialized SystemSettingsControllerApi with token: $jwtToken');
+  }
 
   // 解码响应体的辅助方法
   String _decodeBodyBytes(http.Response response) {

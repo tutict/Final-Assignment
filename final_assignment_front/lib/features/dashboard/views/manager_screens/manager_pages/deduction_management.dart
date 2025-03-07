@@ -34,7 +34,7 @@ class _DeductionManagementState extends State<DeductionManagement> {
   void initState() {
     super.initState();
     deductionApi = DeductionInformationControllerApi();
-    _loadDeductions(); // 直接加载扣分记录，假设管理员上下文
+    _loadDeductions();
   }
 
   @override
@@ -44,34 +44,26 @@ class _DeductionManagementState extends State<DeductionManagement> {
     super.dispose();
   }
 
-  /// 加载所有扣分信息
   Future<void> _loadDeductions() async {
     setState(() {
       _isLoading = true;
       _errorMessage = '';
     });
     try {
-      await deductionApi
-          .initializeWithJwt(); // Set JWT before making the API call
-      _deductionsFuture =
-          deductionApi.apiDeductionsGet(); // Assign future after JWT is set
-      await _deductionsFuture; // Wait for the data
-      setState(() {
-        _isLoading = false;
-      });
+      await deductionApi.initializeWithJwt();
+      _deductionsFuture = deductionApi.apiDeductionsGet();
+      await _deductionsFuture;
+      setState(() => _isLoading = false);
     } catch (e) {
       developer.log('Error fetching deductions: $e');
       setState(() {
         _isLoading = false;
         _errorMessage = '加载扣分信息失败: $e';
-        if (e.toString().contains('未登录')) {
-          _redirectToLogin();
-        }
+        if (e.toString().contains('未登录')) _redirectToLogin();
       });
     }
   }
 
-  /// 搜索扣分信息
   Future<void> _searchDeductions(
       String type, String? query, DateTimeRange? dateRange) async {
     setState(() {
@@ -97,22 +89,17 @@ class _DeductionManagementState extends State<DeductionManagement> {
         return;
       }
       await _deductionsFuture;
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
     } catch (e) {
       developer.log('Error searching deductions: $e');
       setState(() {
         _isLoading = false;
         _errorMessage = '搜索失败: $e';
-        if (e.toString().contains('未登录')) {
-          _redirectToLogin();
-        }
+        if (e.toString().contains('未登录')) _redirectToLogin();
       });
     }
   }
 
-  /// 删除扣分信息
   Future<void> _deleteDeduction(int deductionId) async {
     try {
       await deductionApi.initializeWithJwt();
@@ -127,8 +114,7 @@ class _DeductionManagementState extends State<DeductionManagement> {
 
   void _redirectToLogin() {
     if (!mounted) return;
-    Navigator.pushReplacementNamed(
-        context, '/login'); // Adjust route name as needed
+    Navigator.pushReplacementNamed(context, '/login');
   }
 
   void _showSuccessSnackBar(String message) {
@@ -141,19 +127,21 @@ class _DeductionManagementState extends State<DeductionManagement> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-          content: Text(message, style: const TextStyle(color: Colors.red))),
+          content: Text(message,
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(color: Colors.red))),
     );
   }
 
   void _goToDetailPage(DeductionInformation deduction) {
     Navigator.push(
-      context,
-      MaterialPageRoute(
-          builder: (context) => DeductionDetailPage(deduction: deduction)),
-    ).then((value) {
-      if (value == true && mounted) {
-        _loadDeductions();
-      }
+        context,
+        MaterialPageRoute(
+            builder: (context) =>
+                DeductionDetailPage(deduction: deduction))).then((value) {
+      if (value == true && mounted) _loadDeductions();
     });
   }
 
@@ -163,11 +151,9 @@ class _DeductionManagementState extends State<DeductionManagement> {
       firstDate: DateTime(1970),
       lastDate: DateTime(2100),
       builder: (context, child) => Theme(
-        data: ThemeData(
+        data: Theme.of(context).copyWith(
+          colorScheme: Theme.of(context).colorScheme,
           primaryColor: Theme.of(context).colorScheme.primary,
-          colorScheme:
-              ColorScheme.light(primary: Theme.of(context).colorScheme.primary)
-                  .copyWith(secondary: Theme.of(context).colorScheme.secondary),
         ),
         child: child!,
       ),
@@ -182,28 +168,27 @@ class _DeductionManagementState extends State<DeductionManagement> {
 
   @override
   Widget build(BuildContext context) {
-    final bool isLight = Theme.of(context).brightness == Brightness.light;
-
+    final theme = Theme.of(context);
     return Obx(
       () => Theme(
         data: controller.currentBodyTheme.value,
         child: Scaffold(
           appBar: AppBar(
-            title: const Text('扣分信息管理'),
-            backgroundColor: isLight ? Colors.blue : Colors.blueGrey,
-            foregroundColor: Colors.white,
+            title: Text('扣分信息管理',
+                style: theme.textTheme.labelLarge
+                    ?.copyWith(color: theme.colorScheme.onPrimary)),
+            backgroundColor: theme.colorScheme.primary,
+            foregroundColor: theme.colorScheme.onPrimary,
             actions: [
               PopupMenuButton<String>(
                 onSelected: (value) {
-                  if (value == 'license') {
+                  if (value == 'license')
                     _searchDeductions(
                         'license', _driverLicenseController.text.trim(), null);
-                  } else if (value == 'handler') {
+                  else if (value == 'handler')
                     _searchDeductions(
                         'handler', _handlerController.text.trim(), null);
-                  } else if (value == 'timeRange') {
-                    _selectDateRange();
-                  }
+                  else if (value == 'timeRange') _selectDateRange();
                 },
                 itemBuilder: (context) => [
                   const PopupMenuItem<String>(
@@ -213,19 +198,18 @@ class _DeductionManagementState extends State<DeductionManagement> {
                   const PopupMenuItem<String>(
                       value: 'timeRange', child: Text('按时间范围搜索')),
                 ],
-                icon: const Icon(Icons.filter_list, color: Colors.white),
+                icon:
+                    Icon(Icons.filter_list, color: theme.colorScheme.onPrimary),
               ),
               IconButton(
                 icon: const Icon(Icons.add),
                 onPressed: () {
                   Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => const AddDeductionPage()),
-                  ).then((value) {
-                    if (value == true && mounted) {
-                      _loadDeductions();
-                    }
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => const AddDeductionPage()))
+                      .then((value) {
+                    if (value == true && mounted) _loadDeductions();
                   });
                 },
                 tooltip: '添加新的扣分记录',
@@ -246,31 +230,23 @@ class _DeductionManagementState extends State<DeductionManagement> {
                           prefixIcon: const Icon(Icons.search),
                           border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8.0)),
-                          labelStyle: TextStyle(
-                              color: isLight ? Colors.black87 : Colors.white),
+                          labelStyle: theme.textTheme.bodyMedium,
                           enabledBorder: OutlineInputBorder(
-                            borderSide: BorderSide(
-                                color:
-                                    isLight ? Colors.grey : Colors.grey[500]!),
-                          ),
+                              borderSide: BorderSide(
+                                  color: theme.colorScheme.onSurface
+                                      .withOpacity(0.5))),
                           focusedBorder: OutlineInputBorder(
-                            borderSide: BorderSide(
-                                color: isLight ? Colors.blue : Colors.blueGrey),
-                          ),
+                              borderSide:
+                                  BorderSide(color: theme.colorScheme.primary)),
                         ),
-                        style: TextStyle(
-                            color: isLight ? Colors.black : Colors.white),
+                        style: theme.textTheme.bodyMedium,
                       ),
                     ),
                     const SizedBox(width: 8),
                     ElevatedButton(
                       onPressed: () => _searchDeductions('license',
                           _driverLicenseController.text.trim(), null),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                            isLight ? Colors.blue : Colors.blueGrey,
-                        foregroundColor: Colors.white,
-                      ),
+                      style: theme.elevatedButtonTheme.style,
                       child: const Text('搜索'),
                     ),
                   ],
@@ -286,31 +262,23 @@ class _DeductionManagementState extends State<DeductionManagement> {
                           prefixIcon: const Icon(Icons.person),
                           border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8.0)),
-                          labelStyle: TextStyle(
-                              color: isLight ? Colors.black87 : Colors.white),
+                          labelStyle: theme.textTheme.bodyMedium,
                           enabledBorder: OutlineInputBorder(
-                            borderSide: BorderSide(
-                                color:
-                                    isLight ? Colors.grey : Colors.grey[500]!),
-                          ),
+                              borderSide: BorderSide(
+                                  color: theme.colorScheme.onSurface
+                                      .withOpacity(0.5))),
                           focusedBorder: OutlineInputBorder(
-                            borderSide: BorderSide(
-                                color: isLight ? Colors.blue : Colors.blueGrey),
-                          ),
+                              borderSide:
+                                  BorderSide(color: theme.colorScheme.primary)),
                         ),
-                        style: TextStyle(
-                            color: isLight ? Colors.black : Colors.white),
+                        style: theme.textTheme.bodyMedium,
                       ),
                     ),
                     const SizedBox(width: 8),
                     ElevatedButton(
                       onPressed: () => _searchDeductions(
                           'handler', _handlerController.text.trim(), null),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                            isLight ? Colors.blue : Colors.blueGrey,
-                        foregroundColor: Colors.white,
-                      ),
+                      style: theme.elevatedButtonTheme.style,
                       child: const Text('搜索'),
                     ),
                   ],
@@ -320,7 +288,10 @@ class _DeductionManagementState extends State<DeductionManagement> {
                   const Expanded(
                       child: Center(child: CircularProgressIndicator()))
                 else if (_errorMessage.isNotEmpty)
-                  Expanded(child: Center(child: Text(_errorMessage)))
+                  Expanded(
+                      child: Center(
+                          child: Text(_errorMessage,
+                              style: theme.textTheme.bodyLarge)))
                 else
                   Expanded(
                     child: FutureBuilder<List<DeductionInformation>>(
@@ -332,21 +303,13 @@ class _DeductionManagementState extends State<DeductionManagement> {
                               child: CircularProgressIndicator());
                         } else if (snapshot.hasError) {
                           return Center(
-                            child: Text(
-                              '加载扣分信息失败: ${snapshot.error}',
-                              style: TextStyle(
-                                  color: isLight ? Colors.black : Colors.white),
-                            ),
-                          );
+                              child: Text('加载扣分信息失败: ${snapshot.error}',
+                                  style: theme.textTheme.bodyLarge));
                         } else if (!snapshot.hasData ||
                             snapshot.data!.isEmpty) {
                           return Center(
-                            child: Text(
-                              '暂无扣分记录',
-                              style: TextStyle(
-                                  color: isLight ? Colors.black : Colors.white),
-                            ),
-                          );
+                              child: Text('暂无扣分记录',
+                                  style: theme.textTheme.bodyLarge));
                         } else {
                           final deductions = snapshot.data!;
                           return RefreshIndicator(
@@ -358,40 +321,32 @@ class _DeductionManagementState extends State<DeductionManagement> {
                                 final points = deduction.deductedPoints ?? 0;
                                 final time = deduction.deductionTime ?? '未知';
                                 final handler = deduction.handler ?? '未记录';
-
                                 return Card(
                                   margin: const EdgeInsets.symmetric(
                                       vertical: 8.0, horizontal: 16.0),
                                   elevation: 4,
-                                  color:
-                                      isLight ? Colors.white : Colors.grey[800],
+                                  color: theme.colorScheme.surface,
                                   shape: RoundedRectangleBorder(
                                       borderRadius:
                                           BorderRadius.circular(10.0)),
                                   child: ListTile(
-                                    title: Text(
-                                      '扣分: $points 分',
-                                      style: TextStyle(
-                                          color: isLight
-                                              ? Colors.black87
-                                              : Colors.white),
-                                    ),
+                                    title: Text('扣分: $points 分',
+                                        style: theme.textTheme.bodyLarge),
                                     subtitle: Text(
                                       '时间: $time\n处理人: $handler',
-                                      style: TextStyle(
-                                          color: isLight
-                                              ? Colors.black54
-                                              : Colors.white70),
+                                      style: theme.textTheme.bodyMedium
+                                          ?.copyWith(
+                                              color: theme.colorScheme.onSurface
+                                                  .withOpacity(0.7)),
                                     ),
                                     trailing: PopupMenuButton<String>(
                                       onSelected: (value) {
                                         final did = deduction.deductionId;
                                         if (did != null) {
-                                          if (value == 'edit') {
+                                          if (value == 'edit')
                                             _goToDetailPage(deduction);
-                                          } else if (value == 'delete') {
+                                          else if (value == 'delete')
                                             _deleteDeduction(did);
-                                          }
                                         }
                                       },
                                       itemBuilder: (context) => [
@@ -401,9 +356,7 @@ class _DeductionManagementState extends State<DeductionManagement> {
                                             value: 'delete', child: Text('删除')),
                                       ],
                                       icon: Icon(Icons.more_vert,
-                                          color: isLight
-                                              ? Colors.black87
-                                              : Colors.white),
+                                          color: theme.colorScheme.onSurface),
                                     ),
                                     onTap: () => _goToDetailPage(deduction),
                                   ),
@@ -454,9 +407,7 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
   }
 
   Future<void> _submitDeduction() async {
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
     try {
       await deductionApi.initializeWithJwt();
       final deduction = DeductionInformation(
@@ -469,7 +420,7 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
       );
       await deductionApi.apiDeductionsPost(
         deductionInformation: deduction,
-        idempotencyKey: generateIdempotencyKey(), // Add idempotencyKey
+        idempotencyKey: generateIdempotencyKey(),
       );
       _showSuccessSnackBar('创建扣分记录成功！');
       if (mounted) Navigator.pop(context, true);
@@ -490,30 +441,36 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-          content: Text(message, style: const TextStyle(color: Colors.red))),
+          content: Text(message,
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(color: Colors.red))),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final bool isLight = Theme.of(context).brightness == Brightness.light;
+    final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('添加扣分信息'),
-        backgroundColor: isLight ? Colors.blue : Colors.blueGrey,
-        foregroundColor: Colors.white,
+        title: Text('添加扣分信息',
+            style: theme.textTheme.labelLarge
+                ?.copyWith(color: theme.colorScheme.onPrimary)),
+        backgroundColor: theme.colorScheme.primary,
+        foregroundColor: theme.colorScheme.onPrimary,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
-            : SingleChildScrollView(
-                child: _buildDeductionForm(context, isLight)),
+            : SingleChildScrollView(child: _buildDeductionForm(context)),
       ),
     );
   }
 
-  Widget _buildDeductionForm(BuildContext context, bool isLight) {
+  Widget _buildDeductionForm(BuildContext context) {
+    final theme = Theme.of(context);
     return Column(
       children: [
         TextField(
@@ -521,17 +478,16 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
           decoration: InputDecoration(
             labelText: '驾驶证号',
             prefixIcon: const Icon(Icons.drive_eta),
-            border: const OutlineInputBorder(),
-            labelStyle:
-                TextStyle(color: isLight ? Colors.black87 : Colors.white),
+            border:
+                OutlineInputBorder(borderRadius: BorderRadius.circular(8.0)),
+            labelStyle: theme.textTheme.bodyMedium,
             enabledBorder: OutlineInputBorder(
                 borderSide: BorderSide(
-                    color: isLight ? Colors.grey : Colors.grey[500]!)),
+                    color: theme.colorScheme.onSurface.withOpacity(0.5))),
             focusedBorder: OutlineInputBorder(
-                borderSide:
-                    BorderSide(color: isLight ? Colors.blue : Colors.blueGrey)),
+                borderSide: BorderSide(color: theme.colorScheme.primary)),
           ),
-          style: TextStyle(color: isLight ? Colors.black : Colors.white),
+          style: theme.textTheme.bodyMedium,
         ),
         const SizedBox(height: 16),
         TextField(
@@ -539,18 +495,17 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
           decoration: InputDecoration(
             labelText: '扣分分数',
             prefixIcon: const Icon(Icons.score),
-            border: const OutlineInputBorder(),
-            labelStyle:
-                TextStyle(color: isLight ? Colors.black87 : Colors.white),
+            border:
+                OutlineInputBorder(borderRadius: BorderRadius.circular(8.0)),
+            labelStyle: theme.textTheme.bodyMedium,
             enabledBorder: OutlineInputBorder(
                 borderSide: BorderSide(
-                    color: isLight ? Colors.grey : Colors.grey[500]!)),
+                    color: theme.colorScheme.onSurface.withOpacity(0.5))),
             focusedBorder: OutlineInputBorder(
-                borderSide:
-                    BorderSide(color: isLight ? Colors.blue : Colors.blueGrey)),
+                borderSide: BorderSide(color: theme.colorScheme.primary)),
           ),
           keyboardType: TextInputType.number,
-          style: TextStyle(color: isLight ? Colors.black : Colors.white),
+          style: theme.textTheme.bodyMedium,
         ),
         const SizedBox(height: 16),
         TextField(
@@ -558,17 +513,16 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
           decoration: InputDecoration(
             labelText: '处理人',
             prefixIcon: const Icon(Icons.person),
-            border: const OutlineInputBorder(),
-            labelStyle:
-                TextStyle(color: isLight ? Colors.black87 : Colors.white),
+            border:
+                OutlineInputBorder(borderRadius: BorderRadius.circular(8.0)),
+            labelStyle: theme.textTheme.bodyMedium,
             enabledBorder: OutlineInputBorder(
                 borderSide: BorderSide(
-                    color: isLight ? Colors.grey : Colors.grey[500]!)),
+                    color: theme.colorScheme.onSurface.withOpacity(0.5))),
             focusedBorder: OutlineInputBorder(
-                borderSide:
-                    BorderSide(color: isLight ? Colors.blue : Colors.blueGrey)),
+                borderSide: BorderSide(color: theme.colorScheme.primary)),
           ),
-          style: TextStyle(color: isLight ? Colors.black : Colors.white),
+          style: theme.textTheme.bodyMedium,
         ),
         const SizedBox(height: 16),
         TextField(
@@ -576,17 +530,16 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
           decoration: InputDecoration(
             labelText: '备注',
             prefixIcon: const Icon(Icons.notes),
-            border: const OutlineInputBorder(),
-            labelStyle:
-                TextStyle(color: isLight ? Colors.black87 : Colors.white),
+            border:
+                OutlineInputBorder(borderRadius: BorderRadius.circular(8.0)),
+            labelStyle: theme.textTheme.bodyMedium,
             enabledBorder: OutlineInputBorder(
                 borderSide: BorderSide(
-                    color: isLight ? Colors.grey : Colors.grey[500]!)),
+                    color: theme.colorScheme.onSurface.withOpacity(0.5))),
             focusedBorder: OutlineInputBorder(
-                borderSide:
-                    BorderSide(color: isLight ? Colors.blue : Colors.blueGrey)),
+                borderSide: BorderSide(color: theme.colorScheme.primary)),
           ),
-          style: TextStyle(color: isLight ? Colors.black : Colors.white),
+          style: theme.textTheme.bodyMedium,
         ),
         const SizedBox(height: 16),
         TextField(
@@ -594,18 +547,17 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
           decoration: InputDecoration(
             labelText: '扣分时间',
             prefixIcon: const Icon(Icons.date_range),
-            border: const OutlineInputBorder(),
-            labelStyle:
-                TextStyle(color: isLight ? Colors.black87 : Colors.white),
+            border:
+                OutlineInputBorder(borderRadius: BorderRadius.circular(8.0)),
+            labelStyle: theme.textTheme.bodyMedium,
             enabledBorder: OutlineInputBorder(
                 borderSide: BorderSide(
-                    color: isLight ? Colors.grey : Colors.grey[500]!)),
+                    color: theme.colorScheme.onSurface.withOpacity(0.5))),
             focusedBorder: OutlineInputBorder(
-                borderSide:
-                    BorderSide(color: isLight ? Colors.blue : Colors.blueGrey)),
+                borderSide: BorderSide(color: theme.colorScheme.primary)),
           ),
           readOnly: true,
-          style: TextStyle(color: isLight ? Colors.black : Colors.white),
+          style: theme.textTheme.bodyMedium,
           onTap: () async {
             FocusScope.of(context).requestFocus(FocusNode());
             final pickedDate = await showDatePicker(
@@ -614,12 +566,9 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
               firstDate: DateTime(2000),
               lastDate: DateTime(2101),
               builder: (context, child) => Theme(
-                data: ThemeData(
-                  primaryColor: isLight ? Colors.blue : Colors.blueGrey,
-                  colorScheme: ColorScheme.light(
-                          primary: isLight ? Colors.blue : Colors.blueGrey)
-                      .copyWith(
-                          secondary: isLight ? Colors.blue : Colors.blueGrey),
+                data: Theme.of(context).copyWith(
+                  colorScheme: Theme.of(context).colorScheme,
+                  primaryColor: theme.colorScheme.primary,
                 ),
                 child: child!,
               ),
@@ -635,20 +584,17 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
         const SizedBox(height: 20),
         ElevatedButton(
           onPressed: _submitDeduction,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: isLight ? Colors.blue : Colors.blueGrey,
-            foregroundColor: Colors.white,
-            minimumSize: const Size.fromHeight(50),
-          ),
+          style: theme.elevatedButtonTheme.style,
           child: const Text('提交'),
         ),
         const SizedBox(height: 20),
         ElevatedButton(
           onPressed: () => Navigator.pop(context),
-          style: ElevatedButton.styleFrom(
-            minimumSize: const Size.fromHeight(50),
-            backgroundColor: Colors.grey,
-            foregroundColor: isLight ? Colors.black87 : Colors.white,
+          style: theme.elevatedButtonTheme.style?.copyWith(
+            backgroundColor: MaterialStateProperty.all(
+                theme.colorScheme.onSurface.withOpacity(0.2)),
+            foregroundColor:
+                MaterialStateProperty.all(theme.colorScheme.onSurface),
           ),
           child: const Text('返回上一级'),
         ),
@@ -705,9 +651,7 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
   }
 
   Future<void> _submitDeduction() async {
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
     try {
       await deductionApi.initializeWithJwt();
       final deduction = DeductionInformation(
@@ -722,7 +666,7 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
       await deductionApi.apiDeductionsDeductionIdPut(
         deductionId: widget.deduction.deductionId?.toString() ?? '',
         deductionInformation: deduction,
-        idempotencyKey: generateIdempotencyKey(), // Add idempotencyKey
+        idempotencyKey: generateIdempotencyKey(),
       );
       _showSuccessSnackBar('更新扣分记录成功！');
       if (mounted) Navigator.pop(context, true);
@@ -743,30 +687,36 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-          content: Text(message, style: const TextStyle(color: Colors.red))),
+          content: Text(message,
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(color: Colors.red))),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final bool isLight = Theme.of(context).brightness == Brightness.light;
+    final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('编辑扣分信息'),
-        backgroundColor: isLight ? Colors.blue : Colors.blueGrey,
-        foregroundColor: Colors.white,
+        title: Text('编辑扣分信息',
+            style: theme.textTheme.labelLarge
+                ?.copyWith(color: theme.colorScheme.onPrimary)),
+        backgroundColor: theme.colorScheme.primary,
+        foregroundColor: theme.colorScheme.onPrimary,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
-            : SingleChildScrollView(
-                child: _buildDeductionForm(context, isLight)),
+            : SingleChildScrollView(child: _buildDeductionForm(context)),
       ),
     );
   }
 
-  Widget _buildDeductionForm(BuildContext context, bool isLight) {
+  Widget _buildDeductionForm(BuildContext context) {
+    final theme = Theme.of(context);
     return Column(
       children: [
         TextField(
@@ -774,17 +724,16 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
           decoration: InputDecoration(
             labelText: '驾驶证号',
             prefixIcon: const Icon(Icons.drive_eta),
-            border: const OutlineInputBorder(),
-            labelStyle:
-                TextStyle(color: isLight ? Colors.black87 : Colors.white),
+            border:
+                OutlineInputBorder(borderRadius: BorderRadius.circular(8.0)),
+            labelStyle: theme.textTheme.bodyMedium,
             enabledBorder: OutlineInputBorder(
                 borderSide: BorderSide(
-                    color: isLight ? Colors.grey : Colors.grey[500]!)),
+                    color: theme.colorScheme.onSurface.withOpacity(0.5))),
             focusedBorder: OutlineInputBorder(
-                borderSide:
-                    BorderSide(color: isLight ? Colors.blue : Colors.blueGrey)),
+                borderSide: BorderSide(color: theme.colorScheme.primary)),
           ),
-          style: TextStyle(color: isLight ? Colors.black : Colors.white),
+          style: theme.textTheme.bodyMedium,
         ),
         const SizedBox(height: 16),
         TextField(
@@ -792,18 +741,17 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
           decoration: InputDecoration(
             labelText: '扣分分数',
             prefixIcon: const Icon(Icons.score),
-            border: const OutlineInputBorder(),
-            labelStyle:
-                TextStyle(color: isLight ? Colors.black87 : Colors.white),
+            border:
+                OutlineInputBorder(borderRadius: BorderRadius.circular(8.0)),
+            labelStyle: theme.textTheme.bodyMedium,
             enabledBorder: OutlineInputBorder(
                 borderSide: BorderSide(
-                    color: isLight ? Colors.grey : Colors.grey[500]!)),
+                    color: theme.colorScheme.onSurface.withOpacity(0.5))),
             focusedBorder: OutlineInputBorder(
-                borderSide:
-                    BorderSide(color: isLight ? Colors.blue : Colors.blueGrey)),
+                borderSide: BorderSide(color: theme.colorScheme.primary)),
           ),
           keyboardType: TextInputType.number,
-          style: TextStyle(color: isLight ? Colors.black : Colors.white),
+          style: theme.textTheme.bodyMedium,
         ),
         const SizedBox(height: 16),
         TextField(
@@ -811,17 +759,16 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
           decoration: InputDecoration(
             labelText: '处理人',
             prefixIcon: const Icon(Icons.person),
-            border: const OutlineInputBorder(),
-            labelStyle:
-                TextStyle(color: isLight ? Colors.black87 : Colors.white),
+            border:
+                OutlineInputBorder(borderRadius: BorderRadius.circular(8.0)),
+            labelStyle: theme.textTheme.bodyMedium,
             enabledBorder: OutlineInputBorder(
                 borderSide: BorderSide(
-                    color: isLight ? Colors.grey : Colors.grey[500]!)),
+                    color: theme.colorScheme.onSurface.withOpacity(0.5))),
             focusedBorder: OutlineInputBorder(
-                borderSide:
-                    BorderSide(color: isLight ? Colors.blue : Colors.blueGrey)),
+                borderSide: BorderSide(color: theme.colorScheme.primary)),
           ),
-          style: TextStyle(color: isLight ? Colors.black : Colors.white),
+          style: theme.textTheme.bodyMedium,
         ),
         const SizedBox(height: 16),
         TextField(
@@ -829,17 +776,16 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
           decoration: InputDecoration(
             labelText: '备注',
             prefixIcon: const Icon(Icons.notes),
-            border: const OutlineInputBorder(),
-            labelStyle:
-                TextStyle(color: isLight ? Colors.black87 : Colors.white),
+            border:
+                OutlineInputBorder(borderRadius: BorderRadius.circular(8.0)),
+            labelStyle: theme.textTheme.bodyMedium,
             enabledBorder: OutlineInputBorder(
                 borderSide: BorderSide(
-                    color: isLight ? Colors.grey : Colors.grey[500]!)),
+                    color: theme.colorScheme.onSurface.withOpacity(0.5))),
             focusedBorder: OutlineInputBorder(
-                borderSide:
-                    BorderSide(color: isLight ? Colors.blue : Colors.blueGrey)),
+                borderSide: BorderSide(color: theme.colorScheme.primary)),
           ),
-          style: TextStyle(color: isLight ? Colors.black : Colors.white),
+          style: theme.textTheme.bodyMedium,
         ),
         const SizedBox(height: 16),
         TextField(
@@ -847,18 +793,17 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
           decoration: InputDecoration(
             labelText: '扣分时间',
             prefixIcon: const Icon(Icons.date_range),
-            border: const OutlineInputBorder(),
-            labelStyle:
-                TextStyle(color: isLight ? Colors.black87 : Colors.white),
+            border:
+                OutlineInputBorder(borderRadius: BorderRadius.circular(8.0)),
+            labelStyle: theme.textTheme.bodyMedium,
             enabledBorder: OutlineInputBorder(
                 borderSide: BorderSide(
-                    color: isLight ? Colors.grey : Colors.grey[500]!)),
+                    color: theme.colorScheme.onSurface.withOpacity(0.5))),
             focusedBorder: OutlineInputBorder(
-                borderSide:
-                    BorderSide(color: isLight ? Colors.blue : Colors.blueGrey)),
+                borderSide: BorderSide(color: theme.colorScheme.primary)),
           ),
           readOnly: true,
-          style: TextStyle(color: isLight ? Colors.black : Colors.white),
+          style: theme.textTheme.bodyMedium,
           onTap: () async {
             FocusScope.of(context).requestFocus(FocusNode());
             final pickedDate = await showDatePicker(
@@ -867,12 +812,9 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
               firstDate: DateTime(2000),
               lastDate: DateTime(2101),
               builder: (context, child) => Theme(
-                data: ThemeData(
-                  primaryColor: isLight ? Colors.blue : Colors.blueGrey,
-                  colorScheme: ColorScheme.light(
-                          primary: isLight ? Colors.blue : Colors.blueGrey)
-                      .copyWith(
-                          secondary: isLight ? Colors.blue : Colors.blueGrey),
+                data: Theme.of(context).copyWith(
+                  colorScheme: Theme.of(context).colorScheme,
+                  primaryColor: theme.colorScheme.primary,
                 ),
                 child: child!,
               ),
@@ -888,20 +830,17 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
         const SizedBox(height: 20),
         ElevatedButton(
           onPressed: _submitDeduction,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: isLight ? Colors.blue : Colors.blueGrey,
-            foregroundColor: Colors.white,
-            minimumSize: const Size.fromHeight(50),
-          ),
+          style: theme.elevatedButtonTheme.style,
           child: const Text('保存'),
         ),
         const SizedBox(height: 20),
         ElevatedButton(
           onPressed: () => Navigator.pop(context),
-          style: ElevatedButton.styleFrom(
-            minimumSize: const Size.fromHeight(50),
-            backgroundColor: Colors.grey,
-            foregroundColor: isLight ? Colors.black87 : Colors.white,
+          style: theme.elevatedButtonTheme.style?.copyWith(
+            backgroundColor: MaterialStateProperty.all(
+                theme.colorScheme.onSurface.withOpacity(0.2)),
+            foregroundColor:
+                MaterialStateProperty.all(theme.colorScheme.onSurface),
           ),
           child: const Text('返回上一级'),
         ),
@@ -941,7 +880,7 @@ class _DeductionDetailPageState extends State<DeductionDetailPage> {
       await deductionApi.apiDeductionsDeductionIdPut(
         deductionId: deductionId.toString(),
         deductionInformation: deduction,
-        idempotencyKey: generateIdempotencyKey(), // Add idempotencyKey
+        idempotencyKey: generateIdempotencyKey(),
       );
       _showSuccessSnackBar('更新扣分记录成功！');
       if (mounted) {
@@ -981,13 +920,17 @@ class _DeductionDetailPageState extends State<DeductionDetailPage> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-          content: Text(message, style: const TextStyle(color: Colors.red))),
+          content: Text(message,
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(color: Colors.red))),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final bool isLight = Theme.of(context).brightness == Brightness.light;
+    final theme = Theme.of(context);
     final points = widget.deduction.deductedPoints ?? 0;
     final time = widget.deduction.deductionTime ?? '未知';
     final handler = widget.deduction.handler ?? '未记录';
@@ -997,22 +940,21 @@ class _DeductionDetailPageState extends State<DeductionDetailPage> {
         data: controller.currentBodyTheme.value,
         child: Scaffold(
           appBar: AppBar(
-            title: const Text('扣分详情'),
-            backgroundColor: isLight ? Colors.blue : Colors.blueGrey,
-            foregroundColor: Colors.white,
+            title: Text('扣分详情',
+                style: theme.textTheme.labelLarge
+                    ?.copyWith(color: theme.colorScheme.onPrimary)),
+            backgroundColor: theme.colorScheme.primary,
+            foregroundColor: theme.colorScheme.onPrimary,
             actions: [
               IconButton(
                 icon: const Icon(Icons.edit),
                 onPressed: () {
                   Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) =>
-                            EditDeductionPage(deduction: widget.deduction)),
-                  ).then((value) {
-                    if (value == true && mounted) {
-                      setState(() {}); // 刷新页面
-                    }
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => EditDeductionPage(
+                              deduction: widget.deduction))).then((value) {
+                    if (value == true && mounted) setState(() {});
                   });
                 },
                 tooltip: '编辑扣分',
@@ -1037,30 +979,23 @@ class _DeductionDetailPageState extends State<DeductionDetailPage> {
                       _buildDetailRow(context, '扣分时间', time),
                       _buildDetailRow(context, '处理人', handler),
                       ListTile(
-                        title: Text('备注',
-                            style: TextStyle(
-                                color:
-                                    Theme.of(context).colorScheme.onSurface)),
+                        title: Text('备注', style: theme.textTheme.bodyLarge),
                         subtitle: TextField(
                           controller: _remarksController,
                           decoration: InputDecoration(
-                            border: const OutlineInputBorder(),
-                            labelStyle: TextStyle(
-                                color: isLight ? Colors.black87 : Colors.white),
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8.0)),
+                            labelStyle: theme.textTheme.bodyMedium,
                             enabledBorder: OutlineInputBorder(
                                 borderSide: BorderSide(
-                                    color: isLight
-                                        ? Colors.grey
-                                        : Colors.grey[500]!)),
+                                    color: theme.colorScheme.onSurface
+                                        .withOpacity(0.5))),
                             focusedBorder: OutlineInputBorder(
                                 borderSide: BorderSide(
-                                    color: isLight
-                                        ? Colors.blue
-                                        : Colors.blueGrey)),
+                                    color: theme.colorScheme.primary)),
                           ),
                           maxLines: 3,
-                          style: TextStyle(
-                              color: isLight ? Colors.black : Colors.white),
+                          style: theme.textTheme.bodyMedium,
                           onSubmitted: (value) => _updateDeduction(
                             widget.deduction.deductionId ?? 0,
                             widget.deduction.copyWith(
@@ -1078,10 +1013,11 @@ class _DeductionDetailPageState extends State<DeductionDetailPage> {
                       ElevatedButton(
                         onPressed: () =>
                             _deleteDeduction(widget.deduction.deductionId ?? 0),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          foregroundColor: Colors.white,
-                          minimumSize: const Size.fromHeight(50),
+                        style: theme.elevatedButtonTheme.style?.copyWith(
+                          backgroundColor:
+                              MaterialStateProperty.all(Colors.red),
+                          foregroundColor:
+                              MaterialStateProperty.all(Colors.white),
                         ),
                         child: const Text('删除扣分'),
                       ),
@@ -1094,24 +1030,19 @@ class _DeductionDetailPageState extends State<DeductionDetailPage> {
   }
 
   Widget _buildDetailRow(BuildContext context, String label, String value) {
-    final bool isLight = Theme.of(context).brightness == Brightness.light;
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '$label: ',
-            style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: isLight ? Colors.black87 : Colors.white),
-          ),
+          Text('$label: ',
+              style: theme.textTheme.bodyLarge
+                  ?.copyWith(fontWeight: FontWeight.bold)),
           Expanded(
-            child: Text(
-              value,
-              style:
-                  TextStyle(color: isLight ? Colors.black54 : Colors.white70),
-            ),
+            child: Text(value,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurface.withOpacity(0.7))),
           ),
         ],
       ),

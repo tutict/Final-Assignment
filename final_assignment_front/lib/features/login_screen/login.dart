@@ -70,6 +70,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return 'USER';
   }
 
+// 登录成功后的正确实现方式
   Future<String?> _authUser(LoginData data) async {
     final username = data.name;
     final password = data.password;
@@ -88,7 +89,7 @@ class _LoginScreenState extends State<LoginScreen> {
         loginRequest: LoginRequest(username: username, password: password),
       );
 
-      debugPrint('Login raw result: $result');
+      debugPrint('Login raw result: \$result');
 
       if (result.containsKey('jwtToken')) {
         _userRole = determineRole(username);
@@ -109,7 +110,8 @@ class _LoginScreenState extends State<LoginScreen> {
         userDashboardController.updateCurrentUser(name, email);
 
         Get.find<ChatController>().setUserRole(_userRole!);
-        debugPrint('User Role: $_userRole, Name: $name, Email: $email');
+
+        debugPrint('User Role: $_userRole, Name: \$name, Email: \$email');
         return null;
       } else {
         return result['message'] ?? '登录失败';
@@ -118,8 +120,8 @@ class _LoginScreenState extends State<LoginScreen> {
       debugPrint('ApiException in login: ${e.message}');
       return '登录失败: ${e.message}';
     } catch (e) {
-      debugPrint('General Exception in login: $e');
-      return '登录异常: $e';
+      debugPrint('General Exception in login: \$e');
+      return '登录异常: \$e';
     }
   }
 

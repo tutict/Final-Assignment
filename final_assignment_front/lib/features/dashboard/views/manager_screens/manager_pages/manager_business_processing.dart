@@ -1,3 +1,4 @@
+import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_dashboard_screen.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/appeal_management.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/deduction_management.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/driver_list.dart';
@@ -6,7 +7,6 @@ import 'package:final_assignment_front/features/dashboard/views/manager_screens/
 import 'package:final_assignment_front/features/model/appeal_management.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 
 class ManagerBusinessProcessing extends StatefulWidget {
   const ManagerBusinessProcessing({super.key});
@@ -17,15 +17,21 @@ class ManagerBusinessProcessing extends StatefulWidget {
 }
 
 class _ManagerBusinessProcessingState extends State<ManagerBusinessProcessing> {
-  // 获取 UserDashboardController 以支持动态主题（假设可用）
-  final UserDashboardController? controller =
-      Get.isRegistered<UserDashboardController>()
-          ? Get.find<UserDashboardController>()
-          : null;
+  late DashboardController controller;
 
-  // 获取业务选项数据（动态生成，避免在初始化时访问 Get.arguments）
+  @override
+  void initState() {
+    super.initState();
+    try {
+      controller = Get.find<DashboardController>();
+    } catch (e) {
+      // Fallback if DashboardController isn’t found
+      debugPrint('DashboardController not found: $e');
+      controller = Get.put(DashboardController()); // Register it if not found
+    }
+  }
+
   List<Map<String, dynamic>> _getBusinessOptions() {
-    // 检查 Get.arguments 是否为 AppealManagement 类型
     final appealArgument = Get.arguments is AppealManagement
         ? Get.arguments as AppealManagement
         : null;
@@ -35,7 +41,6 @@ class _ManagerBusinessProcessingState extends State<ManagerBusinessProcessing> {
         'title': '申诉管理',
         'icon': Icons.gavel,
         'route': const AppealManagementAdmin(),
-        // Nullable AppealManagement
       },
       {
         'title': '扣分管理',
@@ -69,47 +74,56 @@ class _ManagerBusinessProcessingState extends State<ManagerBusinessProcessing> {
 
   @override
   Widget build(BuildContext context) {
-    final currentTheme = Theme.of(context);
-    final bool isLight = currentTheme.brightness == Brightness.light;
-
-    // 动态获取业务选项
-    final businessOptions = _getBusinessOptions();
-
-    return Obx(
-      () => Theme(
-        data: controller?.currentBodyTheme.value ?? currentTheme,
+    return Obx(() {
+      final theme = controller.currentBodyTheme.value;
+      return Theme(
+        data: theme,
         child: Scaffold(
+          backgroundColor: theme.colorScheme.surface, // Dark in dark mode
           appBar: AppBar(
-            title: const Text('业务处理菜单'),
-            backgroundColor: isLight ? Colors.blue : Colors.blueGrey,
-            foregroundColor: isLight ? Colors.white : Colors.white,
+            title: Text(
+              '业务处理菜单',
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: theme.colorScheme.onPrimary,
+              ),
+            ),
+            backgroundColor: theme.colorScheme.primary,
+            foregroundColor: theme.colorScheme.onPrimary,
+            elevation: 2,
           ),
           body: Padding(
             padding: const EdgeInsets.all(16.0),
             child: ListView.builder(
-              itemCount: businessOptions.length,
+              itemCount: _getBusinessOptions().length,
               itemBuilder: (context, index) {
-                final option = businessOptions[index];
+                final option = _getBusinessOptions()[index];
                 return Column(
                   children: [
-                    ListTile(
-                      leading: Icon(
-                        option['icon'],
-                        color: isLight ? Colors.blue : Colors.blueAccent,
+                    Card(
+                      elevation: 4,
+                      color: theme.colorScheme.surfaceVariant,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10.0),
                       ),
-                      title: Text(
-                        option['title'],
-                        style: TextStyle(
-                          color: currentTheme.colorScheme.onSurface,
+                      child: ListTile(
+                        leading: Icon(
+                          option['icon'],
+                          color: theme.colorScheme.primary,
                         ),
+                        title: Text(
+                          option['title'],
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            color: theme.colorScheme.onSurface,
+                          ),
+                        ),
+                        trailing: Icon(
+                          Icons.arrow_forward_ios,
+                          color: theme.colorScheme.onSurface.withOpacity(0.5),
+                        ),
+                        onTap: () => _navigateToBusiness(option['route']),
                       ),
-                      trailing: Icon(
-                        Icons.arrow_forward_ios,
-                        color: isLight ? Colors.grey : Colors.grey[400],
-                      ),
-                      onTap: () => _navigateToBusiness(option['route']),
                     ),
-                    if (index < businessOptions.length - 1)
+                    if (index < _getBusinessOptions().length - 1)
                       const SizedBox(height: 16.0),
                   ],
                 );
@@ -117,7 +131,7 @@ class _ManagerBusinessProcessingState extends State<ManagerBusinessProcessing> {
             ),
           ),
         ),
-      ),
-    );
+      );
+    });
   }
 }

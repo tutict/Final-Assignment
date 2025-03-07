@@ -1,12 +1,10 @@
 import 'package:final_assignment_front/features/api/progress_item_controller_api.dart';
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_dashboard_screen.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/process_pages/online_processing_progress.dart';
 import 'package:final_assignment_front/features/model/progress_item.dart';
 import 'package:flutter/material.dart';
 import 'package:get/Get.dart';
-import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
 
 class ProgressManagementPage extends StatefulWidget {
   const ProgressManagementPage({super.key});
@@ -16,51 +14,47 @@ class ProgressManagementPage extends StatefulWidget {
 }
 
 class _ProgressManagementPageState extends State<ProgressManagementPage> {
-  final UserDashboardController controller =
-  Get.find<UserDashboardController>();
+  final DashboardController controller = Get.find<DashboardController>();
+  final ProgressControllerApi progressApi = ProgressControllerApi();
   List<ProgressItem> _progressItems = [];
   bool _isLoading = true;
-  bool _isAdmin = false; // 确保是管理员
+  bool _isAdmin = false;
   String _errorMessage = '';
-  final ProgressControllerApi progressApi = ProgressControllerApi();
 
   @override
   void initState() {
     super.initState();
-    _checkUserRole(); // 检查用户角色
+    _checkUserRole();
   }
 
   Future<void> _checkUserRole() async {
-    final prefs = await SharedPreferences.getInstance();
-    final jwtToken = prefs.getString('jwtToken');
-    if (jwtToken != null) {
-      final response = await http.get(
-        Uri.parse('http://localhost:8081/api/users/me'), // 更新为后端地址
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $jwtToken',
-        },
-      );
-      if (response.statusCode == 200) {
-        final roleData = jsonDecode(response.body);
-        setState(() {
-          _isAdmin = (roleData['roles'] as List<dynamic>).contains('ADMIN');
-          if (_isAdmin) {
-            _fetchAllProgress(); // 仅管理员加载所有进度
-          } else {
-            _errorMessage = '权限不足：仅管理员可访问此页面';
-            _isLoading = false;
-          }
-        });
-      } else {
-        setState(() {
-          _errorMessage = '验证失败：${response.statusCode} - ${response.body}';
-          _isLoading = false;
-        });
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jwtToken = prefs.getString('jwtToken');
+      final username = prefs.getString('userName');
+      if (jwtToken == null || username == null) {
+        throw Exception('未登录或未找到用户信息');
       }
-    } else {
+
+      await progressApi.initializeWithJwt();
+      final userRole = prefs.getString('userRole');
       setState(() {
-        _errorMessage = '未登录，请重新登录';
+        _isAdmin = userRole == 'ADMIN';
+        if (_isAdmin) {
+          _fetchAllProgress();
+        } else {
+          _errorMessage = '权限不足：仅管理员可访问此页面';
+          _isLoading = false;
+        }
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = '验证失败: $e';
         _isLoading = false;
       });
     }
@@ -73,16 +67,10 @@ class _ProgressManagementPageState extends State<ProgressManagementPage> {
     });
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken');
-      if (jwtToken == null) {
-        throw Exception('No JWT token found');
-      }
-
-      final response = await progressApi.apiProgressGet(); // 使用新 API 方法
-
+      await progressApi.initializeWithJwt();
+      final progressItems = await progressApi.apiProgressGet();
       setState(() {
-        _progressItems = response;
+        _progressItems = progressItems;
         _isLoading = false;
       });
     } catch (e) {
@@ -99,17 +87,22 @@ class _ProgressManagementPageState extends State<ProgressManagementPage> {
     });
 
     try {
+      final currentItem =
+          _progressItems.firstWhere((item) => item.id == progressId);
       final updatedItem = await progressApi.apiProgressProgressIdPut(
-          progressId: progressId,
-          progressItem: ProgressItem(
-              id: progressId,
-              title: '',
-              status: status,
-              submitTime: '',
-              details: null,
-              username: '')); // 使用新 API 方法
+        progressId: progressId,
+        progressItem: ProgressItem(
+          id: progressId,
+          title: currentItem.title,
+          status: status,
+          submitTime: currentItem.submitTime,
+          details: currentItem.details,
+          username: currentItem.username,
+        ),
+      );
       setState(() {
-        final index = _progressItems.indexWhere((item) => item.id == progressId);
+        final index =
+            _progressItems.indexWhere((item) => item.id == progressId);
         if (index != -1) {
           _progressItems[index] = updatedItem;
         }
@@ -130,8 +123,7 @@ class _ProgressManagementPageState extends State<ProgressManagementPage> {
     });
 
     try {
-      await progressApi.apiProgressProgressIdDelete(
-          progressId: progressId); // 使用新 API 方法
+      await progressApi.apiProgressProgressIdDelete(progressId: progressId);
       setState(() {
         _progressItems.removeWhere((item) => item.id == progressId);
       });
@@ -146,15 +138,25 @@ class _ProgressManagementPageState extends State<ProgressManagementPage> {
   }
 
   void _showSuccessSnackBar(String message) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
+      SnackBar(
+        content: Text(message,
+            style: TextStyle(
+                color:
+                    controller.currentBodyTheme.value.colorScheme.onPrimary)),
+        backgroundColor: controller.currentBodyTheme.value.colorScheme.primary,
+      ),
     );
   }
 
   void _showErrorSnackBar(String message) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-          content: Text(message, style: const TextStyle(color: Colors.red))),
+        content: Text(message, style: const TextStyle(color: Colors.white)),
+        backgroundColor: Colors.red,
+      ),
     );
   }
 
@@ -162,120 +164,146 @@ class _ProgressManagementPageState extends State<ProgressManagementPage> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => const OnlineProcessingProgress(), // 使用导入的 ProgressDetailPage
+        builder: (context) => const OnlineProcessingProgress(),
       ),
     ).then((value) {
       if (value == true && mounted) {
-        _fetchAllProgress(); // 详情页更新后刷新列表
+        _fetchAllProgress();
       }
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final currentTheme = Theme.of(context);
-    final bool isLight = currentTheme.brightness == Brightness.light;
-
-    if (!_isAdmin) {
-      return Scaffold(
-        body: Center(
-          child: Text(
-            _errorMessage,
-            style: TextStyle(
-              color: isLight ? Colors.black : Colors.white,
+    return Obx(() {
+      // Wrap only the theme-dependent part
+      final theme = controller.currentBodyTheme.value;
+      return Theme(
+        data: theme,
+        child: Scaffold(
+          backgroundColor: theme.colorScheme.surface,
+          appBar: AppBar(
+            title: Text(
+              '进度管理',
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: theme.colorScheme.onPrimary,
+              ),
             ),
+            backgroundColor: theme.colorScheme.primary,
+            foregroundColor: theme.colorScheme.onPrimary,
+            elevation: 2,
+          ),
+          body: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: _buildBody(theme),
+          ),
+        ),
+      );
+    });
+  }
+
+  Widget _buildBody(ThemeData theme) {
+    if (_isLoading) {
+      return Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
+        ),
+      );
+    }
+
+    if (_errorMessage.isNotEmpty) {
+      return Center(
+        child: Text(
+          _errorMessage,
+          style: theme.textTheme.bodyLarge?.copyWith(
+            color: theme.colorScheme.error,
           ),
         ),
       );
     }
 
-    return Obx(
-          () => Theme(
-        data: controller.currentBodyTheme.value,
-        child: Scaffold(
-          appBar: AppBar(
-            title: const Text('进度管理'),
-            backgroundColor: isLight ? Colors.blue : Colors.blueGrey,
-            foregroundColor: isLight ? Colors.white : Colors.white,
-          ),
-          body: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _errorMessage.isNotEmpty
-                ? Center(
-              child: Text(
-                _errorMessage,
-                style: TextStyle(
-                  color: isLight ? Colors.black : Colors.white,
-                ),
-              ),
-            )
-                : _progressItems.isEmpty
-                ? Center(
-              child: Text(
-                '暂无进度记录',
-                style: TextStyle(
-                  color: isLight ? Colors.black : Colors.white,
-                ),
-              ),
-            )
-                : ListView.builder(
-              itemCount: _progressItems.length,
-              itemBuilder: (context, index) {
-                final item = _progressItems[index];
-                return Card(
-                  elevation: 4,
-                  color: isLight ? Colors.white : Colors.grey[800],
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10.0),
-                  ),
-                  child: ListTile(
-                    title: Text(
-                      item.title,
-                      style: TextStyle(
-                        color:
-                        isLight ? Colors.black87 : Colors.white,
-                      ),
-                    ),
-                    subtitle: Text(
-                      '状态: ${item.status}\n提交时间: ${item.submitTime}',
-                      style: TextStyle(
-                        color:
-                        isLight ? Colors.black54 : Colors.white70,
-                      ),
-                    ),
-                    trailing: PopupMenuButton<String>(
-                      onSelected: (value) {
-                        if (value == 'edit') {
-                          _goToDetailPage(item);
-                        } else if (value == 'delete') {
-                          _deleteProgress(item.id);
-                        }
-                      },
-                      itemBuilder: (context) => [
-                        const PopupMenuItem<String>(
-                          value: 'edit',
-                          child: Text('编辑'),
-                        ),
-                        const PopupMenuItem<String>(
-                          value: 'delete',
-                          child: Text('删除'),
-                        ),
-                      ],
-                      icon: Icon(
-                        Icons.more_vert,
-                        color: isLight ? Colors.black87 : Colors.white,
-                      ),
-                    ),
-                    onTap: () => _goToDetailPage(item),
-                  ),
-                );
-              },
-            ),
+    if (!_isAdmin) {
+      return Center(
+        child: Text(
+          '权限不足：仅管理员可访问此页面',
+          style: theme.textTheme.bodyLarge?.copyWith(
+            color: theme.colorScheme.onSurface,
           ),
         ),
-      ),
+      );
+    }
+
+    if (_progressItems.isEmpty) {
+      return Center(
+        child: Text(
+          '暂无进度记录',
+          style: theme.textTheme.bodyLarge?.copyWith(
+            color: theme.colorScheme.onSurface,
+          ),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      itemCount: _progressItems.length,
+      itemBuilder: (context, index) {
+        final item = _progressItems[index];
+        return Card(
+          elevation: 4,
+          color: theme.colorScheme.surfaceVariant,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10.0),
+          ),
+          child: ListTile(
+            title: Text(
+              item.title,
+              style: theme.textTheme.bodyLarge?.copyWith(
+                color: theme.colorScheme.onSurface,
+              ),
+            ),
+            subtitle: Text(
+              '状态: ${item.status}\n提交时间: ${item.submitTime}',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurface.withOpacity(0.7),
+              ),
+            ),
+            trailing: PopupMenuButton<String>(
+              onSelected: (value) {
+                if (value == 'edit') {
+                  _goToDetailPage(item);
+                } else if (value == 'delete') {
+                  _deleteProgress(item.id);
+                } else if (value == 'update_pending') {
+                  _updateProgressStatus(item.id, 'Pending');
+                } else if (value == 'update_processing') {
+                  _updateProgressStatus(item.id, 'Processing');
+                } else if (value == 'update_completed') {
+                  _updateProgressStatus(item.id, 'Completed');
+                } else if (value == 'update_archived') {
+                  _updateProgressStatus(item.id, 'Archived');
+                }
+              },
+              itemBuilder: (context) => [
+                const PopupMenuItem<String>(value: 'edit', child: Text('编辑')),
+                const PopupMenuItem<String>(value: 'delete', child: Text('删除')),
+                const PopupMenuItem<String>(
+                    value: 'update_pending', child: Text('设为待处理')),
+                const PopupMenuItem<String>(
+                    value: 'update_processing', child: Text('设为处理中')),
+                const PopupMenuItem<String>(
+                    value: 'update_completed', child: Text('设为已完成')),
+                const PopupMenuItem<String>(
+                    value: 'update_archived', child: Text('设为已归档')),
+              ],
+              icon: Icon(
+                Icons.more_vert,
+                color: theme.colorScheme.onSurface,
+              ),
+            ),
+            onTap: () => _goToDetailPage(item),
+          ),
+        );
+      },
     );
   }
 }
