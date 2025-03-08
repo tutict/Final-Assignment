@@ -27,7 +27,7 @@ class VehicleInformation {
   String? vehicleColor;
 
   /* 首次注册日期 */
-  String? firstRegistrationDate;
+  DateTime? firstRegistrationDate;
 
   /* 当前状态 */
   String? currentStatus;
@@ -51,62 +51,96 @@ class VehicleInformation {
 
   @override
   String toString() {
-    return 'VehicleInformation[vehicleId=$vehicleId, licensePlate=$licensePlate, vehicleType=$vehicleType, ownerName=$ownerName, idCardNumber=$idCardNumber, contactNumber=$contactNumber, engineNumber=$engineNumber, frameNumber=$frameNumber, vehicleColor=$vehicleColor, firstRegistrationDate=$firstRegistrationDate, currentStatus=$currentStatus, idempotencyKey=$idempotencyKey, ]';
+    return 'VehicleInformation[vehicleId=$vehicleId, licensePlate=$licensePlate, vehicleType=$vehicleType, ownerName=$ownerName, idCardNumber=$idCardNumber, contactNumber=$contactNumber, engineNumber=$engineNumber, frameNumber=$frameNumber, vehicleColor=$vehicleColor, firstRegistrationDate=$firstRegistrationDate, currentStatus=$currentStatus, idempotencyKey=$idempotencyKey]';
   }
 
-  VehicleInformation.fromJson(Map<String, dynamic> json) {
-    vehicleId = json['vehicleId'];
-    licensePlate = json['licensePlate'];
-    vehicleType = json['vehicleType'];
-    ownerName = json['ownerName'];
-    idCardNumber = json['idCardNumber'];
-    contactNumber = json['contactNumber'];
-    engineNumber = json['engineNumber'];
-    frameNumber = json['frameNumber'];
-    vehicleColor = json['vehicleColor'];
-    firstRegistrationDate = json['firstRegistrationDate'];
-    currentStatus = json['currentStatus'];
-    idempotencyKey = json['idempotencyKey']; // Handle null
+  factory VehicleInformation.fromJson(Map<String, dynamic> json) {
+    return VehicleInformation(
+      vehicleId: json['vehicleId'] as int?,
+      licensePlate: json['licensePlate'] as String?,
+      vehicleType: json['vehicleType'] as String?,
+      ownerName: json['ownerName'] as String?,
+      idCardNumber: json['idCardNumber'] as String?,
+      contactNumber: json['contactNumber'] as String?,
+      engineNumber: json['engineNumber'] as String?,
+      frameNumber: json['frameNumber'] as String?,
+      vehicleColor: json['vehicleColor'] as String?,
+      firstRegistrationDate: json['firstRegistrationDate'] != null
+          ? DateTime.parse(json['firstRegistrationDate'] as String)
+          : null,
+      currentStatus: json['currentStatus'] as String?,
+      idempotencyKey: json['idempotencyKey'] as String?,
+    );
   }
 
   Map<String, dynamic> toJson() {
-    Map<String, dynamic> json = {};
-    json['vehicleId'] = vehicleId;
-    json['licensePlate'] = licensePlate;
-    json['vehicleType'] = vehicleType;
-    json['ownerName'] = ownerName;
-    json['idCardNumber'] = idCardNumber;
-    json['contactNumber'] = contactNumber;
-    json['engineNumber'] = engineNumber;
-    json['frameNumber'] = frameNumber;
-    json['vehicleColor'] = vehicleColor;
-    json['firstRegistrationDate'] = firstRegistrationDate;
-    json['currentStatus'] = currentStatus;
-    json['idempotencyKey'] = idempotencyKey; // Include in JSON, can be null
+    final Map<String, dynamic> json = {};
+    if (vehicleId != null) json['vehicleId'] = vehicleId;
+    if (licensePlate != null) json['licensePlate'] = licensePlate;
+    if (vehicleType != null) json['vehicleType'] = vehicleType;
+    if (ownerName != null) json['ownerName'] = ownerName;
+    if (idCardNumber != null) json['idCardNumber'] = idCardNumber;
+    if (contactNumber != null) json['contactNumber'] = contactNumber;
+    if (engineNumber != null) json['engineNumber'] = engineNumber;
+    if (frameNumber != null) json['frameNumber'] = frameNumber;
+    if (vehicleColor != null) json['vehicleColor'] = vehicleColor;
+    if (firstRegistrationDate != null) json['firstRegistrationDate'] = firstRegistrationDate!.toIso8601String();
+    if (currentStatus != null) json['currentStatus'] = currentStatus;
+    if (idempotencyKey != null) json['idempotencyKey'] = idempotencyKey;
     return json;
   }
 
-  static List<VehicleInformation> listFromJson(List<dynamic> json) {
-    return json.map((value) => VehicleInformation.fromJson(value)).toList();
+  VehicleInformation copyWith({
+    int? vehicleId,
+    String? licensePlate,
+    String? vehicleType,
+    String? ownerName,
+    String? idCardNumber,
+    String? contactNumber,
+    String? engineNumber,
+    String? frameNumber,
+    String? vehicleColor,
+    DateTime? firstRegistrationDate,
+    String? currentStatus,
+    String? idempotencyKey,
+  }) {
+    return VehicleInformation(
+      vehicleId: vehicleId ?? this.vehicleId,
+      licensePlate: licensePlate ?? this.licensePlate,
+      vehicleType: vehicleType ?? this.vehicleType,
+      ownerName: ownerName ?? this.ownerName,
+      idCardNumber: idCardNumber ?? this.idCardNumber,
+      contactNumber: contactNumber ?? this.contactNumber,
+      engineNumber: engineNumber ?? this.engineNumber,
+      frameNumber: frameNumber ?? this.frameNumber,
+      vehicleColor: vehicleColor ?? this.vehicleColor,
+      firstRegistrationDate: firstRegistrationDate ?? this.firstRegistrationDate,
+      currentStatus: currentStatus ?? this.currentStatus,
+      idempotencyKey: idempotencyKey ?? this.idempotencyKey,
+    );
   }
 
-  static Map<String, VehicleInformation> mapFromJson(
-      Map<String, dynamic> json) {
+  static List<VehicleInformation> listFromJson(List<dynamic> json) {
+    return json
+        .map((value) => VehicleInformation.fromJson(value as Map<String, dynamic>))
+        .toList();
+  }
+
+  static Map<String, VehicleInformation> mapFromJson(Map<String, dynamic> json) {
     var map = <String, VehicleInformation>{};
     if (json.isNotEmpty) {
       json.forEach((String key, dynamic value) =>
-          map[key] = VehicleInformation.fromJson(value));
+      map[key] = VehicleInformation.fromJson(value as Map<String, dynamic>));
     }
     return map;
   }
 
-  // maps a json object with a list of VehicleInformation-objects as value to a dart map
-  static Map<String, List<VehicleInformation>> mapListFromJson(
-      Map<String, dynamic> json) {
+  // Maps a JSON object with a list of VehicleInformation objects as value to a Dart map
+  static Map<String, List<VehicleInformation>> mapListFromJson(Map<String, dynamic> json) {
     var map = <String, List<VehicleInformation>>{};
     if (json.isNotEmpty) {
       json.forEach((String key, dynamic value) {
-        map[key] = VehicleInformation.listFromJson(value);
+        map[key] = VehicleInformation.listFromJson(value as List<dynamic>);
       });
     }
     return map;

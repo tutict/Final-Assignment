@@ -152,6 +152,12 @@ class _OffenseListPageState extends State<OffenseList> {
     });
   }
 
+  // Helper method to format DateTime to a readable string
+  String _formatDateTime(DateTime? dateTime) {
+    if (dateTime == null) return '未知时间';
+    return "${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')}";
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -295,7 +301,8 @@ class _OffenseListPageState extends State<OffenseList> {
                                 final type = offense.offenseType ?? '未知类型';
                                 final plate = offense.licensePlate ?? '未知车牌';
                                 final status = offense.processStatus ?? '未知状态';
-                                final time = offense.offenseTime ?? '未知时间';
+                                final time =
+                                    _formatDateTime(offense.offenseTime);
                                 return Card(
                                   margin: const EdgeInsets.symmetric(
                                       vertical: 8.0, horizontal: 16.0),
@@ -395,8 +402,12 @@ class _AddOffensePageState extends State<AddOffensePage> {
     setState(() => _isLoading = true);
     try {
       await offenseApi.initializeWithJwt();
-      String formattedOffenseTime =
-          "${_offenseTimeController.text.trim()}T00:00:00";
+
+      // Parse the offense time from string to DateTime
+      DateTime? offenseTime;
+      if (_offenseTimeController.text.trim().isNotEmpty) {
+        offenseTime = DateTime.parse(_offenseTimeController.text.trim());
+      }
 
       final offense = OffenseInformation(
         offenseId: null,
@@ -416,9 +427,7 @@ class _AddOffensePageState extends State<AddOffensePage> {
         offenseLocation: _offenseLocationController.text.trim().isEmpty
             ? null
             : _offenseLocationController.text.trim(),
-        offenseTime: _offenseTimeController.text.trim().isEmpty
-            ? null
-            : formattedOffenseTime,
+        offenseTime: offenseTime,
         deductedPoints: int.tryParse(_deductedPointsController.text.trim()),
         fineAmount: num.tryParse(_fineAmountController.text.trim()),
         processStatus: _processStatusController.text.trim().isEmpty
@@ -427,12 +436,11 @@ class _AddOffensePageState extends State<AddOffensePage> {
         processResult: _processResultController.text.trim().isEmpty
             ? null
             : _processResultController.text.trim(),
-        idempotencyKey: generateIdempotencyKey(), // Already present, kept as is
+        idempotencyKey: generateIdempotencyKey(),
       );
 
       debugPrint('AddOffensePage Payload: ${offense.toJson()}');
 
-      // Updated to include idempotencyKey
       await offenseApi.apiOffensesPost(
         offenseInformation: offense,
         idempotencyKey: offense.idempotencyKey!,
@@ -462,6 +470,29 @@ class _AddOffensePageState extends State<AddOffensePage> {
                   .bodyMedium
                   ?.copyWith(color: Colors.red))),
     );
+  }
+
+  Future<void> _selectDate() async {
+    FocusScope.of(context).requestFocus(FocusNode());
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2101),
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: Theme.of(context).colorScheme,
+          primaryColor: Theme.of(context).colorScheme.primary,
+        ),
+        child: child!,
+      ),
+    );
+    if (pickedDate != null && mounted) {
+      setState(() {
+        _offenseTimeController.text =
+            "${pickedDate.year}-${pickedDate.month.toString().padLeft(2, '0')}-${pickedDate.day.toString().padLeft(2, '0')}";
+      });
+    }
   }
 
   @override
@@ -586,29 +617,6 @@ class _AddOffensePageState extends State<AddOffensePage> {
           borderSide: BorderSide(color: theme.colorScheme.primary)),
     );
   }
-
-  Future<void> _selectDate() async {
-    FocusScope.of(context).requestFocus(FocusNode());
-    final pickedDate = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2101),
-      builder: (context, child) => Theme(
-        data: Theme.of(context).copyWith(
-          colorScheme: Theme.of(context).colorScheme,
-          primaryColor: Theme.of(context).colorScheme.primary,
-        ),
-        child: child!,
-      ),
-    );
-    if (pickedDate != null && mounted) {
-      setState(() {
-        _offenseTimeController.text =
-            "${pickedDate.year}-${pickedDate.month.toString().padLeft(2, '0')}-${pickedDate.day.toString().padLeft(2, '0')}";
-      });
-    }
-  }
 }
 
 class OffenseDetailPage extends StatefulWidget {
@@ -651,7 +659,9 @@ class _OffenseDetailPageState extends State<OffenseDetailPage> {
     _offenseTypeController.text = widget.offense.offenseType ?? '';
     _offenseCodeController.text = widget.offense.offenseCode ?? '';
     _offenseLocationController.text = widget.offense.offenseLocation ?? '';
-    _offenseTimeController.text = widget.offense.offenseTime ?? '';
+    _offenseTimeController.text = widget.offense.offenseTime != null
+        ? "${widget.offense.offenseTime!.year}-${widget.offense.offenseTime!.month.toString().padLeft(2, '0')}-${widget.offense.offenseTime!.day.toString().padLeft(2, '0')}"
+        : '';
     _deductedPointsController.text =
         widget.offense.deductedPoints?.toString() ?? '';
     _fineAmountController.text = widget.offense.fineAmount?.toString() ?? '';
@@ -678,9 +688,12 @@ class _OffenseDetailPageState extends State<OffenseDetailPage> {
     setState(() => _isLoading = true);
     try {
       await offenseApi.initializeWithJwt();
-      String? formattedOffenseTime = _offenseTimeController.text.trim().isEmpty
-          ? null
-          : "${_offenseTimeController.text.trim()}T00:00:00";
+
+      // Parse the offense time from string to DateTime
+      DateTime? offenseTime;
+      if (_offenseTimeController.text.trim().isNotEmpty) {
+        offenseTime = DateTime.parse(_offenseTimeController.text.trim());
+      }
 
       final updatedOffense = widget.offense.copyWith(
         driverName: _driverNameController.text.trim().isEmpty
@@ -698,7 +711,7 @@ class _OffenseDetailPageState extends State<OffenseDetailPage> {
         offenseLocation: _offenseLocationController.text.trim().isEmpty
             ? null
             : _offenseLocationController.text.trim(),
-        offenseTime: formattedOffenseTime,
+        offenseTime: offenseTime,
         deductedPoints: int.tryParse(_deductedPointsController.text.trim()),
         fineAmount: num.tryParse(_fineAmountController.text.trim()),
         processStatus: _processStatusController.text.trim().isEmpty
@@ -707,12 +720,11 @@ class _OffenseDetailPageState extends State<OffenseDetailPage> {
         processResult: _processResultController.text.trim().isEmpty
             ? null
             : _processResultController.text.trim(),
-        idempotencyKey: generateIdempotencyKey(), // Added idempotencyKey
+        idempotencyKey: generateIdempotencyKey(),
       );
 
       debugPrint('OffenseDetailPage Payload: ${updatedOffense.toJson()}');
 
-      // Updated to include idempotencyKey
       await offenseApi.apiOffensesOffenseIdPut(
         offenseId: widget.offense.offenseId.toString(),
         offenseInformation: updatedOffense,
@@ -746,6 +758,12 @@ class _OffenseDetailPageState extends State<OffenseDetailPage> {
                   .bodyMedium
                   ?.copyWith(color: Colors.red))),
     );
+  }
+
+  // Helper method to format DateTime to a readable string
+  String _formatDateTime(DateTime? dateTime) {
+    if (dateTime == null) return '未知时间';
+    return "${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')}";
   }
 
   @override
@@ -798,7 +816,8 @@ class _OffenseDetailPageState extends State<OffenseDetailPage> {
         _buildDetailRow('违法类型', widget.offense.offenseType ?? '未知', theme),
         _buildDetailRow('违法代码', widget.offense.offenseCode ?? '未知', theme),
         _buildDetailRow('违法地点', widget.offense.offenseLocation ?? '未知', theme),
-        _buildDetailRow('违法时间', widget.offense.offenseTime ?? '未知', theme),
+        _buildDetailRow(
+            '违法时间', _formatDateTime(widget.offense.offenseTime), theme),
         _buildDetailRow(
             '扣分', widget.offense.deductedPoints?.toString() ?? '未知', theme),
         _buildDetailRow(
@@ -916,8 +935,7 @@ class _OffenseDetailPageState extends State<OffenseDetailPage> {
     FocusScope.of(context).requestFocus(FocusNode());
     final pickedDate = await showDatePicker(
       context: context,
-      initialDate:
-          DateTime.tryParse(widget.offense.offenseTime ?? '') ?? DateTime.now(),
+      initialDate: widget.offense.offenseTime ?? DateTime.now(),
       firstDate: DateTime(2000),
       lastDate: DateTime(2101),
       builder: (context, child) => Theme(

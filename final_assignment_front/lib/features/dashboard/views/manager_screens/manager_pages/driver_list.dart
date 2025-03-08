@@ -195,6 +195,12 @@ class _DriverListPageState extends State<DriverList> {
     });
   }
 
+  // Helper method to format DateTime to a readable string
+  String _formatDateTime(DateTime? dateTime) {
+    if (dateTime == null) return '无';
+    return "${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')}";
+  }
+
   @override
   Widget build(BuildContext context) {
     return Obx(() {
@@ -521,6 +527,22 @@ class _AddDriverPageState extends State<AddDriverPage> {
     setState(() => _isLoading = true);
     try {
       await driverApi.initializeWithJwt();
+
+      // Parse date strings to DateTime
+      DateTime? birthdate = _birthdateController.text.trim().isEmpty
+          ? null
+          : DateTime.parse(_birthdateController.text.trim());
+      DateTime? firstLicenseDate =
+          _firstLicenseDateController.text.trim().isEmpty
+              ? null
+              : DateTime.parse(_firstLicenseDateController.text.trim());
+      DateTime? issueDate = _issueDateController.text.trim().isEmpty
+          ? null
+          : DateTime.parse(_issueDateController.text.trim());
+      DateTime? expiryDate = _expiryDateController.text.trim().isEmpty
+          ? null
+          : DateTime.parse(_expiryDateController.text.trim());
+
       final driver = DriverInformation(
         name: _nameController.text.trim().isEmpty
             ? null
@@ -537,21 +559,13 @@ class _AddDriverPageState extends State<AddDriverPage> {
         gender: _genderController.text.trim().isEmpty
             ? null
             : _genderController.text.trim(),
-        birthdate: _birthdateController.text.trim().isEmpty
-            ? null
-            : _birthdateController.text.trim(),
-        firstLicenseDate: _firstLicenseDateController.text.trim().isEmpty
-            ? null
-            : _firstLicenseDateController.text.trim(),
+        birthdate: birthdate,
+        firstLicenseDate: firstLicenseDate,
         allowedVehicleType: _allowedVehicleTypeController.text.trim().isEmpty
             ? null
             : _allowedVehicleTypeController.text.trim(),
-        issueDate: _issueDateController.text.trim().isEmpty
-            ? null
-            : _issueDateController.text.trim(),
-        expiryDate: _expiryDateController.text.trim().isEmpty
-            ? null
-            : _expiryDateController.text.trim(),
+        issueDate: issueDate,
+        expiryDate: expiryDate,
         idempotencyKey: generateIdempotencyKey(),
       );
       await driverApi.apiDriversPost(
@@ -772,11 +786,19 @@ class _EditDriverPageState extends State<EditDriverPage> {
     _driverLicenseNumberController.text =
         widget.driver.driverLicenseNumber ?? '';
     _genderController.text = widget.driver.gender ?? '';
-    _birthdateController.text = widget.driver.birthdate ?? '';
-    _firstLicenseDateController.text = widget.driver.firstLicenseDate ?? '';
+    _birthdateController.text = widget.driver.birthdate != null
+        ? "${widget.driver.birthdate!.year}-${widget.driver.birthdate!.month.toString().padLeft(2, '0')}-${widget.driver.birthdate!.day.toString().padLeft(2, '0')}"
+        : '';
+    _firstLicenseDateController.text = widget.driver.firstLicenseDate != null
+        ? "${widget.driver.firstLicenseDate!.year}-${widget.driver.firstLicenseDate!.month.toString().padLeft(2, '0')}-${widget.driver.firstLicenseDate!.day.toString().padLeft(2, '0')}"
+        : '';
     _allowedVehicleTypeController.text = widget.driver.allowedVehicleType ?? '';
-    _issueDateController.text = widget.driver.issueDate ?? '';
-    _expiryDateController.text = widget.driver.expiryDate ?? '';
+    _issueDateController.text = widget.driver.issueDate != null
+        ? "${widget.driver.issueDate!.year}-${widget.driver.issueDate!.month.toString().padLeft(2, '0')}-${widget.driver.issueDate!.day.toString().padLeft(2, '0')}"
+        : '';
+    _expiryDateController.text = widget.driver.expiryDate != null
+        ? "${widget.driver.expiryDate!.year}-${widget.driver.expiryDate!.month.toString().padLeft(2, '0')}-${widget.driver.expiryDate!.day.toString().padLeft(2, '0')}"
+        : '';
   }
 
   @override
@@ -798,6 +820,22 @@ class _EditDriverPageState extends State<EditDriverPage> {
     setState(() => _isLoading = true);
     try {
       await driverApi.initializeWithJwt();
+
+      // Parse date strings to DateTime
+      DateTime? birthdate = _birthdateController.text.trim().isEmpty
+          ? null
+          : DateTime.parse(_birthdateController.text.trim());
+      DateTime? firstLicenseDate =
+          _firstLicenseDateController.text.trim().isEmpty
+              ? null
+              : DateTime.parse(_firstLicenseDateController.text.trim());
+      DateTime? issueDate = _issueDateController.text.trim().isEmpty
+          ? null
+          : DateTime.parse(_issueDateController.text.trim());
+      DateTime? expiryDate = _expiryDateController.text.trim().isEmpty
+          ? null
+          : DateTime.parse(_expiryDateController.text.trim());
+
       final driver = DriverInformation(
         driverId: widget.driver.driverId,
         name: _nameController.text.trim().isEmpty
@@ -815,21 +853,13 @@ class _EditDriverPageState extends State<EditDriverPage> {
         gender: _genderController.text.trim().isEmpty
             ? null
             : _genderController.text.trim(),
-        birthdate: _birthdateController.text.trim().isEmpty
-            ? null
-            : _birthdateController.text.trim(),
-        firstLicenseDate: _firstLicenseDateController.text.trim().isEmpty
-            ? null
-            : _firstLicenseDateController.text.trim(),
+        birthdate: birthdate,
+        firstLicenseDate: firstLicenseDate,
         allowedVehicleType: _allowedVehicleTypeController.text.trim().isEmpty
             ? null
             : _allowedVehicleTypeController.text.trim(),
-        issueDate: _issueDateController.text.trim().isEmpty
-            ? null
-            : _issueDateController.text.trim(),
-        expiryDate: _expiryDateController.text.trim().isEmpty
-            ? null
-            : _expiryDateController.text.trim(),
+        issueDate: issueDate,
+        expiryDate: expiryDate,
         idempotencyKey: generateIdempotencyKey(),
       );
       await driverApi.apiDriversDriverIdPut(
@@ -1055,6 +1085,12 @@ class _DriverDetailPageState extends State<DriverDetailPage> {
     );
   }
 
+  // Helper method to format DateTime to a readable string
+  String _formatDateTime(DateTime? dateTime) {
+    if (dateTime == null) return '无';
+    return "${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')}";
+  }
+
   @override
   Widget build(BuildContext context) {
     return Obx(() {
@@ -1064,11 +1100,11 @@ class _DriverDetailPageState extends State<DriverDetailPage> {
       final contact = widget.driver.contactNumber ?? '无';
       final license = widget.driver.driverLicenseNumber ?? '无';
       final gender = widget.driver.gender ?? '未知';
-      final birthdate = widget.driver.birthdate ?? '无';
-      final firstLicenseDate = widget.driver.firstLicenseDate ?? '无';
+      final birthdate = _formatDateTime(widget.driver.birthdate);
+      final firstLicenseDate = _formatDateTime(widget.driver.firstLicenseDate);
       final allowedVehicleType = widget.driver.allowedVehicleType ?? '无';
-      final issueDate = widget.driver.issueDate ?? '无';
-      final expiryDate = widget.driver.expiryDate ?? '无';
+      final issueDate = _formatDateTime(widget.driver.issueDate);
+      final expiryDate = _formatDateTime(widget.driver.expiryDate);
       final driverId = widget.driver.driverId?.toString() ?? '0';
 
       return Theme(

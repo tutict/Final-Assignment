@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:final_assignment_front/constants/app_constants.dart';
 import 'package:final_assignment_front/features/api/vehicle_information_controller_api.dart';
 import 'package:final_assignment_front/features/model/vehicle_information.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
@@ -11,6 +10,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// 生成幂等性键的全局方法
 String generateIdempotencyKey() {
   return DateTime.now().millisecondsSinceEpoch.toString();
+}
+
+/// 格式化日期的全局方法
+String formatDate(DateTime? date) {
+  if (date == null) return '无';
+  return "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
 }
 
 class VehicleManagement extends StatefulWidget {
@@ -213,9 +218,7 @@ class _VehicleManagementState extends State<VehicleManagement> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: isError
-            ? Colors.red
-            : Colors.green, // 使用主题无关的颜色，与 UserDashboardController 无直接关联
+        backgroundColor: isError ? Colors.red : Colors.green,
       ),
     );
   }
@@ -270,7 +273,6 @@ class _VehicleManagementState extends State<VehicleManagement> {
   @override
   Widget build(BuildContext context) {
     final themeData = controller?.currentBodyTheme.value ?? ThemeData.light();
-    final isLight = controller?.currentTheme.value == 'Light' ?? true;
 
     if (!_isLoading && _errorMessage.isNotEmpty) {
       return Scaffold(
@@ -458,10 +460,14 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
   }
 
   Future<void> _submitVehicle() async {
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
     try {
+      DateTime? firstRegistrationDate;
+      if (_firstRegistrationDateController.text.isNotEmpty) {
+        firstRegistrationDate =
+            DateTime.parse(_firstRegistrationDateController.text.trim());
+      }
+
       final vehicle = VehicleInformation(
         licensePlate: _licensePlateController.text.trim(),
         vehicleType: _vehicleTypeController.text.trim(),
@@ -471,15 +477,26 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
         engineNumber: _engineNumberController.text.trim(),
         frameNumber: _frameNumberController.text.trim(),
         vehicleColor: _vehicleColorController.text.trim(),
-        firstRegistrationDate: _firstRegistrationDateController.text.trim(),
+        firstRegistrationDate: firstRegistrationDate,
         currentStatus: _currentStatusController.text.trim(),
-      );
-      await vehicleApi.apiVehiclesPost(
-        vehicleInformation: vehicle,
         idempotencyKey: generateIdempotencyKey(),
       );
-      _showSnackBar('创建车辆成功！');
-      if (mounted) Navigator.pop(context, true);
+
+      final createdVehicle = await vehicleApi.apiVehiclesPost(
+        vehicleInformation: vehicle,
+        idempotencyKey: vehicle.idempotencyKey!,
+      );
+
+      _showSnackBar('创建车辆成功！车辆ID: ${createdVehicle.vehicleId}');
+      if (mounted) {
+        Navigator.pop(context, true);
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => VehicleDetailPage(vehicle: createdVehicle),
+          ),
+        );
+      }
     } catch (e) {
       _showSnackBar('创建车辆失败: $e', isError: true);
     } finally {
@@ -506,8 +523,7 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
     );
     if (pickedDate != null && mounted) {
       setState(() {
-        _firstRegistrationDateController.text =
-            "${pickedDate.year}-${pickedDate.month.toString().padLeft(2, '0')}-${pickedDate.day.toString().padLeft(2, '0')}";
+        _firstRegistrationDateController.text = formatDate(pickedDate);
       });
     }
   }
@@ -657,7 +673,7 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
     _frameNumberController.text = widget.vehicle.frameNumber ?? '';
     _vehicleColorController.text = widget.vehicle.vehicleColor ?? '';
     _firstRegistrationDateController.text =
-        widget.vehicle.firstRegistrationDate ?? '';
+        formatDate(widget.vehicle.firstRegistrationDate);
     _currentStatusController.text = widget.vehicle.currentStatus ?? '';
   }
 
@@ -677,10 +693,14 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
   }
 
   Future<void> _submitVehicle() async {
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
     try {
+      DateTime? firstRegistrationDate;
+      if (_firstRegistrationDateController.text.isNotEmpty) {
+        firstRegistrationDate =
+            DateTime.parse(_firstRegistrationDateController.text.trim());
+      }
+
       final vehicle = VehicleInformation(
         vehicleId: widget.vehicle.vehicleId,
         licensePlate: _licensePlateController.text.trim(),
@@ -691,14 +711,17 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
         engineNumber: _engineNumberController.text.trim(),
         frameNumber: _frameNumberController.text.trim(),
         vehicleColor: _vehicleColorController.text.trim(),
-        firstRegistrationDate: _firstRegistrationDateController.text.trim(),
+        firstRegistrationDate: firstRegistrationDate,
         currentStatus: _currentStatusController.text.trim(),
+        idempotencyKey: generateIdempotencyKey(),
       );
+
       await vehicleApi.apiVehiclesVehicleIdPut(
         vehicleId: widget.vehicle.vehicleId ?? 0,
         vehicleInformation: vehicle,
-        idempotencyKey: generateIdempotencyKey(),
+        idempotencyKey: vehicle.idempotencyKey!,
       );
+
       _showSnackBar('更新车辆成功！');
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
@@ -721,14 +744,13 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
   Future<void> _pickDate() async {
     final pickedDate = await showDatePicker(
       context: context,
-      initialDate: DateTime.now(),
+      initialDate: widget.vehicle.firstRegistrationDate ?? DateTime.now(),
       firstDate: DateTime(1900),
       lastDate: DateTime(2101),
     );
     if (pickedDate != null && mounted) {
       setState(() {
-        _firstRegistrationDateController.text =
-            "${pickedDate.year}-${pickedDate.month.toString().padLeft(2, '0')}-${pickedDate.day.toString().padLeft(2, '0')}";
+        _firstRegistrationDateController.text = formatDate(pickedDate);
       });
     }
   }
@@ -832,7 +854,7 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
   final VehicleInformationControllerApi vehicleApi =
       VehicleInformationControllerApi();
   bool _isLoading = false;
-  bool _isAdmin = false;
+  bool _isEditable = false;
   String _errorMessage = '';
 
   final UserDashboardController? controller =
@@ -850,6 +872,7 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final jwtToken = prefs.getString('jwtToken');
+      final currentUsername = prefs.getString('userName');
       if (jwtToken == null) {
         throw Exception('未登录，请重新登录');
       }
@@ -862,8 +885,12 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
       );
       if (response.statusCode == 200) {
         final roleData = jsonDecode(response.body);
-        _isAdmin = (roleData['roles'] as List<dynamic>).contains('ADMIN');
-        setState(() {});
+        final roles = roleData['roles'] as List<dynamic>;
+        final username = roleData['sub'];
+        setState(() {
+          _isEditable =
+              roles.contains('ADMIN') || (username == widget.vehicle.ownerName);
+        });
       } else {
         throw Exception('验证失败：${response.statusCode} - ${response.body}');
       }
@@ -875,9 +902,7 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
   }
 
   Future<void> _deleteVehicle(int vehicleId) async {
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
     try {
       await vehicleApi.apiVehiclesVehicleIdDelete(vehicleId: vehicleId);
       _showSnackBar('删除车辆成功！');
@@ -890,9 +915,7 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
   }
 
   Future<void> _deleteVehicleByLicensePlate(String licensePlate) async {
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
     try {
       await vehicleApi.apiVehiclesLicensePlateLicensePlateDelete(
           licensePlate: licensePlate);
@@ -956,13 +979,14 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
         ),
       );
     }
+
     return Scaffold(
       backgroundColor: themeData.colorScheme.surface,
       appBar: AppBar(
         title: Text('车辆详细信息', style: themeData.textTheme.titleLarge),
         backgroundColor: themeData.colorScheme.primaryContainer,
         foregroundColor: themeData.colorScheme.onPrimaryContainer,
-        actions: _isAdmin
+        actions: _isEditable
             ? [
                 IconButton(
                   icon: Icon(Icons.edit,
@@ -1027,8 +1051,10 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
                       '车架号', widget.vehicle.frameNumber ?? '无', themeData),
                   _buildDetailRow(
                       '车身颜色', widget.vehicle.vehicleColor ?? '无', themeData),
-                  _buildDetailRow('首次注册日期',
-                      widget.vehicle.firstRegistrationDate ?? '无', themeData),
+                  _buildDetailRow(
+                      '首次注册日期',
+                      formatDate(widget.vehicle.firstRegistrationDate),
+                      themeData),
                 ],
               ),
             ),

@@ -23,7 +23,7 @@ class _ProgressDetailPageState extends State<ProgressDetailPage> {
   ProgressItem? _updatedItem;
   final TextEditingController _detailsController = TextEditingController();
   final UserDashboardController controller =
-      Get.find<UserDashboardController>();
+  Get.find<UserDashboardController>();
 
   @override
   void initState() {
@@ -128,6 +128,12 @@ class _ProgressDetailPageState extends State<ProgressDetailPage> {
     );
   }
 
+  // Helper method to format DateTime to a readable string
+  String _formatDateTime(DateTime? dateTime) {
+    if (dateTime == null) return '未提交';
+    return "${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')} ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}:${dateTime.second.toString().padLeft(2, '0')}";
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentTheme = Theme.of(context);
@@ -140,7 +146,7 @@ class _ProgressDetailPageState extends State<ProgressDetailPage> {
     }
 
     return Obx(
-      () => Theme(
+          () => Theme(
         data: controller.currentBodyTheme.value,
         child: Scaffold(
           appBar: AppBar(
@@ -153,132 +159,134 @@ class _ProgressDetailPageState extends State<ProgressDetailPage> {
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : ListView(
+              children: [
+                ListTile(
+                  title: Text('业务ID',
+                      style: TextStyle(
+                          color: currentTheme.colorScheme.onSurface)),
+                  subtitle: Text(_updatedItem!.id.toString(),
+                      style: TextStyle(
+                          color: currentTheme.colorScheme.onSurface)),
+                ),
+                ListTile(
+                  title: Text('业务类型',
+                      style: TextStyle(
+                          color: currentTheme.colorScheme.onSurface)),
+                  subtitle: Text(_updatedItem!.title,
+                      style: TextStyle(
+                          color: currentTheme.colorScheme.onSurface)),
+                ),
+                ListTile(
+                  title: Text('状态',
+                      style: TextStyle(
+                          color: currentTheme.colorScheme.onSurface)),
+                  subtitle: Text(_updatedItem!.status,
+                      style: TextStyle(
+                          color: currentTheme.colorScheme.onSurface)),
+                ),
+                ListTile(
+                  title: Text('提交时间',
+                      style: TextStyle(
+                          color: currentTheme.colorScheme.onSurface)),
+                  subtitle: Text(
+                    _formatDateTime(_updatedItem!.submitTime),
+                    style: TextStyle(
+                        color: currentTheme.colorScheme.onSurface),
+                  ),
+                ),
+                ListTile(
+                  title: Text('详情',
+                      style: TextStyle(
+                          color: currentTheme.colorScheme.onSurface)),
+                  subtitle: TextField(
+                    controller: _detailsController,
+                    decoration: InputDecoration(
+                      border: const OutlineInputBorder(),
+                      labelStyle: TextStyle(
+                        color: isLight ? Colors.black87 : Colors.white,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: BorderSide(
+                          color:
+                          isLight ? Colors.grey : Colors.grey[500]!,
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(
+                          color: isLight ? Colors.blue : Colors.blueGrey,
+                        ),
+                      ),
+                    ),
+                    maxLines: 3,
+                    style: TextStyle(
+                      color: isLight ? Colors.black : Colors.white,
+                    ),
+                    enabled: _isAdmin, // 仅管理员可编辑
+                  ),
+                ),
+                if (_isAdmin)
+                  Column(
                     children: [
-                      ListTile(
-                        title: Text('业务ID',
-                            style: TextStyle(
-                                color: currentTheme.colorScheme.onSurface)),
-                        subtitle: Text(_updatedItem!.id.toString(),
-                            style: TextStyle(
-                                color: currentTheme.colorScheme.onSurface)),
-                      ),
-                      ListTile(
-                        title: Text('业务类型',
-                            style: TextStyle(
-                                color: currentTheme.colorScheme.onSurface)),
-                        subtitle: Text(_updatedItem!.title,
-                            style: TextStyle(
-                                color: currentTheme.colorScheme.onSurface)),
-                      ),
-                      ListTile(
-                        title: Text('状态',
-                            style: TextStyle(
-                                color: currentTheme.colorScheme.onSurface)),
-                        subtitle: Text(_updatedItem!.status,
-                            style: TextStyle(
-                                color: currentTheme.colorScheme.onSurface)),
-                      ),
-                      ListTile(
-                        title: Text('提交时间',
-                            style: TextStyle(
-                                color: currentTheme.colorScheme.onSurface)),
-                        subtitle: Text(_updatedItem!.submitTime,
-                            style: TextStyle(
-                                color: currentTheme.colorScheme.onSurface)),
-                      ),
-                      ListTile(
-                        title: Text('详情',
-                            style: TextStyle(
-                                color: currentTheme.colorScheme.onSurface)),
-                        subtitle: TextField(
-                          controller: _detailsController,
-                          decoration: InputDecoration(
-                            border: const OutlineInputBorder(),
-                            labelStyle: TextStyle(
-                              color: isLight ? Colors.black87 : Colors.white,
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderSide: BorderSide(
-                                color:
-                                    isLight ? Colors.grey : Colors.grey[500]!,
-                              ),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderSide: BorderSide(
-                                color: isLight ? Colors.blue : Colors.blueGrey,
-                              ),
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<String>(
+                        value: _updatedItem!.status,
+                        decoration: InputDecoration(
+                          labelText: '更新状态',
+                          border: const OutlineInputBorder(),
+                          labelStyle: TextStyle(
+                            color:
+                            isLight ? Colors.black87 : Colors.white,
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
+                              color: isLight
+                                  ? Colors.grey
+                                  : Colors.grey[500]!,
                             ),
                           ),
-                          maxLines: 3,
-                          style: TextStyle(
-                            color: isLight ? Colors.black : Colors.white,
+                          focusedBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
+                              color:
+                              isLight ? Colors.blue : Colors.blueGrey,
+                            ),
                           ),
-                          enabled: _isAdmin, // 仅管理员可编辑
+                        ),
+                        items: [
+                          'Pending',
+                          'Processing',
+                          'Completed',
+                          'Archived'
+                        ].map((String value) {
+                          return DropdownMenuItem<String>(
+                            value: value,
+                            child: Text(value),
+                          );
+                        }).toList(),
+                        onChanged: (newValue) {
+                          if (newValue != null) {
+                            _updateProgressStatus(
+                                _updatedItem!.id.toString(), newValue);
+                          }
+                        },
+                        style: TextStyle(
+                          color: isLight ? Colors.black : Colors.white,
                         ),
                       ),
-                      if (_isAdmin)
-                        Column(
-                          children: [
-                            const SizedBox(height: 16),
-                            DropdownButtonFormField<String>(
-                              value: _updatedItem!.status,
-                              decoration: InputDecoration(
-                                labelText: '更新状态',
-                                border: const OutlineInputBorder(),
-                                labelStyle: TextStyle(
-                                  color:
-                                      isLight ? Colors.black87 : Colors.white,
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderSide: BorderSide(
-                                    color: isLight
-                                        ? Colors.grey
-                                        : Colors.grey[500]!,
-                                  ),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderSide: BorderSide(
-                                    color:
-                                        isLight ? Colors.blue : Colors.blueGrey,
-                                  ),
-                                ),
-                              ),
-                              items: [
-                                'Pending',
-                                'Processing',
-                                'Completed',
-                                'Archived'
-                              ].map((String value) {
-                                return DropdownMenuItem<String>(
-                                  value: value,
-                                  child: Text(value),
-                                );
-                              }).toList(),
-                              onChanged: (newValue) {
-                                if (newValue != null) {
-                                  _updateProgressStatus(
-                                      _updatedItem!.id.toString(), newValue);
-                                }
-                              },
-                              style: TextStyle(
-                                color: isLight ? Colors.black : Colors.white,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            ElevatedButton(
-                              onPressed: () =>
-                                  _deleteProgress(_updatedItem!.id.toString()),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.red,
-                                foregroundColor: Colors.white,
-                                minimumSize: const Size.fromHeight(50),
-                              ),
-                              child: const Text('删除进度'),
-                            ),
-                          ],
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: () =>
+                            _deleteProgress(_updatedItem!.id.toString()),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          foregroundColor: Colors.white,
+                          minimumSize: const Size.fromHeight(50),
                         ),
+                        child: const Text('删除进度'),
+                      ),
                     ],
                   ),
+              ],
+            ),
           ),
         ),
       ),

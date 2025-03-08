@@ -1,6 +1,6 @@
 class OffenseInformation {
   int? offenseId; // 违规ID，自动增长
-  String? offenseTime; // 违规时间
+  DateTime? offenseTime; // 违规时间
   String? offenseLocation; // 违规地点
   String? licensePlate; // 车牌号
   String? driverName; // 司机姓名
@@ -35,7 +35,9 @@ class OffenseInformation {
   factory OffenseInformation.fromJson(Map<String, dynamic> json) {
     return OffenseInformation(
       offenseId: json['offenseId'] as int?,
-      offenseTime: json['offenseTime'] as String?,
+      offenseTime: json['offenseTime'] != null
+          ? DateTime.parse(json['offenseTime'] as String)
+          : null,
       offenseLocation: json['offenseLocation'] as String?,
       licensePlate: json['licensePlate'] as String?,
       driverName: json['driverName'] as String?,
@@ -52,7 +54,8 @@ class OffenseInformation {
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{};
     if (offenseId != null) json['offenseId'] = offenseId;
-    if (offenseTime != null) json['offenseTime'] = offenseTime;
+    if (offenseTime != null)
+      json['offenseTime'] = offenseTime!.toIso8601String();
     if (offenseLocation != null) json['offenseLocation'] = offenseLocation;
     if (licensePlate != null) json['licensePlate'] = licensePlate;
     if (driverName != null) json['driverName'] = driverName;
@@ -68,7 +71,7 @@ class OffenseInformation {
 
   OffenseInformation copyWith({
     int? offenseId,
-    String? offenseTime,
+    DateTime? offenseTime,
     String? offenseLocation,
     String? licensePlate,
     String? driverName,
@@ -98,20 +101,23 @@ class OffenseInformation {
 
   static List<OffenseInformation> listFromJson(List<dynamic> json) {
     return json
-        .map((value) => OffenseInformation.fromJson(value as Map<String, dynamic>))
+        .map((value) =>
+            OffenseInformation.fromJson(value as Map<String, dynamic>))
         .toList();
   }
 
-  static Map<String, OffenseInformation> mapFromJson(Map<String, dynamic> json) {
+  static Map<String, OffenseInformation> mapFromJson(
+      Map<String, dynamic> json) {
     var map = <String, OffenseInformation>{};
     if (json.isNotEmpty) {
-      json.forEach((key, value) =>
-      map[key] = OffenseInformation.fromJson(value as Map<String, dynamic>));
+      json.forEach((key, value) => map[key] =
+          OffenseInformation.fromJson(value as Map<String, dynamic>));
     }
     return map;
   }
 
-  static Map<String, List<OffenseInformation>> mapListFromJson(Map<String, dynamic> json) {
+  static Map<String, List<OffenseInformation>> mapListFromJson(
+      Map<String, dynamic> json) {
     var map = <String, List<OffenseInformation>>{};
     if (json.isNotEmpty) {
       json.forEach((key, value) {

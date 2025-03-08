@@ -259,7 +259,7 @@ class OnlineProcessingProgressState extends State<OnlineProcessingProgress>
                   id: 0,
                   title: title,
                   status: 'Pending',
-                  submitTime: DateTime.now().toIso8601String(),
+                  submitTime: DateTime.now(),
                   details: details.isEmpty ? null : details,
                   username: '',
                 );

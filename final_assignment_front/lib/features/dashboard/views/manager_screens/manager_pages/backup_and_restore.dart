@@ -178,9 +178,9 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
   }
 
   Future<void> _createBackup() async {
-    if (!mounted) return; // 确保 widget 仍然挂载
+    if (!mounted) return;
 
-    final scaffoldMessenger = ScaffoldMessenger.of(context); // 保存 context
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
     try {
       final backupName = 'backup_${DateTime.now().toIso8601String()}';
       final String idempotencyKey = generateIdempotencyKey();
@@ -188,7 +188,7 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
       final newBackup = BackupRestore(
         backupId: null,
         backupFileName: backupName,
-        backupTime: DateTime.now().toIso8601String(),
+        backupTime: DateTime.now(),
         restoreTime: null,
         restoreStatus: null,
         remarks: '手动创建的备份',
@@ -204,7 +204,6 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
       final response = await http.post(
         Uri.parse(
             'http://localhost:8081/api/backups?idempotencyKey=$idempotencyKey'),
-        // 后端需要幂等键作为查询参数
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $jwtToken',
@@ -213,11 +212,10 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
       );
 
       if (response.statusCode == 201) {
-        // 201 Created
         scaffoldMessenger.showSnackBar(
           const SnackBar(content: Text('备份创建成功！')),
         );
-        _loadBackups(); // 刷新列表
+        _loadBackups();
       } else {
         final result = jsonDecode(response.body);
         if (result['status'] == 'duplicate') {
@@ -241,9 +239,9 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
   }
 
   Future<void> _updateBackup(int backupId, BackupRestore updatedBackup) async {
-    if (!mounted) return; // 确保 widget 仍然挂载
+    if (!mounted) return;
 
-    final scaffoldMessenger = ScaffoldMessenger.of(context); // 保存 context
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
     try {
       final prefs = await SharedPreferences.getInstance();
       final jwtToken = prefs.getString('jwtToken');
@@ -252,12 +250,11 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
       }
 
       final String idempotencyKey = generateIdempotencyKey();
-      updatedBackup.idempotencyKey = idempotencyKey; // 更新幂等键
+      updatedBackup.idempotencyKey = idempotencyKey;
 
       final response = await http.put(
         Uri.parse(
             'http://localhost:8081/api/backups/$backupId?idempotencyKey=$idempotencyKey'),
-        // 后端需要幂等键作为查询参数
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $jwtToken',
@@ -269,7 +266,7 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
         scaffoldMessenger.showSnackBar(
           const SnackBar(content: Text('备份更新成功！')),
         );
-        _loadBackups(); // 刷新列表
+        _loadBackups();
       } else {
         final result = jsonDecode(response.body);
         if (result['status'] == 'duplicate') {
@@ -293,9 +290,9 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
   }
 
   Future<void> _restoreBackup(int backupId) async {
-    if (!mounted) return; // 确保 widget 仍然挂载
+    if (!mounted) return;
 
-    final scaffoldMessenger = ScaffoldMessenger.of(context); // 保存 context
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
     try {
       final prefs = await SharedPreferences.getInstance();
       final jwtToken = prefs.getString('jwtToken');
@@ -307,7 +304,6 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
       final response = await http.put(
         Uri.parse(
             'http://localhost:8081/api/backups/$backupId?idempotencyKey=$idempotencyKey'),
-        // 后端需要幂等键作为查询参数
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $jwtToken',
@@ -325,7 +321,7 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
           scaffoldMessenger.showSnackBar(
             const SnackBar(content: Text('恢复备份成功！')),
           );
-          _loadBackups(); // 刷新列表
+          _loadBackups();
         } else if (result['status'] == 'duplicate') {
           scaffoldMessenger.showSnackBar(
             SnackBar(
@@ -351,9 +347,9 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
   }
 
   Future<void> _deleteBackup(int backupId) async {
-    if (!mounted) return; // 确保 widget 仍然挂载
+    if (!mounted) return;
 
-    final scaffoldMessenger = ScaffoldMessenger.of(context); // 保存 context
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
     try {
       final prefs = await SharedPreferences.getInstance();
       final jwtToken = prefs.getString('jwtToken');
@@ -365,7 +361,6 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
       final response = await http.delete(
         Uri.parse(
             'http://localhost:8081/api/backups/$backupId?idempotencyKey=$idempotencyKey'),
-        // 后端需要幂等键作为查询参数
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $jwtToken',
@@ -373,11 +368,10 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
       );
 
       if (response.statusCode == 204) {
-        // 204 No Content
         scaffoldMessenger.showSnackBar(
           const SnackBar(content: Text('删除备份成功！')),
         );
-        _loadBackups(); // 刷新列表
+        _loadBackups();
       } else {
         final result = jsonDecode(response.body);
         if (result['status'] == 'duplicate') {
@@ -401,7 +395,7 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
   }
 
   void _showSnackBar(String message) {
-    if (!mounted) return; // 确保 widget 仍然挂载
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
     );
@@ -427,7 +421,7 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
       ),
     ).then((value) {
       if (value == true && mounted) {
-        _loadBackups(); // 详情页更新后刷新列表
+        _loadBackups();
       }
     });
   }
@@ -491,6 +485,12 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
         ],
       ),
     );
+  }
+
+  // Helper method to format DateTime to a readable string
+  String _formatDateTime(DateTime? dateTime) {
+    if (dateTime == null) return '无';
+    return "${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')} ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}:${dateTime.second.toString().padLeft(2, '0')}";
   }
 
   @override
@@ -688,7 +688,6 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
                           final backups = snapshot.data!;
                           return RefreshIndicator(
                             onRefresh: _loadBackups,
-                            // 直接返回 Future<List<BackupRestore>>
                             child: ListView.builder(
                               itemCount: backups.length,
                               itemBuilder: (context, index) {
@@ -704,7 +703,7 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
                                   ),
                                   child: ListTile(
                                     title: Text(
-                                      '文件名: ${backup.backupFileName}',
+                                      '文件名: ${backup.backupFileName ?? '无'}',
                                       style: TextStyle(
                                         color: isLight
                                             ? Colors.black87
@@ -712,7 +711,7 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
                                       ),
                                     ),
                                     subtitle: Text(
-                                      '备份时间: ${backup.backupTime}\n恢复时间: ${backup.restoreTime ?? '未恢复'}\n恢复状态: ${backup.restoreStatus ?? '未恢复'}',
+                                      '备份时间: ${_formatDateTime(backup.backupTime)}\n恢复时间: ${_formatDateTime(backup.restoreTime) ?? '未恢复'}\n恢复状态: ${backup.restoreStatus ?? '未恢复'}',
                                       style: TextStyle(
                                         color: isLight
                                             ? Colors.black54
@@ -797,14 +796,14 @@ class BackupDetailPage extends StatefulWidget {
 
 class _BackupDetailPageState extends State<BackupDetailPage> {
   bool _isLoading = false;
-  bool _isAdmin = false; // 管理员权限标识
+  bool _isAdmin = false;
   final TextEditingController _remarksController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _remarksController.text = widget.backup.remarks ?? '';
-    _checkUserRole(); // 检查用户角色
+    _checkUserRole();
   }
 
   Future<void> _checkUserRole() async {
@@ -812,7 +811,7 @@ class _BackupDetailPageState extends State<BackupDetailPage> {
     final jwtToken = prefs.getString('jwtToken');
     if (jwtToken != null) {
       final response = await http.get(
-        Uri.parse('http://localhost:8081/api/auth/me'), // 后端地址
+        Uri.parse('http://localhost:8081/api/auth/me'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $jwtToken',
@@ -828,9 +827,9 @@ class _BackupDetailPageState extends State<BackupDetailPage> {
   }
 
   Future<void> _updateBackup(int backupId, BackupRestore updatedBackup) async {
-    if (!mounted) return; // 确保 widget 仍然挂载
+    if (!mounted) return;
 
-    final scaffoldMessenger = ScaffoldMessenger.of(context); // 保存 context
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
     setState(() {
       _isLoading = true;
     });
@@ -843,12 +842,11 @@ class _BackupDetailPageState extends State<BackupDetailPage> {
       }
 
       final String idempotencyKey = generateIdempotencyKey();
-      updatedBackup.idempotencyKey = idempotencyKey; // 更新幂等键
+      updatedBackup.idempotencyKey = idempotencyKey;
 
       final response = await http.put(
         Uri.parse(
             'http://localhost:8081/api/backups/$backupId?idempotencyKey=$idempotencyKey'),
-        // 后端需要幂等键作为查询参数
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $jwtToken',
@@ -865,7 +863,7 @@ class _BackupDetailPageState extends State<BackupDetailPage> {
           widget.backup.remarks = updatedBackup.remarks;
         });
         if (mounted) {
-          Navigator.pop(context, true); // 返回并刷新列表
+          Navigator.pop(context, true);
         }
       } else {
         final result = jsonDecode(response.body);
@@ -896,10 +894,16 @@ class _BackupDetailPageState extends State<BackupDetailPage> {
   }
 
   void _showSnackBar(String message) {
-    if (!mounted) return; // 确保 widget 仍然挂载
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
     );
+  }
+
+  // Helper method to format DateTime to a readable string
+  String _formatDateTime(DateTime? dateTime) {
+    if (dateTime == null) return '无';
+    return "${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')} ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}:${dateTime.second.toString().padLeft(2, '0')}";
   }
 
   @override
@@ -928,7 +932,7 @@ class _BackupDetailPageState extends State<BackupDetailPage> {
         backgroundColor: isLight ? Colors.blue : Colors.blueGrey,
         foregroundColor: isLight ? Colors.white : Colors.white,
         actions: [
-          if (_isAdmin) // 仅 ADMIN 显示编辑按钮
+          if (_isAdmin)
             IconButton(
               icon: Icon(
                 Icons.edit,
@@ -948,8 +952,10 @@ class _BackupDetailPageState extends State<BackupDetailPage> {
                   _buildDetailRow(
                       context, '备份 ID', backup.backupId?.toString() ?? '无'),
                   _buildDetailRow(context, '文件名', backup.backupFileName ?? '无'),
-                  _buildDetailRow(context, '备份时间', backup.backupTime ?? '无'),
-                  _buildDetailRow(context, '恢复时间', backup.restoreTime ?? '未恢复'),
+                  _buildDetailRow(
+                      context, '备份时间', _formatDateTime(backup.backupTime)),
+                  _buildDetailRow(context, '恢复时间',
+                      _formatDateTime(backup.restoreTime) ?? '未恢复'),
                   _buildDetailRow(
                       context, '恢复状态', backup.restoreStatus ?? '未恢复'),
                   _buildDetailRow(context, '备注', backup.remarks ?? '无'),

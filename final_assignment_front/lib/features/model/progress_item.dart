@@ -3,7 +3,7 @@ class ProgressItem {
   final int id;
   final String title;
   final String status; // "Pending", "Processing", "Completed", "Archived"
-  final String submitTime; // ISO 8601 格式（如 "2023-10-01T12:00:00Z")
+  final DateTime? submitTime; // ISO 8601 格式（如 "2023-10-01T12:00:00Z"）
   final String? details;
   final String? username;
 
@@ -11,7 +11,7 @@ class ProgressItem {
     required this.id,
     required this.title,
     required this.status,
-    required this.submitTime,
+    this.submitTime, // Changed to optional
     this.details,
     this.username,
   });
@@ -21,7 +21,9 @@ class ProgressItem {
       id: json['id'] as int,
       title: json['title'] as String,
       status: json['status'] as String,
-      submitTime: json['submitTime'] as String,
+      submitTime: json['submitTime'] != null
+          ? DateTime.parse(json['submitTime'] as String)
+          : null,
       details: json['details'] as String?,
       username: json['username'] as String?,
     );
@@ -32,9 +34,9 @@ class ProgressItem {
       'id': id,
       'title': title,
       'status': status,
-      'submitTime': submitTime,
-      'details': details,
-      'username': username,
+      if (submitTime != null) 'submitTime': submitTime!.toIso8601String(),
+      if (details != null) 'details': details,
+      if (username != null) 'username': username,
     };
   }
 
@@ -43,7 +45,7 @@ class ProgressItem {
     int? id,
     String? title,
     String? status,
-    String? submitTime,
+    DateTime? submitTime,
     String? details,
     String? username,
   }) {
