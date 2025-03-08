@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
+import 'package:get/get.dart';
 import 'package:local_captcha/local_captcha.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -15,6 +17,8 @@ class _LocalCaptchaMainState extends State<LocalCaptchaMain> {
   final _localCaptchaController = LocalCaptchaController();
   final _configFormData = ConfigFormData();
   final _inputController = TextEditingController();
+  final UserDashboardController _controller =
+      Get.find<UserDashboardController>();
 
   String _inputCode = '';
   bool _isMounted = false;
@@ -23,7 +27,8 @@ class _LocalCaptchaMainState extends State<LocalCaptchaMain> {
   void initState() {
     super.initState();
     _isMounted = true;
-    Future.delayed(const Duration(milliseconds: 100), () {
+    // Delay refresh until widget is fully painted
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_isMounted) {
         _localCaptchaController.refresh();
         debugPrint('Captcha refreshed on init');
@@ -40,161 +45,199 @@ class _LocalCaptchaMainState extends State<LocalCaptchaMain> {
   }
 
   Future<bool> _validateCaptcha() async {
-    while (_isMounted) {
-      if (_captchaFormKey.currentState?.validate() ?? false) {
-        _captchaFormKey.currentState!.save();
-        final validation = _localCaptchaController.validate(_inputCode);
-        debugPrint('Captcha validation: $validation (input: $_inputCode)');
-        if (validation == LocalCaptchaValidation.valid) {
-          return true; // 验证成功
-        } else {
-          // 验证失败，刷新验证码并显示错误提示
-          _localCaptchaController.refresh();
-          _inputController.clear();
-          _inputCode = '';
-          if (_isMounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('验证码错误，请重试'),
-                duration: Duration(seconds: 2),
-                backgroundColor: Colors.redAccent,
-              ),
-            );
-          }
-          await Future.delayed(const Duration(milliseconds: 100));
-        }
+    if (!_isMounted) return false;
+
+    if (_captchaFormKey.currentState?.validate() ?? false) {
+      _captchaFormKey.currentState!.save();
+      final validation = _localCaptchaController.validate(_inputCode);
+      debugPrint('Captcha validation: $validation (input: $_inputCode)');
+      if (validation == LocalCaptchaValidation.valid) {
+        return true; // Validation successful
       } else {
-        // 用户未输入直接点击验证，继续等待
-        debugPrint('Form validation failed, empty or invalid input');
-        await Future.delayed(const Duration(milliseconds: 100));
-        continue;
+        // Validation failed, refresh captcha and show error
+        _localCaptchaController.refresh();
+        _inputController.clear();
+        _inputCode = '';
+        if (_isMounted) {
+          final themeData = _controller.currentBodyTheme.value;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('验证码错误，请重试',
+                  style:
+                      TextStyle(color: themeData.colorScheme.onErrorContainer)),
+              backgroundColor: themeData.colorScheme.error,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+        return false;
       }
+    } else {
+      debugPrint('Form validation failed, empty or invalid input');
+      return false;
     }
-    debugPrint('Exited captcha loop due to unmount');
-    return false;
   }
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      backgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
-      title: Text(
-        '验证码验证',
-        style: GoogleFonts.roboto(
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-          color: Colors.blueGrey[800],
-        ),
-      ),
-      content: SingleChildScrollView(
-        child: SizedBox(
-          width: 400.0,
-          child: Form(
-            key: _captchaFormKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                LocalCaptcha(
-                  key: ValueKey(_configFormData.toString()),
-                  controller: _localCaptchaController,
-                  height: 240,
-                  width: 400,
-                  backgroundColor: Colors.grey[200]!,
-                  chars: _configFormData.chars,
-                  length: _configFormData.length,
-                  fontSize: _configFormData.fontSize,
-                  caseSensitive: _configFormData.caseSensitive,
-                  codeExpireAfter: _configFormData.codeExpireAfter,
-                  onCaptchaGenerated: (captcha) {
-                    debugPrint('生成验证码: $captcha');
-                    debugPrint('应用字体大小: ${_configFormData.fontSize}');
-                  },
-                ),
-                const SizedBox(height: 20.0),
-                TextFormField(
-                  controller: _inputController,
-                  decoration: InputDecoration(
-                    labelText: '输入验证码',
-                    hintText: '请输入验证码',
-                    isDense: true,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12.0),
-                    ),
-                    filled: true,
-                    fillColor: Colors.grey[100],
-                    labelStyle: GoogleFonts.roboto(
-                      fontSize: 16,
-                      color: Colors.blueGrey[600],
-                    ),
-                    hintStyle: GoogleFonts.roboto(
-                      fontSize: 16,
-                      color: Colors.grey[500],
-                    ),
-                  ),
-                  style: GoogleFonts.roboto(
-                    fontSize: 16,
-                    color: Colors.black87,
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return '* 请输入验证码';
-                    }
-                    if (value.length != _configFormData.length) {
-                      return '* 验证码长度应为 ${_configFormData.length}';
-                    }
-                    return null;
-                  },
-                  onSaved: (value) => _inputCode = value ?? '',
-                ),
-                const SizedBox(height: 24.0),
-                ElevatedButton(
-                  onPressed: () async {
-                    final isValid = await _validateCaptcha();
-                    if (_isMounted) {
-                      Navigator.of(context).pop(isValid);
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blueAccent,
-                    foregroundColor: Colors.white,
-                    elevation: 4,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12.0),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 12),
-                  ),
-                  child: Text(
-                    '验证',
-                    style: GoogleFonts.roboto(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () {
-            if (_isMounted) {
-              Navigator.of(context).pop(false);
-            }
-          },
-          child: Text(
-            '取消',
+    return Obx(() {
+      // Reactive theme updates
+      final isLight = _controller.currentTheme.value == 'Light';
+      final themeData = _controller.currentBodyTheme.value;
+
+      return Theme(
+        data: themeData,
+        child: AlertDialog(
+          backgroundColor: isLight
+              ? themeData.colorScheme.surfaceContainer
+              : themeData.colorScheme.surfaceContainerHigh,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+          title: Text(
+            '验证码验证',
             style: GoogleFonts.roboto(
-              fontSize: 16,
-              color: Colors.blueGrey[600],
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: isLight
+                  ? themeData.colorScheme.onSurface
+                  : themeData.colorScheme.onSurface.withOpacity(0.95),
             ),
           ),
+          content: SingleChildScrollView(
+            child: SizedBox(
+              width: 400.0,
+              child: Form(
+                key: _captchaFormKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    LocalCaptcha(
+                      key: ValueKey(_configFormData.toString()),
+                      controller: _localCaptchaController,
+                      height: 240,
+                      width: 400,
+                      backgroundColor: isLight
+                          ? themeData.colorScheme.surfaceContainerLowest
+                          : themeData.colorScheme.surfaceContainerLow,
+                      chars: _configFormData.chars,
+                      length: _configFormData.length,
+                      fontSize: _configFormData.fontSize,
+                      caseSensitive: _configFormData.caseSensitive,
+                      codeExpireAfter: _configFormData.codeExpireAfter,
+                      onCaptchaGenerated: (captcha) {
+                        debugPrint('生成验证码: $captcha');
+                        debugPrint('应用字体大小: ${_configFormData.fontSize}');
+                      },
+                    ),
+                    const SizedBox(height: 20.0),
+                    TextFormField(
+                      controller: _inputController,
+                      decoration: InputDecoration(
+                        labelText: '输入验证码',
+                        hintText: '请输入验证码',
+                        isDense: true,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12.0),
+                          borderSide: BorderSide(
+                              color: themeData.colorScheme.outline
+                                  .withOpacity(0.3)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12.0),
+                          borderSide: BorderSide(
+                              color: themeData.colorScheme.primary, width: 2.0),
+                        ),
+                        filled: true,
+                        fillColor: isLight
+                            ? themeData.colorScheme.surfaceContainerLowest
+                            : themeData.colorScheme.surfaceContainerLow,
+                        labelStyle: GoogleFonts.roboto(
+                          fontSize: 16,
+                          color: isLight
+                              ? themeData.colorScheme.onSurfaceVariant
+                              : themeData.colorScheme.onSurfaceVariant
+                                  .withOpacity(0.85),
+                        ),
+                        hintStyle: GoogleFonts.roboto(
+                          fontSize: 16,
+                          color: isLight
+                              ? themeData.colorScheme.onSurfaceVariant
+                                  .withOpacity(0.6)
+                              : themeData.colorScheme.onSurfaceVariant
+                                  .withOpacity(0.5),
+                        ),
+                      ),
+                      style: GoogleFonts.roboto(
+                        fontSize: 16,
+                        color: isLight
+                            ? themeData.colorScheme.onSurface
+                            : themeData.colorScheme.onSurface.withOpacity(0.95),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return '* 请输入验证码';
+                        }
+                        if (value.length != _configFormData.length) {
+                          return '* 验证码长度应为 ${_configFormData.length}';
+                        }
+                        return null;
+                      },
+                      onSaved: (value) => _inputCode = value ?? '',
+                    ),
+                    const SizedBox(height: 24.0),
+                    ElevatedButton(
+                      onPressed: () async {
+                        final isValid = await _validateCaptcha();
+                        if (_isMounted) {
+                          Navigator.of(context).pop(isValid);
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: themeData.colorScheme.primary,
+                        foregroundColor: themeData.colorScheme.onPrimary,
+                        elevation: 4,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12.0),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 12),
+                      ),
+                      child: Text(
+                        '验证',
+                        style: GoogleFonts.roboto(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: themeData.colorScheme.onPrimary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                if (_isMounted) {
+                  Navigator.of(context).pop(false);
+                }
+              },
+              child: Text(
+                '取消',
+                style: GoogleFonts.roboto(
+                  fontSize: 16,
+                  color: isLight
+                      ? themeData.colorScheme.onSurfaceVariant
+                      : themeData.colorScheme.onSurfaceVariant
+                          .withOpacity(0.85),
+                ),
+              ),
+            ),
+          ],
         ),
-      ],
-    );
+      );
+    });
   }
 }
 

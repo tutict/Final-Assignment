@@ -44,6 +44,8 @@ class _LoginScreenState extends State<LoginScreen> {
   late DriverInformationControllerApi driverApi;
   late String? _userRole;
   bool _hasSentRegisterRequest = false;
+  final UserDashboardController _userDashboardController =
+      Get.find<UserDashboardController>();
 
   @override
   void initState() {
@@ -53,13 +55,13 @@ class _LoginScreenState extends State<LoginScreen> {
     _userRole = null;
     _hasSentRegisterRequest = false;
     if (!Get.isRegistered<ChatController>()) {
-      Get.put(ChatController());
+      Get.lazyPut(() => ChatController());
     }
     if (!Get.isRegistered<DashboardController>()) {
-      Get.put(DashboardController());
+      Get.lazyPut(() => DashboardController());
     }
     if (!Get.isRegistered<UserDashboardController>()) {
-      Get.put(UserDashboardController());
+      Get.lazyPut(() => UserDashboardController());
     }
   }
 
@@ -235,7 +237,6 @@ class _LoginScreenState extends State<LoginScreen> {
       return '请输入有效的邮箱地址';
     }
 
-    // Step 1: Validate CAPTCHA
     final bool? isCaptchaValid = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
@@ -248,48 +249,127 @@ class _LoginScreenState extends State<LoginScreen> {
       return '密码重置已取消';
     }
 
-    // Step 2: Prompt for new password
     final TextEditingController newPasswordController = TextEditingController();
+    final themeData = _userDashboardController.currentBodyTheme.value;
+    final isLight = _userDashboardController.currentTheme.value == 'Light';
+
     final bool? passwordConfirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('重置密码'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('请输入新密码：'),
-            TextField(
-              controller: newPasswordController,
-              obscureText: true,
-              decoration: const InputDecoration(
-                hintText: '新密码',
-                border: OutlineInputBorder(),
+      builder: (context) => Theme(
+        data: themeData,
+        child: AlertDialog(
+          backgroundColor: isLight
+              ? themeData.colorScheme.surfaceContainer
+              : themeData.colorScheme.surfaceContainerHigh,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+          title: Text(
+            '重置密码',
+            style: themeData.textTheme.titleLarge?.copyWith(
+              color: isLight
+                  ? themeData.colorScheme.onSurface
+                  : themeData.colorScheme.onSurface.withOpacity(0.95),
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '请输入新密码：',
+                style: themeData.textTheme.bodyMedium?.copyWith(
+                  color: isLight
+                      ? themeData.colorScheme.onSurfaceVariant
+                      : themeData.colorScheme.onSurfaceVariant
+                          .withOpacity(0.85),
+                ),
+              ),
+              TextField(
+                controller: newPasswordController,
+                obscureText: true,
+                decoration: InputDecoration(
+                  hintText: '新密码',
+                  hintStyle: themeData.textTheme.bodyMedium?.copyWith(
+                    color: isLight
+                        ? themeData.colorScheme.onSurfaceVariant
+                            .withOpacity(0.6)
+                        : themeData.colorScheme.onSurfaceVariant
+                            .withOpacity(0.5),
+                  ),
+                  filled: true,
+                  fillColor: isLight
+                      ? themeData.colorScheme.surfaceContainerLowest
+                      : themeData.colorScheme.surfaceContainerLow,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8.0),
+                    borderSide: BorderSide(
+                        color: themeData.colorScheme.outline.withOpacity(0.3)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8.0),
+                    borderSide: BorderSide(
+                        color: themeData.colorScheme.primary, width: 2.0),
+                  ),
+                ),
+                style: themeData.textTheme.bodyMedium?.copyWith(
+                  color: isLight
+                      ? themeData.colorScheme.onSurface
+                      : themeData.colorScheme.onSurface.withOpacity(0.95),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(
+                '取消',
+                style: themeData.textTheme.labelMedium?.copyWith(
+                  color: isLight
+                      ? themeData.colorScheme.onSurface
+                      : themeData.colorScheme.onSurface.withOpacity(0.95),
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (newPasswordController.text.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                        content: Text('新密码不能为空',
+                            style: TextStyle(
+                                color:
+                                    themeData.colorScheme.onErrorContainer))),
+                  );
+                } else if (newPasswordController.text.length < 3) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                        content: Text('密码太短',
+                            style: TextStyle(
+                                color:
+                                    themeData.colorScheme.onErrorContainer))),
+                  );
+                } else {
+                  Navigator.pop(context, true);
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: themeData.colorScheme.primary,
+                foregroundColor: themeData.colorScheme.onPrimary,
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10.0)),
+              ),
+              child: Text(
+                '确定',
+                style: themeData.textTheme.labelMedium?.copyWith(
+                  color: themeData.colorScheme.onPrimary,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
-          ),
-          TextButton(
-            onPressed: () {
-              if (newPasswordController.text.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('新密码不能为空')),
-                );
-              } else if (newPasswordController.text.length < 3) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('密码太短')),
-                );
-              } else {
-                Navigator.pop(context, true);
-              }
-            },
-            child: const Text('确定'),
-          ),
-        ],
       ),
     );
 
@@ -298,7 +378,6 @@ class _LoginScreenState extends State<LoginScreen> {
       return '密码重置已取消';
     }
 
-    // Step 3: Retrieve stored JWT token
     final prefs = await SharedPreferences.getInstance();
     final String? jwtToken = prefs.getString('jwtToken');
     if (jwtToken == null) {
@@ -306,23 +385,22 @@ class _LoginScreenState extends State<LoginScreen> {
       return '请先登录以重置密码';
     }
 
-    // Step 4: Send password reset request with JWT token
     final newPassword = newPasswordController.text.trim();
     final String idempotencyKey = generateIdempotencyKey();
 
     try {
       final response = await authApi.apiClient.invokeAPI(
-        '/api/users/password?username=$name&idempotencyKey=$idempotencyKey',
+        '/api/users/me/password?idempotencyKey=$idempotencyKey',
         'PUT',
         [],
         newPassword,
         {
-          'Authorization': 'Bearer $jwtToken', // Include JWT token in headers
+          'Authorization': 'Bearer $jwtToken',
           'Content-Type': 'text/plain; charset=utf-8',
         },
         {},
         'text/plain',
-        ['bearerAuth'], // Indicate authentication is required
+        ['bearerAuth'],
       );
 
       debugPrint(
@@ -330,9 +408,14 @@ class _LoginScreenState extends State<LoginScreen> {
       if (response.statusCode == 200) {
         debugPrint('Password reset successful');
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('密码重置成功，请使用新密码登录')),
+          SnackBar(
+            content: Text('密码重置成功，请使用新密码登录',
+                style:
+                    TextStyle(color: themeData.colorScheme.onPrimaryContainer)),
+            backgroundColor: themeData.colorScheme.primary,
+          ),
         );
-        return null; // Success
+        return null;
       } else if (response.statusCode == 404) {
         return '用户不存在';
       } else if (response.statusCode == 403) {
@@ -351,73 +434,135 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return FlutterLogin(
-      title: '交通违法行为处理管理系统',
-      logo: const AssetImage(ImageRasterPath.logo4),
-      onLogin: _authUser,
-      onSignup: _signupUser,
-      theme: LoginTheme(
-        primaryColor: Colors.blue,
-        accentColor: Colors.amberAccent,
-        errorColor: Colors.deepOrange,
-        pageColorLight: Colors.lightBlueAccent,
-        pageColorDark: Colors.blueGrey,
-        buttonTheme: const LoginButtonTheme(
-          splashColor: Colors.lightBlueAccent,
-          backgroundColor: Colors.blue,
-          highlightColor: Colors.lightBlue,
-          elevation: 9.0,
-          highlightElevation: 6.0,
+    return Obx(() {
+      final isLight = _userDashboardController.currentTheme.value == 'Light';
+      final themeData = _userDashboardController.currentBodyTheme.value;
+
+      return Theme(
+        data: themeData,
+        child: Stack(
+          children: [
+            FlutterLogin(
+              title: '交通违法行为处理管理系统',
+              logo: const AssetImage(ImageRasterPath.logo4),
+              onLogin: _authUser,
+              onSignup: _signupUser,
+              onRecoverPassword: _recoverPassword,
+              theme: LoginTheme(
+                primaryColor: themeData.colorScheme.primary,
+                accentColor: themeData.colorScheme.secondary,
+                errorColor: themeData.colorScheme.error,
+                pageColorLight: Colors.lightBlueAccent,
+                // Light blue for light mode
+                buttonTheme: LoginButtonTheme(
+                  splashColor: themeData.colorScheme.primaryContainer,
+                  backgroundColor: themeData.colorScheme.primary,
+                  highlightColor:
+                      themeData.colorScheme.primary.withOpacity(0.8),
+                  elevation: 9.0,
+                  highlightElevation: 6.0,
+                ),
+                cardTheme: CardTheme(
+                  color: isLight
+                      ? themeData.colorScheme.surfaceContainerLowest
+                      : themeData.colorScheme.surfaceContainerLow,
+                  elevation: 8.0,
+                  margin: const EdgeInsets.symmetric(horizontal: 20.0),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12.0)),
+                ),
+                titleStyle: themeData.textTheme.headlineMedium?.copyWith(
+                  color: isLight
+                      ? themeData.colorScheme.onSurface
+                      : themeData.colorScheme.onSurface.withOpacity(0.95),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 24.0,
+                ),
+                bodyStyle: themeData.textTheme.bodyMedium?.copyWith(
+                  color: isLight
+                      ? themeData.colorScheme.onSurfaceVariant
+                      : themeData.colorScheme.onSurfaceVariant
+                          .withOpacity(0.85),
+                ),
+                textFieldStyle: themeData.textTheme.bodyMedium?.copyWith(
+                  color: isLight
+                      ? themeData.colorScheme.onSurface
+                      : themeData.colorScheme.onSurface.withOpacity(0.95),
+                ),
+                buttonStyle: themeData.textTheme.labelLarge?.copyWith(
+                  color: themeData.colorScheme.onPrimary,
+                  fontWeight: FontWeight.bold,
+                ),
+                inputTheme: InputDecorationTheme(
+                  filled: true,
+                  fillColor: isLight
+                      ? themeData.colorScheme.surfaceContainer
+                      : themeData.colorScheme.surfaceContainerHigh,
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16.0, vertical: 12.0),
+                  errorStyle: themeData.textTheme.bodySmall?.copyWith(
+                    color: themeData.colorScheme.onErrorContainer,
+                    backgroundColor:
+                        themeData.colorScheme.error.withOpacity(0.9),
+                  ),
+                  labelStyle: themeData.textTheme.bodyMedium?.copyWith(
+                    color: themeData.colorScheme.onSurfaceVariant,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8.0),
+                    borderSide: BorderSide(
+                        color: themeData.colorScheme.outline.withOpacity(0.3)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8.0),
+                    borderSide: BorderSide(
+                        color: themeData.colorScheme.primary, width: 2.0),
+                  ),
+                ),
+                cardInitialHeight: 300.0,
+                cardTopPosition: 250.0,
+              ),
+              messages: LoginMessages(
+                passwordHint: '密码',
+                userHint: '用户邮箱',
+                forgotPasswordButton: '忘记密码？',
+                confirmPasswordHint: '再次输入密码',
+                loginButton: '登录',
+                signupButton: '注册',
+                recoverPasswordButton: '重置密码',
+                recoverCodePasswordDescription: '请输入您的用户邮箱',
+                goBackButton: '返回',
+                confirmPasswordError: '密码输入不匹配',
+                confirmSignupSuccess: '注册成功',
+                confirmRecoverSuccess: '密码重置成功',
+                recoverPasswordDescription: '请输入您的用户邮箱，我们将为您重置密码',
+                recoverPasswordIntro: '重置密码',
+              ),
+              onSubmitAnimationCompleted: () {
+                Get.offAllNamed(_userRole == 'ADMIN'
+                    ? AppPages.initial
+                    : AppPages.userInitial);
+              },
+            ),
+            Positioned(
+              bottom: 20.0,
+              right: 40.0,
+              child: IconButton(
+                icon: Icon(
+                  isLight ? Icons.dark_mode : Icons.light_mode,
+                  color: isLight
+                      ? themeData.colorScheme.onSurface
+                      : themeData.colorScheme.onSurface.withOpacity(0.95),
+                ),
+                tooltip: isLight ? '切换到暗色模式' : '切换到亮色模式',
+                onPressed: () {
+                  _userDashboardController.toggleBodyTheme();
+                },
+              ),
+            ),
+          ],
         ),
-        cardTheme: CardTheme(
-          color: Colors.white,
-          elevation: 8.0,
-          margin: const EdgeInsets.symmetric(horizontal: 20.0),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
-        ),
-        titleStyle: const TextStyle(
-          color: Colors.white,
-          fontFamily: 'OpenSans',
-          fontWeight: FontWeight.w700,
-          fontSize: 24.0,
-        ),
-        bodyStyle: const TextStyle(color: Colors.black),
-        textFieldStyle: const TextStyle(color: Colors.black, fontSize: 16.0),
-        buttonStyle:
-            const TextStyle(fontWeight: FontWeight.w800, color: Colors.white),
-        inputTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: Colors.grey.shade200,
-          contentPadding: EdgeInsets.zero,
-          errorStyle: const TextStyle(
-              backgroundColor: Colors.orange, color: Colors.white),
-          labelStyle: const TextStyle(fontSize: 16.0),
-        ),
-        cardInitialHeight: 300.0,
-        cardTopPosition: 250.0,
-      ),
-      messages: LoginMessages(
-        passwordHint: '密码',
-        userHint: '用户邮箱',
-        forgotPasswordButton: '忘记密码？',
-        confirmPasswordHint: '再次输入密码',
-        loginButton: '登录',
-        signupButton: '注册',
-        recoverPasswordButton: '重置密码',
-        recoverCodePasswordDescription: '请输入您的用户邮箱',
-        goBackButton: '返回',
-        confirmPasswordError: '密码输入不匹配',
-        confirmSignupSuccess: '注册成功',
-        confirmRecoverSuccess: '密码重置成功',
-        recoverPasswordDescription: '请输入您的用户邮箱，我们将为您重置密码',
-        recoverPasswordIntro: '重置密码',
-      ),
-      onSubmitAnimationCompleted: () {
-        Get.offAllNamed(
-            _userRole == 'ADMIN' ? AppPages.initial : AppPages.userInitial);
-      },
-      onRecoverPassword: _recoverPassword,
-    );
+      );
+    });
   }
 }
