@@ -46,6 +46,8 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _hasSentRegisterRequest = false;
   final UserDashboardController _userDashboardController =
       Get.find<UserDashboardController>();
+  final DashboardController _DashboardController =
+      Get.find<DashboardController>();
 
   @override
   void initState() {
@@ -557,6 +559,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 tooltip: isLight ? '切换到暗色模式' : '切换到亮色模式',
                 onPressed: () {
                   _userDashboardController.toggleBodyTheme();
+                  _DashboardController.toggleBodyTheme();
                 },
               ),
             ),

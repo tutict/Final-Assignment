@@ -264,10 +264,25 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
           throw Exception('未知字段: $field');
       }
 
-      scaffoldMessenger.showSnackBar(const SnackBar(content: Text('更新成功！')));
+      scaffoldMessenger.showSnackBar(
+        SnackBar(
+          content: Text('更新成功！',
+              style: TextStyle(
+                  color: controller!
+                      .currentBodyTheme.value.colorScheme.onPrimaryContainer)),
+          backgroundColor:
+              controller!.currentBodyTheme.value.colorScheme.primary,
+        ),
+      );
       await _loadCurrentManager();
     } catch (e) {
-      scaffoldMessenger.showSnackBar(SnackBar(content: Text('更新失败: $e')));
+      scaffoldMessenger.showSnackBar(
+        SnackBar(
+          content:
+              Text('更新失败: $e', style: const TextStyle(color: Colors.white)),
+          backgroundColor: Colors.red,
+        ),
+      );
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -286,33 +301,26 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
     required String title,
     required String subtitle,
     required ThemeData themeData,
-    required bool isLight,
     VoidCallback? onTap,
   }) {
     return Card(
       elevation: 2,
       shadowColor: themeData.colorScheme.shadow.withOpacity(0.2),
-      color: isLight
-          ? themeData.colorScheme.surfaceContainerLow
-          : themeData.colorScheme.surfaceContainerHigh,
+      color: themeData.colorScheme.surfaceContainer,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
       margin: const EdgeInsets.symmetric(vertical: 6.0),
       child: ListTile(
         title: Text(
           title,
           style: themeData.textTheme.bodyLarge?.copyWith(
-            color: isLight
-                ? themeData.colorScheme.onSurface
-                : themeData.colorScheme.onSurface.withOpacity(0.95),
+            color: themeData.colorScheme.onSurface,
             fontWeight: FontWeight.w600,
           ),
         ),
         subtitle: Text(
           subtitle,
           style: themeData.textTheme.bodyMedium?.copyWith(
-            color: isLight
-                ? themeData.colorScheme.onSurfaceVariant
-                : themeData.colorScheme.onSurfaceVariant.withOpacity(0.85),
+            color: themeData.colorScheme.onSurfaceVariant,
           ),
         ),
         onTap: onTap,
@@ -324,14 +332,11 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
 
   void _showEditDialog(String field, TextEditingController textController,
       void Function(String) onSave) {
-    final isLight = controller?.currentTheme.value == 'Light' ?? true;
     final themeData = controller?.currentBodyTheme.value ?? ThemeData.light();
     showDialog(
       context: context,
       builder: (_) => Dialog(
-        backgroundColor: isLight
-            ? themeData.colorScheme.surfaceContainer
-            : themeData.colorScheme.surfaceContainerHigh,
+        backgroundColor: themeData.colorScheme.surfaceContainer,
         shape:
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
         child: ConstrainedBox(
@@ -345,9 +350,7 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
                 Text(
                   '编辑 $field',
                   style: themeData.textTheme.titleMedium?.copyWith(
-                    color: isLight
-                        ? themeData.colorScheme.onSurface
-                        : themeData.colorScheme.onSurface.withOpacity(0.95),
+                    color: themeData.colorScheme.onSurface,
                     fontWeight: FontWeight.bold,
                   ),
                   textAlign: TextAlign.center,
@@ -356,23 +359,16 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
                 TextField(
                   controller: textController,
                   style: themeData.textTheme.bodyMedium?.copyWith(
-                    color: isLight
-                        ? themeData.colorScheme.onSurface
-                        : themeData.colorScheme.onSurface.withOpacity(0.95),
+                    color: themeData.colorScheme.onSurface,
                   ),
                   decoration: InputDecoration(
                     hintText: '输入新的 $field',
                     hintStyle: themeData.textTheme.bodyMedium?.copyWith(
-                      color: isLight
-                          ? themeData.colorScheme.onSurfaceVariant
-                              .withOpacity(0.6)
-                          : themeData.colorScheme.onSurfaceVariant
-                              .withOpacity(0.5),
+                      color: themeData.colorScheme.onSurfaceVariant
+                          .withOpacity(0.6),
                     ),
                     filled: true,
-                    fillColor: isLight
-                        ? themeData.colorScheme.surfaceContainerLowest
-                        : themeData.colorScheme.surfaceContainerLow,
+                    fillColor: themeData.colorScheme.surfaceContainerLowest,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8.0),
                       borderSide: BorderSide(
@@ -407,11 +403,11 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
                         Navigator.pop(context);
                         onSave(textController.text.trim());
                       },
-                      style: themeData.elevatedButtonTheme.style?.copyWith(
-                        backgroundColor: WidgetStateProperty.all(
-                            themeData.colorScheme.primary),
-                        foregroundColor: WidgetStateProperty.all(
-                            themeData.colorScheme.onPrimary),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: themeData.colorScheme.primary,
+                        foregroundColor: themeData.colorScheme.onPrimary,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8.0)),
                       ),
                       child: Text(
                         '保存',
@@ -434,261 +430,232 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isLight = controller?.currentTheme.value == 'Light' ?? true;
-    final themeData = controller?.currentBodyTheme.value ?? ThemeData.light();
+    return Obx(() {
+      final themeData = controller?.currentBodyTheme.value ?? ThemeData.light();
+
+      return Theme(
+        data: themeData,
+        child: CupertinoPageScaffold(
+          backgroundColor: themeData.colorScheme.surface,
+          navigationBar: CupertinoNavigationBar(
+            middle: Text(
+              '管理员个人信息管理',
+              style: themeData.textTheme.headlineSmall?.copyWith(
+                color: themeData.colorScheme.onSurface,
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
+              ),
+            ),
+            leading: GestureDetector(
+              onTap: () => Get.back(),
+              child: Icon(
+                CupertinoIcons.back,
+                color: themeData.colorScheme.onSurface,
+              ),
+            ),
+            trailing: GestureDetector(
+              onTap: () => Get.toNamed(AppPages.managerBusinessProcessing),
+              child: Icon(
+                CupertinoIcons.person_2,
+                color: themeData.colorScheme.onSurface,
+              ),
+            ),
+            backgroundColor: themeData.colorScheme.primaryContainer,
+            border: Border(
+              bottom: BorderSide(
+                color: themeData.colorScheme.outline.withOpacity(0.2),
+                width: 1.0,
+              ),
+            ),
+          ),
+          child: SafeArea(
+            child: _buildBody(themeData),
+          ),
+        ),
+      );
+    });
+  }
+
+  Widget _buildBody(ThemeData themeData) {
+    if (_isLoading) {
+      return Center(
+        child: CupertinoActivityIndicator(
+          color: themeData.colorScheme.primary,
+          radius: 16.0,
+        ),
+      );
+    }
 
     if (!_isAdmin) {
-      return CupertinoPageScaffold(
-        backgroundColor: isLight
-            ? themeData.colorScheme.surface.withOpacity(0.95)
-            : themeData.colorScheme.surface.withOpacity(0.85),
-        child: Center(
-          child: Text(
-            _errorMessage.isNotEmpty ? _errorMessage : '此页面仅限 ADMIN 角色访问',
-            style: themeData.textTheme.bodyLarge?.copyWith(
-              color: isLight
-                  ? themeData.colorScheme.onSurface
-                  : themeData.colorScheme.onSurface.withOpacity(0.9),
-              fontSize: 18,
-            ),
+      return Center(
+        child: Text(
+          _errorMessage.isNotEmpty ? _errorMessage : '此页面仅限 ADMIN 角色访问',
+          style: themeData.textTheme.bodyLarge?.copyWith(
+            color: themeData.colorScheme.onSurface,
+            fontSize: 18,
           ),
         ),
       );
     }
 
-    return CupertinoPageScaffold(
-      backgroundColor: isLight
-          ? themeData.colorScheme.surface.withOpacity(0.95)
-          : themeData.colorScheme.surface.withOpacity(0.85),
-      navigationBar: CupertinoNavigationBar(
-        middle: Text(
-          '管理员个人信息管理',
-          style: themeData.textTheme.headlineSmall?.copyWith(
-            color: isLight
-                ? themeData.colorScheme.onSurface
-                : themeData.colorScheme.onSurface.withOpacity(0.95),
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-          ),
-        ),
-        leading: GestureDetector(
-          onTap: () => Get.back(),
-          child: Icon(
-            CupertinoIcons.back,
-            color: isLight
-                ? themeData.colorScheme.onSurface
-                : themeData.colorScheme.onSurface.withOpacity(0.95),
-          ),
-        ),
-        trailing: GestureDetector(
-          onTap: () => Get.toNamed(AppPages.managerBusinessProcessing),
-          child: Icon(
-            CupertinoIcons.person_2,
-            color: isLight
-                ? themeData.colorScheme.onSurface
-                : themeData.colorScheme.onSurface.withOpacity(0.95),
-          ),
-        ),
-        backgroundColor: isLight
-            ? themeData.colorScheme.surfaceContainer.withOpacity(0.9)
-            : themeData.colorScheme.surfaceContainer.withOpacity(0.7),
-        border: Border(
-          bottom: BorderSide(
-            color: isLight
-                ? themeData.colorScheme.outline.withOpacity(0.2)
-                : themeData.colorScheme.outline.withOpacity(0.1),
-            width: 1.0,
-          ),
-        ),
-      ),
-      child: SafeArea(
-        child: _isLoading
-            ? Center(
-                child: CupertinoActivityIndicator(
-                  color: themeData.colorScheme.primary,
-                  radius: 16.0,
+    return FutureBuilder<UserManagement?>(
+      future: _managerFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(
+            child: CupertinoActivityIndicator(
+              color: themeData.colorScheme.primary,
+              radius: 16.0,
+            ),
+          );
+        } else if (snapshot.hasError ||
+            !snapshot.hasData ||
+            snapshot.data == null) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  snapshot.hasError ? '加载失败: ${snapshot.error}' : '未找到管理员信息',
+                  style: themeData.textTheme.bodyLarge?.copyWith(
+                    color: themeData.colorScheme.onSurface,
+                    fontSize: 18,
+                  ),
                 ),
-              )
-            : FutureBuilder<UserManagement?>(
-                future: _managerFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return Center(
-                      child: CupertinoActivityIndicator(
-                        color: themeData.colorScheme.primary,
-                        radius: 16.0,
+                const SizedBox(height: 20.0),
+                ElevatedButton(
+                  onPressed: _loadCurrentManager,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: themeData.colorScheme.primary,
+                    foregroundColor: themeData.colorScheme.onPrimary,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8.0)),
+                  ),
+                  child: Text(
+                    '重试',
+                    style: themeData.textTheme.labelLarge?.copyWith(
+                      color: themeData.colorScheme.onPrimary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        } else {
+          final manager = snapshot.data!;
+          return CupertinoScrollbar(
+            controller: _scrollController,
+            thumbVisibility: true,
+            thickness: 6.0,
+            thicknessWhileDragging: 10.0,
+            child: ListView(
+              controller: _scrollController,
+              padding: const EdgeInsets.all(16.0),
+              children: [
+                _buildListTile(
+                  title: '姓名',
+                  subtitle: _driverInfo?.name ?? '无数据',
+                  themeData: themeData,
+                  onTap: () {
+                    _nameController.text = _driverInfo?.name ?? '';
+                    _showEditDialog('姓名', _nameController,
+                        (value) => _updateField('name', value));
+                  },
+                ),
+                _buildListTile(
+                  title: '用户名',
+                  subtitle: manager.username ?? '无数据',
+                  themeData: themeData,
+                ),
+                _buildListTile(
+                  title: '密码',
+                  subtitle: '点击修改密码',
+                  themeData: themeData,
+                  onTap: () {
+                    _passwordController.clear();
+                    _showEditDialog('密码', _passwordController,
+                        (value) => _updateField('password', value));
+                  },
+                ),
+                _buildListTile(
+                  title: '联系电话',
+                  subtitle: _driverInfo?.contactNumber ??
+                      manager.contactNumber ??
+                      '无数据',
+                  themeData: themeData,
+                  onTap: () {
+                    _contactNumberController.text =
+                        _driverInfo?.contactNumber ??
+                            manager.contactNumber ??
+                            '';
+                    _showEditDialog('联系电话', _contactNumberController,
+                        (value) => _updateField('contactNumber', value));
+                  },
+                ),
+                _buildListTile(
+                  title: '邮箱地址',
+                  subtitle: manager.email ?? '无数据',
+                  themeData: themeData,
+                  onTap: () {
+                    _emailController.text = manager.email ?? '';
+                    _showEditDialog('邮箱地址', _emailController,
+                        (value) => _updateField('email', value));
+                  },
+                ),
+                _buildListTile(
+                  title: '状态',
+                  subtitle: manager.status ?? '无数据',
+                  themeData: themeData,
+                ),
+                _buildListTile(
+                  title: '创建时间',
+                  subtitle: manager.createdTime?.toString() ?? '无数据',
+                  themeData: themeData,
+                ),
+                _buildListTile(
+                  title: '修改时间',
+                  subtitle: manager.modifiedTime?.toString() ?? '无数据',
+                  themeData: themeData,
+                ),
+                _buildListTile(
+                  title: '备注',
+                  subtitle: manager.remarks ?? '无数据',
+                  themeData: themeData,
+                  onTap: () {
+                    _remarksController.text = manager.remarks ?? '';
+                    _showEditDialog('备注', _remarksController,
+                        (value) => _updateField('remarks', value));
+                  },
+                ),
+                const SizedBox(height: 24.0),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: ElevatedButton(
+                    onPressed: _logout,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: themeData.colorScheme.error,
+                      foregroundColor: themeData.colorScheme.onError,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8.0)),
+                    ),
+                    child: Text(
+                      '退出登录',
+                      style: themeData.textTheme.labelLarge?.copyWith(
+                        color: themeData.colorScheme.onError,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
                       ),
-                    );
-                  } else if (snapshot.hasError ||
-                      !snapshot.hasData ||
-                      snapshot.data == null) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            snapshot.hasError
-                                ? '加载失败: ${snapshot.error}'
-                                : '未找到管理员信息',
-                            style: themeData.textTheme.bodyLarge?.copyWith(
-                              color: isLight
-                                  ? themeData.colorScheme.onSurface
-                                  : themeData.colorScheme.onSurface
-                                      .withOpacity(0.9),
-                              fontSize: 18,
-                            ),
-                          ),
-                          const SizedBox(height: 20.0),
-                          ElevatedButton(
-                            onPressed: _loadCurrentManager,
-                            style:
-                                themeData.elevatedButtonTheme.style?.copyWith(
-                              backgroundColor: WidgetStateProperty.all(
-                                  themeData.colorScheme.primary),
-                              foregroundColor: WidgetStateProperty.all(
-                                  themeData.colorScheme.onPrimary),
-                            ),
-                            child: Text(
-                              '重试',
-                              style: themeData.textTheme.labelLarge?.copyWith(
-                                color: themeData.colorScheme.onPrimary,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  } else {
-                    final manager = snapshot.data!;
-                    return CupertinoScrollbar(
-                      controller: _scrollController,
-                      thumbVisibility: true,
-                      thickness: 6.0,
-                      thicknessWhileDragging: 10.0,
-                      child: ListView(
-                        controller: _scrollController,
-                        padding: const EdgeInsets.all(16.0),
-                        children: [
-                          _buildListTile(
-                            title: '姓名',
-                            subtitle: _driverInfo?.name ?? '无数据',
-                            themeData: themeData,
-                            isLight: isLight,
-                            onTap: () {
-                              _nameController.text = _driverInfo?.name ?? '';
-                              _showEditDialog('姓名', _nameController,
-                                  (value) => _updateField('name', value));
-                            },
-                          ),
-                          _buildListTile(
-                            title: '用户名',
-                            subtitle: manager.username ?? '无数据',
-                            themeData: themeData,
-                            isLight: isLight,
-                          ),
-                          _buildListTile(
-                            title: '密码',
-                            subtitle: '点击修改密码',
-                            themeData: themeData,
-                            isLight: isLight,
-                            onTap: () {
-                              _passwordController.clear();
-                              _showEditDialog('密码', _passwordController,
-                                  (value) => _updateField('password', value));
-                            },
-                          ),
-                          _buildListTile(
-                            title: '联系电话',
-                            subtitle: _driverInfo?.contactNumber ??
-                                manager.contactNumber ??
-                                '无数据',
-                            themeData: themeData,
-                            isLight: isLight,
-                            onTap: () {
-                              _contactNumberController.text =
-                                  _driverInfo?.contactNumber ??
-                                      manager.contactNumber ??
-                                      '';
-                              _showEditDialog(
-                                  '联系电话',
-                                  _contactNumberController,
-                                  (value) =>
-                                      _updateField('contactNumber', value));
-                            },
-                          ),
-                          _buildListTile(
-                            title: '邮箱地址',
-                            subtitle: manager.email ?? '无数据',
-                            themeData: themeData,
-                            isLight: isLight,
-                            onTap: () {
-                              _emailController.text = manager.email ?? '';
-                              _showEditDialog('邮箱地址', _emailController,
-                                  (value) => _updateField('email', value));
-                            },
-                          ),
-                          _buildListTile(
-                            title: '状态',
-                            subtitle: manager.status ?? '无数据',
-                            themeData: themeData,
-                            isLight: isLight,
-                          ),
-                          _buildListTile(
-                            title: '创建时间',
-                            subtitle: manager.createdTime?.toString() ?? '无数据',
-                            themeData: themeData,
-                            isLight: isLight,
-                          ),
-                          _buildListTile(
-                            title: '修改时间',
-                            subtitle: manager.modifiedTime?.toString() ?? '无数据',
-                            themeData: themeData,
-                            isLight: isLight,
-                          ),
-                          _buildListTile(
-                            title: '备注',
-                            subtitle: manager.remarks ?? '无数据',
-                            themeData: themeData,
-                            isLight: isLight,
-                            onTap: () {
-                              _remarksController.text = manager.remarks ?? '';
-                              _showEditDialog('备注', _remarksController,
-                                  (value) => _updateField('remarks', value));
-                            },
-                          ),
-                          const SizedBox(height: 24.0),
-                          Padding(
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 16.0),
-                            child: ElevatedButton(
-                              onPressed: _logout,
-                              style:
-                                  themeData.elevatedButtonTheme.style?.copyWith(
-                                backgroundColor: WidgetStateProperty.all(
-                                    themeData.colorScheme.error),
-                                foregroundColor: WidgetStateProperty.all(
-                                    themeData.colorScheme.onError),
-                              ),
-                              child: Text(
-                                '退出登录',
-                                style: themeData.textTheme.labelLarge?.copyWith(
-                                  color: themeData.colorScheme.onError,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 16.0),
-                        ],
-                      ),
-                    );
-                  }
-                },
-              ),
-      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16.0),
+              ],
+            ),
+          );
+        }
+      },
     );
   }
 }

@@ -2,6 +2,7 @@ import 'dart:developer' as developer;
 import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 import 'package:final_assignment_front/features/model/driver_information.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -29,11 +30,13 @@ class _DriverListPageState extends State<DriverList> {
   final TextEditingController _idCardNumberController = TextEditingController();
   final TextEditingController _driverLicenseNumberController =
       TextEditingController();
+  late ScrollController _scrollController;
 
   @override
   void initState() {
     super.initState();
     driverApi = DriverInformationControllerApi();
+    _scrollController = ScrollController();
     _loadDrivers();
   }
 
@@ -42,6 +45,7 @@ class _DriverListPageState extends State<DriverList> {
     _nameController.dispose();
     _idCardNumberController.dispose();
     _driverLicenseNumberController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -154,10 +158,10 @@ class _DriverListPageState extends State<DriverList> {
     try {
       await driverApi.initializeWithJwt();
       await driverApi.apiDriversDriverIdDelete(driverId: driverId);
-      _showSuccessSnackBar('删除司机成功！');
+      _showSnackBar('删除司机成功！');
       _loadDrivers();
     } catch (e) {
-      _showErrorSnackBar('删除失败: $e');
+      _showSnackBar('删除失败: $e', isError: true);
     }
   }
 
@@ -166,21 +170,18 @@ class _DriverListPageState extends State<DriverList> {
     Navigator.pushReplacementNamed(context, '/login');
   }
 
-  void _showSuccessSnackBar(String message) {
+  void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
-  }
-
-  void _showErrorSnackBar(String message) {
-    if (!mounted) return;
+    final themeData = controller.currentBodyTheme.value;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-          content: Text(message,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(color: Colors.red))),
+        content: Text(message,
+            style: TextStyle(
+                color: isError
+                    ? themeData.colorScheme.onErrorContainer
+                    : themeData.colorScheme.onPrimaryContainer)),
+        backgroundColor: isError ? Colors.red : Colors.green,
+      ),
     );
   }
 
@@ -196,17 +197,21 @@ class _DriverListPageState extends State<DriverList> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Obx(
-      () => Theme(
-        data: controller.currentBodyTheme.value,
+    return Obx(() {
+      final themeData = controller.currentBodyTheme.value;
+
+      return Theme(
+        data: themeData,
         child: Scaffold(
+          backgroundColor: themeData.colorScheme.surface,
           appBar: AppBar(
             title: Text('司机信息列表',
-                style: theme.textTheme.labelLarge
-                    ?.copyWith(color: theme.colorScheme.onPrimary)),
-            backgroundColor: theme.colorScheme.primary,
-            foregroundColor: theme.colorScheme.onPrimary,
+                style: themeData.textTheme.headlineSmall?.copyWith(
+                    color: themeData.colorScheme.onSurface,
+                    fontWeight: FontWeight.bold)),
+            backgroundColor: themeData.colorScheme.primaryContainer,
+            foregroundColor: themeData.colorScheme.onPrimaryContainer,
+            elevation: 2,
             actions: [
               PopupMenuButton<String>(
                 onSelected: (value) {
@@ -221,18 +226,28 @@ class _DriverListPageState extends State<DriverList> {
                   }
                 },
                 itemBuilder: (context) => [
-                  const PopupMenuItem<String>(
-                      value: 'name', child: Text('按姓名搜索')),
-                  const PopupMenuItem<String>(
-                      value: 'idCard', child: Text('按身份证号搜索')),
-                  const PopupMenuItem<String>(
-                      value: 'license', child: Text('按驾驶证号搜索')),
+                  PopupMenuItem<String>(
+                      value: 'name',
+                      child: Text('按姓名搜索',
+                          style: TextStyle(
+                              color: themeData.colorScheme.onSurface))),
+                  PopupMenuItem<String>(
+                      value: 'idCard',
+                      child: Text('按身份证号搜索',
+                          style: TextStyle(
+                              color: themeData.colorScheme.onSurface))),
+                  PopupMenuItem<String>(
+                      value: 'license',
+                      child: Text('按驾驶证号搜索',
+                          style: TextStyle(
+                              color: themeData.colorScheme.onSurface))),
                 ],
-                icon:
-                    Icon(Icons.filter_list, color: theme.colorScheme.onPrimary),
+                icon: Icon(Icons.filter_list,
+                    color: themeData.colorScheme.onPrimaryContainer),
               ),
               IconButton(
-                icon: const Icon(Icons.add),
+                icon: Icon(Icons.add,
+                    color: themeData.colorScheme.onPrimaryContainer),
                 onPressed: () {
                   Navigator.push(
                           context,
@@ -247,193 +262,214 @@ class _DriverListPageState extends State<DriverList> {
             ],
           ),
           body: Padding(
-            padding: const EdgeInsets.all(8.0),
+            padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _nameController,
-                        decoration: InputDecoration(
-                          labelText: '姓名',
-                          prefixIcon: const Icon(Icons.search),
-                          border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8.0)),
-                          labelStyle: theme.textTheme.bodyMedium,
-                          enabledBorder: OutlineInputBorder(
-                              borderSide: BorderSide(
-                                  color: theme.colorScheme.onSurface
-                                      .withOpacity(0.5))),
-                          focusedBorder: OutlineInputBorder(
-                              borderSide:
-                                  BorderSide(color: theme.colorScheme.primary)),
-                        ),
-                        style: theme.textTheme.bodyMedium,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    ElevatedButton(
-                      onPressed: () =>
-                          _searchDriversByName(_nameController.text.trim()),
-                      style: theme.elevatedButtonTheme.style,
-                      child: const Text('搜索'),
-                    ),
-                  ],
-                ),
+                _buildSearchField(themeData, '按姓名搜索', Icons.search,
+                    _nameController, _searchDriversByName),
                 const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _idCardNumberController,
-                        decoration: InputDecoration(
-                          labelText: '身份证号',
-                          prefixIcon: const Icon(Icons.card_membership),
-                          border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8.0)),
-                          labelStyle: theme.textTheme.bodyMedium,
-                          enabledBorder: OutlineInputBorder(
-                              borderSide: BorderSide(
-                                  color: theme.colorScheme.onSurface
-                                      .withOpacity(0.5))),
-                          focusedBorder: OutlineInputBorder(
-                              borderSide:
-                                  BorderSide(color: theme.colorScheme.primary)),
-                        ),
-                        style: theme.textTheme.bodyMedium,
-                        keyboardType: TextInputType.number,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    ElevatedButton(
-                      onPressed: () => _searchDriversByIdCardNumber(
-                          _idCardNumberController.text.trim()),
-                      style: theme.elevatedButtonTheme.style,
-                      child: const Text('搜索'),
-                    ),
-                  ],
-                ),
+                _buildSearchField(themeData, '按身份证号搜索', Icons.card_membership,
+                    _idCardNumberController, _searchDriversByIdCardNumber,
+                    keyboardType: TextInputType.number),
                 const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _driverLicenseNumberController,
-                        decoration: InputDecoration(
-                          labelText: '驾驶证号',
-                          prefixIcon: const Icon(Icons.drive_eta),
-                          border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8.0)),
-                          labelStyle: theme.textTheme.bodyMedium,
-                          enabledBorder: OutlineInputBorder(
-                              borderSide: BorderSide(
-                                  color: theme.colorScheme.onSurface
-                                      .withOpacity(0.5))),
-                          focusedBorder: OutlineInputBorder(
-                              borderSide:
-                                  BorderSide(color: theme.colorScheme.primary)),
-                        ),
-                        style: theme.textTheme.bodyMedium,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    ElevatedButton(
-                      onPressed: () => _searchDriversByDriverLicenseNumber(
-                          _driverLicenseNumberController.text.trim()),
-                      style: theme.elevatedButtonTheme.style,
-                      child: const Text('搜索'),
-                    ),
-                  ],
-                ),
+                _buildSearchField(
+                    themeData,
+                    '按驾驶证号搜索',
+                    Icons.drive_eta,
+                    _driverLicenseNumberController,
+                    _searchDriversByDriverLicenseNumber),
                 const SizedBox(height: 16),
-                if (_isLoading)
-                  const Expanded(
-                      child: Center(child: CircularProgressIndicator()))
-                else if (_errorMessage.isNotEmpty)
-                  Expanded(
-                      child: Center(
-                          child: Text(_errorMessage,
-                              style: theme.textTheme.bodyLarge)))
-                else
-                  Expanded(
-                    child: FutureBuilder<List<DriverInformation>>(
-                      future: _driversFuture,
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState ==
-                            ConnectionState.waiting) {
-                          return const Center(
-                              child: CircularProgressIndicator());
-                        } else if (snapshot.hasError) {
-                          return Center(
-                              child: Text('加载司机信息失败: ${snapshot.error}',
-                                  style: theme.textTheme.bodyLarge));
-                        } else if (!snapshot.hasData ||
-                            snapshot.data!.isEmpty) {
-                          return Center(
-                              child: Text('暂无司机信息',
-                                  style: theme.textTheme.bodyLarge));
-                        } else {
-                          final drivers = snapshot.data!;
-                          return RefreshIndicator(
-                            onRefresh: _loadDrivers,
-                            child: ListView.builder(
-                              itemCount: drivers.length,
-                              itemBuilder: (context, index) {
-                                final driver = drivers[index];
-                                return Card(
-                                  margin: const EdgeInsets.symmetric(
-                                      vertical: 8.0, horizontal: 16.0),
-                                  elevation: 4,
-                                  color: theme.colorScheme.surface,
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius:
-                                          BorderRadius.circular(10.0)),
-                                  child: ListTile(
-                                    title: Text('司机姓名: ${driver.name ?? "未知"}',
-                                        style: theme.textTheme.bodyLarge),
-                                    subtitle: Text(
-                                      '驾驶证号: ${driver.driverLicenseNumber ?? "无"}\n联系电话: ${driver.contactNumber ?? "无"}',
-                                      style: theme.textTheme.bodyMedium
-                                          ?.copyWith(
-                                              color: theme.colorScheme.onSurface
-                                                  .withOpacity(0.7)),
-                                    ),
-                                    trailing: PopupMenuButton<String>(
-                                      onSelected: (value) {
-                                        final did = driver.driverId?.toString();
-                                        if (did != null) {
-                                          if (value == 'edit') {
-                                            _goToDetailPage(driver);
-                                          } else if (value == 'delete') {
-                                            _deleteDriver(did);
-                                          }
-                                        }
-                                      },
-                                      itemBuilder: (context) => [
-                                        const PopupMenuItem<String>(
-                                            value: 'edit', child: Text('编辑')),
-                                        const PopupMenuItem<String>(
-                                            value: 'delete', child: Text('删除')),
-                                      ],
-                                      icon: Icon(Icons.more_vert,
-                                          color: theme.colorScheme.onSurface),
-                                    ),
-                                    onTap: () => _goToDetailPage(driver),
-                                  ),
-                                );
-                              },
+                Expanded(
+                  child: _isLoading
+                      ? Center(
+                          child: CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                  themeData.colorScheme.primary)))
+                      : _errorMessage.isNotEmpty
+                          ? Center(
+                              child: Text(_errorMessage,
+                                  style: themeData.textTheme.bodyLarge
+                                      ?.copyWith(
+                                          color:
+                                              themeData.colorScheme.onSurface)))
+                          : CupertinoScrollbar(
+                              controller: _scrollController,
+                              thumbVisibility: true,
+                              thickness: 6.0,
+                              thicknessWhileDragging: 10.0,
+                              child: FutureBuilder<List<DriverInformation>>(
+                                future: _driversFuture,
+                                builder: (context, snapshot) {
+                                  if (snapshot.connectionState ==
+                                      ConnectionState.waiting) {
+                                    return const Center(
+                                        child: CircularProgressIndicator());
+                                  } else if (snapshot.hasError) {
+                                    return Center(
+                                        child: Text(
+                                            '加载司机信息失败: ${snapshot.error}',
+                                            style: themeData.textTheme.bodyLarge
+                                                ?.copyWith(
+                                                    color: themeData.colorScheme
+                                                        .onSurface)));
+                                  } else if (!snapshot.hasData ||
+                                      snapshot.data!.isEmpty) {
+                                    return Center(
+                                        child: Text('暂无司机信息',
+                                            style: themeData.textTheme.bodyLarge
+                                                ?.copyWith(
+                                                    color: themeData.colorScheme
+                                                        .onSurface)));
+                                  } else {
+                                    final drivers = snapshot.data!;
+                                    return RefreshIndicator(
+                                      onRefresh: _loadDrivers,
+                                      child: ListView.builder(
+                                        controller: _scrollController,
+                                        itemCount: drivers.length,
+                                        itemBuilder: (context, index) {
+                                          final driver = drivers[index];
+                                          return Card(
+                                            elevation: 3,
+                                            color: themeData
+                                                .colorScheme.surfaceContainer,
+                                            shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(
+                                                        12.0)),
+                                            margin: const EdgeInsets.symmetric(
+                                                vertical: 6.0),
+                                            child: ListTile(
+                                              title: Text(
+                                                '司机姓名: ${driver.name ?? "未知"}',
+                                                style: themeData
+                                                    .textTheme.bodyLarge
+                                                    ?.copyWith(
+                                                        color: themeData
+                                                            .colorScheme
+                                                            .onSurface,
+                                                        fontWeight:
+                                                            FontWeight.w600),
+                                              ),
+                                              subtitle: Text(
+                                                '驾驶证号: ${driver.driverLicenseNumber ?? "无"}\n联系电话: ${driver.contactNumber ?? "无"}',
+                                                style: themeData
+                                                    .textTheme.bodyMedium
+                                                    ?.copyWith(
+                                                        color: themeData
+                                                            .colorScheme
+                                                            .onSurfaceVariant),
+                                              ),
+                                              trailing: PopupMenuButton<String>(
+                                                onSelected: (value) {
+                                                  final did = driver.driverId
+                                                      ?.toString();
+                                                  if (did != null) {
+                                                    if (value == 'edit') {
+                                                      _goToDetailPage(driver);
+                                                    } else if (value ==
+                                                        'delete') {
+                                                      _deleteDriver(did);
+                                                    }
+                                                  }
+                                                },
+                                                itemBuilder: (context) => [
+                                                  PopupMenuItem<String>(
+                                                      value: 'edit',
+                                                      child: Text('编辑',
+                                                          style: TextStyle(
+                                                              color: themeData
+                                                                  .colorScheme
+                                                                  .onSurface))),
+                                                  PopupMenuItem<String>(
+                                                      value: 'delete',
+                                                      child: Text('删除',
+                                                          style: TextStyle(
+                                                              color: themeData
+                                                                  .colorScheme
+                                                                  .onSurface))),
+                                                ],
+                                                icon: Icon(Icons.more_vert,
+                                                    color: themeData
+                                                        .colorScheme.onSurface),
+                                              ),
+                                              onTap: () =>
+                                                  _goToDetailPage(driver),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    );
+                                  }
+                                },
+                              ),
                             ),
-                          );
-                        }
-                      },
-                    ),
-                  ),
+                ),
               ],
             ),
           ),
+          floatingActionButton: FloatingActionButton(
+            onPressed: () {
+              Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const AddDriverPage()))
+                  .then((value) {
+                if (value == true && mounted) _loadDrivers();
+              });
+            },
+            backgroundColor: themeData.colorScheme.primary,
+            foregroundColor: themeData.colorScheme.onPrimary,
+            tooltip: '添加新司机',
+            child: const Icon(Icons.add),
+          ),
         ),
-      ),
+      );
+    });
+  }
+
+  Widget _buildSearchField(ThemeData themeData, String label, IconData icon,
+      TextEditingController controller, Function(String) onSearch,
+      {TextInputType? keyboardType}) {
+    return Row(
+      children: [
+        Expanded(
+          child: TextField(
+            controller: controller,
+            decoration: InputDecoration(
+              labelText: label,
+              prefixIcon: Icon(icon, color: themeData.colorScheme.primary),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
+              enabledBorder: OutlineInputBorder(
+                  borderSide: BorderSide(
+                      color: themeData.colorScheme.outline.withOpacity(0.5)),
+                  borderRadius: BorderRadius.circular(12.0)),
+              focusedBorder: OutlineInputBorder(
+                  borderSide: BorderSide(
+                      color: themeData.colorScheme.primary, width: 2.0),
+                  borderRadius: BorderRadius.circular(12.0)),
+              labelStyle: TextStyle(color: themeData.colorScheme.onSurface),
+              filled: true,
+              fillColor: themeData.colorScheme.surfaceContainerLowest,
+            ),
+            style: TextStyle(color: themeData.colorScheme.onSurface),
+            keyboardType: keyboardType,
+            onSubmitted: (value) => onSearch(value.trim()),
+          ),
+        ),
+        const SizedBox(width: 12),
+        ElevatedButton(
+          onPressed: () => onSearch(controller.text.trim()),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: themeData.colorScheme.primary,
+            foregroundColor: themeData.colorScheme.onPrimary,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12.0)),
+          ),
+          child: const Text('搜索'),
+        ),
+      ],
     );
   }
 }
@@ -463,6 +499,8 @@ class _AddDriverPageState extends State<AddDriverPage> {
   final TextEditingController _issueDateController = TextEditingController();
   final TextEditingController _expiryDateController = TextEditingController();
   bool _isLoading = false;
+  final UserDashboardController controller =
+      Get.find<UserDashboardController>();
 
   @override
   void dispose() {
@@ -518,30 +556,27 @@ class _AddDriverPageState extends State<AddDriverPage> {
       );
       await driverApi.apiDriversPost(
           driverInformation: driver, idempotencyKey: driver.idempotencyKey!);
-      _showSuccessSnackBar('创建司机成功！');
+      _showSnackBar('创建司机成功！');
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
-      _showErrorSnackBar('创建司机失败: $e');
+      _showSnackBar('创建司机失败: $e', isError: true);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  void _showSuccessSnackBar(String message) {
+  void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
-  }
-
-  void _showErrorSnackBar(String message) {
-    if (!mounted) return;
+    final themeData = controller.currentBodyTheme.value;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-          content: Text(message,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(color: Colors.red))),
+        content: Text(message,
+            style: TextStyle(
+                color: isError
+                    ? themeData.colorScheme.onErrorContainer
+                    : themeData.colorScheme.onPrimaryContainer)),
+        backgroundColor: isError ? Colors.red : Colors.green,
+      ),
     );
   }
 
@@ -562,135 +597,134 @@ class _AddDriverPageState extends State<AddDriverPage> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('添加新司机',
-            style: theme.textTheme.labelLarge
-                ?.copyWith(color: theme.colorScheme.onPrimary)),
-        backgroundColor: theme.colorScheme.primary,
-        foregroundColor: theme.colorScheme.onPrimary,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : SingleChildScrollView(
-                child: Column(
-                  children: [
-                    TextField(
-                      controller: _nameController,
-                      decoration: _inputDecoration(theme, '姓名', Icons.person),
-                      style: theme.textTheme.bodyMedium,
+    return Obx(() {
+      final themeData = controller.currentBodyTheme.value;
+
+      return Theme(
+        data: themeData,
+        child: Scaffold(
+          backgroundColor: themeData.colorScheme.surface,
+          appBar: AppBar(
+            title: Text('添加新司机',
+                style: themeData.textTheme.headlineSmall?.copyWith(
+                    color: themeData.colorScheme.onSurface,
+                    fontWeight: FontWeight.bold)),
+            backgroundColor: themeData.colorScheme.primaryContainer,
+            foregroundColor: themeData.colorScheme.onPrimaryContainer,
+            elevation: 2,
+          ),
+          body: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: _isLoading
+                ? Center(
+                    child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                            themeData.colorScheme.primary)))
+                : SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        _buildTextField(
+                            themeData, '姓名', Icons.person, _nameController),
+                        const SizedBox(height: 12),
+                        _buildTextField(themeData, '身份证号码',
+                            Icons.card_membership, _idCardNumberController,
+                            keyboardType: TextInputType.number),
+                        const SizedBox(height: 12),
+                        _buildTextField(themeData, '联系电话', Icons.phone,
+                            _contactNumberController,
+                            keyboardType: TextInputType.phone),
+                        const SizedBox(height: 12),
+                        _buildTextField(themeData, '驾驶证号', Icons.drive_eta,
+                            _driverLicenseNumberController),
+                        const SizedBox(height: 12),
+                        _buildTextField(themeData, '性别', Icons.person_outline,
+                            _genderController),
+                        const SizedBox(height: 12),
+                        _buildTextField(themeData, '出生日期', Icons.calendar_today,
+                            _birthdateController,
+                            readOnly: true,
+                            onTap: () => _selectDate(_birthdateController)),
+                        const SizedBox(height: 12),
+                        _buildTextField(themeData, '首次领证日期',
+                            Icons.calendar_today, _firstLicenseDateController,
+                            readOnly: true,
+                            onTap: () =>
+                                _selectDate(_firstLicenseDateController)),
+                        const SizedBox(height: 12),
+                        _buildTextField(
+                            themeData,
+                            '允许驾驶车辆类型',
+                            Icons.directions_car,
+                            _allowedVehicleTypeController),
+                        const SizedBox(height: 12),
+                        _buildTextField(themeData, '发证日期', Icons.calendar_today,
+                            _issueDateController,
+                            readOnly: true,
+                            onTap: () => _selectDate(_issueDateController)),
+                        const SizedBox(height: 12),
+                        _buildTextField(themeData, '有效期截止日期',
+                            Icons.calendar_today, _expiryDateController,
+                            readOnly: true,
+                            onTap: () => _selectDate(_expiryDateController)),
+                        const SizedBox(height: 20),
+                        ElevatedButton(
+                          onPressed: _submitDriver,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: themeData.colorScheme.primary,
+                            foregroundColor: themeData.colorScheme.onPrimary,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12.0)),
+                          ),
+                          child: const Text('提交'),
+                        ),
+                        const SizedBox(height: 12),
+                        ElevatedButton(
+                          onPressed: () => Navigator.pop(context),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: themeData.colorScheme.onSurface
+                                .withOpacity(0.2),
+                            foregroundColor: themeData.colorScheme.onSurface,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12.0)),
+                          ),
+                          child: const Text('返回上一级'),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: _idCardNumberController,
-                      decoration: _inputDecoration(
-                          theme, '身份证号码', Icons.card_membership),
-                      style: theme.textTheme.bodyMedium,
-                      keyboardType: TextInputType.number,
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: _contactNumberController,
-                      decoration: _inputDecoration(theme, '联系电话', Icons.phone),
-                      style: theme.textTheme.bodyMedium,
-                      keyboardType: TextInputType.phone,
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: _driverLicenseNumberController,
-                      decoration:
-                          _inputDecoration(theme, '驾驶证号', Icons.drive_eta),
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: _genderController,
-                      decoration:
-                          _inputDecoration(theme, '性别', Icons.person_outline),
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: _birthdateController,
-                      decoration:
-                          _inputDecoration(theme, '出生日期', Icons.calendar_today),
-                      style: theme.textTheme.bodyMedium,
-                      readOnly: true,
-                      onTap: () => _selectDate(_birthdateController),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: _firstLicenseDateController,
-                      decoration: _inputDecoration(
-                          theme, '首次领证日期', Icons.calendar_today),
-                      style: theme.textTheme.bodyMedium,
-                      readOnly: true,
-                      onTap: () => _selectDate(_firstLicenseDateController),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: _allowedVehicleTypeController,
-                      decoration: _inputDecoration(
-                          theme, '允许驾驶车辆类型', Icons.directions_car),
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: _issueDateController,
-                      decoration:
-                          _inputDecoration(theme, '发证日期', Icons.calendar_today),
-                      style: theme.textTheme.bodyMedium,
-                      readOnly: true,
-                      onTap: () => _selectDate(_issueDateController),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: _expiryDateController,
-                      decoration: _inputDecoration(
-                          theme, '有效期截止日期', Icons.calendar_today),
-                      style: theme.textTheme.bodyMedium,
-                      readOnly: true,
-                      onTap: () => _selectDate(_expiryDateController),
-                    ),
-                    const SizedBox(height: 20),
-                    ElevatedButton(
-                      onPressed: _submitDriver,
-                      style: theme.elevatedButtonTheme.style,
-                      child: const Text('提交'),
-                    ),
-                    const SizedBox(height: 20),
-                    ElevatedButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: theme.elevatedButtonTheme.style?.copyWith(
-                        backgroundColor: MaterialStateProperty.all(
-                            theme.colorScheme.onSurface.withOpacity(0.2)),
-                        foregroundColor: MaterialStateProperty.all(
-                            theme.colorScheme.onSurface),
-                      ),
-                      child: const Text('返回上一级'),
-                    ),
-                  ],
-                ),
-              ),
-      ),
-    );
+                  ),
+          ),
+        ),
+      );
+    });
   }
 
-  InputDecoration _inputDecoration(
-      ThemeData theme, String label, IconData icon) {
-    return InputDecoration(
-      labelText: label,
-      prefixIcon: Icon(icon),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.0)),
-      labelStyle: theme.textTheme.bodyMedium,
-      enabledBorder: OutlineInputBorder(
-          borderSide:
-              BorderSide(color: theme.colorScheme.onSurface.withOpacity(0.5))),
-      focusedBorder: OutlineInputBorder(
-          borderSide: BorderSide(color: theme.colorScheme.primary)),
+  Widget _buildTextField(ThemeData themeData, String label, IconData icon,
+      TextEditingController controller,
+      {TextInputType? keyboardType,
+      bool readOnly = false,
+      VoidCallback? onTap}) {
+    return TextField(
+      controller: controller,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, color: themeData.colorScheme.primary),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.0)),
+        enabledBorder: OutlineInputBorder(
+            borderSide: BorderSide(
+                color: themeData.colorScheme.outline.withOpacity(0.5)),
+            borderRadius: BorderRadius.circular(8.0)),
+        focusedBorder: OutlineInputBorder(
+            borderSide:
+                BorderSide(color: themeData.colorScheme.primary, width: 2.0),
+            borderRadius: BorderRadius.circular(8.0)),
+        labelStyle: TextStyle(color: themeData.colorScheme.onSurfaceVariant),
+        filled: true,
+        fillColor: themeData.colorScheme.surfaceContainerLowest,
+      ),
+      style: TextStyle(color: themeData.colorScheme.onSurface),
+      keyboardType: keyboardType,
+      readOnly: readOnly,
+      onTap: onTap,
     );
   }
 }
@@ -722,6 +756,8 @@ class _EditDriverPageState extends State<EditDriverPage> {
   final TextEditingController _issueDateController = TextEditingController();
   final TextEditingController _expiryDateController = TextEditingController();
   bool _isLoading = false;
+  final UserDashboardController controller =
+      Get.find<UserDashboardController>();
 
   @override
   void initState() {
@@ -801,30 +837,27 @@ class _EditDriverPageState extends State<EditDriverPage> {
         driverInformation: driver,
         idempotencyKey: driver.idempotencyKey!,
       );
-      _showSuccessSnackBar('更新司机成功！');
+      _showSnackBar('更新司机成功！');
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
-      _showErrorSnackBar('更新司机失败: $e');
+      _showSnackBar('更新司机失败: $e', isError: true);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  void _showSuccessSnackBar(String message) {
+  void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
-  }
-
-  void _showErrorSnackBar(String message) {
-    if (!mounted) return;
+    final themeData = controller.currentBodyTheme.value;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-          content: Text(message,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(color: Colors.red))),
+        content: Text(message,
+            style: TextStyle(
+                color: isError
+                    ? themeData.colorScheme.onErrorContainer
+                    : themeData.colorScheme.onPrimaryContainer)),
+        backgroundColor: isError ? Colors.red : Colors.green,
+      ),
     );
   }
 
@@ -845,135 +878,134 @@ class _EditDriverPageState extends State<EditDriverPage> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('编辑司机信息',
-            style: theme.textTheme.labelLarge
-                ?.copyWith(color: theme.colorScheme.onPrimary)),
-        backgroundColor: theme.colorScheme.primary,
-        foregroundColor: theme.colorScheme.onPrimary,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : SingleChildScrollView(
-                child: Column(
-                  children: [
-                    TextField(
-                      controller: _nameController,
-                      decoration: _inputDecoration(theme, '姓名', Icons.person),
-                      style: theme.textTheme.bodyMedium,
+    return Obx(() {
+      final themeData = controller.currentBodyTheme.value;
+
+      return Theme(
+        data: themeData,
+        child: Scaffold(
+          backgroundColor: themeData.colorScheme.surface,
+          appBar: AppBar(
+            title: Text('编辑司机信息',
+                style: themeData.textTheme.headlineSmall?.copyWith(
+                    color: themeData.colorScheme.onSurface,
+                    fontWeight: FontWeight.bold)),
+            backgroundColor: themeData.colorScheme.primaryContainer,
+            foregroundColor: themeData.colorScheme.onPrimaryContainer,
+            elevation: 2,
+          ),
+          body: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: _isLoading
+                ? Center(
+                    child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                            themeData.colorScheme.primary)))
+                : SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        _buildTextField(
+                            themeData, '姓名', Icons.person, _nameController),
+                        const SizedBox(height: 12),
+                        _buildTextField(themeData, '身份证号码',
+                            Icons.card_membership, _idCardNumberController,
+                            keyboardType: TextInputType.number),
+                        const SizedBox(height: 12),
+                        _buildTextField(themeData, '联系电话', Icons.phone,
+                            _contactNumberController,
+                            keyboardType: TextInputType.phone),
+                        const SizedBox(height: 12),
+                        _buildTextField(themeData, '驾驶证号', Icons.drive_eta,
+                            _driverLicenseNumberController),
+                        const SizedBox(height: 12),
+                        _buildTextField(themeData, '性别', Icons.person_outline,
+                            _genderController),
+                        const SizedBox(height: 12),
+                        _buildTextField(themeData, '出生日期', Icons.calendar_today,
+                            _birthdateController,
+                            readOnly: true,
+                            onTap: () => _selectDate(_birthdateController)),
+                        const SizedBox(height: 12),
+                        _buildTextField(themeData, '首次领证日期',
+                            Icons.calendar_today, _firstLicenseDateController,
+                            readOnly: true,
+                            onTap: () =>
+                                _selectDate(_firstLicenseDateController)),
+                        const SizedBox(height: 12),
+                        _buildTextField(
+                            themeData,
+                            '允许驾驶车辆类型',
+                            Icons.directions_car,
+                            _allowedVehicleTypeController),
+                        const SizedBox(height: 12),
+                        _buildTextField(themeData, '发证日期', Icons.calendar_today,
+                            _issueDateController,
+                            readOnly: true,
+                            onTap: () => _selectDate(_issueDateController)),
+                        const SizedBox(height: 12),
+                        _buildTextField(themeData, '有效期截止日期',
+                            Icons.calendar_today, _expiryDateController,
+                            readOnly: true,
+                            onTap: () => _selectDate(_expiryDateController)),
+                        const SizedBox(height: 20),
+                        ElevatedButton(
+                          onPressed: _submitDriver,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: themeData.colorScheme.primary,
+                            foregroundColor: themeData.colorScheme.onPrimary,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12.0)),
+                          ),
+                          child: const Text('保存'),
+                        ),
+                        const SizedBox(height: 12),
+                        ElevatedButton(
+                          onPressed: () => Navigator.pop(context),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: themeData.colorScheme.onSurface
+                                .withOpacity(0.2),
+                            foregroundColor: themeData.colorScheme.onSurface,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12.0)),
+                          ),
+                          child: const Text('返回上一级'),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: _idCardNumberController,
-                      decoration: _inputDecoration(
-                          theme, '身份证号码', Icons.card_membership),
-                      style: theme.textTheme.bodyMedium,
-                      keyboardType: TextInputType.number,
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: _contactNumberController,
-                      decoration: _inputDecoration(theme, '联系电话', Icons.phone),
-                      style: theme.textTheme.bodyMedium,
-                      keyboardType: TextInputType.phone,
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: _driverLicenseNumberController,
-                      decoration:
-                          _inputDecoration(theme, '驾驶证号', Icons.drive_eta),
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: _genderController,
-                      decoration:
-                          _inputDecoration(theme, '性别', Icons.person_outline),
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: _birthdateController,
-                      decoration:
-                          _inputDecoration(theme, '出生日期', Icons.calendar_today),
-                      style: theme.textTheme.bodyMedium,
-                      readOnly: true,
-                      onTap: () => _selectDate(_birthdateController),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: _firstLicenseDateController,
-                      decoration: _inputDecoration(
-                          theme, '首次领证日期', Icons.calendar_today),
-                      style: theme.textTheme.bodyMedium,
-                      readOnly: true,
-                      onTap: () => _selectDate(_firstLicenseDateController),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: _allowedVehicleTypeController,
-                      decoration: _inputDecoration(
-                          theme, '允许驾驶车辆类型', Icons.directions_car),
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: _issueDateController,
-                      decoration:
-                          _inputDecoration(theme, '发证日期', Icons.calendar_today),
-                      style: theme.textTheme.bodyMedium,
-                      readOnly: true,
-                      onTap: () => _selectDate(_issueDateController),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: _expiryDateController,
-                      decoration: _inputDecoration(
-                          theme, '有效期截止日期', Icons.calendar_today),
-                      style: theme.textTheme.bodyMedium,
-                      readOnly: true,
-                      onTap: () => _selectDate(_expiryDateController),
-                    ),
-                    const SizedBox(height: 20),
-                    ElevatedButton(
-                      onPressed: _submitDriver,
-                      style: theme.elevatedButtonTheme.style,
-                      child: const Text('保存'),
-                    ),
-                    const SizedBox(height: 20),
-                    ElevatedButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: theme.elevatedButtonTheme.style?.copyWith(
-                        backgroundColor: MaterialStateProperty.all(
-                            theme.colorScheme.onSurface.withOpacity(0.2)),
-                        foregroundColor: MaterialStateProperty.all(
-                            theme.colorScheme.onSurface),
-                      ),
-                      child: const Text('返回上一级'),
-                    ),
-                  ],
-                ),
-              ),
-      ),
-    );
+                  ),
+          ),
+        ),
+      );
+    });
   }
 
-  InputDecoration _inputDecoration(
-      ThemeData theme, String label, IconData icon) {
-    return InputDecoration(
-      labelText: label,
-      prefixIcon: Icon(icon),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.0)),
-      labelStyle: theme.textTheme.bodyMedium,
-      enabledBorder: OutlineInputBorder(
-          borderSide:
-              BorderSide(color: theme.colorScheme.onSurface.withOpacity(0.5))),
-      focusedBorder: OutlineInputBorder(
-          borderSide: BorderSide(color: theme.colorScheme.primary)),
+  Widget _buildTextField(ThemeData themeData, String label, IconData icon,
+      TextEditingController controller,
+      {TextInputType? keyboardType,
+      bool readOnly = false,
+      VoidCallback? onTap}) {
+    return TextField(
+      controller: controller,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, color: themeData.colorScheme.primary),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.0)),
+        enabledBorder: OutlineInputBorder(
+            borderSide: BorderSide(
+                color: themeData.colorScheme.outline.withOpacity(0.5)),
+            borderRadius: BorderRadius.circular(8.0)),
+        focusedBorder: OutlineInputBorder(
+            borderSide:
+                BorderSide(color: themeData.colorScheme.primary, width: 2.0),
+            borderRadius: BorderRadius.circular(8.0)),
+        labelStyle: TextStyle(color: themeData.colorScheme.onSurfaceVariant),
+        filled: true,
+        fillColor: themeData.colorScheme.surfaceContainerLowest,
+      ),
+      style: TextStyle(color: themeData.colorScheme.onSurface),
+      keyboardType: keyboardType,
+      readOnly: readOnly,
+      onTap: onTap,
     );
   }
 }
@@ -999,61 +1031,62 @@ class _DriverDetailPageState extends State<DriverDetailPage> {
     try {
       await driverApi.initializeWithJwt();
       await driverApi.apiDriversDriverIdDelete(driverId: driverId);
-      _showSuccessSnackBar('删除司机成功！');
+      _showSnackBar('删除司机成功！');
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
-      _showErrorSnackBar('删除失败: $e');
+      _showSnackBar('删除失败: $e', isError: true);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  void _showSuccessSnackBar(String message) {
+  void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
-  }
-
-  void _showErrorSnackBar(String message) {
-    if (!mounted) return;
+    final themeData = controller.currentBodyTheme.value;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-          content: Text(message,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(color: Colors.red))),
+        content: Text(message,
+            style: TextStyle(
+                color: isError
+                    ? themeData.colorScheme.onErrorContainer
+                    : themeData.colorScheme.onPrimaryContainer)),
+        backgroundColor: isError ? Colors.red : Colors.green,
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final name = widget.driver.name ?? '未知';
-    final idCard = widget.driver.idCardNumber ?? '无';
-    final contact = widget.driver.contactNumber ?? '无';
-    final license = widget.driver.driverLicenseNumber ?? '无';
-    final gender = widget.driver.gender ?? '未知';
-    final birthdate = widget.driver.birthdate ?? '无';
-    final firstLicenseDate = widget.driver.firstLicenseDate ?? '无';
-    final allowedVehicleType = widget.driver.allowedVehicleType ?? '无';
-    final issueDate = widget.driver.issueDate ?? '无';
-    final expiryDate = widget.driver.expiryDate ?? '无';
-    final driverId = widget.driver.driverId?.toString() ?? '0';
+    return Obx(() {
+      final themeData = controller.currentBodyTheme.value;
+      final name = widget.driver.name ?? '未知';
+      final idCard = widget.driver.idCardNumber ?? '无';
+      final contact = widget.driver.contactNumber ?? '无';
+      final license = widget.driver.driverLicenseNumber ?? '无';
+      final gender = widget.driver.gender ?? '未知';
+      final birthdate = widget.driver.birthdate ?? '无';
+      final firstLicenseDate = widget.driver.firstLicenseDate ?? '无';
+      final allowedVehicleType = widget.driver.allowedVehicleType ?? '无';
+      final issueDate = widget.driver.issueDate ?? '无';
+      final expiryDate = widget.driver.expiryDate ?? '无';
+      final driverId = widget.driver.driverId?.toString() ?? '0';
 
-    return Obx(
-      () => Theme(
-        data: controller.currentBodyTheme.value,
+      return Theme(
+        data: themeData,
         child: Scaffold(
+          backgroundColor: themeData.colorScheme.surface,
           appBar: AppBar(
             title: Text('司机详细信息',
-                style: theme.textTheme.labelLarge
-                    ?.copyWith(color: theme.colorScheme.onPrimary)),
-            backgroundColor: theme.colorScheme.primary,
-            foregroundColor: theme.colorScheme.onPrimary,
+                style: themeData.textTheme.headlineSmall?.copyWith(
+                    color: themeData.colorScheme.onSurface,
+                    fontWeight: FontWeight.bold)),
+            backgroundColor: themeData.colorScheme.primaryContainer,
+            foregroundColor: themeData.colorScheme.onPrimaryContainer,
+            elevation: 2,
             actions: [
               IconButton(
-                icon: const Icon(Icons.edit),
+                icon: Icon(Icons.edit,
+                    color: themeData.colorScheme.onPrimaryContainer),
                 onPressed: () {
                   Navigator.push(
                           context,
@@ -1067,7 +1100,8 @@ class _DriverDetailPageState extends State<DriverDetailPage> {
                 tooltip: '编辑司机信息',
               ),
               IconButton(
-                icon: const Icon(Icons.delete),
+                icon: Icon(Icons.delete,
+                    color: themeData.colorScheme.onPrimaryContainer),
                 onPressed: () => _deleteDriver(driverId),
                 tooltip: '删除司机',
               ),
@@ -1076,42 +1110,51 @@ class _DriverDetailPageState extends State<DriverDetailPage> {
           body: Padding(
             padding: const EdgeInsets.all(16.0),
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : ListView(
-                    children: [
-                      _buildDetailRow(context, '司机 ID', driverId),
-                      _buildDetailRow(context, '姓名', name),
-                      _buildDetailRow(context, '身份证号', idCard),
-                      _buildDetailRow(context, '联系电话', contact),
-                      _buildDetailRow(context, '驾驶证号', license),
-                      _buildDetailRow(context, '性别', gender),
-                      _buildDetailRow(context, '出生日期', birthdate),
-                      _buildDetailRow(context, '首次领证日期', firstLicenseDate),
-                      _buildDetailRow(context, '允许驾驶车辆类型', allowedVehicleType),
-                      _buildDetailRow(context, '发证日期', issueDate),
-                      _buildDetailRow(context, '有效期截止日期', expiryDate),
-                    ],
+                ? Center(
+                    child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                            themeData.colorScheme.primary)))
+                : CupertinoScrollbar(
+                    thumbVisibility: true,
+                    thickness: 6.0,
+                    thicknessWhileDragging: 10.0,
+                    child: ListView(
+                      children: [
+                        _buildDetailRow(themeData, '司机 ID', driverId),
+                        _buildDetailRow(themeData, '姓名', name),
+                        _buildDetailRow(themeData, '身份证号', idCard),
+                        _buildDetailRow(themeData, '联系电话', contact),
+                        _buildDetailRow(themeData, '驾驶证号', license),
+                        _buildDetailRow(themeData, '性别', gender),
+                        _buildDetailRow(themeData, '出生日期', birthdate),
+                        _buildDetailRow(themeData, '首次领证日期', firstLicenseDate),
+                        _buildDetailRow(
+                            themeData, '允许驾驶车辆类型', allowedVehicleType),
+                        _buildDetailRow(themeData, '发证日期', issueDate),
+                        _buildDetailRow(themeData, '有效期截止日期', expiryDate),
+                      ],
+                    ),
                   ),
           ),
         ),
-      ),
-    );
+      );
+    });
   }
 
-  Widget _buildDetailRow(BuildContext context, String label, String value) {
-    final theme = Theme.of(context);
+  Widget _buildDetailRow(ThemeData themeData, String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('$label: ',
-              style: theme.textTheme.bodyLarge
-                  ?.copyWith(fontWeight: FontWeight.bold)),
+              style: themeData.textTheme.bodyLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: themeData.colorScheme.onSurface)),
           Expanded(
             child: Text(value,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurface.withOpacity(0.7))),
+                style: themeData.textTheme.bodyMedium
+                    ?.copyWith(color: themeData.colorScheme.onSurfaceVariant)),
           ),
         ],
       ),
