@@ -16,8 +16,6 @@ class DashboardController extends GetxController with NavigationMixin {
   final Rx<Profile?> currentUser = Rx<Profile?>(null);
   late Rx<Future<List<OffenseInformation>>> offensesFuture;
 
-  // late Rx<Future<List<RoleManagement>>> rolesFuture;
-
   final offenseApi = OffenseInformationControllerApi();
   final roleApi = RoleManagementControllerApi();
 
@@ -25,7 +23,10 @@ class DashboardController extends GetxController with NavigationMixin {
   void onInit() {
     super.onInit();
     _initializeCaseCardData();
-    _loadUserFromPrefs();
+    // Delay loading user prefs until after init to ensure GetX is ready
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadUserFromPrefs();
+    });
   }
 
   void loadAdminData() {
@@ -87,11 +88,11 @@ class DashboardController extends GetxController with NavigationMixin {
 
   Profile get currentProfile =>
       currentUser.value ??
-      const Profile(
-        photo: AssetImage(ImageRasterPath.avatar1),
-        name: "Guest",
-        email: "guest@example.com",
-      );
+          const Profile(
+            photo: AssetImage(ImageRasterPath.avatar1),
+            name: "Guest",
+            email: "guest@example.com",
+          );
 
   void toggleSidebar() => isSidebarOpen.value = !isSidebarOpen.value;
 
@@ -106,15 +107,15 @@ class DashboardController extends GetxController with NavigationMixin {
     String theme = selectedStyle.value;
     ThemeData baseTheme = theme == 'Material'
         ? (currentTheme.value == 'Light'
-            ? AppTheme.materialLightTheme
-            : AppTheme.materialDarkTheme)
+        ? AppTheme.materialLightTheme
+        : AppTheme.materialDarkTheme)
         : (theme == 'Ionic'
-            ? (currentTheme.value == 'Light'
-                ? AppTheme.ionicLightTheme
-                : AppTheme.ionicDarkTheme)
-            : (currentTheme.value == 'Light'
-                ? AppTheme.basicLight
-                : AppTheme.basicDark));
+        ? (currentTheme.value == 'Light'
+        ? AppTheme.ionicLightTheme
+        : AppTheme.ionicDarkTheme)
+        : (currentTheme.value == 'Light'
+        ? AppTheme.basicLight
+        : AppTheme.basicDark));
 
     String fontFamily = theme == 'Basic' ? Font.poppins : 'Helvetica';
 
@@ -143,7 +144,7 @@ class DashboardController extends GetxController with NavigationMixin {
           foregroundColor: baseTheme.colorScheme.onPrimary,
           elevation: 2,
           shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
           textStyle: TextStyle(
             fontFamily: fontFamily,
             fontSize: 16.0,
@@ -185,22 +186,22 @@ class DashboardController extends GetxController with NavigationMixin {
       Obx(() => selectedPage.value ?? const SizedBox.shrink());
 
   ProjectCardData getSelectedProject() => ProjectCardData(
-        percent: .3,
-        projectImage: const AssetImage(ImageRasterPath.logo4),
-        projectName: "交通违法行为处理管理系统",
-        releaseTime: DateTime.now(),
-      );
+    percent: .3,
+    projectImage: const AssetImage(ImageRasterPath.logo4),
+    projectName: "交通违法行为处理管理系统",
+    releaseTime: DateTime.now(),
+  );
 
   List<ProjectCardData> getActiveProject() => [];
 
   List<ImageProvider<Object>> getMember() => const [
-        AssetImage(ImageRasterPath.avatar1),
-        AssetImage(ImageRasterPath.avatar2),
-        AssetImage(ImageRasterPath.avatar3),
-        AssetImage(ImageRasterPath.avatar4),
-        AssetImage(ImageRasterPath.avatar5),
-        AssetImage(ImageRasterPath.avatar6),
-      ];
+    AssetImage(ImageRasterPath.avatar1),
+    AssetImage(ImageRasterPath.avatar2),
+    AssetImage(ImageRasterPath.avatar3),
+    AssetImage(ImageRasterPath.avatar4),
+    AssetImage(ImageRasterPath.avatar5),
+    AssetImage(ImageRasterPath.avatar6),
+  ];
 
   Future<Map<String, int>> getOffenseTypeDistribution() async {
     try {
@@ -240,9 +241,8 @@ class DashboardController extends GetxController with NavigationMixin {
   }
 
   void _redirectToLogin() {
-    Get.offAllNamed('/login'); // Adjust route name as needed
+    Get.offAllNamed(Routes.login); // Use route name from AppPages
   }
-
   void updateScrollDirection(ScrollController scrollController) {
     scrollController.addListener(() {
       isScrollingDown.value = scrollController.position.userScrollDirection ==

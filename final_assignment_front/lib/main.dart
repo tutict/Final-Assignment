@@ -11,8 +11,13 @@ import 'config/themes/app_theme.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 初始化指定语言环境的日期格式
-  await initializeDateFormatting('zh_CN', null);
+  // Initialize date formatting with error handling
+  try {
+    await initializeDateFormatting('zh_CN', null);
+    debugPrint('Date formatting initialized for zh_CN');
+  } catch (e) {
+    debugPrint('Failed to initialize date formatting: $e');
+  }
 
   Get.put(DashboardController());
   Get.put(UserDashboardController());
@@ -27,22 +32,27 @@ class MainApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GetMaterialApp(
-      title: '管理系统',
+      title: '交通违法行为处理管理系统',
+      // Updated to match your app's context
       debugShowCheckedModeBanner: false,
-      // initialRoute: AppPages.initial,
-      // initialRoute: AppPages.userInitial,
       initialRoute: AppPages.login,
+      // Consistent entry point
       getPages: AppPages.routes,
+      // Routes defined in AppPages
       theme: AppTheme.basicLight,
+      // Default theme
       builder: (context, child) {
         return MediaQuery(
-          // 确保字体大小不随系统设置而改变
+          // Prevent font scaling based on system settings
           data: MediaQuery.of(context).copyWith(
-            textScaler: TextScaler.noScaling,
+            textScaler: const TextScaler.linear(1.0), // Fixed scaling
           ),
           child: child ?? const SizedBox.shrink(),
         );
       },
+      // Optional: Add localization support if needed
+      locale: const Locale('zh', 'CN'),
+      fallbackLocale: const Locale('en', 'US'),
     );
   }
 }

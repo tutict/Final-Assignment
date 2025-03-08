@@ -7,7 +7,7 @@ import 'package:final_assignment_front/features/model/user_management.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:get/Get.dart';
+import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 String generateIdempotencyKey() {
@@ -232,11 +232,9 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
             'PUT',
             [],
             value,
-            // Send raw string, not jsonEncode(value)
             {},
             {},
             'text/plain',
-            // Change content type to text/plain
             ['bearerAuth'],
           );
           if (response.statusCode != 200) {
@@ -250,11 +248,9 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
             'PUT',
             [],
             value,
-            // Send raw string, not jsonEncode(value)
             {},
             {},
             'text/plain',
-            // Change content type to text/plain
             ['bearerAuth'],
           );
           if (response.statusCode != 200) {
@@ -268,11 +264,9 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
             'PUT',
             [],
             value,
-            // Send raw string, not jsonEncode(value)
             {},
             {},
             'text/plain',
-            // Change content type to text/plain
             ['bearerAuth'],
           );
           if (response.statusCode != 200) {
@@ -287,11 +281,9 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
             'PUT',
             [],
             value,
-            // Send raw string, not jsonEncode(value)
             {},
             {},
             'text/plain',
-            // Change content type to text/plain
             ['bearerAuth'],
           );
           if (response.statusCode != 200) {
@@ -306,11 +298,9 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
             'PUT',
             [],
             value,
-            // Send raw string, not jsonEncode(value)
             {},
             {},
             'text/plain',
-            // Change content type to text/plain
             ['bearerAuth'],
           );
           if (response.statusCode != 200) {
@@ -355,130 +345,141 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isLight = controller.currentTheme.value == 'Light';
-    final themeData = controller.currentBodyTheme.value;
+    return Obx(() {
+      // Wrap with Obx for reactive theme updates
+      final isLight = controller.currentTheme.value == 'Light';
+      final themeData = controller.currentBodyTheme.value;
 
-    if (!_isUser) {
-      return CupertinoPageScaffold(
-        backgroundColor: isLight
-            ? themeData.colorScheme.surface.withOpacity(0.95)
-            : themeData.colorScheme.surface.withOpacity(0.85),
-        child: Center(
-          child: Text(
-            _errorMessage.isNotEmpty ? _errorMessage : '此页面仅限 USER 角色访问',
-            style: themeData.textTheme.bodyLarge?.copyWith(
-              color: isLight
-                  ? themeData.colorScheme.onSurface
-                  : themeData.colorScheme.onSurface.withOpacity(0.9),
-              fontSize: 18,
+      if (!_isUser) {
+        return CupertinoPageScaffold(
+          backgroundColor: isLight
+              ? themeData.colorScheme.surface.withOpacity(0.95)
+              : themeData.colorScheme.surface.withOpacity(0.85),
+          child: Center(
+            child: Text(
+              _errorMessage.isNotEmpty ? _errorMessage : '此页面仅限 USER 角色访问',
+              style: themeData.textTheme.bodyLarge?.copyWith(
+                color: isLight
+                    ? themeData.colorScheme.onSurface
+                    : themeData.colorScheme.onSurface.withOpacity(0.9),
+                fontSize: 18,
+              ),
             ),
+          ),
+        );
+      }
+
+      return Theme(
+        // Apply theme dynamically
+        data: themeData,
+        child: CupertinoPageScaffold(
+          backgroundColor: isLight
+              ? themeData.colorScheme.surface.withOpacity(0.95)
+              : themeData.colorScheme.surface.withOpacity(0.85),
+          navigationBar: CupertinoNavigationBar(
+            middle: Text(
+              '用户信息管理',
+              style: themeData.textTheme.headlineSmall?.copyWith(
+                color: isLight
+                    ? themeData.colorScheme.onSurface
+                    : themeData.colorScheme.onSurface.withOpacity(0.95),
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
+              ),
+            ),
+            leading: GestureDetector(
+              onTap: () {
+                controller.navigateToPage(Routes.personalMain);
+              },
+              child: Icon(
+                CupertinoIcons.back,
+                color: isLight
+                    ? themeData.colorScheme.onSurface
+                    : themeData.colorScheme.onSurface.withOpacity(0.95),
+              ),
+            ),
+            backgroundColor: isLight
+                ? themeData.colorScheme.surfaceContainer.withOpacity(0.9)
+                : themeData.colorScheme.surfaceContainer.withOpacity(0.7),
+            border: Border(
+              bottom: BorderSide(
+                color: isLight
+                    ? themeData.colorScheme.outline.withOpacity(0.2)
+                    : themeData.colorScheme.outline.withOpacity(0.1),
+                width: 1.0,
+              ),
+            ),
+          ),
+          child: SafeArea(
+            child: _isLoading
+                ? Center(
+                    child: CupertinoActivityIndicator(
+                        color: themeData.colorScheme.primary, radius: 16.0))
+                : FutureBuilder<UserManagement?>(
+                    future: _userFuture,
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return Center(
+                            child: CupertinoActivityIndicator(
+                                color: themeData.colorScheme.primary,
+                                radius: 16.0));
+                      } else if (snapshot.hasError ||
+                          !snapshot.hasData ||
+                          snapshot.data == null) {
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                snapshot.hasError
+                                    ? '加载用户信息失败: ${snapshot.error}'
+                                    : '没有找到用户信息',
+                                style: themeData.textTheme.bodyLarge?.copyWith(
+                                  color: isLight
+                                      ? themeData.colorScheme.onSurface
+                                      : themeData.colorScheme.onSurface
+                                          .withOpacity(0.9),
+                                  fontSize: 18,
+                                ),
+                              ),
+                              const SizedBox(height: 20.0),
+                              ElevatedButton(
+                                onPressed: _loadCurrentUser,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor:
+                                      themeData.colorScheme.primary,
+                                  foregroundColor:
+                                      themeData.colorScheme.onPrimary,
+                                  elevation: 4,
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius:
+                                          BorderRadius.circular(12.0)),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 24.0, vertical: 12.0),
+                                ),
+                                child: Text(
+                                  '重试',
+                                  style:
+                                      themeData.textTheme.labelLarge?.copyWith(
+                                    color: themeData.colorScheme.onPrimary,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      } else {
+                        final userInfo = snapshot.data!;
+                        return _buildUserInfoList(userInfo, isLight, themeData);
+                      }
+                    },
+                  ),
           ),
         ),
       );
-    }
-
-    return CupertinoPageScaffold(
-      backgroundColor: isLight
-          ? themeData.colorScheme.surface.withOpacity(0.95)
-          : themeData.colorScheme.surface.withOpacity(0.85),
-      navigationBar: CupertinoNavigationBar(
-        middle: Text(
-          '用户信息管理',
-          style: themeData.textTheme.headlineSmall?.copyWith(
-            color: isLight
-                ? themeData.colorScheme.onSurface
-                : themeData.colorScheme.onSurface.withOpacity(0.95),
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-          ),
-        ),
-        leading: GestureDetector(
-          onTap: () {
-            controller.navigateToPage(Routes.personalMain);
-          },
-          child: Icon(
-            CupertinoIcons.back,
-            color: isLight
-                ? themeData.colorScheme.onSurface
-                : themeData.colorScheme.onSurface.withOpacity(0.95),
-          ),
-        ),
-        backgroundColor: isLight
-            ? themeData.colorScheme.surfaceContainer.withOpacity(0.9)
-            : themeData.colorScheme.surfaceContainer.withOpacity(0.7),
-        border: Border(
-          bottom: BorderSide(
-            color: isLight
-                ? themeData.colorScheme.outline.withOpacity(0.2)
-                : themeData.colorScheme.outline.withOpacity(0.1),
-            width: 1.0,
-          ),
-        ),
-      ),
-      child: SafeArea(
-        child: _isLoading
-            ? Center(
-                child: CupertinoActivityIndicator(
-                    color: themeData.colorScheme.primary, radius: 16.0))
-            : FutureBuilder<UserManagement?>(
-                future: _userFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return Center(
-                        child: CupertinoActivityIndicator(
-                            color: themeData.colorScheme.primary,
-                            radius: 16.0));
-                  } else if (snapshot.hasError ||
-                      !snapshot.hasData ||
-                      snapshot.data == null) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            snapshot.hasError
-                                ? '加载用户信息失败: ${snapshot.error}'
-                                : '没有找到用户信息',
-                            style: themeData.textTheme.bodyLarge?.copyWith(
-                              color: isLight
-                                  ? themeData.colorScheme.onSurface
-                                  : themeData.colorScheme.onSurface
-                                      .withOpacity(0.9),
-                              fontSize: 18,
-                            ),
-                          ),
-                          const SizedBox(height: 20.0),
-                          ElevatedButton(
-                            onPressed: _loadCurrentUser,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: themeData.colorScheme.primary,
-                              foregroundColor: themeData.colorScheme.onPrimary,
-                              elevation: 4,
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12.0)),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 24.0, vertical: 12.0),
-                            ),
-                            child: Text(
-                              '重试',
-                              style: themeData.textTheme.labelLarge?.copyWith(
-                                color: themeData.colorScheme.onPrimary,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  } else {
-                    final userInfo = snapshot.data!;
-                    return _buildUserInfoList(userInfo, isLight, themeData);
-                  }
-                },
-              ),
-      ),
-    );
+    });
   }
 
   Widget _buildUserInfoList(
@@ -632,107 +633,112 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
     final themeData = controller.currentBodyTheme.value;
     showDialog(
       context: context,
-      builder: (_) => Dialog(
-        backgroundColor: isLight
-            ? themeData.colorScheme.surfaceContainer
-            : themeData.colorScheme.surfaceContainerHigh,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 300.0, minHeight: 150.0),
-          child: Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  '编辑 $field',
-                  style: themeData.textTheme.titleMedium?.copyWith(
-                    color: isLight
-                        ? themeData.colorScheme.onSurface
-                        : themeData.colorScheme.onSurface.withOpacity(0.95),
-                    fontWeight: FontWeight.bold,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 12.0),
-                TextField(
-                  controller: textController,
-                  style: themeData.textTheme.bodyMedium?.copyWith(
-                    color: isLight
-                        ? themeData.colorScheme.onSurface
-                        : themeData.colorScheme.onSurface.withOpacity(0.95),
-                  ),
-                  decoration: InputDecoration(
-                    hintText: '输入新的 $field',
-                    hintStyle: themeData.textTheme.bodyMedium?.copyWith(
+      builder: (_) => Theme(
+        // Apply theme to dialog
+        data: themeData,
+        child: Dialog(
+          backgroundColor: isLight
+              ? themeData.colorScheme.surfaceContainer
+              : themeData.colorScheme.surfaceContainerHigh,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+          child: ConstrainedBox(
+            constraints:
+                const BoxConstraints(maxWidth: 300.0, minHeight: 150.0),
+            child: Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    '编辑 $field',
+                    style: themeData.textTheme.titleMedium?.copyWith(
                       color: isLight
-                          ? themeData.colorScheme.onSurfaceVariant
-                              .withOpacity(0.6)
-                          : themeData.colorScheme.onSurfaceVariant
-                              .withOpacity(0.5),
+                          ? themeData.colorScheme.onSurface
+                          : themeData.colorScheme.onSurface.withOpacity(0.95),
+                      fontWeight: FontWeight.bold,
                     ),
-                    filled: true,
-                    fillColor: isLight
-                        ? themeData.colorScheme.surfaceContainerLowest
-                        : themeData.colorScheme.surfaceContainerLow,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8.0),
-                      borderSide: BorderSide(
-                          color:
-                              themeData.colorScheme.outline.withOpacity(0.3)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8.0),
-                      borderSide: BorderSide(
-                          color: themeData.colorScheme.primary, width: 2.0),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12.0, vertical: 10.0),
+                    textAlign: TextAlign.center,
                   ),
-                ),
-                const SizedBox(height: 16.0),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: TextButton.styleFrom(
-                          foregroundColor: themeData.colorScheme.onSurface),
-                      child: Text(
-                        '取消',
-                        style: themeData.textTheme.labelMedium?.copyWith(
-                            color: themeData.colorScheme.onSurface,
-                            fontSize: 14),
-                      ),
+                  const SizedBox(height: 12.0),
+                  TextField(
+                    controller: textController,
+                    style: themeData.textTheme.bodyMedium?.copyWith(
+                      color: isLight
+                          ? themeData.colorScheme.onSurface
+                          : themeData.colorScheme.onSurface.withOpacity(0.95),
                     ),
-                    ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        onSave(textController.text.trim());
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: themeData.colorScheme.primary,
-                        foregroundColor: themeData.colorScheme.onPrimary,
-                        elevation: 2,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10.0)),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 20.0, vertical: 10.0),
+                    decoration: InputDecoration(
+                      hintText: '输入新的 $field',
+                      hintStyle: themeData.textTheme.bodyMedium?.copyWith(
+                        color: isLight
+                            ? themeData.colorScheme.onSurfaceVariant
+                                .withOpacity(0.6)
+                            : themeData.colorScheme.onSurfaceVariant
+                                .withOpacity(0.5),
                       ),
-                      child: Text(
-                        '保存',
-                        style: themeData.textTheme.labelMedium?.copyWith(
-                          color: themeData.colorScheme.onPrimary,
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
+                      filled: true,
+                      fillColor: isLight
+                          ? themeData.colorScheme.surfaceContainerLowest
+                          : themeData.colorScheme.surfaceContainerLow,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8.0),
+                        borderSide: BorderSide(
+                            color:
+                                themeData.colorScheme.outline.withOpacity(0.3)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8.0),
+                        borderSide: BorderSide(
+                            color: themeData.colorScheme.primary, width: 2.0),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12.0, vertical: 10.0),
+                    ),
+                  ),
+                  const SizedBox(height: 16.0),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: TextButton.styleFrom(
+                            foregroundColor: themeData.colorScheme.onSurface),
+                        child: Text(
+                          '取消',
+                          style: themeData.textTheme.labelMedium?.copyWith(
+                              color: themeData.colorScheme.onSurface,
+                              fontSize: 14),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                      ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          onSave(textController.text.trim());
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: themeData.colorScheme.primary,
+                          foregroundColor: themeData.colorScheme.onPrimary,
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10.0)),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20.0, vertical: 10.0),
+                        ),
+                        child: Text(
+                          '保存',
+                          style: themeData.textTheme.labelMedium?.copyWith(
+                            color: themeData.colorScheme.onPrimary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),

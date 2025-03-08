@@ -70,7 +70,6 @@ class _LoginScreenState extends State<LoginScreen> {
     return 'USER';
   }
 
-// 登录成功后的正确实现方式
   Future<String?> _authUser(LoginData data) async {
     final username = data.name;
     final password = data.password;
@@ -89,7 +88,7 @@ class _LoginScreenState extends State<LoginScreen> {
         loginRequest: LoginRequest(username: username, password: password),
       );
 
-      debugPrint('Login raw result: \$result');
+      debugPrint('Login raw result: $result');
 
       if (result.containsKey('jwtToken')) {
         _userRole = determineRole(username);
@@ -111,7 +110,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
         Get.find<ChatController>().setUserRole(_userRole!);
 
-        debugPrint('User Role: $_userRole, Name: \$name, Email: \$email');
+        debugPrint('User Role: $_userRole, Name: $name, Email: $email');
         return null;
       } else {
         return result['message'] ?? '登录失败';
@@ -120,8 +119,8 @@ class _LoginScreenState extends State<LoginScreen> {
       debugPrint('ApiException in login: ${e.message}');
       return '登录失败: ${e.message}';
     } catch (e) {
-      debugPrint('General Exception in login: \$e');
-      return '登录异常: \$e';
+      debugPrint('General Exception in login: $e');
+      return '登录异常: $e';
     }
   }
 
@@ -299,7 +298,15 @@ class _LoginScreenState extends State<LoginScreen> {
       return '密码重置已取消';
     }
 
-    // Step 3: Send password reset request
+    // Step 3: Retrieve stored JWT token
+    final prefs = await SharedPreferences.getInstance();
+    final String? jwtToken = prefs.getString('jwtToken');
+    if (jwtToken == null) {
+      debugPrint('No JWT token found in SharedPreferences');
+      return '请先登录以重置密码';
+    }
+
+    // Step 4: Send password reset request with JWT token
     final newPassword = newPasswordController.text.trim();
     final String idempotencyKey = generateIdempotencyKey();
 
@@ -309,26 +316,35 @@ class _LoginScreenState extends State<LoginScreen> {
         'PUT',
         [],
         newPassword,
-        {},
+        {
+          'Authorization': 'Bearer $jwtToken', // Include JWT token in headers
+          'Content-Type': 'text/plain; charset=utf-8',
+        },
         {},
         'text/plain',
-        [], // No bearerAuth
+        ['bearerAuth'], // Indicate authentication is required
       );
 
       debugPrint(
           'Reset password response: ${response.statusCode} - ${response.body}');
       if (response.statusCode == 200) {
         debugPrint('Password reset successful');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('密码重置成功，请使用新密码登录')),
+        );
         return null; // Success
       } else if (response.statusCode == 404) {
         return '用户不存在';
       } else if (response.statusCode == 403) {
-        return '密码重置失败：权限不足';
+        return '密码重置失败：权限不足（可能是令牌无效或过期）';
       } else {
-        return '密码重置失败：状态码 ${response.statusCode}';
+        return '密码重置失败：状态码 ${response.statusCode} - ${response.body}';
       }
+    } on ApiException catch (e) {
+      debugPrint('ApiException in reset password: ${e.code} - ${e.message}');
+      return '密码重置失败: ${e.code} - ${e.message}';
     } catch (e) {
-      debugPrint('Reset password exception: $e');
+      debugPrint('General Exception in reset password: $e');
       return '密码重置异常: $e';
     }
   }
