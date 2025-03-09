@@ -9,7 +9,7 @@ class SystemLogs {
   String? logContent;
 
   /* 操作时间 */
-  String? operationTime;
+  DateTime? operationTime;
 
   /* 操作用户 */
   String? operationUser;
@@ -23,78 +23,92 @@ class SystemLogs {
   String? idempotencyKey;
 
   SystemLogs({
-    required int? logId,
-    required String? logType,
-    required String? logContent,
-    required String? operationTime,
-    required String? operationUser,
-    required String? operationIpAddress,
-    required String? remarks,
-    required String idempotencyKey,
+    this.logId,
+    this.logType,
+    this.logContent,
+    this.operationTime,
+    this.operationUser,
+    this.operationIpAddress,
+    this.remarks,
+    this.idempotencyKey,
   });
 
   @override
   String toString() {
-    return 'SystemLogs[logId=$logId, logType=$logType, logContent=$logContent, operationTime=$operationTime, operationUser=$operationUser, operationIpAddress=$operationIpAddress, remarks=$remarks, idempotencyKey=$idempotencyKey, ]';
+    return 'SystemLogs[logId=$logId, logType=$logType, logContent=$logContent, operationTime=$operationTime, operationUser=$operationUser, operationIpAddress=$operationIpAddress, remarks=$remarks, idempotencyKey=$idempotencyKey]';
   }
 
-  SystemLogs.fromJson(Map<String, dynamic> json) {
-    logId = json['logId'];
-    logType = json['logType'];
-    logContent = json['logContent'];
-    operationTime = json['operationTime'];
-    operationUser = json['operationUser'];
-    operationIpAddress = json['operationIpAddress'];
-    remarks = json['remarks'];
-    idempotencyKey = json['idempotencyKey'];
+  factory SystemLogs.fromJson(Map<String, dynamic> json) {
+    return SystemLogs(
+      logId: json['logId'] as int?,
+      logType: json['logType'] as String?,
+      logContent: json['logContent'] as String?,
+      operationTime: json['operationTime'] != null
+          ? DateTime.parse(json['operationTime'] as String)
+          : null,
+      operationUser: json['operationUser'] as String?,
+      operationIpAddress: json['operationIpAddress'] as String?,
+      remarks: json['remarks'] as String?,
+      idempotencyKey: json['idempotencyKey'] as String?,
+    );
   }
 
   Map<String, dynamic> toJson() {
-    Map<String, dynamic> json = {};
-    if (logId != null) {
-      json['logId'] = logId;
-    }
-    if (logType != null) {
-      json['logType'] = logType;
-    }
-    if (logContent != null) {
-      json['logContent'] = logContent;
-    }
-    if (operationTime != null) {
-      json['operationTime'] = operationTime;
-    }
-    if (operationUser != null) {
-      json['operationUser'] = operationUser;
-    }
-    if (operationIpAddress != null) {
-      json['operationIpAddress'] = operationIpAddress;
-    }
-    if (remarks != null) {
-      json['remarks'] = remarks;
-    }
+    final Map<String, dynamic> json = {};
+    if (logId != null) json['logId'] = logId;
+    if (logType != null) json['logType'] = logType;
+    if (logContent != null) json['logContent'] = logContent;
+    if (operationTime != null) json['operationTime'] = operationTime!.toIso8601String();
+    if (operationUser != null) json['operationUser'] = operationUser;
+    if (operationIpAddress != null) json['operationIpAddress'] = operationIpAddress;
+    if (remarks != null) json['remarks'] = remarks;
+    if (idempotencyKey != null) json['idempotencyKey'] = idempotencyKey;
     return json;
   }
 
+  SystemLogs copyWith({
+    int? logId,
+    String? logType,
+    String? logContent,
+    DateTime? operationTime,
+    String? operationUser,
+    String? operationIpAddress,
+    String? remarks,
+    String? idempotencyKey,
+  }) {
+    return SystemLogs(
+      logId: logId ?? this.logId,
+      logType: logType ?? this.logType,
+      logContent: logContent ?? this.logContent,
+      operationTime: operationTime ?? this.operationTime,
+      operationUser: operationUser ?? this.operationUser,
+      operationIpAddress: operationIpAddress ?? this.operationIpAddress,
+      remarks: remarks ?? this.remarks,
+      idempotencyKey: idempotencyKey ?? this.idempotencyKey,
+    );
+  }
+
   static List<SystemLogs> listFromJson(List<dynamic> json) {
-    return json.map((value) => SystemLogs.fromJson(value)).toList();
+    return json
+        .map((value) => SystemLogs.fromJson(value as Map<String, dynamic>))
+        .toList();
   }
 
   static Map<String, SystemLogs> mapFromJson(Map<String, dynamic> json) {
     var map = <String, SystemLogs>{};
     if (json.isNotEmpty) {
-      json.forEach(
-          (String key, dynamic value) => map[key] = SystemLogs.fromJson(value));
+      json.forEach((String key, dynamic value) =>
+      map[key] = SystemLogs.fromJson(value as Map<String, dynamic>));
     }
     return map;
   }
 
-  // maps a json object with a list of SystemLogs-objects as value to a dart map
-  static Map<String, List<SystemLogs>> mapListFromJson(
-      Map<String, dynamic> json) {
+  // Maps a JSON object with a list of SystemLogs objects as value to a Dart map
+  static Map<String, List<SystemLogs>> mapListFromJson(Map<String, dynamic> json) {
     var map = <String, List<SystemLogs>>{};
     if (json.isNotEmpty) {
       json.forEach((String key, dynamic value) {
-        map[key] = SystemLogs.listFromJson(value);
+        map[key] = SystemLogs.listFromJson(value as List<dynamic>);
       });
     }
     return map;

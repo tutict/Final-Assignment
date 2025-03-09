@@ -1,5 +1,6 @@
 package com.tutict.finalassignmentbackend.controller.ai;
 
+import com.tutict.finalassignmentbackend.service.ai.AIChatSearchService;
 import org.json.JSONObject;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.http.MediaType;
@@ -19,9 +20,11 @@ public class ChatController {
 
     private static final Logger LOG = Logger.getLogger(ChatController.class.getName());
     private final ChatClient chatClient;
+    private final AIChatSearchService aiChatSearchService;
 
-    public ChatController(ChatClient.Builder chatClient) {
+    public ChatController(ChatClient.Builder chatClient, AIChatSearchService aiChatSearchService) {
         this.chatClient = chatClient.build();
+        this.aiChatSearchService = aiChatSearchService;
     }
 
     @RequestMapping(
@@ -33,17 +36,23 @@ public class ChatController {
         SseEmitter emitter = new SseEmitter(Long.MAX_VALUE); // 设置无超时
 
         try {
-            // 获取 AI 的流式响应
-            Flux<String> responseFlux = chatClient.prompt(message)
+            // Perform Bing search using ChatService
+            String searchResult = aiChatSearchService.search(message);
+
+            // Combine the original message with search results for the AI prompt
+            String prompt = message + "\n\nBing Search Results:\n" + searchResult;
+
+            // Get the AI's streaming response
+            Flux<String> responseFlux = chatClient.prompt(prompt)
                     .stream()
                     .content()
                     .map(response -> response.replaceAll("(?s)<think>.*?</think>", "").trim());
 
-            // 订阅 Flux，逐步发送响应
+            // Subscribe to the Flux and send responses via SSE
             responseFlux.subscribe(
                     response -> {
                         try {
-                            // 将每段响应包装为 JSON 并发送
+                            // Wrap each response segment in JSON and send
                             String jsonResponse = "{\"message\": " + JSONObject.quote(response) + "}";
                             emitter.send(SseEmitter.event()
                                     .data(jsonResponse)
@@ -54,7 +63,7 @@ public class ChatController {
                         }
                     },
                     error -> {
-                        // 处理错误
+                        // Handle errors
                         LOG.log(Level.WARNING, "Chat stream failed: " + error.getMessage(), error);
                         try {
                             String jsonError = "{\"error\": \"Chat failed: " + error.getMessage() + "\"}";
@@ -68,7 +77,7 @@ public class ChatController {
                         }
                     },
                     () -> {
-                        // 流完成
+                        // Stream completion
                         LOG.log(Level.INFO, "Chat stream completed for message: " + message);
                         emitter.complete();
                     }

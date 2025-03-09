@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
+import org.testcontainers.elasticsearch.ElasticsearchContainer;
 import org.testcontainers.redpanda.RedpandaContainer;
 import org.testcontainers.utility.DockerImageName;
 
@@ -21,6 +22,7 @@ public class RunDocker {
 
     private RedisContainer redisContainer;
     private RedpandaContainer redpandaContainer;
+    private ElasticsearchContainer elasticsearchContainer;
     private GenericContainer<?> manticoreContainer;
 
     @Value("${manticore.image:manticoresearch/manticore:dev}")
@@ -30,6 +32,7 @@ public class RunDocker {
     public void init() {
         startRedis();
         startRedpanda();
+        startElasticsearch();
 //        startManticoreSearch();
     }
 
@@ -61,6 +64,19 @@ public class RunDocker {
         }
     }
 
+    public void startElasticsearch() {
+        try {
+            elasticsearchContainer = new ElasticsearchContainer("elasticsearch:8.17.3");
+            elasticsearchContainer.start();
+            String elasticsearchUrl = elasticsearchContainer.getHttpHostAddress();
+            log.log(Level.INFO, "Elasticsearch container started successfully at {0}", new Object[]{elasticsearchUrl});
+            System.setProperty("spring.elasticsearch-uris", "http://" + elasticsearchUrl);
+            log.log(Level.INFO, "Elasticsearch properties set: uris=http://{0}", new Object[]{elasticsearchUrl});
+        } catch (Exception e) {
+            log.log(Level.SEVERE, "Failed to start Elasticsearch container: {0}", new Object[]{e.getMessage()});
+        }
+    }
+
     public void startManticoreSearch() {
         try (GenericContainer<?> container = new GenericContainer<>(DockerImageName.parse(manticoreImage))
                 .withExposedPorts(9306, 9308)
@@ -70,7 +86,7 @@ public class RunDocker {
                         .withStartupTimeout(Duration.ofSeconds(120)))) {
             container.start();
 
-            manticoreContainer = container; // 将局部变量赋值给字段
+            manticoreContainer = container;
             String manticoreHost = manticoreContainer.getHost();
             Integer httpPort = manticoreContainer.getMappedPort(9308);
             String manticoreUrl = String.format("http://%s:%d", manticoreHost, httpPort);
@@ -83,7 +99,6 @@ public class RunDocker {
         }
     }
 
-
     @PreDestroy
     public void stopContainers() {
         if (redisContainer != null && redisContainer.isRunning()) {
@@ -93,6 +108,10 @@ public class RunDocker {
         if (redpandaContainer != null && redpandaContainer.isRunning()) {
             redpandaContainer.stop();
             log.log(Level.INFO, "Redpanda container stopped");
+        }
+        if (elasticsearchContainer != null && elasticsearchContainer.isRunning()) {
+            elasticsearchContainer.stop();
+            log.log(Level.INFO, "Elasticsearch container stopped");
         }
         if (manticoreContainer != null && manticoreContainer.isRunning()) {
             manticoreContainer.stop();

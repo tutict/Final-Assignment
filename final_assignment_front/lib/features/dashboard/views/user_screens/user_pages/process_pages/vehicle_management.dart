@@ -487,7 +487,11 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
         idempotencyKey: vehicle.idempotencyKey!,
       );
 
-      _showSnackBar('创建车辆成功！车辆ID: ${createdVehicle.vehicleId}');
+      final findAfterCreatedVehicle = await vehicleApi.apiVehiclesVehicleIdGet(
+        vehicleId: createdVehicle.vehicleId!,
+      );
+
+      _showSnackBar('创建车辆成功！车辆ID: $findAfterCreatedVehicle');
       if (mounted) {
         Navigator.pop(context, true);
         Navigator.push(

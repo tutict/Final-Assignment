@@ -231,15 +231,25 @@
             <artifactId>testcontainers-redis</artifactId>
             <version>2.2.4</version>
         </dependency>
+        <!-- For kafka -->
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>redpanda</artifactId>
-            <version>1.20.5</version>
+            <version>1.20.6</version>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>elasticsearch</artifactId>
+            <version>1.20.6</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-ollama-spring-boot-starter</artifactId>
             <version>1.0.0-M6</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-elasticsearch</artifactId>
         </dependency>
         <dependency>
             <groupId>com.manticoresearch</groupId>
@@ -270,6 +280,30 @@
             <url>https://repo.spring.io/milestone</url>
         </pluginRepository>
     </pluginRepositories>
+
+    <build>
+        <plugins>
+            <!-- GraalPy Maven Plugin for installing Python packages -->
+            <plugin>
+                <groupId>org.graalvm.python</groupId>
+                <artifactId>graalpy-maven-plugin</artifactId>
+                <version>24.1.2</version>
+                <executions>
+                    <execution>
+                        <configuration>
+                            <packages>
+                                <!-- Install the baidusearch package -->
+                                <package>baidusearch</package>
+                            </packages>
+                        </configuration>
+                        <goals>
+                            <goal>process-graalpy-resources</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 
     <!--    <build>-->
     <!--        <plugins>-->
