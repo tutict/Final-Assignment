@@ -89,6 +89,15 @@ fabric.properties
 # BlueJ files
 *.ctxt
 
+*.py
+*.iml
+*.h
+*.cc
+*.exe
+*.properties
+*.lock
+*.bin
+
 # Mobile Tools for Java (J2ME)
 .mtj.tmp/
 

@@ -103,7 +103,7 @@ quarkus.langchain4j.ollama.chat-model.model-id=deepseek-r1:7b
 
 ## Spring Boot
 
-**<span style="color:#e74c3c">我将首先集中精力开发Quarkus代码，随后基于Quarkus的实现对Spring Boot代码进行优化。</span>**
+**<span style="color:#e74c3c">我先集中精力开发SpringBoot代码，因为毕设有DDL了....</span>**
 
 #### 技术架构
 
@@ -111,23 +111,29 @@ quarkus.langchain4j.ollama.chat-model.model-id=deepseek-r1:7b
   Spring Boot 3.4.2 + Graalvm 23
 - 🛠 **数据层**  
   MyBatis Plus 3.5.7 + MySQL + Redis 多级缓存
+- **docker**
+  基于testcontainers, 使用 Redis + Redpanda + ElasticSearch
+- **AI**
+  使用本地 DeepSeek AI 服务（ollama）
 
 #### 关键特性
 
 - 🔐 **安全体系**  
-  JWT 鉴权（双实现方案） + Spring Security 6.3 + BCrypt 加密
+  JWT 鉴权 + Spring Security 6.3 + BCrypt 加密
 - 📡 **实时处理**  
-  Kafka 消息队列 + WebSocket 实时推送 + 异步 Vert.x 处理
+  Kafka 消息队列 + 异步 Vert.x 处理
 - ☁️ **云原生支持**  
-  Spring Actuator 监控 + Docker 集成 + 本地 DeepSeek AI 服务
+  Spring Actuator 监控 + Docker 集成
 - ⚡ **性能优化**  
   Caffeine 本地缓存 + Jedis 连接池
 
-#### 扩展能力
+#### 扩展能力(暂时未成功实现的功能)
 
 - 📘 OpenAPI 3 规范接口
 - 🔌 混合通信模式（HTTP/REST + WebSocket）
 - 📊 多数据源支持（关系型 + 缓存 + 消息队列）
+- 利用Graalpy，实现本地模型通过Python爬虫脚本爬取数据来进行联网
+- WebSocket 实时推送
 
 #### application.properties参考：
 
