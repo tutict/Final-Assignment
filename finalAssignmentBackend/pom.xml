@@ -268,6 +268,11 @@
             <type>pom</type>
             <scope>runtime</scope>
         </dependency>
+        <dependency>
+            <groupId>org.graalvm.python</groupId>
+            <artifactId>python-embedding</artifactId>
+            <version>24.1.2</version>
+        </dependency>
     </dependencies>
 
     <pluginRepositories>
@@ -283,7 +288,14 @@
 
     <build>
         <plugins>
-            <!-- GraalPy Maven Plugin for installing Python packages -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.graalvm.buildtools</groupId>
+                <artifactId>native-maven-plugin</artifactId>
+            </plugin>
             <plugin>
                 <groupId>org.graalvm.python</groupId>
                 <artifactId>graalpy-maven-plugin</artifactId>
@@ -292,8 +304,10 @@
                     <execution>
                         <configuration>
                             <packages>
-                                <!-- Install the baidusearch package -->
-                                <package>baidusearch</package>
+                                <package>baidusearch==1.0.3</package>
+                                <package>requests==2.32.3</package>
+                                <package>urllib3</package>
+                                <package>idna</package>
                             </packages>
                         </configuration>
                         <goals>
@@ -304,7 +318,6 @@
             </plugin>
         </plugins>
     </build>
-
     <!--    <build>-->
     <!--        <plugins>-->
     <!--            <plugin>-->

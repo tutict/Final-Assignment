@@ -1,6 +1,6 @@
 package com.tutict.finalassignmentbackend.controller.ai;
 
-import com.tutict.finalassignmentbackend.service.ai.AIChatSearchService;
+import com.tutict.finalassignmentbackend.service.AIChatSearchService;
 import org.json.JSONObject;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.http.MediaType;
@@ -20,11 +20,15 @@ public class ChatController {
 
     private static final Logger LOG = Logger.getLogger(ChatController.class.getName());
     private final ChatClient chatClient;
-    private final AIChatSearchService aiChatSearchService;
 
-    public ChatController(ChatClient.Builder chatClient, AIChatSearchService aiChatSearchService) {
+//    private final AIChatSearchService aiChatSearchService;
+//    public ChatController(ChatClient.Builder chatClient, AIChatSearchService aiChatSearchService) {
+//        this.chatClient = chatClient.build();
+//        this.aiChatSearchService = aiChatSearchService;
+//    }
+
+    public ChatController(ChatClient.Builder chatClient) {
         this.chatClient = chatClient.build();
-        this.aiChatSearchService = aiChatSearchService;
     }
 
     @RequestMapping(
@@ -36,23 +40,23 @@ public class ChatController {
         SseEmitter emitter = new SseEmitter(Long.MAX_VALUE); // 设置无超时
 
         try {
-            // Perform Bing search using ChatService
-            String searchResult = aiChatSearchService.search(message);
+//            // Perform Baidu search using AIChatSearchService
+//            String searchResult = aiChatSearchService.search(message).toString();
+//
+//            // Combine the original message with search results for the AI prompt
+//            String prompt = message + "\n\nBaidu Search Results:\n" + (searchResult != null ? searchResult : "No search results found.");
 
-            // Combine the original message with search results for the AI prompt
-            String prompt = message + "\n\nBing Search Results:\n" + searchResult;
-
-            // Get the AI's streaming response
-            Flux<String> responseFlux = chatClient.prompt(prompt)
+            // 获取 AI 的流式响应
+            Flux<String> responseFlux = chatClient.prompt(message)
                     .stream()
                     .content()
                     .map(response -> response.replaceAll("(?s)<think>.*?</think>", "").trim());
 
-            // Subscribe to the Flux and send responses via SSE
+            // 订阅 Flux，逐步发送响应
             responseFlux.subscribe(
                     response -> {
                         try {
-                            // Wrap each response segment in JSON and send
+                            // 将每段响应包装为 JSON 并发送
                             String jsonResponse = "{\"message\": " + JSONObject.quote(response) + "}";
                             emitter.send(SseEmitter.event()
                                     .data(jsonResponse)
@@ -63,7 +67,7 @@ public class ChatController {
                         }
                     },
                     error -> {
-                        // Handle errors
+                        // 处理错误
                         LOG.log(Level.WARNING, "Chat stream failed: " + error.getMessage(), error);
                         try {
                             String jsonError = "{\"error\": \"Chat failed: " + error.getMessage() + "\"}";
@@ -77,7 +81,7 @@ public class ChatController {
                         }
                     },
                     () -> {
-                        // Stream completion
+                        // 流完成
                         LOG.log(Level.INFO, "Chat stream completed for message: " + message);
                         emitter.complete();
                     }
