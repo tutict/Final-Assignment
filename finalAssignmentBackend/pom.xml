@@ -307,7 +307,6 @@
                                 <package>baidusearch==1.0.3</package>
                                 <package>requests==2.32.3</package>
                                 <package>urllib3</package>
-                                <package>idna</package>
                             </packages>
                         </configuration>
                         <goals>

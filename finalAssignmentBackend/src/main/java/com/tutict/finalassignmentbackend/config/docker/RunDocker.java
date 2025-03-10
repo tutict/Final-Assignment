@@ -66,14 +66,14 @@ public class RunDocker {
 
     public void startElasticsearch() {
         try {
-            elasticsearchContainer = new ElasticsearchContainer("elasticsearch:8.17.3");
+            elasticsearchContainer = new ElasticsearchContainer("elasticsearch:8.17.3")
+                    .withEnv("xpack.security.enabled", "false");// 关闭安全验证,不关的话死活连不上
             elasticsearchContainer.start();
             String elasticsearchUrl = elasticsearchContainer.getHttpHostAddress();
-            log.log(Level.INFO, "Elasticsearch container started successfully at {0}", new Object[]{elasticsearchUrl});
-            System.setProperty("spring.elasticsearch-uris", "http://" + elasticsearchUrl);
-            log.log(Level.INFO, "Elasticsearch properties set: uris=http://{0}", new Object[]{elasticsearchUrl});
+            System.setProperty("spring-elasticsearch-uris", "http://" + elasticsearchUrl);
+            log.log(Level.INFO, "Elasticsearch started at: https://{0}", elasticsearchUrl);
         } catch (Exception e) {
-            log.log(Level.SEVERE, "Failed to start Elasticsearch container: {0}", new Object[]{e.getMessage()});
+            log.log(Level.SEVERE, "Failed to start Elasticsearch container: {0}", e.getMessage());
         }
     }
 

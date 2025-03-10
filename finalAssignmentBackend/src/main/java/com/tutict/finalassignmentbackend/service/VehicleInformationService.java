@@ -78,7 +78,7 @@ public class VehicleInformationService {
     public void createVehicleInformation(VehicleInformation vehicleInformation) {
         try {
             vehicleInformationMapper.insert(vehicleInformation);
-            vehicleInformationSearchRepository.save(VehicleInformationDocument.fromEntity(vehicleInformation));
+            //  vehicleInformationSearchRepository.save(VehicleInformationDocument.fromEntity(vehicleInformation));
             Integer vehicleId = vehicleInformation.getVehicleId();
             log.info(String.format("Vehicle created successfully, vehicleId=%d", vehicleId));
         } catch (Exception e) {
