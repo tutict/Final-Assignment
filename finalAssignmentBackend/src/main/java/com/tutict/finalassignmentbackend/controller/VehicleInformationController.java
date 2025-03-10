@@ -20,6 +20,15 @@ public class VehicleInformationController {
         this.vehicleInformationService = vehicleInformationService;
     }
 
+    @GetMapping("/search")
+    public ResponseEntity<List<VehicleInformation>> searchVehicles(
+            @RequestParam String query,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        List<VehicleInformation> vehicles = vehicleInformationService.searchVehicles(query, page, size);
+        return ResponseEntity.ok(vehicles);
+    }
+
     @PostMapping
     @Transactional
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
