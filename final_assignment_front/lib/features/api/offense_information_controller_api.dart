@@ -17,30 +17,32 @@ class OffenseInformationControllerApi {
 
   String _decodeBodyBytes(http.Response response) => response.body;
 
-  Future<Map<String, String>> _getHeaders() async {
+  Future<Map<String, String>> _getHeaders(
+      {Map<String, String>? extraHeaders}) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('jwtToken') ?? '';
-    return {
+    final headers = {
       'Content-Type': 'application/json; charset=utf-8',
       if (token.isNotEmpty) 'Authorization': 'Bearer $token',
     };
+    if (extraHeaders != null) headers.addAll(extraHeaders);
+    return headers;
   }
 
   /// 从 SharedPreferences 中读取 jwtToken 并设置到 ApiClient 中
   Future<void> initializeWithJwt() async {
     final prefs = await SharedPreferences.getInstance();
     final jwtToken = prefs.getString('jwtToken');
-    if (jwtToken == null) {
+    if (jwtToken == null || jwtToken.isEmpty) {
       throw Exception('未登录，请重新登录');
     }
     apiClient.setJwtToken(jwtToken);
-    debugPrint(
-        'Initialized OffenseInformationControllerApi with token: $jwtToken');
+    debugPrint('Initialized OffenseInformationControllerApi with token: $jwtToken');
   }
 
   // --- GET /api/offenses ---
-  Future<http.Response> apiOffensesGetWithHttpInfo() async {
-    const path = "/api/offenses";
+  Future<http.Response> apiOffensesGetWithHttpInfo({int page = 0, int size = 10}) async {
+    final path = '/api/offenses?page=$page&size=$size';
     final headerParams = await _getHeaders();
 
     return await apiClient.invokeAPI(
@@ -55,26 +57,21 @@ class OffenseInformationControllerApi {
     );
   }
 
-  Future<List<OffenseInformation>> apiOffensesGet() async {
-    final response = await apiOffensesGetWithHttpInfo();
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-      return jsonList.map((json) => OffenseInformation.fromJson(json)).toList();
-    } else {
+  Future<List<OffenseInformation>> apiOffensesGet({int page = 0, int size = 10}) async {
+    final response = await apiOffensesGetWithHttpInfo(page: page, size: size);
+    if (response.statusCode == 200) {
+      if (response.body.isNotEmpty) {
+        final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+        return jsonList.map((json) => OffenseInformation.fromJson(json)).toList();
+      }
       return [];
     }
+    throw ApiException(response.statusCode, _decodeBodyBytes(response));
   }
 
-  // --- GET /api/offenses/driverName/{driverName} ---
-  Future<http.Response> apiOffensesDriverNameDriverNameGetWithHttpInfo(
-      {required String driverName}) async {
-    if (driverName.isEmpty) {
-      throw ApiException(400, "Missing required param: driverName");
-    }
-
-    final path = "/api/offenses/driverName/${Uri.encodeComponent(driverName)}";
+  // --- GET /api/offenses/{offenseId} ---
+  Future<http.Response> apiOffensesOffenseIdGetWithHttpInfo({required int offenseId}) async {
+    final path = '/api/offenses/$offenseId';
     final headerParams = await _getHeaders();
 
     return await apiClient.invokeAPI(
@@ -89,65 +86,94 @@ class OffenseInformationControllerApi {
     );
   }
 
-  Future<List<OffenseInformation>> apiOffensesDriverNameDriverNameGet(
-      {required String driverName}) async {
-    final response = await apiOffensesDriverNameDriverNameGetWithHttpInfo(
-        driverName: driverName);
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-      return jsonList.map((json) => OffenseInformation.fromJson(json)).toList();
-    } else {
-      return [];
+  Future<OffenseInformation?> apiOffensesOffenseIdGet({required int offenseId}) async {
+    final response = await apiOffensesOffenseIdGetWithHttpInfo(offenseId: offenseId);
+    if (response.statusCode == 200) {
+      if (response.body.isNotEmpty) {
+        return OffenseInformation.fromJson(jsonDecode(_decodeBodyBytes(response)));
+      }
+      return null;
+    } else if (response.statusCode == 404) {
+      return null;
     }
+    throw ApiException(response.statusCode, _decodeBodyBytes(response));
   }
 
-  // --- GET /api/offenses/licensePlate/{licensePlate} ---
-  Future<http.Response> apiOffensesLicensePlateLicensePlateGetWithHttpInfo(
-      {required String licensePlate}) async {
-    if (licensePlate.isEmpty) {
-      throw ApiException(400, "Missing required param: licensePlate");
-    }
-
-    final path =
-        "/api/offenses/licensePlate/${Uri.encodeComponent(licensePlate)}";
+  // --- POST /api/offenses ---
+  Future<http.Response> apiOffensesPostWithHttpInfo({
+    required OffenseInformation offenseInformation,
+    required String idempotencyKey,
+  }) async {
+    final path = '/api/offenses?idempotencyKey=${Uri.encodeQueryComponent(idempotencyKey)}';
     final headerParams = await _getHeaders();
+    final body = jsonEncode(offenseInformation.toJson());
 
     return await apiClient.invokeAPI(
       path,
-      'GET',
+      'POST',
       [],
-      null,
+      body,
       headerParams,
       {},
-      null,
+      'application/json',
       ['bearerAuth'],
     );
   }
 
-  Future<List<OffenseInformation>> apiOffensesLicensePlateLicensePlateGet(
-      {required String licensePlate}) async {
-    final response = await apiOffensesLicensePlateLicensePlateGetWithHttpInfo(
-        licensePlate: licensePlate);
-    if (response.statusCode >= 400) {
+  Future<void> apiOffensesPost({
+    required OffenseInformation offenseInformation,
+    required String idempotencyKey,
+  }) async {
+    final response = await apiOffensesPostWithHttpInfo(
+      offenseInformation: offenseInformation,
+      idempotencyKey: idempotencyKey,
+    );
+    if (response.statusCode != 201) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-      return jsonList.map((json) => OffenseInformation.fromJson(json)).toList();
-    } else {
-      return [];
     }
+  }
+
+  // --- PUT /api/offenses/{offenseId} ---
+  Future<http.Response> apiOffensesOffenseIdPutWithHttpInfo({
+    required int offenseId,
+    required OffenseInformation offenseInformation,
+    required String idempotencyKey,
+  }) async {
+    final path = '/api/offenses/$offenseId?idempotencyKey=${Uri.encodeQueryComponent(idempotencyKey)}';
+    final headerParams = await _getHeaders();
+    final body = jsonEncode(offenseInformation.toJson());
+
+    return await apiClient.invokeAPI(
+      path,
+      'PUT',
+      [],
+      body,
+      headerParams,
+      {},
+      'application/json',
+      ['bearerAuth'],
+    );
+  }
+
+  Future<OffenseInformation> apiOffensesOffenseIdPut({
+    required int offenseId,
+    required OffenseInformation offenseInformation,
+    required String idempotencyKey,
+  }) async {
+    final response = await apiOffensesOffenseIdPutWithHttpInfo(
+      offenseId: offenseId,
+      offenseInformation: offenseInformation,
+      idempotencyKey: idempotencyKey,
+    );
+    if (response.statusCode == 200) {
+      return OffenseInformation.fromJson(jsonDecode(_decodeBodyBytes(response)));
+    }
+    throw ApiException(response.statusCode, _decodeBodyBytes(response));
   }
 
   // --- DELETE /api/offenses/{offenseId} ---
-  Future<http.Response> apiOffensesOffenseIdDeleteWithHttpInfo(
-      {required String offenseId}) async {
-    if (offenseId.isEmpty) {
-      throw ApiException(400, "Missing required param: offenseId");
-    }
-
-    final path = "/api/offenses/$offenseId";
+  Future<http.Response> apiOffensesOffenseIdDeleteWithHttpInfo({required int offenseId}) async {
+    final path = '/api/offenses/$offenseId';
     final headerParams = await _getHeaders();
 
     return await apiClient.invokeAPI(
@@ -162,186 +188,27 @@ class OffenseInformationControllerApi {
     );
   }
 
-  Future<void> apiOffensesOffenseIdDelete({required String offenseId}) async {
-    final response =
-        await apiOffensesOffenseIdDeleteWithHttpInfo(offenseId: offenseId);
-    if (response.statusCode >= 400) {
+  Future<void> apiOffensesOffenseIdDelete({required int offenseId}) async {
+    final response = await apiOffensesOffenseIdDeleteWithHttpInfo(offenseId: offenseId);
+    if (response.statusCode != 204) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
-  }
-
-  // --- GET /api/offenses/{offenseId} ---
-  Future<http.Response> apiOffensesOffenseIdGetWithHttpInfo(
-      {required String offenseId}) async {
-    if (offenseId.isEmpty) {
-      throw ApiException(400, "Missing required param: offenseId");
-    }
-
-    final path = "/api/offenses/$offenseId";
-    final headerParams = await _getHeaders();
-
-    return await apiClient.invokeAPI(
-      path,
-      'GET',
-      [],
-      null,
-      headerParams,
-      {},
-      null,
-      ['bearerAuth'],
-    );
-  }
-
-  Future<OffenseInformation?> apiOffensesOffenseIdGet(
-      {required String offenseId}) async {
-    final response =
-        await apiOffensesOffenseIdGetWithHttpInfo(offenseId: offenseId);
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return OffenseInformation.fromJson(
-          jsonDecode(_decodeBodyBytes(response)));
-    }
-    return null;
-  }
-
-  // --- PUT /api/offenses/{offenseId} ---
-  Future<http.Response> apiOffensesOffenseIdPutWithHttpInfo({
-    required String offenseId,
-    required OffenseInformation offenseInformation,
-    required String idempotencyKey,
-  }) async {
-    if (offenseId.isEmpty) {
-      throw ApiException(400, "Missing required param: offenseId");
-    }
-    if (idempotencyKey.isEmpty) {
-      throw ApiException(400, "Missing required param: idempotencyKey");
-    }
-
-    final path =
-        "/api/offenses/$offenseId?idempotencyKey=${Uri.encodeComponent(idempotencyKey)}";
-    final headerParams = await _getHeaders();
-
-    return await apiClient.invokeAPI(
-      path,
-      'PUT',
-      [],
-      offenseInformation.toJson(),
-      headerParams,
-      {},
-      'application/json',
-      ['bearerAuth'],
-    );
-  }
-
-  Future<OffenseInformation> apiOffensesOffenseIdPut({
-    required String offenseId,
-    required OffenseInformation offenseInformation,
-    required String idempotencyKey,
-  }) async {
-    final response = await apiOffensesOffenseIdPutWithHttpInfo(
-      offenseId: offenseId,
-      offenseInformation: offenseInformation,
-      idempotencyKey: idempotencyKey,
-    );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
-    return OffenseInformation.fromJson(jsonDecode(_decodeBodyBytes(response)));
-  }
-
-  // --- POST /api/offenses ---
-  Future<http.Response> apiOffensesPostWithHttpInfo({
-    required OffenseInformation offenseInformation,
-    required String idempotencyKey,
-  }) async {
-    if (idempotencyKey.isEmpty) {
-      throw ApiException(400, "Missing required param: idempotencyKey");
-    }
-
-    final path =
-        "/api/offenses?idempotencyKey=${Uri.encodeComponent(idempotencyKey)}";
-    final headerParams = await _getHeaders();
-
-    return await apiClient.invokeAPI(
-      path,
-      'POST',
-      [],
-      offenseInformation.toJson(),
-      headerParams,
-      {},
-      'application/json',
-      ['bearerAuth'],
-    );
-  }
-
-  Future<OffenseInformation?> apiOffensesPost({
-    required OffenseInformation offenseInformation,
-    required String idempotencyKey,
-  }) async {
-    final response = await apiOffensesPostWithHttpInfo(
-      offenseInformation: offenseInformation,
-      idempotencyKey: idempotencyKey,
-    );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      return OffenseInformation.fromJson(
-          jsonDecode(_decodeBodyBytes(response)));
-    }
-    return null;
-  }
-
-  // --- GET /api/offenses/processState/{processState} ---
-  Future<http.Response> apiOffensesProcessStateProcessStateGetWithHttpInfo(
-      {required String processState}) async {
-    if (processState.isEmpty) {
-      throw ApiException(400, "Missing required param: processState");
-    }
-
-    final path =
-        "/api/offenses/processState/${Uri.encodeComponent(processState)}";
-    final headerParams = await _getHeaders();
-
-    return await apiClient.invokeAPI(
-      path,
-      'GET',
-      [],
-      null,
-      headerParams,
-      {},
-      null,
-      ['bearerAuth'],
-    );
-  }
-
-  Future<List<OffenseInformation>> apiOffensesProcessStateProcessStateGet(
-      {required String processState}) async {
-    final response = await apiOffensesProcessStateProcessStateGetWithHttpInfo(
-        processState: processState);
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-      return jsonList.map((json) => OffenseInformation.fromJson(json)).toList();
-    } else {
-      return [];
     }
   }
 
   // --- GET /api/offenses/timeRange ---
-  Future<http.Response> apiOffensesTimeRangeGetWithHttpInfo(
-      {String? startTime, String? endTime}) async {
-    const path = "/api/offenses/timeRange";
+  Future<http.Response> apiOffensesTimeRangeGetWithHttpInfo({
+    required DateTime startTime,
+    required DateTime endTime,
+    int page = 0,
+    int size = 10,
+  }) async {
+    final path = '/api/offenses/timeRange?startTime=${startTime.toIso8601String()}&endTime=${endTime.toIso8601String()}&page=$page&size=$size';
     final headerParams = await _getHeaders();
-    final queryParams = <QueryParam>[];
-    if (startTime != null) queryParams.add(QueryParam("startTime", startTime));
-    if (endTime != null) queryParams.add(QueryParam("endTime", endTime));
 
     return await apiClient.invokeAPI(
       path,
       'GET',
-      queryParams,
+      [],
       null,
       headerParams,
       {},
@@ -350,181 +217,301 @@ class OffenseInformationControllerApi {
     );
   }
 
-  Future<List<OffenseInformation>> apiOffensesTimeRangeGet(
-      {String? startTime, String? endTime}) async {
+  Future<List<OffenseInformation>> apiOffensesTimeRangeGet({
+    required DateTime startTime,
+    required DateTime endTime,
+    int page = 0,
+    int size = 10,
+  }) async {
     final response = await apiOffensesTimeRangeGetWithHttpInfo(
-        startTime: startTime, endTime: endTime);
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-      return jsonList.map((json) => OffenseInformation.fromJson(json)).toList();
-    } else {
+      startTime: startTime,
+      endTime: endTime,
+      page: page,
+      size: size,
+    );
+    if (response.statusCode == 200) {
+      if (response.body.isNotEmpty) {
+        final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+        return jsonList.map((json) => OffenseInformation.fromJson(json)).toList();
+      }
       return [];
     }
+    throw ApiException(response.statusCode, _decodeBodyBytes(response));
+  }
+
+  // --- GET /api/offenses/processState/{processState} ---
+  Future<http.Response> apiOffensesProcessStateGetWithHttpInfo({
+    required String processState,
+    int page = 0,
+    int size = 10,
+  }) async {
+    final path = '/api/offenses/processState/${Uri.encodeComponent(processState)}?page=$page&size=$size';
+    final headerParams = await _getHeaders();
+
+    return await apiClient.invokeAPI(
+      path,
+      'GET',
+      [],
+      null,
+      headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
+  }
+
+  Future<List<OffenseInformation>> apiOffensesProcessStateGet({
+    required String processState,
+    int page = 0,
+    int size = 10,
+  }) async {
+    final response = await apiOffensesProcessStateGetWithHttpInfo(
+      processState: processState,
+      page: page,
+      size: size,
+    );
+    if (response.statusCode == 200) {
+      if (response.body.isNotEmpty) {
+        final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+        return jsonList.map((json) => OffenseInformation.fromJson(json)).toList();
+      }
+      return [];
+    }
+    throw ApiException(response.statusCode, _decodeBodyBytes(response));
+  }
+
+  // --- GET /api/offenses/driverName/{driverName} ---
+  Future<http.Response> apiOffensesDriverNameGetWithHttpInfo({
+    required String driverName,
+    int page = 0,
+    int size = 10,
+  }) async {
+    final path = '/api/offenses/driverName/${Uri.encodeComponent(driverName)}?page=$page&size=$size';
+    final headerParams = await _getHeaders();
+
+    return await apiClient.invokeAPI(
+      path,
+      'GET',
+      [],
+      null,
+      headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
+  }
+
+  Future<List<OffenseInformation>> apiOffensesDriverNameGet({
+    required String driverName,
+    int page = 0,
+    int size = 10,
+  }) async {
+    final response = await apiOffensesDriverNameGetWithHttpInfo(
+      driverName: driverName,
+      page: page,
+      size: size,
+    );
+    if (response.statusCode == 200) {
+      if (response.body.isNotEmpty) {
+        final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+        return jsonList.map((json) => OffenseInformation.fromJson(json)).toList();
+      }
+      return [];
+    }
+    throw ApiException(response.statusCode, _decodeBodyBytes(response));
+  }
+
+  // --- GET /api/offenses/licensePlate/{licensePlate} ---
+  Future<http.Response> apiOffensesLicensePlateGetWithHttpInfo({
+    required String licensePlate,
+    int page = 0,
+    int size = 10,
+  }) async {
+    final path = '/api/offenses/licensePlate/${Uri.encodeComponent(licensePlate)}?page=$page&size=$size';
+    final headerParams = await _getHeaders();
+
+    return await apiClient.invokeAPI(
+      path,
+      'GET',
+      [],
+      null,
+      headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
+  }
+
+  Future<List<OffenseInformation>> apiOffensesLicensePlateGet({
+    required String licensePlate,
+    int page = 0,
+    int size = 10,
+  }) async {
+    final response = await apiOffensesLicensePlateGetWithHttpInfo(
+      licensePlate: licensePlate,
+      page: page,
+      size: size,
+    );
+    if (response.statusCode == 200) {
+      if (response.body.isNotEmpty) {
+        final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+        return jsonList.map((json) => OffenseInformation.fromJson(json)).toList();
+      }
+      return [];
+    }
+    throw ApiException(response.statusCode, _decodeBodyBytes(response));
   }
 
   // --- WebSocket Methods ---
 
   // getAllOffenses (WebSocket)
-  Future<List<OffenseInformation>?> eventbusOffensesGet() async {
+  Future<List<OffenseInformation>?> eventbusOffensesGet({int page = 0, int size = 10}) async {
     final msg = {
-      "service": "OffenseInformation",
-      "action": "getAllOffenses",
-      "args": []
+      'service': 'OffenseInformationService',
+      'action': 'getOffensesInformation',
+      'args': [page, size],
     };
     final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey("error")) throw ApiException(400, respMap["error"]);
-    if (respMap["result"] is List) {
-      return (respMap["result"] as List)
-          .map((json) => OffenseInformation.fromJson(json))
-          .toList();
+    if (respMap.containsKey('error')) throw ApiException(400, respMap['error']);
+    if (respMap['result'] is List) {
+      return (respMap['result'] as List).map((json) => OffenseInformation.fromJson(json)).toList();
     }
-    return null;
-  }
-
-  // getOffensesByDriverName (WebSocket)
-  Future<List<OffenseInformation>?> eventbusOffensesDriverNameDriverNameGet(
-      {required String driverName}) async {
-    final msg = {
-      "service": "OffenseInformation",
-      "action": "getOffensesByDriverName",
-      "args": [driverName]
-    };
-    final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey("error")) throw ApiException(400, respMap["error"]);
-    if (respMap["result"] is List) {
-      return (respMap["result"] as List)
-          .map((json) => OffenseInformation.fromJson(json))
-          .toList();
-    }
-    return null;
-  }
-
-  // getOffensesByLicensePlate (WebSocket)
-  Future<List<OffenseInformation>?> eventbusOffensesLicensePlateLicensePlateGet(
-      {required String licensePlate}) async {
-    final msg = {
-      "service": "OffenseInformation",
-      "action": "getOffensesByLicensePlate",
-      "args": [licensePlate]
-    };
-    final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey("error")) throw ApiException(400, respMap["error"]);
-    if (respMap["result"] is List) {
-      return (respMap["result"] as List)
-          .map((json) => OffenseInformation.fromJson(json))
-          .toList();
-    }
-    return null;
-  }
-
-  // deleteOffense (WebSocket)
-  Future<void> eventbusOffensesOffenseIdDelete(
-      {required String offenseId}) async {
-    final msg = {
-      "service": "OffenseInformation",
-      "action": "deleteOffense",
-      "args": [int.parse(offenseId)]
-    };
-    final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey("error")) throw ApiException(400, respMap["error"]);
+    return [];
   }
 
   // getOffenseById (WebSocket)
-  Future<OffenseInformation?> eventbusOffensesOffenseIdGet(
-      {required String offenseId}) async {
+  Future<OffenseInformation?> eventbusOffensesOffenseIdGet({required int offenseId}) async {
     final msg = {
-      "service": "OffenseInformation",
-      "action": "getOffenseById",
-      "args": [int.parse(offenseId)]
+      'service': 'OffenseInformationService',
+      'action': 'getOffenseByOffenseId',
+      'args': [offenseId],
     };
     final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey("error")) throw ApiException(400, respMap["error"]);
-    if (respMap["result"] != null) {
-      return OffenseInformation.fromJson(respMap["result"]);
-    }
-    return null;
-  }
-
-  // updateOffense (WebSocket)
-  Future<OffenseInformation?> eventbusOffensesOffenseIdPut({
-    required String offenseId,
-    required OffenseInformation offenseInformation,
-    required String idempotencyKey,
-  }) async {
-    if (idempotencyKey.isEmpty) {
-      throw ApiException(400, "Missing required param: idempotencyKey");
-    }
-    final offenseMap = offenseInformation.toJson();
-    final msg = {
-      "service": "OffenseInformation",
-      "action": "updateOffense",
-      "args": [int.parse(offenseId), offenseMap, idempotencyKey]
-    };
-    final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey("error")) throw ApiException(400, respMap["error"]);
-    if (respMap["result"] != null) {
-      return OffenseInformation.fromJson(respMap["result"]);
+    if (respMap.containsKey('error')) throw ApiException(400, respMap['error']);
+    if (respMap['result'] != null) {
+      return OffenseInformation.fromJson(respMap['result']);
     }
     return null;
   }
 
   // createOffense (WebSocket)
-  Future<OffenseInformation?> eventbusOffensesPost({
+  Future<void> eventbusOffensesPost({
     required OffenseInformation offenseInformation,
     required String idempotencyKey,
   }) async {
-    if (idempotencyKey.isEmpty) {
-      throw ApiException(400, "Missing required param: idempotencyKey");
-    }
-    final offenseMap = offenseInformation.toJson();
     final msg = {
-      "service": "OffenseInformation",
-      "action": "createOffense",
-      "args": [offenseMap, idempotencyKey]
+      'service': 'OffenseInformationService',
+      'action': 'checkAndInsertIdempotency',
+      'args': [idempotencyKey, offenseInformation.toJson(), 'create'],
     };
     final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey("error")) throw ApiException(400, respMap["error"]);
-    if (respMap["result"] != null) {
-      return OffenseInformation.fromJson(respMap["result"]);
+    if (respMap.containsKey('error')) throw ApiException(400, respMap['error']);
+  }
+
+  // updateOffense (WebSocket)
+  Future<OffenseInformation?> eventbusOffensesOffenseIdPut({
+    required int offenseId,
+    required OffenseInformation offenseInformation,
+    required String idempotencyKey,
+  }) async {
+    final msg = {
+      'service': 'OffenseInformationService',
+      'action': 'checkAndInsertIdempotency',
+      'args': [idempotencyKey, offenseInformation.toJson(), 'update'],
+    };
+    final respMap = await apiClient.sendWsMessage(msg);
+    if (respMap.containsKey('error')) throw ApiException(400, respMap['error']);
+    if (respMap['result'] != null) {
+      return OffenseInformation.fromJson(respMap['result']);
     }
     return null;
   }
 
-  // getOffensesByProcessState (WebSocket)
-  Future<List<OffenseInformation>?> eventbusOffensesProcessStateProcessStateGet(
-      {required String processState}) async {
+  // deleteOffense (WebSocket)
+  Future<void> eventbusOffensesOffenseIdDelete({required int offenseId}) async {
     final msg = {
-      "service": "OffenseInformation",
-      "action": "getOffensesByProcessState",
-      "args": [processState]
+      'service': 'OffenseInformationService',
+      'action': 'deleteOffense',
+      'args': [offenseId],
     };
     final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey("error")) throw ApiException(400, respMap["error"]);
-    if (respMap["result"] is List) {
-      return (respMap["result"] as List)
-          .map((json) => OffenseInformation.fromJson(json))
-          .toList();
-    }
-    return null;
+    if (respMap.containsKey('error')) throw ApiException(400, respMap['error']);
   }
 
   // getOffensesByTimeRange (WebSocket)
-  Future<List<OffenseInformation>?> eventbusOffensesTimeRangeGet(
-      {String? startTime, String? endTime}) async {
+  Future<List<OffenseInformation>?> eventbusOffensesTimeRangeGet({
+    required DateTime startTime,
+    required DateTime endTime,
+    int page = 0,
+    int size = 10,
+  }) async {
     final msg = {
-      "service": "OffenseInformation",
-      "action": "getOffensesByTimeRange",
-      "args": [startTime ?? "", endTime ?? ""]
+      'service': 'OffenseInformationService',
+      'action': 'getOffensesByTimeRange',
+      'args': [startTime.toIso8601String(), endTime.toIso8601String(), page, size],
     };
     final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey("error")) throw ApiException(400, respMap["error"]);
-    if (respMap["result"] is List) {
-      return (respMap["result"] as List)
-          .map((json) => OffenseInformation.fromJson(json))
-          .toList();
+    if (respMap.containsKey('error')) throw ApiException(400, respMap['error']);
+    if (respMap['result'] is List) {
+      return (respMap['result'] as List).map((json) => OffenseInformation.fromJson(json)).toList();
     }
-    return null;
+    return [];
+  }
+
+  // getOffensesByProcessState (WebSocket)
+  Future<List<OffenseInformation>?> eventbusOffensesProcessStateGet({
+    required String processState,
+    int page = 0,
+    int size = 10,
+  }) async {
+    final msg = {
+      'service': 'OffenseInformationService',
+      'action': 'getOffensesByProcessState',
+      'args': [processState, page, size],
+    };
+    final respMap = await apiClient.sendWsMessage(msg);
+    if (respMap.containsKey('error')) throw ApiException(400, respMap['error']);
+    if (respMap['result'] is List) {
+      return (respMap['result'] as List).map((json) => OffenseInformation.fromJson(json)).toList();
+    }
+    return [];
+  }
+
+  // getOffensesByDriverName (WebSocket)
+  Future<List<OffenseInformation>?> eventbusOffensesDriverNameGet({
+    required String driverName,
+    int page = 0,
+    int size = 10,
+  }) async {
+    final msg = {
+      'service': 'OffenseInformationService',
+      'action': 'getOffensesByDriverName',
+      'args': [driverName, page, size],
+    };
+    final respMap = await apiClient.sendWsMessage(msg);
+    if (respMap.containsKey('error')) throw ApiException(400, respMap['error']);
+    if (respMap['result'] is List) {
+      return (respMap['result'] as List).map((json) => OffenseInformation.fromJson(json)).toList();
+    }
+    return [];
+  }
+
+  // getOffensesByLicensePlate (WebSocket)
+  Future<List<OffenseInformation>?> eventbusOffensesLicensePlateGet({
+    required String licensePlate,
+    int page = 0,
+    int size = 10,
+  }) async {
+    final msg = {
+      'service': 'OffenseInformationService',
+      'action': 'getOffensesByLicensePlate',
+      'args': [licensePlate, page, size],
+    };
+    final respMap = await apiClient.sendWsMessage(msg);
+    if (respMap.containsKey('error')) throw ApiException(400, respMap['error']);
+    if (respMap['result'] is List) {
+      return (respMap['result'] as List).map((json) => OffenseInformation.fromJson(json)).toList();
+    }
+    return [];
   }
 }

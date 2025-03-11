@@ -2,6 +2,7 @@ import 'dart:developer' as developer;
 import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 import 'package:final_assignment_front/features/model/driver_information.dart';
+import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -65,7 +66,7 @@ class _DriverListPageState extends State<DriverList> {
           stackTrace: StackTrace.current);
       setState(() {
         _isLoading = false;
-        _errorMessage = '加载司机信息失败: $e';
+        _errorMessage = _formatErrorMessage(e);
         if (e.toString().contains('未登录')) _redirectToLogin();
       });
     }
@@ -91,7 +92,7 @@ class _DriverListPageState extends State<DriverList> {
           stackTrace: StackTrace.current);
       setState(() {
         _isLoading = false;
-        _errorMessage = '搜索失败: $e';
+        _errorMessage = _formatErrorMessage(e);
         if (e.toString().contains('未登录')) _redirectToLogin();
       });
     }
@@ -108,9 +109,8 @@ class _DriverListPageState extends State<DriverList> {
     });
     try {
       await driverApi.initializeWithJwt();
-      final driver = await driverApi.apiDriversIdCardNumberIdCardNumberGet(
-          idCardNumber: query);
-      _driversFuture = Future.value(driver != null ? [driver] : []);
+      _driversFuture =
+          driverApi.apiDriversIdCardNumberIdCardNumberGet(idCardNumber: query);
       final drivers = await _driversFuture;
       developer.log('Searched drivers by ID card: $drivers');
       setState(() => _isLoading = false);
@@ -119,7 +119,7 @@ class _DriverListPageState extends State<DriverList> {
           stackTrace: StackTrace.current);
       setState(() {
         _isLoading = false;
-        _errorMessage = '搜索失败: $e';
+        _errorMessage = _formatErrorMessage(e);
         if (e.toString().contains('未登录')) _redirectToLogin();
       });
     }
@@ -148,26 +148,47 @@ class _DriverListPageState extends State<DriverList> {
           stackTrace: StackTrace.current);
       setState(() {
         _isLoading = false;
-        _errorMessage = '搜索失败: $e';
+        _errorMessage = _formatErrorMessage(e);
         if (e.toString().contains('未登录')) _redirectToLogin();
       });
     }
   }
 
   Future<void> _deleteDriver(String driverId) async {
+    final confirmed = await _showConfirmationDialog('确认删除', '您确定要删除此司机信息吗？');
+    if (!confirmed) return;
+
     try {
       await driverApi.initializeWithJwt();
       await driverApi.apiDriversDriverIdDelete(driverId: driverId);
       _showSnackBar('删除司机成功！');
       _loadDrivers();
     } catch (e) {
-      _showSnackBar('删除失败: $e', isError: true);
+      _showSnackBar(_formatErrorMessage(e), isError: true);
     }
   }
 
   void _redirectToLogin() {
     if (!mounted) return;
     Navigator.pushReplacementNamed(context, '/login');
+  }
+
+  String _formatErrorMessage(dynamic error) {
+    if (error is ApiException) {
+      switch (error.code) {
+        case 400:
+          return '请求错误: ${error.message}';
+        case 403:
+          return '无权限: ${error.message}';
+        case 404:
+          return '未找到: ${error.message}';
+        case 409:
+          return '重复请求: ${error.message}';
+        default:
+          return '服务器错误: ${error.message}';
+      }
+    }
+    return '操作失败: $error';
   }
 
   void _showSnackBar(String message, {bool isError = false}) {
@@ -185,17 +206,37 @@ class _DriverListPageState extends State<DriverList> {
     );
   }
 
+  Future<bool> _showConfirmationDialog(String title, String content) async {
+    if (!mounted) return false;
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text(title),
+            content: Text(content),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('取消'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('确定'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
   void _goToDetailPage(DriverInformation driver) {
     Navigator.push(
-            context,
-            MaterialPageRoute(
-                builder: (context) => DriverDetailPage(driver: driver)))
-        .then((value) {
+      context,
+      MaterialPageRoute(builder: (context) => DriverDetailPage(driver: driver)),
+    ).then((value) {
       if (value == true && mounted) _loadDrivers();
     });
   }
 
-  // Helper method to format DateTime to a readable string
   String _formatDateTime(DateTime? dateTime) {
     if (dateTime == null) return '无';
     return "${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')}";
@@ -256,10 +297,10 @@ class _DriverListPageState extends State<DriverList> {
                     color: themeData.colorScheme.onPrimaryContainer),
                 onPressed: () {
                   Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => const AddDriverPage()))
-                      .then((value) {
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const AddDriverPage()),
+                  ).then((value) {
                     if (value == true && mounted) _loadDrivers();
                   });
                 },
@@ -417,10 +458,9 @@ class _DriverListPageState extends State<DriverList> {
           floatingActionButton: FloatingActionButton(
             onPressed: () {
               Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => const AddDriverPage()))
-                  .then((value) {
+                context,
+                MaterialPageRoute(builder: (context) => const AddDriverPage()),
+              ).then((value) {
                 if (value == true && mounted) _loadDrivers();
               });
             },
@@ -528,7 +568,6 @@ class _AddDriverPageState extends State<AddDriverPage> {
     try {
       await driverApi.initializeWithJwt();
 
-      // Parse date strings to DateTime
       DateTime? birthdate = _birthdateController.text.trim().isEmpty
           ? null
           : DateTime.parse(_birthdateController.text.trim());
@@ -566,14 +605,16 @@ class _AddDriverPageState extends State<AddDriverPage> {
             : _allowedVehicleTypeController.text.trim(),
         issueDate: issueDate,
         expiryDate: expiryDate,
-        idempotencyKey: generateIdempotencyKey(),
       );
+      final idempotencyKey = generateIdempotencyKey();
       await driverApi.apiDriversPost(
-          driverInformation: driver, idempotencyKey: driver.idempotencyKey!);
+        driverInformation: driver,
+        idempotencyKey: idempotencyKey,
+      );
       _showSnackBar('创建司机成功！');
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
-      _showSnackBar('创建司机失败: $e', isError: true);
+      _showSnackBar(_formatErrorMessage(e), isError: true);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -607,6 +648,20 @@ class _AddDriverPageState extends State<AddDriverPage> {
             "${pickedDate.year}-${pickedDate.month.toString().padLeft(2, '0')}-${pickedDate.day.toString().padLeft(2, '0')}";
       });
     }
+  }
+
+  String _formatErrorMessage(dynamic error) {
+    if (error is ApiException) {
+      switch (error.code) {
+        case 400:
+          return '请求错误: ${error.message}';
+        case 409:
+          return '重复请求: ${error.message}';
+        default:
+          return '服务器错误: ${error.message}';
+      }
+    }
+    return '操作失败: $error';
   }
 
   @override
@@ -821,7 +876,6 @@ class _EditDriverPageState extends State<EditDriverPage> {
     try {
       await driverApi.initializeWithJwt();
 
-      // Parse date strings to DateTime
       DateTime? birthdate = _birthdateController.text.trim().isEmpty
           ? null
           : DateTime.parse(_birthdateController.text.trim());
@@ -860,17 +914,17 @@ class _EditDriverPageState extends State<EditDriverPage> {
             : _allowedVehicleTypeController.text.trim(),
         issueDate: issueDate,
         expiryDate: expiryDate,
-        idempotencyKey: generateIdempotencyKey(),
       );
+      final idempotencyKey = generateIdempotencyKey();
       await driverApi.apiDriversDriverIdPut(
         driverId: widget.driver.driverId?.toString() ?? '',
         driverInformation: driver,
-        idempotencyKey: driver.idempotencyKey!,
+        idempotencyKey: idempotencyKey,
       );
       _showSnackBar('更新司机成功！');
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
-      _showSnackBar('更新司机失败: $e', isError: true);
+      _showSnackBar(_formatErrorMessage(e), isError: true);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -904,6 +958,22 @@ class _EditDriverPageState extends State<EditDriverPage> {
             "${pickedDate.year}-${pickedDate.month.toString().padLeft(2, '0')}-${pickedDate.day.toString().padLeft(2, '0')}";
       });
     }
+  }
+
+  String _formatErrorMessage(dynamic error) {
+    if (error is ApiException) {
+      switch (error.code) {
+        case 400:
+          return '请求错误: ${error.message}';
+        case 404:
+          return '未找到: ${error.message}';
+        case 409:
+          return '重复请求: ${error.message}';
+        default:
+          return '服务器错误: ${error.message}';
+      }
+    }
+    return '操作失败: $error';
   }
 
   @override
@@ -1052,11 +1122,21 @@ class DriverDetailPage extends StatefulWidget {
 
 class _DriverDetailPageState extends State<DriverDetailPage> {
   final driverApi = DriverInformationControllerApi();
+  late DriverInformation _driver;
   bool _isLoading = false;
   final UserDashboardController controller =
       Get.find<UserDashboardController>();
 
+  @override
+  void initState() {
+    super.initState();
+    _driver = widget.driver;
+  }
+
   Future<void> _deleteDriver(String driverId) async {
+    final confirmed = await _showConfirmationDialog('确认删除', '您确定要删除此司机信息吗？');
+    if (!confirmed) return;
+
     setState(() => _isLoading = true);
     try {
       await driverApi.initializeWithJwt();
@@ -1064,7 +1144,7 @@ class _DriverDetailPageState extends State<DriverDetailPage> {
       _showSnackBar('删除司机成功！');
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
-      _showSnackBar('删除失败: $e', isError: true);
+      _showSnackBar(_formatErrorMessage(e), isError: true);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -1085,27 +1165,62 @@ class _DriverDetailPageState extends State<DriverDetailPage> {
     );
   }
 
-  // Helper method to format DateTime to a readable string
+  Future<bool> _showConfirmationDialog(String title, String content) async {
+    if (!mounted) return false;
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text(title),
+            content: Text(content),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('取消'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('确定'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
   String _formatDateTime(DateTime? dateTime) {
     if (dateTime == null) return '无';
     return "${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')}";
+  }
+
+  String _formatErrorMessage(dynamic error) {
+    if (error is ApiException) {
+      switch (error.code) {
+        case 403:
+          return '无权限: ${error.message}';
+        case 404:
+          return '未找到: ${error.message}';
+        default:
+          return '服务器错误: ${error.message}';
+      }
+    }
+    return '操作失败: $error';
   }
 
   @override
   Widget build(BuildContext context) {
     return Obx(() {
       final themeData = controller.currentBodyTheme.value;
-      final name = widget.driver.name ?? '未知';
-      final idCard = widget.driver.idCardNumber ?? '无';
-      final contact = widget.driver.contactNumber ?? '无';
-      final license = widget.driver.driverLicenseNumber ?? '无';
-      final gender = widget.driver.gender ?? '未知';
-      final birthdate = _formatDateTime(widget.driver.birthdate);
-      final firstLicenseDate = _formatDateTime(widget.driver.firstLicenseDate);
-      final allowedVehicleType = widget.driver.allowedVehicleType ?? '无';
-      final issueDate = _formatDateTime(widget.driver.issueDate);
-      final expiryDate = _formatDateTime(widget.driver.expiryDate);
-      final driverId = widget.driver.driverId?.toString() ?? '0';
+      final name = _driver.name ?? '未知';
+      final idCard = _driver.idCardNumber ?? '无';
+      final contact = _driver.contactNumber ?? '无';
+      final license = _driver.driverLicenseNumber ?? '无';
+      final gender = _driver.gender ?? '未知';
+      final birthdate = _formatDateTime(_driver.birthdate);
+      final firstLicenseDate = _formatDateTime(_driver.firstLicenseDate);
+      final allowedVehicleType = _driver.allowedVehicleType ?? '无';
+      final issueDate = _formatDateTime(_driver.issueDate);
+      final expiryDate = _formatDateTime(_driver.expiryDate);
+      final driverId = _driver.driverId?.toString() ?? '0';
 
       return Theme(
         data: themeData,
@@ -1125,12 +1240,17 @@ class _DriverDetailPageState extends State<DriverDetailPage> {
                     color: themeData.colorScheme.onPrimaryContainer),
                 onPressed: () {
                   Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) =>
-                                  EditDriverPage(driver: widget.driver)))
-                      .then((value) {
-                    if (value == true && mounted) setState(() {});
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => EditDriverPage(driver: _driver)),
+                  ).then((value) {
+                    if (value == true && mounted) {
+                      setState(() {
+                        _driver =
+                            widget.driver; // Refresh driver data if needed
+                      });
+                      _loadDriverDetails();
+                    }
                   });
                 },
                 tooltip: '编辑司机信息',
@@ -1175,6 +1295,21 @@ class _DriverDetailPageState extends State<DriverDetailPage> {
         ),
       );
     });
+  }
+
+  Future<void> _loadDriverDetails() async {
+    try {
+      await driverApi.initializeWithJwt();
+      final updatedDriver = await driverApi.apiDriversDriverIdGet(
+          driverId: _driver.driverId.toString());
+      if (updatedDriver != null && mounted) {
+        setState(() {
+          _driver = updatedDriver;
+        });
+      }
+    } catch (e) {
+      _showSnackBar(_formatErrorMessage(e), isError: true);
+    }
   }
 
   Widget _buildDetailRow(ThemeData themeData, String label, String value) {

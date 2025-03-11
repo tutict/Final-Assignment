@@ -13,6 +13,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.logging.Logger;
 
@@ -145,6 +146,7 @@ public class UserManagementService {
     public void updateUser(UserManagement user) {
         try {
             userManagementMapper.updateById(user);
+            user.setModifiedTime(LocalDateTime.now());
         } catch (Exception e) {
             log.warning("Exception occurred while updating user: " + e.getMessage());
             throw new RuntimeException("Failed to update user", e);

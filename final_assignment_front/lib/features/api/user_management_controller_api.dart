@@ -13,6 +13,15 @@ class UserManagementControllerApi {
   UserManagementControllerApi([ApiClient? apiClient])
       : apiClient = apiClient ?? defaultApiClient;
 
+  Future<void> initializeWithJwt() async {
+    final prefs = await SharedPreferences.getInstance();
+    final jwtToken = prefs.getString('jwtToken');
+    if (jwtToken == null) {
+      throw Exception('未登录，请重新登录');
+    }
+    apiClient.setJwtToken(jwtToken);
+  }
+
   String _decodeBodyBytes(http.Response response) => response.body;
 
   Future<Map<String, String>> _getHeaders() async {

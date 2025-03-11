@@ -10,17 +10,16 @@ import io.vertx.core.AbstractVerticle;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.*;
-import io.vertx.ext.web.client.HttpResponse;
-import io.vertx.ext.web.client.WebClient;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
+import io.vertx.ext.web.client.HttpResponse;
+import io.vertx.ext.web.client.WebClient;
 import io.vertx.ext.web.handler.CorsHandler;
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
-
-import jakarta.annotation.PostConstruct;
 
 import java.lang.reflect.Method;
 import java.util.Set;
@@ -261,10 +260,12 @@ public class NetWorkHandler extends AbstractVerticle {
         MultiMap queryParams = request.params();
         log.info("[{}] Query params: {}", requestId, queryParams);
 
-        if (request.method() == HttpMethod.GET) {
+        HttpMethod method = request.method();
+        var httpRequest = webClient.requestAbs(method, targetUrl).putHeaders(headers);
+        queryParams.forEach(entry -> httpRequest.addQueryParam(entry.getKey(), entry.getValue()));
+
+        if (method == HttpMethod.GET) {
             log.info("[{}] Forwarding GET request with query params: {}", requestId, queryParams);
-            var httpRequest = webClient.getAbs(targetUrl).putHeaders(headers);
-            queryParams.forEach(entry -> httpRequest.addQueryParam(entry.getKey(), entry.getValue()));
             httpRequest.send()
                     .onSuccess(response -> handleResponse(request, response, requestId))
                     .onFailure(failure -> {
@@ -275,14 +276,18 @@ public class NetWorkHandler extends AbstractVerticle {
             request.bodyHandler(body -> {
                 try {
                     String contentType = request.getHeader("Content-Type");
-                    if (contentType != null && contentType.toLowerCase().contains("text/plain")) {
-                        // Handle text/plain as a raw string
+                    if (body.length() == 0 && method != HttpMethod.DELETE) {
+                        log.info("[{}] No body provided, proceeding with empty request", requestId);
+                        httpRequest.send()
+                                .onSuccess(response -> handleResponse(request, response, requestId))
+                                .onFailure(failure -> {
+                                    log.error("[{}] Forwarding HTTP request failed: {}", requestId, failure.getMessage(), failure);
+                                    request.response().setStatusCode(500).setStatusMessage("Forwarding failed").end();
+                                });
+                    } else if (contentType != null && contentType.toLowerCase().contains("text/plain")) {
                         String rawBody = body.toString();
                         log.info("[{}] raw body: {}", requestId, rawBody);
-                        var httpRequest = webClient.requestAbs(request.method(), targetUrl)
-                                .putHeaders(headers)
-                                .putHeader("Content-Type", contentType); // Preserve original content type
-                        queryParams.forEach(entry -> httpRequest.addQueryParam(entry.getKey(), entry.getValue()));
+                        httpRequest.putHeader("Content-Type", contentType);
                         httpRequest.sendBuffer(Buffer.buffer(rawBody))
                                 .onSuccess(response -> handleResponse(request, response, requestId))
                                 .onFailure(failure -> {
@@ -290,13 +295,9 @@ public class NetWorkHandler extends AbstractVerticle {
                                     request.response().setStatusCode(500).setStatusMessage("Forwarding failed").end();
                                 });
                     } else if (contentType != null && contentType.toLowerCase().contains("application/json")) {
-                        // Handle application/json as a JSON object
                         JsonObject jsonBody = body.toJsonObject();
                         log.info("[{}] body2: {}", requestId, jsonBody);
-                        var httpRequest = webClient.requestAbs(request.method(), targetUrl)
-                                .putHeaders(headers)
-                                .putHeader("Content-Type", "application/json");
-                        queryParams.forEach(entry -> httpRequest.addQueryParam(entry.getKey(), entry.getValue()));
+                        httpRequest.putHeader("Content-Type", "application/json");
                         httpRequest.sendJsonObject(jsonBody)
                                 .onSuccess(response -> handleResponse(request, response, requestId))
                                 .onFailure(failure -> {
@@ -304,11 +305,7 @@ public class NetWorkHandler extends AbstractVerticle {
                                     request.response().setStatusCode(500).setStatusMessage("Forwarding failed").end();
                                 });
                     } else {
-                        // Default to raw buffer for unrecognized content types
                         log.warn("[{}] Unrecognized Content-Type: {}, forwarding as raw buffer", requestId, contentType);
-                        var httpRequest = webClient.requestAbs(request.method(), targetUrl)
-                                .putHeaders(headers);
-                        queryParams.forEach(entry -> httpRequest.addQueryParam(entry.getKey(), entry.getValue()));
                         httpRequest.sendBuffer(body)
                                 .onSuccess(response -> handleResponse(request, response, requestId))
                                 .onFailure(failure -> {

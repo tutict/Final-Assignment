@@ -1,38 +1,17 @@
+import 'package:flutter/foundation.dart';
+
 class VehicleInformation {
-  /* 车辆 ID，主键，自动增长 */
   int? vehicleId;
-
-  /* 车牌号 */
   String? licensePlate;
-
-  /* 车辆类型 */
   String? vehicleType;
-
-  /* 车主姓名 */
   String? ownerName;
-
-  /* 身份证号码 */
   String? idCardNumber;
-
-  /* 联系电话 */
   String? contactNumber;
-
-  /* 发动机号 */
   String? engineNumber;
-
-  /* 车架号 */
   String? frameNumber;
-
-  /* 车身颜色 */
   String? vehicleColor;
-
-  /* 首次注册日期 */
   DateTime? firstRegistrationDate;
-
-  /* 当前状态 */
   String? currentStatus;
-
-  String? idempotencyKey;
 
   VehicleInformation({
     this.vehicleId,
@@ -46,12 +25,11 @@ class VehicleInformation {
     this.vehicleColor,
     this.firstRegistrationDate,
     this.currentStatus,
-    this.idempotencyKey, // Optional, nullable
   });
 
   @override
   String toString() {
-    return 'VehicleInformation[vehicleId=$vehicleId, licensePlate=$licensePlate, vehicleType=$vehicleType, ownerName=$ownerName, idCardNumber=$idCardNumber, contactNumber=$contactNumber, engineNumber=$engineNumber, frameNumber=$frameNumber, vehicleColor=$vehicleColor, firstRegistrationDate=$firstRegistrationDate, currentStatus=$currentStatus, idempotencyKey=$idempotencyKey]';
+    return 'VehicleInformation[vehicleId=$vehicleId, licensePlate=$licensePlate, vehicleType=$vehicleType, ownerName=$ownerName, idCardNumber=$idCardNumber, contactNumber=$contactNumber, engineNumber=$engineNumber, frameNumber=$frameNumber, vehicleColor=$vehicleColor, firstRegistrationDate=$firstRegistrationDate, currentStatus=$currentStatus]';
   }
 
   factory VehicleInformation.fromJson(Map<String, dynamic> json) {
@@ -66,28 +44,35 @@ class VehicleInformation {
       frameNumber: json['frameNumber'] as String?,
       vehicleColor: json['vehicleColor'] as String?,
       firstRegistrationDate: json['firstRegistrationDate'] != null
-          ? DateTime.parse(json['firstRegistrationDate'] as String)
+          ? _parseDateTime(json['firstRegistrationDate'] as String)
           : null,
       currentStatus: json['currentStatus'] as String?,
-      idempotencyKey: json['idempotencyKey'] as String?,
     );
   }
 
+  static DateTime? _parseDateTime(String dateStr) {
+    try {
+      return DateTime.parse(dateStr);
+    } catch (e) {
+      debugPrint('Invalid date format: $dateStr, error: $e');
+      return null;
+    }
+  }
+
   Map<String, dynamic> toJson() {
-    final Map<String, dynamic> json = {};
-    if (vehicleId != null) json['vehicleId'] = vehicleId;
-    if (licensePlate != null) json['licensePlate'] = licensePlate;
-    if (vehicleType != null) json['vehicleType'] = vehicleType;
-    if (ownerName != null) json['ownerName'] = ownerName;
-    if (idCardNumber != null) json['idCardNumber'] = idCardNumber;
-    if (contactNumber != null) json['contactNumber'] = contactNumber;
-    if (engineNumber != null) json['engineNumber'] = engineNumber;
-    if (frameNumber != null) json['frameNumber'] = frameNumber;
-    if (vehicleColor != null) json['vehicleColor'] = vehicleColor;
-    if (firstRegistrationDate != null) json['firstRegistrationDate'] = firstRegistrationDate!.toIso8601String();
-    if (currentStatus != null) json['currentStatus'] = currentStatus;
-    if (idempotencyKey != null) json['idempotencyKey'] = idempotencyKey;
-    return json;
+    return {
+      'vehicleId': vehicleId,
+      'licensePlate': licensePlate ?? '',
+      'vehicleType': vehicleType ?? '',
+      'ownerName': ownerName ?? '',
+      'idCardNumber': idCardNumber,
+      'contactNumber': contactNumber,
+      'engineNumber': engineNumber,
+      'frameNumber': frameNumber,
+      'vehicleColor': vehicleColor,
+      'firstRegistrationDate': firstRegistrationDate?.toIso8601String(),
+      'currentStatus': currentStatus,
+    };
   }
 
   VehicleInformation copyWith({
@@ -102,7 +87,6 @@ class VehicleInformation {
     String? vehicleColor,
     DateTime? firstRegistrationDate,
     String? currentStatus,
-    String? idempotencyKey,
   }) {
     return VehicleInformation(
       vehicleId: vehicleId ?? this.vehicleId,
@@ -116,9 +100,52 @@ class VehicleInformation {
       vehicleColor: vehicleColor ?? this.vehicleColor,
       firstRegistrationDate: firstRegistrationDate ?? this.firstRegistrationDate,
       currentStatus: currentStatus ?? this.currentStatus,
-      idempotencyKey: idempotencyKey ?? this.idempotencyKey,
     );
   }
+
+  void validateForCreation() {
+    if (licensePlate == null || licensePlate!.isEmpty) {
+      throw Exception('车牌号不能为空');
+    }
+    if (vehicleType == null || vehicleType!.isEmpty) {
+      throw Exception('车辆类型不能为空');
+    }
+    if (ownerName == null || ownerName!.isEmpty) {
+      throw Exception('车主姓名不能为空');
+    }
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+          other is VehicleInformation &&
+              runtimeType == other.runtimeType &&
+              vehicleId == other.vehicleId &&
+              licensePlate == other.licensePlate &&
+              vehicleType == other.vehicleType &&
+              ownerName == other.ownerName &&
+              idCardNumber == other.idCardNumber &&
+              contactNumber == other.contactNumber &&
+              engineNumber == other.engineNumber &&
+              frameNumber == other.frameNumber &&
+              vehicleColor == other.vehicleColor &&
+              firstRegistrationDate == other.firstRegistrationDate &&
+              currentStatus == other.currentStatus;
+
+  @override
+  int get hashCode => Object.hash(
+    vehicleId,
+    licensePlate,
+    vehicleType,
+    ownerName,
+    idCardNumber,
+    contactNumber,
+    engineNumber,
+    frameNumber,
+    vehicleColor,
+    firstRegistrationDate,
+    currentStatus,
+  );
 
   static List<VehicleInformation> listFromJson(List<dynamic> json) {
     return json
@@ -135,7 +162,6 @@ class VehicleInformation {
     return map;
   }
 
-  // Maps a JSON object with a list of VehicleInformation objects as value to a Dart map
   static Map<String, List<VehicleInformation>> mapListFromJson(Map<String, dynamic> json) {
     var map = <String, List<VehicleInformation>>{};
     if (json.isNotEmpty) {

@@ -3,9 +3,11 @@ package com.tutict.finalassignmentbackend.service;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.RequestHistory;
-import com.tutict.finalassignmentbackend.mapper.OffenseInformationMapper;
+import com.tutict.finalassignmentbackend.entity.elastic.OffenseInformationDocument;
 import com.tutict.finalassignmentbackend.entity.OffenseInformation;
+import com.tutict.finalassignmentbackend.mapper.OffenseInformationMapper;
 import com.tutict.finalassignmentbackend.mapper.RequestHistoryMapper;
+import com.tutict.finalassignmentbackend.repository.OffenseInformationSearchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -16,8 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Date;
 import java.util.List;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
-// 定义一个服务类，用于处理违规信息的相关操作
 @Service
 public class OffenseInformationService {
 
@@ -26,28 +28,29 @@ public class OffenseInformationService {
     private final OffenseInformationMapper offenseInformationMapper;
     private final RequestHistoryMapper requestHistoryMapper;
     private final KafkaTemplate<String, OffenseInformation> kafkaTemplate;
+    private final OffenseInformationSearchRepository offenseSearchRepository;
 
     @Autowired
     public OffenseInformationService(OffenseInformationMapper offenseInformationMapper,
                                      RequestHistoryMapper requestHistoryMapper,
-                                     KafkaTemplate<String, OffenseInformation> kafkaTemplate) {
+                                     KafkaTemplate<String, OffenseInformation> kafkaTemplate,
+                                     OffenseInformationSearchRepository offenseSearchRepository) {
         this.offenseInformationMapper = offenseInformationMapper;
         this.requestHistoryMapper = requestHistoryMapper;
         this.kafkaTemplate = kafkaTemplate;
+        this.offenseSearchRepository = offenseSearchRepository;
     }
 
     @Transactional
     @CacheEvict(cacheNames = "offenseCache", allEntries = true)
     @WsAction(service = "OffenseInformationService", action = "checkAndInsertIdempotency")
     public void checkAndInsertIdempotency(String idempotencyKey, OffenseInformation offenseInformation, String action) {
-        // 查询 request_history
         RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
         if (existingRequest != null) {
             log.warning(String.format("Duplicate request detected (idempotencyKey=%s)", idempotencyKey));
             throw new RuntimeException("Duplicate request detected");
         }
 
-        // 不存在 -> 插入一条 PROCESSING
         RequestHistory newRequest = new RequestHistory();
         newRequest.setIdempotentKey(idempotencyKey);
         newRequest.setBusinessStatus("PROCESSING");
@@ -59,7 +62,7 @@ public class OffenseInformationService {
             throw new RuntimeException("Duplicate request or DB insert error", e);
         }
 
-        sendKafkaMessage("offense_"+action, offenseInformation);
+        sendKafkaMessage("offense_" + action, offenseInformation);
 
         Integer offenseId = offenseInformation.getOffenseId();
         newRequest.setBusinessStatus("SUCCESS");
@@ -76,6 +79,8 @@ public class OffenseInformationService {
         } else {
             offenseInformationMapper.updateById(offenseInformation);
         }
+        // Sync with Elasticsearch
+        offenseSearchRepository.save(OffenseInformationDocument.fromEntity(offenseInformation));
     }
 
     @Transactional
@@ -87,6 +92,8 @@ public class OffenseInformationService {
         } else {
             offenseInformationMapper.updateById(offenseInformation);
         }
+        // Sync with Elasticsearch
+        offenseSearchRepository.save(OffenseInformationDocument.fromEntity(offenseInformation));
     }
 
     @Transactional
@@ -99,6 +106,7 @@ public class OffenseInformationService {
         int result = offenseInformationMapper.deleteById(offenseId);
         if (result > 0) {
             log.info(String.format("Offense with ID %s deleted successfully", offenseId));
+            offenseSearchRepository.deleteById(offenseId); // Sync with Elasticsearch
         } else {
             log.severe(String.format("Failed to delete offense with ID %s", offenseId));
         }
@@ -108,7 +116,7 @@ public class OffenseInformationService {
     @WsAction(service = "OffenseInformationService", action = "getOffenseByOffenseId")
     public OffenseInformation getOffenseByOffenseId(Integer offenseId) {
         if (offenseId == null || offenseId <= 0 || offenseId >= Integer.MAX_VALUE) {
-            throw new IllegalArgumentException("Invalid offense ID" + offenseId);
+            throw new IllegalArgumentException("Invalid offense ID: " + offenseId);
         }
         return offenseInformationMapper.selectById(offenseId);
     }
@@ -136,9 +144,10 @@ public class OffenseInformationService {
         if (processState == null || processState.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid process state");
         }
-        QueryWrapper<OffenseInformation> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("process_status", processState);
-        return offenseInformationMapper.selectList(queryWrapper);
+        return offenseSearchRepository.findByProcessStatus(processState)
+                .stream()
+                .map(OffenseInformationDocument::toEntity)
+                .collect(Collectors.toList());
     }
 
     @Cacheable(cacheNames = "offenseCache")
@@ -147,9 +156,10 @@ public class OffenseInformationService {
         if (driverName == null || driverName.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid driver name");
         }
-        QueryWrapper<OffenseInformation> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("driver_name", driverName);
-        return offenseInformationMapper.selectList(queryWrapper);
+        return offenseSearchRepository.findByDriverName(driverName)
+                .stream()
+                .map(OffenseInformationDocument::toEntity)
+                .collect(Collectors.toList());
     }
 
     @Cacheable(cacheNames = "offenseCache")
@@ -158,9 +168,10 @@ public class OffenseInformationService {
         if (offenseLicensePlate == null || offenseLicensePlate.trim().isEmpty()) {
             throw new IllegalArgumentException("Invalid license plate");
         }
-        QueryWrapper<OffenseInformation> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("license_plate", offenseLicensePlate);
-        return offenseInformationMapper.selectList(queryWrapper);
+        return offenseSearchRepository.findByLicensePlate(offenseLicensePlate)
+                .stream()
+                .map(OffenseInformationDocument::toEntity)
+                .collect(Collectors.toList());
     }
 
     private void sendKafkaMessage(String topic, OffenseInformation offenseInformation) {

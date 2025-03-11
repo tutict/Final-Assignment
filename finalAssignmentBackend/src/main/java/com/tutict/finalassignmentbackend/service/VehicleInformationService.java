@@ -34,10 +34,11 @@ public class VehicleInformationService {
     private final VehicleInformationSearchRepository vehicleInformationSearchRepository;
 
     @Autowired
-    public VehicleInformationService(VehicleInformationMapper vehicleInformationMapper,
-                                     RequestHistoryMapper requestHistoryMapper,
-                                     KafkaTemplate<String, VehicleInformation> kafkaTemplate,
-                                     VehicleInformationSearchRepository vehicleInformationSearchRepository) {
+    public VehicleInformationService(
+            VehicleInformationMapper vehicleInformationMapper,
+            RequestHistoryMapper requestHistoryMapper,
+            KafkaTemplate<String, VehicleInformation> kafkaTemplate,
+            VehicleInformationSearchRepository vehicleInformationSearchRepository) {
         this.vehicleInformationMapper = vehicleInformationMapper;
         this.requestHistoryMapper = requestHistoryMapper;
         this.kafkaTemplate = kafkaTemplate;
@@ -48,6 +49,10 @@ public class VehicleInformationService {
     @CacheEvict(cacheNames = "vehicleCache", allEntries = true)
     @WsAction(service = "VehicleInformationService", action = "checkAndInsertIdempotency")
     public void checkAndInsertIdempotency(String idempotencyKey, VehicleInformation vehicleInformation, String action) {
+        if (idempotencyKey == null || idempotencyKey.trim().isEmpty()) {
+            throw new IllegalArgumentException("Idempotency key cannot be null or empty");
+        }
+
         RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
         if (existingRequest != null) {
             log.warning(String.format("Duplicate request detected (idempotencyKey=%s)", idempotencyKey));
@@ -61,8 +66,8 @@ public class VehicleInformationService {
         try {
             requestHistoryMapper.insert(newRequest);
         } catch (Exception e) {
-            log.severe("Failed to insert requestHistory for idempotencyKey=" + idempotencyKey + ", " + e.getMessage());
-            throw new RuntimeException("Duplicate request or DB insert error", e);
+            log.severe("Failed to insert requestHistory for idempotencyKey=" + idempotencyKey + ": " + e.getMessage());
+            throw new RuntimeException("Failed to insert request history", e);
         }
 
         sendKafkaMessage(vehicleInformation, action);
@@ -76,13 +81,13 @@ public class VehicleInformationService {
     @Transactional
     @CacheEvict(cacheNames = "vehicleCache", allEntries = true)
     public void createVehicleInformation(VehicleInformation vehicleInformation) {
+        validateInput(vehicleInformation.getLicensePlate(), "License plate cannot be null or empty");
         try {
             vehicleInformationMapper.insert(vehicleInformation);
-            //  vehicleInformationSearchRepository.save(VehicleInformationDocument.fromEntity(vehicleInformation));
-            Integer vehicleId = vehicleInformation.getVehicleId();
-            log.info(String.format("Vehicle created successfully, vehicleId=%d", vehicleId));
+            vehicleInformationSearchRepository.save(VehicleInformationDocument.fromEntity(vehicleInformation));
+            log.info(String.format("Vehicle created successfully, vehicleId=%d", vehicleInformation.getVehicleId()));
         } catch (Exception e) {
-            log.warning("Exception occurred while creating vehicle information: " + e.getMessage());
+            log.log(Level.SEVERE, "Failed to create vehicle information: " + e.getMessage(), e);
             throw new RuntimeException("Failed to create vehicle information", e);
         }
     }
@@ -90,10 +95,14 @@ public class VehicleInformationService {
     @Cacheable(cacheNames = "vehicleCache", unless = "#result == null")
     @WsAction(service = "VehicleInformationService", action = "getVehicleInformationById")
     public VehicleInformation getVehicleInformationById(Integer vehicleId) {
-        if (vehicleId == null || vehicleId == 0 || vehicleId >= Integer.MAX_VALUE) {
+        if (vehicleId == null || vehicleId <= 0 || vehicleId >= Integer.MAX_VALUE) {
             throw new IllegalArgumentException("Invalid vehicle ID: " + vehicleId);
         }
-        return vehicleInformationMapper.selectById(vehicleId); // Returns null if not found
+        VehicleInformation vehicle = vehicleInformationMapper.selectById(vehicleId);
+        if (vehicle == null) {
+            log.info("Vehicle not found for ID: " + vehicleId);
+        }
+        return vehicle;
     }
 
     @Cacheable(cacheNames = "vehicleCache", unless = "#result == null")
@@ -102,13 +111,12 @@ public class VehicleInformationService {
         validateInput(licensePlate, "Invalid license plate number");
         QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("license_plate", licensePlate);
-        // Use selectList instead of selectOne to handle multiple results
         List<VehicleInformation> results = vehicleInformationMapper.selectList(queryWrapper);
         if (results.isEmpty()) {
-            return null; // No vehicle found
+            log.info("No vehicle found for license plate: " + licensePlate);
+            return null;
         } else if (results.size() > 1) {
-            // Log warning and return the first result (or throw a custom exception)
-            log.log(Level.WARNING, "Multiple vehicles found for license plate: " + licensePlate + ". Returning first result.");
+            log.warning("Multiple vehicles found for license plate: " + licensePlate + ". Returning first result.");
             return results.getFirst();
         }
         return results.getFirst();
@@ -118,7 +126,7 @@ public class VehicleInformationService {
     @WsAction(service = "VehicleInformationService", action = "getAllVehicleInformation")
     public List<VehicleInformation> getAllVehicleInformation() {
         List<VehicleInformation> result = vehicleInformationMapper.selectList(null);
-        return result != null ? result : Collections.emptyList(); // Never returns null
+        return result != null ? result : Collections.emptyList();
     }
 
     @Cacheable(cacheNames = "vehicleCache")
@@ -128,7 +136,7 @@ public class VehicleInformationService {
         QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("vehicle_type", vehicleType);
         List<VehicleInformation> result = vehicleInformationMapper.selectList(queryWrapper);
-        return result != null ? result : Collections.emptyList(); // Never returns null
+        return result != null ? result : Collections.emptyList();
     }
 
     @Cacheable(cacheNames = "vehicleCache")
@@ -138,17 +146,26 @@ public class VehicleInformationService {
         QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("owner_name", ownerName);
         List<VehicleInformation> result = vehicleInformationMapper.selectList(queryWrapper);
-        return result != null ? result : Collections.emptyList(); // Never returns null
+        return result != null ? result : Collections.emptyList();
     }
 
     @Transactional
     @CacheEvict(cacheNames = "vehicleCache", allEntries = true)
     public void updateVehicleInformation(VehicleInformation vehicleInformation) {
+        if (vehicleInformation.getVehicleId() == null || vehicleInformation.getVehicleId() <= 0) {
+            throw new IllegalArgumentException("Vehicle ID cannot be null or invalid");
+        }
+        validateInput(vehicleInformation.getLicensePlate(), "License plate cannot be null or empty");
         try {
-            vehicleInformationMapper.updateById(vehicleInformation);
+            int rowsAffected = vehicleInformationMapper.updateById(vehicleInformation);
+            if (rowsAffected == 0) {
+                log.warning("No vehicle found to update for ID: " + vehicleInformation.getVehicleId());
+                throw new RuntimeException("Vehicle not found");
+            }
             vehicleInformationSearchRepository.save(VehicleInformationDocument.fromEntity(vehicleInformation));
+            log.info(String.format("Vehicle updated successfully, vehicleId=%d", vehicleInformation.getVehicleId()));
         } catch (Exception e) {
-            log.warning("Exception occurred while updating vehicle information: " + e.getMessage());
+            log.log(Level.SEVERE, "Failed to update vehicle information: " + e.getMessage(), e);
             throw new RuntimeException("Failed to update vehicle information", e);
         }
     }
@@ -157,20 +174,20 @@ public class VehicleInformationService {
     @CacheEvict(cacheNames = "vehicleCache", allEntries = true)
     @WsAction(service = "VehicleInformationService", action = "deleteVehicleInformation")
     public void deleteVehicleInformation(int vehicleId) {
-        try {
-            vehicleInformationMapper.deleteById(vehicleId);
-            log.info(String.format("Vehicle with ID %d deleted successfully", vehicleId));
-        } catch (Exception e) {
-            log.warning("Exception occurred while deleting vehicle information: " + e.getMessage());
-            throw new RuntimeException("Failed to delete vehicle information", e);
+        if (vehicleId <= 0) {
+            throw new IllegalArgumentException("Invalid vehicle ID: " + vehicleId);
         }
-
         try {
+            int rowsAffected = vehicleInformationMapper.deleteById(vehicleId);
+            if (rowsAffected == 0) {
+                log.warning("No vehicle found to delete for ID: " + vehicleId);
+                throw new RuntimeException("Vehicle not found");
+            }
             vehicleInformationSearchRepository.deleteById(vehicleId);
-            log.info(String.format("车辆信息从 Elasticsearch 删除成功，ID %d", vehicleId));
+            log.info(String.format("Vehicle with ID %d deleted successfully from both DB and Elasticsearch", vehicleId));
         } catch (Exception e) {
-            log.warning(String.format("从 Elasticsearch 删除车辆信息失败，ID %d: %s", vehicleId, e.getMessage()));
-            // 可选择忽略失败或记录到队列以供后续处理
+            log.log(Level.SEVERE, "Failed to delete vehicle information: " + e.getMessage(), e);
+            throw new RuntimeException("Failed to delete vehicle information", e);
         }
     }
 
@@ -181,7 +198,20 @@ public class VehicleInformationService {
         validateInput(licensePlate, "Invalid license plate number");
         QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("license_plate", licensePlate);
-        vehicleInformationMapper.delete(queryWrapper);
+        try {
+            List<VehicleInformation> vehicles = vehicleInformationMapper.selectList(queryWrapper);
+            if (vehicles.isEmpty()) {
+                log.info("No vehicle found to delete for license plate: " + licensePlate);
+                return;
+            }
+            vehicleInformationMapper.delete(queryWrapper);
+            vehicles.forEach(vehicle ->
+                    vehicleInformationSearchRepository.deleteById(vehicle.getVehicleId()));
+            log.info("Vehicles with license plate " + licensePlate + " deleted successfully");
+        } catch (Exception e) {
+            log.log(Level.SEVERE, "Failed to delete vehicle by license plate: " + e.getMessage(), e);
+            throw new RuntimeException("Failed to delete vehicle by license plate", e);
+        }
     }
 
     @Cacheable(cacheNames = "vehicleCache")
@@ -193,16 +223,21 @@ public class VehicleInformationService {
         return vehicleInformationMapper.selectCount(queryWrapper) > 0;
     }
 
-    // 使用 Elasticsearch 的搜索方法
     public List<VehicleInformation> searchVehicles(String query, int page, int size) {
+        if (page < 1 || size < 1) {
+            throw new IllegalArgumentException("Page must be >= 1 and size must be >= 1");
+        }
         try {
-            Page<VehicleInformationDocument> results = vehicleInformationSearchRepository.findByLicensePlateContainingOrVehicleTypeContainingOrOwnerNameContainingOrCurrentStatusContaining(
-                    query, query, query, query, PageRequest.of(page - 1, size));
-            return results.getContent().stream()
+            Page<VehicleInformationDocument> results = vehicleInformationSearchRepository
+                    .findByLicensePlateContainingOrVehicleTypeContainingOrOwnerNameContainingOrCurrentStatusContaining(
+                            query, query, query, query, PageRequest.of(page - 1, size));
+            List<VehicleInformation> vehicles = results.getContent().stream()
                     .map(VehicleInformationDocument::toEntity)
                     .collect(Collectors.toList());
+            log.info("Search completed for query '" + query + "' with " + vehicles.size() + " results");
+            return vehicles;
         } catch (Exception e) {
-            log.severe("搜索车辆失败: " + e.getMessage());
+            log.log(Level.SEVERE, "Failed to search vehicles: " + e.getMessage(), e);
             return Collections.emptyList();
         }
     }
@@ -214,13 +249,21 @@ public class VehicleInformationService {
         QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("current_status", currentStatus);
         List<VehicleInformation> result = vehicleInformationMapper.selectList(queryWrapper);
-        return result != null ? result : Collections.emptyList(); // Never returns null
+        return result != null ? result : Collections.emptyList();
     }
 
     public void sendKafkaMessage(VehicleInformation vehicleInformation, String action) {
+        if (vehicleInformation == null || action == null) {
+            log.warning("Cannot send Kafka message with null vehicleInformation or action");
+            return;
+        }
         String topic = "vehicle_" + action.toLowerCase();
-        kafkaTemplate.send(topic, vehicleInformation);
-        log.info(String.format("Message sent to Kafka topic %s successfully", topic));
+        try {
+            kafkaTemplate.send(topic, vehicleInformation);
+            log.info(String.format("Message sent to Kafka topic %s successfully", topic));
+        } catch (Exception e) {
+            log.log(Level.SEVERE, "Failed to send Kafka message to topic " + topic + ": " + e.getMessage(), e);
+        }
     }
 
     private void validateInput(String input, String errorMessage) {

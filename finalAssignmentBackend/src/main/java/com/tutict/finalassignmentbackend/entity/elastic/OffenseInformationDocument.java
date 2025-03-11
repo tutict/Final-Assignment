@@ -8,7 +8,6 @@ import org.springframework.data.elasticsearch.annotations.Field;
 import org.springframework.data.elasticsearch.annotations.FieldType;
 import org.springframework.data.elasticsearch.annotations.DateFormat;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
@@ -38,7 +37,7 @@ public class OffenseInformationDocument {
     private String offenseCode;
 
     @Field(type = FieldType.Double)
-    private BigDecimal fineAmount;
+    private Double fineAmount; // Changed from BigDecimal to Double
 
     @Field(type = FieldType.Integer)
     private Integer deductedPoints;
@@ -69,7 +68,7 @@ public class OffenseInformationDocument {
         doc.setDriverName(entity.getDriverName());
         doc.setOffenseType(entity.getOffenseType());
         doc.setOffenseCode(entity.getOffenseCode());
-        doc.setFineAmount(entity.getFineAmount());
+        doc.setFineAmount(entity.getFineAmount() != null ? entity.getFineAmount().doubleValue() : null); // Convert BigDecimal to Double
         doc.setDeductedPoints(entity.getDeductedPoints());
         doc.setProcessStatus(entity.getProcessStatus());
         doc.setProcessResult(entity.getProcessResult());
@@ -88,7 +87,7 @@ public class OffenseInformationDocument {
         entity.setDriverName(this.getDriverName());
         entity.setOffenseType(this.getOffenseType());
         entity.setOffenseCode(this.getOffenseCode());
-        entity.setFineAmount(this.getFineAmount());
+        entity.setFineAmount(this.getFineAmount() != null ? new java.math.BigDecimal(this.getFineAmount().toString()) : null); // Convert Double back to BigDecimal
         entity.setDeductedPoints(this.getDeductedPoints());
         entity.setProcessStatus(this.getProcessStatus());
         entity.setProcessResult(this.getProcessResult());
