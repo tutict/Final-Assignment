@@ -8,6 +8,7 @@ import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 String generateIdempotencyKey() {
   return DateTime.now().millisecondsSinceEpoch.toString();
@@ -29,8 +30,7 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
   final DriverInformationControllerApi driverApi =
       DriverInformationControllerApi();
   bool _isLoading = true;
-  final bool _isUser = false;
-  final bool _isEditable = false;
+  final bool _isEditable = true;
   bool _idCardNumberEdited = false;
   String _errorMessage = '';
 
@@ -49,6 +49,13 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
     super.initState();
     _scrollController = ScrollController();
     _userFuture = Future.value(null);
+    _loadCurrentUser();
+    ever(controller.refreshPersonalPage, (_) {
+      if (controller.refreshPersonalPage.value && mounted) {
+        debugPrint('Refresh triggered from UserDashboardController');
+        _loadCurrentUser();
+      }
+    });
   }
 
   @override
@@ -64,24 +71,37 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
   }
 
   Future<void> _loadCurrentUser() async {
+    if (!mounted) return;
+
     setState(() {
       _isLoading = true;
-      _errorMessage = ''; // Reset error message
+      _errorMessage = '';
     });
 
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final jwtToken = prefs.getString('jwtToken');
+      debugPrint('JWT Token: $jwtToken');
+      if (jwtToken == null) {
+        throw Exception('JWT Token not found in SharedPreferences');
+      }
+
+      await driverApi.initializeWithJwt();
+      debugPrint('Driver API initialized with JWT');
+
       final response = await apiClient.invokeAPI(
         '/api/users/me',
         'GET',
         [],
         null,
-        {},
+        {'Authorization': 'Bearer $jwtToken'},
         {},
         'application/json',
         ['bearerAuth'],
       );
       if (response.statusCode != 200) {
-        throw Exception('加载用户信息失败: ${response.statusCode}');
+        throw ApiException(response.statusCode,
+            '加载用户信息失败: ${utf8.decode(response.bodyBytes)}');
       }
 
       final data = jsonDecode(utf8.decode(response.bodyBytes));
@@ -91,20 +111,19 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
       DriverInformation? driverInfo;
       if (user.userId != null) {
         try {
-          // Attempt to fetch driver with userId (e.g., 8)
           driverInfo = await driverApi.apiDriversDriverIdGet(
               driverId: user.userId.toString());
+          debugPrint('Driver info fetched: ${driverInfo?.toJson()}');
           if (driverInfo?.idCardNumber != null &&
               driverInfo!.idCardNumber!.isNotEmpty) {
             _idCardNumberEdited = true;
           }
         } catch (e) {
           if (e is ApiException && e.code == 404) {
-            // Immediately create a new driver with driverId matching userId (e.g., 8)
             final idempotencyKey = generateIdempotencyKey();
             driverInfo = DriverInformation(
-              driverId: user.userId, // Set driverId to 8
-              name: user.username ?? '未知用户', // Set name to "985@985.com"
+              driverId: user.userId,
+              name: user.username ?? '未知用户',
               contactNumber: user.contactNumber ?? '',
               idCardNumber: '',
             );
@@ -118,10 +137,9 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
                 driverId: user.userId.toString());
             debugPrint('Driver created and fetched: ${driverInfo?.toJson()}');
           } else {
-            setState(() {
-              _errorMessage = _formatErrorMessage(e);
-            });
-            rethrow; // Propagate other errors
+            debugPrint('Driver fetch error: $e');
+            if (mounted) setState(() => _errorMessage = _formatErrorMessage(e));
+            rethrow;
           }
         }
         _driverInfo = driverInfo;
@@ -129,25 +147,30 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
         throw Exception('用户ID为空，无法加载或创建司机信息');
       }
 
-      setState(() {
-        _userFuture = Future.value(user);
-        _nameController.text = driverInfo?.name ?? '';
-        _usernameController.text = user.username ?? '';
-        _passwordController.text = '';
-        _contactNumberController.text =
-            driverInfo?.contactNumber ?? user.contactNumber ?? '';
-        _emailController.text = user.email ?? '';
-        _idCardNumberController.text = driverInfo?.idCardNumber ?? '';
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _userFuture = Future.value(user);
+          _nameController.text = driverInfo?.name ?? '';
+          _usernameController.text = user.username ?? '';
+          _passwordController.text = '';
+          _contactNumberController.text =
+              driverInfo?.contactNumber ?? user.contactNumber ?? '';
+          _emailController.text = user.email ?? '';
+          _idCardNumberController.text = driverInfo?.idCardNumber ?? '';
+          _isLoading = false;
+        });
+      }
       controller.updateCurrentUser(driverInfo?.name ?? '', user.username ?? '');
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-        if (_errorMessage.isEmpty) {
-          _errorMessage = _formatErrorMessage(e); // Set only if not already set
-        }
-      });
+      debugPrint('Load current user error: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          if (_errorMessage.isEmpty) {
+            _errorMessage = _formatErrorMessage(e);
+          }
+        });
+      }
     }
   }
 
@@ -159,67 +182,68 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
 
     try {
       final currentUser = await _userFuture;
-      if (currentUser == null) {
-        throw Exception('未找到当前用户信息');
-      }
+      if (currentUser == null) throw Exception('未找到当前用户信息');
       final idempotencyKey = generateIdempotencyKey();
+      final prefs = await SharedPreferences.getInstance();
+      final jwtToken = prefs.getString('jwtToken');
+      if (jwtToken == null) throw Exception('JWT Token not found');
 
       switch (field) {
         case 'name':
           final newDriverName = DriverInformation(
-            driverId: currentUser.userId, // e.g., 8
-            name: value, // New name value
+            driverId: currentUser.userId,
+            name: value,
             contactNumber:
                 _driverInfo?.contactNumber ?? currentUser.contactNumber ?? '',
             idCardNumber: _driverInfo?.idCardNumber ?? '',
           );
           debugPrint(
-              'Creating new driver with driverId: ${currentUser.userId}, name: $value');
+              'Updating driver with driverId: ${currentUser.userId}, name: $value');
           await driverApi.apiDriversPost(
             driverInformation: newDriverName,
             idempotencyKey: idempotencyKey,
           );
           _driverInfo = await driverApi.apiDriversDriverIdGet(
               driverId: currentUser.userId.toString());
-          debugPrint('Driver created and fetched: ${_driverInfo?.toJson()}');
+          debugPrint('Driver updated and fetched: ${_driverInfo?.toJson()}');
           break;
 
         case 'contactNumber':
           final newDriverContact = DriverInformation(
-            driverId: currentUser.userId, // e.g., 8
+            driverId: currentUser.userId,
             name: _driverInfo?.name ?? currentUser.username ?? '未知用户',
-            contactNumber: value, // New contact number value
+            contactNumber: value,
             idCardNumber: _driverInfo?.idCardNumber ?? '',
           );
           debugPrint(
-              'Creating new driver with driverId: ${currentUser.userId}, contactNumber: $value');
+              'Updating driver with driverId: ${currentUser.userId}, contactNumber: $value');
           await driverApi.apiDriversPost(
             driverInformation: newDriverContact,
             idempotencyKey: idempotencyKey,
           );
           _driverInfo = await driverApi.apiDriversDriverIdGet(
               driverId: currentUser.userId.toString());
-          debugPrint('Driver created and fetched: ${_driverInfo?.toJson()}');
+          debugPrint('Driver updated and fetched: ${_driverInfo?.toJson()}');
           break;
 
         case 'idCardNumber':
           final newDriverIdCard = DriverInformation(
-            driverId: currentUser.userId, // e.g., 8
+            driverId: currentUser.userId,
             name: _driverInfo?.name ?? currentUser.username ?? '未知用户',
             contactNumber:
                 _driverInfo?.contactNumber ?? currentUser.contactNumber ?? '',
-            idCardNumber: value, // New ID card number value
+            idCardNumber: value,
           );
           debugPrint(
-              'Creating new driver with driverId: ${currentUser.userId}, idCardNumber: $value');
+              'Updating driver with driverId: ${currentUser.userId}, idCardNumber: $value');
           await driverApi.apiDriversPost(
             driverInformation: newDriverIdCard,
             idempotencyKey: idempotencyKey,
           );
           _driverInfo = await driverApi.apiDriversDriverIdGet(
               driverId: currentUser.userId.toString());
-          debugPrint('Driver created and fetched: ${_driverInfo?.toJson()}');
-          setState(() => _idCardNumberEdited = true);
+          debugPrint('Driver updated and fetched: ${_driverInfo?.toJson()}');
+          if (mounted) setState(() => _idCardNumberEdited = true);
           break;
 
         case 'password':
@@ -228,7 +252,10 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
             'PUT',
             [],
             value,
-            {},
+            {
+              'Authorization': 'Bearer $jwtToken',
+              'Content-Type': 'text/plain; charset=utf-8'
+            },
             {},
             'text/plain',
             ['bearerAuth'],
@@ -241,7 +268,10 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
             'PUT',
             [],
             value,
-            {},
+            {
+              'Authorization': 'Bearer $jwtToken',
+              'Content-Type': 'text/plain; charset=utf-8'
+            },
             {},
             'text/plain',
             ['bearerAuth'],
@@ -254,24 +284,29 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
 
       await _loadCurrentUser();
 
-      scaffoldMessenger.showSnackBar(
-        SnackBar(
-          content: Text('$field 更新成功！',
-              style: TextStyle(
-                  color: controller
-                      .currentBodyTheme.value.colorScheme.onPrimaryContainer)),
-          backgroundColor:
-              controller.currentBodyTheme.value.colorScheme.primary,
-        ),
-      );
+      if (mounted) {
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Text('$field 更新成功！',
+                style: TextStyle(
+                    color: controller.currentBodyTheme.value.colorScheme
+                        .onPrimaryContainer)),
+            backgroundColor:
+                controller.currentBodyTheme.value.colorScheme.primary,
+          ),
+        );
+      }
     } catch (e) {
-      scaffoldMessenger.showSnackBar(
-        SnackBar(
-          content: Text(_formatErrorMessage(e),
-              style: const TextStyle(color: Colors.white)),
-          backgroundColor: Colors.red,
-        ),
-      );
+      debugPrint('Update field error: $e');
+      if (mounted) {
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Text(_formatErrorMessage(e),
+                style: const TextStyle(color: Colors.white)),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -445,12 +480,12 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
       );
     }
 
-    if (!_isUser) {
+    if (_errorMessage.isNotEmpty) {
       return Center(
         child: Text(
-          _errorMessage.isNotEmpty ? _errorMessage : '此页面仅限 USER 角色访问',
+          _errorMessage,
           style: themeData.textTheme.bodyLarge?.copyWith(
-            color: themeData.colorScheme.onSurface,
+            color: themeData.colorScheme.error,
             fontSize: 18,
           ),
         ),
@@ -474,7 +509,7 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
             child: Text(
               _errorMessage.isNotEmpty ? _errorMessage : '未找到用户信息',
               style: themeData.textTheme.bodyLarge?.copyWith(
-                color: themeData.colorScheme.onSurface,
+                color: themeData.colorScheme.error,
                 fontSize: 18,
               ),
             ),
@@ -494,11 +529,13 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
                   title: '姓名',
                   subtitle: _driverInfo?.name ?? '无数据',
                   themeData: themeData,
-                  onTap: () {
-                    _nameController.text = _driverInfo?.name ?? '';
-                    _showEditDialog('姓名', _nameController,
-                        (value) => _updateField('name', value));
-                  },
+                  onTap: _isEditable
+                      ? () {
+                          _nameController.text = _driverInfo?.name ?? '';
+                          _showEditDialog('姓名', _nameController,
+                              (value) => _updateField('name', value));
+                        }
+                      : null,
                 ),
                 _buildListTile(
                   title: '邮箱',
@@ -509,11 +546,13 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
                   title: '密码',
                   subtitle: '点击修改密码',
                   themeData: themeData,
-                  onTap: () {
-                    _passwordController.clear();
-                    _showEditDialog('密码', _passwordController,
-                        (value) => _updateField('password', value));
-                  },
+                  onTap: _isEditable
+                      ? () {
+                          _passwordController.clear();
+                          _showEditDialog('密码', _passwordController,
+                              (value) => _updateField('password', value));
+                        }
+                      : null,
                 ),
                 _buildListTile(
                   title: '联系电话',
@@ -521,14 +560,16 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
                       userInfo.contactNumber ??
                       '无数据',
                   themeData: themeData,
-                  onTap: () {
-                    _contactNumberController.text =
-                        _driverInfo?.contactNumber ??
-                            userInfo.contactNumber ??
-                            '';
-                    _showEditDialog('联系电话', _contactNumberController,
-                        (value) => _updateField('contactNumber', value));
-                  },
+                  onTap: _isEditable
+                      ? () {
+                          _contactNumberController.text =
+                              _driverInfo?.contactNumber ??
+                                  userInfo.contactNumber ??
+                                  '';
+                          _showEditDialog('联系电话', _contactNumberController,
+                              (value) => _updateField('contactNumber', value));
+                        }
+                      : null,
                 ),
                 _buildListTile(
                   title: '身份证号码',
@@ -547,12 +588,15 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
                   title: '状态',
                   subtitle: userInfo.status ?? '无数据',
                   themeData: themeData,
-                  onTap: () {
-                    _showEditDialog(
-                        '状态',
-                        TextEditingController(text: userInfo.status ?? ''),
-                        (value) => _updateField('status', value));
-                  },
+                  onTap: _isEditable
+                      ? () {
+                          _showEditDialog(
+                              '状态',
+                              TextEditingController(
+                                  text: userInfo.status ?? ''),
+                              (value) => _updateField('status', value));
+                        }
+                      : null,
                 ),
                 _buildListTile(
                   title: '创建时间',
@@ -568,14 +612,17 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
                   title: '备注',
                   subtitle: userInfo.remarks ?? '无数据',
                   themeData: themeData,
-                  onTap: () {
-                    _showEditDialog('备注',
-                        TextEditingController(text: userInfo.remarks ?? ''),
-                        (value) {
-                      userInfo.remarks = value;
-                      _loadCurrentUser();
-                    });
-                  },
+                  onTap: _isEditable
+                      ? () {
+                          _showEditDialog(
+                              '备注',
+                              TextEditingController(
+                                  text: userInfo.remarks ?? ''), (value) {
+                            userInfo.remarks = value;
+                            _loadCurrentUser();
+                          });
+                        }
+                      : null,
                 ),
                 const SizedBox(height: 16.0),
               ],
@@ -585,40 +632,40 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
       },
     );
   }
+}
 
-  Widget _buildListTile({
-    required String title,
-    required String subtitle,
-    required ThemeData themeData,
-    VoidCallback? onTap,
-  }) {
-    return Card(
-      elevation: 2,
-      shadowColor: themeData.colorScheme.shadow.withOpacity(0.2),
-      color: themeData.colorScheme.surfaceContainer,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
-      margin: const EdgeInsets.symmetric(vertical: 6.0),
-      child: ListTile(
-        title: Text(
-          title,
-          style: themeData.textTheme.bodyLarge?.copyWith(
-            color: themeData.colorScheme.onSurface,
-            fontWeight: FontWeight.w600,
-          ),
+Widget _buildListTile({
+  required String title,
+  required String subtitle,
+  required ThemeData themeData,
+  VoidCallback? onTap,
+}) {
+  return Card(
+    elevation: 2,
+    shadowColor: themeData.colorScheme.shadow.withOpacity(0.2),
+    color: themeData.colorScheme.surfaceContainer,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+    margin: const EdgeInsets.symmetric(vertical: 6.0),
+    child: ListTile(
+      title: Text(
+        title,
+        style: themeData.textTheme.bodyLarge?.copyWith(
+          color: themeData.colorScheme.onSurface,
+          fontWeight: FontWeight.w600,
         ),
-        subtitle: Text(
-          subtitle,
-          style: themeData.textTheme.bodyMedium?.copyWith(
-            color: themeData.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        onTap: onTap,
-        trailing: onTap != null
-            ? Icon(Icons.edit, color: themeData.colorScheme.primary)
-            : null,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       ),
-    );
-  }
+      subtitle: Text(
+        subtitle,
+        style: themeData.textTheme.bodyMedium?.copyWith(
+          color: themeData.colorScheme.onSurfaceVariant,
+        ),
+      ),
+      onTap: onTap,
+      trailing: onTap != null
+          ? Icon(Icons.edit, color: themeData.colorScheme.primary)
+          : null,
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+    ),
+  );
 }

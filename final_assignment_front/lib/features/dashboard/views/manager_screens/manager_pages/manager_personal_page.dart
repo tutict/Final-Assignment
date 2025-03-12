@@ -8,7 +8,7 @@ import 'package:final_assignment_front/features/model/user_management.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:get/Get.dart';
+import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 String generateIdempotencyKey() {
@@ -32,7 +32,6 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
           ? Get.find<DashboardController>()
           : null;
   bool _isLoading = true;
-  bool _isAdmin = false;
   String _errorMessage = '';
 
   final TextEditingController _nameController = TextEditingController();
@@ -52,6 +51,7 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
     driverApi = DriverInformationControllerApi();
     _scrollController = ScrollController();
     _managerFuture = Future.value(null);
+    _loadCurrentManager();
   }
 
   @override
@@ -67,15 +67,28 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
   }
 
   Future<void> _loadCurrentManager() async {
+    if (!mounted) return;
+
     setState(() {
       _isLoading = true;
       _errorMessage = '';
     });
 
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final jwtToken = prefs.getString('jwtToken');
+      debugPrint('JWT Token: $jwtToken');
+      if (jwtToken == null) {
+        throw Exception('JWT Token not found in SharedPreferences');
+      }
+
+      await userApi.initializeWithJwt();
+      await driverApi.initializeWithJwt();
+      debugPrint('UserManagement and Driver APIs initialized with JWT');
+
       final manager = await userApi.apiUsersMeGet();
       if (manager == null) {
-        throw Exception('未找到当前管理员信息');
+        throw Exception('未找到当前用户信息');
       }
 
       DriverInformation? driverInfo;
@@ -83,12 +96,13 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
         try {
           driverInfo = await driverApi.apiDriversDriverIdGet(
               driverId: manager.userId.toString());
+          debugPrint('Driver info fetched: ${driverInfo?.toJson()}');
         } catch (e) {
           if (e is ApiException && e.code == 404) {
             final idempotencyKey = generateIdempotencyKey();
             driverInfo = DriverInformation(
-              driverId: manager.userId, // Set driverId to match userId
-              name: manager.username ?? '未知管理员',
+              driverId: manager.userId,
+              name: manager.username ?? '未知用户',
               contactNumber: manager.contactNumber ?? '',
               idCardNumber: '',
             );
@@ -102,37 +116,41 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
                 driverId: manager.userId.toString());
             debugPrint('Driver created and fetched: ${driverInfo?.toJson()}');
           } else {
-            setState(() {
-              _errorMessage = _formatErrorMessage(e);
-            });
+            debugPrint('Driver fetch error: $e');
+            if (mounted) setState(() => _errorMessage = _formatErrorMessage(e));
             rethrow;
           }
         }
         _driverInfo = driverInfo;
       } else {
-        throw Exception('管理员ID为空，无法加载或创建司机信息');
+        throw Exception('用户ID为空，无法加载或创建司机信息');
       }
 
-      setState(() {
-        _managerFuture = Future.value(manager);
-        _nameController.text = driverInfo?.name ?? '';
-        _usernameController.text = manager.username ?? '';
-        _passwordController.text = '';
-        _contactNumberController.text =
-            driverInfo?.contactNumber ?? manager.contactNumber ?? '';
-        _emailController.text = manager.email ?? '';
-        _remarksController.text = manager.remarks ?? '';
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _managerFuture = Future.value(manager);
+          _nameController.text = driverInfo?.name ?? '';
+          _usernameController.text = manager.username ?? '';
+          _passwordController.text = '';
+          _contactNumberController.text =
+              driverInfo?.contactNumber ?? manager.contactNumber ?? '';
+          _emailController.text = manager.email ?? '';
+          _remarksController.text = manager.remarks ?? '';
+          _isLoading = false;
+        });
+      }
       controller?.updateCurrentUser(
           driverInfo?.name ?? '', manager.username ?? '');
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-        if (_errorMessage.isEmpty) {
-          _errorMessage = _formatErrorMessage(e);
-        }
-      });
+      debugPrint('Load current manager error: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          if (_errorMessage.isEmpty) {
+            _errorMessage = _formatErrorMessage(e);
+          }
+        });
+      }
     }
   }
 
@@ -144,87 +162,78 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
 
     try {
       final currentManager = await _managerFuture;
-      if (currentManager == null) {
-        throw Exception('未找到当前管理员信息');
-      }
+      if (currentManager == null) throw Exception('未找到当前用户信息');
       final idempotencyKey = generateIdempotencyKey();
 
       switch (field) {
         case 'name':
-          // Directly create a new driver regardless of existing data
           final newDriverName = DriverInformation(
-            driverId: currentManager.userId, // e.g., match userId
-            name: value, // New name value
+            driverId: currentManager.userId,
+            name: value,
             contactNumber: _driverInfo?.contactNumber ??
                 currentManager.contactNumber ??
                 '',
             idCardNumber: _driverInfo?.idCardNumber ?? '',
           );
           debugPrint(
-              'Creating new driver with driverId: ${currentManager.userId}, name: $value');
+              'Updating driver with driverId: ${currentManager.userId}, name: $value');
           await driverApi.apiDriversPost(
             driverInformation: newDriverName,
             idempotencyKey: idempotencyKey,
           );
           _driverInfo = await driverApi.apiDriversDriverIdGet(
               driverId: currentManager.userId.toString());
-          debugPrint('Driver created and fetched: ${_driverInfo?.toJson()}');
+          debugPrint('Driver updated and fetched: ${_driverInfo?.toJson()}');
           break;
 
         case 'contactNumber':
           final newDriverContact = DriverInformation(
             driverId: currentManager.userId,
-            name: _driverInfo?.name ?? currentManager.username ?? '未知管理员',
+            name: _driverInfo?.name ?? currentManager.username ?? '未知用户',
             contactNumber: value,
             idCardNumber: _driverInfo?.idCardNumber ?? '',
           );
           debugPrint(
-              'Creating new driver with driverId: ${currentManager.userId}, contactNumber: $value');
+              'Updating driver with driverId: ${currentManager.userId}, contactNumber: $value');
           await driverApi.apiDriversPost(
             driverInformation: newDriverContact,
             idempotencyKey: idempotencyKey,
           );
           _driverInfo = await driverApi.apiDriversDriverIdGet(
               driverId: currentManager.userId.toString());
-          debugPrint('Driver created and fetched: ${_driverInfo?.toJson()}');
+          debugPrint('Driver updated and fetched: ${_driverInfo?.toJson()}');
           break;
 
         case 'password':
-          await userApi.apiClient.invokeAPI(
-            '/api/users/me/password?idempotencyKey=$idempotencyKey',
-            'PUT',
-            [],
-            value,
-            {},
-            {},
-            'text/plain',
-            ['bearerAuth'],
+          await userApi.apiUsersMePut(
+            userManagement: UserManagement(
+              userId: currentManager.userId,
+              username: currentManager.username,
+              password: value,
+            ),
+            idempotencyKey: idempotencyKey,
           );
           break;
 
         case 'email':
-          await userApi.apiClient.invokeAPI(
-            '/api/users/me/email?idempotencyKey=$idempotencyKey',
-            'PUT',
-            [],
-            value,
-            {},
-            {},
-            'text/plain',
-            ['bearerAuth'],
+          await userApi.apiUsersMePut(
+            userManagement: UserManagement(
+              userId: currentManager.userId,
+              username: currentManager.username,
+              email: value,
+            ),
+            idempotencyKey: idempotencyKey,
           );
           break;
 
         case 'remarks':
-          await userApi.apiClient.invokeAPI(
-            '/api/users/me/remarks?idempotencyKey=$idempotencyKey',
-            'PUT',
-            [],
-            value,
-            {},
-            {},
-            'text/plain',
-            ['bearerAuth'],
+          await userApi.apiUsersMePut(
+            userManagement: UserManagement(
+              userId: currentManager.userId,
+              username: currentManager.username,
+              remarks: value,
+            ),
+            idempotencyKey: idempotencyKey,
           );
           break;
 
@@ -232,29 +241,33 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
           throw Exception('未知字段: $field');
       }
 
-      // Refresh to get updated data
       await _loadCurrentManager();
 
-      scaffoldMessenger.showSnackBar(
-        SnackBar(
-          content: Text('$field 更新成功！',
-              style: TextStyle(
-                  color: controller?.currentBodyTheme.value.colorScheme
-                          .onPrimaryContainer ??
-                      Colors.black)),
-          backgroundColor:
-              controller?.currentBodyTheme.value.colorScheme.primary ??
-                  Colors.green,
-        ),
-      );
+      if (mounted) {
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Text('$field 更新成功！',
+                style: TextStyle(
+                    color: controller?.currentBodyTheme.value.colorScheme
+                            .onPrimaryContainer ??
+                        Colors.black)),
+            backgroundColor:
+                controller?.currentBodyTheme.value.colorScheme.primary ??
+                    Colors.green,
+          ),
+        );
+      }
     } catch (e) {
-      scaffoldMessenger.showSnackBar(
-        SnackBar(
-          content: Text(_formatErrorMessage(e),
-              style: const TextStyle(color: Colors.white)),
-          backgroundColor: Colors.red,
-        ),
-      );
+      debugPrint('Update field error: $e');
+      if (mounted) {
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Text(_formatErrorMessage(e),
+                style: const TextStyle(color: Colors.white)),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -439,7 +452,7 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
           backgroundColor: themeData.colorScheme.surface,
           navigationBar: CupertinoNavigationBar(
             middle: Text(
-              '管理员个人信息管理',
+              '个人信息管理',
               style: themeData.textTheme.headlineSmall?.copyWith(
                 color: themeData.colorScheme.onSurface,
                 fontWeight: FontWeight.bold,
@@ -454,9 +467,9 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
               ),
             ),
             trailing: GestureDetector(
-              onTap: () => Get.toNamed(AppPages.managerBusinessProcessing),
+              onTap: _logout,
               child: Icon(
-                CupertinoIcons.person_2,
+                CupertinoIcons.square_arrow_right,
                 color: themeData.colorScheme.onSurface,
               ),
             ),
@@ -486,12 +499,12 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
       );
     }
 
-    if (!_isAdmin) {
+    if (_errorMessage.isNotEmpty) {
       return Center(
         child: Text(
-          _errorMessage.isNotEmpty ? _errorMessage : '此页面仅限 ADMIN 角色访问',
+          _errorMessage,
           style: themeData.textTheme.bodyLarge?.copyWith(
-            color: themeData.colorScheme.onSurface,
+            color: themeData.colorScheme.error,
             fontSize: 18,
           ),
         ),
@@ -513,13 +526,9 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
             snapshot.data == null) {
           return Center(
             child: Text(
-              snapshot.hasError
-                  ? '加载失败: ${snapshot.error}'
-                  : _errorMessage.isNotEmpty
-                      ? _errorMessage
-                      : '未找到管理员信息',
+              _errorMessage.isNotEmpty ? _errorMessage : '未找到用户信息',
               style: themeData.textTheme.bodyLarge?.copyWith(
-                color: themeData.colorScheme.onSurface,
+                color: themeData.colorScheme.error,
                 fontSize: 18,
               ),
             ),
@@ -646,6 +655,9 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
           ),
         ),
         onTap: onTap,
+        trailing: onTap != null
+            ? Icon(Icons.edit, color: themeData.colorScheme.primary)
+            : null,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       ),

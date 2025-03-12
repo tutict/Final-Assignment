@@ -12,10 +12,15 @@ class DashboardController extends GetxController with NavigationMixin {
   final isDesktop = false.obs;
   final isSidebarOpen = false.obs;
   final selectedPage = Rx<Widget?>(null);
-  final isChatExpanded = true.obs;
+  final isChatExpanded = false.obs;
   final Rx<Profile?> currentUser = Rx<Profile?>(null);
   late Rx<Future<List<OffenseInformation>>> offensesFuture;
+// Add reactive variables for driver name and email
+  final RxString currentDriverName = ''.obs;
+  final RxString currentEmail = ''.obs;
 
+  // Add this to trigger PersonalMainPage refresh
+  final RxBool _refreshPersonalPage = false.obs;
   final offenseApi = OffenseInformationControllerApi();
   final roleApi = RoleManagementControllerApi();
 
@@ -70,12 +75,10 @@ class DashboardController extends GetxController with NavigationMixin {
     }
   }
 
-  void updateCurrentUser(String name, String email, {ImageProvider? photo}) {
-    currentUser.value = Profile(
-      photo: photo ?? const AssetImage(ImageRasterPath.avatar1),
-      name: name,
-      email: email,
-    );
+  void updateCurrentUser(String name, String email) {
+    currentDriverName.value = name;
+    currentEmail.value = email;
+    debugPrint('DashboardController updated - Name: $name, Email: $email');
     _saveUserToPrefs(name, email, 'ADMIN');
   }
 
@@ -88,11 +91,11 @@ class DashboardController extends GetxController with NavigationMixin {
 
   Profile get currentProfile =>
       currentUser.value ??
-          const Profile(
-            photo: AssetImage(ImageRasterPath.avatar1),
-            name: "Guest",
-            email: "guest@example.com",
-          );
+      const Profile(
+        photo: AssetImage(ImageRasterPath.avatar1),
+        name: "Guest",
+        email: "guest@example.com",
+      );
 
   void toggleSidebar() => isSidebarOpen.value = !isSidebarOpen.value;
 
@@ -107,15 +110,15 @@ class DashboardController extends GetxController with NavigationMixin {
     String theme = selectedStyle.value;
     ThemeData baseTheme = theme == 'Material'
         ? (currentTheme.value == 'Light'
-        ? AppTheme.materialLightTheme
-        : AppTheme.materialDarkTheme)
+            ? AppTheme.materialLightTheme
+            : AppTheme.materialDarkTheme)
         : (theme == 'Ionic'
-        ? (currentTheme.value == 'Light'
-        ? AppTheme.ionicLightTheme
-        : AppTheme.ionicDarkTheme)
-        : (currentTheme.value == 'Light'
-        ? AppTheme.basicLight
-        : AppTheme.basicDark));
+            ? (currentTheme.value == 'Light'
+                ? AppTheme.ionicLightTheme
+                : AppTheme.ionicDarkTheme)
+            : (currentTheme.value == 'Light'
+                ? AppTheme.basicLight
+                : AppTheme.basicDark));
 
     String fontFamily = theme == 'Basic' ? Font.poppins : 'Helvetica';
 
@@ -144,7 +147,7 @@ class DashboardController extends GetxController with NavigationMixin {
           foregroundColor: baseTheme.colorScheme.onPrimary,
           elevation: 2,
           shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
           textStyle: TextStyle(
             fontFamily: fontFamily,
             fontSize: 16.0,
@@ -156,6 +159,10 @@ class DashboardController extends GetxController with NavigationMixin {
     );
 
     Get.changeTheme(currentBodyTheme.value);
+  }
+
+  void triggerPersonalPageRefresh() {
+    exitSidebarContent();
   }
 
   void openDrawer() => isDesktop.value
@@ -186,22 +193,22 @@ class DashboardController extends GetxController with NavigationMixin {
       Obx(() => selectedPage.value ?? const SizedBox.shrink());
 
   ProjectCardData getSelectedProject() => ProjectCardData(
-    percent: .3,
-    projectImage: const AssetImage(ImageRasterPath.logo4),
-    projectName: "交通违法行为处理管理系统",
-    releaseTime: DateTime.now(),
-  );
+        percent: .3,
+        projectImage: const AssetImage(ImageRasterPath.logo4),
+        projectName: "交通违法行为处理管理系统",
+        releaseTime: DateTime.now(),
+      );
 
   List<ProjectCardData> getActiveProject() => [];
 
   List<ImageProvider<Object>> getMember() => const [
-    AssetImage(ImageRasterPath.avatar1),
-    AssetImage(ImageRasterPath.avatar2),
-    AssetImage(ImageRasterPath.avatar3),
-    AssetImage(ImageRasterPath.avatar4),
-    AssetImage(ImageRasterPath.avatar5),
-    AssetImage(ImageRasterPath.avatar6),
-  ];
+        AssetImage(ImageRasterPath.avatar1),
+        AssetImage(ImageRasterPath.avatar2),
+        AssetImage(ImageRasterPath.avatar3),
+        AssetImage(ImageRasterPath.avatar4),
+        AssetImage(ImageRasterPath.avatar5),
+        AssetImage(ImageRasterPath.avatar6),
+      ];
 
   Future<Map<String, int>> getOffenseTypeDistribution() async {
     try {
@@ -243,6 +250,7 @@ class DashboardController extends GetxController with NavigationMixin {
   void _redirectToLogin() {
     Get.offAllNamed(Routes.login); // Use route name from AppPages
   }
+
   void updateScrollDirection(ScrollController scrollController) {
     scrollController.addListener(() {
       isScrollingDown.value = scrollController.position.userScrollDirection ==
@@ -283,4 +291,6 @@ class DashboardController extends GetxController with NavigationMixin {
     selectedStyle.value = style;
     _applyTheme();
   }
+
+  RxBool get refreshPersonalPage => _refreshPersonalPage;
 }

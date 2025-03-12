@@ -13,54 +13,39 @@ class UserDashboardController extends GetxController with NavigationMixin {
   final isDesktop = false.obs;
   final isSidebarOpen = false.obs;
   final selectedPage = Rx<Widget?>(null);
-  final isChatExpanded = true.obs;
+  final isChatExpanded = false.obs;
   final Rx<Profile?> currentUser = Rx<Profile?>(null);
+  final RxBool _refreshPersonalPage = false.obs;
+// Add reactive variables for driver name and email
+  final RxString currentDriverName = ''.obs;
+  final RxString currentEmail = ''.obs;
 
   @override
   void onInit() {
     super.onInit();
     _initializeCaseCardData();
-    _loadUserFromPrefs();
   }
 
-  Future<void> _loadUserFromPrefs() async {
-    final prefs = await SharedPreferences.getInstance();
-    final jwtToken = prefs.getString('jwtToken');
-    final userName = prefs.getString('userName');
-    final userEmail = prefs.getString('userEmail') ?? userName; // 使用 userName 作为默认 email
-    final userRole = prefs.getString('userRole');
-
-    if (jwtToken != null && userName != null && userRole != null) {
-      currentUser.value = Profile(
-        photo: const AssetImage(ImageRasterPath.avatar1),
-        name: userName ?? 'Unknown',
-        email: userEmail ?? 'Unknown',
-      );
-    }
-  }
-
-  void updateCurrentUser(String name, String email, {ImageProvider? photo}) {
-    currentUser.value = Profile(
-      photo: photo ?? const AssetImage(ImageRasterPath.avatar1),
-      name: name,
-      email: email, // 使用 username（邮箱）作为 email
-    );
+  void updateCurrentUser(String name, String email) {
+    currentDriverName.value = name;
+    currentEmail.value = email;
+    debugPrint('UserDashboardController updated - Name: $name, Email: $email');
     _saveUserToPrefs(name, email);
   }
 
   Future<void> _saveUserToPrefs(String name, String email) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('userName', name);
+    await prefs.setString('driverName', name);
     await prefs.setString('userEmail', email);
   }
 
   Profile get currentProfile =>
       currentUser.value ??
-          const Profile(
-            photo: AssetImage(ImageRasterPath.avatar1),
-            name: "Guest",
-            email: "guest@example.com",
-          );
+      const Profile(
+        photo: AssetImage(ImageRasterPath.avatar1),
+        name: "Guest",
+        email: "guest@example.com",
+      );
 
   void toggleSidebar() {
     isSidebarOpen.value = !isSidebarOpen.value;
@@ -127,6 +112,10 @@ class UserDashboardController extends GetxController with NavigationMixin {
     Get.changeTheme(currentBodyTheme.value);
   }
 
+  void triggerPersonalPageRefresh() {
+    exitSidebarContent();
+  }
+
   void openDrawer() => isDesktop.value
       ? isSidebarOpen.value = true
       : scaffoldKey.currentState?.openDrawer();
@@ -159,22 +148,22 @@ class UserDashboardController extends GetxController with NavigationMixin {
   }
 
   ProjectCardData getSelectedProject() => ProjectCardData(
-    percent: .3,
-    projectImage: const AssetImage(ImageRasterPath.logo4),
-    projectName: "交通违法行为处理管理系统",
-    releaseTime: DateTime.now(),
-  );
+        percent: .3,
+        projectImage: const AssetImage(ImageRasterPath.logo4),
+        projectName: "交通违法行为处理管理系统",
+        releaseTime: DateTime.now(),
+      );
 
   List<ProjectCardData> getActiveProject() => [];
 
   List<ImageProvider> getMember() => const [
-    AssetImage(ImageRasterPath.avatar1),
-    AssetImage(ImageRasterPath.avatar2),
-    AssetImage(ImageRasterPath.avatar3),
-    AssetImage(ImageRasterPath.avatar4),
-    AssetImage(ImageRasterPath.avatar5),
-    AssetImage(ImageRasterPath.avatar6),
-  ];
+        AssetImage(ImageRasterPath.avatar1),
+        AssetImage(ImageRasterPath.avatar2),
+        AssetImage(ImageRasterPath.avatar3),
+        AssetImage(ImageRasterPath.avatar4),
+        AssetImage(ImageRasterPath.avatar5),
+        AssetImage(ImageRasterPath.avatar6),
+      ];
 
   void updateScrollDirection(ScrollController scrollController) {
     scrollController.addListener(() {
@@ -216,4 +205,6 @@ class UserDashboardController extends GetxController with NavigationMixin {
     selectedStyle.value = style;
     _applyTheme();
   }
+
+  RxBool get refreshPersonalPage => _refreshPersonalPage;
 }

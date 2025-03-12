@@ -1,8 +1,12 @@
+import 'dart:convert';
 import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
 import 'package:final_assignment_front/features/api/auth_controller_api.dart';
 import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
+import 'package:final_assignment_front/features/api/user_management_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/chat_controller.dart';
+import 'package:final_assignment_front/features/dashboard/models/profile.dart';
+import 'package:final_assignment_front/features/dashboard/views/components/profile_tile.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_dashboard_screen.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 import 'package:final_assignment_front/features/model/driver_information.dart';
@@ -30,7 +34,7 @@ mixin ValidatorMixin {
 
   String? validatePassword(String? val) {
     if (val == null || val.isEmpty) return '密码不能为空';
-    if (val.length < 3) return '密码太短';
+    if (val.length < 5) return '密码太短';
     return null;
   }
 }
@@ -45,6 +49,7 @@ class LoginScreen extends StatefulWidget with ValidatorMixin {
 class _LoginScreenState extends State<LoginScreen> {
   late AuthControllerApi authApi;
   late DriverInformationControllerApi driverApi;
+  late ProfilTile _profilTile;
   String? _userRole;
   bool _hasSentRegisterRequest = false;
   final UserDashboardController _userDashboardController =
@@ -72,10 +77,30 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!Get.isRegistered<UserDashboardController>()) {
       Get.lazyPut(() => UserDashboardController());
     }
+    if (!Get.isRegistered<ProfilTile>()) {
+      _profilTile = ProfilTile(
+        data: const Profile(
+          name: 'Unknown',
+          email: 'unknown@example.com',
+          photo: AssetImage(ImageRasterPath.avatar1),
+        ),
+        onPressedNotification: () {},
+      );
+      Get.put(_profilTile); // Register the initialized _profilTile
+    } else {
+      _profilTile = Get.find<ProfilTile>();
+    }
   }
 
-  static String determineRole(String username) {
-    return username.toLowerCase().endsWith('@admin.com') ? 'ADMIN' : 'USER';
+  Map<String, dynamic> _decodeJwt(String token) {
+    final parts = token.split('.');
+    if (parts.length != 3) throw Exception('Invalid JWT');
+    final payload = base64Url.decode(base64Url.normalize(parts[1]));
+    return jsonDecode(utf8.decode(payload));
+  }
+
+  static String determineRole(String rolesFromJwt) {
+    return rolesFromJwt; // e.g., "USER" or "ADMIN"
   }
 
   Future<String?> _authUser(LoginData data) async {
@@ -88,41 +113,115 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (result.containsKey('jwtToken')) {
-        _userRole = determineRole(username);
+        final jwtToken = result['jwtToken'];
+        final decodedJwt = _decodeJwt(jwtToken);
+        _userRole = determineRole(decodedJwt['roles'] ?? 'USER');
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('jwtToken', result['jwtToken']);
+        await prefs.setString('jwtToken', jwtToken);
         await prefs.setString('userRole', _userRole!);
 
         final userData = result['user'] ?? {};
-        final int? userId = userData['userId'];
+        debugPrint('登录返回的用户数据: $userData');
+        final int? userIdFromLogin = userData['userId'];
         final String name = userData['name'] ?? username.split('@').first;
         final String email = userData['email'] ?? username;
+        debugPrint('提取的 userId: $userIdFromLogin, 姓名: $name, 邮箱: $email');
 
-        // Fetch driver name if userId is available
         String driverName = name;
-        if (userId != null) {
-          await driverApi.initializeWithJwt();
-          final driverInfo = await driverApi.apiDriversDriverIdGet(
-              driverId: userId.toString());
-          driverName = driverInfo?.name ?? name;
-          await prefs.setString(
-              'driverName', driverName); // Store for ProfilTile
-          debugPrint('Fetched driver name after login: $driverName');
+
+        // 初始化 API 客户端
+        await driverApi.initializeWithJwt();
+        debugPrint('Driver API 已初始化');
+        final userManagementApi = UserManagementControllerApi();
+        await userManagementApi.initializeWithJwt();
+        debugPrint('UserManagement API 已初始化');
+
+        // 获取当前用户信息
+        int? userId;
+        try {
+          final userInfo = await userManagementApi.apiUsersMeGet();
+          if (userInfo != null) {
+            userId = userInfo.userId;
+            debugPrint('从 /api/users/me 获取的 userId: $userId');
+          }
+        } catch (e) {
+          debugPrint('获取用户信息失败: $e');
         }
 
-        _dashboardController.updateCurrentUser(driverName, email);
-        _userDashboardController.updateCurrentUser(driverName, email);
+        // 如果没有 userId，尝试通过用户名查询
+        if (userId == null) {
+          try {
+            final userInfo = await userManagementApi
+                .apiUsersUsernameUsernameGet(username: username);
+            if (userInfo != null) {
+              userId = userInfo.userId;
+              debugPrint('从 /api/users/username/$username 获取的 userId: $userId');
+            }
+          } catch (e) {
+            debugPrint('通过用户名查询用户信息失败: $e');
+          }
+        }
+
+        // 使用 userId 获取 DriverInformation
+        if (userId != null) {
+          try {
+            final driverInfo = await driverApi.apiDriversDriverIdGet(
+                driverId: userId.toString());
+            if (driverInfo != null && driverInfo.name != null) {
+              driverName = driverInfo.name!;
+              debugPrint('从数据库获取的 driverName: $driverName');
+            } else {
+              debugPrint('DriverInformation 未找到或 name 为空');
+            }
+          } catch (e) {
+            if (e is ApiException && e.code == 404) {
+              // 如果司机信息不存在，创建新记录
+              final idempotencyKey = generateIdempotencyKey();
+              final newDriverInfo = DriverInformation(
+                driverId: userId,
+                name: name,
+                contactNumber: '',
+                idCardNumber: '',
+              );
+              await driverApi.apiDriversPost(
+                driverInformation: newDriverInfo,
+                idempotencyKey: idempotencyKey,
+              );
+              driverName = name;
+              debugPrint('创建新司机记录，driverName: $driverName');
+            } else {
+              debugPrint('获取 DriverInformation 失败: $e');
+            }
+          }
+        } else {
+          debugPrint('无法获取 userId，跳过 DriverInformation 查询');
+        }
+
+        // 保存到 SharedPreferences 并更新控制器
+        await prefs.setString('driverName', driverName);
+        await prefs.setString('userEmail', email);
+        if (userId != null) await prefs.setString('userId', userId.toString());
+
+        if (_userRole == 'USER') {
+          _userDashboardController.updateCurrentUser(driverName, email);
+          debugPrint(
+              'Login 中的 UserController ID: ${_userDashboardController.hashCode}');
+        } else {
+          _dashboardController.updateCurrentUser(driverName, email);
+          debugPrint(
+              'Login 中的 AdminController ID: ${_dashboardController.hashCode}');
+        }
+
         Get.find<ChatController>().setUserRole(_userRole!);
 
-        debugPrint(
-            'Login successful - Role: $_userRole, Name: $driverName, Email: $email');
+        debugPrint('登录成功 - 角色: $_userRole, 姓名: $driverName, 邮箱: $email');
         return null;
       }
       return result['message'] ?? '登录失败';
     } on ApiException catch (e) {
       return _formatErrorMessage(e, '登录失败');
     } catch (e) {
-      debugPrint('General Exception in login: $e');
+      debugPrint('登录中的常规异常: $e');
       return '登录异常: $e';
     }
   }
@@ -161,9 +260,11 @@ class _LoginScreenState extends State<LoginScreen> {
         );
 
         if (loginResult.containsKey('jwtToken')) {
-          _userRole = determineRole(username);
+          final jwtToken = loginResult['jwtToken'];
+          final decodedJwt = _decodeJwt(jwtToken);
+          _userRole = determineRole(decodedJwt['roles'] ?? 'USER');
           final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('jwtToken', loginResult['jwtToken']);
+          await prefs.setString('jwtToken', jwtToken);
           await prefs.setString('userRole', _userRole!);
 
           final userData = loginResult['user'] ?? {};
@@ -171,7 +272,6 @@ class _LoginScreenState extends State<LoginScreen> {
           final String name = userData['name'] ?? username.split('@').first;
           final String email = userData['email'] ?? username;
 
-          // Fetch or set driver name
           String driverName = name;
           if (userId != null) {
             await driverApi.initializeWithJwt();
@@ -188,14 +288,25 @@ class _LoginScreenState extends State<LoginScreen> {
             final fetchedDriver = await driverApi.apiDriversDriverIdGet(
                 driverId: userId.toString());
             driverName = fetchedDriver?.name ?? name;
-            await prefs.setString(
-                'driverName', driverName); // Store for ProfilTile
+            await prefs.setString('driverName', driverName);
+            await prefs.setString('userEmail', email);
+            await prefs.setString('userId', userId.toString());
             debugPrint('Driver created and fetched name: $driverName');
           }
 
-          _dashboardController.updateCurrentUser(driverName, email);
-          _userDashboardController.updateCurrentUser(driverName, email);
+          if (_userRole == 'USER') {
+            _userDashboardController.updateCurrentUser(driverName, email);
+          } else {
+            _dashboardController.updateCurrentUser(driverName, email);
+          }
+
           Get.find<ChatController>().setUserRole(_userRole!);
+
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _dashboardController.triggerPersonalPageRefresh();
+            _userDashboardController.triggerPersonalPageRefresh();
+          });
+
           debugPrint(
               'Signup and login successful - Role: $_userRole, Name: $driverName, Email: $email');
           return null;
@@ -341,7 +452,6 @@ class _LoginScreenState extends State<LoginScreen> {
         'PUT',
         [],
         newPassword,
-        // Send new password as plain text body
         {
           'Authorization': 'Bearer $jwtToken',
           'Content-Type': 'text/plain; charset=utf-8'
@@ -352,7 +462,6 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (response.statusCode == 200) {
-        // Optionally update SharedPreferences or controllers if backend returns data
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('密码重置成功，请使用新密码登录',
@@ -361,7 +470,7 @@ class _LoginScreenState extends State<LoginScreen> {
             backgroundColor: themeData.colorScheme.primary,
           ),
         );
-        return null; // Success
+        return null;
       } else {
         throw ApiException(
             response.statusCode, '密码重置失败: ${response.statusCode}');
