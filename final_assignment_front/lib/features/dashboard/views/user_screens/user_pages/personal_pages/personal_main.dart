@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 import 'package:final_assignment_front/features/model/driver_information.dart';
@@ -9,7 +8,6 @@ import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 String generateIdempotencyKey() {
   return DateTime.now().millisecondsSinceEpoch.toString();
@@ -31,8 +29,8 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
   final DriverInformationControllerApi driverApi =
       DriverInformationControllerApi();
   bool _isLoading = true;
-  bool _isUser = false;
-  bool _isEditable = false;
+  final bool _isUser = false;
+  final bool _isEditable = false;
   bool _idCardNumberEdited = false;
   String _errorMessage = '';
 
@@ -51,7 +49,6 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
     super.initState();
     _scrollController = ScrollController();
     _userFuture = Future.value(null);
-    _checkUserRole();
   }
 
   @override
@@ -64,79 +61,6 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
     _idCardNumberController.dispose();
     _scrollController.dispose();
     super.dispose();
-  }
-
-  Future<void> _checkUserRole() async {
-    setState(() => _isLoading = true);
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      String? jwtToken = prefs.getString('jwtToken');
-      if (jwtToken == null) {
-        jwtToken = await _loginAndGetToken();
-        if (jwtToken == null) {
-          throw Exception('未登录，请重新登录');
-        }
-      }
-      apiClient.setJwtToken(jwtToken);
-      await driverApi.initializeWithJwt();
-
-      final decodedJwt = _decodeJwt(jwtToken);
-      final roles = decodedJwt['roles']?.toString().split(',') ?? [];
-      _isUser = roles.contains('USER');
-      _isEditable = _isUser;
-      if (!_isUser) {
-        throw Exception('权限不足：此页面仅限 USER 角色访问');
-      }
-
-      await _loadCurrentUser();
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-        _errorMessage = _formatErrorMessage(e);
-      });
-      Get.offAllNamed(AppPages.login);
-    }
-  }
-
-  Map<String, dynamic> _decodeJwt(String token) {
-    try {
-      final parts = token.split('.');
-      if (parts.length != 3) throw Exception('Invalid JWT format');
-      final payload = base64Url.decode(base64Url.normalize(parts[1]));
-      return jsonDecode(utf8.decode(payload)) as Map<String, dynamic>;
-    } catch (e) {
-      debugPrint('JWT Decode Error: $e');
-      return {};
-    }
-  }
-
-  Future<String?> _loginAndGetToken() async {
-    try {
-      final response = await apiClient.invokeAPI(
-        '/api/auth/login',
-        'POST',
-        [],
-        {"username": "985@985.com", "password": "123456"},
-        // Updated to match logs
-        {},
-        {},
-        'application/json',
-        [],
-      );
-      if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
-        final jwtToken = data['jwtToken'] as String;
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('jwtToken', jwtToken);
-        controller.updateCurrentUser('985@985.com', '985@985.com');
-        return jwtToken;
-      } else {
-        throw Exception('登录失败: ${response.statusCode}');
-      }
-    } catch (e) {
-      debugPrint('Login Error: $e');
-      return null;
-    }
   }
 
   Future<void> _loadCurrentUser() async {
@@ -190,12 +114,10 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
               driverInformation: driverInfo,
               idempotencyKey: idempotencyKey,
             );
-            // Fetch the newly created driver
             driverInfo = await driverApi.apiDriversDriverIdGet(
                 driverId: user.userId.toString());
             debugPrint('Driver created and fetched: ${driverInfo?.toJson()}');
           } else {
-            // Only set error message for non-404 errors
             setState(() {
               _errorMessage = _formatErrorMessage(e);
             });
@@ -244,7 +166,6 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
 
       switch (field) {
         case 'name':
-          // Directly create a new driver regardless of existing data
           final newDriverName = DriverInformation(
             driverId: currentUser.userId, // e.g., 8
             name: value, // New name value
@@ -264,7 +185,6 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
           break;
 
         case 'contactNumber':
-          // Directly create a new driver regardless of existing data
           final newDriverContact = DriverInformation(
             driverId: currentUser.userId, // e.g., 8
             name: _driverInfo?.name ?? currentUser.username ?? '未知用户',
@@ -283,7 +203,6 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
           break;
 
         case 'idCardNumber':
-          // Directly create a new driver regardless of existing data
           final newDriverIdCard = DriverInformation(
             driverId: currentUser.userId, // e.g., 8
             name: _driverInfo?.name ?? currentUser.username ?? '未知用户',

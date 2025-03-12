@@ -205,7 +205,7 @@ public class VehicleInformationController {
         }
     }
 
-    // Exception handler for validation errors
+   // Exception handler for validation errors
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<String> handleValidationExceptions(MethodArgumentNotValidException ex) {
         String errorMessage = ex.getBindingResult().getAllErrors().stream()

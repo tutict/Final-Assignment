@@ -32,8 +32,6 @@ class VehicleManagement extends StatefulWidget {
 class _VehicleManagementState extends State<VehicleManagement> {
   final TextEditingController _licensePlateController = TextEditingController();
   final TextEditingController _vehicleTypeController = TextEditingController();
-  final TextEditingController _ownerNameController = TextEditingController();
-  final TextEditingController _statusController = TextEditingController();
 
   final VehicleInformationControllerApi vehicleApi =
       VehicleInformationControllerApi();
@@ -75,8 +73,6 @@ class _VehicleManagementState extends State<VehicleManagement> {
   void dispose() {
     _licensePlateController.dispose();
     _vehicleTypeController.dispose();
-    _ownerNameController.dispose();
-    _statusController.dispose();
     super.dispose();
   }
 
@@ -369,10 +365,6 @@ class _VehicleManagementState extends State<VehicleManagement> {
                   '按车牌号搜索', _licensePlateController, 'licensePlate', themeData),
               _buildSearchField(
                   '按车辆类型搜索', _vehicleTypeController, 'vehicleType', themeData),
-              _buildSearchField(
-                  '按车主名称搜索', _ownerNameController, 'ownerName', themeData),
-              _buildSearchField(
-                  '按状态搜索', _statusController, 'currentStatus', themeData),
               const SizedBox(height: 12),
               Expanded(
                 child: NotificationListener<ScrollNotification>(
@@ -439,11 +431,7 @@ class _VehicleManagementState extends State<VehicleManagement> {
                                             value: 'edit',
                                             child: Text('查看/编辑')),
                                         const PopupMenuItem<String>(
-                                            value: 'delete',
-                                            child: Text('按ID删除')),
-                                        const PopupMenuItem<String>(
-                                            value: 'deleteByPlate',
-                                            child: Text('按车牌删除')),
+                                            value: 'delete', child: Text('删除')),
                                       ],
                                       icon: Icon(Icons.more_vert,
                                           color:
@@ -1142,6 +1130,10 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
   }
 
   Future<void> _checkUserRole() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
     try {
       final prefs = await SharedPreferences.getInstance();
       final jwtToken = prefs.getString('jwtToken');
@@ -1149,6 +1141,7 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
       if (jwtToken == null || currentUsername == null) {
         throw Exception('未登录，请重新登录');
       }
+
       final response = await http.get(
         Uri.parse('http://localhost:8081/api/users/me'),
         headers: {
@@ -1156,12 +1149,16 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
           'Authorization': 'Bearer $jwtToken',
         },
       );
+
       if (response.statusCode == 200) {
         final userData = jsonDecode(utf8.decode(response.bodyBytes));
-        final roles = (userData['roles'] as List<dynamic>)
-            .map((r) => r.toString())
-            .toList();
-        final username = userData['sub'] as String;
+        // Safely handle roles, defaulting to an empty list if null
+        final roles = (userData['roles'] as List<dynamic>?)
+                ?.map((r) => r.toString())
+                .toList() ??
+            [];
+        final username = userData['sub'] as String? ?? currentUsername;
+
         setState(() {
           _isEditable = roles.contains('ROLE_ADMIN') ||
               (username == widget.vehicle.ownerName);
@@ -1173,6 +1170,8 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
       setState(() {
         _errorMessage = '加载权限失败: $e';
       });
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 

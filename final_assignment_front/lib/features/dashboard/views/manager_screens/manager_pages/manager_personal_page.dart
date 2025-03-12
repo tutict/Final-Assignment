@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/user_management_controller_api.dart';
@@ -53,7 +52,6 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
     driverApi = DriverInformationControllerApi();
     _scrollController = ScrollController();
     _managerFuture = Future.value(null);
-    _checkUserRole();
   }
 
   @override
@@ -66,77 +64,6 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
     _remarksController.dispose();
     _scrollController.dispose();
     super.dispose();
-  }
-
-  Future<void> _checkUserRole() async {
-    setState(() => _isLoading = true);
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      String? jwtToken = prefs.getString('jwtToken');
-      if (jwtToken == null) {
-        jwtToken = await _loginAndGetToken();
-        if (jwtToken == null) {
-          throw Exception('未登录，请重新登录');
-        }
-      }
-      await userApi.initializeWithJwt();
-      await driverApi.initializeWithJwt();
-
-      final decodedJwt = _decodeJwt(jwtToken);
-      final roles = decodedJwt['roles']?.toString().split(',') ?? [];
-      _isAdmin = roles.contains('ADMIN');
-      if (!_isAdmin) {
-        throw Exception('权限不足：此页面仅限 ADMIN 角色访问');
-      }
-
-      await _loadCurrentManager();
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-        _errorMessage = _formatErrorMessage(e);
-      });
-      Get.offAllNamed(AppPages.login);
-    }
-  }
-
-  Map<String, dynamic> _decodeJwt(String token) {
-    try {
-      final parts = token.split('.');
-      if (parts.length != 3) throw Exception('Invalid JWT format');
-      final payload = base64Url.decode(base64Url.normalize(parts[1]));
-      return jsonDecode(utf8.decode(payload)) as Map<String, dynamic>;
-    } catch (e) {
-      debugPrint('JWT Decode Error: $e');
-      return {};
-    }
-  }
-
-  Future<String?> _loginAndGetToken() async {
-    try {
-      final response = await userApi.apiClient.invokeAPI(
-        '/api/auth/login',
-        'POST',
-        [],
-        {"username": "admin@admin.com", "password": "admin123"},
-        {},
-        {},
-        'application/json',
-        [],
-      );
-      if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
-        final jwtToken = data['jwtToken'] as String;
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('jwtToken', jwtToken);
-        controller?.updateCurrentUser('admin@admin.com', 'admin@admin.com');
-        return jwtToken;
-      } else {
-        throw Exception('登录失败: ${response.statusCode}');
-      }
-    } catch (e) {
-      debugPrint('Login Error: $e');
-      return null;
-    }
   }
 
   Future<void> _loadCurrentManager() async {
@@ -245,11 +172,10 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
           break;
 
         case 'contactNumber':
-          // Directly create a new driver regardless of existing data
           final newDriverContact = DriverInformation(
-            driverId: currentManager.userId, // e.g., match userId
+            driverId: currentManager.userId,
             name: _driverInfo?.name ?? currentManager.username ?? '未知管理员',
-            contactNumber: value, // New contact number value
+            contactNumber: value,
             idCardNumber: _driverInfo?.idCardNumber ?? '',
           );
           debugPrint(
