@@ -21,15 +21,13 @@ public class ChatController {
     private static final Logger LOG = Logger.getLogger(ChatController.class.getName());
     private final ChatClient chatClient;
 
-//    private final AIChatSearchService aiChatSearchService;
-//    public ChatController(ChatClient.Builder chatClient, AIChatSearchService aiChatSearchService) {
-//        this.chatClient = chatClient.build();
-//        this.aiChatSearchService = aiChatSearchService;
-//    }
+    private final AIChatSearchService aiChatSearchService;
 
-    public ChatController(ChatClient.Builder chatClient) {
+    public ChatController(ChatClient.Builder chatClient, AIChatSearchService aiChatSearchService) {
         this.chatClient = chatClient.build();
+        this.aiChatSearchService = aiChatSearchService;
     }
+
 
     @RequestMapping(
             value = "/chat",
@@ -40,14 +38,14 @@ public class ChatController {
         SseEmitter emitter = new SseEmitter(Long.MAX_VALUE); // 设置无超时
 
         try {
-//            // Perform Baidu search using AIChatSearchService
-//            String searchResult = aiChatSearchService.search(message).toString();
-//
-//            // Combine the original message with search results for the AI prompt
-//            String prompt = message + "\n\nBaidu Search Results:\n" + (searchResult != null ? searchResult : "No search results found.");
+            // Perform Baidu search using AIChatSearchService
+            String searchResult = aiChatSearchService.search(message).toString();
+
+            // Combine the original message with search results for the AI prompt
+            String prompt = message + "\n\nBaidu Search Results:\n" + (searchResult != null ? searchResult : "No search results found.");
 
             // 获取 AI 的流式响应
-            Flux<String> responseFlux = chatClient.prompt(message)
+            Flux<String> responseFlux = chatClient.prompt(prompt)
                     .stream()
                     .content()
                     .map(response -> response.replaceAll("(?s)<think>.*?</think>", "").trim());

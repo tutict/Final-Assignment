@@ -1,48 +1,54 @@
 package com.tutict.finalassignmentbackend.config.ai;
 
-import jakarta.annotation.PreDestroy;
 import org.graalvm.polyglot.Context;
-import org.graalvm.polyglot.PolyglotException;
 import org.graalvm.polyglot.Value;
-import org.graalvm.python.embedding.utils.GraalPyResources;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-//@Component
-public class GraalPyContext {
-    static final String PYTHON = "python";
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
 
+@Component
+public class GraalPyContext {
+    private static final Logger logger = LoggerFactory.getLogger(GraalPyContext.class);
     private final Context context;
 
     public GraalPyContext() {
-        context = GraalPyResources.contextBuilder()
-                .allowExperimentalOptions(true)
-                .option("python.Executable", "E:\\graalpy\\bin\\python.exe")
-                .option("python.WithCachedSources", "true")
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        ByteArrayOutputStream err = new ByteArrayOutputStream();
+        this.context = Context.newBuilder("python")
+                .allowAllAccess(true)
+                .out(new PrintStream(out)) // 重定向标准输出
+                .err(new PrintStream(err)) // 重定向标准错误
                 .build();
-        context.initialize(PYTHON);
-    }
 
-    public Value eval(String source) {
-        try {
-            Value result = context.eval(PYTHON, source);
-            if (result == null) {
-                System.err.println("Eval returned null for source: " + source);
-            }
-            return result;
-        } catch (PolyglotException e) {
-            System.err.println("PolyglotException occurred while evaluating Python code: " + source);
-            System.err.println("Error details: " + e.getMessage());
-            e.printStackTrace();
-            throw e;
-        } catch (Exception e) {
-            System.err.println("Unexpected exception during eval: " + source);
-            e.printStackTrace();
-            throw e;
+        // 捕获并记录输出
+        context.eval("python", "print('GraalPy context initialized')");
+        logger.info("GraalPy stdout: {}", out.toString());
+        if (!err.toString().isEmpty()) {
+            logger.error("GraalPy stderr: {}", err.toString());
         }
     }
 
-    @PreDestroy
-    public void close() {
-        context.close(true);
+    public Value eval(String code) {
+        logger.debug("Executing Python code: {}", code);
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        ByteArrayOutputStream err = new ByteArrayOutputStream();
+        context.getBindings("python").putMember("sys", context.eval("python", "import sys; sys"));
+        context.getBindings("python").putMember("sys.stdout", new PrintStream(out));
+        context.getBindings("python").putMember("sys.stderr", new PrintStream(err));
+
+        try {
+            Value result = context.eval("python", code);
+            logger.debug("Python stdout: {}", out.toString());
+            if (!err.toString().isEmpty()) {
+                logger.error("Python stderr: {}", err.toString());
+            }
+            return result;
+        } catch (Exception e) {
+            logger.error("GraalPy execution failed - stdout: {}, stderr: {}", out.toString(), err.toString(), e);
+            throw e;
+        }
     }
 }
