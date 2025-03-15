@@ -114,7 +114,7 @@ quarkus.langchain4j.ollama.chat-model.model-id=deepseek-r1:7b
 - **docker**
   基于testcontainers, 使用 Redis + Redpanda + ElasticSearch
 - **AI**
-  使用本地 DeepSeek AI 服务（ollama）
+      使用本地 DeepSeek AI 服务（ollama），并利用Graalpy，实现本地模型通过Python爬虫脚本爬取数据来进行联网
 
 #### 关键特性
 
@@ -132,7 +132,6 @@ quarkus.langchain4j.ollama.chat-model.model-id=deepseek-r1:7b
 - 📘 OpenAPI 3 规范接口
 - 🔌 混合通信模式（HTTP/REST + WebSocket）
 - 📊 多数据源支持（关系型 + 缓存 + 消息队列）
-- 利用Graalpy，实现本地模型通过Python爬虫脚本爬取数据来进行联网
 - WebSocket 实时推送
 
 #### application.properties参考：
@@ -178,4 +177,4 @@ spring.ai.ollama.base-url=http://localhost:11434
 
 ## 八股选猿
 
-- 对八股文的一些练习放在`final_assignment_backend_quarkus/src/test/java/bagu`路径下
+- 等赶完毕设DLL后，对八股文的一些练习将放在`final_assignment_backend_quarkus/src/test/java/bagu`路径下
