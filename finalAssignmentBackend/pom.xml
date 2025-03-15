@@ -130,7 +130,7 @@
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <optional>true</optional>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -304,9 +304,8 @@
                     <execution>
                         <configuration>
                             <packages>
-                                <package>baidusearch==1.0.3</package>
-                                <package>requests==2.32.3</package>
-                                <package>urllib3</package>
+                                <package>requests</package>
+                                <package>beautifulsoup4</package>
                             </packages>
                         </configuration>
                         <goals>
@@ -317,22 +316,7 @@
             </plugin>
         </plugins>
     </build>
-    <!--    <build>-->
-    <!--        <plugins>-->
-    <!--            <plugin>-->
-    <!--                <groupId>org.springframework.boot</groupId>-->
-    <!--                <artifactId>spring-boot-maven-plugin</artifactId>-->
-    <!--                <configuration>-->
-    <!--                    <excludes>-->
-    <!--                        <exclude>-->
-    <!--                            <groupId>org.projectlombok</groupId>-->
-    <!--                            <artifactId>lombok</artifactId>-->
-    <!--                        </exclude>-->
-    <!--                    </excludes>-->
-    <!--                </configuration>-->
-    <!--            </plugin>-->
-    <!--        </plugins>-->
-    <!--    </build>-->
+
     <repositories>
         <repository>
             <id>spring-milestones</id>

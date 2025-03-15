@@ -89,7 +89,6 @@ fabric.properties
 # BlueJ files
 *.ctxt
 
-*.py
 *.iml
 *.h
 *.cc

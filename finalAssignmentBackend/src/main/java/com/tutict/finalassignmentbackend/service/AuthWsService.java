@@ -6,8 +6,7 @@ import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.LoginLog;
 import com.tutict.finalassignmentbackend.entity.RoleManagement;
 import com.tutict.finalassignmentbackend.entity.UserManagement;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
@@ -146,15 +145,13 @@ public class AuthWsService {
         loginLogService.createLoginLog(loginLog);
     }
 
-    @Getter
-    @Setter
+    @Data
     public static class LoginRequest {
         private String username;
         private String password;
     }
 
-    @Getter
-    @Setter
+    @Data
     public static class RegisterRequest {
         private String username;
         private String password;
