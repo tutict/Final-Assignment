@@ -131,7 +131,6 @@ quarkus.langchain4j.ollama.chat-model.model-id=deepseek-r1:7b
 
 - 📘 OpenAPI 3 规范接口
 - 🔌 混合通信模式（HTTP/REST + WebSocket）
-- 📊 多数据源支持（关系型 + 缓存 + 消息队列）
 - WebSocket 实时推送
 
 #### application.properties参考：
