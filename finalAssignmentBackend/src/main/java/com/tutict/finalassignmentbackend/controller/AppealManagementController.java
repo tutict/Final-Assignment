@@ -5,10 +5,11 @@ import com.tutict.finalassignmentbackend.entity.OffenseInformation;
 import com.tutict.finalassignmentbackend.service.AppealManagementService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.security.access.prepost.PreAuthorize;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.logging.Logger;
 
@@ -24,32 +25,43 @@ public class AppealManagementController {
         this.appealManagementService = appealManagementService;
     }
 
-    // Create a new appeal (改为 USER 权限)
+    // Create a new appeal (USER permission)
     @PostMapping
-    @PreAuthorize("hasRole('USER')") // 修改权限为 USER
-    public ResponseEntity<Void> createAppeal(@RequestBody AppealManagement appeal, @RequestParam String idempotencyKey) {
+    @PreAuthorize("hasRole('USER')")
+    public ResponseEntity<AppealManagement> createAppeal(
+            @RequestBody AppealManagement appeal,
+            @RequestParam String idempotencyKey) {
         try {
             appealManagementService.checkAndInsertIdempotency(idempotencyKey, appeal, "create");
-            return ResponseEntity.status(HttpStatus.CREATED).build();
-        } catch (Exception e) {
-            logger.warning("Error creating appeal: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            AppealManagement createdAppeal = appealManagementService.createAppeal(appeal);
+            return ResponseEntity.status(HttpStatus.CREATED).body(createdAppeal);
+        } catch (IllegalArgumentException e) {
+            logger.warning("Invalid input for creating appeal: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+        } catch (RuntimeException e) {
+            logger.severe("Error creating appeal: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
-    // Get appeal by ID (USER 和 ADMIN)
+    // Get appeal by ID (USER and ADMIN)
     @GetMapping("/{appealId}")
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public ResponseEntity<AppealManagement> getAppealById(@PathVariable Integer appealId) {
-        AppealManagement appeal = appealManagementService.getAppealById(appealId);
-        if (appeal != null) {
-            return ResponseEntity.ok(appeal);
-        } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        try {
+            AppealManagement appeal = appealManagementService.getAppealById(appealId);
+            if (appeal != null) {
+                return ResponseEntity.ok(appeal);
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            }
+        } catch (IllegalArgumentException e) {
+            logger.warning("Invalid appeal ID: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
 
-    // Get all appeals (USER 和 ADMIN)
+    // Get all appeals (USER and ADMIN)
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public ResponseEntity<List<AppealManagement>> getAllAppeals() {
@@ -57,62 +69,213 @@ public class AppealManagementController {
         return ResponseEntity.ok(appeals);
     }
 
-    // Update appeal information (仅 ADMIN)
+    // Update appeal information (ADMIN only)
     @PutMapping("/{appealId}")
     @Transactional
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> updateAppeal(@PathVariable Integer appealId, @RequestBody AppealManagement updatedAppeal, @RequestParam String idempotencyKey) {
-        AppealManagement existingAppeal = appealManagementService.getAppealById(appealId);
-        if (existingAppeal != null) {
-            existingAppeal.setOffenseId(updatedAppeal.getOffenseId());
-            existingAppeal.setAppellantName(updatedAppeal.getAppellantName());
-            existingAppeal.setIdCardNumber(updatedAppeal.getIdCardNumber());
-            existingAppeal.setContactNumber(updatedAppeal.getContactNumber());
-            existingAppeal.setAppealReason(updatedAppeal.getAppealReason());
-            existingAppeal.setAppealTime(updatedAppeal.getAppealTime());
-            existingAppeal.setProcessStatus(updatedAppeal.getProcessStatus());
-            existingAppeal.setProcessResult(updatedAppeal.getProcessResult());
+    public ResponseEntity<AppealManagement> updateAppeal(
+            @PathVariable Integer appealId,
+            @RequestBody AppealManagement updatedAppeal,
+            @RequestParam String idempotencyKey) {
+        try {
+            AppealManagement existingAppeal = appealManagementService.getAppealById(appealId);
+            if (existingAppeal == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            }
+            updatedAppeal.setAppealId(appealId); // Ensure ID consistency
+            appealManagementService.checkAndInsertIdempotency(idempotencyKey, updatedAppeal, "update");
+            AppealManagement updated = appealManagementService.updateAppeal(updatedAppeal);
+            return ResponseEntity.ok(updated);
+        } catch (IllegalArgumentException e) {
+            logger.warning("Invalid input for updating appeal: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        } catch (RuntimeException e) {
+            logger.severe("Error updating appeal: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
 
-            appealManagementService.checkAndInsertIdempotency(idempotencyKey, existingAppeal, "update");
-            return ResponseEntity.ok().build();
-        } else {
+    // Delete appeal (ADMIN only)
+    @DeleteMapping("/{appealId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> deleteAppeal(@PathVariable Integer appealId) {
+        try {
+            appealManagementService.deleteAppeal(appealId);
+            return ResponseEntity.noContent().build();
+        } catch (IllegalArgumentException e) {
+            logger.warning("Invalid appeal ID: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        } catch (RuntimeException e) {
+            logger.severe("Error deleting appeal: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
     }
 
-    // Delete appeal (仅 ADMIN)
-    @DeleteMapping("/{appealId}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> deleteAppeal(@PathVariable Integer appealId) {
-        appealManagementService.deleteAppeal(appealId);
-        return ResponseEntity.noContent().build();
-    }
-
-    // Get appeals by process status (USER 和 ADMIN)
+    // Get appeals by process status (USER and ADMIN)
     @GetMapping("/status/{processStatus}")
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public ResponseEntity<List<AppealManagement>> getAppealsByProcessStatus(@PathVariable String processStatus) {
-        List<AppealManagement> appeals = appealManagementService.getAppealsByProcessStatus(processStatus);
-        return ResponseEntity.ok(appeals);
+        try {
+            List<AppealManagement> appeals = appealManagementService.getAppealsByProcessStatus(processStatus);
+            return ResponseEntity.ok(appeals);
+        } catch (IllegalArgumentException e) {
+            logger.warning("Invalid process status: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
     }
 
-    // Get appeals by appellant name (USER 和 ADMIN)
-    @GetMapping("/name/{appealName}")
+    // Get appeals by appellant name (USER and ADMIN)
+    @GetMapping("/name/{appellantName}")
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    public ResponseEntity<List<AppealManagement>> getAppealsByAppealName(@PathVariable String appealName) {
-        List<AppealManagement> appeals = appealManagementService.getAppealsByAppealName(appealName);
-        return ResponseEntity.ok(appeals);
+    public ResponseEntity<List<AppealManagement>> getAppealsByAppellantName(@PathVariable String appellantName) {
+        try {
+            List<AppealManagement> appeals = appealManagementService.getAppealsByAppellantName(appellantName);
+            return ResponseEntity.ok(appeals);
+        } catch (IllegalArgumentException e) {
+            logger.warning("Invalid appellant name: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
     }
 
-    // Get offense information by appeal ID (USER 和 ADMIN)
+    // Get offense information by appeal ID (USER and ADMIN)
     @GetMapping("/{appealId}/offense")
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public ResponseEntity<OffenseInformation> getOffenseByAppealId(@PathVariable Integer appealId) {
-        OffenseInformation offense = appealManagementService.getOffenseByAppealId(appealId);
-        if (offense != null) {
-            return ResponseEntity.ok(offense);
-        } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        try {
+            OffenseInformation offense = appealManagementService.getOffenseByAppealId(appealId);
+            if (offense != null) {
+                return ResponseEntity.ok(offense);
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            }
+        } catch (IllegalArgumentException e) {
+            logger.warning("Invalid appeal ID: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
+
+    // Get appeals by ID card number (USER and ADMIN)
+    @GetMapping("/id-card/{idCardNumber}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    public ResponseEntity<List<AppealManagement>> getAppealsByIdCardNumber(@PathVariable String idCardNumber) {
+        try {
+            List<AppealManagement> appeals = appealManagementService.getAppealsByIdCardNumber(idCardNumber);
+            return ResponseEntity.ok(appeals);
+        } catch (IllegalArgumentException e) {
+            logger.warning("Invalid ID card number: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
+
+    // Get appeals by contact number (USER and ADMIN)
+    @GetMapping("/contact/{contactNumber}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    public ResponseEntity<List<AppealManagement>> getAppealsByContactNumber(@PathVariable String contactNumber) {
+        try {
+            List<AppealManagement> appeals = appealManagementService.getAppealsByContactNumber(contactNumber);
+            return ResponseEntity.ok(appeals);
+        } catch (IllegalArgumentException e) {
+            logger.warning("Invalid contact number: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
+
+    // Get appeals by offense ID (USER and ADMIN)
+    @GetMapping("/offense/{offenseId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    public ResponseEntity<List<AppealManagement>> getAppealsByOffenseId(@PathVariable Integer offenseId) {
+        try {
+            List<AppealManagement> appeals = appealManagementService.getAppealsByOffenseId(offenseId);
+            return ResponseEntity.ok(appeals);
+        } catch (IllegalArgumentException e) {
+            logger.warning("Invalid offense ID: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
+
+    // Get appeals by appeal time range (USER and ADMIN)
+    @GetMapping("/time-range")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    public ResponseEntity<List<AppealManagement>> getAppealsByAppealTimeBetween(
+            @RequestParam String startTime,
+            @RequestParam String endTime) {
+        try {
+            LocalDateTime start = LocalDateTime.parse(startTime);
+            LocalDateTime end = LocalDateTime.parse(endTime);
+            List<AppealManagement> appeals = appealManagementService.getAppealsByAppealTimeBetween(start, end);
+            return ResponseEntity.ok(appeals);
+        } catch (IllegalArgumentException e) {
+            logger.warning("Invalid time range: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        } catch (Exception e) {
+            logger.severe("Error parsing time range: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    // Search appeals with pagination (USER and ADMIN)
+    @GetMapping("/search")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    public ResponseEntity<List<AppealManagement>> searchAppeals(
+            @RequestParam String query,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        try {
+            List<AppealManagement> appeals = appealManagementService.searchAppeals(query, page, size);
+            return ResponseEntity.ok(appeals);
+        } catch (IllegalArgumentException e) {
+            logger.warning("Invalid search parameters: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        } catch (Exception e) {
+            logger.severe("Error searching appeals: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    // Count appeals by process status (USER and ADMIN)
+    @GetMapping("/count/status/{processStatus}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    public ResponseEntity<Long> countAppealsByStatus(@PathVariable String processStatus) {
+        try {
+            long count = appealManagementService.countAppealsByStatus(processStatus);
+            return ResponseEntity.ok(count);
+        } catch (IllegalArgumentException e) {
+            logger.warning("Invalid process status: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
+
+    // New endpoint: Get appeals by appeal reason containing (USER and ADMIN)
+    @GetMapping("/reason/{reason}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    public ResponseEntity<List<AppealManagement>> getAppealsByReasonContaining(@PathVariable String reason) {
+        try {
+            List<AppealManagement> appeals = appealManagementService.getAppealsByReasonContaining(reason);
+            return ResponseEntity.ok(appeals);
+        } catch (IllegalArgumentException e) {
+            logger.warning("Invalid appeal reason: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
+
+    // New endpoint: Get appeals by process status and time range (USER and ADMIN)
+    @GetMapping("/status-and-time")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    public ResponseEntity<List<AppealManagement>> getAppealsByStatusAndTime(
+            @RequestParam String processStatus,
+            @RequestParam String startTime,
+            @RequestParam String endTime) {
+        try {
+            LocalDateTime start = LocalDateTime.parse(startTime);
+            LocalDateTime end = LocalDateTime.parse(endTime);
+            List<AppealManagement> appeals = appealManagementService.getAppealsByStatusAndTime(processStatus, start, end);
+            return ResponseEntity.ok(appeals);
+        } catch (IllegalArgumentException e) {
+            logger.warning("Invalid parameters: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        } catch (Exception e) {
+            logger.severe("Error parsing parameters: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 }

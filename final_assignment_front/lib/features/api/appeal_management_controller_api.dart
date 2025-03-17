@@ -33,7 +33,8 @@ class AppealManagementControllerApi {
       throw Exception('未登录，请重新登录');
     }
     apiClient.setJwtToken(jwtToken);
-    debugPrint('Initialized DeductionInformationControllerApi with token: $jwtToken');
+    debugPrint(
+        'Initialized AppealManagementControllerApi with token: $jwtToken');
   }
 
   /// 辅助方法：将幂等性键添加为查询参数
@@ -69,14 +70,14 @@ class AppealManagementControllerApi {
     }
   }
 
-  // --- GET /api/appeals/name/{appealName} ---
-  Future<http.Response> apiAppealsNameAppealNameGetWithHttpInfo({
-    required String appealName,
+  // --- GET /api/appeals/name/{appellantName} ---
+  Future<http.Response> apiAppealsNameAppellantNameGetWithHttpInfo({
+    required String appellantName,
   }) async {
-    if (appealName.isEmpty) {
-      throw ApiException(400, "Missing required param: appealName");
+    if (appellantName.isEmpty) {
+      throw ApiException(400, "Missing required param: appellantName");
     }
-    final path = "/api/appeals/name/${Uri.encodeComponent(appealName)}";
+    final path = "/api/appeals/name/${Uri.encodeComponent(appellantName)}";
     final headerParams = await _getHeaders();
     return await apiClient.invokeAPI(
       path,
@@ -90,11 +91,11 @@ class AppealManagementControllerApi {
     );
   }
 
-  Future<List<AppealManagement>> apiAppealsNameAppealNameGet({
-    required String appealName,
+  Future<List<AppealManagement>> apiAppealsNameAppellantNameGet({
+    required String appellantName,
   }) async {
-    final response =
-        await apiAppealsNameAppealNameGetWithHttpInfo(appealName: appealName);
+    final response = await apiAppealsNameAppellantNameGetWithHttpInfo(
+        appellantName: appellantName);
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     } else if (response.body.isNotEmpty) {
@@ -131,7 +132,7 @@ class AppealManagementControllerApi {
   }
 
   // --- PUT /api/appeals/{appealId} ---
-  Future<void> apiAppealsAppealIdPut({
+  Future<AppealManagement> apiAppealsAppealIdPut({
     required String appealId,
     required AppealManagement appealManagement,
     required String idempotencyKey,
@@ -154,6 +155,9 @@ class AppealManagementControllerApi {
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     }
+    final data = apiClient.deserialize(
+        _decodeBodyBytes(response), 'Map<String, dynamic>');
+    return AppealManagement.fromJson(data);
   }
 
   // --- DELETE /api/appeals/{appealId} ---
@@ -180,7 +184,282 @@ class AppealManagementControllerApi {
     }
   }
 
-  /// 以下为 WebSocket 方式调用
+  // --- GET /api/appeals/status/{processStatus} ---
+  Future<List<AppealManagement>> apiAppealsStatusProcessStatusGet({
+    required String processStatus,
+  }) async {
+    if (processStatus.isEmpty) {
+      throw ApiException(400, "Missing required param: processStatus");
+    }
+    final path = "/api/appeals/status/${Uri.encodeComponent(processStatus)}";
+    final headerParams = await _getHeaders();
+    final response = await apiClient.invokeAPI(
+      path,
+      'GET',
+      [],
+      null,
+      headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    } else if (response.body.isNotEmpty) {
+      final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+      return jsonList.map((json) => AppealManagement.fromJson(json)).toList();
+    } else {
+      return [];
+    }
+  }
+
+  // --- GET /api/appeals/id-card/{idCardNumber} ---
+  Future<List<AppealManagement>> apiAppealsIdCardIdCardNumberGet({
+    required String idCardNumber,
+  }) async {
+    if (idCardNumber.isEmpty) {
+      throw ApiException(400, "Missing required param: idCardNumber");
+    }
+    final path = "/api/appeals/id-card/${Uri.encodeComponent(idCardNumber)}";
+    final headerParams = await _getHeaders();
+    final response = await apiClient.invokeAPI(
+      path,
+      'GET',
+      [],
+      null,
+      headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    } else if (response.body.isNotEmpty) {
+      final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+      return jsonList.map((json) => AppealManagement.fromJson(json)).toList();
+    } else {
+      return [];
+    }
+  }
+
+  // --- GET /api/appeals/contact/{contactNumber} ---
+  Future<List<AppealManagement>> apiAppealsContactContactNumberGet({
+    required String contactNumber,
+  }) async {
+    if (contactNumber.isEmpty) {
+      throw ApiException(400, "Missing required param: contactNumber");
+    }
+    final path = "/api/appeals/contact/${Uri.encodeComponent(contactNumber)}";
+    final headerParams = await _getHeaders();
+    final response = await apiClient.invokeAPI(
+      path,
+      'GET',
+      [],
+      null,
+      headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    } else if (response.body.isNotEmpty) {
+      final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+      return jsonList.map((json) => AppealManagement.fromJson(json)).toList();
+    } else {
+      return [];
+    }
+  }
+
+  // --- GET /api/appeals/offense/{offenseId} ---
+  Future<List<AppealManagement>> apiAppealsOffenseOffenseIdGet({
+    required int offenseId,
+  }) async {
+    final path = "/api/appeals/offense/$offenseId";
+    final headerParams = await _getHeaders();
+    final response = await apiClient.invokeAPI(
+      path,
+      'GET',
+      [],
+      null,
+      headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    } else if (response.body.isNotEmpty) {
+      final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+      return jsonList.map((json) => AppealManagement.fromJson(json)).toList();
+    } else {
+      return [];
+    }
+  }
+
+  // --- GET /api/appeals/time-range ---
+  Future<List<AppealManagement>> apiAppealsTimeRangeGet({
+    required String startTime,
+    required String endTime,
+  }) async {
+    if (startTime.isEmpty || endTime.isEmpty) {
+      throw ApiException(400, "Missing required params: startTime or endTime");
+    }
+    final path = "/api/appeals/time-range";
+    final queryParams = [
+      QueryParam('startTime', startTime),
+      QueryParam('endTime', endTime),
+    ];
+    final headerParams = await _getHeaders();
+    final response = await apiClient.invokeAPI(
+      path,
+      'GET',
+      queryParams,
+      null,
+      headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    } else if (response.body.isNotEmpty) {
+      final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+      return jsonList.map((json) => AppealManagement.fromJson(json)).toList();
+    } else {
+      return [];
+    }
+  }
+
+  // --- GET /api/appeals/search ---
+  Future<List<AppealManagement>> apiAppealsSearchGet({
+    required String query,
+    int page = 1,
+    int size = 10,
+  }) async {
+    if (query.isEmpty) {
+      throw ApiException(400, "Missing required param: query");
+    }
+    final path = "/api/appeals/search";
+    final queryParams = [
+      QueryParam('query', query),
+      QueryParam('page', page.toString()),
+      QueryParam('size', size.toString()),
+    ];
+    final headerParams = await _getHeaders();
+    final response = await apiClient.invokeAPI(
+      path,
+      'GET',
+      queryParams,
+      null,
+      headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    } else if (response.body.isNotEmpty) {
+      final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+      return jsonList.map((json) => AppealManagement.fromJson(json)).toList();
+    } else {
+      return [];
+    }
+  }
+
+  // --- GET /api/appeals/count/status/{processStatus} ---
+  Future<int> apiAppealsCountStatusProcessStatusGet({
+    required String processStatus,
+  }) async {
+    if (processStatus.isEmpty) {
+      throw ApiException(400, "Missing required param: processStatus");
+    }
+    final path =
+        "/api/appeals/count/status/${Uri.encodeComponent(processStatus)}";
+    final headerParams = await _getHeaders();
+    final response = await apiClient.invokeAPI(
+      path,
+      'GET',
+      [],
+      null,
+      headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    return int.parse(_decodeBodyBytes(response));
+  }
+
+  // --- GET /api/appeals/reason/{reason} ---
+  Future<List<AppealManagement>> apiAppealsReasonReasonGet({
+    required String reason,
+  }) async {
+    if (reason.isEmpty) {
+      throw ApiException(400, "Missing required param: reason");
+    }
+    final path = "/api/appeals/reason/${Uri.encodeComponent(reason)}";
+    final headerParams = await _getHeaders();
+    final response = await apiClient.invokeAPI(
+      path,
+      'GET',
+      [],
+      null,
+      headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    } else if (response.body.isNotEmpty) {
+      final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+      return jsonList.map((json) => AppealManagement.fromJson(json)).toList();
+    } else {
+      return [];
+    }
+  }
+
+  // --- GET /api/appeals/status-and-time ---
+  Future<List<AppealManagement>> apiAppealsStatusAndTimeGet({
+    required String processStatus,
+    required String startTime,
+    required String endTime,
+  }) async {
+    if (processStatus.isEmpty || startTime.isEmpty || endTime.isEmpty) {
+      throw ApiException(
+          400, "Missing required params: processStatus, startTime, or endTime");
+    }
+    final path = "/api/appeals/status-and-time";
+    final queryParams = [
+      QueryParam('processStatus', processStatus),
+      QueryParam('startTime', startTime),
+      QueryParam('endTime', endTime),
+    ];
+    final headerParams = await _getHeaders();
+    final response = await apiClient.invokeAPI(
+      path,
+      'GET',
+      queryParams,
+      null,
+      headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    } else if (response.body.isNotEmpty) {
+      final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+      return jsonList.map((json) => AppealManagement.fromJson(json)).toList();
+    } else {
+      return [];
+    }
+  }
+
+  // --- WebSocket Methods (unchanged, included for completeness) ---
 
   /// 通过 WebSocket 删除申诉
   Future<Object?> eventbusAppealsAppealIdDelete(

@@ -6,7 +6,6 @@ import 'package:final_assignment_front/features/api/driver_information_controlle
 import 'package:final_assignment_front/features/model/vehicle_information.dart';
 import 'package:final_assignment_front/features/model/driver_information.dart';
 import 'package:final_assignment_front/features/model/user_management.dart';
-import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -39,7 +38,7 @@ class _VehicleManagementState extends State<VehicleManagement> {
   bool _isLoading = true;
   String _errorMessage = '';
   String? _currentUsername;
-  int _currentPage = 0;
+  int _currentPage = 1; // 与后端分页从1开始对齐
   final int _pageSize = 10;
   bool _hasMore = true;
 
@@ -57,14 +56,6 @@ class _VehicleManagementState extends State<VehicleManagement> {
   Future<void> _initialize() async {
     final prefs = await SharedPreferences.getInstance();
     _currentUsername = prefs.getString('userName');
-    final jwtToken = prefs.getString('jwtToken');
-    if (_currentUsername == null || jwtToken == null) {
-      setState(() {
-        _isLoading = false;
-        _errorMessage = '请先登录以查看您的车辆信息';
-      });
-      return;
-    }
     await vehicleApi.initializeWithJwt();
     _fetchUserVehicles(reset: true);
   }
@@ -78,7 +69,7 @@ class _VehicleManagementState extends State<VehicleManagement> {
 
   Future<void> _fetchUserVehicles({bool reset = false}) async {
     if (reset) {
-      _currentPage = 0;
+      _currentPage = 1;
       _hasMore = true;
       _vehicleList.clear();
     }
@@ -89,16 +80,16 @@ class _VehicleManagementState extends State<VehicleManagement> {
       _errorMessage = '';
     });
     try {
-      final vehicles = await vehicleApi.apiVehiclesGet(
+      final vehicles = await vehicleApi.apiVehiclesSearchGet(
+        query: _currentUsername ?? '',
         page: _currentPage,
         size: _pageSize,
-        ownerName: _currentUsername,
       );
       setState(() {
         _vehicleList.addAll(vehicles);
         _isLoading = false;
         if (vehicles.length < _pageSize) _hasMore = false;
-        if (_vehicleList.isEmpty && _currentPage == 0) {
+        if (_vehicleList.isEmpty && _currentPage == 1) {
           _errorMessage = '您当前没有车辆记录';
         }
       });
@@ -129,7 +120,7 @@ class _VehicleManagementState extends State<VehicleManagement> {
     setState(() {
       _isLoading = true;
       _errorMessage = '';
-      _currentPage = 0;
+      _currentPage = 1;
       _hasMore = true;
       _vehicleList.clear();
     });
@@ -137,53 +128,23 @@ class _VehicleManagementState extends State<VehicleManagement> {
       List<VehicleInformation> vehicles;
       switch (type) {
         case 'licensePlate':
-          final vehicle = await vehicleApi
-              .apiVehiclesLicensePlateLicensePlateGet(licensePlate: query);
+          final vehicle =
+              await vehicleApi.apiVehiclesLicensePlateGet(licensePlate: query);
           vehicles = (vehicle != null && vehicle.ownerName == _currentUsername)
               ? [vehicle]
               : [];
           _hasMore = false;
           break;
         case 'vehicleType':
-          vehicles = await vehicleApi.apiVehiclesTypeVehicleTypeGet(
-            vehicleType: query,
-            page: _currentPage,
-            size: _pageSize,
-          );
+          vehicles = await vehicleApi.apiVehiclesTypeGet(vehicleType: query);
           vehicles =
               vehicles.where((v) => v.ownerName == _currentUsername).toList();
-          if (vehicles.length < _pageSize) _hasMore = false;
-          break;
-        case 'ownerName':
-          if (query != _currentUsername) {
-            setState(() {
-              _isLoading = false;
-              _hasMore = false;
-              _errorMessage = '您只能查看自己的车辆信息';
-            });
-            return;
-          }
-          vehicles = await vehicleApi.apiVehiclesOwnerOwnerNameGet(
-            ownerName: query,
-            page: _currentPage,
-            size: _pageSize,
-          );
-          if (vehicles.length < _pageSize) _hasMore = false;
-          break;
-        case 'currentStatus':
-          vehicles = await vehicleApi.apiVehiclesStatusCurrentStatusGet(
-            currentStatus: query,
-            page: _currentPage,
-            size: _pageSize,
-          );
-          vehicles =
-              vehicles.where((v) => v.ownerName == _currentUsername).toList();
-          if (vehicles.length < _pageSize) _hasMore = false;
+          _hasMore = false; // 后端未分页，假设单次返回全部
           break;
         default:
           setState(() {
             _isLoading = false;
-            _errorMessage = '无效的搜索类型';
+            _errorMessage = '仅支持按车牌或类型搜索';
           });
           return;
       }
@@ -207,9 +168,7 @@ class _VehicleManagementState extends State<VehicleManagement> {
       context,
       MaterialPageRoute(builder: (context) => const AddVehiclePage()),
     ).then((value) {
-      if (value == true && mounted) {
-        _fetchUserVehicles(reset: true);
-      }
+      if (value == true && mounted) _fetchUserVehicles(reset: true);
     });
   }
 
@@ -219,9 +178,7 @@ class _VehicleManagementState extends State<VehicleManagement> {
       MaterialPageRoute(
           builder: (context) => VehicleDetailPage(vehicle: vehicle)),
     ).then((value) {
-      if (value == true && mounted) {
-        _fetchUserVehicles(reset: true);
-      }
+      if (value == true && mounted) _fetchUserVehicles(reset: true);
     });
   }
 
@@ -229,17 +186,6 @@ class _VehicleManagementState extends State<VehicleManagement> {
     try {
       await vehicleApi.apiVehiclesVehicleIdDelete(vehicleId: vehicleId);
       _showSnackBar('删除车辆成功！');
-      _fetchUserVehicles(reset: true);
-    } catch (e) {
-      _showSnackBar('删除失败: $e', isError: true);
-    }
-  }
-
-  Future<void> _deleteVehicleByLicensePlate(String licensePlate) async {
-    try {
-      await vehicleApi.apiVehiclesLicensePlateLicensePlateDelete(
-          licensePlate: licensePlate);
-      _showSnackBar('按车牌删除车辆成功！');
       _fetchUserVehicles(reset: true);
     } catch (e) {
       _showSnackBar('删除失败: $e', isError: true);
@@ -286,11 +232,7 @@ class _VehicleManagementState extends State<VehicleManagement> {
                 fillColor: themeData.colorScheme.surfaceContainerLowest,
                 contentPadding: const EdgeInsets.symmetric(
                     vertical: 10.0, horizontal: 12.0),
-                labelStyle: themeData.textTheme.bodySmall
-                    ?.copyWith(color: themeData.colorScheme.onSurfaceVariant),
               ),
-              style: themeData.textTheme.bodyMedium
-                  ?.copyWith(color: themeData.colorScheme.onSurface),
               onSubmitted: (value) => _searchVehicles(type, value.trim()),
             ),
           ),
@@ -305,9 +247,7 @@ class _VehicleManagementState extends State<VehicleManagement> {
               padding:
                   const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
             ),
-            child: Text('搜索',
-                style: themeData.textTheme.labelMedium
-                    ?.copyWith(color: themeData.colorScheme.onPrimary)),
+            child: const Text('搜索'),
           ),
         ],
       ),
@@ -317,7 +257,7 @@ class _VehicleManagementState extends State<VehicleManagement> {
   @override
   Widget build(BuildContext context) {
     final themeData = controller?.currentBodyTheme.value ?? ThemeData.light();
-    if (!_isLoading && _errorMessage.isNotEmpty) {
+    if (!_isLoading && _errorMessage.isNotEmpty && _vehicleList.isEmpty) {
       return Scaffold(
         backgroundColor: themeData.colorScheme.surface,
         body: Center(
@@ -376,15 +316,13 @@ class _VehicleManagementState extends State<VehicleManagement> {
                     }
                     return false;
                   },
-                  child: _isLoading && _currentPage == 0
+                  child: _isLoading && _currentPage == 1
                       ? const Center(child: CircularProgressIndicator())
                       : _vehicleList.isEmpty
                           ? Center(
-                              child: Text(
-                                  _errorMessage.isNotEmpty
-                                      ? _errorMessage
-                                      : '暂无车辆信息',
-                                  style: themeData.textTheme.bodyLarge))
+                              child: Text(_errorMessage.isNotEmpty
+                                  ? _errorMessage
+                                  : '暂无车辆信息'))
                           : ListView.builder(
                               itemCount:
                                   _vehicleList.length + (_hasMore ? 1 : 0),
@@ -397,10 +335,6 @@ class _VehicleManagementState extends State<VehicleManagement> {
                                   );
                                 }
                                 final vehicle = _vehicleList[index];
-                                final type = vehicle.vehicleType ?? '未知类型';
-                                final plate = vehicle.licensePlate ?? '未知车牌';
-                                final owner = vehicle.ownerName ?? '未知车主';
-                                final status = vehicle.currentStatus ?? '无';
                                 return Card(
                                   margin: const EdgeInsets.symmetric(
                                       vertical: 8.0, horizontal: 16.0),
@@ -410,32 +344,14 @@ class _VehicleManagementState extends State<VehicleManagement> {
                                       borderRadius:
                                           BorderRadius.circular(10.0)),
                                   child: ListTile(
-                                    title: Text('车牌号: $plate',
+                                    title: Text(
+                                        '车牌号: ${vehicle.licensePlate ?? '未知车牌'}',
                                         style: themeData.textTheme.bodyLarge),
                                     subtitle: Text(
-                                        '类型: $type\n车主: $owner\n状态: $status',
-                                        style: themeData.textTheme.bodyMedium),
-                                    trailing: PopupMenuButton<String>(
-                                      onSelected: (value) {
-                                        if (value == 'edit') {
-                                          _goToDetailPage(vehicle);
-                                        } else if (value == 'delete') {
-                                          _deleteVehicle(
-                                              vehicle.vehicleId ?? 0);
-                                        } else if (value == 'deleteByPlate') {
-                                          _deleteVehicleByLicensePlate(plate);
-                                        }
-                                      },
-                                      itemBuilder: (context) => [
-                                        const PopupMenuItem<String>(
-                                            value: 'edit',
-                                            child: Text('查看/编辑')),
-                                        const PopupMenuItem<String>(
-                                            value: 'delete', child: Text('删除')),
-                                      ],
-                                      icon: Icon(Icons.more_vert,
-                                          color:
-                                              themeData.colorScheme.onSurface),
+                                        '类型: ${vehicle.vehicleType ?? '未知类型'}\n车主: ${vehicle.ownerName ?? '未知车主'}\n状态: ${vehicle.currentStatus ?? '无'}'),
+                                    trailing: IconButton(
+                                      icon: const Icon(Icons.more_vert),
+                                      onPressed: () => _goToDetailPage(vehicle),
                                     ),
                                     onTap: () => _goToDetailPage(vehicle),
                                   ),
@@ -459,8 +375,6 @@ class _VehicleManagementState extends State<VehicleManagement> {
   }
 }
 
-/// ==================== 添加车辆页面 ====================
-
 class AddVehiclePage extends StatefulWidget {
   const AddVehiclePage({super.key});
 
@@ -473,7 +387,6 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
       VehicleInformationControllerApi();
   final DriverInformationControllerApi driverApi =
       DriverInformationControllerApi();
-  final ApiClient apiClient = ApiClient();
   final _formKey = GlobalKey<FormState>();
   final _licensePlateController = TextEditingController();
   final _vehicleTypeController = TextEditingController();
@@ -500,32 +413,26 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
 
   Future<void> _initialize() async {
     final prefs = await SharedPreferences.getInstance();
-    final jwtToken = prefs.getString('jwtToken');
-    final username = prefs.getString('userName');
-    if (jwtToken != null) {
-      apiClient.setJwtToken(jwtToken);
-      vehicleApi.apiClient.setJwtToken(jwtToken);
-      driverApi.apiClient.setJwtToken(jwtToken);
-      _ownerNameController.text = username ?? '';
-      await _preFillForm();
-    }
+    await vehicleApi.initializeWithJwt();
+    await driverApi.initializeWithJwt();
+    _ownerNameController.text = prefs.getString('userName') ?? '';
+    await _preFillForm();
   }
 
   Future<UserManagement?> _fetchUserManagement() async {
     try {
-      final response = await apiClient.invokeAPI(
-        '/api/users/me',
-        'GET',
-        [],
-        null,
-        {},
-        {},
-        'application/json',
-        ['bearerAuth'],
+      final prefs = await SharedPreferences.getInstance();
+      final jwtToken = prefs.getString('jwtToken');
+      final response = await http.get(
+        Uri.parse('http://localhost:8081/api/users/me'),
+        headers: {
+          'Authorization': 'Bearer $jwtToken',
+          'Content-Type': 'application/json'
+        },
       );
       if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
-        return UserManagement.fromJson(data);
+        return UserManagement.fromJson(
+            jsonDecode(utf8.decode(response.bodyBytes)));
       }
       return null;
     } catch (e) {
@@ -534,9 +441,9 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
     }
   }
 
-  Future<DriverInformation?> _fetchDriverInformation(int userId) async {
+  Future<DriverInformation?> _fetchDriverInformation(String userId) async {
     try {
-      return await driverApi.apiDriversDriverIdGet(driverId: userId.toString());
+      return await driverApi.apiDriversDriverIdGet(driverId: userId);
     } catch (e) {
       debugPrint('Failed to fetch DriverInformation: $e');
       return null;
@@ -545,10 +452,9 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
 
   Future<void> _preFillForm() async {
     final user = await _fetchUserManagement();
-    final driverInfo = user != null && user.userId != null
-        ? await _fetchDriverInformation(user.userId!)
+    final driverInfo = user?.userId != null
+        ? await _fetchDriverInformation(user!.userId!.toString())
         : null;
-
     setState(() {
       _ownerNameController.text =
           driverInfo?.name ?? user?.username ?? _ownerNameController.text;
@@ -578,12 +484,6 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
 
     setState(() => _isLoading = true);
     try {
-      DateTime? firstRegistrationDate;
-      if (_firstRegistrationDateController.text.isNotEmpty) {
-        firstRegistrationDate =
-            DateTime.parse(_firstRegistrationDateController.text.trim());
-      }
-
       final vehicle = VehicleInformation(
         licensePlate: _licensePlateController.text.trim(),
         vehicleType: _vehicleTypeController.text.trim(),
@@ -603,19 +503,17 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
         vehicleColor: _vehicleColorController.text.trim().isEmpty
             ? null
             : _vehicleColorController.text.trim(),
-        firstRegistrationDate: firstRegistrationDate,
+        firstRegistrationDate: _firstRegistrationDateController.text.isEmpty
+            ? null
+            : DateTime.parse(_firstRegistrationDateController.text.trim()),
         currentStatus: _currentStatusController.text.trim().isEmpty
             ? null
             : _currentStatusController.text.trim(),
       );
 
-      vehicle.validateForCreation();
-
       final idempotencyKey = generateIdempotencyKey();
       await vehicleApi.apiVehiclesPost(
-        vehicleInformation: vehicle,
-        idempotencyKey: idempotencyKey,
-      );
+          vehicleInformation: vehicle, idempotencyKey: idempotencyKey);
 
       _showSnackBar('创建车辆成功！');
       if (mounted) Navigator.pop(context, true);
@@ -641,61 +539,42 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
       context: context,
       initialDate: DateTime.now(),
       firstDate: DateTime(1900),
-      lastDate: DateTime(2101),
+      lastDate: DateTime.now(),
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
-          colorScheme: Theme.of(context).colorScheme.copyWith(
+            colorScheme: Theme.of(context).colorScheme.copyWith(
                 primary:
-                    controller?.currentBodyTheme.value.colorScheme.primary ??
-                        Colors.blue,
-                onPrimary:
-                    controller?.currentBodyTheme.value.colorScheme.onPrimary ??
-                        Colors.white,
-              ),
-        ),
+                    controller?.currentBodyTheme.value.colorScheme.primary)),
         child: child!,
       ),
     );
     if (pickedDate != null && mounted) {
-      setState(() {
-        _firstRegistrationDateController.text = formatDate(pickedDate);
-      });
+      setState(
+          () => _firstRegistrationDateController.text = formatDate(pickedDate));
     }
   }
 
   Widget _buildTextField(
-    String label,
-    TextEditingController controller,
-    ThemeData themeData, {
-    TextInputType? keyboardType,
-    bool readOnly = false,
-    VoidCallback? onTap,
-    bool required = false,
-  }) {
+      String label, TextEditingController controller, ThemeData themeData,
+      {TextInputType? keyboardType,
+      bool readOnly = false,
+      VoidCallback? onTap,
+      bool required = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: TextFormField(
         controller: controller,
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: themeData.textTheme.bodySmall
-              ?.copyWith(color: themeData.colorScheme.onSurfaceVariant),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
           enabledBorder: OutlineInputBorder(
-            borderSide: BorderSide(
-                color: themeData.colorScheme.outline.withOpacity(0.3),
-                width: 1.0),
-            borderRadius: BorderRadius.circular(12.0),
-          ),
+              borderSide: BorderSide(
+                  color: themeData.colorScheme.outline.withOpacity(0.3))),
           focusedBorder: OutlineInputBorder(
-            borderSide:
-                BorderSide(color: themeData.colorScheme.primary, width: 1.5),
-            borderRadius: BorderRadius.circular(12.0),
-          ),
+              borderSide:
+                  BorderSide(color: themeData.colorScheme.primary, width: 1.5)),
           filled: true,
           fillColor: themeData.colorScheme.surfaceContainerLowest,
-          contentPadding:
-              const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
           suffixIcon: readOnly
               ? Icon(Icons.calendar_today,
                   size: 18, color: themeData.colorScheme.primary)
@@ -704,8 +583,6 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
         keyboardType: keyboardType,
         readOnly: readOnly,
         onTap: onTap,
-        style: themeData.textTheme.bodyMedium
-            ?.copyWith(color: themeData.colorScheme.onSurface),
         validator:
             required ? (value) => value!.isEmpty ? '$label不能为空' : null : null,
       ),
@@ -723,7 +600,6 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
                 ?.copyWith(color: themeData.colorScheme.onPrimary)),
         backgroundColor: themeData.colorScheme.primary,
         foregroundColor: themeData.colorScheme.onPrimary,
-        elevation: 2,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -733,12 +609,9 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
                 key: _formKey,
                 child: SingleChildScrollView(
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Card(
                         elevation: 2,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16.0)),
                         color: themeData.colorScheme.surfaceContainer,
                         child: Padding(
                           padding: const EdgeInsets.all(16.0),
@@ -783,11 +656,8 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12.0)),
                           padding: const EdgeInsets.symmetric(vertical: 14.0),
-                          elevation: 3,
                         ),
-                        child: Text('提交',
-                            style: themeData.textTheme.labelLarge?.copyWith(
-                                color: themeData.colorScheme.onPrimary)),
+                        child: const Text('提交'),
                       ),
                     ],
                   ),
@@ -797,8 +667,6 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
     );
   }
 }
-
-/// ==================== 编辑车辆页面 ====================
 
 class EditVehiclePage extends StatefulWidget {
   final VehicleInformation vehicle;
@@ -871,18 +739,14 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
 
     setState(() => _isLoading = true);
     try {
-      DateTime? firstRegistrationDate;
-      if (_firstRegistrationDateController.text.isNotEmpty) {
-        firstRegistrationDate =
-            DateTime.parse(_firstRegistrationDateController.text.trim());
-      }
-
       final vehicle = VehicleInformation(
         vehicleId: widget.vehicle.vehicleId,
         licensePlate: _licensePlateController.text.trim(),
         vehicleType: _vehicleTypeController.text.trim(),
         ownerName: _ownerNameController.text.trim(),
-        idCardNumber: _idCardNumberController.text.trim(),
+        idCardNumber: _idCardNumberController.text.trim().isEmpty
+            ? null
+            : _idCardNumberController.text.trim(),
         contactNumber: _contactNumberController.text.trim().isEmpty
             ? null
             : _contactNumberController.text.trim(),
@@ -895,13 +759,13 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
         vehicleColor: _vehicleColorController.text.trim().isEmpty
             ? null
             : _vehicleColorController.text.trim(),
-        firstRegistrationDate: firstRegistrationDate,
+        firstRegistrationDate: _firstRegistrationDateController.text.isEmpty
+            ? null
+            : DateTime.parse(_firstRegistrationDateController.text.trim()),
         currentStatus: _currentStatusController.text.trim().isEmpty
             ? null
             : _currentStatusController.text.trim(),
       );
-
-      vehicle.validateForCreation();
 
       final idempotencyKey = generateIdempotencyKey();
       await vehicleApi.apiVehiclesVehicleIdPut(
@@ -934,61 +798,42 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
       context: context,
       initialDate: widget.vehicle.firstRegistrationDate ?? DateTime.now(),
       firstDate: DateTime(1900),
-      lastDate: DateTime(2101),
+      lastDate: DateTime.now(),
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
-          colorScheme: Theme.of(context).colorScheme.copyWith(
+            colorScheme: Theme.of(context).colorScheme.copyWith(
                 primary:
-                    controller?.currentBodyTheme.value.colorScheme.primary ??
-                        Colors.blue,
-                onPrimary:
-                    controller?.currentBodyTheme.value.colorScheme.onPrimary ??
-                        Colors.white,
-              ),
-        ),
+                    controller?.currentBodyTheme.value.colorScheme.primary)),
         child: child!,
       ),
     );
     if (pickedDate != null && mounted) {
-      setState(() {
-        _firstRegistrationDateController.text = formatDate(pickedDate);
-      });
+      setState(
+          () => _firstRegistrationDateController.text = formatDate(pickedDate));
     }
   }
 
   Widget _buildTextField(
-    String label,
-    TextEditingController controller,
-    ThemeData themeData, {
-    TextInputType? keyboardType,
-    bool readOnly = false,
-    VoidCallback? onTap,
-    bool required = false,
-  }) {
+      String label, TextEditingController controller, ThemeData themeData,
+      {TextInputType? keyboardType,
+      bool readOnly = false,
+      VoidCallback? onTap,
+      bool required = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: TextFormField(
         controller: controller,
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: themeData.textTheme.bodySmall
-              ?.copyWith(color: themeData.colorScheme.onSurfaceVariant),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
           enabledBorder: OutlineInputBorder(
-            borderSide: BorderSide(
-                color: themeData.colorScheme.outline.withOpacity(0.3),
-                width: 1.0),
-            borderRadius: BorderRadius.circular(12.0),
-          ),
+              borderSide: BorderSide(
+                  color: themeData.colorScheme.outline.withOpacity(0.3))),
           focusedBorder: OutlineInputBorder(
-            borderSide:
-                BorderSide(color: themeData.colorScheme.primary, width: 1.5),
-            borderRadius: BorderRadius.circular(12.0),
-          ),
+              borderSide:
+                  BorderSide(color: themeData.colorScheme.primary, width: 1.5)),
           filled: true,
           fillColor: themeData.colorScheme.surfaceContainerLowest,
-          contentPadding:
-              const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
           suffixIcon: readOnly
               ? Icon(Icons.calendar_today,
                   size: 18, color: themeData.colorScheme.primary)
@@ -997,8 +842,6 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
         keyboardType: keyboardType,
         readOnly: readOnly,
         onTap: onTap,
-        style: themeData.textTheme.bodyMedium
-            ?.copyWith(color: themeData.colorScheme.onSurface),
         validator:
             required ? (value) => value!.isEmpty ? '$label不能为空' : null : null,
       ),
@@ -1016,7 +859,6 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
                 ?.copyWith(color: themeData.colorScheme.onPrimary)),
         backgroundColor: themeData.colorScheme.primary,
         foregroundColor: themeData.colorScheme.onPrimary,
-        elevation: 2,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -1026,12 +868,9 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
                 key: _formKey,
                 child: SingleChildScrollView(
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Card(
                         elevation: 2,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16.0)),
                         color: themeData.colorScheme.surfaceContainer,
                         child: Padding(
                           padding: const EdgeInsets.all(16.0),
@@ -1076,11 +915,8 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12.0)),
                           padding: const EdgeInsets.symmetric(vertical: 14.0),
-                          elevation: 3,
                         ),
-                        child: Text('保存',
-                            style: themeData.textTheme.labelLarge?.copyWith(
-                                color: themeData.colorScheme.onPrimary)),
+                        child: const Text('保存'),
                       ),
                     ],
                   ),
@@ -1090,8 +926,6 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
     );
   }
 }
-
-/// ==================== 车辆详情页面 ====================
 
 class VehicleDetailPage extends StatefulWidget {
   final VehicleInformation vehicle;
@@ -1121,19 +955,12 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
   }
 
   Future<void> _initialize() async {
-    final prefs = await SharedPreferences.getInstance();
-    final jwtToken = prefs.getString('jwtToken');
-    if (jwtToken != null) {
-      vehicleApi.apiClient.setJwtToken(jwtToken);
-    }
+    await vehicleApi.initializeWithJwt();
     await _checkUserRole();
   }
 
   Future<void> _checkUserRole() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = '';
-    });
+    setState(() => _isLoading = true);
     try {
       final prefs = await SharedPreferences.getInstance();
       final jwtToken = prefs.getString('jwtToken');
@@ -1145,31 +972,24 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
       final response = await http.get(
         Uri.parse('http://localhost:8081/api/users/me'),
         headers: {
-          'Content-Type': 'application/json',
           'Authorization': 'Bearer $jwtToken',
+          'Content-Type': 'application/json'
         },
       );
 
       if (response.statusCode == 200) {
         final userData = jsonDecode(utf8.decode(response.bodyBytes));
-        // Safely handle roles, defaulting to an empty list if null
         final roles = (userData['roles'] as List<dynamic>?)
                 ?.map((r) => r.toString())
                 .toList() ??
             [];
-        final username = userData['sub'] as String? ?? currentUsername;
-
-        setState(() {
-          _isEditable = roles.contains('ROLE_ADMIN') ||
-              (username == widget.vehicle.ownerName);
-        });
+        setState(() => _isEditable = roles.contains('ROLE_ADMIN') ||
+            (currentUsername == widget.vehicle.ownerName));
       } else {
-        throw Exception('验证失败：${response.statusCode} - ${response.body}');
+        throw Exception('验证失败：${response.statusCode}');
       }
     } catch (e) {
-      setState(() {
-        _errorMessage = '加载权限失败: $e';
-      });
+      setState(() => _errorMessage = '加载权限失败: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -1188,27 +1008,12 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
     }
   }
 
-  Future<void> _deleteVehicleByLicensePlate(String licensePlate) async {
-    setState(() => _isLoading = true);
-    try {
-      await vehicleApi.apiVehiclesLicensePlateLicensePlateDelete(
-          licensePlate: licensePlate);
-      _showSnackBar('按车牌删除车辆成功！');
-      if (mounted) Navigator.pop(context, true);
-    } catch (e) {
-      _showSnackBar('删除失败: $e', isError: true);
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message, style: const TextStyle(color: Colors.white)),
         backgroundColor: isError ? Colors.red : Colors.green,
-        duration: const Duration(seconds: 2),
       ),
     );
   }
@@ -1219,21 +1024,10 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '$label: ',
-            style: themeData.textTheme.bodyLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: themeData.colorScheme.onSurface,
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: themeData.textTheme.bodyMedium?.copyWith(
-                color: themeData.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
+          Text('$label: ',
+              style: themeData.textTheme.bodyLarge
+                  ?.copyWith(fontWeight: FontWeight.bold)),
+          Expanded(child: Text(value, style: themeData.textTheme.bodyMedium)),
         ],
       ),
     );
@@ -1247,45 +1041,19 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
             controller?.currentBodyTheme.value ?? ThemeData.light();
         return AlertDialog(
           backgroundColor: themeData.colorScheme.surfaceContainer,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
-          title: Text(
-            '确认删除',
-            style: themeData.textTheme.titleMedium?.copyWith(
-              color: themeData.colorScheme.onSurface,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          content: Text(
-            '您确定要$action此车辆吗？此操作不可撤销。',
-            style: themeData.textTheme.bodyMedium
-                ?.copyWith(color: themeData.colorScheme.onSurfaceVariant),
-          ),
+          title: const Text('确认删除'),
+          content: Text('您确定要$action此车辆吗？此操作不可撤销。'),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(
-                '取消',
-                style: themeData.textTheme.labelMedium
-                    ?.copyWith(color: themeData.colorScheme.onSurface),
-              ),
-            ),
+                onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
             ElevatedButton(
               onPressed: () {
                 onConfirm();
                 Navigator.pop(ctx);
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: themeData.colorScheme.error,
-                foregroundColor: themeData.colorScheme.onError,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12.0)),
-              ),
-              child: Text(
-                '删除',
-                style: themeData.textTheme.labelMedium
-                    ?.copyWith(color: themeData.colorScheme.onError),
-              ),
+                  backgroundColor: themeData.colorScheme.error),
+              child: const Text('删除'),
             ),
           ],
         );
@@ -1296,7 +1064,6 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
   @override
   Widget build(BuildContext context) {
     final themeData = controller?.currentBodyTheme.value ?? ThemeData.light();
-
     if (_errorMessage.isNotEmpty) {
       return Scaffold(
         backgroundColor: themeData.colorScheme.surface,
@@ -1314,16 +1081,8 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
                     onPressed: () =>
                         Navigator.pushReplacementNamed(context, '/login'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: themeData.colorScheme.primary,
-                      foregroundColor: themeData.colorScheme.onPrimary,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12.0)),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 20.0, vertical: 12.0),
-                    ),
-                    child: Text('前往登录',
-                        style: themeData.textTheme.labelLarge
-                            ?.copyWith(color: themeData.colorScheme.onPrimary)),
+                        backgroundColor: themeData.colorScheme.primary),
+                    child: const Text('前往登录'),
                   ),
                 ),
             ],
@@ -1335,14 +1094,11 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
     return Scaffold(
       backgroundColor: themeData.colorScheme.surface,
       appBar: AppBar(
-        title: Text(
-          '车辆详情',
-          style: themeData.textTheme.titleLarge
-              ?.copyWith(color: themeData.colorScheme.onPrimary),
-        ),
+        title: Text('车辆详情',
+            style: themeData.textTheme.titleLarge
+                ?.copyWith(color: themeData.colorScheme.onPrimary)),
         backgroundColor: themeData.colorScheme.primary,
         foregroundColor: themeData.colorScheme.onPrimary,
-        elevation: 2,
         actions: _isEditable
             ? [
                 IconButton(
@@ -1360,49 +1116,22 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
                     });
                   },
                   tooltip: '编辑车辆信息',
-                  color: themeData.colorScheme.onPrimary,
                 ),
-                PopupMenuButton<String>(
-                  onSelected: (value) {
-                    if (value == 'delete') {
-                      _showDeleteConfirmationDialog('按ID删除',
-                          () => _deleteVehicle(widget.vehicle.vehicleId ?? 0));
-                    } else if (value == 'deleteByPlate') {
-                      _showDeleteConfirmationDialog(
-                          '按车牌删除',
-                          () => _deleteVehicleByLicensePlate(
-                              widget.vehicle.licensePlate ?? ''));
-                    }
-                  },
-                  itemBuilder: (context) => [
-                    PopupMenuItem<String>(
-                      value: 'delete',
-                      child:
-                          Text('按ID删除', style: themeData.textTheme.bodyMedium),
-                    ),
-                    PopupMenuItem<String>(
-                      value: 'deleteByPlate',
-                      child:
-                          Text('按车牌删除', style: themeData.textTheme.bodyMedium),
-                    ),
-                  ],
+                IconButton(
                   icon: Icon(Icons.delete, color: themeData.colorScheme.error),
-                  tooltip: '删除选项',
+                  onPressed: () => _showDeleteConfirmationDialog('删除',
+                      () => _deleteVehicle(widget.vehicle.vehicleId ?? 0)),
+                  tooltip: '删除车辆',
                 ),
               ]
             : [],
       ),
       body: _isLoading
-          ? Center(
-              child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                      themeData.colorScheme.primary)))
+          ? const Center(child: CircularProgressIndicator())
           : Padding(
               padding: const EdgeInsets.all(16.0),
               child: Card(
                 elevation: 2,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16.0)),
                 color: themeData.colorScheme.surfaceContainer,
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
