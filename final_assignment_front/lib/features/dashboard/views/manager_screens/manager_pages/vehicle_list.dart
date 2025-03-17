@@ -35,7 +35,7 @@ class _VehicleListPageState extends State<VehicleList> {
   List<VehicleInformation> _vehicles = [];
   bool _isLoading = true;
   String _errorMessage = '';
-  int _currentPage = 1; // 与后端分页从1开始对齐
+  int _currentPage = 1; // Aligns with backend pagination starting at 1
   final int _pageSize = 10;
   bool _hasMore = true;
   String? _currentUsername;
@@ -67,6 +67,30 @@ class _VehicleListPageState extends State<VehicleList> {
     super.dispose();
   }
 
+  Future<bool> _isAdmin() async {
+    final prefs = await SharedPreferences.getInstance();
+    final jwtToken = prefs.getString('jwtToken');
+    if (jwtToken == null) return false;
+
+    try {
+      final response = await http.get(
+        Uri.parse('http://localhost:8081/api/users/me'),
+        headers: {'Authorization': 'Bearer $jwtToken'},
+      );
+      if (response.statusCode == 200) {
+        final userData = jsonDecode(response.body);
+        final roles = (userData['roles'] as List<dynamic>?)
+                ?.map((r) => r.toString())
+                .toList() ??
+            [];
+        return roles.contains('ROLE_ADMIN');
+      }
+    } catch (e) {
+      debugPrint('Error checking admin status: $e');
+    }
+    return false;
+  }
+
   Future<void> _fetchVehicles({bool reset = false}) async {
     if (reset) {
       _currentPage = 1;
@@ -80,15 +104,24 @@ class _VehicleListPageState extends State<VehicleList> {
       _errorMessage = '';
     });
     try {
-      final vehicles = await vehicleApi.apiVehiclesSearchGet(
-        query: _currentUsername ?? '',
-        page: _currentPage,
-        size: _pageSize,
-      );
+      bool isAdmin = await _isAdmin();
+      List<VehicleInformation> vehicles;
+
+      if (isAdmin) {
+        vehicles =
+            await vehicleApi.apiVehiclesGet(); // Fetch all vehicles for admin
+      } else {
+        vehicles = await vehicleApi.apiVehiclesSearchGet(
+          query: _currentUsername ?? '',
+          page: _currentPage,
+          size: _pageSize,
+        );
+      }
+
       setState(() {
         _vehicles.addAll(vehicles);
         _isLoading = false;
-        if (vehicles.length < _pageSize) _hasMore = false;
+        if (!isAdmin && vehicles.length < _pageSize) _hasMore = false;
         if (_vehicles.isEmpty && _currentPage == 1) {
           _errorMessage = '暂无车辆信息';
         }
@@ -121,7 +154,7 @@ class _VehicleListPageState extends State<VehicleList> {
       _isLoading = true;
       _errorMessage = '';
       _currentPage = 1;
-      _hasMore = false; // 搜索结果不分页
+      _hasMore = false; // Search results don't paginate
       _vehicles.clear();
     });
     try {
@@ -136,7 +169,8 @@ class _VehicleListPageState extends State<VehicleList> {
           vehicles = await vehicleApi.apiVehiclesTypeGet(vehicleType: query);
           break;
         case 'ownerName':
-          vehicles = await vehicleApi.apiVehiclesOwnerGet(ownerName: query);
+          vehicles = await vehicleApi.apiVehiclesOwnerGet(
+              ownerName: query); // Updated to accept ownerName
           break;
         case 'status':
           vehicles =

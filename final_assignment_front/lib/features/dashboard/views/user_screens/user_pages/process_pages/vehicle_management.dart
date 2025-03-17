@@ -10,12 +10,10 @@ import 'package:final_assignment_front/features/dashboard/views/user_screens/use
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// 生成幂等性键的全局方法
 String generateIdempotencyKey() {
   return DateTime.now().millisecondsSinceEpoch.toString();
 }
 
-/// 格式化日期的全局方法
 String formatDate(DateTime? date) {
   if (date == null) return '无';
   return "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
@@ -38,7 +36,7 @@ class _VehicleManagementState extends State<VehicleManagement> {
   bool _isLoading = true;
   String _errorMessage = '';
   String? _currentUsername;
-  int _currentPage = 1; // 与后端分页从1开始对齐
+  int _currentPage = 1;
   final int _pageSize = 10;
   bool _hasMore = true;
 
@@ -139,7 +137,7 @@ class _VehicleManagementState extends State<VehicleManagement> {
           vehicles = await vehicleApi.apiVehiclesTypeGet(vehicleType: query);
           vehicles =
               vehicles.where((v) => v.ownerName == _currentUsername).toList();
-          _hasMore = false; // 后端未分页，假设单次返回全部
+          _hasMore = false;
           break;
         default:
           setState(() {
@@ -257,25 +255,34 @@ class _VehicleManagementState extends State<VehicleManagement> {
   @override
   Widget build(BuildContext context) {
     final themeData = controller?.currentBodyTheme.value ?? ThemeData.light();
-    if (!_isLoading && _errorMessage.isNotEmpty && _vehicleList.isEmpty) {
+
+    if (!_isLoading &&
+        _errorMessage.isNotEmpty &&
+        _vehicleList.isEmpty &&
+        !_errorMessage.contains('搜索')) {
       return Scaffold(
         backgroundColor: themeData.colorScheme.surface,
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(_errorMessage, style: themeData.textTheme.bodyLarge),
-              if (_errorMessage.contains('登录'))
-                ElevatedButton(
-                  onPressed: () =>
-                      Navigator.pushReplacementNamed(context, '/login'),
-                  child: const Text('前往登录'),
-                ),
-            ],
-          ),
+        appBar: AppBar(
+          title: Text('车辆管理',
+              style: themeData.textTheme.titleLarge
+                  ?.copyWith(color: themeData.colorScheme.onPrimary)),
+          backgroundColor: themeData.colorScheme.primary,
+          foregroundColor: themeData.colorScheme.onPrimary,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: _refreshVehicles,
+              tooltip: '刷新车辆列表',
+            ),
+          ],
+        ),
+        body: AddVehiclePage(
+          onVehicleAdded: () =>
+              _fetchUserVehicles(reset: true), // Callback to refresh list
         ),
       );
     }
+
     return Scaffold(
       backgroundColor: themeData.colorScheme.surface,
       appBar: AppBar(
@@ -286,13 +293,15 @@ class _VehicleManagementState extends State<VehicleManagement> {
         foregroundColor: themeData.colorScheme.onPrimary,
         actions: [
           IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: _refreshVehicles,
-              tooltip: '刷新车辆列表'),
+            icon: const Icon(Icons.refresh),
+            onPressed: _refreshVehicles,
+            tooltip: '刷新车辆列表',
+          ),
           IconButton(
-              icon: const Icon(Icons.add),
-              onPressed: _createVehicle,
-              tooltip: '添加新车辆信息'),
+            icon: const Icon(Icons.add),
+            onPressed: _createVehicle,
+            tooltip: '添加新车辆信息',
+          ),
         ],
       ),
       body: RefreshIndicator(
@@ -376,7 +385,9 @@ class _VehicleManagementState extends State<VehicleManagement> {
 }
 
 class AddVehiclePage extends StatefulWidget {
-  const AddVehiclePage({super.key});
+  final VoidCallback? onVehicleAdded;
+
+  const AddVehiclePage({super.key, this.onVehicleAdded});
 
   @override
   State<AddVehiclePage> createState() => _AddVehiclePageState();
@@ -485,7 +496,7 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
     setState(() => _isLoading = true);
     try {
       final vehicle = VehicleInformation(
-        licensePlate: _licensePlateController.text.trim(),
+        licensePlate: '黑A${_licensePlateController.text.trim()}',
         vehicleType: _vehicleTypeController.text.trim(),
         ownerName: _ownerNameController.text.trim(),
         idCardNumber: _idCardNumberController.text.trim().isEmpty
@@ -516,7 +527,10 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
           vehicleInformation: vehicle, idempotencyKey: idempotencyKey);
 
       _showSnackBar('创建车辆成功！');
-      if (mounted) Navigator.pop(context, true);
+      if (mounted) {
+        Navigator.pop(context, true);
+        widget.onVehicleAdded?.call();
+      }
     } catch (e) {
       _showSnackBar('创建车辆失败: $e', isError: true);
     } finally {
@@ -559,13 +573,18 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
       {TextInputType? keyboardType,
       bool readOnly = false,
       VoidCallback? onTap,
-      bool required = false}) {
+      bool required = false,
+      String? prefix}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: TextFormField(
         controller: controller,
+        style: TextStyle(color: themeData.colorScheme.onSurface),
+        // Adapt text color to theme
         decoration: InputDecoration(
           labelText: label,
+          labelStyle: TextStyle(color: themeData.colorScheme.onSurfaceVariant),
+          // Label adapts to theme
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
           enabledBorder: OutlineInputBorder(
               borderSide: BorderSide(
@@ -575,6 +594,10 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
                   BorderSide(color: themeData.colorScheme.primary, width: 1.5)),
           filled: true,
           fillColor: themeData.colorScheme.surfaceContainerLowest,
+          prefixText: prefix,
+          prefixStyle: TextStyle(
+              color: themeData.colorScheme.onSurface,
+              fontWeight: FontWeight.bold),
           suffixIcon: readOnly
               ? Icon(Icons.calendar_today,
                   size: 18, color: themeData.colorScheme.primary)
@@ -592,78 +615,79 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
   @override
   Widget build(BuildContext context) {
     final themeData = controller?.currentBodyTheme.value ?? ThemeData.light();
-    return Scaffold(
-      backgroundColor: themeData.colorScheme.surface,
-      appBar: AppBar(
-        title: Text('添加新车辆',
-            style: themeData.textTheme.titleLarge
-                ?.copyWith(color: themeData.colorScheme.onPrimary)),
-        backgroundColor: themeData.colorScheme.primary,
-        foregroundColor: themeData.colorScheme.onPrimary,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : Form(
-                key: _formKey,
-                child: SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      Card(
-                        elevation: 2,
-                        color: themeData.colorScheme.surfaceContainer,
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            children: [
-                              _buildTextField(
-                                  '车牌号', _licensePlateController, themeData,
-                                  required: true),
-                              _buildTextField(
-                                  '车辆类型', _vehicleTypeController, themeData,
-                                  required: true),
-                              _buildTextField(
-                                  '车主姓名', _ownerNameController, themeData,
-                                  required: true, readOnly: true),
-                              _buildTextField(
-                                  '身份证号码', _idCardNumberController, themeData,
-                                  keyboardType: TextInputType.number),
-                              _buildTextField(
-                                  '联系电话', _contactNumberController, themeData,
-                                  keyboardType: TextInputType.phone),
-                              _buildTextField(
-                                  '发动机号', _engineNumberController, themeData),
-                              _buildTextField(
-                                  '车架号', _frameNumberController, themeData),
-                              _buildTextField(
-                                  '车身颜色', _vehicleColorController, themeData),
-                              _buildTextField('首次注册日期',
-                                  _firstRegistrationDateController, themeData,
-                                  readOnly: true, onTap: _pickDate),
-                              _buildTextField(
-                                  '当前状态', _currentStatusController, themeData),
-                            ],
-                          ),
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Form(
+              key: _formKey,
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    Card(
+                      elevation: 2,
+                      color: themeData.colorScheme.surfaceContainer,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          children: [
+                            if (widget.onVehicleAdded != null)
+                              Text(
+                                '您当前没有车辆记录，请添加新车辆',
+                                style:
+                                    themeData.textTheme.titleMedium?.copyWith(
+                                  color: themeData.colorScheme.onSurface,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            if (widget.onVehicleAdded != null)
+                              const SizedBox(height: 16),
+                            _buildTextField(
+                                '车牌号', _licensePlateController, themeData,
+                                required: true, prefix: '黑A'),
+                            _buildTextField(
+                                '车辆类型', _vehicleTypeController, themeData,
+                                required: true),
+                            _buildTextField(
+                                '车主姓名', _ownerNameController, themeData,
+                                required: true, readOnly: true),
+                            _buildTextField(
+                                '身份证号码', _idCardNumberController, themeData,
+                                keyboardType: TextInputType.number),
+                            _buildTextField(
+                                '联系电话', _contactNumberController, themeData,
+                                keyboardType: TextInputType.phone),
+                            _buildTextField(
+                                '发动机号', _engineNumberController, themeData),
+                            _buildTextField(
+                                '车架号', _frameNumberController, themeData),
+                            _buildTextField(
+                                '车身颜色', _vehicleColorController, themeData),
+                            _buildTextField('首次注册日期',
+                                _firstRegistrationDateController, themeData,
+                                readOnly: true, onTap: _pickDate),
+                            _buildTextField(
+                                '当前状态', _currentStatusController, themeData),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 20),
-                      ElevatedButton(
-                        onPressed: _submitVehicle,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: themeData.colorScheme.primary,
-                          foregroundColor: themeData.colorScheme.onPrimary,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12.0)),
-                          padding: const EdgeInsets.symmetric(vertical: 14.0),
-                        ),
-                        child: const Text('提交'),
+                    ),
+                    const SizedBox(height: 20),
+                    ElevatedButton(
+                      onPressed: _submitVehicle,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: themeData.colorScheme.primary,
+                        foregroundColor: themeData.colorScheme.onPrimary,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12.0)),
+                        padding: const EdgeInsets.symmetric(vertical: 14.0),
                       ),
-                    ],
-                  ),
+                      child: const Text('提交'),
+                    ),
+                  ],
                 ),
               ),
-      ),
+            ),
     );
   }
 }
@@ -706,7 +730,8 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
   }
 
   void _initializeFields() {
-    _licensePlateController.text = widget.vehicle.licensePlate ?? '';
+    _licensePlateController.text =
+        widget.vehicle.licensePlate?.replaceFirst('黑A', '') ?? '';
     _vehicleTypeController.text = widget.vehicle.vehicleType ?? '';
     _ownerNameController.text = widget.vehicle.ownerName ?? '';
     _idCardNumberController.text = widget.vehicle.idCardNumber ?? '';
@@ -741,7 +766,7 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
     try {
       final vehicle = VehicleInformation(
         vehicleId: widget.vehicle.vehicleId,
-        licensePlate: _licensePlateController.text.trim(),
+        licensePlate: '黑A${_licensePlateController.text.trim()}',
         vehicleType: _vehicleTypeController.text.trim(),
         ownerName: _ownerNameController.text.trim(),
         idCardNumber: _idCardNumberController.text.trim().isEmpty
@@ -818,13 +843,18 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
       {TextInputType? keyboardType,
       bool readOnly = false,
       VoidCallback? onTap,
-      bool required = false}) {
+      bool required = false,
+      String? prefix}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: TextFormField(
         controller: controller,
+        style: TextStyle(color: themeData.colorScheme.onSurface),
+        // Adapt text color to theme
         decoration: InputDecoration(
           labelText: label,
+          labelStyle: TextStyle(color: themeData.colorScheme.onSurfaceVariant),
+          // Label adapts to theme
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
           enabledBorder: OutlineInputBorder(
               borderSide: BorderSide(
@@ -834,6 +864,10 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
                   BorderSide(color: themeData.colorScheme.primary, width: 1.5)),
           filled: true,
           fillColor: themeData.colorScheme.surfaceContainerLowest,
+          prefixText: prefix,
+          prefixStyle: TextStyle(
+              color: themeData.colorScheme.onSurface,
+              fontWeight: FontWeight.bold),
           suffixIcon: readOnly
               ? Icon(Icons.calendar_today,
                   size: 18, color: themeData.colorScheme.primary)
@@ -878,7 +912,7 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
                             children: [
                               _buildTextField(
                                   '车牌号', _licensePlateController, themeData,
-                                  required: true),
+                                  required: true, prefix: '黑A'),
                               _buildTextField(
                                   '车辆类型', _vehicleTypeController, themeData,
                                   required: true),

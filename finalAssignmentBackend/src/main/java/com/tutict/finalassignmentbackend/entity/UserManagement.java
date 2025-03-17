@@ -24,6 +24,7 @@ public class UserManagement implements Serializable {
     @TableId(value = "user_id", type = IdType.AUTO)
     private Integer userId;
 
+    // 邮箱
     @TableField("username")
     private String username;
 

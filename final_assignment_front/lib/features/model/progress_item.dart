@@ -1,46 +1,52 @@
-// progress_item.dart
 class ProgressItem {
-  final int id;
+  final int? id;
   final String title;
-  final String status; // "Pending", "Processing", "Completed", "Archived"
-  final DateTime? submitTime; // ISO 8601 格式（如 "2023-10-01T12:00:00Z"）
+  final String? status;
+  final DateTime? submitTime;
   final String? details;
   final String? username;
+  final int? appealId; // Link to AppealManagement
+  final int? fineId; // Link to FineInformation (using receiptNumber or an ID)
+  final int? vehicleId; // Link to VehicleInformation
 
   ProgressItem({
-    required this.id,
+    this.id,
     required this.title,
-    required this.status,
-    this.submitTime, // Changed to optional
+    this.status,
+    this.submitTime,
     this.details,
     this.username,
+    this.appealId,
+    this.fineId,
+    this.vehicleId,
   });
 
-  factory ProgressItem.fromJson(Map<String, dynamic> json) {
-    return ProgressItem(
-      id: json['id'] as int,
-      title: json['title'] as String,
-      status: json['status'] as String,
-      submitTime: json['submitTime'] != null
-          ? DateTime.parse(json['submitTime'] as String)
-          : null,
-      details: json['details'] as String?,
-      username: json['username'] as String?,
-    );
-  }
+  factory ProgressItem.fromJson(Map<String, dynamic> json) => ProgressItem(
+        id: json['id'],
+        title: json['title'],
+        status: json['status'],
+        submitTime: json['submitTime'] != null
+            ? DateTime.parse(json['submitTime'])
+            : null,
+        details: json['details'],
+        username: json['username'],
+        appealId: json['appealId'],
+        fineId: json['fineId'],
+        vehicleId: json['vehicleId'],
+      );
 
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'title': title,
-      'status': status,
-      if (submitTime != null) 'submitTime': submitTime!.toIso8601String(),
-      if (details != null) 'details': details,
-      if (username != null) 'username': username,
-    };
-  }
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'title': title,
+        'status': status,
+        'submitTime': submitTime?.toIso8601String(),
+        'details': details,
+        'username': username,
+        'appealId': appealId,
+        'fineId': fineId,
+        'vehicleId': vehicleId,
+      };
 
-  // 添加 copyWith 方法
   ProgressItem copyWith({
     int? id,
     String? title,
@@ -48,14 +54,19 @@ class ProgressItem {
     DateTime? submitTime,
     String? details,
     String? username,
-  }) {
-    return ProgressItem(
-      id: id ?? this.id,
-      title: title ?? this.title,
-      status: status ?? this.status,
-      submitTime: submitTime ?? this.submitTime,
-      details: details ?? this.details,
-      username: username ?? this.username,
-    );
-  }
+    int? appealId,
+    int? fineId,
+    int? vehicleId,
+  }) =>
+      ProgressItem(
+        id: id ?? this.id,
+        title: title ?? this.title,
+        status: status ?? this.status,
+        submitTime: submitTime ?? this.submitTime,
+        details: details ?? this.details,
+        username: username ?? this.username,
+        appealId: appealId ?? this.appealId,
+        fineId: fineId ?? this.fineId,
+        vehicleId: vehicleId ?? this.vehicleId,
+      );
 }

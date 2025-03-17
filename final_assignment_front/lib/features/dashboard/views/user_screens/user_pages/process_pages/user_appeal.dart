@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:final_assignment_front/features/dashboard/controllers/progress_controller.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -702,10 +703,33 @@ class _UserAppealPageState extends State<UserAppealPage> {
   }
 }
 
-class UserAppealDetailPage extends StatelessWidget {
+class UserAppealDetailPage extends StatefulWidget {
   final AppealManagement appeal;
 
   const UserAppealDetailPage({super.key, required this.appeal});
+
+  @override
+  State<UserAppealDetailPage> createState() => _UserAppealDetailPageState();
+}
+
+class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
+  final ProgressController progressController = Get.find<ProgressController>();
+  bool _isLoadingProgress = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchProgress();
+  }
+
+  Future<void> _fetchProgress() async {
+    setState(() => _isLoadingProgress = true);
+    try {
+      await progressController.fetchProgress();
+    } finally {
+      if (mounted) setState(() => _isLoadingProgress = false);
+    }
+  }
 
   Widget _buildDetailRow(String label, String value, ThemeData themeData) {
     return Padding(
@@ -733,6 +757,73 @@ class UserAppealDetailPage extends StatelessWidget {
     );
   }
 
+  void _showSubmitProgressDialog() {
+    final themeData =
+        Get.find<UserDashboardController>().currentBodyTheme.value;
+    final titleController = TextEditingController();
+    final detailsController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: themeData.colorScheme.surfaceContainer,
+        title: Text('提交进度', style: themeData.textTheme.titleLarge),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: titleController,
+                decoration: InputDecoration(
+                  labelText: '进度标题',
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: detailsController,
+                decoration: InputDecoration(
+                  labelText: '详情',
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                ),
+                maxLines: 3,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('取消'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (titleController.text.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Text('标题不能为空'),
+                    backgroundColor: themeData.colorScheme.error,
+                  ),
+                );
+                return;
+              }
+              await progressController.submitProgress(
+                titleController.text,
+                detailsController.text,
+                appealId: widget.appeal.appealId,
+              );
+              Navigator.pop(ctx);
+              _fetchProgress(); // Refresh progress list after submission
+            },
+            child: const Text('提交'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeData =
@@ -751,6 +842,13 @@ class UserAppealDetailPage extends StatelessWidget {
         backgroundColor: themeData.colorScheme.primaryContainer,
         foregroundColor: themeData.colorScheme.onPrimaryContainer,
         elevation: 2,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _fetchProgress,
+            tooltip: '刷新进度',
+          ),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -758,19 +856,105 @@ class UserAppealDetailPage extends StatelessWidget {
           thumbVisibility: true,
           child: ListView(
             children: [
-              _buildDetailRow(
-                  '申诉ID', appeal.appealId?.toString() ?? '无', themeData),
-              _buildDetailRow(
-                  '违法ID', appeal.offenseId?.toString() ?? '无', themeData),
-              _buildDetailRow('上诉人', appeal.appellantName ?? '无', themeData),
-              _buildDetailRow('身份证号码', appeal.idCardNumber ?? '无', themeData),
-              _buildDetailRow('联系电话', appeal.contactNumber ?? '无', themeData),
-              _buildDetailRow('申诉原因', appeal.appealReason ?? '无', themeData),
-              _buildDetailRow('申诉时间',
-                  appeal.appealTime?.toIso8601String() ?? '无', themeData),
-              _buildDetailRow(
-                  '处理状态', appeal.processStatus ?? 'Pending', themeData),
-              _buildDetailRow('处理结果', appeal.processResult ?? '无', themeData),
+              // Appeal Details
+              Card(
+                elevation: 2,
+                color: themeData.colorScheme.surfaceContainer,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildDetailRow('申诉ID',
+                          widget.appeal.appealId?.toString() ?? '无', themeData),
+                      _buildDetailRow(
+                          '违法ID',
+                          widget.appeal.offenseId?.toString() ?? '无',
+                          themeData),
+                      _buildDetailRow(
+                          '上诉人', widget.appeal.appellantName ?? '无', themeData),
+                      _buildDetailRow('身份证号码',
+                          widget.appeal.idCardNumber ?? '无', themeData),
+                      _buildDetailRow('联系电话',
+                          widget.appeal.contactNumber ?? '无', themeData),
+                      _buildDetailRow(
+                          '申诉原因', widget.appeal.appealReason ?? '无', themeData),
+                      _buildDetailRow(
+                          '申诉时间',
+                          widget.appeal.appealTime?.toIso8601String() ?? '无',
+                          themeData),
+                      _buildDetailRow('处理状态',
+                          widget.appeal.processStatus ?? 'Pending', themeData),
+                      _buildDetailRow('处理结果',
+                          widget.appeal.processResult ?? '无', themeData),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Progress Items
+              Card(
+                elevation: 2,
+                color: themeData.colorScheme.surfaceContainer,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '相关进度',
+                        style: themeData.textTheme.titleLarge?.copyWith(
+                          color: themeData.colorScheme.onSurface,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      _isLoadingProgress
+                          ? const Center(child: CircularProgressIndicator())
+                          : Obx(() {
+                              final relatedProgress = progressController
+                                  .progressItems
+                                  .where((p) =>
+                                      p.appealId == widget.appeal.appealId)
+                                  .toList();
+                              if (relatedProgress.isEmpty) {
+                                return Text(
+                                  '暂无相关进度',
+                                  style:
+                                      themeData.textTheme.bodyMedium?.copyWith(
+                                    color:
+                                        themeData.colorScheme.onSurfaceVariant,
+                                  ),
+                                );
+                              }
+                              return Column(
+                                children: relatedProgress
+                                    .map((item) => ListTile(
+                                          title: Text(item.title,
+                                              style: themeData
+                                                  .textTheme.bodyLarge),
+                                          subtitle: Text(
+                                            '状态: ${item.status}\n提交时间: ${item.submitTime?.toIso8601String() ?? "未知"}',
+                                            style:
+                                                themeData.textTheme.bodyMedium,
+                                          ),
+                                          trailing: const Icon(
+                                              Icons.arrow_forward_ios),
+                                          onTap: () => Get.toNamed(
+                                              '/progressDetail',
+                                              arguments: item),
+                                        ))
+                                    .toList(),
+                              );
+                            }),
+                    ],
+                  ),
+                ),
+              ),
               const SizedBox(height: 20),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -786,6 +970,13 @@ class UserAppealDetailPage extends StatelessWidget {
             ],
           ),
         ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _showSubmitProgressDialog,
+        backgroundColor: themeData.colorScheme.primary,
+        foregroundColor: themeData.colorScheme.onPrimary,
+        tooltip: '提交进度',
+        child: const Icon(Icons.add),
       ),
     );
   }
