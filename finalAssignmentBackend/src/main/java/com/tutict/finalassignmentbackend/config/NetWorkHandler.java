@@ -262,7 +262,7 @@ public class NetWorkHandler extends AbstractVerticle {
 
         HttpMethod method = request.method();
         var httpRequest = webClient.requestAbs(method, targetUrl).putHeaders(headers);
-        queryParams.forEach(entry -> httpRequest.addQueryParam(entry.getKey(), entry.getValue()));
+//        queryParams.forEach(entry -> httpRequest.addQueryParam(entry.getKey(), entry.getValue()));
 
         if (method == HttpMethod.GET) {
             log.info("[{}] Forwarding GET request with query params: {}", requestId, queryParams);

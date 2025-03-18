@@ -1,33 +1,29 @@
-import 'dart:convert';
 import 'package:final_assignment_front/features/model/vehicle_information.dart';
-import 'package:final_assignment_front/utils/services/api_client.dart'; // Import ApiClient
-import 'package:jwt_decoder/jwt_decoder.dart'; // For JWT parsing
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:flutter/material.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class VehicleInformationControllerApi {
   final ApiClient _apiClient;
-  String? _username; // Store the logged-in user's username
+  String? _username;
 
   VehicleInformationControllerApi()
       : _apiClient = ApiClient(basePath: 'http://localhost:8081');
 
-  /// Initialize with JWT and extract username
   Future<void> initializeWithJwt() async {
     final prefs = await SharedPreferences.getInstance();
     final jwtToken = prefs.getString('jwtToken');
     if (jwtToken != null) {
-      _apiClient.setJwtToken(jwtToken); // Set token in ApiClient
+      _apiClient.setJwtToken(jwtToken);
       final decodedToken = JwtDecoder.decode(jwtToken);
-      _username = decodedToken['sub'] ??
-          'Unknown'; // Extract username (e.g., hgl@hgl.com)
+      _username = decodedToken['sub'] ?? 'Unknown';
       debugPrint('Initialized with username: $_username');
     } else {
       throw Exception('JWT token not found in SharedPreferences');
     }
   }
 
-  /// Search vehicles (supports pagination)
   Future<List<VehicleInformation>> apiVehiclesSearchGet({
     required String query,
     int page = 1,
@@ -38,6 +34,7 @@ class VehicleInformationControllerApi {
       QueryParam('page', page.toString()),
       QueryParam('size', size.toString()),
     ];
+    debugPrint('Search query params: $queryParams');
     final response = await _apiClient.invokeAPI(
       '/api/vehicles/search',
       'GET',
@@ -49,14 +46,14 @@ class VehicleInformationControllerApi {
       ['bearerAuth'],
     );
     if (response.statusCode == 200) {
-      return _apiClient.deserialize(response.body, 'List<VehicleInformation>')
-          as List<VehicleInformation>;
+      final List<dynamic> data =
+          _apiClient.deserialize(response.body, 'List<dynamic>');
+      return VehicleInformation.listFromJson(data);
     }
     throw Exception(
         'Failed to search vehicles: ${response.statusCode} - ${response.body}');
   }
 
-  /// Create vehicle information, setting ownerName to the logged-in user's username
   Future<void> apiVehiclesPost({
     required VehicleInformation vehicleInformation,
     required String idempotencyKey,
@@ -64,7 +61,7 @@ class VehicleInformationControllerApi {
     if (_username == null) {
       throw Exception('User not authenticated. Call initializeWithJwt first.');
     }
-    vehicleInformation.ownerName = _username; // Set ownerName to username
+    vehicleInformation.ownerName = _username;
     final queryParams = [QueryParam('idempotencyKey', idempotencyKey)];
     final response = await _apiClient.invokeAPI(
       '/api/vehicles',
@@ -83,6 +80,8 @@ class VehicleInformationControllerApi {
     }
   }
 
+// 其他方法保持不变
+
   /// Get all vehicles
   Future<List<VehicleInformation>> apiVehiclesGet() async {
     final response = await _apiClient.invokeAPI(
@@ -96,15 +95,17 @@ class VehicleInformationControllerApi {
       ['bearerAuth'],
     );
     if (response.statusCode == 200) {
-      return _apiClient.deserialize(response.body, 'List<VehicleInformation>')
-          as List<VehicleInformation>;
+      final List<dynamic> data =
+          _apiClient.deserialize(response.body, 'List<dynamic>');
+      return VehicleInformation.listFromJson(data);
     }
     throw Exception('Failed to fetch all vehicles: ${response.statusCode}');
   }
 
   /// Get vehicle by ID
-  Future<VehicleInformation?> apiVehiclesVehicleIdGet(
-      {required int vehicleId}) async {
+  Future<VehicleInformation?> apiVehiclesVehicleIdGet({
+    required int vehicleId,
+  }) async {
     final response = await _apiClient.invokeAPI(
       '/api/vehicles/$vehicleId',
       'GET',
@@ -125,8 +126,9 @@ class VehicleInformationControllerApi {
   }
 
   /// Get vehicle by license plate
-  Future<VehicleInformation?> apiVehiclesLicensePlateGet(
-      {required String licensePlate}) async {
+  Future<VehicleInformation?> apiVehiclesLicensePlateGet({
+    required String licensePlate,
+  }) async {
     final response = await _apiClient.invokeAPI(
       '/api/vehicles/license-plate/$licensePlate',
       'GET',
@@ -148,8 +150,9 @@ class VehicleInformationControllerApi {
   }
 
   /// Get vehicles by type
-  Future<List<VehicleInformation>> apiVehiclesTypeGet(
-      {required String vehicleType}) async {
+  Future<List<VehicleInformation>> apiVehiclesTypeGet({
+    required String vehicleType,
+  }) async {
     final response = await _apiClient.invokeAPI(
       '/api/vehicles/type/$vehicleType',
       'GET',
@@ -161,15 +164,17 @@ class VehicleInformationControllerApi {
       ['bearerAuth'],
     );
     if (response.statusCode == 200) {
-      return _apiClient.deserialize(response.body, 'List<VehicleInformation>')
-          as List<VehicleInformation>;
+      final List<dynamic> data =
+          _apiClient.deserialize(response.body, 'List<dynamic>');
+      return VehicleInformation.listFromJson(data);
     }
     throw Exception('Failed to fetch vehicles by type: ${response.statusCode}');
   }
 
   /// Get vehicles by owner (supports optional ownerName for admin search)
-  Future<List<VehicleInformation>> apiVehiclesOwnerGet(
-      {String? ownerName}) async {
+  Future<List<VehicleInformation>> apiVehiclesOwnerGet({
+    String? ownerName,
+  }) async {
     final effectiveOwnerName = ownerName ?? _username;
     if (effectiveOwnerName == null) {
       throw Exception(
@@ -187,16 +192,18 @@ class VehicleInformationControllerApi {
     );
     debugPrint('Owner Response: ${response.statusCode} - ${response.body}');
     if (response.statusCode == 200) {
-      return _apiClient.deserialize(response.body, 'List<VehicleInformation>')
-          as List<VehicleInformation>;
+      final List<dynamic> data =
+          _apiClient.deserialize(response.body, 'List<dynamic>');
+      return VehicleInformation.listFromJson(data);
     }
     throw Exception(
         'Failed to fetch vehicles by owner: ${response.statusCode} - ${response.body}');
   }
 
   /// Get vehicles by status
-  Future<List<VehicleInformation>> apiVehiclesStatusGet(
-      {required String currentStatus}) async {
+  Future<List<VehicleInformation>> apiVehiclesStatusGet({
+    required String currentStatus,
+  }) async {
     final response = await _apiClient.invokeAPI(
       '/api/vehicles/status/$currentStatus',
       'GET',
@@ -208,8 +215,9 @@ class VehicleInformationControllerApi {
       ['bearerAuth'],
     );
     if (response.statusCode == 200) {
-      return _apiClient.deserialize(response.body, 'List<VehicleInformation>')
-          as List<VehicleInformation>;
+      final List<dynamic> data =
+          _apiClient.deserialize(response.body, 'List<dynamic>');
+      return VehicleInformation.listFromJson(data);
     }
     throw Exception(
         'Failed to fetch vehicles by status: ${response.statusCode}');
@@ -241,7 +249,9 @@ class VehicleInformationControllerApi {
   }
 
   /// Delete vehicle by ID
-  Future<void> apiVehiclesVehicleIdDelete({required int vehicleId}) async {
+  Future<void> apiVehiclesVehicleIdDelete({
+    required int vehicleId,
+  }) async {
     final response = await _apiClient.invokeAPI(
       '/api/vehicles/$vehicleId',
       'DELETE',
@@ -259,8 +269,9 @@ class VehicleInformationControllerApi {
   }
 
   /// Delete vehicle by license plate
-  Future<void> apiVehiclesLicensePlateDelete(
-      {required String licensePlate}) async {
+  Future<void> apiVehiclesLicensePlateDelete({
+    required String licensePlate,
+  }) async {
     final response = await _apiClient.invokeAPI(
       '/api/vehicles/license-plate/$licensePlate',
       'DELETE',
@@ -278,7 +289,9 @@ class VehicleInformationControllerApi {
   }
 
   /// Check if license plate exists
-  Future<bool> apiVehiclesExistsGet({required String licensePlate}) async {
+  Future<bool> apiVehiclesExistsGet({
+    required String licensePlate,
+  }) async {
     final response = await _apiClient.invokeAPI(
       '/api/vehicles/exists/$licensePlate',
       'GET',

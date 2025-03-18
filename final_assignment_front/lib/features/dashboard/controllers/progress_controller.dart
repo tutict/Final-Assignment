@@ -109,59 +109,27 @@ class ProgressController extends GetxController {
   Future<void> fetchBusinessData() async {
     try {
       if (isAdmin.value) {
-        // 假设所有 API 返回 List<dynamic>，需要手动转换
-        appeals.assignAll((await _appealApi.apiAppealsGet())
-            .map((json) =>
-                AppealManagement.fromJson(json as Map<String, dynamic>))
-            .toList());
-        deductions.assignAll((await _deductionApi.apiDeductionsGet())
-            .map((json) =>
-                DeductionInformation.fromJson(json as Map<String, dynamic>))
-            .toList());
-        drivers.assignAll((await _driverApi.apiDriversGet())
-            .map((json) =>
-                DriverInformation.fromJson(json as Map<String, dynamic>))
-            .toList());
-        fines.assignAll((await _fineApi.apiFinesGet())
-            .map((json) =>
-                FineInformation.fromJson(json as Map<String, dynamic>))
-            .toList());
-        vehicles.assignAll((await _vehicleApi.apiVehiclesGet())
-            .map((json) =>
-                VehicleInformation.fromJson(json as Map<String, dynamic>))
-            .toList());
-        offenses.assignAll((await _offenseApi.apiOffensesGet())
-            .map((json) =>
-                OffenseInformation.fromJson(json as Map<String, dynamic>))
-            .toList());
+        appeals.assignAll(await _appealApi.apiAppealsGet() ?? []);
+        deductions.assignAll(await _deductionApi.apiDeductionsGet() ?? []);
+        drivers.assignAll(await _driverApi.apiDriversGet() ?? []);
+        fines.assignAll(await _fineApi.apiFinesGet() ?? []);
+        vehicles.assignAll(await _vehicleApi.apiVehiclesGet() ?? []);
+        offenses.assignAll(await _offenseApi.apiOffensesGet() ?? []);
       } else {
-        appeals.assignAll((await _appealApi.apiAppealsGet())
-            .map((json) =>
-                AppealManagement.fromJson(json as Map<String, dynamic>))
-            .toList());
-        deductions.assignAll((await _deductionApi.apiDeductionsGet())
-            .map((json) =>
-                DeductionInformation.fromJson(json as Map<String, dynamic>))
+        appeals.assignAll(await _appealApi.apiAppealsGet() ?? []);
+        deductions.assignAll((await _deductionApi.apiDeductionsGet() ?? [])
             .where((d) => d.handler == currentUsername.value)
             .toList());
-        drivers.assignAll((await _driverApi.apiDriversGet())
-            .map((json) =>
-                DriverInformation.fromJson(json as Map<String, dynamic>))
+        drivers.assignAll((await _driverApi.apiDriversGet() ?? [])
             .where((d) => d.name == currentUsername.value)
             .toList());
-        fines.assignAll((await _fineApi.apiFinesGet())
-            .map((json) =>
-                FineInformation.fromJson(json as Map<String, dynamic>))
+        fines.assignAll((await _fineApi.apiFinesGet() ?? [])
             .where((f) => f.payee == currentUsername.value)
             .toList());
-        vehicles.assignAll((await _vehicleApi.apiVehiclesSearchGet(
-                query: currentUsername.value))
-            .map((json) =>
-                VehicleInformation.fromJson(json as Map<String, dynamic>))
-            .toList());
-        offenses.assignAll((await _offenseApi.apiOffensesGet())
-            .map((json) =>
-                OffenseInformation.fromJson(json as Map<String, dynamic>))
+        vehicles.assignAll(await _vehicleApi.apiVehiclesSearchGet(
+                query: currentUsername.value) ??
+            []);
+        offenses.assignAll((await _offenseApi.apiOffensesGet() ?? [])
             .where((o) => o.driverName == currentUsername.value)
             .toList());
       }
@@ -174,14 +142,11 @@ class ProgressController extends GetxController {
     isLoading.value = true;
     try {
       if (isAdmin.value) {
-        progressItems.assignAll((await _progressApi.apiProgressGet())
-            .map((json) => ProgressItem.fromJson(json as Map<String, dynamic>))
-            .toList());
+        progressItems.assignAll(await _progressApi.apiProgressGet() ?? []);
       } else {
-        progressItems.assignAll((await _progressApi.apiProgressUsernameGet(
-                username: currentUsername.value))
-            .map((json) => ProgressItem.fromJson(json as Map<String, dynamic>))
-            .toList());
+        progressItems.assignAll(await _progressApi.apiProgressUsernameGet(
+                username: currentUsername.value) ??
+            []);
       }
       filterByStatus(statusCategories[0]);
     } catch (e) {
