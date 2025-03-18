@@ -5,6 +5,7 @@ library app_pages;
 import 'package:final_assignment_front/features/dashboard/views/components/ai_chat.dart';
 import 'package:final_assignment_front/features/dashboard/views/components/change_themes.dart';
 import 'package:final_assignment_front/features/dashboard/views/components/map.dart';
+import 'package:final_assignment_front/features/dashboard/views/components/progress_detail.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_dashboard_screen.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/appeal_management.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/backup_and_restore.dart';

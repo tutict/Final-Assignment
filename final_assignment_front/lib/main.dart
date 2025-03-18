@@ -1,4 +1,5 @@
 import 'package:final_assignment_front/features/dashboard/controllers/chat_controller.dart';
+import 'package:final_assignment_front/features/dashboard/controllers/progress_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_dashboard_screen.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 import 'package:flutter/material.dart';
@@ -22,6 +23,7 @@ void main() async {
   Get.put(DashboardController());
   Get.put(UserDashboardController());
   Get.put(ChatController());
+  Get.put(ProgressController());
 
   runApp(const MainApp());
 }

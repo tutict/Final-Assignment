@@ -1,9 +1,9 @@
 import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/progress_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
-import 'package:final_assignment_front/features/model/progress_item.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:intl/intl.dart'; // 添加日期格式化依赖
 
 class OnlineProcessingProgress extends StatefulWidget {
   const OnlineProcessingProgress({super.key});
@@ -18,16 +18,22 @@ class OnlineProcessingProgressState extends State<OnlineProcessingProgress>
   late TabController _tabController;
   final UserDashboardController dashboardController =
       Get.find<UserDashboardController>();
-  final ProgressController progressController = Get.put(ProgressController());
+  final ProgressController progressController =
+      Get.find<ProgressController>(); // 使用 find 而不是 put，避免重复注入
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(() {
-      progressController.filterByStatus(
-          progressController.statusCategories[_tabController.index]);
+      if (_tabController.indexIsChanging) {
+        progressController.filterByStatus(
+            progressController.statusCategories[_tabController.index]);
+      }
     });
+    // 确保初始加载时过滤正确
+    progressController.filterByStatus(
+        progressController.statusCategories[_tabController.index]);
   }
 
   @override
@@ -54,8 +60,14 @@ class OnlineProcessingProgressState extends State<OnlineProcessingProgress>
                 controller: titleController,
                 decoration: InputDecoration(
                   labelText: '进度标题',
+                  labelStyle: TextStyle(color: themeData.colorScheme.onSurface),
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8)),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide:
+                        BorderSide(color: themeData.colorScheme.primary),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
@@ -63,8 +75,14 @@ class OnlineProcessingProgressState extends State<OnlineProcessingProgress>
                 controller: detailsController,
                 decoration: InputDecoration(
                   labelText: '详情',
+                  labelStyle: TextStyle(color: themeData.colorScheme.onSurface),
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8)),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide:
+                        BorderSide(color: themeData.colorScheme.primary),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
                 maxLines: 3,
               ),
@@ -73,13 +91,20 @@ class OnlineProcessingProgressState extends State<OnlineProcessingProgress>
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('取消',
+                style: TextStyle(color: themeData.colorScheme.onSurface)),
+          ),
           ElevatedButton(
-            onPressed: () {
-              progressController.submitProgress(
+            onPressed: () async {
+              await progressController.submitProgress(
                   titleController.text, detailsController.text);
               Navigator.pop(ctx);
             },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: themeData.colorScheme.primary,
+              foregroundColor: themeData.colorScheme.onPrimary,
+            ),
             child: const Text('提交'),
           ),
         ],
@@ -94,8 +119,14 @@ class OnlineProcessingProgressState extends State<OnlineProcessingProgress>
       return Scaffold(
         backgroundColor: themeData.colorScheme.surface,
         appBar: AppBar(
-          title: Text('进度消息', style: themeData.textTheme.headlineSmall),
+          title: Text(
+            '进度消息',
+            style: themeData.textTheme.headlineSmall?.copyWith(
+              color: themeData.colorScheme.onPrimary,
+            ),
+          ),
           backgroundColor: themeData.colorScheme.primaryContainer,
+          foregroundColor: themeData.colorScheme.onPrimary,
           bottom: TabBar(
             controller: _tabController,
             labelColor: themeData.colorScheme.primary,
@@ -111,6 +142,7 @@ class OnlineProcessingProgressState extends State<OnlineProcessingProgress>
           actions: [
             IconButton(
               icon: const Icon(Icons.add),
+              color: themeData.colorScheme.onPrimary,
               onPressed: _showSubmitProgressDialog,
               tooltip: '提交新进度',
             ),
@@ -121,12 +153,19 @@ class OnlineProcessingProgressState extends State<OnlineProcessingProgress>
           child: progressController.isLoading.value
               ? Center(
                   child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation(
-                          themeData.colorScheme.primary)))
+                    valueColor:
+                        AlwaysStoppedAnimation(themeData.colorScheme.primary),
+                  ),
+                )
               : progressController.errorMessage.isNotEmpty
                   ? Center(
-                      child: Text(progressController.errorMessage.value,
-                          style: themeData.textTheme.bodyLarge))
+                      child: Text(
+                        progressController.errorMessage.value,
+                        style: themeData.textTheme.bodyLarge?.copyWith(
+                          color: themeData.colorScheme.error,
+                        ),
+                      ),
+                    )
                   : TabBarView(
                       controller: _tabController,
                       children: progressController.statusCategories
@@ -140,7 +179,14 @@ class OnlineProcessingProgressState extends State<OnlineProcessingProgress>
 
   Widget _buildProgressList(ThemeData themeData) {
     return Obx(() => progressController.filteredItems.isEmpty
-        ? Center(child: Text('暂无记录', style: themeData.textTheme.bodyLarge))
+        ? Center(
+            child: Text(
+              '暂无记录',
+              style: themeData.textTheme.bodyLarge?.copyWith(
+                color: themeData.colorScheme.onSurface,
+              ),
+            ),
+          )
         : ListView.builder(
             itemCount: progressController.filteredItems.length,
             itemBuilder: (context, index) {
@@ -153,15 +199,26 @@ class OnlineProcessingProgressState extends State<OnlineProcessingProgress>
                 child: ListTile(
                   leading: CircleAvatar(
                     backgroundColor: _getStatusColor(item.status, themeData),
-                    child: Text(item.title.isNotEmpty ? item.title[0] : '?',
-                        style: const TextStyle(color: Colors.white)),
+                    child: Text(
+                      item.title.isNotEmpty ? item.title[0] : '?',
+                      style: const TextStyle(color: Colors.white),
+                    ),
                   ),
-                  title: Text(item.title, style: themeData.textTheme.bodyLarge),
-                  subtitle: Text('提交时间: ${item.submitTime ?? '未知'}',
-                      style: themeData.textTheme.bodyMedium),
+                  title: Text(
+                    item.title,
+                    style: themeData.textTheme.bodyLarge,
+                  ),
+                  subtitle: Text(
+                    '提交时间: ${item.submitTime != null ? DateFormat('yyyy-MM-dd HH:mm').format(item.submitTime!) : '未知'}\n'
+                    '${progressController.getBusinessContext(item)}',
+                    style: themeData.textTheme.bodyMedium,
+                  ),
                   trailing: const Icon(Icons.arrow_forward_ios),
                   onTap: () =>
-                      Get.toNamed(AppPages.progressDetailPage, arguments: item),
+                      Get.toNamed(AppPages.progressDetailPage, arguments: item)
+                          ?.then((result) {
+                    if (result == true) progressController.fetchProgress();
+                  }),
                 ),
               );
             },
