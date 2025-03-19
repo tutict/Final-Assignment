@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentbackend.controller;
 
 import com.tutict.finalassignmentbackend.entity.VehicleInformation;
+import com.tutict.finalassignmentbackend.entity.elastic.PagedResponse;
 import com.tutict.finalassignmentbackend.entity.elastic.VehicleInformationDocument;
 import com.tutict.finalassignmentbackend.service.VehicleInformationService;
 import org.springframework.context.support.DefaultMessageSourceResolvable;
@@ -50,27 +51,48 @@ public class VehicleInformationController {
 
     // 新增接口：按车牌号搜索（仅当前用户）
     @GetMapping("/search/license-plate/me")
-    public ResponseEntity<List<VehicleInformationDocument>> searchVehiclesByLicensePlateForCurrentUser(
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    public ResponseEntity<PagedResponse<VehicleInformationDocument>> searchVehiclesByLicensePlateForCurrentUser(
             @RequestParam String licensePlate,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String currentUsername = authentication.getName();
-        List<VehicleInformationDocument> vehicles = vehicleInformationService.searchVehiclesByLicensePlateForUser(
-                currentUsername, licensePlate, page, size);
-        return ResponseEntity.ok(vehicles);
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            String currentUsername = authentication.getName();
+            PagedResponse<VehicleInformationDocument> response = vehicleInformationService.searchVehiclesByLicensePlateForUser(
+                    currentUsername, licensePlate, page, size);
+            if (response.getContent().isEmpty()) {
+                log.info("No vehicles found for license plate: " + licensePlate + " for user: " + currentUsername);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            }
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            log.warning("Invalid license plate: " + licensePlate + ", error: " + e.getMessage());
+            return ResponseEntity.badRequest().body(new PagedResponse<>(Collections.emptyList(), page, size, 0, 0));
+        }
     }
 
+    // 新增接口：按车辆类型搜索（仅当前用户）
     @GetMapping("/search/vehicle-type/me")
-    public ResponseEntity<List<VehicleInformationDocument>> searchVehiclesByVehicleTypeForCurrentUser(
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    public ResponseEntity<PagedResponse<VehicleInformationDocument>> searchVehiclesByVehicleTypeForCurrentUser(
             @RequestParam String vehicleType,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String currentUsername = authentication.getName();
-        List<VehicleInformationDocument> vehicles = vehicleInformationService.searchVehiclesByVehicleTypeForUser(
-                currentUsername, vehicleType, page, size);
-        return ResponseEntity.ok(vehicles);
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            String currentUsername = authentication.getName();
+            PagedResponse<VehicleInformationDocument> response = vehicleInformationService.searchVehiclesByVehicleTypeForUser(
+                    currentUsername, vehicleType, page, size);
+            if (response.getContent().isEmpty()) {
+                log.info("No vehicles found for vehicle type: " + vehicleType + " for user: " + currentUsername);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            }
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            log.warning("Invalid vehicle type: " + vehicleType + ", error: " + e.getMessage());
+            return ResponseEntity.badRequest().body(new PagedResponse<>(Collections.emptyList(), page, size, 0, 0));
+        }
     }
 
     @PostMapping

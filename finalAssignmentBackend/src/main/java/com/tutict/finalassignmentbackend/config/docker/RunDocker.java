@@ -5,6 +5,7 @@ import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
@@ -66,12 +67,19 @@ public class RunDocker {
 
     public void startElasticsearch() {
         try {
-            elasticsearchContainer = new ElasticsearchContainer("elasticsearch:8.17.3")
-                    .withEnv("xpack.security.enabled", "false");// 关闭安全验证,不关的话死活连不上
+            // 声明自定义镜像与官方镜像兼容
+            DockerImageName myImage = DockerImageName.parse("tutict/elasticsearch-with-plugins:8.17.3-for-my-work")
+                    .asCompatibleSubstituteFor("docker.elastic.co/elasticsearch/elasticsearch");
+
+            // 使用自定义镜像启动容器，仅设置单节点模式
+            elasticsearchContainer = new ElasticsearchContainer(myImage)
+                    .withEnv("xpack.security.enabled", "false")
+                    .withEnv("discovery.type", "single-node"); // 启用单节点模式
             elasticsearchContainer.start();
+
             String elasticsearchUrl = elasticsearchContainer.getHttpHostAddress();
             System.setProperty("spring-elasticsearch-uris", "http://" + elasticsearchUrl);
-            log.log(Level.INFO, "Elasticsearch started at: https://{0}", elasticsearchUrl);
+            log.log(Level.INFO, "Elasticsearch started at: http://{0}", elasticsearchUrl);
         } catch (Exception e) {
             log.log(Level.SEVERE, "Failed to start Elasticsearch container: {0}", e.getMessage());
         }

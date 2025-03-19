@@ -6,6 +6,7 @@ import co.elastic.clients.elasticsearch._types.query_dsl.Query;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.RequestHistory;
+import com.tutict.finalassignmentbackend.entity.elastic.PagedResponse;
 import com.tutict.finalassignmentbackend.entity.elastic.VehicleInformationDocument;
 import com.tutict.finalassignmentbackend.mapper.RequestHistoryMapper;
 import com.tutict.finalassignmentbackend.mapper.VehicleInformationMapper;
@@ -255,11 +256,10 @@ public class VehicleInformationService {
     }
 
     // 按车牌号搜索（支持模糊搜索）
-    public List<VehicleInformationDocument> searchVehiclesByLicensePlateForUser(
+    public PagedResponse<VehicleInformationDocument> searchVehiclesByLicensePlateForUser(
             String currentUsername, String licensePlate, int page, int size) {
         Pageable pageable = PageRequest.of(page - 1, size);
 
-        // 构建 Elasticsearch 查询
         Query ownerNameQuery = MatchQuery.of(m -> m
                 .field("ownerName")
                 .query(currentUsername)
@@ -268,9 +268,9 @@ public class VehicleInformationService {
         Query licensePlateQuery = MatchQuery.of(m -> m
                 .field("licensePlate")
                 .query(licensePlate)
-                .fuzziness("AUTO") // 启用模糊搜索
-                .prefixLength(1) // 前缀匹配长度
-                .maxExpansions(50) // 限制模糊扩展数量
+                .fuzziness("AUTO")
+                .prefixLength(1)
+                .maxExpansions(50)
         )._toQuery();
 
         Query boolQuery = BoolQuery.of(b -> b
@@ -289,17 +289,27 @@ public class VehicleInformationService {
                 IndexCoordinates.of("vehicles")
         );
 
-        return searchHits.getSearchHits().stream()
+        List<VehicleInformationDocument> content = searchHits.getSearchHits().stream()
                 .map(SearchHit::getContent)
                 .collect(Collectors.toList());
+
+        long totalElements = searchHits.getTotalHits();
+        int totalPages = (int) Math.ceil((double) totalElements / size);
+
+        return new PagedResponse<>(
+                content,
+                page,
+                size,
+                totalElements,
+                totalPages
+        );
     }
 
     // 按车辆类型搜索（支持模糊搜索）
-    public List<VehicleInformationDocument> searchVehiclesByVehicleTypeForUser(
+    public PagedResponse<VehicleInformationDocument> searchVehiclesByVehicleTypeForUser(
             String currentUsername, String vehicleType, int page, int size) {
         Pageable pageable = PageRequest.of(page - 1, size);
 
-        // 构建 Elasticsearch 查询
         Query ownerNameQuery = MatchQuery.of(m -> m
                 .field("ownerName")
                 .query(currentUsername)
@@ -308,9 +318,9 @@ public class VehicleInformationService {
         Query vehicleTypeQuery = MatchQuery.of(m -> m
                 .field("vehicleType")
                 .query(vehicleType)
-                .fuzziness("AUTO") // 启用模糊搜索
-                .prefixLength(1) // 前缀匹配长度
-                .maxExpansions(50) // 限制模糊扩展数量
+                .fuzziness("AUTO")
+                .prefixLength(1)
+                .maxExpansions(50)
         )._toQuery();
 
         Query boolQuery = BoolQuery.of(b -> b
@@ -329,9 +339,20 @@ public class VehicleInformationService {
                 IndexCoordinates.of("vehicles")
         );
 
-        return searchHits.getSearchHits().stream()
+        List<VehicleInformationDocument> content = searchHits.getSearchHits().stream()
                 .map(SearchHit::getContent)
                 .collect(Collectors.toList());
+
+        long totalElements = searchHits.getTotalHits();
+        int totalPages = (int) Math.ceil((double) totalElements / size);
+
+        return new PagedResponse<>(
+                content,
+                page,
+                size,
+                totalElements,
+                totalPages
+        );
     }
 
     public List<VehicleInformation> searchVehicles(String query, int page, int size) {

@@ -1,0 +1,49 @@
+{
+  "analysis": {
+    "analyzer": {
+      "ik_analyzer": {
+        "type": "custom",
+        "tokenizer": "ik_smart",
+        "filter": [
+          "synonym_filter",
+          "lowercase"
+        ]
+      },
+      "icu_analyzer": {
+        "type": "custom",
+        "tokenizer": "icu_tokenizer",
+        "filter": [
+          "icu_folding",
+          "lowercase"
+        ]
+      },
+      "license_plate_analyzer": {
+        "type": "custom",
+        "tokenizer": "keyword",
+        "filter": [
+          "lowercase",
+          "edge_ngram_filter"
+        ]
+      }
+    },
+    "filter": {
+      "synonym_filter": {
+        "type": "synonym",
+        "synonyms": [
+          "honda => 本田",
+          "toyota => 丰田",
+          "nissan => 日产",
+          "lexus => 雷克萨斯",
+          "sedan => 轿车",
+          "suv => 越野车"
+        ]
+      },
+      "edge_ngram_filter": {
+        "type": "edge_ngram",
+        "min_gram": 2,
+        "max_gram": 10,
+        "side": "front"
+      }
+    }
+  }
+}

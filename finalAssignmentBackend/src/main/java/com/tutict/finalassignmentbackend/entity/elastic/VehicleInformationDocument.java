@@ -14,7 +14,7 @@ import java.time.LocalDate;
 
 @Data
 @Document(indexName = "vehicles")
-@Setting(settingPath = "/elasticsearch/vehicle-analyzer.json")
+@Setting(settingPath = "elasticsearch/vehicle-analyzer.json")
 public class VehicleInformationDocument {
 
     @Id
@@ -22,47 +22,87 @@ public class VehicleInformationDocument {
     private Integer vehicleId;
 
     @MultiField(
-            mainField = @Field(type = FieldType.Text, analyzer = "custom_lowercase_analyzer", searchAnalyzer = "custom_lowercase_analyzer"),
+            mainField = @Field(type = FieldType.Text, analyzer = "ik_smart", searchAnalyzer = "ik_smart"),
             otherFields = {
                     @InnerField(suffix = "keyword", type = FieldType.Keyword),
-                    @InnerField(suffix = "ngram", type = FieldType.Text, analyzer = "ngram_analyzer", searchAnalyzer = "ngram_analyzer"),
-                    @InnerField(suffix = "ik", type = FieldType.Text, analyzer = "ik_analyzer", searchAnalyzer = "ik_analyzer")
+                    @InnerField(suffix = "icu", type = FieldType.Text, analyzer = "icu_analyzer", searchAnalyzer = "icu_analyzer")
             }
     )
     private String licensePlate;
 
     @MultiField(
-            mainField = @Field(type = FieldType.Text, analyzer = "custom_lowercase_analyzer", searchAnalyzer = "custom_lowercase_analyzer"),
+            mainField = @Field(type = FieldType.Text, analyzer = "ik_smart", searchAnalyzer = "ik_smart"),
             otherFields = {
                     @InnerField(suffix = "keyword", type = FieldType.Keyword),
-                    @InnerField(suffix = "ngram", type = FieldType.Text, analyzer = "ngram_analyzer", searchAnalyzer = "ngram_analyzer"),
-                    @InnerField(suffix = "ik", type = FieldType.Text, analyzer = "ik_analyzer", searchAnalyzer = "ik_analyzer")
+                    @InnerField(suffix = "icu", type = FieldType.Text, analyzer = "icu_analyzer", searchAnalyzer = "icu_analyzer")
             }
     )
     private String vehicleType;
 
-    @Field(type = FieldType.Text, analyzer = "custom_lowercase_analyzer", searchAnalyzer = "custom_lowercase_analyzer")
+    @MultiField(
+            mainField = @Field(type = FieldType.Text, analyzer = "ik_smart", searchAnalyzer = "ik_smart"),
+            otherFields = {
+                    @InnerField(suffix = "keyword", type = FieldType.Keyword),
+                    @InnerField(suffix = "icu", type = FieldType.Text, analyzer = "icu_analyzer", searchAnalyzer = "icu_analyzer")
+            }
+    )
     private String ownerName;
 
-    @Field(type = FieldType.Text, analyzer = "custom_lowercase_analyzer", searchAnalyzer = "custom_lowercase_analyzer")
+    @MultiField(
+            mainField = @Field(type = FieldType.Text, analyzer = "ik_smart", searchAnalyzer = "ik_smart"),
+            otherFields = {
+                    @InnerField(suffix = "keyword", type = FieldType.Keyword),
+                    @InnerField(suffix = "icu", type = FieldType.Text, analyzer = "icu_analyzer", searchAnalyzer = "icu_analyzer")
+            }
+    )
     private String idCardNumber;
 
-    @Field(type = FieldType.Text, analyzer = "custom_lowercase_analyzer", searchAnalyzer = "custom_lowercase_analyzer")
+    @MultiField(
+            mainField = @Field(type = FieldType.Text, analyzer = "ik_smart", searchAnalyzer = "ik_smart"),
+            otherFields = {
+                    @InnerField(suffix = "keyword", type = FieldType.Keyword),
+                    @InnerField(suffix = "icu", type = FieldType.Text, analyzer = "icu_analyzer", searchAnalyzer = "icu_analyzer")
+            }
+    )
     private String contactNumber;
 
-    @Field(type = FieldType.Text, analyzer = "custom_lowercase_analyzer", searchAnalyzer = "custom_lowercase_analyzer")
+    @MultiField(
+            mainField = @Field(type = FieldType.Text, analyzer = "ik_smart", searchAnalyzer = "ik_smart"),
+            otherFields = {
+                    @InnerField(suffix = "keyword", type = FieldType.Keyword),
+                    @InnerField(suffix = "icu", type = FieldType.Text, analyzer = "icu_analyzer", searchAnalyzer = "icu_analyzer")
+            }
+    )
     private String engineNumber;
 
-    @Field(type = FieldType.Text, analyzer = "custom_lowercase_analyzer", searchAnalyzer = "custom_lowercase_analyzer")
+    @MultiField(
+            mainField = @Field(type = FieldType.Text, analyzer = "ik_smart", searchAnalyzer = "ik_smart"),
+            otherFields = {
+                    @InnerField(suffix = "keyword", type = FieldType.Keyword),
+                    @InnerField(suffix = "icu", type = FieldType.Text, analyzer = "icu_analyzer", searchAnalyzer = "icu_analyzer")
+            }
+    )
     private String frameNumber;
 
-    @Field(type = FieldType.Text, analyzer = "custom_lowercase_analyzer", searchAnalyzer = "custom_lowercase_analyzer")
+    @MultiField(
+            mainField = @Field(type = FieldType.Text, analyzer = "ik_smart", searchAnalyzer = "ik_smart"),
+            otherFields = {
+                    @InnerField(suffix = "keyword", type = FieldType.Keyword),
+                    @InnerField(suffix = "icu", type = FieldType.Text, analyzer = "icu_analyzer", searchAnalyzer = "icu_analyzer")
+            }
+    )
     private String vehicleColor;
 
     @Field(type = FieldType.Date, format = {}, pattern = "uuuu-MM-dd")
     private LocalDate firstRegistrationDate;
 
-    @Field(type = FieldType.Text, analyzer = "custom_lowercase_analyzer", searchAnalyzer = "custom_lowercase_analyzer")
+    @MultiField(
+            mainField = @Field(type = FieldType.Text, analyzer = "ik_smart", searchAnalyzer = "ik_smart"),
+            otherFields = {
+                    @InnerField(suffix = "keyword", type = FieldType.Keyword),
+                    @InnerField(suffix = "icu", type = FieldType.Text, analyzer = "icu_analyzer", searchAnalyzer = "icu_analyzer")
+            }
+    )
     private String currentStatus;
 
     // 从 VehicleInformation 实体转换为文档

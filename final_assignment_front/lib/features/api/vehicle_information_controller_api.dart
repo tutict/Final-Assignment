@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:final_assignment_front/features/model/elastic/vehicle_information_document.dart';
 import 'package:final_assignment_front/features/model/vehicle_information.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:flutter/material.dart';
@@ -60,13 +61,15 @@ class VehicleInformationControllerApi {
       debugPrint(
           'Deserialized vehicles: ${vehicles.map((v) => v.toJson()).toList()}');
       return vehicles;
+    } else if (response.statusCode == 404) {
+      return [];
     }
     throw Exception(
         'Failed to search vehicles: ${response.statusCode} - ${response.body}');
   }
 
-  // 新增方法：按车牌号搜索（仅当前用户）
-  Future<List<VehicleInformation>>
+  // 更新方法：按车牌号搜索（仅当前用户）
+  Future<List<VehicleInformationDocument>>
       apiVehiclesSearchByLicensePlateForCurrentUser({
     required String licensePlate,
     int page = 1,
@@ -82,6 +85,10 @@ class VehicleInformationControllerApi {
 
     final prefs = await SharedPreferences.getInstance();
     final jwtToken = prefs.getString('jwtToken');
+    if (jwtToken == null) {
+      throw Exception('JWT token not found in SharedPreferences');
+    }
+
     final uri = Uri.parse(
         'http://localhost:8081/api/vehicles/search/license-plate/me?licensePlate=${Uri.encodeQueryComponent(licensePlate)}&page=$page&size=$size');
     final response = await http.get(
@@ -98,18 +105,24 @@ class VehicleInformationControllerApi {
       debugPrint(
           'Raw response body (search by license plate for current user): $decodedBody');
       final List<dynamic> data = jsonDecode(decodedBody);
-      final vehicles =
-          data.map((json) => VehicleInformation.fromJson(json)).toList();
+      final vehicles = data
+          .map((json) => VehicleInformationDocument.fromJson(json))
+          .toList();
       debugPrint(
           'Deserialized vehicles (search by license plate for current user): ${vehicles.map((v) => v.toJson()).toList()}');
       return vehicles;
+    } else if (response.statusCode == 404) {
+      debugPrint('No vehicles found for license plate: $licensePlate');
+      return [];
+    } else if (response.statusCode == 400) {
+      throw Exception('Invalid license plate: ${response.body}');
     }
     throw Exception(
         'Failed to search vehicles by license plate for current user: ${response.statusCode} - ${response.body}');
   }
 
-  // 新增方法：按车辆类型搜索（仅当前用户）
-  Future<List<VehicleInformation>>
+  // 更新方法：按车辆类型搜索（仅当前用户）
+  Future<List<VehicleInformationDocument>>
       apiVehiclesSearchByVehicleTypeForCurrentUser({
     required String vehicleType,
     int page = 1,
@@ -125,6 +138,10 @@ class VehicleInformationControllerApi {
 
     final prefs = await SharedPreferences.getInstance();
     final jwtToken = prefs.getString('jwtToken');
+    if (jwtToken == null) {
+      throw Exception('JWT token not found in SharedPreferences');
+    }
+
     final uri = Uri.parse(
         'http://localhost:8081/api/vehicles/search/vehicle-type/me?vehicleType=${Uri.encodeQueryComponent(vehicleType)}&page=$page&size=$size');
     final response = await http.get(
@@ -141,11 +158,17 @@ class VehicleInformationControllerApi {
       debugPrint(
           'Raw response body (search by vehicle type for current user): $decodedBody');
       final List<dynamic> data = jsonDecode(decodedBody);
-      final vehicles =
-          data.map((json) => VehicleInformation.fromJson(json)).toList();
+      final vehicles = data
+          .map((json) => VehicleInformationDocument.fromJson(json))
+          .toList();
       debugPrint(
           'Deserialized vehicles (search by vehicle type for current user): ${vehicles.map((v) => v.toJson()).toList()}');
       return vehicles;
+    } else if (response.statusCode == 404) {
+      debugPrint('No vehicles found for vehicle type: $vehicleType');
+      return [];
+    } else if (response.statusCode == 400) {
+      throw Exception('Invalid vehicle type: ${response.body}');
     }
     throw Exception(
         'Failed to search vehicles by vehicle type for current user: ${response.statusCode} - ${response.body}');
@@ -203,6 +226,8 @@ class VehicleInformationControllerApi {
       debugPrint(
           'Deserialized vehicles (apiVehiclesGet): ${vehicles.map((v) => v.toJson()).toList()}');
       return vehicles;
+    } else if (response.statusCode == 404) {
+      return [];
     }
     throw Exception('Failed to fetch all vehicles: ${response.statusCode}');
   }
@@ -288,12 +313,16 @@ class VehicleInformationControllerApi {
       debugPrint(
           'Deserialized vehicles (apiVehiclesTypeGet): ${vehicles.map((v) => v.toJson()).toList()}');
       return vehicles;
+    } else if (response.statusCode == 404) {
+      return [];
     }
     throw Exception('Failed to fetch vehicles by type: ${response.statusCode}');
   }
 
   Future<List<VehicleInformation>> apiVehiclesOwnerGet({
     String? ownerName,
+    int page = 1,
+    int size = 10,
   }) async {
     final effectiveOwnerName = ownerName ?? _username;
     if (effectiveOwnerName == null) {
@@ -319,6 +348,8 @@ class VehicleInformationControllerApi {
       debugPrint(
           'Deserialized vehicles (apiVehiclesOwnerGet): ${vehicles.map((v) => v.toJson()).toList()}');
       return vehicles;
+    } else if (response.statusCode == 404) {
+      return [];
     }
     throw Exception(
         'Failed to fetch vehicles by owner: ${response.statusCode} - ${response.body}');
@@ -345,6 +376,8 @@ class VehicleInformationControllerApi {
       debugPrint(
           'Deserialized vehicles (apiVehiclesStatusGet): ${vehicles.map((v) => v.toJson()).toList()}');
       return vehicles;
+    } else if (response.statusCode == 404) {
+      return [];
     }
     throw Exception(
         'Failed to fetch vehicles by status: ${response.statusCode}');
