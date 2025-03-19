@@ -6,44 +6,63 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.elasticsearch.annotations.Document;
 import org.springframework.data.elasticsearch.annotations.Field;
 import org.springframework.data.elasticsearch.annotations.FieldType;
+import org.springframework.data.elasticsearch.annotations.MultiField;
+import org.springframework.data.elasticsearch.annotations.InnerField;
+import org.springframework.data.elasticsearch.annotations.Setting;
 
 import java.time.LocalDate;
 
 @Data
 @Document(indexName = "vehicles")
+@Setting(settingPath = "/elasticsearch/vehicle-analyzer.json")
 public class VehicleInformationDocument {
 
     @Id
+    @Field(type = FieldType.Integer)
     private Integer vehicleId;
 
-    @Field(type = FieldType.Text)
+    @MultiField(
+            mainField = @Field(type = FieldType.Text, analyzer = "custom_lowercase_analyzer", searchAnalyzer = "custom_lowercase_analyzer"),
+            otherFields = {
+                    @InnerField(suffix = "keyword", type = FieldType.Keyword),
+                    @InnerField(suffix = "ngram", type = FieldType.Text, analyzer = "ngram_analyzer", searchAnalyzer = "ngram_analyzer"),
+                    @InnerField(suffix = "ik", type = FieldType.Text, analyzer = "ik_analyzer", searchAnalyzer = "ik_analyzer")
+            }
+    )
     private String licensePlate;
 
-    @Field(type = FieldType.Text)
+    @MultiField(
+            mainField = @Field(type = FieldType.Text, analyzer = "custom_lowercase_analyzer", searchAnalyzer = "custom_lowercase_analyzer"),
+            otherFields = {
+                    @InnerField(suffix = "keyword", type = FieldType.Keyword),
+                    @InnerField(suffix = "ngram", type = FieldType.Text, analyzer = "ngram_analyzer", searchAnalyzer = "ngram_analyzer"),
+                    @InnerField(suffix = "ik", type = FieldType.Text, analyzer = "ik_analyzer", searchAnalyzer = "ik_analyzer")
+            }
+    )
     private String vehicleType;
 
-    @Field(type = FieldType.Text)
+    @Field(type = FieldType.Text, analyzer = "custom_lowercase_analyzer", searchAnalyzer = "custom_lowercase_analyzer")
     private String ownerName;
 
-    @Field(type = FieldType.Text)
+    @Field(type = FieldType.Text, analyzer = "custom_lowercase_analyzer", searchAnalyzer = "custom_lowercase_analyzer")
     private String idCardNumber;
 
-    @Field(type = FieldType.Text)
+    @Field(type = FieldType.Text, analyzer = "custom_lowercase_analyzer", searchAnalyzer = "custom_lowercase_analyzer")
     private String contactNumber;
 
-    @Field(type = FieldType.Text)
+    @Field(type = FieldType.Text, analyzer = "custom_lowercase_analyzer", searchAnalyzer = "custom_lowercase_analyzer")
     private String engineNumber;
 
-    @Field(type = FieldType.Text)
+    @Field(type = FieldType.Text, analyzer = "custom_lowercase_analyzer", searchAnalyzer = "custom_lowercase_analyzer")
     private String frameNumber;
 
-    @Field(type = FieldType.Text)
+    @Field(type = FieldType.Text, analyzer = "custom_lowercase_analyzer", searchAnalyzer = "custom_lowercase_analyzer")
     private String vehicleColor;
 
     @Field(type = FieldType.Date, format = {}, pattern = "uuuu-MM-dd")
     private LocalDate firstRegistrationDate;
 
-    @Field(type = FieldType.Text)
+    @Field(type = FieldType.Text, analyzer = "custom_lowercase_analyzer", searchAnalyzer = "custom_lowercase_analyzer")
     private String currentStatus;
 
     // 从 VehicleInformation 实体转换为文档

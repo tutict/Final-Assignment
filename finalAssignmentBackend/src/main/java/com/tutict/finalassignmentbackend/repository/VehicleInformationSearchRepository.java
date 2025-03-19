@@ -8,5 +8,4 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface VehicleInformationSearchRepository extends ElasticsearchRepository<VehicleInformationDocument, Integer> {
-    Page<VehicleInformationDocument> findByOwnerNameContaining(String ownerName, Pageable pageable);
 }

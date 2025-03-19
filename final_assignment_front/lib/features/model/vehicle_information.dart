@@ -33,7 +33,11 @@ class VehicleInformation {
   }
 
   factory VehicleInformation.fromJson(Map<String, dynamic> json) {
-    return VehicleInformation(
+    // 添加调试日志，打印原始 JSON 数据
+    debugPrint('Parsing VehicleInformation from JSON: $json');
+
+    // 提取字段
+    final vehicle = VehicleInformation(
       vehicleId: json['vehicleId'] as int?,
       licensePlate: json['licensePlate'] as String?,
       vehicleType: json['vehicleType'] as String?,
@@ -48,6 +52,19 @@ class VehicleInformation {
           : null,
       currentStatus: json['currentStatus'] as String?,
     );
+
+    // 验证中文字段（可选）
+    _validateStringField('licensePlate', vehicle.licensePlate);
+    _validateStringField('vehicleType', vehicle.vehicleType);
+    _validateStringField('ownerName', vehicle.ownerName);
+
+    return vehicle;
+  }
+
+  static void _validateStringField(String fieldName, String? value) {
+    if (value != null && value.contains(RegExp(r'[<>\x00-\x1F]'))) {
+      debugPrint('Warning: Potential encoding issue in $fieldName: $value');
+    }
   }
 
   static DateTime? _parseDateTime(String dateStr) {
@@ -60,7 +77,7 @@ class VehicleInformation {
   }
 
   Map<String, dynamic> toJson() {
-    return {
+    final json = {
       'vehicleId': vehicleId,
       'licensePlate': licensePlate ?? '',
       'vehicleType': vehicleType ?? '',
@@ -73,6 +90,9 @@ class VehicleInformation {
       'firstRegistrationDate': firstRegistrationDate?.toIso8601String(),
       'currentStatus': currentStatus,
     };
+    // 添加调试日志，打印序列化后的 JSON
+    debugPrint('Serializing VehicleInformation to JSON: $json');
+    return json;
   }
 
   VehicleInformation copyWith({
@@ -148,6 +168,7 @@ class VehicleInformation {
   );
 
   static List<VehicleInformation> listFromJson(List<dynamic> json) {
+    debugPrint('Parsing list of VehicleInformation from JSON: $json');
     return json
         .map((value) => VehicleInformation.fromJson(value as Map<String, dynamic>))
         .toList();

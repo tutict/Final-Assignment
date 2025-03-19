@@ -28,17 +28,15 @@ class VehicleManagement extends StatefulWidget {
 }
 
 class _VehicleManagementState extends State<VehicleManagement> {
-  final TextEditingController _licensePlateController = TextEditingController();
-  final TextEditingController _vehicleTypeController = TextEditingController();
-
+  final TextEditingController _searchController = TextEditingController();
   final VehicleInformationControllerApi vehicleApi =
       VehicleInformationControllerApi();
   final DriverInformationControllerApi driverApi =
       DriverInformationControllerApi();
-  List<VehicleInformation> _vehicleList = [];
+  final List<VehicleInformation> _vehicleList = [];
   bool _isLoading = true;
   String _errorMessage = '';
-  String? _currentDriverName; // 使用 DriverInformation.name
+  String? _currentDriverName;
   int _currentPage = 1;
   final int _pageSize = 10;
   bool _hasMore = true;
@@ -71,14 +69,12 @@ class _VehicleManagementState extends State<VehicleManagement> {
       await vehicleApi.initializeWithJwt();
       await driverApi.initializeWithJwt();
 
-      // 获取 DriverInformation 的 name
       final user = await _fetchUserManagement();
       final driverInfo = user?.userId != null
           ? await driverApi.apiDriversDriverIdGet(
               driverId: user!.userId!.toString())
           : null;
-      _currentDriverName =
-          driverInfo?.name ?? username; // 使用 driver name，fallback 到 username
+      _currentDriverName = driverInfo?.name ?? username;
       debugPrint('Current driver name: $_currentDriverName');
 
       await _fetchUserVehicles(reset: true);
@@ -113,23 +109,13 @@ class _VehicleManagementState extends State<VehicleManagement> {
     }
   }
 
-  Future<DriverInformation?> _fetchDriverInformation(String userId) async {
-    try {
-      return await driverApi.apiDriversDriverIdGet(driverId: userId);
-    } catch (e) {
-      debugPrint('Failed to fetch DriverInformation: $e');
-      return null;
-    }
-  }
-
   @override
   void dispose() {
-    _licensePlateController.dispose();
-    _vehicleTypeController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
-  Future<void> _fetchUserVehicles({bool reset = false}) async {
+  Future<void> _fetchUserVehicles({bool reset = false, String? query}) async {
     if (reset) {
       _currentPage = 1;
       _hasMore = true;
@@ -142,9 +128,12 @@ class _VehicleManagementState extends State<VehicleManagement> {
       _errorMessage = '';
     });
     try {
-      debugPrint('Fetching vehicles for driver name: $_currentDriverName');
+      final searchQuery =
+          query?.trim().isNotEmpty == true ? query : _currentDriverName;
+      debugPrint(
+          'Fetching vehicles with query: $searchQuery, page: $_currentPage');
       final vehicles = await vehicleApi.apiVehiclesSearchGet(
-        query: _currentDriverName ?? '',
+        query: searchQuery ?? '',
         page: _currentPage,
         size: _pageSize,
       );
@@ -154,7 +143,7 @@ class _VehicleManagementState extends State<VehicleManagement> {
         _vehicleList.addAll(vehicles);
         if (vehicles.length < _pageSize) _hasMore = false;
         if (_vehicleList.isEmpty && _currentPage == 1) {
-          _errorMessage = '您当前没有车辆记录';
+          _errorMessage = query != null ? '未找到符合条件的车辆' : '您当前没有车辆记录';
         }
       });
     } catch (e) {
@@ -170,62 +159,17 @@ class _VehicleManagementState extends State<VehicleManagement> {
   Future<void> _loadMoreVehicles() async {
     if (!_hasMore || _isLoading) return;
     _currentPage++;
-    await _fetchUserVehicles();
+    await _fetchUserVehicles(query: _searchController.text);
   }
 
   Future<void> _refreshVehicles() async {
+    _searchController.clear();
     await _fetchUserVehicles(reset: true);
   }
 
-  Future<void> _searchVehicles(String type, String query) async {
-    if (query.isEmpty) {
-      await _fetchUserVehicles(reset: true);
-      return;
-    }
-    setState(() {
-      _isLoading = true;
-      _errorMessage = '';
-      _currentPage = 1;
-      _hasMore = true;
-      _vehicleList.clear();
-    });
-    try {
-      List<VehicleInformation> vehicles;
-      switch (type) {
-        case 'licensePlate':
-          final vehicle =
-              await vehicleApi.apiVehiclesLicensePlateGet(licensePlate: query);
-          vehicles =
-              (vehicle != null && vehicle.ownerName == _currentDriverName)
-                  ? [vehicle]
-                  : [];
-          _hasMore = false;
-          break;
-        case 'vehicleType':
-          vehicles = await vehicleApi.apiVehiclesTypeGet(vehicleType: query);
-          vehicles =
-              vehicles.where((v) => v.ownerName == _currentDriverName).toList();
-          _hasMore = false;
-          break;
-        default:
-          setState(() {
-            _errorMessage = '仅支持按车牌或类型搜索';
-          });
-          return;
-      }
-      setState(() {
-        _vehicleList = vehicles;
-        if (_vehicleList.isEmpty) {
-          _errorMessage = '未找到符合条件的车辆';
-        }
-      });
-    } catch (e) {
-      setState(() {
-        _errorMessage = '搜索失败：$e';
-      });
-    } finally {
-      setState(() => _isLoading = false);
-    }
+  Future<void> _searchVehicles() async {
+    final query = _searchController.text.trim();
+    await _fetchUserVehicles(reset: true, query: query);
   }
 
   void _createVehicle() {
@@ -267,54 +211,44 @@ class _VehicleManagementState extends State<VehicleManagement> {
     );
   }
 
-  Widget _buildSearchField(String label, TextEditingController controller,
-      String type, ThemeData themeData) {
+  Widget _buildSearchField(ThemeData themeData) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6.0),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: controller,
-              decoration: InputDecoration(
-                labelText: label,
-                prefixIcon: Icon(Icons.search,
-                    color: themeData.colorScheme.primary, size: 20),
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12.0)),
-                enabledBorder: OutlineInputBorder(
-                  borderSide: BorderSide(
-                      color: themeData.colorScheme.outline.withOpacity(0.3),
-                      width: 1.0),
-                  borderRadius: BorderRadius.circular(12.0),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderSide: BorderSide(
-                      color: themeData.colorScheme.primary, width: 1.5),
-                  borderRadius: BorderRadius.circular(12.0),
-                ),
-                filled: true,
-                fillColor: themeData.colorScheme.surfaceContainerLowest,
-                contentPadding: const EdgeInsets.symmetric(
-                    vertical: 10.0, horizontal: 12.0),
-              ),
-              onSubmitted: (value) => _searchVehicles(type, value.trim()),
-            ),
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: TextField(
+        controller: _searchController,
+        style: TextStyle(color: themeData.colorScheme.onSurface),
+        decoration: InputDecoration(
+          hintText: '搜索车牌号、车辆类型或车主姓名',
+          hintStyle: TextStyle(
+              color: themeData.colorScheme.onSurface.withOpacity(0.6)),
+          prefixIcon: Icon(Icons.search, color: themeData.colorScheme.primary),
+          suffixIcon: _searchController.text.isNotEmpty
+              ? IconButton(
+                  icon: Icon(Icons.clear,
+                      color: themeData.colorScheme.onSurfaceVariant),
+                  onPressed: () {
+                    _searchController.clear();
+                    _fetchUserVehicles(reset: true);
+                  },
+                )
+              : null,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
+          enabledBorder: OutlineInputBorder(
+            borderSide: BorderSide(
+                color: themeData.colorScheme.outline.withOpacity(0.3)),
+            borderRadius: BorderRadius.circular(12.0),
           ),
-          const SizedBox(width: 8),
-          ElevatedButton(
-            onPressed: () => _searchVehicles(type, controller.text.trim()),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: themeData.colorScheme.primary,
-              foregroundColor: themeData.colorScheme.onPrimary,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12.0)),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
-            ),
-            child: const Text('搜索'),
+          focusedBorder: OutlineInputBorder(
+            borderSide:
+                BorderSide(color: themeData.colorScheme.primary, width: 1.5),
+            borderRadius: BorderRadius.circular(12.0),
           ),
-        ],
+          filled: true,
+          fillColor: themeData.colorScheme.surfaceContainerLowest,
+          contentPadding:
+              const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
+        ),
+        onSubmitted: (value) => _searchVehicles(),
       ),
     );
   }
@@ -353,10 +287,7 @@ class _VehicleManagementState extends State<VehicleManagement> {
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
-              _buildSearchField(
-                  '按车牌号搜索', _licensePlateController, 'licensePlate', themeData),
-              _buildSearchField(
-                  '按车辆类型搜索', _vehicleTypeController, 'vehicleType', themeData),
+              _buildSearchField(themeData),
               const SizedBox(height: 12),
               Expanded(
                 child: NotificationListener<ScrollNotification>(

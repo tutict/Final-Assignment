@@ -1,5 +1,8 @@
 package com.tutict.finalassignmentbackend.service;
 
+import co.elastic.clients.elasticsearch._types.query_dsl.BoolQuery;
+import co.elastic.clients.elasticsearch._types.query_dsl.MatchQuery;
+import co.elastic.clients.elasticsearch._types.query_dsl.Query;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.RequestHistory;
@@ -8,14 +11,18 @@ import com.tutict.finalassignmentbackend.mapper.RequestHistoryMapper;
 import com.tutict.finalassignmentbackend.mapper.VehicleInformationMapper;
 import com.tutict.finalassignmentbackend.entity.VehicleInformation;
 import com.tutict.finalassignmentbackend.repository.VehicleInformationSearchRepository;
-import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.elasticsearch.client.elc.NativeQuery;
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
+import org.springframework.data.elasticsearch.client.elc.ElasticsearchTemplate;
+import org.springframework.data.elasticsearch.core.SearchHit;
+import org.springframework.data.elasticsearch.core.SearchHits;
+import org.springframework.data.elasticsearch.core.mapping.IndexCoordinates;
+import org.springframework.data.elasticsearch.core.query.StringQuery;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,6 +45,7 @@ public class VehicleInformationService {
     private final KafkaTemplate<String, VehicleInformation> kafkaTemplate;
     private final VehicleInformationSearchRepository vehicleInformationSearchRepository;
     private final ElasticsearchOperations elasticsearchOperations;
+    private final ElasticsearchTemplate elasticsearchTemplate;
 
     @Autowired
     public VehicleInformationService(
@@ -45,30 +53,14 @@ public class VehicleInformationService {
             RequestHistoryMapper requestHistoryMapper,
             KafkaTemplate<String, VehicleInformation> kafkaTemplate,
             VehicleInformationSearchRepository vehicleInformationSearchRepository,
-            ElasticsearchOperations elasticsearchOperations) {
+            ElasticsearchOperations elasticsearchOperations,
+            ElasticsearchTemplate elasticsearchTemplate) {
         this.vehicleInformationMapper = vehicleInformationMapper;
         this.requestHistoryMapper = requestHistoryMapper;
         this.kafkaTemplate = kafkaTemplate;
         this.vehicleInformationSearchRepository = vehicleInformationSearchRepository;
         this.elasticsearchOperations = elasticsearchOperations;
-    }
-
-    @PostConstruct
-    public void initialize() {
-        try {
-            long count = vehicleInformationSearchRepository.count();
-            log.log(Level.INFO, "Total documents in index 'vehicles': {0}", count);
-            if (count == 0) {
-                log.info("Initializing Elasticsearch index 'vehicles' on startup.");
-                syncVehiclesFromDatabase();
-                count = vehicleInformationSearchRepository.count();
-                log.log(Level.INFO, "Elasticsearch index 'vehicles' now contains {0} documents.", count);
-            } else {
-                log.log(Level.INFO, "Elasticsearch index 'vehicles' already contains {0} documents.", count);
-            }
-        } catch (Exception e) {
-            log.log(Level.SEVERE, "Failed to initialize Elasticsearch index 'vehicles': {0}", e.getMessage());
-        }
+        this.elasticsearchTemplate = elasticsearchTemplate;
     }
 
     @Transactional
@@ -262,6 +254,86 @@ public class VehicleInformationService {
         return vehicleInformationMapper.selectCount(queryWrapper) > 0;
     }
 
+    // 按车牌号搜索（支持模糊搜索）
+    public List<VehicleInformationDocument> searchVehiclesByLicensePlateForUser(
+            String currentUsername, String licensePlate, int page, int size) {
+        Pageable pageable = PageRequest.of(page - 1, size);
+
+        // 构建 Elasticsearch 查询
+        Query ownerNameQuery = MatchQuery.of(m -> m
+                .field("ownerName")
+                .query(currentUsername)
+        )._toQuery();
+
+        Query licensePlateQuery = MatchQuery.of(m -> m
+                .field("licensePlate")
+                .query(licensePlate)
+                .fuzziness("AUTO") // 启用模糊搜索
+                .prefixLength(1) // 前缀匹配长度
+                .maxExpansions(50) // 限制模糊扩展数量
+        )._toQuery();
+
+        Query boolQuery = BoolQuery.of(b -> b
+                .must(ownerNameQuery)
+                .must(licensePlateQuery)
+        )._toQuery();
+
+        NativeQuery searchQuery = NativeQuery.builder()
+                .withQuery(boolQuery)
+                .withPageable(pageable)
+                .build();
+
+        SearchHits<VehicleInformationDocument> searchHits = elasticsearchTemplate.search(
+                searchQuery,
+                VehicleInformationDocument.class,
+                IndexCoordinates.of("vehicles")
+        );
+
+        return searchHits.getSearchHits().stream()
+                .map(SearchHit::getContent)
+                .collect(Collectors.toList());
+    }
+
+    // 按车辆类型搜索（支持模糊搜索）
+    public List<VehicleInformationDocument> searchVehiclesByVehicleTypeForUser(
+            String currentUsername, String vehicleType, int page, int size) {
+        Pageable pageable = PageRequest.of(page - 1, size);
+
+        // 构建 Elasticsearch 查询
+        Query ownerNameQuery = MatchQuery.of(m -> m
+                .field("ownerName")
+                .query(currentUsername)
+        )._toQuery();
+
+        Query vehicleTypeQuery = MatchQuery.of(m -> m
+                .field("vehicleType")
+                .query(vehicleType)
+                .fuzziness("AUTO") // 启用模糊搜索
+                .prefixLength(1) // 前缀匹配长度
+                .maxExpansions(50) // 限制模糊扩展数量
+        )._toQuery();
+
+        Query boolQuery = BoolQuery.of(b -> b
+                .must(ownerNameQuery)
+                .must(vehicleTypeQuery)
+        )._toQuery();
+
+        NativeQuery searchQuery = NativeQuery.builder()
+                .withQuery(boolQuery)
+                .withPageable(pageable)
+                .build();
+
+        SearchHits<VehicleInformationDocument> searchHits = elasticsearchTemplate.search(
+                searchQuery,
+                VehicleInformationDocument.class,
+                IndexCoordinates.of("vehicles")
+        );
+
+        return searchHits.getSearchHits().stream()
+                .map(SearchHit::getContent)
+                .collect(Collectors.toList());
+    }
+
     public List<VehicleInformation> searchVehicles(String query, int page, int size) {
         if (page < 1 || size < 1) {
             throw new IllegalArgumentException("Page must be >= 1 and size must be >= 1");
@@ -272,50 +344,22 @@ public class VehicleInformationService {
         }
 
         try {
-            log.log(Level.INFO, "Received query: '{0}'", new Object[]{query});
-            log.log(Level.INFO, "Searching Elasticsearch index 'vehicles' with query: '{0}'", new Object[]{query});
             Pageable pageable = PageRequest.of(page - 1, size);
-            log.log(Level.INFO, "Pageable: page={0}, size={1}, offset={2}",
-                    new Object[]{pageable.getPageNumber(), pageable.getPageSize(), pageable.getOffset()});
 
-            long totalDocs = vehicleInformationSearchRepository.count();
-            log.log(Level.INFO, "Total documents in index 'vehicles' before search: {0}", new Object[]{totalDocs});
+            // 修复查询字符串，去掉外层 "query"
+            String queryString = "{\"match\":{\"ownerName\":\"" + query + "\"}}";
+            org.springframework.data.elasticsearch.core.query.Query searchQuery = new StringQuery(queryString).setPageable(pageable);
+            SearchHits<VehicleInformationDocument> searchHits = elasticsearchOperations.search(searchQuery, VehicleInformationDocument.class);
+            List<VehicleInformationDocument> results = searchHits.stream()
+                    .map(SearchHit::getContent)
+                    .toList();
 
-            Page<VehicleInformationDocument> results = vehicleInformationSearchRepository.findByOwnerNameContaining(query, pageable);
-            log.log(Level.INFO, "Elasticsearch returned total elements: {0}", new Object[]{results.getTotalElements()});
-            log.log(Level.INFO, "Results content: {0}", new Object[]{results.getContent()});
-
-            List<VehicleInformation> vehicles = results.getContent().stream()
+            return results.stream()
                     .map(VehicleInformationDocument::toEntity)
                     .collect(Collectors.toList());
-
-            log.log(Level.INFO, "Search completed for query '{0}' with {1} results", new Object[]{query, vehicles.size()});
-            return vehicles;
         } catch (Exception e) {
             log.log(Level.SEVERE, "Failed to search vehicles in index 'vehicles': {0}", new Object[]{e.getMessage()});
             return Collections.emptyList();
-        }
-    }
-
-    public void syncVehiclesFromDatabase() {
-        try {
-            List<VehicleInformation> vehicles = vehicleInformationMapper.findAll();
-            if (vehicles.isEmpty()) {
-                log.warning("No vehicles found in database to sync to index 'vehicles'.");
-                return;
-            }
-
-            List<VehicleInformationDocument> documents = vehicles.stream()
-                    .map(VehicleInformationDocument::fromEntity)
-                    .collect(Collectors.toList());
-
-            vehicleInformationSearchRepository.deleteAll();
-            vehicleInformationSearchRepository.saveAll(documents);
-            elasticsearchOperations.indexOps(VehicleInformationDocument.class).refresh();
-            log.log(Level.INFO, "Successfully synced {0} vehicles to Elasticsearch index 'vehicles'", new Object[]{documents.size()});
-        } catch (Exception e) {
-            log.log(Level.SEVERE, "Failed to sync vehicles to Elasticsearch index 'vehicles': {0}", new Object[]{e.getMessage()});
-            throw new RuntimeException("Failed to sync vehicles to Elasticsearch", e);
         }
     }
 

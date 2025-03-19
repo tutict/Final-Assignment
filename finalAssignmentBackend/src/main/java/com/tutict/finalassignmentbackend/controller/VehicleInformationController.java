@@ -1,11 +1,14 @@
 package com.tutict.finalassignmentbackend.controller;
 
 import com.tutict.finalassignmentbackend.entity.VehicleInformation;
+import com.tutict.finalassignmentbackend.entity.elastic.VehicleInformationDocument;
 import com.tutict.finalassignmentbackend.service.VehicleInformationService;
 import org.springframework.context.support.DefaultMessageSourceResolvable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -43,6 +46,31 @@ public class VehicleInformationController {
             log.warning("Invalid search parameters: " + e.getMessage());
             return ResponseEntity.badRequest().body(Collections.emptyList());
         }
+    }
+
+    // 新增接口：按车牌号搜索（仅当前用户）
+    @GetMapping("/search/license-plate/me")
+    public ResponseEntity<List<VehicleInformationDocument>> searchVehiclesByLicensePlateForCurrentUser(
+            @RequestParam String licensePlate,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String currentUsername = authentication.getName();
+        List<VehicleInformationDocument> vehicles = vehicleInformationService.searchVehiclesByLicensePlateForUser(
+                currentUsername, licensePlate, page, size);
+        return ResponseEntity.ok(vehicles);
+    }
+
+    @GetMapping("/search/vehicle-type/me")
+    public ResponseEntity<List<VehicleInformationDocument>> searchVehiclesByVehicleTypeForCurrentUser(
+            @RequestParam String vehicleType,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String currentUsername = authentication.getName();
+        List<VehicleInformationDocument> vehicles = vehicleInformationService.searchVehiclesByVehicleTypeForUser(
+                currentUsername, vehicleType, page, size);
+        return ResponseEntity.ok(vehicles);
     }
 
     @PostMapping
@@ -205,7 +233,7 @@ public class VehicleInformationController {
         }
     }
 
-   // Exception handler for validation errors
+    // Exception handler for validation errors
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<String> handleValidationExceptions(MethodArgumentNotValidException ex) {
         String errorMessage = ex.getBindingResult().getAllErrors().stream()
