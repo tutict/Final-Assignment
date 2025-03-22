@@ -104,11 +104,11 @@ class _UserAppealPageState extends State<UserAppealPage> {
   Map<String, dynamic> _decodeJwt(String token) {
     try {
       final parts = token.split('.');
-      if (parts.length != 3) throw Exception('Invalid JWT format');
+      if (parts.length != 3) throw Exception('无效的JWT格式');
       final payload = base64Url.decode(base64Url.normalize(parts[1]));
       return jsonDecode(utf8.decode(payload)) as Map<String, dynamic>;
     } catch (e) {
-      debugPrint('JWT Decode Error: $e');
+      debugPrint('JWT解码错误: $e');
       return {};
     }
   }
@@ -117,7 +117,6 @@ class _UserAppealPageState extends State<UserAppealPage> {
     try {
       final response = await apiClient.invokeAPI(
         '/api/offenses/user/me',
-        // Hypothetical endpoint for user-specific offenses
         'GET',
         [],
         null,
@@ -161,7 +160,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
       }
       return null;
     } catch (e) {
-      debugPrint('Failed to fetch UserManagement: $e');
+      debugPrint('获取用户信息失败: $e');
       return null;
     }
   }
@@ -170,7 +169,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
     try {
       return await driverApi.apiDriversDriverIdGet(driverId: userId.toString());
     } catch (e) {
-      debugPrint('Failed to fetch DriverInformation: $e');
+      debugPrint('获取驾驶员信息失败: $e');
       return null;
     }
   }
@@ -231,8 +230,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
         });
       } else if (_searchController.text.isNotEmpty) {
         final appeals = await appealApi.apiAppealsNameAppellantNameGet(
-            appellantName:
-                _searchController.text.trim()); // Fixed parameter name
+            appellantName: _searchController.text.trim());
         setState(() {
           _appeals = appeals;
         });
@@ -484,8 +482,144 @@ class _UserAppealPageState extends State<UserAppealPage> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
+        content: Text(message, style: const TextStyle(color: Colors.white)),
         backgroundColor: isError ? Colors.red : Colors.green,
+      ),
+    );
+  }
+
+  Widget _buildSearchBar(ThemeData themeData) {
+    return Card(
+      elevation: 2,
+      color: themeData.colorScheme.surfaceContainer,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+      child: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _searchController,
+                    style: TextStyle(color: themeData.colorScheme.onSurface),
+                    decoration: InputDecoration(
+                      labelText: '按姓名搜索',
+                      labelStyle: TextStyle(
+                          color: themeData.colorScheme.onSurfaceVariant),
+                      prefixIcon: Icon(Icons.search,
+                          color: themeData.colorScheme.primary),
+                      suffixIcon: _searchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: Icon(Icons.clear,
+                                  color:
+                                      themeData.colorScheme.onSurfaceVariant),
+                              onPressed: () {
+                                _searchController.clear();
+                                _applyFilters();
+                              },
+                            )
+                          : null,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8.0),
+                        borderSide: BorderSide.none,
+                      ),
+                      filled: true,
+                      fillColor: themeData.brightness == Brightness.dark
+                          ? themeData.colorScheme.surfaceContainerHighest
+                          : themeData.colorScheme.surfaceContainerLowest,
+                    ),
+                    onSubmitted: (value) => _applyFilters(),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                DropdownButton<String>(
+                  hint: Text(
+                    '选择状态',
+                    style: TextStyle(
+                      color: themeData.brightness == Brightness.dark
+                          ? Colors.white // 暗色模式下显示白色
+                          : themeData.colorScheme.onSurface, // 亮色模式下使用默认颜色
+                    ),
+                  ),
+                  value: _selectedStatus,
+                  items: const [
+                    DropdownMenuItem(value: 'Pending', child: Text('待处理')),
+                    DropdownMenuItem(value: 'Approved', child: Text('已通过')),
+                    DropdownMenuItem(value: 'Rejected', child: Text('已拒绝')),
+                  ],
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedStatus = value;
+                    });
+                    _applyFilters();
+                  },
+                  style: TextStyle(color: themeData.colorScheme.onSurface),
+                  dropdownColor: themeData.colorScheme.surfaceContainer,
+                  icon: Icon(Icons.arrow_drop_down,
+                      color: themeData.colorScheme.primary),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _reasonController,
+                    style: TextStyle(color: themeData.colorScheme.onSurface),
+                    decoration: InputDecoration(
+                      labelText: '按原因搜索',
+                      labelStyle: TextStyle(
+                          color: themeData.colorScheme.onSurfaceVariant),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8.0),
+                        borderSide: BorderSide.none,
+                      ),
+                      filled: true,
+                      fillColor: themeData.brightness == Brightness.dark
+                          ? themeData.colorScheme.surfaceContainerHighest
+                          : themeData.colorScheme.surfaceContainerLowest,
+                    ),
+                    onSubmitted: (value) => _applyFilters(),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: Icon(Icons.date_range,
+                      color: themeData.colorScheme.primary),
+                  tooltip: '按日期范围搜索',
+                  onPressed: () async {
+                    final range = await showDateRangePicker(
+                      context: context,
+                      firstDate: DateTime(2000),
+                      lastDate: DateTime.now(),
+                      locale: const Locale('zh', 'CN'),
+                      helpText: '选择日期范围',
+                      cancelText: '取消',
+                      confirmText: '确定',
+                      fieldStartHintText: '开始日期',
+                      fieldEndHintText: '结束日期',
+                      builder: (BuildContext context, Widget? child) {
+                        return Theme(
+                          data: themeData, // 使用当前主题
+                          child: child!, // 直接使用 child，无需额外 Material
+                        );
+                      },
+                    );
+                    if (range != null) {
+                      setState(() {
+                        _startTime = range.start;
+                        _endTime = range.end;
+                      });
+                      _applyFilters();
+                    }
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -501,7 +635,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
           child: Text(
             _errorMessage,
             style: themeData.textTheme.bodyLarge?.copyWith(
-              color: themeData.colorScheme.onSurface,
+              color: themeData.colorScheme.error,
             ),
           ),
         ),
@@ -514,7 +648,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
         title: Text(
           '用户申诉管理',
           style: themeData.textTheme.headlineSmall?.copyWith(
-            color: themeData.colorScheme.onSurface,
+            color: themeData.colorScheme.onPrimaryContainer,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -526,87 +660,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            Card(
-              elevation: 2,
-              color: themeData.colorScheme.surfaceContainer,
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _searchController,
-                            decoration: InputDecoration(
-                              labelText: '按姓名搜索',
-                              prefixIcon: Icon(Icons.search,
-                                  color: themeData.colorScheme.primary),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12.0),
-                              ),
-                            ),
-                            onSubmitted: (value) => _applyFilters(),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        DropdownButton<String>(
-                          hint: const Text('状态'),
-                          value: _selectedStatus,
-                          items: ['Pending', 'Approved', 'Rejected']
-                              .map((status) => DropdownMenuItem(
-                                    value: status,
-                                    child: Text(status),
-                                  ))
-                              .toList(),
-                          onChanged: (value) {
-                            setState(() {
-                              _selectedStatus = value;
-                            });
-                            _applyFilters();
-                          },
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _reasonController,
-                            decoration: InputDecoration(
-                              labelText: '按原因搜索',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12.0),
-                              ),
-                            ),
-                            onSubmitted: (value) => _applyFilters(),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        IconButton(
-                          icon: const Icon(Icons.date_range),
-                          onPressed: () async {
-                            final range = await showDateRangePicker(
-                              context: context,
-                              firstDate: DateTime(2000),
-                              lastDate: DateTime.now(),
-                            );
-                            if (range != null) {
-                              setState(() {
-                                _startTime = range.start;
-                                _endTime = range.end;
-                              });
-                              _applyFilters();
-                            }
-                          },
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            _buildSearchBar(themeData),
             const SizedBox(height: 16),
             Expanded(
               child: _isLoading
@@ -621,7 +675,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
                           child: Text(
                             _errorMessage,
                             style: themeData.textTheme.bodyLarge?.copyWith(
-                              color: themeData.colorScheme.onSurface,
+                              color: themeData.colorScheme.error,
                             ),
                           ),
                         )
@@ -630,7 +684,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
                               child: Text(
                                 '暂无申诉记录',
                                 style: themeData.textTheme.bodyLarge?.copyWith(
-                                  color: themeData.colorScheme.onSurface,
+                                  color: themeData.colorScheme.onSurfaceVariant,
                                 ),
                               ),
                             )
@@ -662,7 +716,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
                                         ),
                                       ),
                                       subtitle: Text(
-                                        '原因: ${appeal.appealReason ?? "无"}\n状态: ${appeal.processStatus ?? "Pending"}',
+                                        '原因: ${appeal.appealReason ?? "无"}\n状态: ${appeal.processStatus == "Pending" ? "待处理" : appeal.processStatus == "Approved" ? "已通过" : "已拒绝"}',
                                         style: themeData.textTheme.bodyMedium
                                             ?.copyWith(
                                           color: themeData
@@ -815,7 +869,7 @@ class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
                 appealId: widget.appeal.appealId,
               );
               Navigator.pop(ctx);
-              _fetchProgress(); // Refresh progress list after submission
+              _fetchProgress();
             },
             child: const Text('提交'),
           ),
@@ -835,7 +889,7 @@ class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
         title: Text(
           '申诉详情',
           style: themeData.textTheme.headlineSmall?.copyWith(
-            color: themeData.colorScheme.onSurface,
+            color: themeData.colorScheme.onPrimaryContainer,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -856,7 +910,6 @@ class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
           thumbVisibility: true,
           child: ListView(
             children: [
-              // Appeal Details
               Card(
                 elevation: 2,
                 color: themeData.colorScheme.surfaceContainer,
@@ -885,8 +938,14 @@ class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
                           '申诉时间',
                           widget.appeal.appealTime?.toIso8601String() ?? '无',
                           themeData),
-                      _buildDetailRow('处理状态',
-                          widget.appeal.processStatus ?? 'Pending', themeData),
+                      _buildDetailRow(
+                          '处理状态',
+                          widget.appeal.processStatus == "Pending"
+                              ? "待处理"
+                              : widget.appeal.processStatus == "Approved"
+                                  ? "已通过"
+                                  : "已拒绝",
+                          themeData),
                       _buildDetailRow('处理结果',
                           widget.appeal.processResult ?? '无', themeData),
                     ],
@@ -894,7 +953,6 @@ class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
                 ),
               ),
               const SizedBox(height: 20),
-              // Progress Items
               Card(
                 elevation: 2,
                 color: themeData.colorScheme.surfaceContainer,
