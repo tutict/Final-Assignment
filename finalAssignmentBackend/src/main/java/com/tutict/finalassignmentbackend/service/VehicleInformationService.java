@@ -1,12 +1,10 @@
 package com.tutict.finalassignmentbackend.service;
 
-import co.elastic.clients.elasticsearch._types.query_dsl.BoolQuery;
-import co.elastic.clients.elasticsearch._types.query_dsl.MatchQuery;
+import co.elastic.clients.elasticsearch._types.query_dsl.PrefixQuery;
 import co.elastic.clients.elasticsearch._types.query_dsl.Query;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.RequestHistory;
-import com.tutict.finalassignmentbackend.entity.elastic.PagedResponse;
 import com.tutict.finalassignmentbackend.entity.elastic.VehicleInformationDocument;
 import com.tutict.finalassignmentbackend.mapper.RequestHistoryMapper;
 import com.tutict.finalassignmentbackend.mapper.VehicleInformationMapper;
@@ -23,6 +21,7 @@ import org.springframework.data.elasticsearch.client.elc.ElasticsearchTemplate;
 import org.springframework.data.elasticsearch.core.SearchHit;
 import org.springframework.data.elasticsearch.core.SearchHits;
 import org.springframework.data.elasticsearch.core.mapping.IndexCoordinates;
+import org.springframework.data.elasticsearch.core.query.FetchSourceFilter;
 import org.springframework.data.elasticsearch.core.query.StringQuery;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
@@ -30,8 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -255,104 +253,88 @@ public class VehicleInformationService {
         return vehicleInformationMapper.selectCount(queryWrapper) > 0;
     }
 
-    // 按车牌号搜索（支持模糊搜索）
-    public PagedResponse<VehicleInformationDocument> searchVehiclesByLicensePlateForUser(
-            String currentUsername, String licensePlate, int page, int size) {
-        Pageable pageable = PageRequest.of(page - 1, size);
-
-        Query ownerNameQuery = MatchQuery.of(m -> m
-                .field("ownerName")
-                .query(currentUsername)
-        )._toQuery();
-
-        Query licensePlateQuery = MatchQuery.of(m -> m
-                .field("licensePlate")
-                .query(licensePlate)
-                .fuzziness("AUTO")
-                .prefixLength(1)
-                .maxExpansions(50)
-        )._toQuery();
-
-        Query boolQuery = BoolQuery.of(b -> b
-                .must(ownerNameQuery)
-                .must(licensePlateQuery)
-        )._toQuery();
-
-        NativeQuery searchQuery = NativeQuery.builder()
-                .withQuery(boolQuery)
-                .withPageable(pageable)
+    // Autocomplete suggestions for license plate (with current user filter)
+    public List<String> getLicensePlateAutocompleteSuggestions(
+            String currentUsername, String prefix, int maxSuggestions) {
+        // Create a prefix query for licensePlate and filter by ownerName
+        NativeQuery query = NativeQuery.builder()
+                .withQuery(q -> q
+                        .bool(b -> b
+                                .must(m -> m
+                                        .prefix(p -> p
+                                                .field("licensePlate")
+                                                .value(prefix)
+                                                .caseInsensitive(true)
+                                        )
+                                )
+                                .must(m -> m
+                                        .match(mq -> mq
+                                                .field("ownerName")
+                                                .query(currentUsername)
+                                        )
+                                )
+                        )
+                )
+                .withSourceFilter(new FetchSourceFilter(new String[]{"licensePlate"}, null)) // Only fetch licensePlate
+                .withMaxResults(maxSuggestions) // Limit results
                 .build();
 
-        SearchHits<VehicleInformationDocument> searchHits = elasticsearchTemplate.search(
-                searchQuery,
-                VehicleInformationDocument.class,
-                IndexCoordinates.of("vehicles")
-        );
+        // Execute the query
+        SearchHits<VehicleInformationDocument> searchHits = elasticsearchOperations.search(
+                query, VehicleInformationDocument.class, IndexCoordinates.of("vehicles"));
 
-        List<VehicleInformationDocument> content = searchHits.getSearchHits().stream()
-                .map(SearchHit::getContent)
-                .collect(Collectors.toList());
+        // Extract unique licensePlate values
+        Set<String> uniqueLicensePlates = new HashSet<>();
+        for (SearchHit<VehicleInformationDocument> hit : searchHits) {
+            VehicleInformationDocument doc = hit.getContent();
+            if (doc.getLicensePlate() != null) {
+                uniqueLicensePlates.add(doc.getLicensePlate());
+            }
+        }
 
-        long totalElements = searchHits.getTotalHits();
-        int totalPages = (int) Math.ceil((double) totalElements / size);
-
-        return new PagedResponse<>(
-                content,
-                page,
-                size,
-                totalElements,
-                totalPages
-        );
+        return new ArrayList<>(uniqueLicensePlates);
     }
 
-    // 按车辆类型搜索（支持模糊搜索）
-    public PagedResponse<VehicleInformationDocument> searchVehiclesByVehicleTypeForUser(
-            String currentUsername, String vehicleType, int page, int size) {
-        Pageable pageable = PageRequest.of(page - 1, size);
-
-        Query ownerNameQuery = MatchQuery.of(m -> m
-                .field("ownerName")
-                .query(currentUsername)
-        )._toQuery();
-
-        Query vehicleTypeQuery = MatchQuery.of(m -> m
-                .field("vehicleType")
-                .query(vehicleType)
-                .fuzziness("AUTO")
-                .prefixLength(1)
-                .maxExpansions(50)
-        )._toQuery();
-
-        Query boolQuery = BoolQuery.of(b -> b
-                .must(ownerNameQuery)
-                .must(vehicleTypeQuery)
-        )._toQuery();
-
-        NativeQuery searchQuery = NativeQuery.builder()
-                .withQuery(boolQuery)
-                .withPageable(pageable)
+    // Autocomplete suggestions for vehicle type (with current user filter)
+    public List<String> getVehicleTypeAutocompleteSuggestions(
+            String currentUsername, String prefix, int maxSuggestions) {
+        // Create a prefix query for vehicleType and filter by ownerName
+        NativeQuery query = NativeQuery.builder()
+                .withQuery(q -> q
+                        .bool(b -> b
+                                .must(m -> m
+                                        .prefix(p -> p
+                                                .field("vehicleType")
+                                                .value(prefix)
+                                                .caseInsensitive(true)
+                                        )
+                                )
+                                .must(m -> m
+                                        .match(mq -> mq
+                                                .field("ownerName")
+                                                .query(currentUsername)
+                                        )
+                                )
+                        )
+                )
+                .withSourceFilter(new FetchSourceFilter(new String[]{"vehicleType"}, null)) // Only fetch vehicleType
+                .withMaxResults(maxSuggestions) // Limit results
                 .build();
 
-        SearchHits<VehicleInformationDocument> searchHits = elasticsearchTemplate.search(
-                searchQuery,
-                VehicleInformationDocument.class,
-                IndexCoordinates.of("vehicles")
-        );
+        // Execute the query
+        SearchHits<VehicleInformationDocument> searchHits = elasticsearchOperations.search(
+                query, VehicleInformationDocument.class, IndexCoordinates.of("vehicles"));
 
-        List<VehicleInformationDocument> content = searchHits.getSearchHits().stream()
-                .map(SearchHit::getContent)
-                .collect(Collectors.toList());
+        // Extract unique vehicleType values
+        Set<String> uniqueVehicleTypes = new HashSet<>();
+        for (SearchHit<VehicleInformationDocument> hit : searchHits) {
+            VehicleInformationDocument doc = hit.getContent();
+            if (doc.getVehicleType() != null) {
+                uniqueVehicleTypes.add(doc.getVehicleType());
+            }
+        }
 
-        long totalElements = searchHits.getTotalHits();
-        int totalPages = (int) Math.ceil((double) totalElements / size);
-
-        return new PagedResponse<>(
-                content,
-                page,
-                size,
-                totalElements,
-                totalPages
-        );
+        return new ArrayList<>(uniqueVehicleTypes);
     }
 
     public List<VehicleInformation> searchVehicles(String query, int page, int size) {

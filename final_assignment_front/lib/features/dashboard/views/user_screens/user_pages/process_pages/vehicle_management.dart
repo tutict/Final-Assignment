@@ -1,6 +1,4 @@
 import 'dart:convert';
-import 'package:final_assignment_front/features/model/elastic/PagedResponse.dart';
-import 'package:final_assignment_front/features/model/elastic/vehicle_information_document.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:final_assignment_front/features/api/vehicle_information_controller_api.dart';
@@ -118,25 +116,6 @@ class _VehicleManagementState extends State<VehicleManagement> {
     super.dispose();
   }
 
-  VehicleInformation _convertToVehicleInformation(
-      VehicleInformationDocument doc) {
-    return VehicleInformation(
-      vehicleId: doc.vehicleId,
-      licensePlate: doc.licensePlate,
-      vehicleType: doc.vehicleType,
-      ownerName: doc.ownerName,
-      idCardNumber: doc.idCardNumber,
-      contactNumber: doc.contactNumber,
-      engineNumber: doc.engineNumber,
-      frameNumber: doc.frameNumber,
-      vehicleColor: doc.vehicleColor,
-      firstRegistrationDate: doc.firstRegistrationDate != null
-          ? DateTime.tryParse(doc.firstRegistrationDate!)
-          : null,
-      currentStatus: doc.currentStatus,
-    );
-  }
-
   Future<void> _fetchUserVehicles({bool reset = false, String? query}) async {
     if (reset) {
       _currentPage = 1;
@@ -160,40 +139,23 @@ class _VehicleManagementState extends State<VehicleManagement> {
             'Fetching all vehicles for owner: $_currentDriverName, page: $_currentPage');
         vehicles = await vehicleApi.apiVehiclesOwnerGet(
           ownerName: _currentDriverName,
+          page: _currentPage,
+          size: _pageSize,
         );
+      } else if (_searchType == 'licensePlate' && searchQuery.length >= 3) {
+        // Use specific lookup for license plate if query is detailed enough
+        final vehicle = await vehicleApi.apiVehiclesLicensePlateGet(
+            licensePlate: searchQuery);
+        vehicles = vehicle != null && vehicle.ownerName == _currentDriverName
+            ? [vehicle]
+            : [];
       } else {
-        switch (_searchType) {
-          case 'licensePlate':
-            debugPrint('Searching by license plate: $searchQuery');
-            final response =
-                await vehicleApi.apiVehiclesSearchByLicensePlateForCurrentUser(
-              licensePlate: searchQuery,
-              page: _currentPage,
-              size: _pageSize,
-            );
-            // If response is already a List, use it directly
-            vehicles = response
-                .map((doc) => _convertToVehicleInformation(doc))
-                .toList();
-                      break;
-          case 'vehicleType':
-            debugPrint('Searching by vehicle type: $searchQuery');
-            final response =
-                await vehicleApi.apiVehiclesSearchByVehicleTypeForCurrentUser(
-              vehicleType: searchQuery,
-              page: _currentPage,
-              size: _pageSize,
-            );
-            vehicles = response
-                .map((doc) => _convertToVehicleInformation(doc))
-                .toList();
-                      break;
-          default:
-            vehicles = await vehicleApi.apiVehiclesOwnerGet(
-              ownerName: _currentDriverName,
-            );
-            break;
-        }
+        debugPrint('Searching vehicles with query: $searchQuery');
+        vehicles = await vehicleApi.apiVehiclesSearchGet(
+          query: '$_searchType:$searchQuery ownerName:$_currentDriverName',
+          page: _currentPage,
+          size: _pageSize,
+        );
       }
 
       debugPrint(
@@ -218,6 +180,30 @@ class _VehicleManagementState extends State<VehicleManagement> {
       });
     } finally {
       setState(() => _isLoading = false);
+    }
+  }
+
+  Future<List<String>> _fetchAutocompleteSuggestions(String prefix) async {
+    try {
+      if (_searchType == 'licensePlate') {
+        return await vehicleApi.apiVehiclesAutocompleteLicensePlateMeGet(
+            prefix: prefix);
+      } else {
+        return await vehicleApi.apiVehiclesAutocompleteVehicleTypeMeGet(
+            prefix: prefix);
+      }
+    } catch (e) {
+      debugPrint('Failed to fetch autocomplete suggestions: $e');
+      return [];
+    }
+  }
+
+  Future<bool> _checkLicensePlateExists(String licensePlate) async {
+    try {
+      return await vehicleApi.apiVehiclesExistsGet(licensePlate: licensePlate);
+    } catch (e) {
+      debugPrint('Failed to check license plate existence: $e');
+      return false;
     }
   }
 
@@ -256,14 +242,19 @@ class _VehicleManagementState extends State<VehicleManagement> {
     });
   }
 
-  Future<void> _deleteVehicle(int vehicleId) async {
-    try {
-      await vehicleApi.apiVehiclesVehicleIdDelete(vehicleId: vehicleId);
-      _showSnackBar('删除车辆成功！');
-      _fetchUserVehicles(reset: true);
-    } catch (e) {
-      _showSnackBar('删除失败: $e', isError: true);
-    }
+  Future<void> _deleteVehicle(int vehicleId, String licensePlate) async {
+    _showDeleteConfirmationDialog('删除', () async {
+      setState(() => _isLoading = true);
+      try {
+        await vehicleApi.apiVehiclesVehicleIdDelete(vehicleId: vehicleId);
+        _showSnackBar('删除车辆成功！');
+        _fetchUserVehicles(reset: true);
+      } catch (e) {
+        _showSnackBar('删除失败: $e', isError: true);
+      } finally {
+        setState(() => _isLoading = false);
+      }
+    });
   }
 
   void _showSnackBar(String message, {bool isError = false}) {
@@ -276,49 +267,125 @@ class _VehicleManagementState extends State<VehicleManagement> {
     );
   }
 
+  void _showDeleteConfirmationDialog(String action, VoidCallback onConfirm) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        final themeData =
+            controller?.currentBodyTheme.value ?? ThemeData.light();
+        return AlertDialog(
+          backgroundColor: themeData.colorScheme.surfaceContainerHighest,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(
+            '确认删除',
+            style: themeData.textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: themeData.colorScheme.onSurface,
+            ),
+          ),
+          content: Text(
+            '您确定要$action此车辆吗？此操作不可撤销。',
+            style: themeData.textTheme.bodyMedium?.copyWith(
+              color: themeData.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(
+                '取消',
+                style: themeData.textTheme.labelLarge?.copyWith(
+                  color: themeData.colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                onConfirm();
+                Navigator.pop(ctx);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: themeData.colorScheme.error,
+                foregroundColor: themeData.colorScheme.onError,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              ),
+              child: const Text('删除'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildSearchField(ThemeData themeData) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
         children: [
           Expanded(
-            child: TextField(
-              controller: _searchController,
-              style: TextStyle(color: themeData.colorScheme.onSurface),
-              decoration: InputDecoration(
-                hintText: _searchType == 'licensePlate' ? '搜索车牌号' : '搜索车辆类型',
-                hintStyle: TextStyle(
-                    color: themeData.colorScheme.onSurface.withOpacity(0.6)),
-                prefixIcon:
-                    Icon(Icons.search, color: themeData.colorScheme.primary),
-                suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: Icon(Icons.clear,
-                            color: themeData.colorScheme.onSurfaceVariant),
-                        onPressed: () {
-                          _searchController.clear();
-                          _fetchUserVehicles(reset: true);
-                        },
-                      )
-                    : null,
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12.0)),
-                enabledBorder: OutlineInputBorder(
-                  borderSide: BorderSide(
-                      color: themeData.colorScheme.outline.withOpacity(0.3)),
-                  borderRadius: BorderRadius.circular(12.0),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderSide: BorderSide(
-                      color: themeData.colorScheme.primary, width: 1.5),
-                  borderRadius: BorderRadius.circular(12.0),
-                ),
-                filled: true,
-                fillColor: themeData.colorScheme.surfaceContainerLowest,
-                contentPadding: const EdgeInsets.symmetric(
-                    vertical: 12.0, horizontal: 16.0),
-              ),
-              onSubmitted: (value) => _searchVehicles(),
+            child: Autocomplete<String>(
+              optionsBuilder: (TextEditingValue textEditingValue) async {
+                if (textEditingValue.text.isEmpty) {
+                  return const Iterable<String>.empty();
+                }
+                return await _fetchAutocompleteSuggestions(
+                    textEditingValue.text);
+              },
+              onSelected: (String selection) {
+                _searchController.text = selection;
+                _searchVehicles();
+              },
+              fieldViewBuilder:
+                  (context, controller, focusNode, onFieldSubmitted) {
+                _searchController.text =
+                    controller.text; // Sync with outer controller
+                return TextField(
+                  controller: controller,
+                  focusNode: focusNode,
+                  style: TextStyle(color: themeData.colorScheme.onSurface),
+                  decoration: InputDecoration(
+                    hintText:
+                        _searchType == 'licensePlate' ? '搜索车牌号' : '搜索车辆类型',
+                    hintStyle: TextStyle(
+                        color:
+                            themeData.colorScheme.onSurface.withOpacity(0.6)),
+                    prefixIcon: Icon(Icons.search,
+                        color: themeData.colorScheme.primary),
+                    suffixIcon: controller.text.isNotEmpty
+                        ? IconButton(
+                            icon: Icon(Icons.clear,
+                                color: themeData.colorScheme.onSurfaceVariant),
+                            onPressed: () {
+                              controller.clear();
+                              _searchController.clear();
+                              _fetchUserVehicles(reset: true);
+                            },
+                          )
+                        : null,
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12.0)),
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(
+                          color:
+                              themeData.colorScheme.outline.withOpacity(0.3)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(
+                          color: themeData.colorScheme.primary, width: 1.5),
+                    ),
+                    filled: true,
+                    fillColor: themeData.colorScheme.surfaceContainerLowest,
+                    contentPadding: const EdgeInsets.symmetric(
+                        vertical: 12.0, horizontal: 16.0),
+                  ),
+                  onSubmitted: (value) => _searchVehicles(),
+                );
+              },
             ),
           ),
           const SizedBox(width: 8),
@@ -496,10 +563,27 @@ class _VehicleManagementState extends State<VehicleManagement> {
                                         ),
                                       ],
                                     ),
-                                    trailing: Icon(Icons.arrow_forward_ios,
-                                        color: themeData
-                                            .colorScheme.onSurfaceVariant,
-                                        size: 18),
+                                    trailing: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        IconButton(
+                                          icon: const Icon(Icons.edit),
+                                          color: themeData.colorScheme.primary,
+                                          onPressed: () =>
+                                              _goToDetailPage(vehicle),
+                                          tooltip: '编辑',
+                                        ),
+                                        IconButton(
+                                          icon: Icon(Icons.delete,
+                                              color:
+                                                  themeData.colorScheme.error),
+                                          onPressed: () => _deleteVehicle(
+                                              vehicle.vehicleId ?? 0,
+                                              vehicle.licensePlate ?? ''),
+                                          tooltip: '删除',
+                                        ),
+                                      ],
+                                    ),
                                     onTap: () => _goToDetailPage(vehicle),
                                   ),
                                 );
@@ -522,7 +606,6 @@ class _VehicleManagementState extends State<VehicleManagement> {
   }
 }
 
-// 以下是 AddVehiclePage、EditVehiclePage 和 VehicleDetailPage 的代码，未做修改
 class AddVehiclePage extends StatefulWidget {
   final VoidCallback? onVehicleAdded;
 
@@ -584,14 +667,25 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
   Future<void> _preFillForm(String username) async {
     final user = await _fetchUserManagement();
     final driverInfo = user?.userId != null
-        ? await _fetchDriverInformation(user!.userId!.toString())
+        ? await driverApi.apiDriversDriverIdGet(
+            driverId: user!.userId!.toString())
         : null;
+
+    debugPrint('Fetched UserManagement: ${user?.toJson()}');
+    debugPrint('Fetched DriverInformation: ${driverInfo?.toString()}');
+
+    if (driverInfo == null || driverInfo.name == null) {
+      throw Exception(
+          '无法获取驾驶员信息或姓名 (Driver ID: ${user?.userId}, Username: $username)');
+    }
+
     setState(() {
       _ownerNameController.text =
-          driverInfo?.name ?? username; // 锁定为 driver name
-      _idCardNumberController.text = driverInfo?.idCardNumber ?? '';
+          driverInfo.name!; // Must be DriverInformation.name
+      _idCardNumberController.text = driverInfo.idCardNumber ?? '';
       _contactNumberController.text =
-          driverInfo?.contactNumber ?? user?.contactNumber ?? '';
+          driverInfo.contactNumber ?? user?.contactNumber ?? '';
+      debugPrint('Set ownerNameController.text to: ${driverInfo.name}');
     });
   }
 
@@ -610,18 +704,11 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
         return UserManagement.fromJson(
             jsonDecode(utf8.decode(response.bodyBytes)));
       }
+      debugPrint(
+          'Failed to fetch UserManagement: Status ${response.statusCode}');
       return null;
     } catch (e) {
-      debugPrint('Failed to fetch UserManagement: $e');
-      return null;
-    }
-  }
-
-  Future<DriverInformation?> _fetchDriverInformation(String userId) async {
-    try {
-      return await driverApi.apiDriversDriverIdGet(driverId: userId);
-    } catch (e) {
-      debugPrint('Failed to fetch DriverInformation: $e');
+      debugPrint('Error fetching UserManagement: $e');
       return null;
     }
   }
@@ -644,39 +731,69 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
   Future<void> _submitVehicle() async {
     if (!_formKey.currentState!.validate()) return;
 
+    final licensePlate = '黑A${_licensePlateController.text.trim()}';
+    if (await vehicleApi.apiVehiclesExistsGet(licensePlate: licensePlate)) {
+      _showSnackBar('车牌号已存在，请使用其他车牌号', isError: true);
+      return;
+    }
+
     setState(() => _isLoading = true);
     try {
-      final vehicle = VehicleInformation(
-        licensePlate: '黑A${_licensePlateController.text.trim()}',
-        vehicleType: _vehicleTypeController.text.trim(),
-        ownerName: _ownerNameController.text.trim(),
-        // 使用锁定的 driver name
-        idCardNumber: _idCardNumberController.text.trim().isEmpty
+      debugPrint('Submitting with ownerName: ${_ownerNameController.text}');
+
+      // Manually construct the JSON payload to avoid serialization override
+      final vehiclePayload = {
+        'vehicleId': null,
+        'licensePlate': licensePlate,
+        'vehicleType': _vehicleTypeController.text.trim(),
+        'ownerName': _ownerNameController.text.trim(), // Forcefully use 黄广龙
+        'idCardNumber': _idCardNumberController.text.trim().isEmpty
             ? null
             : _idCardNumberController.text.trim(),
-        contactNumber: _contactNumberController.text.trim().isEmpty
+        'contactNumber': _contactNumberController.text.trim().isEmpty
             ? null
             : _contactNumberController.text.trim(),
-        engineNumber: _engineNumberController.text.trim().isEmpty
+        'engineNumber': _engineNumberController.text.trim().isEmpty
             ? null
             : _engineNumberController.text.trim(),
-        frameNumber: _frameNumberController.text.trim().isEmpty
+        'frameNumber': _frameNumberController.text.trim().isEmpty
             ? null
             : _frameNumberController.text.trim(),
-        vehicleColor: _vehicleColorController.text.trim().isEmpty
+        'vehicleColor': _vehicleColorController.text.trim().isEmpty
             ? null
             : _vehicleColorController.text.trim(),
-        firstRegistrationDate: _firstRegistrationDateController.text.isEmpty
+        'firstRegistrationDate': _firstRegistrationDateController.text.isEmpty
             ? null
-            : DateTime.parse(_firstRegistrationDateController.text.trim()),
-        currentStatus: _currentStatusController.text.trim().isEmpty
+            : '${_firstRegistrationDateController.text.trim()}T00:00:00.000',
+        'currentStatus': _currentStatusController.text.trim().isEmpty
             ? null
             : _currentStatusController.text.trim(),
-      );
+      };
 
       final idempotencyKey = generateIdempotencyKey();
-      await vehicleApi.apiVehiclesPost(
-          vehicleInformation: vehicle, idempotencyKey: idempotencyKey);
+      debugPrint(
+          'Manually constructed JSON payload: ${jsonEncode(vehiclePayload)}');
+
+      // Use a raw HTTP POST to bypass the generated client’s serialization
+      final prefs = await SharedPreferences.getInstance();
+      final jwtToken = prefs.getString('jwtToken');
+      final response = await http.post(
+        Uri.parse(
+            'http://localhost:8081/api/vehicles?idempotencyKey=$idempotencyKey'),
+        headers: {
+          'Authorization': 'Bearer $jwtToken',
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+        body: jsonEncode(vehiclePayload),
+      );
+
+      debugPrint(
+          'Raw POST Response: ${response.statusCode} - ${response.body}');
+
+      if (response.statusCode != 201) {
+        throw Exception(
+            'Failed to create vehicle: ${response.statusCode} - ${response.body}');
+      }
 
       _showSnackBar('创建车辆成功！');
       if (mounted) {
@@ -755,7 +872,7 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
         ),
         keyboardType: keyboardType,
         readOnly: readOnly || label == '车主姓名',
-        // 锁定车主姓名
+        // Lock ownerName
         onTap: onTap,
         validator:
             required ? (value) => value!.isEmpty ? '$label不能为空' : null : null,
@@ -908,7 +1025,7 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
     try {
       await vehicleApi.initializeWithJwt();
       await driverApi.initializeWithJwt();
-      _initializeFields();
+      await _initializeFields();
     } catch (e) {
       _showSnackBar('初始化失败: $e', isError: true);
     } finally {
@@ -916,19 +1033,60 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
     }
   }
 
-  void _initializeFields() {
-    _licensePlateController.text =
-        widget.vehicle.licensePlate?.replaceFirst('黑A', '') ?? '';
-    _vehicleTypeController.text = widget.vehicle.vehicleType ?? '';
-    _ownerNameController.text = widget.vehicle.ownerName ?? '';
-    _idCardNumberController.text = widget.vehicle.idCardNumber ?? '';
-    _contactNumberController.text = widget.vehicle.contactNumber ?? '';
-    _engineNumberController.text = widget.vehicle.engineNumber ?? '';
-    _frameNumberController.text = widget.vehicle.frameNumber ?? '';
-    _vehicleColorController.text = widget.vehicle.vehicleColor ?? '';
-    _firstRegistrationDateController.text =
-        formatDate(widget.vehicle.firstRegistrationDate);
-    _currentStatusController.text = widget.vehicle.currentStatus ?? '';
+  Future<void> _initializeFields() async {
+    final prefs = await SharedPreferences.getInstance();
+    final jwtToken = prefs.getString('jwtToken');
+    if (jwtToken == null) throw Exception('未找到 JWT');
+    final decodedToken = JwtDecoder.decode(jwtToken);
+    final username = decodedToken['sub'] ?? '';
+    if (username.isEmpty) throw Exception('JWT 中未找到用户名');
+
+    final user = await _fetchUserManagement();
+    final driverInfo = user?.userId != null
+        ? await driverApi.apiDriversDriverIdGet(
+            driverId: user!.userId!.toString())
+        : null;
+    if (driverInfo == null || driverInfo.name == null) {
+      throw Exception('无法获取驾驶员信息或姓名');
+    }
+
+    setState(() {
+      _licensePlateController.text =
+          widget.vehicle.licensePlate?.replaceFirst('黑A', '') ?? '';
+      _vehicleTypeController.text = widget.vehicle.vehicleType ?? '';
+      _ownerNameController.text =
+          driverInfo.name!; // Lock to DriverInformation.name
+      _idCardNumberController.text = widget.vehicle.idCardNumber ?? '';
+      _contactNumberController.text = widget.vehicle.contactNumber ?? '';
+      _engineNumberController.text = widget.vehicle.engineNumber ?? '';
+      _frameNumberController.text = widget.vehicle.frameNumber ?? '';
+      _vehicleColorController.text = widget.vehicle.vehicleColor ?? '';
+      _firstRegistrationDateController.text =
+          formatDate(widget.vehicle.firstRegistrationDate);
+      _currentStatusController.text = widget.vehicle.currentStatus ?? '';
+    });
+  }
+
+  Future<UserManagement?> _fetchUserManagement() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jwtToken = prefs.getString('jwtToken');
+      final response = await http.get(
+        Uri.parse('http://localhost:8081/api/users/me'),
+        headers: {
+          'Authorization': 'Bearer $jwtToken',
+          'Content-Type': 'application/json'
+        },
+      );
+      if (response.statusCode == 200) {
+        return UserManagement.fromJson(
+            jsonDecode(utf8.decode(response.bodyBytes)));
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Failed to fetch UserManagement: $e');
+      return null;
+    }
   }
 
   @override
@@ -949,14 +1107,21 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
   Future<void> _submitVehicle() async {
     if (!_formKey.currentState!.validate()) return;
 
+    final newLicensePlate = '黑A${_licensePlateController.text.trim()}';
+    if (newLicensePlate != widget.vehicle.licensePlate &&
+        await vehicleApi.apiVehiclesExistsGet(licensePlate: newLicensePlate)) {
+      _showSnackBar('车牌号已存在，请使用其他车牌号', isError: true);
+      return;
+    }
+
     setState(() => _isLoading = true);
     try {
       final vehicle = VehicleInformation(
         vehicleId: widget.vehicle.vehicleId,
-        licensePlate: '黑A${_licensePlateController.text.trim()}',
+        licensePlate: newLicensePlate,
         vehicleType: _vehicleTypeController.text.trim(),
         ownerName: _ownerNameController.text.trim(),
-        // 保持原有的 ownerName
+        // Locked to DriverInformation.name
         idCardNumber: _idCardNumberController.text.trim().isEmpty
             ? null
             : _idCardNumberController.text.trim(),
@@ -1061,7 +1226,7 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
         ),
         keyboardType: keyboardType,
         readOnly: readOnly || label == '车主姓名',
-        // 锁定车主姓名
+        // Lock ownerName
         onTap: onTap,
         validator:
             required ? (value) => value!.isEmpty ? '$label不能为空' : null : null,

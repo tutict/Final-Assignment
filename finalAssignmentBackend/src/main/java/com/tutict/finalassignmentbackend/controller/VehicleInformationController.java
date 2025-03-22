@@ -1,8 +1,6 @@
 package com.tutict.finalassignmentbackend.controller;
 
 import com.tutict.finalassignmentbackend.entity.VehicleInformation;
-import com.tutict.finalassignmentbackend.entity.elastic.PagedResponse;
-import com.tutict.finalassignmentbackend.entity.elastic.VehicleInformationDocument;
 import com.tutict.finalassignmentbackend.service.VehicleInformationService;
 import org.springframework.context.support.DefaultMessageSourceResolvable;
 import org.springframework.http.HttpStatus;
@@ -49,49 +47,47 @@ public class VehicleInformationController {
         }
     }
 
-    // 新增接口：按车牌号搜索（仅当前用户）
-    @GetMapping("/search/license-plate/me")
+    // Autocomplete suggestions for license plate (current user only)
+    @GetMapping("/autocomplete/license-plate/me")
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    public ResponseEntity<PagedResponse<VehicleInformationDocument>> searchVehiclesByLicensePlateForCurrentUser(
-            @RequestParam String licensePlate,
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size) {
+    public ResponseEntity<List<String>> getLicensePlateAutocompleteSuggestions(
+            @RequestParam String prefix,
+            @RequestParam(defaultValue = "5") int maxSuggestions) {
         try {
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             String currentUsername = authentication.getName();
-            PagedResponse<VehicleInformationDocument> response = vehicleInformationService.searchVehiclesByLicensePlateForUser(
-                    currentUsername, licensePlate, page, size);
-            if (response.getContent().isEmpty()) {
-                log.info("No vehicles found for license plate: " + licensePlate + " for user: " + currentUsername);
+            List<String> suggestions = vehicleInformationService.getLicensePlateAutocompleteSuggestions(
+                    currentUsername, prefix, maxSuggestions);
+            if (suggestions.isEmpty()) {
+                log.log(Level.INFO, "No license plate suggestions found for prefix: " + prefix + " for user: " + currentUsername);
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
             }
-            return ResponseEntity.ok(response);
+            return ResponseEntity.ok(suggestions);
         } catch (IllegalArgumentException e) {
-            log.warning("Invalid license plate: " + licensePlate + ", error: " + e.getMessage());
-            return ResponseEntity.badRequest().body(new PagedResponse<>(Collections.emptyList(), page, size, 0, 0));
+            log.log(Level.WARNING, "Invalid prefix for license plate:" + prefix + ", error:" + e.getMessage());
+            return ResponseEntity.badRequest().body(Collections.emptyList());
         }
     }
 
-    // 新增接口：按车辆类型搜索（仅当前用户）
-    @GetMapping("/search/vehicle-type/me")
+    // Autocomplete suggestions for vehicle type (current user only)
+    @GetMapping("/autocomplete/vehicle-type/me")
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    public ResponseEntity<PagedResponse<VehicleInformationDocument>> searchVehiclesByVehicleTypeForCurrentUser(
-            @RequestParam String vehicleType,
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size) {
+    public ResponseEntity<List<String>> getVehicleTypeAutocompleteSuggestions(
+            @RequestParam String prefix,
+            @RequestParam(defaultValue = "5") int maxSuggestions) {
         try {
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             String currentUsername = authentication.getName();
-            PagedResponse<VehicleInformationDocument> response = vehicleInformationService.searchVehiclesByVehicleTypeForUser(
-                    currentUsername, vehicleType, page, size);
-            if (response.getContent().isEmpty()) {
-                log.info("No vehicles found for vehicle type: " + vehicleType + " for user: " + currentUsername);
+            List<String> suggestions = vehicleInformationService.getVehicleTypeAutocompleteSuggestions(
+                    currentUsername, prefix, maxSuggestions);
+            if (suggestions.isEmpty()) {
+                log.log(Level.INFO, "No vehicle type suggestions found for prefix: " + prefix + " for user: " + currentUsername);
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
             }
-            return ResponseEntity.ok(response);
+            return ResponseEntity.ok(suggestions);
         } catch (IllegalArgumentException e) {
-            log.warning("Invalid vehicle type: " + vehicleType + ", error: " + e.getMessage());
-            return ResponseEntity.badRequest().body(new PagedResponse<>(Collections.emptyList(), page, size, 0, 0));
+            log.log(Level.WARNING, "Invalid prefix for vehicle type: " + prefix + ", error: " + e.getMessage());
+            return ResponseEntity.badRequest().body(Collections.emptyList());
         }
     }
 
