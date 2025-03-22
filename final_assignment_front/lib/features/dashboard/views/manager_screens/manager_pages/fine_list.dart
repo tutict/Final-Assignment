@@ -1,9 +1,8 @@
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_dashboard_screen.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart'; // For debugPrint
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:jwt_decoder/jwt_decoder.dart'; // For JWT decoding
+import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/features/api/fine_information_controller_api.dart';
 import 'package:final_assignment_front/features/model/fine_information.dart';
@@ -86,17 +85,15 @@ class _FineListPageState extends State<FineList> {
         return;
       }
 
-      // Decode the JWT token
       Map<String, dynamic> decodedToken = JwtDecoder.decode(jwtToken);
       debugPrint('Decoded JWT: $decodedToken');
 
-      // Extract roles and handle String or List cases
       final rolesData = decodedToken['roles'];
       List<dynamic> roles;
       if (rolesData is String) {
-        roles = [rolesData]; // Convert String to single-element List
+        roles = [rolesData];
       } else {
-        roles = rolesData as List<dynamic>? ?? []; // Handle List or null
+        roles = rolesData as List<dynamic>? ?? [];
       }
       debugPrint('Processed Roles: $roles');
 
@@ -680,10 +677,10 @@ class _AddFinePageState extends State<AddFinePage> {
 
       return Theme(
         data: themeData,
-        child: CupertinoPageScaffold(
+        child: Scaffold(
           backgroundColor: themeData.colorScheme.surface,
-          navigationBar: CupertinoNavigationBar(
-            middle: Text(
+          appBar: AppBar(
+            title: Text(
               '添加新罚款',
               style: themeData.textTheme.headlineSmall?.copyWith(
                 color: themeData.colorScheme.onPrimaryContainer,
@@ -691,29 +688,23 @@ class _AddFinePageState extends State<AddFinePage> {
                 fontSize: 20,
               ),
             ),
-            leading: GestureDetector(
-              onTap: () => Get.back(),
-              child: Icon(
-                CupertinoIcons.back,
+            leading: IconButton(
+              icon: Icon(
+                Icons.arrow_back,
                 color: themeData.colorScheme.onPrimaryContainer,
               ),
+              onPressed: () => Get.back(),
             ),
             backgroundColor: themeData.colorScheme.primaryContainer,
-            border: Border(
-              bottom: BorderSide(
-                color: themeData.colorScheme.outline.withOpacity(0.2),
-                width: 1.0,
-              ),
-            ),
+            elevation: 1,
           ),
-          child: SafeArea(
+          body: SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: _isLoading
                   ? Center(
-                      child: CupertinoActivityIndicator(
+                      child: CircularProgressIndicator(
                         color: themeData.colorScheme.primary,
-                        radius: 16.0,
                       ),
                     )
                   : Form(
@@ -792,6 +783,11 @@ class _AddFinePageState extends State<AddFinePage> {
       validator:
           required ? (value) => value!.isEmpty ? '$label不能为空' : null : null,
     );
+  }
+
+  String generateIdempotencyKey() {
+    // Replace with your actual implementation for generating an idempotency key
+    return DateTime.now().millisecondsSinceEpoch.toString();
   }
 }
 

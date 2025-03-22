@@ -686,6 +686,10 @@ class _AddOffensePageState extends State<AddOffensePage> {
     }
   }
 
+  String formatDate(DateTime date) {
+    return "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+  }
+
   @override
   Widget build(BuildContext context) {
     return Obx(() {
@@ -693,10 +697,10 @@ class _AddOffensePageState extends State<AddOffensePage> {
 
       return Theme(
         data: themeData,
-        child: CupertinoPageScaffold(
+        child: Scaffold(
           backgroundColor: themeData.colorScheme.surface,
-          navigationBar: CupertinoNavigationBar(
-            middle: Text(
+          appBar: AppBar(
+            title: Text(
               '添加新违法行为',
               style: themeData.textTheme.headlineSmall?.copyWith(
                 color: themeData.colorScheme.onPrimaryContainer,
@@ -704,29 +708,23 @@ class _AddOffensePageState extends State<AddOffensePage> {
                 fontSize: 20,
               ),
             ),
-            leading: GestureDetector(
-              onTap: () => Get.back(),
-              child: Icon(
-                CupertinoIcons.back,
+            leading: IconButton(
+              icon: Icon(
+                Icons.arrow_back,
                 color: themeData.colorScheme.onPrimaryContainer,
               ),
+              onPressed: () => Get.back(),
             ),
             backgroundColor: themeData.colorScheme.primaryContainer,
-            border: Border(
-              bottom: BorderSide(
-                color: themeData.colorScheme.outline.withOpacity(0.2),
-                width: 1.0,
-              ),
-            ),
+            elevation: 1,
           ),
-          child: SafeArea(
+          body: SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: _isLoading
                   ? Center(
-                      child: CupertinoActivityIndicator(
+                      child: CircularProgressIndicator(
                         color: themeData.colorScheme.primary,
-                        radius: 16.0,
                       ),
                     )
                   : Form(
@@ -812,6 +810,11 @@ class _AddOffensePageState extends State<AddOffensePage> {
       validator:
           required ? (value) => value!.isEmpty ? '$label不能为空' : null : null,
     );
+  }
+
+  String generateIdempotencyKey() {
+    // Replace with your actual implementation for generating an idempotency key
+    return DateTime.now().millisecondsSinceEpoch.toString();
   }
 }
 
@@ -1326,21 +1329,24 @@ class _EditOffensePageState extends State<EditOffensePage> {
             ),
           ),
           child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: _isLoading
-                  ? Center(
-                      child: CupertinoActivityIndicator(
-                        color: themeData.colorScheme.primary,
-                        radius: 16.0,
+            child: Material(
+              color: themeData.colorScheme.surface,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: _isLoading
+                    ? Center(
+                        child: CupertinoActivityIndicator(
+                          color: themeData.colorScheme.primary,
+                          radius: 16.0,
+                        ),
+                      )
+                    : Form(
+                        key: _formKey,
+                        child: SingleChildScrollView(
+                          child: _buildOffenseForm(themeData),
+                        ),
                       ),
-                    )
-                  : Form(
-                      key: _formKey,
-                      child: SingleChildScrollView(
-                        child: _buildOffenseForm(themeData),
-                      ),
-                    ),
+              ),
             ),
           ),
         ),

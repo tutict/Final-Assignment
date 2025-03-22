@@ -9,7 +9,10 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 String generateIdempotencyKey() {
-  return DateTime.now().millisecondsSinceEpoch.toString();
+  return DateTime
+      .now()
+      .millisecondsSinceEpoch
+      .toString();
 }
 
 class DriverList extends StatefulWidget {
@@ -27,7 +30,7 @@ class _DriverListPageState extends State<DriverList> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _idCardNumberController = TextEditingController();
   final TextEditingController _driverLicenseNumberController =
-      TextEditingController();
+  TextEditingController();
   late ScrollController _scrollController;
 
   final DashboardController controller = Get.find<DashboardController>();
@@ -79,17 +82,17 @@ class _DriverListPageState extends State<DriverList> {
       await driverApi.initializeWithJwt();
       if (_nameController.text.isNotEmpty) {
         _drivers = await driverApi.apiDriversNameNameGet(
-                name: _nameController.text.trim()) ??
+            name: _nameController.text.trim()) ??
             [];
       } else if (_idCardNumberController.text.isNotEmpty) {
         _drivers = await driverApi.apiDriversIdCardNumberIdCardNumberGet(
-                idCardNumber: _idCardNumberController.text.trim()) ??
+            idCardNumber: _idCardNumberController.text.trim()) ??
             [];
       } else if (_driverLicenseNumberController.text.isNotEmpty) {
         final driver =
-            await driverApi.apiDriversDriverLicenseNumberDriverLicenseNumberGet(
-                driverLicenseNumber:
-                    _driverLicenseNumberController.text.trim());
+        await driverApi.apiDriversDriverLicenseNumberDriverLicenseNumberGet(
+            driverLicenseNumber:
+            _driverLicenseNumberController.text.trim());
         _drivers = driver != null ? [driver] : [];
       } else {
         _drivers = await driverApi.apiDriversGet() ?? [];
@@ -108,7 +111,8 @@ class _DriverListPageState extends State<DriverList> {
   }
 
   Future<void> _deleteDriver(String driverId) async {
-    final confirmed = await _showConfirmationDialog('确认删除', '您确定要删除此司机信息吗？');
+    final confirmed = await _showConfirmationDialog(
+        '确认删除', '您确定要删除此司机信息吗？');
     if (!confirmed) return;
 
     try {
@@ -168,8 +172,9 @@ class _DriverListPageState extends State<DriverList> {
     if (!mounted) return false;
     final themeData = controller.currentBodyTheme.value;
     return await showDialog<bool>(
-          context: context,
-          builder: (context) => Theme(
+      context: context,
+      builder: (context) =>
+          Theme(
             data: themeData,
             child: AlertDialog(
               backgroundColor: themeData.colorScheme.surfaceContainer,
@@ -197,7 +202,7 @@ class _DriverListPageState extends State<DriverList> {
               ],
             ),
           ),
-        ) ??
+    ) ??
         false;
   }
 
@@ -209,7 +214,8 @@ class _DriverListPageState extends State<DriverList> {
 
   String _formatDateTime(DateTime? dateTime) {
     if (dateTime == null) return '无';
-    return "${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')}";
+    return "${dateTime.year}-${dateTime.month.toString().padLeft(
+        2, '0')}-${dateTime.day.toString().padLeft(2, '0')}";
   }
 
   @override
@@ -238,9 +244,10 @@ class _DriverListPageState extends State<DriverList> {
               ),
             ),
             trailing: GestureDetector(
-              onTap: () => Get.to(() => const AddDriverPage())?.then((value) {
-                if (value == true && mounted) _loadDrivers();
-              }),
+              onTap: () =>
+                  Get.to(() => const AddDriverPage())?.then((value) {
+                    if (value == true && mounted) _loadDrivers();
+                  }),
               child: Icon(
                 CupertinoIcons.add,
                 color: themeData.colorScheme.onPrimaryContainer,
@@ -264,55 +271,55 @@ class _DriverListPageState extends State<DriverList> {
                   Expanded(
                     child: _isLoading
                         ? Center(
-                            child: CupertinoActivityIndicator(
-                              color: themeData.colorScheme.primary,
-                              radius: 16.0,
-                            ),
-                          )
+                      child: CupertinoActivityIndicator(
+                        color: themeData.colorScheme.primary,
+                        radius: 16.0,
+                      ),
+                    )
                         : _errorMessage.isNotEmpty
-                            ? Center(
-                                child: Text(
-                                  _errorMessage,
-                                  style:
-                                      themeData.textTheme.bodyLarge?.copyWith(
-                                    color: themeData.colorScheme.error,
-                                    fontSize: 18,
-                                  ),
-                                ),
-                              )
-                            : _drivers.isEmpty
-                                ? Center(
-                                    child: Text(
-                                      '暂无司机信息',
-                                      style: themeData.textTheme.bodyLarge
-                                          ?.copyWith(
-                                        color: themeData
-                                            .colorScheme.onSurfaceVariant,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  )
-                                : CupertinoScrollbar(
-                                    controller: _scrollController,
-                                    thumbVisibility: true,
-                                    thickness: 6.0,
-                                    thicknessWhileDragging: 10.0,
-                                    child: RefreshIndicator(
-                                      onRefresh: _applyFilters,
-                                      color: themeData.colorScheme.primary,
-                                      backgroundColor: themeData
-                                          .colorScheme.surfaceContainer,
-                                      child: ListView.builder(
-                                        controller: _scrollController,
-                                        itemCount: _drivers.length,
-                                        itemBuilder: (context, index) {
-                                          final driver = _drivers[index];
-                                          return _buildDriverCard(
-                                              driver, themeData);
-                                        },
-                                      ),
-                                    ),
-                                  ),
+                        ? Center(
+                      child: Text(
+                        _errorMessage,
+                        style:
+                        themeData.textTheme.bodyLarge?.copyWith(
+                          color: themeData.colorScheme.error,
+                          fontSize: 18,
+                        ),
+                      ),
+                    )
+                        : _drivers.isEmpty
+                        ? Center(
+                      child: Text(
+                        '暂无司机信息',
+                        style: themeData.textTheme.bodyLarge
+                            ?.copyWith(
+                          color: themeData
+                              .colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    )
+                        : CupertinoScrollbar(
+                      controller: _scrollController,
+                      thumbVisibility: true,
+                      thickness: 6.0,
+                      thicknessWhileDragging: 10.0,
+                      child: RefreshIndicator(
+                        onRefresh: _applyFilters,
+                        color: themeData.colorScheme.primary,
+                        backgroundColor: themeData
+                            .colorScheme.surfaceContainer,
+                        child: ListView.builder(
+                          controller: _scrollController,
+                          itemCount: _drivers.length,
+                          itemBuilder: (context, index) {
+                            final driver = _drivers[index];
+                            return _buildDriverCard(
+                                driver, themeData);
+                          },
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -346,14 +353,14 @@ class _DriverListPageState extends State<DriverList> {
                           color: themeData.colorScheme.primary),
                       suffixIcon: _nameController.text.isNotEmpty
                           ? IconButton(
-                              icon: Icon(Icons.clear,
-                                  color:
-                                      themeData.colorScheme.onSurfaceVariant),
-                              onPressed: () {
-                                _nameController.clear();
-                                _applyFilters();
-                              },
-                            )
+                        icon: Icon(Icons.clear,
+                            color:
+                            themeData.colorScheme.onSurfaceVariant),
+                        onPressed: () {
+                          _nameController.clear();
+                          _applyFilters();
+                        },
+                      )
                           : null,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8.0),
@@ -382,14 +389,14 @@ class _DriverListPageState extends State<DriverList> {
                           color: themeData.colorScheme.primary),
                       suffixIcon: _idCardNumberController.text.isNotEmpty
                           ? IconButton(
-                              icon: Icon(Icons.clear,
-                                  color:
-                                      themeData.colorScheme.onSurfaceVariant),
-                              onPressed: () {
-                                _idCardNumberController.clear();
-                                _applyFilters();
-                              },
-                            )
+                        icon: Icon(Icons.clear,
+                            color:
+                            themeData.colorScheme.onSurfaceVariant),
+                        onPressed: () {
+                          _idCardNumberController.clear();
+                          _applyFilters();
+                        },
+                      )
                           : null,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8.0),
@@ -419,14 +426,14 @@ class _DriverListPageState extends State<DriverList> {
                           color: themeData.colorScheme.primary),
                       suffixIcon: _driverLicenseNumberController.text.isNotEmpty
                           ? IconButton(
-                              icon: Icon(Icons.clear,
-                                  color:
-                                      themeData.colorScheme.onSurfaceVariant),
-                              onPressed: () {
-                                _driverLicenseNumberController.clear();
-                                _applyFilters();
-                              },
-                            )
+                        icon: Icon(Icons.clear,
+                            color:
+                            themeData.colorScheme.onSurfaceVariant),
+                        onPressed: () {
+                          _driverLicenseNumberController.clear();
+                          _applyFilters();
+                        },
+                      )
                           : null,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8.0),
@@ -454,7 +461,7 @@ class _DriverListPageState extends State<DriverList> {
       margin: const EdgeInsets.symmetric(vertical: 6.0),
       child: ListTile(
         contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+        const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
         title: Text(
           '司机姓名: ${driver.name ?? "未知"} (ID: ${driver.driverId ?? "无"})',
           style: themeData.textTheme.bodyLarge?.copyWith(
@@ -463,7 +470,8 @@ class _DriverListPageState extends State<DriverList> {
           ),
         ),
         subtitle: Text(
-          '驾驶证号: ${driver.driverLicenseNumber ?? "无"}\n联系电话: ${driver.contactNumber ?? "无"}',
+          '驾驶证号: ${driver.driverLicenseNumber ?? "无"}\n联系电话: ${driver
+              .contactNumber ?? "无"}',
           style: themeData.textTheme.bodyMedium?.copyWith(
             color: themeData.colorScheme.onSurfaceVariant,
           ),
@@ -490,16 +498,12 @@ class _AddDriverPageState extends State<AddDriverPage> {
   final driverApi = DriverInformationControllerApi();
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _idCardNumberController = TextEditingController();
-  final TextEditingController _contactNumberController =
-      TextEditingController();
-  final TextEditingController _driverLicenseNumberController =
-      TextEditingController();
+  final TextEditingController _contactNumberController = TextEditingController();
+  final TextEditingController _driverLicenseNumberController = TextEditingController();
   final TextEditingController _genderController = TextEditingController();
   final TextEditingController _birthdateController = TextEditingController();
-  final TextEditingController _firstLicenseDateController =
-      TextEditingController();
-  final TextEditingController _allowedVehicleTypeController =
-      TextEditingController();
+  final TextEditingController _firstLicenseDateController = TextEditingController();
+  final TextEditingController _allowedVehicleTypeController = TextEditingController();
   final TextEditingController _issueDateController = TextEditingController();
   final TextEditingController _expiryDateController = TextEditingController();
   bool _isLoading = false;
@@ -526,40 +530,55 @@ class _AddDriverPageState extends State<AddDriverPage> {
     try {
       await driverApi.initializeWithJwt();
 
-      DateTime? birthdate = _birthdateController.text.trim().isEmpty
+      DateTime? birthdate = _birthdateController.text
+          .trim()
+          .isEmpty
           ? null
           : DateTime.parse("${_birthdateController.text.trim()}T00:00:00");
-      DateTime? firstLicenseDate =
-          _firstLicenseDateController.text.trim().isEmpty
-              ? null
-              : DateTime.parse(
-                  "${_firstLicenseDateController.text.trim()}T00:00:00");
-      DateTime? issueDate = _issueDateController.text.trim().isEmpty
+      DateTime? firstLicenseDate = _firstLicenseDateController.text
+          .trim()
+          .isEmpty
+          ? null
+          : DateTime.parse(
+          "${_firstLicenseDateController.text.trim()}T00:00:00");
+      DateTime? issueDate = _issueDateController.text
+          .trim()
+          .isEmpty
           ? null
           : DateTime.parse("${_issueDateController.text.trim()}T00:00:00");
-      DateTime? expiryDate = _expiryDateController.text.trim().isEmpty
+      DateTime? expiryDate = _expiryDateController.text
+          .trim()
+          .isEmpty
           ? null
           : DateTime.parse("${_expiryDateController.text.trim()}T00:00:00");
 
       final driver = DriverInformation(
-        name: _nameController.text.trim().isEmpty
-            ? null
-            : _nameController.text.trim(),
-        idCardNumber: _idCardNumberController.text.trim().isEmpty
+        name: _nameController.text
+            .trim()
+            .isEmpty ? null : _nameController.text.trim(),
+        idCardNumber: _idCardNumberController.text
+            .trim()
+            .isEmpty
             ? null
             : _idCardNumberController.text.trim(),
-        contactNumber: _contactNumberController.text.trim().isEmpty
+        contactNumber: _contactNumberController.text
+            .trim()
+            .isEmpty
             ? null
             : _contactNumberController.text.trim(),
-        driverLicenseNumber: _driverLicenseNumberController.text.trim().isEmpty
+        driverLicenseNumber: _driverLicenseNumberController.text
+            .trim()
+            .isEmpty
             ? null
             : _driverLicenseNumberController.text.trim(),
-        gender: _genderController.text.trim().isEmpty
-            ? null
-            : _genderController.text.trim(),
+        gender: _genderController.text
+            .trim()
+            .isEmpty ? null : _genderController.text.trim(),
         birthdate: birthdate,
         firstLicenseDate: firstLicenseDate,
-        allowedVehicleType: _allowedVehicleTypeController.text.trim().isEmpty
+        allowedVehicleType: _allowedVehicleTypeController.text
+            .trim()
+            .isEmpty
             ? null
             : _allowedVehicleTypeController.text.trim(),
         issueDate: issueDate,
@@ -611,7 +630,8 @@ class _AddDriverPageState extends State<AddDriverPage> {
     if (pickedDate != null && mounted) {
       setState(() {
         textController.text =
-            "${pickedDate.year}-${pickedDate.month.toString().padLeft(2, '0')}-${pickedDate.day.toString().padLeft(2, '0')}";
+        "${pickedDate.year}-${pickedDate.month.toString().padLeft(
+            2, '0')}-${pickedDate.day.toString().padLeft(2, '0')}";
       });
     }
   }
@@ -637,10 +657,10 @@ class _AddDriverPageState extends State<AddDriverPage> {
 
       return Theme(
         data: themeData,
-        child: CupertinoPageScaffold(
+        child: Scaffold(
           backgroundColor: themeData.colorScheme.surface,
-          navigationBar: CupertinoNavigationBar(
-            middle: Text(
+          appBar: AppBar(
+            title: Text(
               '添加新司机',
               style: themeData.textTheme.headlineSmall?.copyWith(
                 color: themeData.colorScheme.onPrimaryContainer,
@@ -648,31 +668,25 @@ class _AddDriverPageState extends State<AddDriverPage> {
                 fontSize: 20,
               ),
             ),
-            leading: GestureDetector(
-              onTap: () => Get.back(),
-              child: Icon(
-                CupertinoIcons.back,
+            leading: IconButton(
+              icon: Icon(
+                Icons.arrow_back,
                 color: themeData.colorScheme.onPrimaryContainer,
               ),
+              onPressed: () => Get.back(),
             ),
             backgroundColor: themeData.colorScheme.primaryContainer,
-            border: Border(
-              bottom: BorderSide(
-                color: themeData.colorScheme.outline.withOpacity(0.2),
-                width: 1.0,
-              ),
-            ),
+            elevation: 1,
           ),
-          child: SafeArea(
+          body: SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: _isLoading
                   ? Center(
-                      child: CupertinoActivityIndicator(
-                        color: themeData.colorScheme.primary,
-                        radius: 16.0,
-                      ),
-                    )
+                child: CircularProgressIndicator(
+                  color: themeData.colorScheme.primary,
+                ),
+              )
                   : SingleChildScrollView(child: _buildDriverForm(themeData)),
             ),
           ),
@@ -687,7 +701,8 @@ class _AddDriverPageState extends State<AddDriverPage> {
         _buildTextField(themeData, '姓名', Icons.person, _nameController),
         const SizedBox(height: 12),
         _buildTextField(
-            themeData, '身份证号码', Icons.card_membership, _idCardNumberController,
+            themeData, '身份证号码', Icons.card_membership,
+            _idCardNumberController,
             keyboardType: TextInputType.number),
         const SizedBox(height: 12),
         _buildTextField(
@@ -695,7 +710,8 @@ class _AddDriverPageState extends State<AddDriverPage> {
             keyboardType: TextInputType.phone),
         const SizedBox(height: 12),
         _buildTextField(
-            themeData, '驾驶证号', Icons.drive_eta, _driverLicenseNumberController),
+            themeData, '驾驶证号', Icons.drive_eta,
+            _driverLicenseNumberController),
         const SizedBox(height: 12),
         _buildTextField(
             themeData, '性别', Icons.person_outline, _genderController),
@@ -717,7 +733,8 @@ class _AddDriverPageState extends State<AddDriverPage> {
             readOnly: true, onTap: () => _selectDate(_issueDateController)),
         const SizedBox(height: 12),
         _buildTextField(
-            themeData, '有效期截止日期', Icons.calendar_today, _expiryDateController,
+            themeData, '有效期截止日期', Icons.calendar_today,
+            _expiryDateController,
             readOnly: true, onTap: () => _selectDate(_expiryDateController)),
         const SizedBox(height: 20),
         ElevatedButton(
@@ -732,8 +749,8 @@ class _AddDriverPageState extends State<AddDriverPage> {
   Widget _buildTextField(ThemeData themeData, String label, IconData icon,
       TextEditingController controller,
       {TextInputType? keyboardType,
-      bool readOnly = false,
-      VoidCallback? onTap}) {
+        bool readOnly = false,
+        VoidCallback? onTap}) {
     return TextField(
       controller: controller,
       decoration: InputDecoration(
@@ -752,6 +769,14 @@ class _AddDriverPageState extends State<AddDriverPage> {
       onTap: onTap,
     );
   }
+
+  String generateIdempotencyKey() {
+    // Replace with your actual implementation for generating an idempotency key
+    return DateTime
+        .now()
+        .millisecondsSinceEpoch
+        .toString();
+  }
 }
 
 class EditDriverPage extends StatefulWidget {
@@ -768,15 +793,15 @@ class _EditDriverPageState extends State<EditDriverPage> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _idCardNumberController = TextEditingController();
   final TextEditingController _contactNumberController =
-      TextEditingController();
+  TextEditingController();
   final TextEditingController _driverLicenseNumberController =
-      TextEditingController();
+  TextEditingController();
   final TextEditingController _genderController = TextEditingController();
   final TextEditingController _birthdateController = TextEditingController();
   final TextEditingController _firstLicenseDateController =
-      TextEditingController();
+  TextEditingController();
   final TextEditingController _allowedVehicleTypeController =
-      TextEditingController();
+  TextEditingController();
   final TextEditingController _issueDateController = TextEditingController();
   final TextEditingController _expiryDateController = TextEditingController();
   bool _isLoading = false;
@@ -797,17 +822,31 @@ class _EditDriverPageState extends State<EditDriverPage> {
         widget.driver.driverLicenseNumber ?? '';
     _genderController.text = widget.driver.gender ?? '';
     _birthdateController.text = widget.driver.birthdate != null
-        ? "${widget.driver.birthdate!.year}-${widget.driver.birthdate!.month.toString().padLeft(2, '0')}-${widget.driver.birthdate!.day.toString().padLeft(2, '0')}"
+        ? "${widget.driver.birthdate!.year}-${widget.driver.birthdate!.month
+        .toString().padLeft(2, '0')}-${widget.driver.birthdate!
+        .day
+        .toString()
+        .padLeft(2, '0')}"
         : '';
     _firstLicenseDateController.text = widget.driver.firstLicenseDate != null
-        ? "${widget.driver.firstLicenseDate!.year}-${widget.driver.firstLicenseDate!.month.toString().padLeft(2, '0')}-${widget.driver.firstLicenseDate!.day.toString().padLeft(2, '0')}"
+        ? "${widget.driver.firstLicenseDate!.year}-${widget.driver
+        .firstLicenseDate!.month.toString().padLeft(2, '0')}-${widget.driver
+        .firstLicenseDate!.day.toString().padLeft(2, '0')}"
         : '';
     _allowedVehicleTypeController.text = widget.driver.allowedVehicleType ?? '';
     _issueDateController.text = widget.driver.issueDate != null
-        ? "${widget.driver.issueDate!.year}-${widget.driver.issueDate!.month.toString().padLeft(2, '0')}-${widget.driver.issueDate!.day.toString().padLeft(2, '0')}"
+        ? "${widget.driver.issueDate!.year}-${widget.driver.issueDate!.month
+        .toString().padLeft(2, '0')}-${widget.driver.issueDate!
+        .day
+        .toString()
+        .padLeft(2, '0')}"
         : '';
     _expiryDateController.text = widget.driver.expiryDate != null
-        ? "${widget.driver.expiryDate!.year}-${widget.driver.expiryDate!.month.toString().padLeft(2, '0')}-${widget.driver.expiryDate!.day.toString().padLeft(2, '0')}"
+        ? "${widget.driver.expiryDate!.year}-${widget.driver.expiryDate!.month
+        .toString().padLeft(2, '0')}-${widget.driver.expiryDate!
+        .day
+        .toString()
+        .padLeft(2, '0')}"
         : '';
   }
 
@@ -831,41 +870,61 @@ class _EditDriverPageState extends State<EditDriverPage> {
     try {
       await driverApi.initializeWithJwt();
 
-      DateTime? birthdate = _birthdateController.text.trim().isEmpty
+      DateTime? birthdate = _birthdateController.text
+          .trim()
+          .isEmpty
           ? null
           : DateTime.parse("${_birthdateController.text.trim()}T00:00:00");
       DateTime? firstLicenseDate =
-          _firstLicenseDateController.text.trim().isEmpty
-              ? null
-              : DateTime.parse(
-                  "${_firstLicenseDateController.text.trim()}T00:00:00");
-      DateTime? issueDate = _issueDateController.text.trim().isEmpty
+      _firstLicenseDateController.text
+          .trim()
+          .isEmpty
+          ? null
+          : DateTime.parse(
+          "${_firstLicenseDateController.text.trim()}T00:00:00");
+      DateTime? issueDate = _issueDateController.text
+          .trim()
+          .isEmpty
           ? null
           : DateTime.parse("${_issueDateController.text.trim()}T00:00:00");
-      DateTime? expiryDate = _expiryDateController.text.trim().isEmpty
+      DateTime? expiryDate = _expiryDateController.text
+          .trim()
+          .isEmpty
           ? null
           : DateTime.parse("${_expiryDateController.text.trim()}T00:00:00");
 
       final driver = DriverInformation(
         driverId: widget.driver.driverId,
-        name: _nameController.text.trim().isEmpty
+        name: _nameController.text
+            .trim()
+            .isEmpty
             ? null
             : _nameController.text.trim(),
-        idCardNumber: _idCardNumberController.text.trim().isEmpty
+        idCardNumber: _idCardNumberController.text
+            .trim()
+            .isEmpty
             ? null
             : _idCardNumberController.text.trim(),
-        contactNumber: _contactNumberController.text.trim().isEmpty
+        contactNumber: _contactNumberController.text
+            .trim()
+            .isEmpty
             ? null
             : _contactNumberController.text.trim(),
-        driverLicenseNumber: _driverLicenseNumberController.text.trim().isEmpty
+        driverLicenseNumber: _driverLicenseNumberController.text
+            .trim()
+            .isEmpty
             ? null
             : _driverLicenseNumberController.text.trim(),
-        gender: _genderController.text.trim().isEmpty
+        gender: _genderController.text
+            .trim()
+            .isEmpty
             ? null
             : _genderController.text.trim(),
         birthdate: birthdate,
         firstLicenseDate: firstLicenseDate,
-        allowedVehicleType: _allowedVehicleTypeController.text.trim().isEmpty
+        allowedVehicleType: _allowedVehicleTypeController.text
+            .trim()
+            .isEmpty
             ? null
             : _allowedVehicleTypeController.text.trim(),
         issueDate: issueDate,
@@ -918,7 +977,8 @@ class _EditDriverPageState extends State<EditDriverPage> {
     if (pickedDate != null && mounted) {
       setState(() {
         textController.text =
-            "${pickedDate.year}-${pickedDate.month.toString().padLeft(2, '0')}-${pickedDate.day.toString().padLeft(2, '0')}";
+        "${pickedDate.year}-${pickedDate.month.toString().padLeft(
+            2, '0')}-${pickedDate.day.toString().padLeft(2, '0')}";
       });
     }
   }
@@ -977,11 +1037,11 @@ class _EditDriverPageState extends State<EditDriverPage> {
               padding: const EdgeInsets.all(16.0),
               child: _isLoading
                   ? Center(
-                      child: CupertinoActivityIndicator(
-                        color: themeData.colorScheme.primary,
-                        radius: 16.0,
-                      ),
-                    )
+                child: CupertinoActivityIndicator(
+                  color: themeData.colorScheme.primary,
+                  radius: 16.0,
+                ),
+              )
                   : SingleChildScrollView(child: _buildDriverForm(themeData)),
             ),
           ),
@@ -996,7 +1056,8 @@ class _EditDriverPageState extends State<EditDriverPage> {
         _buildTextField(themeData, '姓名', Icons.person, _nameController),
         const SizedBox(height: 12),
         _buildTextField(
-            themeData, '身份证号码', Icons.card_membership, _idCardNumberController,
+            themeData, '身份证号码', Icons.card_membership,
+            _idCardNumberController,
             keyboardType: TextInputType.number),
         const SizedBox(height: 12),
         _buildTextField(
@@ -1004,7 +1065,8 @@ class _EditDriverPageState extends State<EditDriverPage> {
             keyboardType: TextInputType.phone),
         const SizedBox(height: 12),
         _buildTextField(
-            themeData, '驾驶证号', Icons.drive_eta, _driverLicenseNumberController),
+            themeData, '驾驶证号', Icons.drive_eta,
+            _driverLicenseNumberController),
         const SizedBox(height: 12),
         _buildTextField(
             themeData, '性别', Icons.person_outline, _genderController),
@@ -1026,7 +1088,8 @@ class _EditDriverPageState extends State<EditDriverPage> {
             readOnly: true, onTap: () => _selectDate(_issueDateController)),
         const SizedBox(height: 12),
         _buildTextField(
-            themeData, '有效期截止日期', Icons.calendar_today, _expiryDateController,
+            themeData, '有效期截止日期', Icons.calendar_today,
+            _expiryDateController,
             readOnly: true, onTap: () => _selectDate(_expiryDateController)),
         const SizedBox(height: 20),
         ElevatedButton(
@@ -1041,8 +1104,8 @@ class _EditDriverPageState extends State<EditDriverPage> {
   Widget _buildTextField(ThemeData themeData, String label, IconData icon,
       TextEditingController controller,
       {TextInputType? keyboardType,
-      bool readOnly = false,
-      VoidCallback? onTap}) {
+        bool readOnly = false,
+        VoidCallback? onTap}) {
     return TextField(
       controller: controller,
       decoration: InputDecoration(
@@ -1086,7 +1149,8 @@ class _DriverDetailPageState extends State<DriverDetailPage> {
   }
 
   Future<void> _deleteDriver(String driverId) async {
-    final confirmed = await _showConfirmationDialog('确认删除', '您确定要删除此司机信息吗？');
+    final confirmed = await _showConfirmationDialog(
+        '确认删除', '您确定要删除此司机信息吗？');
     if (!confirmed) return;
 
     setState(() => _isLoading = true);
@@ -1126,8 +1190,9 @@ class _DriverDetailPageState extends State<DriverDetailPage> {
     if (!mounted) return false;
     final themeData = controller.currentBodyTheme.value;
     return await showDialog<bool>(
-          context: context,
-          builder: (context) => Theme(
+      context: context,
+      builder: (context) =>
+          Theme(
             data: themeData,
             child: AlertDialog(
               backgroundColor: themeData.colorScheme.surfaceContainer,
@@ -1155,13 +1220,14 @@ class _DriverDetailPageState extends State<DriverDetailPage> {
               ],
             ),
           ),
-        ) ??
+    ) ??
         false;
   }
 
   String _formatDateTime(DateTime? dateTime) {
     if (dateTime == null) return '无';
-    return "${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')}";
+    return "${dateTime.year}-${dateTime.month.toString().padLeft(
+        2, '0')}-${dateTime.day.toString().padLeft(2, '0')}";
   }
 
   String _formatErrorMessage(dynamic error) {
@@ -1217,8 +1283,8 @@ class _DriverDetailPageState extends State<DriverDetailPage> {
             trailing: GestureDetector(
               onTap: () =>
                   Get.to(() => EditDriverPage(driver: _driver))?.then((value) {
-                if (value == true && mounted) _loadDriverDetails();
-              }),
+                    if (value == true && mounted) _loadDriverDetails();
+                  }),
               child: Icon(
                 CupertinoIcons.pencil,
                 color: themeData.colorScheme.onPrimaryContainer,
@@ -1237,70 +1303,70 @@ class _DriverDetailPageState extends State<DriverDetailPage> {
               padding: const EdgeInsets.all(16.0),
               child: _isLoading
                   ? Center(
-                      child: CupertinoActivityIndicator(
-                        color: themeData.colorScheme.primary,
-                        radius: 16.0,
-                      ),
-                    )
+                child: CupertinoActivityIndicator(
+                  color: themeData.colorScheme.primary,
+                  radius: 16.0,
+                ),
+              )
                   : CupertinoScrollbar(
-                      controller: ScrollController(),
-                      thumbVisibility: true,
-                      thickness: 6.0,
-                      thicknessWhileDragging: 10.0,
-                      child: SingleChildScrollView(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Card(
-                              elevation: 2,
-                              color: themeData.colorScheme.surfaceContainer,
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12.0)),
-                              child: Padding(
-                                padding: const EdgeInsets.all(16.0),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    _buildDetailRow(
-                                        '司机 ID', driverId, themeData),
-                                    _buildDetailRow('姓名', name, themeData),
-                                    _buildDetailRow('身份证号', idCard, themeData),
-                                    _buildDetailRow('联系电话', contact, themeData),
-                                    _buildDetailRow('驾驶证号', license, themeData),
-                                    _buildDetailRow('性别', gender, themeData),
-                                    _buildDetailRow(
-                                        '出生日期', birthdate, themeData),
-                                    _buildDetailRow(
-                                        '首次领证日期', firstLicenseDate, themeData),
-                                    _buildDetailRow('允许驾驶车辆类型',
-                                        allowedVehicleType, themeData),
-                                    _buildDetailRow(
-                                        '发证日期', issueDate, themeData),
-                                    _buildDetailRow(
-                                        '有效期截止日期', expiryDate, themeData),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            Center(
-                              child: ElevatedButton.icon(
-                                onPressed: () => _deleteDriver(driverId),
-                                icon: const Icon(CupertinoIcons.trash),
-                                label: const Text('删除'),
-                                style: themeData.elevatedButtonTheme.style
-                                    ?.copyWith(
-                                  backgroundColor: WidgetStatePropertyAll(
-                                      themeData.colorScheme.error),
-                                  foregroundColor: WidgetStatePropertyAll(
-                                      themeData.colorScheme.onError),
-                                ),
-                              ),
-                            ),
-                          ],
+                controller: ScrollController(),
+                thumbVisibility: true,
+                thickness: 6.0,
+                thicknessWhileDragging: 10.0,
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Card(
+                        elevation: 2,
+                        color: themeData.colorScheme.surfaceContainer,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12.0)),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildDetailRow(
+                                  '司机 ID', driverId, themeData),
+                              _buildDetailRow('姓名', name, themeData),
+                              _buildDetailRow('身份证号', idCard, themeData),
+                              _buildDetailRow('联系电话', contact, themeData),
+                              _buildDetailRow('驾驶证号', license, themeData),
+                              _buildDetailRow('性别', gender, themeData),
+                              _buildDetailRow(
+                                  '出生日期', birthdate, themeData),
+                              _buildDetailRow(
+                                  '首次领证日期', firstLicenseDate, themeData),
+                              _buildDetailRow('允许驾驶车辆类型',
+                                  allowedVehicleType, themeData),
+                              _buildDetailRow(
+                                  '发证日期', issueDate, themeData),
+                              _buildDetailRow(
+                                  '有效期截止日期', expiryDate, themeData),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
+                      const SizedBox(height: 20),
+                      Center(
+                        child: ElevatedButton.icon(
+                          onPressed: () => _deleteDriver(driverId),
+                          icon: const Icon(CupertinoIcons.trash),
+                          label: const Text('删除'),
+                          style: themeData.elevatedButtonTheme.style
+                              ?.copyWith(
+                            backgroundColor: WidgetStatePropertyAll(
+                                themeData.colorScheme.error),
+                            foregroundColor: WidgetStatePropertyAll(
+                                themeData.colorScheme.onError),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
         ),

@@ -417,6 +417,7 @@ class AddDeductionPage extends StatefulWidget {
 
 class _AddDeductionPageState extends State<AddDeductionPage> {
   final deductionApi = DeductionInformationControllerApi();
+  final _formKey = GlobalKey<FormState>(); // Added for form validation
   final TextEditingController _driverLicenseNumberController =
       TextEditingController();
   final TextEditingController _deductedPointsController =
@@ -439,12 +440,14 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
   }
 
   Future<void> _submitDeduction() async {
+    if (!_formKey.currentState!.validate()) return;
+
     setState(() => _isLoading = true);
     try {
       await deductionApi.initializeWithJwt();
-      DateTime parsedDate =
-          DateTime.tryParse(_dateController.text.trim()) ?? DateTime.now();
-      String formattedDateTime = "${_dateController.text.trim()}T00:00:00";
+      String formattedDateTime = _dateController.text.isEmpty
+          ? DateTime.now().toIso8601String()
+          : "${_dateController.text.trim()}T00:00:00";
 
       final deduction = DeductionInformation(
         driverLicenseNumber: _driverLicenseNumberController.text.trim(),
@@ -487,6 +490,24 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
     );
   }
 
+  Future<void> _pickDate() async {
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2101),
+      locale: const Locale('zh', 'CN'),
+      builder: (context, child) =>
+          Theme(data: controller.currentBodyTheme.value, child: child!),
+    );
+    if (pickedDate != null && mounted) {
+      setState(() {
+        _dateController.text =
+            "${pickedDate.year}-${pickedDate.month.toString().padLeft(2, '0')}-${pickedDate.day.toString().padLeft(2, '0')}";
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Obx(() {
@@ -494,10 +515,10 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
 
       return Theme(
         data: themeData,
-        child: CupertinoPageScaffold(
+        child: Scaffold(
           backgroundColor: themeData.colorScheme.surface,
-          navigationBar: CupertinoNavigationBar(
-            middle: Text(
+          appBar: AppBar(
+            title: Text(
               '添加扣分信息',
               style: themeData.textTheme.headlineSmall?.copyWith(
                 color: themeData.colorScheme.onPrimaryContainer,
@@ -505,33 +526,31 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
                 fontSize: 20,
               ),
             ),
-            leading: GestureDetector(
-              onTap: () => Get.back(),
-              child: Icon(
-                CupertinoIcons.back,
+            leading: IconButton(
+              icon: Icon(
+                Icons.arrow_back,
                 color: themeData.colorScheme.onPrimaryContainer,
               ),
+              onPressed: () => Get.back(),
             ),
             backgroundColor: themeData.colorScheme.primaryContainer,
-            border: Border(
-              bottom: BorderSide(
-                color: themeData.colorScheme.outline.withOpacity(0.2),
-                width: 1.0,
-              ),
-            ),
+            elevation: 1,
           ),
-          child: SafeArea(
+          body: SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: _isLoading
                   ? Center(
-                      child: CupertinoActivityIndicator(
+                      child: CircularProgressIndicator(
                         color: themeData.colorScheme.primary,
-                        radius: 16.0,
                       ),
                     )
-                  : SingleChildScrollView(
-                      child: _buildDeductionForm(themeData)),
+                  : Form(
+                      key: _formKey,
+                      child: SingleChildScrollView(
+                        child: _buildDeductionForm(themeData),
+                      ),
+                    ),
             ),
           ),
         ),
@@ -542,107 +561,45 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
   Widget _buildDeductionForm(ThemeData themeData) {
     return Column(
       children: [
-        TextField(
-          controller: _driverLicenseNumberController,
-          style: TextStyle(color: themeData.colorScheme.onSurface),
-          decoration: InputDecoration(
-            labelText: '驾驶证号',
-            prefixIcon:
-                Icon(Icons.drive_eta, color: themeData.colorScheme.primary),
-            border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8.0),
-                borderSide: BorderSide.none),
-            filled: true,
-            fillColor: themeData.colorScheme.surfaceContainerLow,
-            labelStyle:
-                TextStyle(color: themeData.colorScheme.onSurfaceVariant),
-          ),
+        _buildTextField(
+          themeData,
+          '驾驶证号',
+          Icons.drive_eta,
+          _driverLicenseNumberController,
+          required: true,
         ),
         const SizedBox(height: 16),
-        TextField(
-          controller: _deductedPointsController,
-          style: TextStyle(color: themeData.colorScheme.onSurface),
-          decoration: InputDecoration(
-            labelText: '扣分分数',
-            prefixIcon: Icon(Icons.score, color: themeData.colorScheme.primary),
-            border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8.0),
-                borderSide: BorderSide.none),
-            filled: true,
-            fillColor: themeData.colorScheme.surfaceContainerLow,
-            labelStyle:
-                TextStyle(color: themeData.colorScheme.onSurfaceVariant),
-          ),
+        _buildTextField(
+          themeData,
+          '扣分分数',
+          Icons.score,
+          _deductedPointsController,
           keyboardType: TextInputType.number,
+          required: true,
         ),
         const SizedBox(height: 16),
-        TextField(
-          controller: _handlerController,
-          style: TextStyle(color: themeData.colorScheme.onSurface),
-          decoration: InputDecoration(
-            labelText: '处理人',
-            prefixIcon:
-                Icon(Icons.person, color: themeData.colorScheme.primary),
-            border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8.0),
-                borderSide: BorderSide.none),
-            filled: true,
-            fillColor: themeData.colorScheme.surfaceContainerLow,
-            labelStyle:
-                TextStyle(color: themeData.colorScheme.onSurfaceVariant),
-          ),
+        _buildTextField(
+          themeData,
+          '处理人',
+          Icons.person,
+          _handlerController,
         ),
         const SizedBox(height: 16),
-        TextField(
-          controller: _remarksController,
-          style: TextStyle(color: themeData.colorScheme.onSurface),
-          decoration: InputDecoration(
-            labelText: '备注',
-            prefixIcon: Icon(Icons.notes, color: themeData.colorScheme.primary),
-            border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8.0),
-                borderSide: BorderSide.none),
-            filled: true,
-            fillColor: themeData.colorScheme.surfaceContainerLow,
-            labelStyle:
-                TextStyle(color: themeData.colorScheme.onSurfaceVariant),
-          ),
+        _buildTextField(
+          themeData,
+          '备注',
+          Icons.notes,
+          _remarksController,
         ),
         const SizedBox(height: 16),
-        TextField(
-          controller: _dateController,
-          style: TextStyle(color: themeData.colorScheme.onSurface),
-          decoration: InputDecoration(
-            labelText: '扣分时间',
-            prefixIcon:
-                Icon(Icons.date_range, color: themeData.colorScheme.primary),
-            border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8.0),
-                borderSide: BorderSide.none),
-            filled: true,
-            fillColor: themeData.colorScheme.surfaceContainerLow,
-            labelStyle:
-                TextStyle(color: themeData.colorScheme.onSurfaceVariant),
-          ),
+        _buildTextField(
+          themeData,
+          '扣分时间',
+          Icons.date_range,
+          _dateController,
           readOnly: true,
-          onTap: () async {
-            FocusScope.of(context).requestFocus(FocusNode());
-            final pickedDate = await showDatePicker(
-              context: context,
-              initialDate: DateTime.now(),
-              firstDate: DateTime(2000),
-              lastDate: DateTime(2101),
-              locale: const Locale('zh', 'CN'),
-              builder: (context, child) =>
-                  Theme(data: themeData, child: child!),
-            );
-            if (pickedDate != null && mounted) {
-              setState(() {
-                _dateController.text =
-                    "${pickedDate.year}-${pickedDate.month.toString().padLeft(2, '0')}-${pickedDate.day.toString().padLeft(2, '0')}";
-              });
-            }
-          },
+          onTap: _pickDate,
+          required: true,
         ),
         const SizedBox(height: 20),
         ElevatedButton(
@@ -652,6 +609,43 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
         ),
       ],
     );
+  }
+
+  Widget _buildTextField(
+    ThemeData themeData,
+    String label,
+    IconData icon,
+    TextEditingController controller, {
+    TextInputType? keyboardType,
+    bool readOnly = false,
+    VoidCallback? onTap,
+    bool required = false,
+  }) {
+    return TextFormField(
+      controller: controller,
+      style: TextStyle(color: themeData.colorScheme.onSurface),
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, color: themeData.colorScheme.primary),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8.0),
+          borderSide: BorderSide.none,
+        ),
+        filled: true,
+        fillColor: themeData.colorScheme.surfaceContainerLow,
+        labelStyle: TextStyle(color: themeData.colorScheme.onSurfaceVariant),
+      ),
+      keyboardType: keyboardType,
+      readOnly: readOnly,
+      onTap: onTap,
+      validator:
+          required ? (value) => value!.isEmpty ? '$label不能为空' : null : null,
+    );
+  }
+
+  String generateIdempotencyKey() {
+    // Replace with your actual implementation for generating an idempotency key
+    return DateTime.now().millisecondsSinceEpoch.toString();
   }
 }
 
