@@ -16,7 +16,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 
 class ProgressController extends GetxController {
   final ProgressControllerApi _progressApi = ProgressControllerApi();
@@ -89,20 +88,30 @@ class ProgressController extends GetxController {
 
   Future<void> checkUserRole(String jwtToken) async {
     try {
-      final response = await http.get(
-        Uri.parse('http://localhost:8081/api/users/me'),
-        headers: {'Authorization': 'Bearer $jwtToken'},
-      );
-      if (response.statusCode == 200) {
-        final userData = jsonDecode(utf8.decode(response.bodyBytes));
-        final roles = (userData['roles'] as List<dynamic>?)
-                ?.map((r) => r.toString())
-                .toList() ??
-            [];
-        isAdmin.value = roles.contains('ROLE_ADMIN');
-      }
+      final decoded = _decodeJwt(jwtToken);
+      final roles = decoded['roles'] is String
+          ? [decoded['roles'].toString()]
+          : (decoded['roles'] as List<dynamic>?)
+                  ?.map((r) => r.toString())
+                  .toList() ??
+              [];
+      debugPrint('Roles from JWT: $roles'); // 调试日志
+      isAdmin.value = roles.contains('ROLE_ADMIN') || roles.contains('ADMIN');
+      debugPrint('isAdmin set to: ${isAdmin.value}');
     } catch (e) {
+      debugPrint('Error decoding JWT: $e');
       isAdmin.value = false;
+    }
+  }
+
+  Map<String, dynamic> _decodeJwt(String token) {
+    try {
+      final parts = token.split('.');
+      if (parts.length != 3) throw Exception('Invalid JWT');
+      final payload = base64Url.decode(base64Url.normalize(parts[1]));
+      return jsonDecode(utf8.decode(payload)) as Map<String, dynamic>;
+    } catch (e) {
+      return {};
     }
   }
 

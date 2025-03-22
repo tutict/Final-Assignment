@@ -3,7 +3,11 @@ import 'package:final_assignment_front/features/dashboard/controllers/progress_c
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_dashboard_screen.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart' show GlobalCupertinoLocalizations, GlobalMaterialLocalizations, GlobalWidgetsLocalizations; // 添加此导入
+import 'package:flutter_localizations/flutter_localizations.dart'
+    show
+        GlobalCupertinoLocalizations,
+        GlobalMaterialLocalizations,
+        GlobalWidgetsLocalizations; // 添加此导入
 import 'package:get/get.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
@@ -24,7 +28,8 @@ void main() async {
   Get.put(DashboardController());
   Get.put(UserDashboardController());
   Get.put(ChatController());
-  Get.put(ProgressController());
+  final progressController = Get.put(ProgressController());
+  await progressController.initialize();
 
   runApp(const MainApp());
 }

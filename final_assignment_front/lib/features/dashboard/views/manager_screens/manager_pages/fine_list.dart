@@ -1,11 +1,13 @@
-import 'dart:convert';
+import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_dashboard_screen.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart'; // For debugPrint
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:jwt_decoder/jwt_decoder.dart'; // For JWT decoding
+import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/features/api/fine_information_controller_api.dart';
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 import 'package:final_assignment_front/features/model/fine_information.dart';
 import 'package:get/get.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 /// 唯一标识生成工具
 String generateIdempotencyKey() {
@@ -19,7 +21,7 @@ String formatDate(String? date) {
     final parsedDate = DateTime.parse(date);
     return "${parsedDate.year}-${parsedDate.month.toString().padLeft(2, '0')}-${parsedDate.day.toString().padLeft(2, '0')}";
   } catch (e) {
-    return date;
+    return date ?? '无';
   }
 }
 
@@ -40,21 +42,21 @@ class _FineListPageState extends State<FineList> {
   String _errorMessage = '';
   DateTimeRange? _dateRange;
   String _searchType = 'payee'; // 默认搜索类型为缴款人
+  late ScrollController _scrollController;
 
-  final UserDashboardController? controller =
-      Get.isRegistered<UserDashboardController>()
-          ? Get.find<UserDashboardController>()
-          : null;
+  final DashboardController controller = Get.find<DashboardController>();
 
   @override
   void initState() {
     super.initState();
+    _scrollController = ScrollController();
     _initialize();
   }
 
   @override
   void dispose() {
     _payeeController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -75,28 +77,46 @@ class _FineListPageState extends State<FineList> {
   Future<void> _checkUserRole() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken')!;
-      final response = await http.get(
-        Uri.parse('http://localhost:8081/api/auth/me'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $jwtToken',
-        },
-      );
-      if (response.statusCode == 200) {
-        final roleData = jsonDecode(response.body);
-        final roles = roleData['roles'] as List<dynamic>;
+      final jwtToken = prefs.getString('jwtToken');
+      if (jwtToken == null) {
         setState(() {
-          _isAdmin = roles.contains('ADMIN');
-          if (_isAdmin) {
-            _fetchFines();
-          } else {
-            _errorMessage = '权限不足：仅管理员可访问此页面';
-            _isLoading = false;
-          }
+          _isLoading = false;
+          _errorMessage = '未找到JWT token，请重新登录';
         });
+        return;
+      }
+
+      // Decode the JWT token
+      Map<String, dynamic> decodedToken = JwtDecoder.decode(jwtToken);
+      debugPrint('Decoded JWT: $decodedToken');
+
+      // Extract roles and handle String or List cases
+      final rolesData = decodedToken['roles'];
+      List<dynamic> roles;
+      if (rolesData is String) {
+        roles = [rolesData]; // Convert String to single-element List
       } else {
-        throw Exception('验证失败：${response.statusCode} - ${response.body}');
+        roles = rolesData as List<dynamic>? ?? []; // Handle List or null
+      }
+      debugPrint('Processed Roles: $roles');
+
+      setState(() {
+        _isAdmin = roles.contains('ADMIN');
+        if (_isAdmin) {
+          _fetchFines();
+        } else {
+          _errorMessage = '权限不足：仅管理员可访问此页面';
+          _isLoading = false;
+        }
+      });
+
+      // Check if token is expired
+      if (JwtDecoder.isExpired(jwtToken)) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'JWT token已过期，请重新登录';
+        });
+        return;
       }
     } catch (e) {
       setState(() {
@@ -114,7 +134,7 @@ class _FineListPageState extends State<FineList> {
       _errorMessage = '';
     });
     try {
-      final fines = await fineApi.apiFinesGet();
+      final fines = await fineApi.apiFinesGet() ?? [];
       setState(() {
         _fineList = fines;
         _isLoading = false;
@@ -141,7 +161,7 @@ class _FineListPageState extends State<FineList> {
     });
     try {
       if (_searchType == 'payee' && query.isNotEmpty) {
-        final fines = await fineApi.apiFinesPayeePayeeGet(payee: query);
+        final fines = await fineApi.apiFinesPayeePayeeGet(payee: query) ?? [];
         setState(() {
           _fineList = fines;
           _isLoading = false;
@@ -149,9 +169,10 @@ class _FineListPageState extends State<FineList> {
         });
       } else if (_searchType == 'timeRange' && _dateRange != null) {
         final fines = await fineApi.apiFinesTimeRangeGet(
-          startTime: _dateRange!.start.toIso8601String(),
-          endTime: _dateRange!.end.toIso8601String(),
-        );
+              startTime: _dateRange!.start.toIso8601String(),
+              endTime: _dateRange!.end.toIso8601String(),
+            ) ??
+            [];
         setState(() {
           _fineList = fines;
           _isLoading = false;
@@ -172,10 +193,7 @@ class _FineListPageState extends State<FineList> {
       firstDate: DateTime(1970),
       lastDate: DateTime(2100),
       builder: (context, child) => Theme(
-        data: Theme.of(context).copyWith(
-          colorScheme: Theme.of(context).colorScheme,
-          primaryColor: Theme.of(context).colorScheme.primary,
-        ),
+        data: controller.currentBodyTheme.value,
         child: child!,
       ),
     );
@@ -190,24 +208,21 @@ class _FineListPageState extends State<FineList> {
   }
 
   void _createFine() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const AddFinePage()),
-    ).then((value) {
+    Get.to(() => const AddFinePage())?.then((value) {
       if (value == true && mounted) _fetchFines();
     });
   }
 
   void _goToDetailPage(FineInformation fine) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => FineDetailPage(fine: fine)),
-    ).then((value) {
+    Get.to(() => FineDetailPage(fine: fine))?.then((value) {
       if (value == true && mounted) _fetchFines();
     });
   }
 
   Future<void> _deleteFine(int fineId) async {
+    final confirmed = await _showConfirmationDialog('确认删除', '您确定要删除此罚款信息吗？');
+    if (!confirmed) return;
+
     try {
       await fineApi.apiFinesFineIdDelete(fineId: fineId);
       _showSnackBar('删除罚款成功！');
@@ -219,264 +234,305 @@ class _FineListPageState extends State<FineList> {
 
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
+    final themeData = controller.currentBodyTheme.value;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message, style: const TextStyle(color: Colors.white)),
-        backgroundColor: isError ? Colors.red : Colors.green,
+        content: Text(
+          message,
+          style: TextStyle(
+            color: isError
+                ? themeData.colorScheme.onError
+                : themeData.colorScheme.onPrimary,
+          ),
+        ),
+        backgroundColor: isError
+            ? themeData.colorScheme.error
+            : themeData.colorScheme.primary,
       ),
     );
   }
 
-  Widget _buildSearchField(ThemeData themeData) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _payeeController,
-              style: TextStyle(color: themeData.colorScheme.onSurface),
-              decoration: InputDecoration(
-                hintText: _searchType == 'payee' ? '搜索缴款人' : '按时间范围搜索（已选择）',
-                hintStyle: TextStyle(
-                    color: themeData.colorScheme.onSurface.withOpacity(0.6)),
-                prefixIcon:
-                    Icon(Icons.search, color: themeData.colorScheme.primary),
-                suffixIcon:
-                    _payeeController.text.isNotEmpty || _dateRange != null
-                        ? IconButton(
-                            icon: Icon(Icons.clear,
-                                color: themeData.colorScheme.onSurfaceVariant),
-                            onPressed: () {
-                              _payeeController.clear();
-                              _dateRange = null;
-                              _searchType = 'payee';
-                              _fetchFines();
-                            },
-                          )
-                        : null,
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12.0)),
-                enabledBorder: OutlineInputBorder(
-                  borderSide: BorderSide(
-                      color: themeData.colorScheme.outline.withOpacity(0.3)),
-                  borderRadius: BorderRadius.circular(12.0),
+  Future<bool> _showConfirmationDialog(String title, String content) async {
+    if (!mounted) return false;
+    final themeData = controller.currentBodyTheme.value;
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => Theme(
+            data: themeData,
+            child: AlertDialog(
+              backgroundColor: themeData.colorScheme.surfaceContainer,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16.0)),
+              title: Text(title,
+                  style: themeData.textTheme.titleMedium
+                      ?.copyWith(color: themeData.colorScheme.onSurface)),
+              content: Text(content,
+                  style: themeData.textTheme.bodyMedium?.copyWith(
+                      color: themeData.colorScheme.onSurfaceVariant)),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: Text('取消',
+                      style: themeData.textTheme.labelMedium
+                          ?.copyWith(color: themeData.colorScheme.onSurface)),
                 ),
-                focusedBorder: OutlineInputBorder(
-                  borderSide: BorderSide(
-                      color: themeData.colorScheme.primary, width: 1.5),
-                  borderRadius: BorderRadius.circular(12.0),
+                TextButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: Text('确定',
+                      style: themeData.textTheme.labelMedium
+                          ?.copyWith(color: themeData.colorScheme.primary)),
                 ),
-                filled: true,
-                fillColor: themeData.colorScheme.surfaceContainerLowest,
-                contentPadding: const EdgeInsets.symmetric(
-                    vertical: 12.0, horizontal: 16.0),
-              ),
-              onSubmitted: (value) => _searchFines(value),
+              ],
             ),
           ),
-          const SizedBox(width: 8),
-          DropdownButton<String>(
-            value: _searchType,
-            onChanged: (String? newValue) {
-              setState(() {
-                _searchType = newValue!;
-                _payeeController.clear();
-                _dateRange = null;
-                _fetchFines();
-              });
-            },
-            items: <String>['payee', 'timeRange']
-                .map<DropdownMenuItem<String>>((String value) {
-              return DropdownMenuItem<String>(
-                value: value,
-                child: Text(
-                  value == 'payee' ? '按缴款人' : '按时间范围',
-                  style: TextStyle(color: themeData.colorScheme.onSurface),
-                ),
-              );
-            }).toList(),
-            dropdownColor: themeData.colorScheme.surfaceContainer,
-            icon: Icon(Icons.arrow_drop_down,
-                color: themeData.colorScheme.primary),
-          ),
-        ],
-      ),
-    );
+        ) ??
+        false;
   }
 
   @override
   Widget build(BuildContext context) {
-    final themeData = controller?.currentBodyTheme.value ?? ThemeData.light();
-    if (!_isLoading && _errorMessage.isNotEmpty) {
-      return Scaffold(
-        backgroundColor: themeData.colorScheme.surface,
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(_errorMessage,
-                  style: themeData.textTheme.titleMedium?.copyWith(
-                    color: themeData.colorScheme.error,
-                    fontWeight: FontWeight.w500,
-                  )),
-              if (_errorMessage.contains('登录'))
-                Padding(
-                  padding: const EdgeInsets.only(top: 16.0),
-                  child: ElevatedButton(
-                    onPressed: () =>
-                        Navigator.pushReplacementNamed(context, '/login'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: themeData.colorScheme.primary,
-                      foregroundColor: themeData.colorScheme.onPrimary,
+    return Obx(() {
+      final themeData = controller.currentBodyTheme.value;
+
+      if (!_isLoading && _errorMessage.isNotEmpty) {
+        return Theme(
+          data: themeData,
+          child: CupertinoPageScaffold(
+            backgroundColor: themeData.colorScheme.surface,
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    _errorMessage,
+                    style: themeData.textTheme.titleMedium?.copyWith(
+                      color: themeData.colorScheme.error,
+                      fontWeight: FontWeight.w500,
                     ),
-                    child: const Text('前往登录'),
+                    textAlign: TextAlign.center,
+                  ),
+                  if (_errorMessage.contains('登录'))
+                    Padding(
+                      padding: const EdgeInsets.only(top: 16.0),
+                      child: ElevatedButton(
+                        onPressed: () => Get.offAllNamed(AppPages.login),
+                        style: themeData.elevatedButtonTheme.style,
+                        child: const Text('前往登录'),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }
+
+      return Theme(
+        data: themeData,
+        child: CupertinoPageScaffold(
+          backgroundColor: themeData.colorScheme.surface,
+          navigationBar: CupertinoNavigationBar(
+            middle: Text(
+              '罚款信息列表',
+              style: themeData.textTheme.headlineSmall?.copyWith(
+                color: themeData.colorScheme.onPrimaryContainer,
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
+              ),
+            ),
+            leading: GestureDetector(
+              onTap: () => Get.back(),
+              child: Icon(
+                CupertinoIcons.back,
+                color: themeData.colorScheme.onPrimaryContainer,
+              ),
+            ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                GestureDetector(
+                  onTap: _selectDateRange,
+                  child: Icon(
+                    CupertinoIcons.calendar_today,
+                    color: themeData.colorScheme.onPrimaryContainer,
                   ),
                 ),
-            ],
+                const SizedBox(width: 16),
+                GestureDetector(
+                  onTap: _createFine,
+                  child: Icon(
+                    CupertinoIcons.add,
+                    color: themeData.colorScheme.onPrimaryContainer,
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: themeData.colorScheme.primaryContainer,
+            border: Border(
+              bottom: BorderSide(
+                color: themeData.colorScheme.outline.withOpacity(0.2),
+                width: 1.0,
+              ),
+            ),
+          ),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  _buildSearchBar(themeData),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: _isLoading
+                        ? Center(
+                            child: CupertinoActivityIndicator(
+                              color: themeData.colorScheme.primary,
+                              radius: 16.0,
+                            ),
+                          )
+                        : _fineList.isEmpty
+                            ? Center(
+                                child: Text(
+                                  '暂无罚款信息',
+                                  style:
+                                      themeData.textTheme.bodyLarge?.copyWith(
+                                    color:
+                                        themeData.colorScheme.onSurfaceVariant,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              )
+                            : CupertinoScrollbar(
+                                controller: _scrollController,
+                                thumbVisibility: true,
+                                thickness: 6.0,
+                                thicknessWhileDragging: 10.0,
+                                child: RefreshIndicator(
+                                  onRefresh: _fetchFines,
+                                  color: themeData.colorScheme.primary,
+                                  backgroundColor:
+                                      themeData.colorScheme.surfaceContainer,
+                                  child: ListView.builder(
+                                    controller: _scrollController,
+                                    itemCount: _fineList.length,
+                                    itemBuilder: (context, index) {
+                                      final fine = _fineList[index];
+                                      return _buildFineCard(fine, themeData);
+                                    },
+                                  ),
+                                ),
+                              ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       );
-    }
+    });
+  }
 
-    return Scaffold(
-      backgroundColor: themeData.colorScheme.surface,
-      appBar: AppBar(
-        title: Text('罚款信息列表',
-            style: themeData.textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: themeData.colorScheme.onPrimaryContainer,
-            )),
-        backgroundColor: themeData.colorScheme.primaryContainer,
-        foregroundColor: themeData.colorScheme.onPrimaryContainer,
-        elevation: 2,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.calendar_today),
-            onPressed: _selectDateRange,
-            tooltip: '按时间范围搜索',
-          ),
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: _createFine,
-            tooltip: '添加新罚款',
-          ),
-        ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: _fetchFines,
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: [
-              _buildSearchField(themeData),
-              const SizedBox(height: 12),
-              Expanded(
-                child: _isLoading
-                    ? Center(
-                        child: CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation(
-                                themeData.colorScheme.primary)))
-                    : _fineList.isEmpty
-                        ? Center(
-                            child: Text('暂无罚款信息',
-                                style:
-                                    themeData.textTheme.titleMedium?.copyWith(
-                                  color: themeData.colorScheme.onSurface,
-                                  fontWeight: FontWeight.w500,
-                                )))
-                        : ListView.builder(
-                            itemCount: _fineList.length,
-                            itemBuilder: (context, index) {
-                              final fine = _fineList[index];
-                              return Card(
-                                margin:
-                                    const EdgeInsets.symmetric(vertical: 8.0),
-                                elevation: 3,
-                                color: themeData.colorScheme.surfaceContainer,
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16.0)),
-                                child: ListTile(
-                                  contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 16.0, vertical: 12.0),
-                                  title: Text(
-                                    '罚款金额: ${fine.fineAmount ?? 0} 元',
-                                    style: themeData.textTheme.titleMedium
-                                        ?.copyWith(
-                                      color: themeData.colorScheme.onSurface,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  subtitle: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      const SizedBox(height: 4),
-                                      Text('缴款人: ${fine.payee ?? '未知'}',
-                                          style: themeData.textTheme.bodyMedium
-                                              ?.copyWith(
-                                            color: themeData
-                                                .colorScheme.onSurfaceVariant,
-                                          )),
-                                      Text('时间: ${formatDate(fine.fineTime)}',
-                                          style: themeData.textTheme.bodyMedium
-                                              ?.copyWith(
-                                            color: themeData
-                                                .colorScheme.onSurfaceVariant,
-                                          )),
-                                      Text('状态: ${fine.status ?? 'Pending'}',
-                                          style: themeData.textTheme.bodyMedium
-                                              ?.copyWith(
-                                            color: themeData
-                                                .colorScheme.onSurfaceVariant,
-                                          )),
-                                    ],
-                                  ),
-                                  trailing: PopupMenuButton<String>(
-                                    onSelected: (value) {
-                                      if (value == 'approve' &&
-                                          fine.status == 'Pending') {
-                                        _updateFineStatus(
-                                            fine.fineId!, 'Approved');
-                                      } else if (value == 'reject' &&
-                                          fine.status == 'Pending') {
-                                        _updateFineStatus(
-                                            fine.fineId!, 'Rejected');
-                                      } else if (value == 'delete') {
-                                        _deleteFine(fine.fineId!);
-                                      }
-                                    },
-                                    itemBuilder: (context) => [
-                                      if (fine.status == 'Pending')
-                                        const PopupMenuItem<String>(
-                                            value: 'approve',
-                                            child: Text('批准')),
-                                      if (fine.status == 'Pending')
-                                        const PopupMenuItem<String>(
-                                            value: 'reject', child: Text('拒绝')),
-                                      const PopupMenuItem<String>(
-                                          value: 'delete', child: Text('删除')),
-                                    ],
-                                    icon: Icon(Icons.more_vert,
-                                        color: themeData
-                                            .colorScheme.onSurfaceVariant),
-                                  ),
-                                  onTap: () => _goToDetailPage(fine),
-                                ),
-                              );
-                            },
-                          ),
+  Widget _buildSearchBar(ThemeData themeData) {
+    return Card(
+      elevation: 2,
+      color: themeData.colorScheme.surfaceContainer,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+      child: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _payeeController,
+                style: TextStyle(color: themeData.colorScheme.onSurface),
+                decoration: InputDecoration(
+                  labelText: _searchType == 'payee' ? '按缴款人搜索' : '按时间范围搜索（已选择）',
+                  labelStyle:
+                      TextStyle(color: themeData.colorScheme.onSurfaceVariant),
+                  prefixIcon:
+                      Icon(Icons.search, color: themeData.colorScheme.primary),
+                  suffixIcon: _payeeController.text.isNotEmpty ||
+                          _dateRange != null
+                      ? IconButton(
+                          icon: Icon(Icons.clear,
+                              color: themeData.colorScheme.onSurfaceVariant),
+                          onPressed: () {
+                            _payeeController.clear();
+                            _dateRange = null;
+                            _searchType = 'payee';
+                            _fetchFines();
+                          },
+                        )
+                      : null,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8.0),
+                    borderSide: BorderSide.none,
+                  ),
+                  filled: true,
+                  fillColor: themeData.colorScheme.surfaceContainerLow,
+                ),
+                onSubmitted: (value) => _searchFines(value),
               ),
-            ],
-          ),
+            ),
+            const SizedBox(width: 8),
+            DropdownButton<String>(
+              value: _searchType,
+              onChanged: (String? newValue) {
+                setState(() {
+                  _searchType = newValue!;
+                  _payeeController.clear();
+                  _dateRange = null;
+                  _fetchFines();
+                });
+              },
+              items: <String>['payee', 'timeRange']
+                  .map<DropdownMenuItem<String>>((String value) {
+                return DropdownMenuItem<String>(
+                  value: value,
+                  child: Text(
+                    value == 'payee' ? '按缴款人' : '按时间范围',
+                    style: TextStyle(color: themeData.colorScheme.onSurface),
+                  ),
+                );
+              }).toList(),
+              dropdownColor: themeData.colorScheme.surfaceContainer,
+              icon: Icon(Icons.arrow_drop_down,
+                  color: themeData.colorScheme.primary),
+            ),
+          ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _createFine,
-        backgroundColor: themeData.colorScheme.primary,
-        foregroundColor: themeData.colorScheme.onPrimary,
-        tooltip: '添加新罚款',
-        child: const Icon(Icons.add),
+    );
+  }
+
+  Widget _buildFineCard(FineInformation fine, ThemeData themeData) {
+    return Card(
+      elevation: 3,
+      color: themeData.colorScheme.surfaceContainer,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+      margin: const EdgeInsets.symmetric(vertical: 6.0),
+      child: ListTile(
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+        title: Text(
+          '罚款金额: ${fine.fineAmount ?? 0} 元',
+          style: themeData.textTheme.bodyLarge?.copyWith(
+            color: themeData.colorScheme.onSurface,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        subtitle: Text(
+          '缴款人: ${fine.payee ?? "未知"}\n时间: ${formatDate(fine.fineTime)}\n状态: ${fine.status ?? "Pending"}',
+          style: themeData.textTheme.bodyMedium?.copyWith(
+            color: themeData.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        trailing: Icon(
+          CupertinoIcons.forward,
+          color: themeData.colorScheme.primary,
+          size: 16,
+        ),
+        onTap: () => _goToDetailPage(fine),
       ),
     );
   }
@@ -522,10 +578,7 @@ class _AddFinePageState extends State<AddFinePage> {
   final _dateController = TextEditingController();
   bool _isLoading = false;
 
-  final UserDashboardController? controller =
-      Get.isRegistered<UserDashboardController>()
-          ? Get.find<UserDashboardController>()
-          : null;
+  final DashboardController controller = Get.find<DashboardController>();
 
   @override
   void initState() {
@@ -562,7 +615,8 @@ class _AddFinePageState extends State<AddFinePage> {
         receiptNumber: _receiptNumberController.text.trim(),
         remarks: _remarksController.text.trim(),
         fineTime: _dateController.text.isNotEmpty
-            ? DateTime.parse(_dateController.text.trim()).toIso8601String()
+            ? DateTime.parse("${_dateController.text.trim()}T00:00:00")
+                .toIso8601String()
             : null,
         status: 'Pending',
         idempotencyKey: idempotencyKey,
@@ -574,7 +628,7 @@ class _AddFinePageState extends State<AddFinePage> {
       );
 
       _showSnackBar('创建罚款成功！');
-      if (mounted) Navigator.pop(context, true);
+      if (mounted) Get.back(result: true);
     } catch (e) {
       _showSnackBar('创建罚款失败: $e', isError: true);
     } finally {
@@ -584,10 +638,20 @@ class _AddFinePageState extends State<AddFinePage> {
 
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
+    final themeData = controller.currentBodyTheme.value;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message, style: const TextStyle(color: Colors.white)),
-        backgroundColor: isError ? Colors.red : Colors.green,
+        content: Text(
+          message,
+          style: TextStyle(
+            color: isError
+                ? themeData.colorScheme.onError
+                : themeData.colorScheme.onPrimary,
+          ),
+        ),
+        backgroundColor: isError
+            ? themeData.colorScheme.error
+            : themeData.colorScheme.primary,
       ),
     );
   }
@@ -598,139 +662,140 @@ class _AddFinePageState extends State<AddFinePage> {
       initialDate: DateTime.now(),
       firstDate: DateTime(2000),
       lastDate: DateTime(2101),
+      builder: (context, child) =>
+          Theme(data: controller.currentBodyTheme.value, child: child!),
     );
     if (pickedDate != null && mounted) {
       setState(() {
-        _dateController.text = formatDate(pickedDate.toIso8601String());
+        _dateController.text =
+            "${pickedDate.year}-${pickedDate.month.toString().padLeft(2, '0')}-${pickedDate.day.toString().padLeft(2, '0')}";
       });
     }
   }
 
-  Widget _buildTextField(
-      String label, TextEditingController controller, ThemeData themeData,
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final themeData = controller.currentBodyTheme.value;
+
+      return Theme(
+        data: themeData,
+        child: CupertinoPageScaffold(
+          backgroundColor: themeData.colorScheme.surface,
+          navigationBar: CupertinoNavigationBar(
+            middle: Text(
+              '添加新罚款',
+              style: themeData.textTheme.headlineSmall?.copyWith(
+                color: themeData.colorScheme.onPrimaryContainer,
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
+              ),
+            ),
+            leading: GestureDetector(
+              onTap: () => Get.back(),
+              child: Icon(
+                CupertinoIcons.back,
+                color: themeData.colorScheme.onPrimaryContainer,
+              ),
+            ),
+            backgroundColor: themeData.colorScheme.primaryContainer,
+            border: Border(
+              bottom: BorderSide(
+                color: themeData.colorScheme.outline.withOpacity(0.2),
+                width: 1.0,
+              ),
+            ),
+          ),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: _isLoading
+                  ? Center(
+                      child: CupertinoActivityIndicator(
+                        color: themeData.colorScheme.primary,
+                        radius: 16.0,
+                      ),
+                    )
+                  : Form(
+                      key: _formKey,
+                      child: SingleChildScrollView(
+                        child: _buildFineForm(themeData),
+                      ),
+                    ),
+            ),
+          ),
+        ),
+      );
+    });
+  }
+
+  Widget _buildFineForm(ThemeData themeData) {
+    return Column(
+      children: [
+        _buildTextField(
+            themeData, '车牌号', Icons.directions_car, _plateNumberController),
+        const SizedBox(height: 12),
+        _buildTextField(
+            themeData, '罚款金额 (元)', Icons.money, _fineAmountController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            required: true),
+        const SizedBox(height: 12),
+        _buildTextField(themeData, '缴款人', Icons.person, _payeeController,
+            required: true),
+        const SizedBox(height: 12),
+        _buildTextField(
+            themeData, '银行账号', Icons.account_balance, _accountNumberController),
+        const SizedBox(height: 12),
+        _buildTextField(
+            themeData, '银行名称', Icons.account_balance_wallet, _bankController),
+        const SizedBox(height: 12),
+        _buildTextField(
+            themeData, '收据编号', Icons.receipt, _receiptNumberController),
+        const SizedBox(height: 12),
+        _buildTextField(themeData, '备注', Icons.notes, _remarksController),
+        const SizedBox(height: 12),
+        _buildTextField(
+            themeData, '罚款日期', Icons.calendar_today, _dateController,
+            readOnly: true, onTap: _pickDate),
+        const SizedBox(height: 20),
+        ElevatedButton(
+          onPressed: _submitFine,
+          style: themeData.elevatedButtonTheme.style,
+          child: const Text('提交'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTextField(ThemeData themeData, String label, IconData icon,
+      TextEditingController controller,
       {TextInputType? keyboardType,
       bool readOnly = false,
       VoidCallback? onTap,
       bool required = false}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6.0),
-      child: TextFormField(
-        controller: controller,
-        style: TextStyle(color: themeData.colorScheme.onSurface),
-        decoration: InputDecoration(
-          labelText: label,
-          labelStyle: TextStyle(color: themeData.colorScheme.onSurfaceVariant),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
-          enabledBorder: OutlineInputBorder(
-              borderSide: BorderSide(
-                  color: themeData.colorScheme.outline.withOpacity(0.3))),
-          focusedBorder: OutlineInputBorder(
-              borderSide:
-                  BorderSide(color: themeData.colorScheme.primary, width: 1.5)),
-          filled: true,
-          fillColor: themeData.colorScheme.surfaceContainerLowest,
-          suffixIcon: readOnly
-              ? Icon(Icons.calendar_today,
-                  size: 18, color: themeData.colorScheme.primary)
-              : null,
-        ),
-        keyboardType: keyboardType,
-        readOnly: readOnly,
-        onTap: onTap,
-        validator:
-            required ? (value) => value!.isEmpty ? '$label不能为空' : null : null,
+    return TextFormField(
+      controller: controller,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, color: themeData.colorScheme.primary),
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8.0),
+            borderSide: BorderSide.none),
+        filled: true,
+        fillColor: themeData.colorScheme.surfaceContainerLow,
+        labelStyle: TextStyle(color: themeData.colorScheme.onSurfaceVariant),
       ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final themeData = controller?.currentBodyTheme.value ?? ThemeData.light();
-    return Scaffold(
-      backgroundColor: themeData.colorScheme.surface,
-      appBar: AppBar(
-        title: Text(
-          '添加新罚款',
-          style: themeData.textTheme.headlineMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: themeData.colorScheme.onPrimaryContainer,
-          ),
-        ),
-        backgroundColor: themeData.colorScheme.primaryContainer,
-        foregroundColor: themeData.colorScheme.onPrimaryContainer,
-        elevation: 2,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : Form(
-                key: _formKey,
-                child: SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      Card(
-                        elevation: 3,
-                        color: themeData.colorScheme.surfaceContainer,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16.0)),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            children: [
-                              _buildTextField(
-                                  '车牌号', _plateNumberController, themeData),
-                              _buildTextField(
-                                  '罚款金额 (元)', _fineAmountController, themeData,
-                                  keyboardType:
-                                      const TextInputType.numberWithOptions(
-                                          decimal: true),
-                                  required: true),
-                              _buildTextField(
-                                  '缴款人', _payeeController, themeData,
-                                  required: true),
-                              _buildTextField(
-                                  '银行账号', _accountNumberController, themeData),
-                              _buildTextField(
-                                  '银行名称', _bankController, themeData),
-                              _buildTextField(
-                                  '收据编号', _receiptNumberController, themeData),
-                              _buildTextField(
-                                  '备注', _remarksController, themeData),
-                              _buildTextField(
-                                  '罚款日期', _dateController, themeData,
-                                  readOnly: true, onTap: _pickDate),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      ElevatedButton(
-                        onPressed: _submitFine,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: themeData.colorScheme.primary,
-                          foregroundColor: themeData.colorScheme.onPrimary,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12.0)),
-                          padding: const EdgeInsets.symmetric(
-                              vertical: 14.0, horizontal: 20.0),
-                          textStyle: themeData.textTheme.labelLarge
-                              ?.copyWith(fontWeight: FontWeight.bold),
-                        ),
-                        child: const Text('提交'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-      ),
+      style: TextStyle(color: themeData.colorScheme.onSurface),
+      keyboardType: keyboardType,
+      readOnly: readOnly,
+      onTap: onTap,
+      validator:
+          required ? (value) => value!.isEmpty ? '$label不能为空' : null : null,
     );
   }
 }
 
 /// 罚款详情页面
-// ... (previous imports and code remain unchanged)
-
 class FineDetailPage extends StatefulWidget {
   final FineInformation fine;
 
@@ -747,10 +812,7 @@ class _FineDetailPageState extends State<FineDetailPage> {
   String _errorMessage = '';
   final TextEditingController _remarksController = TextEditingController();
 
-  final UserDashboardController? controller =
-      Get.isRegistered<UserDashboardController>()
-          ? Get.find<UserDashboardController>()
-          : null;
+  final DashboardController controller = Get.find<DashboardController>();
 
   @override
   void initState() {
@@ -775,22 +837,33 @@ class _FineDetailPageState extends State<FineDetailPage> {
         });
         return;
       }
-      final response = await http.get(
-        Uri.parse('http://localhost:8081/api/auth/me'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $jwtToken',
-        },
-      );
-      if (response.statusCode == 200) {
-        final roleData = jsonDecode(response.body);
-        final roles = roleData['roles'] as List<dynamic>;
+
+      // Decode the JWT token
+      Map<String, dynamic> decodedToken = JwtDecoder.decode(jwtToken);
+      debugPrint('Decoded JWT: $decodedToken');
+
+      // Extract roles and handle String or List cases
+      final rolesData = decodedToken['roles'];
+      List<dynamic> roles;
+      if (rolesData is String) {
+        roles = [rolesData]; // Convert String to single-element List
+      } else {
+        roles = rolesData as List<dynamic>? ?? []; // Handle List or null
+      }
+      debugPrint('Processed Roles: $roles');
+
+      setState(() {
+        _isAdmin = roles.contains('ADMIN');
+        _isLoading = false;
+      });
+
+      // Check if token is expired
+      if (JwtDecoder.isExpired(jwtToken)) {
         setState(() {
-          _isAdmin = roles.contains('ADMIN');
+          _errorMessage = 'JWT token已过期，请重新登录';
           _isLoading = false;
         });
-      } else {
-        throw Exception('验证失败：${response.statusCode} - ${response.body}');
+        return;
       }
     } catch (e) {
       setState(() {
@@ -815,7 +888,7 @@ class _FineDetailPageState extends State<FineDetailPage> {
         idempotencyKey: idempotencyKey,
       );
       _showSnackBar('罚款记录已${status == 'Approved' ? '批准' : '拒绝'}');
-      if (mounted) Navigator.pop(context, true);
+      if (mounted) Get.back(result: true);
     } catch (e) {
       _showSnackBar('更新状态失败: $e', isError: true);
     } finally {
@@ -824,11 +897,14 @@ class _FineDetailPageState extends State<FineDetailPage> {
   }
 
   Future<void> _deleteFine(int fineId) async {
+    final confirmed = await _showConfirmationDialog('确认删除', '您确定要删除此罚款信息吗？');
+    if (!confirmed) return;
+
     setState(() => _isLoading = true);
     try {
       await fineApi.apiFinesFineIdDelete(fineId: fineId);
       _showSnackBar('罚款删除成功！');
-      if (mounted) Navigator.pop(context, true);
+      if (mounted) Get.back(result: true);
     } catch (e) {
       _showSnackBar('删除失败: $e', isError: true);
     } finally {
@@ -838,10 +914,251 @@ class _FineDetailPageState extends State<FineDetailPage> {
 
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
+    final themeData = controller.currentBodyTheme.value;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message, style: const TextStyle(color: Colors.white)),
-        backgroundColor: isError ? Colors.red : Colors.green,
+        content: Text(
+          message,
+          style: TextStyle(
+            color: isError
+                ? themeData.colorScheme.onError
+                : themeData.colorScheme.onPrimary,
+          ),
+        ),
+        backgroundColor: isError
+            ? themeData.colorScheme.error
+            : themeData.colorScheme.primary,
+      ),
+    );
+  }
+
+  Future<bool> _showConfirmationDialog(String title, String content) async {
+    if (!mounted) return false;
+    final themeData = controller.currentBodyTheme.value;
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => Theme(
+            data: themeData,
+            child: AlertDialog(
+              backgroundColor: themeData.colorScheme.surfaceContainer,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16.0)),
+              title: Text(title,
+                  style: themeData.textTheme.titleMedium
+                      ?.copyWith(color: themeData.colorScheme.onSurface)),
+              content: Text(content,
+                  style: themeData.textTheme.bodyMedium?.copyWith(
+                      color: themeData.colorScheme.onSurfaceVariant)),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: Text('取消',
+                      style: themeData.textTheme.labelMedium
+                          ?.copyWith(color: themeData.colorScheme.onSurface)),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: Text('确定',
+                      style: themeData.textTheme.labelMedium
+                          ?.copyWith(color: themeData.colorScheme.primary)),
+                ),
+              ],
+            ),
+          ),
+        ) ??
+        false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final themeData = controller.currentBodyTheme.value;
+
+      if (_errorMessage.isNotEmpty) {
+        return Theme(
+          data: themeData,
+          child: CupertinoPageScaffold(
+            backgroundColor: themeData.colorScheme.surface,
+            child: Center(
+              child: Text(
+                _errorMessage,
+                style: themeData.textTheme.titleMedium?.copyWith(
+                  color: themeData.colorScheme.error,
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+        );
+      }
+
+      return Theme(
+        data: themeData,
+        child: CupertinoPageScaffold(
+          backgroundColor: themeData.colorScheme.surface,
+          navigationBar: CupertinoNavigationBar(
+            middle: Text(
+              '罚款详细信息',
+              style: themeData.textTheme.headlineSmall?.copyWith(
+                color: themeData.colorScheme.onPrimaryContainer,
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
+              ),
+            ),
+            leading: GestureDetector(
+              onTap: () => Get.back(),
+              child: Icon(
+                CupertinoIcons.back,
+                color: themeData.colorScheme.onPrimaryContainer,
+              ),
+            ),
+            trailing: _isAdmin
+                ? GestureDetector(
+                    onTap: () => _showActions(widget.fine),
+                    child: Icon(
+                      CupertinoIcons.ellipsis_vertical,
+                      color: themeData.colorScheme.onPrimaryContainer,
+                    ),
+                  )
+                : null,
+            backgroundColor: themeData.colorScheme.primaryContainer,
+            border: Border(
+              bottom: BorderSide(
+                color: themeData.colorScheme.outline.withOpacity(0.2),
+                width: 1.0,
+              ),
+            ),
+          ),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: _isLoading
+                  ? Center(
+                      child: CupertinoActivityIndicator(
+                        color: themeData.colorScheme.primary,
+                        radius: 16.0,
+                      ),
+                    )
+                  : CupertinoScrollbar(
+                      controller: ScrollController(),
+                      thumbVisibility: true,
+                      thickness: 6.0,
+                      thicknessWhileDragging: 10.0,
+                      child: SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Card(
+                              elevation: 2,
+                              color: themeData.colorScheme.surfaceContainer,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12.0)),
+                              child: Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _buildDetailRow(
+                                        '罚款金额',
+                                        '${widget.fine.fineAmount ?? 0} 元',
+                                        themeData),
+                                    _buildDetailRow('缴款人',
+                                        widget.fine.payee ?? '未知', themeData),
+                                    _buildDetailRow(
+                                        '罚款时间',
+                                        formatDate(widget.fine.fineTime),
+                                        themeData),
+                                    _buildDetailRow('车牌号', '未知', themeData),
+                                    // Placeholder, see note
+                                    _buildDetailRow(
+                                        '银行账号',
+                                        widget.fine.accountNumber ?? '未知',
+                                        themeData),
+                                    _buildDetailRow('银行名称',
+                                        widget.fine.bank ?? '未知', themeData),
+                                    _buildDetailRow(
+                                        '收据编号',
+                                        widget.fine.receiptNumber ?? '未知',
+                                        themeData),
+                                    _buildDetailRow(
+                                        '状态',
+                                        widget.fine.status ?? 'Pending',
+                                        themeData),
+                                    const SizedBox(height: 12),
+                                    TextField(
+                                      controller: _remarksController,
+                                      decoration: InputDecoration(
+                                        labelText: '备注',
+                                        prefixIcon: Icon(Icons.notes,
+                                            color:
+                                                themeData.colorScheme.primary),
+                                        border: OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(8.0),
+                                          borderSide: BorderSide.none,
+                                        ),
+                                        filled: true,
+                                        fillColor: themeData
+                                            .colorScheme.surfaceContainerLow,
+                                        labelStyle: TextStyle(
+                                            color: themeData
+                                                .colorScheme.onSurfaceVariant),
+                                      ),
+                                      style: TextStyle(
+                                          color:
+                                              themeData.colorScheme.onSurface),
+                                      maxLines: 3,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+            ),
+          ),
+        ),
+      );
+    });
+  }
+
+  void _showActions(FineInformation fine) {
+    showCupertinoModalPopup(
+      context: context,
+      builder: (context) => CupertinoActionSheet(
+        actions: [
+          if (fine.status == 'Pending')
+            CupertinoActionSheetAction(
+              onPressed: () {
+                Navigator.pop(context);
+                _updateFineStatus(fine.fineId ?? 0, 'Approved');
+              },
+              child: const Text('批准'),
+            ),
+          if (fine.status == 'Pending')
+            CupertinoActionSheetAction(
+              onPressed: () {
+                Navigator.pop(context);
+                _updateFineStatus(fine.fineId ?? 0, 'Rejected');
+              },
+              child: const Text('拒绝'),
+            ),
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(context);
+              _deleteFine(fine.fineId ?? 0);
+            },
+            isDestructiveAction: true,
+            child: const Text('删除'),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('取消'),
+        ),
       ),
     );
   }
@@ -854,150 +1171,21 @@ class _FineDetailPageState extends State<FineDetailPage> {
         children: [
           Text(
             '$label: ',
-            style: themeData.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
+            style: themeData.textTheme.bodyLarge?.copyWith(
+              fontWeight: FontWeight.bold,
               color: themeData.colorScheme.onSurface,
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: themeData.textTheme.bodyLarge?.copyWith(
+              style: themeData.textTheme.bodyMedium?.copyWith(
                 color: themeData.colorScheme.onSurfaceVariant,
               ),
             ),
           ),
         ],
       ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final themeData = controller?.currentBodyTheme.value ?? ThemeData.light();
-    if (_errorMessage.isNotEmpty) {
-      return Scaffold(
-        backgroundColor: themeData.colorScheme.surface,
-        body: Center(
-          child: Text(
-            _errorMessage,
-            style: themeData.textTheme.titleMedium?.copyWith(
-              color: themeData.colorScheme.error,
-              fontWeight: FontWeight.w500,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ),
-      );
-    }
-
-    return Scaffold(
-      backgroundColor: themeData.colorScheme.surface,
-      appBar: AppBar(
-        title: Text(
-          '罚款详细信息',
-          style: themeData.textTheme.headlineMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: themeData.colorScheme.onPrimaryContainer,
-          ),
-        ),
-        backgroundColor: themeData.colorScheme.primaryContainer,
-        foregroundColor: themeData.colorScheme.onPrimaryContainer,
-        elevation: 2,
-        actions: _isAdmin
-            ? [
-                PopupMenuButton<String>(
-                  onSelected: (value) {
-                    if (value == 'approve' && widget.fine.status == 'Pending') {
-                      _updateFineStatus(widget.fine.fineId ?? 0, 'Approved');
-                    } else if (value == 'reject' &&
-                        widget.fine.status == 'Pending') {
-                      _updateFineStatus(widget.fine.fineId ?? 0, 'Rejected');
-                    } else if (value == 'delete') {
-                      _deleteFine(widget.fine.fineId ?? 0);
-                    }
-                  },
-                  itemBuilder: (context) => [
-                    if (widget.fine.status == 'Pending')
-                      const PopupMenuItem<String>(
-                          value: 'approve', child: Text('批准')),
-                    if (widget.fine.status == 'Pending')
-                      const PopupMenuItem<String>(
-                          value: 'reject', child: Text('拒绝')),
-                    const PopupMenuItem<String>(
-                        value: 'delete', child: Text('删除')),
-                  ],
-                  icon: Icon(Icons.more_vert,
-                      color: themeData.colorScheme.onSurfaceVariant),
-                ),
-              ]
-            : null,
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Card(
-                  elevation: 3,
-                  color: themeData.colorScheme.surfaceContainer,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16.0)),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildDetailRow('罚款金额',
-                            '${widget.fine.fineAmount ?? 0} 元', themeData),
-                        _buildDetailRow(
-                            '缴款人', widget.fine.payee ?? '未知', themeData),
-                        _buildDetailRow('罚款时间',
-                            formatDate(widget.fine.fineTime), themeData),
-                        // 修正车牌号字段：当前 FineInformation 无 plateNumber，使用占位符
-                        _buildDetailRow('车牌号', '未知', themeData), // 临时修正，见下方说明
-                        _buildDetailRow('银行账号',
-                            widget.fine.accountNumber ?? '未知', themeData),
-                        _buildDetailRow(
-                            '银行名称', widget.fine.bank ?? '未知', themeData),
-                        _buildDetailRow('收据编号',
-                            widget.fine.receiptNumber ?? '未知', themeData),
-                        _buildDetailRow(
-                            '状态', widget.fine.status ?? 'Pending', themeData),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 6.0),
-                          child: TextFormField(
-                            controller: _remarksController,
-                            style: TextStyle(
-                                color: themeData.colorScheme.onSurface),
-                            decoration: InputDecoration(
-                              labelText: '备注',
-                              labelStyle: TextStyle(
-                                  color:
-                                      themeData.colorScheme.onSurfaceVariant),
-                              border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12.0)),
-                              enabledBorder: OutlineInputBorder(
-                                  borderSide: BorderSide(
-                                      color: themeData.colorScheme.outline
-                                          .withOpacity(0.3))),
-                              focusedBorder: OutlineInputBorder(
-                                  borderSide: BorderSide(
-                                      color: themeData.colorScheme.primary,
-                                      width: 1.5)),
-                              filled: true,
-                              fillColor:
-                                  themeData.colorScheme.surfaceContainerLowest,
-                            ),
-                            maxLines: 3,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
     );
   }
 }
