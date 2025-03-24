@@ -9,6 +9,7 @@ import org.springframework.data.elasticsearch.annotations.FieldType;
 import org.springframework.data.elasticsearch.annotations.MultiField;
 import org.springframework.data.elasticsearch.annotations.InnerField;
 import org.springframework.data.elasticsearch.annotations.Setting;
+import org.springframework.data.elasticsearch.annotations.CompletionField;
 
 import java.time.LocalDate;
 
@@ -25,18 +26,22 @@ public class VehicleInformationDocument {
             mainField = @Field(type = FieldType.Text, analyzer = "ik_smart", searchAnalyzer = "ik_smart"),
             otherFields = {
                     @InnerField(suffix = "keyword", type = FieldType.Keyword),
-                    @InnerField(suffix = "icu", type = FieldType.Text, analyzer = "icu_analyzer", searchAnalyzer = "icu_analyzer")
+                    @InnerField(suffix = "icu", type = FieldType.Text, analyzer = "icu_analyzer", searchAnalyzer = "icu_analyzer"),
+                    @InnerField(suffix = "ngram", type = FieldType.Text, analyzer = "license_plate_analyzer", searchAnalyzer = "keyword")
             }
     )
+    @CompletionField(analyzer = "ik_smart", searchAnalyzer = "ik_smart")
     private String licensePlate;
 
     @MultiField(
             mainField = @Field(type = FieldType.Text, analyzer = "ik_smart", searchAnalyzer = "ik_smart"),
             otherFields = {
                     @InnerField(suffix = "keyword", type = FieldType.Keyword),
-                    @InnerField(suffix = "icu", type = FieldType.Text, analyzer = "icu_analyzer", searchAnalyzer = "icu_analyzer")
+                    @InnerField(suffix = "icu", type = FieldType.Text, analyzer = "icu_analyzer", searchAnalyzer = "icu_analyzer"),
+                    @InnerField(suffix = "ngram", type = FieldType.Text, analyzer = "license_plate_analyzer", searchAnalyzer = "keyword")
             }
     )
+    @CompletionField(analyzer = "ik_smart", searchAnalyzer = "ik_smart")
     private String vehicleType;
 
     @MultiField(
@@ -105,7 +110,7 @@ public class VehicleInformationDocument {
     )
     private String currentStatus;
 
-    // 从 VehicleInformation 实体转换为文档
+    // From VehicleInformation entity to document
     public static VehicleInformationDocument fromEntity(VehicleInformation entity) {
         VehicleInformationDocument doc = new VehicleInformationDocument();
         doc.setVehicleId(entity.getVehicleId());
@@ -122,7 +127,7 @@ public class VehicleInformationDocument {
         return doc;
     }
 
-    // 从文档转换回 VehicleInformation 实体
+    // From document to VehicleInformation entity
     public VehicleInformation toEntity() {
         VehicleInformation entity = new VehicleInformation();
         entity.setVehicleId(this.vehicleId);
