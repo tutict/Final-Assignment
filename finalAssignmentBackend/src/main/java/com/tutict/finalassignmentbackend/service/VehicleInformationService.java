@@ -1,9 +1,5 @@
 package com.tutict.finalassignmentbackend.service;
 
-import co.elastic.clients.elasticsearch._types.query_dsl.Query;
-import co.elastic.clients.elasticsearch.core.search.Suggester;
-import org.springframework.data.elasticsearch.client.elc.NativeQuery;
-import org.springframework.data.elasticsearch.client.elc.NativeQueryBuilder;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.RequestHistory;
@@ -20,6 +16,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
 import org.springframework.data.elasticsearch.core.SearchHit;
 import org.springframework.data.elasticsearch.core.SearchHits;
+import org.springframework.data.elasticsearch.core.query.Query;
 import org.springframework.data.elasticsearch.core.query.StringQuery;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
@@ -251,185 +248,78 @@ public class VehicleInformationService {
     public List<String> getLicensePlateAutocompleteSuggestions(String currentUsername, String prefix, int maxSuggestions) {
         Set<String> suggestions = new HashSet<>();
 
-        // Step 1: 使用 NativeSearchQueryBuilder 构建 Completion 建议查询
-        Query filterQuery = new Query.Builder()
-                .term(t -> t
-                        .field("ownerName.keyword")
-                        .value(currentUsername))
-                .build();
-
-        Suggester suggester = Suggester.of(s -> s
-                .suggesters("licensePlate-suggest", fs -> fs
-                        .completion(c -> c
-                                .field("licensePlate.completion")
-                                .analyzer(prefix) // analyzer 需为 String
-                                .size(maxSuggestions) // maxSuggestions 需为 int
-                                .skipDuplicates(true)
-                                .fuzzy(f -> f.fuzziness("1"))
-                        )
-                )
-        );
-        NativeQueryBuilder queryBuilder = new NativeQueryBuilder()
-                .withQuery(filterQuery)
-                .withSuggester(suggester);
-
-        NativeQuery nativeQuery = queryBuilder.build();
-        log.log(Level.FINE, "Executing completion query for user: {0}, prefix: {1}, maxSuggestions: {2}",
-                new Object[]{currentUsername, prefix, maxSuggestions});
-        log.log(Level.FINE, "Native completion query: {0}", Objects.requireNonNull(nativeQuery.getQuery()).toString());
-
-        SearchHits<VehicleInformationDocument> suggestHits;
+        // Step 1: 使用仓库层获取补全建议
+        log.log(Level.INFO, "Executing completion query for user: {0}, prefix: {1}, maxSuggestions: {2}", new Object[]{currentUsername, prefix, maxSuggestions});
+        SearchHits<VehicleInformationDocument> suggestHits = null;
         try {
-            suggestHits = elasticsearchOperations.search(nativeQuery, VehicleInformationDocument.class);
+            suggestHits = vehicleInformationSearchRepository.findCompletionSuggestions(currentUsername, prefix, maxSuggestions);
         } catch (Exception e) {
-            log.log(Level.SEVERE, "Error executing completion query: {0}", e.getMessage());
-            throw e; // 抛出异常由控制器处理
+            log.log(Level.WARNING, "Error executing completion query: {0} {1}", new Object[]{e.getMessage(), e});
         }
 
-        // 处理 Completion 建议结果
-        if (suggestHits.getSuggest() != null) {
+        // 处理补全建议结果
+        if (suggestHits != null && suggestHits.getSuggest() != null) {
             suggestHits.getSuggest().getSuggestion("licensePlate-suggest")
                     .getEntries()
                     .forEach(entry -> entry.getOptions()
                             .forEach(option -> suggestions.add(option.getText())));
-            log.log(Level.FINE, "Found {0} completion suggestions: {1}",
-                    new Object[]{suggestions.size(), suggestions});
-        } else {
-            log.log(Level.FINE, "No completion suggestions found");
+            log.log(Level.INFO, "Found {0} completion suggestions: {1}", new Object[]{suggestions.size(), suggestions});
         }
 
         // Step 2: 如果结果不足，执行模糊搜索
         if (suggestions.size() < maxSuggestions) {
-            Query fuzzyQuery = new Query.Builder()
-                    .fuzzy(f -> f
-                            .field("licensePlate.ngram")
-                            .value(prefix)
-                            .fuzziness("1")
-                            .prefixLength(1))
-                    .build();
-
-            Query combinedQuery = new Query.Builder()
-                    .bool(b -> b
-                            .must(fuzzyQuery)
-                            .filter(new Query.Builder()
-                                    .term(t -> t
-                                            .field("ownerName.keyword")
-                                            .value(currentUsername))
-                                    .build()))
-                    .build();
-
-            NativeQueryBuilder fuzzyQueryBuilder = new NativeQueryBuilder()
-                    .withQuery(combinedQuery);
-
-            NativeQuery fuzzyNativeQuery = fuzzyQueryBuilder.build();
-            log.log(Level.FINE, "Executing fuzzy query for prefix: {0}, user: {1}",
-                    new Object[]{prefix, currentUsername});
-            log.log(Level.FINE, "Fuzzy query: {0}", Objects.requireNonNull(fuzzyNativeQuery.getQuery()).toString());
-
-            SearchHits<VehicleInformationDocument> fuzzyHits;
+            log.log(Level.INFO, "Executing fuzzy query for prefix: {0}, user: {1}", new Object[]{prefix, currentUsername});
+            SearchHits<VehicleInformationDocument> fuzzyHits = null;
             try {
-                fuzzyHits = elasticsearchOperations.search(fuzzyNativeQuery, VehicleInformationDocument.class);
+                // 使用仓库层的分页查询代替手动构建模糊查询
+                fuzzyHits = elasticsearchOperations.search(
+                        vehicleInformationSearchRepository.searchByLicensePlate(prefix, null).getQuery(),
+                        VehicleInformationDocument.class
+                );
             } catch (Exception e) {
-                log.log(Level.SEVERE, "Error executing fuzzy query: {0}", e.getMessage());
-                throw e; // 抛出异常由控制器处理
+                log.log(Level.WARNING, "Error executing fuzzy query: {0} {1}", new Object[]{e.getMessage(), e});
             }
 
-            for (SearchHit<VehicleInformationDocument> hit : fuzzyHits) {
-                VehicleInformationDocument doc = hit.getContent();
-                if (doc.getLicensePlate() != null) {
-                    suggestions.add(doc.getLicensePlate());
-                }
-                if (suggestions.size() >= maxSuggestions) {
-                    break;
+            if (fuzzyHits != null) {
+                for (SearchHit<VehicleInformationDocument> hit : fuzzyHits) {
+                    VehicleInformationDocument doc = hit.getContent();
+                    if (doc.getLicensePlate() != null && doc.getOwnerName().equals(currentUsername)) {
+                        suggestions.add(doc.getLicensePlate());
+                    }
+                    if (suggestions.size() >= maxSuggestions) {
+                        break;
+                    }
                 }
             }
-            log.log(Level.FINE, "After fuzzy search, total suggestions: {0}",
-                    new Object[]{suggestions.size()});
+            log.log(Level.INFO, "After fuzzy search, total suggestions: {}", suggestions.size());
         }
 
         List<String> resultList = new ArrayList<>(suggestions);
-        return resultList.size() <= maxSuggestions ?
-                resultList :
-                resultList.subList(0, maxSuggestions);
+        return resultList.size() <= maxSuggestions ? resultList : resultList.subList(0, maxSuggestions);
     }
 
-    public List<String> getVehicleTypeAutocompleteSuggestions(
-            String currentUsername, String prefix, int maxSuggestions) {
-
+    public List<String> getVehicleTypeAutocompleteSuggestions(String currentUsername, String prefix, int maxSuggestions) {
         Set<String> suggestions = new HashSet<>();
 
-        // Step 1: Completion suggestion query
-        String suggestQuery = String.format(
-                """
-                        {
-                          "query": {
-                            "bool": {
-                              "filter": {
-                                "term": {
-                                  "ownerName.keyword": "%s"
-                                }
-                              }
-                            }
-                          },
-                          "suggest": {
-                            "vehicleType-suggest": {
-                              "prefix": "%s",
-                              "completion": {
-                                "field": "vehicleType.completion",
-                                "fuzzy": {
-                                  "fuzziness": "1"
-                                },
-                                "size": %d,
-                                "skip_duplicates": true
-                              }
-                            }
-                          }
-                        }""", currentUsername, prefix, maxSuggestions);
-        log.log(Level.SEVERE, "Vehicle type completion query: {}", suggestQuery);
-        StringQuery completionQuery = new StringQuery(suggestQuery);
-        SearchHits<VehicleInformationDocument> suggestHits = elasticsearchOperations.search(
-                completionQuery, VehicleInformationDocument.class);
+        // Step 1: 使用仓库层获取车辆类型的补全建议
+        log.log(Level.INFO, "Executing vehicle type completion query for user: {0}, prefix: {1}, maxSuggestions: {2}", new Object[]{currentUsername, prefix, maxSuggestions});
 
-        // Process completion suggestions
-        if (suggestHits.getSuggest() != null) {
-            suggestHits.getSuggest().getSuggestion("vehicleType-suggest")
-                    .getEntries()
-                    .forEach(entry -> entry.getOptions()
-                            .forEach(option -> suggestions.add(option.getText())));
+        // 因为 vehicleType 没有 completion 字段，改为直接模糊搜索
+        SearchHits<VehicleInformationDocument> suggestHits = null;
+        try {
+            suggestHits = elasticsearchOperations.search(
+                    vehicleInformationSearchRepository.searchByLicensePlate(prefix, null).getQuery(), // 这里改为 vehicleType 的查询
+                    VehicleInformationDocument.class
+            );
+        } catch (Exception e) {
+            log.log(Level.INFO, "Error executing vehicle type completion query: {0} {1}", new Object[]{e.getMessage(), e});
         }
 
-        // Step 2: If insufficient results, fall back to fuzzy search
-        if (suggestions.size() < maxSuggestions) {
-            String fuzzyQuery = String.format(
-                    """
-                            {
-                              "query": {
-                                "bool": {
-                                  "must": {
-                                    "fuzzy": {
-                                      "vehicleType.ngram": {
-                                        "value": "%s",
-                                        "fuzziness": "1",
-                                        "prefix_length": 1
-                                      }
-                                    }
-                                  },
-                                  "filter": {
-                                    "term": {
-                                      "ownerName.keyword": "%s"
-                                    }
-                                  }
-                                }
-                              }
-                            }""", prefix, currentUsername);
-            log.log(Level.SEVERE, "Vehicle type fuzzy query: {}", fuzzyQuery);
-            StringQuery fuzzySearchQuery = new StringQuery(fuzzyQuery);
-            SearchHits<VehicleInformationDocument> fuzzyHits = elasticsearchOperations.search(
-                    fuzzySearchQuery, VehicleInformationDocument.class);
-
-            for (SearchHit<VehicleInformationDocument> hit : fuzzyHits) {
+        // 处理搜索结果（这里假设 vehicleType 使用 ik_max_word 分词）
+        if (suggestHits != null) {
+            for (SearchHit<VehicleInformationDocument> hit : suggestHits) {
                 VehicleInformationDocument doc = hit.getContent();
-                if (doc.getVehicleType() != null) {
+                if (doc.getVehicleType() != null && doc.getOwnerName().equals(currentUsername)) {
                     suggestions.add(doc.getVehicleType());
                 }
                 if (suggestions.size() >= maxSuggestions) {
@@ -437,11 +327,15 @@ public class VehicleInformationService {
                 }
             }
         }
+        log.log(Level.INFO, "Found {0} vehicle type suggestions: {1}", new Object[]{suggestions.size(), suggestions});
+
+        // Step 2: 如果结果不足，执行模糊搜索（这里已包含在 Step 1 中）
+        if (suggestions.size() < maxSuggestions) {
+            log.log(Level.INFO, "No additional fuzzy search needed, total suggestions: {0}", suggestions.size());
+        }
 
         List<String> resultList = new ArrayList<>(suggestions);
-        return resultList.size() <= maxSuggestions ?
-                resultList :
-                resultList.subList(0, maxSuggestions);
+        return resultList.size() <= maxSuggestions ? resultList : resultList.subList(0, maxSuggestions);
     }
 
     public List<VehicleInformation> searchVehicles(String query, int page, int size) {
@@ -458,7 +352,7 @@ public class VehicleInformationService {
 
             // 修复查询字符串，去掉外层 "query"
             String queryString = "{\"match\":{\"ownerName\":\"" + query + "\"}}";
-            org.springframework.data.elasticsearch.core.query.Query searchQuery = new StringQuery(queryString).setPageable(pageable);
+            Query searchQuery = new StringQuery(queryString).setPageable(pageable);
             SearchHits<VehicleInformationDocument> searchHits = elasticsearchOperations.search(searchQuery, VehicleInformationDocument.class);
             List<VehicleInformationDocument> results = searchHits.stream()
                     .map(SearchHit::getContent)

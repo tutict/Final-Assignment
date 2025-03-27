@@ -23,29 +23,30 @@ public class VehicleInformationDocument {
     private Integer vehicleId;
 
     @MultiField(
-            mainField = @Field(type = FieldType.Text, analyzer = "ik_smart", searchAnalyzer = "ik_smart"),
+            mainField = @Field(type = FieldType.Text, analyzer = "ik_max_word", searchAnalyzer = "ik_max_word"),
             otherFields = {
                     @InnerField(suffix = "keyword", type = FieldType.Keyword),
                     @InnerField(suffix = "icu", type = FieldType.Text, analyzer = "icu_analyzer", searchAnalyzer = "icu_analyzer"),
                     @InnerField(suffix = "ngram", type = FieldType.Text, analyzer = "license_plate_analyzer", searchAnalyzer = "keyword")
             }
     )
-    @CompletionField(analyzer = "ik_smart", searchAnalyzer = "ik_smart")
     private String licensePlate;
 
+    @CompletionField // 不指定分析器，保留原始值用于补全
+    private String licensePlateCompletion;
+
     @MultiField(
-            mainField = @Field(type = FieldType.Text, analyzer = "ik_smart", searchAnalyzer = "ik_smart"),
+            mainField = @Field(type = FieldType.Text, analyzer = "ik_max_word", searchAnalyzer = "ik_max_word"),
             otherFields = {
                     @InnerField(suffix = "keyword", type = FieldType.Keyword),
                     @InnerField(suffix = "icu", type = FieldType.Text, analyzer = "icu_analyzer", searchAnalyzer = "icu_analyzer"),
                     @InnerField(suffix = "ngram", type = FieldType.Text, analyzer = "license_plate_analyzer", searchAnalyzer = "keyword")
             }
     )
-    @CompletionField(analyzer = "ik_smart", searchAnalyzer = "ik_smart")
     private String vehicleType;
 
     @MultiField(
-            mainField = @Field(type = FieldType.Text, analyzer = "ik_smart", searchAnalyzer = "ik_smart"),
+            mainField = @Field(type = FieldType.Text, analyzer = "ik_max_word", searchAnalyzer = "ik_max_word"),
             otherFields = {
                     @InnerField(suffix = "keyword", type = FieldType.Keyword),
                     @InnerField(suffix = "icu", type = FieldType.Text, analyzer = "icu_analyzer", searchAnalyzer = "icu_analyzer")
@@ -54,7 +55,7 @@ public class VehicleInformationDocument {
     private String ownerName;
 
     @MultiField(
-            mainField = @Field(type = FieldType.Text, analyzer = "ik_smart", searchAnalyzer = "ik_smart"),
+            mainField = @Field(type = FieldType.Text, analyzer = "ik_max_word", searchAnalyzer = "ik_max_word"),
             otherFields = {
                     @InnerField(suffix = "keyword", type = FieldType.Keyword),
                     @InnerField(suffix = "icu", type = FieldType.Text, analyzer = "icu_analyzer", searchAnalyzer = "icu_analyzer")
@@ -63,7 +64,7 @@ public class VehicleInformationDocument {
     private String idCardNumber;
 
     @MultiField(
-            mainField = @Field(type = FieldType.Text, analyzer = "ik_smart", searchAnalyzer = "ik_smart"),
+            mainField = @Field(type = FieldType.Text, analyzer = "ik_max_word", searchAnalyzer = "ik_max_word"),
             otherFields = {
                     @InnerField(suffix = "keyword", type = FieldType.Keyword),
                     @InnerField(suffix = "icu", type = FieldType.Text, analyzer = "icu_analyzer", searchAnalyzer = "icu_analyzer")
@@ -72,7 +73,7 @@ public class VehicleInformationDocument {
     private String contactNumber;
 
     @MultiField(
-            mainField = @Field(type = FieldType.Text, analyzer = "ik_smart", searchAnalyzer = "ik_smart"),
+            mainField = @Field(type = FieldType.Text, analyzer = "ik_max_word", searchAnalyzer = "ik_max_word"),
             otherFields = {
                     @InnerField(suffix = "keyword", type = FieldType.Keyword),
                     @InnerField(suffix = "icu", type = FieldType.Text, analyzer = "icu_analyzer", searchAnalyzer = "icu_analyzer")
@@ -81,7 +82,7 @@ public class VehicleInformationDocument {
     private String engineNumber;
 
     @MultiField(
-            mainField = @Field(type = FieldType.Text, analyzer = "ik_smart", searchAnalyzer = "ik_smart"),
+            mainField = @Field(type = FieldType.Text, analyzer = "ik_max_word", searchAnalyzer = "ik_max_word"),
             otherFields = {
                     @InnerField(suffix = "keyword", type = FieldType.Keyword),
                     @InnerField(suffix = "icu", type = FieldType.Text, analyzer = "icu_analyzer", searchAnalyzer = "icu_analyzer")
@@ -90,7 +91,7 @@ public class VehicleInformationDocument {
     private String frameNumber;
 
     @MultiField(
-            mainField = @Field(type = FieldType.Text, analyzer = "ik_smart", searchAnalyzer = "ik_smart"),
+            mainField = @Field(type = FieldType.Text, analyzer = "ik_max_word", searchAnalyzer = "ik_max_word"),
             otherFields = {
                     @InnerField(suffix = "keyword", type = FieldType.Keyword),
                     @InnerField(suffix = "icu", type = FieldType.Text, analyzer = "icu_analyzer", searchAnalyzer = "icu_analyzer")
@@ -102,7 +103,7 @@ public class VehicleInformationDocument {
     private LocalDate firstRegistrationDate;
 
     @MultiField(
-            mainField = @Field(type = FieldType.Text, analyzer = "ik_smart", searchAnalyzer = "ik_smart"),
+            mainField = @Field(type = FieldType.Text, analyzer = "ik_max_word", searchAnalyzer = "ik_max_word"),
             otherFields = {
                     @InnerField(suffix = "keyword", type = FieldType.Keyword),
                     @InnerField(suffix = "icu", type = FieldType.Text, analyzer = "icu_analyzer", searchAnalyzer = "icu_analyzer")
@@ -110,11 +111,12 @@ public class VehicleInformationDocument {
     )
     private String currentStatus;
 
-    // From VehicleInformation entity to document
+    // 从 VehicleInformation 实体转换为文档
     public static VehicleInformationDocument fromEntity(VehicleInformation entity) {
         VehicleInformationDocument doc = new VehicleInformationDocument();
         doc.setVehicleId(entity.getVehicleId());
         doc.setLicensePlate(entity.getLicensePlate());
+        doc.setLicensePlateCompletion(entity.getLicensePlate());
         doc.setVehicleType(entity.getVehicleType());
         doc.setOwnerName(entity.getOwnerName());
         doc.setIdCardNumber(entity.getIdCardNumber());
@@ -127,7 +129,7 @@ public class VehicleInformationDocument {
         return doc;
     }
 
-    // From document to VehicleInformation entity
+    // 从文档转换为 VehicleInformation 实体
     public VehicleInformation toEntity() {
         VehicleInformation entity = new VehicleInformation();
         entity.setVehicleId(this.vehicleId);
