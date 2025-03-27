@@ -11,20 +11,19 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface VehicleInformationSearchRepository extends ElasticsearchRepository<VehicleInformationDocument, Integer> {
 
-    // 车牌号补全建议
-    @Query("{\"bool\": {\"filter\": [{\"term\": {\"ownerName.keyword\": \"?0\"}}}}, " +
-            "\"suggest\": {\"licensePlate-suggest\": {\"prefix\": \"?1\", " +
-            "\"completion\": {\"field\": \"licensePlateCompletion\", \"size\": ?2, \"skip_duplicates\": true, \"fuzzy\": {\"fuzziness\": \"1\"}}}}")
+    // 修改 findCompletionSuggestions，使用 match 查询支持模糊匹配
+    @Query("{\"bool\": {\"filter\": [{\"term\": {\"ownerName.keyword\": \"?0\"}}], " +
+            "\"must\": [{\"match\": {\"licensePlate\": {\"query\": \"?1\", \"analyzer\": \"ik_max_word\"}}}]}}")
     SearchHits<VehicleInformationDocument> findCompletionSuggestions(String ownerName, String prefix, int maxSuggestions);
 
-    // 模糊搜索车牌号
+    // 修改 searchByLicensePlate，使用 match 查询支持模糊匹配
     @Query("{\"bool\": {\"filter\": [{\"term\": {\"ownerName.keyword\": \"?1\"}}], " +
-            "\"must\": [{\"match\": {\"licensePlate\": {\"query\": \"?0\", \"analyzer\": \"ik_max_word\"}}}}}")
+            "\"must\": [{\"match\": {\"licensePlate\": {\"query\": \"?0\", \"analyzer\": \"ik_max_word\"}}}]}}")
     SearchHits<VehicleInformationDocument> searchByLicensePlate(String licensePlate, String ownerName);
 
     // 模糊搜索车辆类型
     @Query("{\"bool\": {\"filter\": [{\"term\": {\"ownerName.keyword\": \"?1\"}}], " +
-            "\"must\": [{\"match\": {\"vehicleType\": {\"query\": \"?0\", \"analyzer\": \"ik_max_word\"}}}}}")
+            "\"must\": [{\"match\": {\"vehicleType\": {\"query\": \"?0\", \"analyzer\": \"ik_max_word\"}}}]}}")
     SearchHits<VehicleInformationDocument> searchByVehicleType(String vehicleType, String ownerName);
 
     // 分页查询（可选）

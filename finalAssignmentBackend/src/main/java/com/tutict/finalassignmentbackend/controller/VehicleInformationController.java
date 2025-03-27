@@ -56,16 +56,28 @@ public class VehicleInformationController {
         try {
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             String currentUsername = authentication.getName();
+            log.log(Level.INFO, "Fetching license plate suggestions for user: {0}, prefix: {1}, maxSuggestions: {2}",
+                    new Object[]{currentUsername, prefix, maxSuggestions});
+
             List<String> suggestions = vehicleInformationService.getLicensePlateAutocompleteSuggestions(
                     currentUsername, prefix, maxSuggestions);
+
             if (suggestions.isEmpty()) {
-                log.log(Level.INFO, "No license plate suggestions found for prefix: " + prefix + " for user: " + currentUsername);
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+                log.log(Level.INFO, "No license plate suggestions found for prefix: {0} for user: {1}",
+                        new Object[]{prefix, currentUsername});
+                return ResponseEntity.ok(Collections.emptyList()); // 返回 200 OK 和空列表
             }
+            log.log(Level.INFO, "Returning {0} license plate suggestions for prefix: {1}",
+                    new Object[]{suggestions.size(), prefix});
             return ResponseEntity.ok(suggestions);
         } catch (IllegalArgumentException e) {
-            log.log(Level.WARNING, "Invalid prefix for license plate:" + prefix + ", error:" + e.getMessage());
+            log.log(Level.WARNING, "Invalid prefix for license plate: {0}, error: {1}",
+                    new Object[]{prefix, e.getMessage()});
             return ResponseEntity.badRequest().body(Collections.emptyList());
+        } catch (Exception e) {
+            log.log(Level.WARNING, "Error fetching license plate suggestions for prefix: {0}, user: {1}, error: {2}",
+                    new Object[]{prefix, SecurityContextHolder.getContext().getAuthentication().getName(), e.getMessage(), e});
+            return ResponseEntity.status(500).body(Collections.emptyList());
         }
     }
 
@@ -78,16 +90,28 @@ public class VehicleInformationController {
         try {
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             String currentUsername = authentication.getName();
+            log.log(Level.INFO, "Fetching vehicle type suggestions for user: {}, prefix: {}, maxSuggestions: {}",
+                    new Object[]{currentUsername, prefix, maxSuggestions});
+
             List<String> suggestions = vehicleInformationService.getVehicleTypeAutocompleteSuggestions(
                     currentUsername, prefix, maxSuggestions);
+
             if (suggestions.isEmpty()) {
-                log.log(Level.INFO, "No vehicle type suggestions found for prefix: " + prefix + " for user: " + currentUsername);
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+                log.log(Level.WARNING, "No vehicle type suggestions found for prefix: {0} for user: {1}",
+                        new Object[]{prefix, currentUsername});
+                return ResponseEntity.ok(Collections.emptyList()); // 返回 200 OK 和空列表
             }
+            log.log(Level.INFO, "Returning {0} vehicle type suggestions for prefix: {1}",
+                    new Object[]{suggestions.size(), prefix});
             return ResponseEntity.ok(suggestions);
         } catch (IllegalArgumentException e) {
-            log.log(Level.WARNING, "Invalid prefix for vehicle type: " + prefix + ", error: " + e.getMessage());
+            log.log(Level.WARNING, "Invalid prefix for vehicle type: {0}, error: {1}",
+                    new Object[]{prefix, e.getMessage()});
             return ResponseEntity.badRequest().body(Collections.emptyList());
+        } catch (Exception e) {
+            log.log(Level.WARNING, "Error fetching vehicle type suggestions for prefix: {0}, user: {1}, error: {2}",
+                    new Object[]{prefix, SecurityContextHolder.getContext().getAuthentication().getName(), e.getMessage(), e});
+            return ResponseEntity.status(500).body(Collections.emptyList());
         }
     }
 

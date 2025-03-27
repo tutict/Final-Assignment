@@ -1,24 +1,27 @@
 package com.tutict.finalassignmentbackend.entity.elastic;
 
-import lombok.Data;
 import com.tutict.finalassignmentbackend.entity.DriverInformation;
+import lombok.Data;
 import org.springframework.data.annotation.Id;
-import org.springframework.data.elasticsearch.annotations.Document;
-import org.springframework.data.elasticsearch.annotations.Field;
-import org.springframework.data.elasticsearch.annotations.FieldType;
-import org.springframework.data.elasticsearch.annotations.DateFormat;
+import org.springframework.data.elasticsearch.annotations.*;
 
 import java.time.LocalDate;
 
 @Data
 @Document(indexName = "driver_information")
+@Setting(settingPath = "elasticsearch/vehicle-analyzer.json") // 使用相同的分析器配置
 public class DriverInformationDocument {
 
     @Id
     @Field(type = FieldType.Integer)
     private Integer driverId;
 
-    @Field(type = FieldType.Text, analyzer = "standard")
+    @MultiField(
+            mainField = @Field(type = FieldType.Text, analyzer = "ik_max_word", searchAnalyzer = "ik_max_word"),
+            otherFields = {
+                    @InnerField(suffix = "keyword", type = FieldType.Keyword) // 用于精确匹配
+            }
+    )
     private String name;
 
     @Field(type = FieldType.Keyword)
@@ -68,7 +71,6 @@ public class DriverInformationDocument {
         return doc;
     }
 
-    // Convert from document to entity
     public DriverInformation toEntity() {
         DriverInformation entity = new DriverInformation();
         entity.setDriverId(this.getDriverId());

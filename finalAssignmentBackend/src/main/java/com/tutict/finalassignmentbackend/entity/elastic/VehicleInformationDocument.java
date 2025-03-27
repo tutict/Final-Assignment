@@ -3,13 +3,7 @@ package com.tutict.finalassignmentbackend.entity.elastic;
 import com.tutict.finalassignmentbackend.entity.VehicleInformation;
 import lombok.Data;
 import org.springframework.data.annotation.Id;
-import org.springframework.data.elasticsearch.annotations.Document;
-import org.springframework.data.elasticsearch.annotations.Field;
-import org.springframework.data.elasticsearch.annotations.FieldType;
-import org.springframework.data.elasticsearch.annotations.MultiField;
-import org.springframework.data.elasticsearch.annotations.InnerField;
-import org.springframework.data.elasticsearch.annotations.Setting;
-import org.springframework.data.elasticsearch.annotations.CompletionField;
+import org.springframework.data.elasticsearch.annotations.*;
 
 import java.time.LocalDate;
 
@@ -27,12 +21,13 @@ public class VehicleInformationDocument {
             otherFields = {
                     @InnerField(suffix = "keyword", type = FieldType.Keyword),
                     @InnerField(suffix = "icu", type = FieldType.Text, analyzer = "icu_analyzer", searchAnalyzer = "icu_analyzer"),
-                    @InnerField(suffix = "ngram", type = FieldType.Text, analyzer = "license_plate_analyzer", searchAnalyzer = "keyword")
+                    @InnerField(suffix = "ngram", type = FieldType.Text, analyzer = "license_plate_analyzer", searchAnalyzer = "license_plate_analyzer")
             }
     )
     private String licensePlate;
 
-    @CompletionField // 不指定分析器，保留原始值用于补全
+    // 用于补全的字段，存储原始值
+    @CompletionField(maxInputLength = 100)
     private String licensePlateCompletion;
 
     @MultiField(
@@ -40,7 +35,7 @@ public class VehicleInformationDocument {
             otherFields = {
                     @InnerField(suffix = "keyword", type = FieldType.Keyword),
                     @InnerField(suffix = "icu", type = FieldType.Text, analyzer = "icu_analyzer", searchAnalyzer = "icu_analyzer"),
-                    @InnerField(suffix = "ngram", type = FieldType.Text, analyzer = "license_plate_analyzer", searchAnalyzer = "keyword")
+                    @InnerField(suffix = "ngram", type = FieldType.Text, analyzer = "license_plate_analyzer", searchAnalyzer = "license_plate_analyzer")
             }
     )
     private String vehicleType;
@@ -99,7 +94,7 @@ public class VehicleInformationDocument {
     )
     private String vehicleColor;
 
-    @Field(type = FieldType.Date, format = {}, pattern = "uuuu-MM-dd")
+    @Field(type = FieldType.Date, format = DateFormat.date, pattern = "uuuu-MM-dd")
     private LocalDate firstRegistrationDate;
 
     @MultiField(
@@ -111,12 +106,17 @@ public class VehicleInformationDocument {
     )
     private String currentStatus;
 
+    // 自定义 setter 确保 licensePlateCompletion 一致性
+    public void setLicensePlate(String licensePlate) {
+        this.licensePlate = licensePlate;
+        this.licensePlateCompletion = licensePlate; // 同步 licensePlateCompletion
+    }
+
     // 从 VehicleInformation 实体转换为文档
     public static VehicleInformationDocument fromEntity(VehicleInformation entity) {
         VehicleInformationDocument doc = new VehicleInformationDocument();
         doc.setVehicleId(entity.getVehicleId());
-        doc.setLicensePlate(entity.getLicensePlate());
-        doc.setLicensePlateCompletion(entity.getLicensePlate());
+        doc.setLicensePlate(entity.getLicensePlate()); // 会自动同步 licensePlateCompletion
         doc.setVehicleType(entity.getVehicleType());
         doc.setOwnerName(entity.getOwnerName());
         doc.setIdCardNumber(entity.getIdCardNumber());
