@@ -289,6 +289,11 @@
             <artifactId>python-embedding</artifactId>
             <version>24.1.2</version>
         </dependency>
+        <dependency>
+            <groupId>org.springframework.statemachine</groupId>
+            <artifactId>spring-statemachine-core</artifactId>
+            <version>4.0.0</version>
+        </dependency>
     </dependencies>
 
     <pluginRepositories>

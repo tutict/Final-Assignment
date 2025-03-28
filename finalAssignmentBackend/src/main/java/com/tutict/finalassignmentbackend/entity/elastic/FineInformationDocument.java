@@ -21,7 +21,7 @@ public class FineInformationDocument {
     private Integer offenseId;
 
     @Field(type = FieldType.Double)
-    private BigDecimal fineAmount; // BigDecimal 在 Elasticsearch 中映射为 Double 类型
+    private Double fineAmount;
 
     @Field(type = FieldType.Date, format = DateFormat.date_hour_minute_second, pattern = "uuuu-MM-dd'T'HH:mm:ss")
     private LocalDateTime fineTime; // 罚款时间，格式为 ISO 日期时间
@@ -76,7 +76,7 @@ public class FineInformationDocument {
         FineInformationDocument doc = new FineInformationDocument();
         doc.setFineId(entity.getFineId());
         doc.setOffenseId(entity.getOffenseId());
-        doc.setFineAmount(entity.getFineAmount());
+        doc.setFineAmount(entity.getFineAmount() != null ? entity.getFineAmount().doubleValue() : null);
         doc.setFineTime(entity.getFineTime());
         doc.setPayee(entity.getPayee());
         doc.setAccountNumber(entity.getAccountNumber());
@@ -91,7 +91,7 @@ public class FineInformationDocument {
         FineInformation entity = new FineInformation();
         entity.setFineId(this.fineId);
         entity.setOffenseId(this.offenseId);
-        entity.setFineAmount(this.fineAmount);
+        entity.setFineAmount(this.fineAmount != null ? new BigDecimal(this.fineAmount.toString()) : null);
         entity.setFineTime(this.fineTime);
         entity.setPayee(this.payee);
         entity.setAccountNumber(this.accountNumber);
