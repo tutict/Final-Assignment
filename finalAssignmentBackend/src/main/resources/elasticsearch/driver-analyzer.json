@@ -10,19 +10,10 @@
         ]
       },
       "icu_analyzer": {
-        "type": "custom",
         "tokenizer": "icu_tokenizer",
         "filter": [
           "icu_folding",
           "lowercase"
-        ]
-      },
-      "license_plate_analyzer": {
-        "type": "custom",
-        "tokenizer": "ik_max_word",
-        "filter": [
-          "lowercase",
-          "edge_ngram_filter"
         ]
       }
     },
@@ -37,11 +28,6 @@
           "sedan => 轿车",
           "suv => 越野车"
         ]
-      },
-      "edge_ngram_filter": {
-        "type": "edge_ngram",
-        "min_gram": 1,
-        "max_gram": 10
       }
     }
   }

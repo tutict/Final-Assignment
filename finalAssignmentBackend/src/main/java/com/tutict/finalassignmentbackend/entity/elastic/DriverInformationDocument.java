@@ -9,7 +9,7 @@ import java.time.LocalDate;
 
 @Data
 @Document(indexName = "driver_information")
-@Setting(settingPath = "elasticsearch/vehicle-analyzer.json") // 使用相同的分析器配置
+@Setting(settingPath = "elasticsearch/driver-analyzer.json")
 public class DriverInformationDocument {
 
     @Id

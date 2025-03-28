@@ -14,6 +14,8 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
 import javax.validation.Valid;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
 import java.util.logging.Level;
@@ -47,72 +49,54 @@ public class VehicleInformationController {
         }
     }
 
-    // Autocomplete suggestions for license plate (current user only)
     @GetMapping("/autocomplete/license-plate/me")
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public ResponseEntity<List<String>> getLicensePlateAutocompleteSuggestions(
             @RequestParam String prefix,
-            @RequestParam(defaultValue = "5") int maxSuggestions) {
-        try {
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            String currentUsername = authentication.getName();
-            log.log(Level.INFO, "Fetching license plate suggestions for user: {0}, prefix: {1}, maxSuggestions: {2}",
-                    new Object[]{currentUsername, prefix, maxSuggestions});
+            @RequestParam(defaultValue = "5") int maxSuggestions,
+            @RequestParam(required = false) String ownerName) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String currentUsername = authentication.getName();
+        log.log(Level.INFO, "Fetching license plate suggestions for user: {0}, prefix: {1}, maxSuggestions: {2}",
+                new Object[]{currentUsername, prefix, maxSuggestions});
 
-            List<String> suggestions = vehicleInformationService.getLicensePlateAutocompleteSuggestions(
-                    currentUsername, prefix, maxSuggestions);
+        // 解码 ownerName
+        String decodedOwnerName = ownerName != null ? URLDecoder.decode(ownerName, StandardCharsets.UTF_8) : currentUsername;
+        log.log(Level.INFO, "Decoded ownerName: {0}", new Object[]{decodedOwnerName});
 
-            if (suggestions.isEmpty()) {
-                log.log(Level.INFO, "No license plate suggestions found for prefix: {0} for user: {1}",
-                        new Object[]{prefix, currentUsername});
-                return ResponseEntity.ok(Collections.emptyList()); // 返回 200 OK 和空列表
-            }
-            log.log(Level.INFO, "Returning {0} license plate suggestions for prefix: {1}",
-                    new Object[]{suggestions.size(), prefix});
-            return ResponseEntity.ok(suggestions);
-        } catch (IllegalArgumentException e) {
-            log.log(Level.WARNING, "Invalid prefix for license plate: {0}, error: {1}",
-                    new Object[]{prefix, e.getMessage()});
-            return ResponseEntity.badRequest().body(Collections.emptyList());
-        } catch (Exception e) {
-            log.log(Level.WARNING, "Error fetching license plate suggestions for prefix: {0}, user: {1}, error: {2}",
-                    new Object[]{prefix, SecurityContextHolder.getContext().getAuthentication().getName(), e.getMessage(), e});
-            return ResponseEntity.status(500).body(Collections.emptyList());
+        List<String> suggestions = vehicleInformationService.getLicensePlateAutocompleteSuggestions(
+                decodedOwnerName, prefix, maxSuggestions);
+
+        if (suggestions.isEmpty()) {
+            log.log(Level.INFO, "No license plate suggestions found for prefix: {0} for user: {1}",
+                    new Object[]{prefix, currentUsername});
         }
+        return ResponseEntity.ok(suggestions);
     }
 
-    // Autocomplete suggestions for vehicle type (current user only)
     @GetMapping("/autocomplete/vehicle-type/me")
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public ResponseEntity<List<String>> getVehicleTypeAutocompleteSuggestions(
             @RequestParam String prefix,
-            @RequestParam(defaultValue = "5") int maxSuggestions) {
-        try {
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            String currentUsername = authentication.getName();
-            log.log(Level.INFO, "Fetching vehicle type suggestions for user: {}, prefix: {}, maxSuggestions: {}",
-                    new Object[]{currentUsername, prefix, maxSuggestions});
+            @RequestParam(defaultValue = "5") int maxSuggestions,
+            @RequestParam(required = false) String ownerName) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String currentUsername = authentication.getName();
+        log.log(Level.INFO, "Fetching vehicle type suggestions for user: {0}, prefix: {1}, maxSuggestions: {2}",
+                new Object[]{currentUsername, prefix, maxSuggestions});
 
-            List<String> suggestions = vehicleInformationService.getVehicleTypeAutocompleteSuggestions(
-                    currentUsername, prefix, maxSuggestions);
+        // 解码 ownerName
+        String decodedOwnerName = ownerName != null ? URLDecoder.decode(ownerName, StandardCharsets.UTF_8) : currentUsername;
+        log.log(Level.INFO, "Decoded ownerName: {0}", new Object[]{decodedOwnerName});
 
-            if (suggestions.isEmpty()) {
-                log.log(Level.WARNING, "No vehicle type suggestions found for prefix: {0} for user: {1}",
-                        new Object[]{prefix, currentUsername});
-                return ResponseEntity.ok(Collections.emptyList()); // 返回 200 OK 和空列表
-            }
-            log.log(Level.INFO, "Returning {0} vehicle type suggestions for prefix: {1}",
-                    new Object[]{suggestions.size(), prefix});
-            return ResponseEntity.ok(suggestions);
-        } catch (IllegalArgumentException e) {
-            log.log(Level.WARNING, "Invalid prefix for vehicle type: {0}, error: {1}",
-                    new Object[]{prefix, e.getMessage()});
-            return ResponseEntity.badRequest().body(Collections.emptyList());
-        } catch (Exception e) {
-            log.log(Level.WARNING, "Error fetching vehicle type suggestions for prefix: {0}, user: {1}, error: {2}",
-                    new Object[]{prefix, SecurityContextHolder.getContext().getAuthentication().getName(), e.getMessage(), e});
-            return ResponseEntity.status(500).body(Collections.emptyList());
+        List<String> suggestions = vehicleInformationService.getVehicleTypeAutocompleteSuggestions(
+                decodedOwnerName, prefix, maxSuggestions);
+
+        if (suggestions.isEmpty()) {
+            log.log(Level.INFO, "No vehicle type suggestions found for prefix: {0} for user: {1}",
+                    new Object[]{prefix, currentUsername});
         }
+        return ResponseEntity.ok(suggestions);
     }
 
     @PostMapping

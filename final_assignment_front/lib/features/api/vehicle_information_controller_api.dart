@@ -61,15 +61,30 @@ class VehicleInformationControllerApi {
   Future<List<String>> apiVehiclesAutocompleteLicensePlateMeGet({
     required String prefix,
     int maxSuggestions = 5,
+    String? ownerName, // 新增 ownerName 参数
   }) async {
+
+    final effectiveOwnerName = ownerName ?? _username;
+    if (effectiveOwnerName == null) {
+      throw Exception('User not authenticated and no ownerName provided.');
+    }
+
+    final queryParameters = <String, dynamic>{
+      'prefix': Uri.encodeQueryComponent(prefix),
+      'maxSuggestions': maxSuggestions.toString(),
+      'ownerName': Uri.encodeQueryComponent(effectiveOwnerName), // 添加 ownerName 到查询参数
+    };
+
     final uri = Uri.parse(
-        'http://localhost:8081/api/vehicles/autocomplete/license-plate/me?prefix=${Uri.encodeQueryComponent(prefix)}&maxSuggestions=$maxSuggestions');
+            'http://localhost:8081/api/vehicles/autocomplete/license-plate/me')
+        .replace(queryParameters: queryParameters);
+
     final prefs = await SharedPreferences.getInstance();
     final jwtToken = prefs.getString('jwtToken');
     if (jwtToken == null) {
       throw Exception('JWT token not found in SharedPreferences');
     }
-
+    debugPrint('Request URL: $uri');
     final response = await http.get(
       uri,
       headers: {
@@ -99,15 +114,31 @@ class VehicleInformationControllerApi {
   Future<List<String>> apiVehiclesAutocompleteVehicleTypeMeGet({
     required String prefix,
     int maxSuggestions = 5,
+    String? ownerName, // 新增 ownerName 参数
   }) async {
+
+    final effectiveOwnerName = ownerName ?? _username;
+    if (effectiveOwnerName == null) {
+      throw Exception('User not authenticated and no ownerName provided.');
+    }
+
+    final queryParameters = <String, dynamic>{
+      'prefix': Uri.encodeQueryComponent(prefix),
+      'maxSuggestions': maxSuggestions.toString(),
+      'ownerName': Uri.encodeQueryComponent(effectiveOwnerName), // 添加 ownerName 到查询参数
+    };
+
     final uri = Uri.parse(
-        'http://localhost:8081/api/vehicles/autocomplete/vehicle-type/me?prefix=${Uri.encodeQueryComponent(prefix)}&maxSuggestions=$maxSuggestions');
+            'http://localhost:8081/api/vehicles/autocomplete/vehicle-type/me')
+        .replace(queryParameters: queryParameters);
+
     final prefs = await SharedPreferences.getInstance();
     final jwtToken = prefs.getString('jwtToken');
     if (jwtToken == null) {
       throw Exception('JWT token not found in SharedPreferences');
     }
 
+    debugPrint('Request URL: $uri');
     final response = await http.get(
       uri,
       headers: {

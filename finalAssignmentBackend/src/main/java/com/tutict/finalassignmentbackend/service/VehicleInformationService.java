@@ -3,12 +3,10 @@ package com.tutict.finalassignmentbackend.service;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.RequestHistory;
-import com.tutict.finalassignmentbackend.entity.elastic.DriverInformationDocument;
 import com.tutict.finalassignmentbackend.entity.elastic.VehicleInformationDocument;
 import com.tutict.finalassignmentbackend.mapper.RequestHistoryMapper;
 import com.tutict.finalassignmentbackend.mapper.VehicleInformationMapper;
 import com.tutict.finalassignmentbackend.entity.VehicleInformation;
-import com.tutict.finalassignmentbackend.repository.DriverInformationSearchRepository;
 import com.tutict.finalassignmentbackend.repository.VehicleInformationSearchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
@@ -40,7 +38,6 @@ public class VehicleInformationService {
     private final RequestHistoryMapper requestHistoryMapper;
     private final KafkaTemplate<String, VehicleInformation> kafkaTemplate;
     private final VehicleInformationSearchRepository vehicleInformationSearchRepository;
-    private final DriverInformationSearchRepository  driverInformationSearchRepository;
     private final ElasticsearchOperations elasticsearchOperations;
 
     @Autowired
@@ -49,10 +46,8 @@ public class VehicleInformationService {
             RequestHistoryMapper requestHistoryMapper,
             KafkaTemplate<String, VehicleInformation> kafkaTemplate,
             VehicleInformationSearchRepository vehicleInformationSearchRepository,
-            DriverInformationSearchRepository driverInformationSearchRepository,
             ElasticsearchOperations elasticsearchOperations) {
         this.vehicleInformationMapper = vehicleInformationMapper;
-        this.driverInformationSearchRepository = driverInformationSearchRepository;
         this.requestHistoryMapper = requestHistoryMapper;
         this.kafkaTemplate = kafkaTemplate;
         this.vehicleInformationSearchRepository = vehicleInformationSearchRepository;
@@ -250,66 +245,44 @@ public class VehicleInformationService {
         return vehicleInformationMapper.selectCount(queryWrapper) > 0;
     }
 
-    public List<String> getLicensePlateAutocompleteSuggestions(String currentUsername, String prefix, int maxSuggestions) {
+    public List<String> getLicensePlateAutocompleteSuggestions(String ownerName, String prefix, int maxSuggestions) {
         Set<String> suggestions = new HashSet<>();
 
-        // Step 1: 通过 currentUsername 查询 DriverInformationDocument 获取所有匹配的 name
-        log.log(Level.INFO, "Querying driver information for username: {0}", new Object[]{currentUsername});
-        List<DriverInformationDocument> driverDocs = driverInformationSearchRepository.findByName(currentUsername);
-        if (driverDocs.isEmpty()) {
-            log.log(Level.WARNING, "No driver found for username: {0}", new Object[]{currentUsername});
-            return new ArrayList<>();
+        log.log(Level.INFO, "Executing match query for ownerName: {0}, prefix: {1}, maxSuggestions: {2}",
+                new Object[]{ownerName, prefix, maxSuggestions});
+
+        SearchHits<VehicleInformationDocument> matchHits = null;
+        try {
+            matchHits = vehicleInformationSearchRepository.findCompletionSuggestions(ownerName, prefix, maxSuggestions);
+        } catch (Exception e) {
+            log.log(Level.WARNING, "Error executing match query: {0}", new Object[]{e.getMessage()});
         }
 
-        // 收集所有匹配的 name
-        List<String> ownerNames = new ArrayList<>();
-        for (DriverInformationDocument doc : driverDocs) {
-            String ownerName = doc.getName();
-            ownerNames.add(ownerName);
-            log.log(Level.INFO, "Found driver with name: {0} for username: {1}", new Object[]{ownerName, currentUsername});
-        }
-
-        // Step 2: 对每个 ownerName 执行模糊查询
-        for (String ownerName : ownerNames) {
-            log.log(Level.INFO, "Executing match query for ownerName: {0}, prefix: {1}, maxSuggestions: {2}",
-                    new Object[]{ownerName, prefix, maxSuggestions});
-
-            SearchHits<VehicleInformationDocument> matchHits = null;
-            try {
-                matchHits = vehicleInformationSearchRepository.findCompletionSuggestions(ownerName, prefix, maxSuggestions);
-            } catch (Exception e) {
-                log.log(Level.WARNING, "Error executing match query: {0} {1}", new Object[]{e.getMessage(), e});
-            }
-
-            if (matchHits != null && matchHits.hasSearchHits()) {
-                for (SearchHit<VehicleInformationDocument> hit : matchHits) {
-                    VehicleInformationDocument doc = hit.getContent();
-                    if (doc.getLicensePlate() != null) {
-                        suggestions.add(doc.getLicensePlate());
-                        log.log(Level.INFO, "Found license plate: {0}", new Object[]{doc.getLicensePlate()});
-                    }
-                    if (suggestions.size() >= maxSuggestions) {
-                        break;
-                    }
+        if (matchHits != null && matchHits.hasSearchHits()) {
+            for (SearchHit<VehicleInformationDocument> hit : matchHits) {
+                VehicleInformationDocument doc = hit.getContent();
+                if (doc.getLicensePlate() != null) {
+                    suggestions.add(doc.getLicensePlate());
+                    log.log(Level.INFO, "Found license plate: {0}", new Object[]{doc.getLicensePlate()});
                 }
-                log.log(Level.INFO, "Found {0} match suggestions: {1}", new Object[]{suggestions.size(), suggestions});
-            } else {
-                log.log(Level.INFO, "No match suggestions found for prefix: {0}", new Object[]{prefix});
+                if (suggestions.size() >= maxSuggestions) {
+                    break;
+                }
             }
+            log.log(Level.INFO, "Found {0} match suggestions: {1}", new Object[]{suggestions.size(), suggestions});
+        } else {
+            log.log(Level.INFO, "No match suggestions found for prefix: {0}", new Object[]{prefix});
+        }
 
-            // 如果已经收集到足够的建议，提前退出
-            if (suggestions.size() >= maxSuggestions) {
-                break;
-            }
-
-            // Step 3: 如果结果不足，执行备用模糊查询
+        // 如果结果不足，执行备用模糊查询
+        if (suggestions.size() < maxSuggestions) {
             log.log(Level.INFO, "Executing fuzzy query for prefix: {0}, ownerName: {1}", new Object[]{prefix, ownerName});
             SearchHits<VehicleInformationDocument> fuzzyHits = null;
             try {
                 fuzzyHits = vehicleInformationSearchRepository.searchByLicensePlate(prefix, ownerName);
                 log.log(Level.INFO, "Fuzzy query returned {0} hits", new Object[]{fuzzyHits != null ? fuzzyHits.getTotalHits() : 0});
             } catch (Exception e) {
-                log.log(Level.WARNING, "Error executing fuzzy query: {0} {1}", new Object[]{e.getMessage(), e});
+                log.log(Level.WARNING, "Error executing fuzzy query: {0}", new Object[]{e.getMessage()});
             }
 
             if (fuzzyHits != null && fuzzyHits.hasSearchHits()) {
@@ -327,64 +300,68 @@ public class VehicleInformationService {
             } else {
                 log.log(Level.INFO, "Fuzzy search returned no results for prefix: {0}", new Object[]{prefix});
             }
-
-            if (suggestions.size() >= maxSuggestions) {
-                break;
-            }
         }
 
         List<String> resultList = new ArrayList<>(suggestions);
         return resultList.size() <= maxSuggestions ? resultList : resultList.subList(0, maxSuggestions);
     }
 
-    public List<String> getVehicleTypeAutocompleteSuggestions(String currentUsername, String prefix, int maxSuggestions) {
+    public List<String> getVehicleTypeAutocompleteSuggestions(String ownerName, String prefix, int maxSuggestions) {
         Set<String> suggestions = new HashSet<>();
 
-        // 通过 currentUsername 查询 DriverInformationDocument 获取所有匹配的 name
-        log.log(Level.INFO, "Querying driver information for username: {0}", new Object[]{currentUsername});
-        List<DriverInformationDocument> driverDocs = driverInformationSearchRepository.findByName(currentUsername);
-        if (driverDocs.isEmpty()) {
-            log.log(Level.WARNING, "No driver found for username: {0}", new Object[]{currentUsername});
-            return new ArrayList<>();
+        log.log(Level.INFO, "Executing vehicle type search for ownerName: {0}, prefix: {1}, maxSuggestions: {2}",
+                new Object[]{ownerName, prefix, maxSuggestions});
+
+        SearchHits<VehicleInformationDocument> suggestHits = null;
+        try {
+            suggestHits = vehicleInformationSearchRepository.searchByVehicleType(prefix, ownerName);
+            log.log(Level.INFO, "Vehicle type search returned {0} hits", new Object[]{suggestHits != null ? suggestHits.getTotalHits() : 0});
+        } catch (Exception e) {
+            log.log(Level.WARNING, "Error executing vehicle type search query: {0}", new Object[]{e.getMessage()});
         }
 
-        // 收集所有匹配的 name
-        List<String> ownerNames = new ArrayList<>();
-        for (DriverInformationDocument doc : driverDocs) {
-            String ownerName = doc.getName();
-            ownerNames.add(ownerName);
-            log.log(Level.INFO, "Found driver with name: {0} for username: {1}", new Object[]{ownerName, currentUsername});
+        if (suggestHits != null && suggestHits.hasSearchHits()) {
+            for (SearchHit<VehicleInformationDocument> hit : suggestHits) {
+                VehicleInformationDocument doc = hit.getContent();
+                if (doc.getVehicleType() != null) {
+                    suggestions.add(doc.getVehicleType());
+                    log.log(Level.INFO, "Found vehicle type: {0}", new Object[]{doc.getVehicleType()});
+                }
+                if (suggestions.size() >= maxSuggestions) {
+                    break;
+                }
+            }
+            log.log(Level.INFO, "Found {0} vehicle type suggestions: {1}", new Object[]{suggestions.size(), suggestions});
+        } else {
+            log.log(Level.INFO, "No vehicle type suggestions found for prefix: {0}", new Object[]{prefix});
         }
 
-        // 对每个 ownerName 执行查询
-        for (String ownerName : ownerNames) {
-            log.log(Level.INFO, "Executing vehicle type search for ownerName: {0}, prefix: {1}, maxSuggestions: {2}",
-                    new Object[]{ownerName, prefix, maxSuggestions});
-
-            SearchHits<VehicleInformationDocument> suggestHits = null;
+        // 如果结果不足，执行备用模糊查询
+        if (suggestions.size() < maxSuggestions) {
+            log.log(Level.INFO, "Executing fuzzy query for vehicle type prefix: {0}, ownerName: {1}", new Object[]{prefix, ownerName});
+            SearchHits<VehicleInformationDocument> fuzzyHits = null;
             try {
-                suggestHits = vehicleInformationSearchRepository.searchByVehicleType(prefix, ownerName);
+                // Reuse the searchByVehicleType method for fuzzy search, as it already uses ik_max_word analyzer
+                fuzzyHits = vehicleInformationSearchRepository.searchByVehicleType(prefix, ownerName);
+                log.log(Level.INFO, "Fuzzy query returned {0} hits", new Object[]{fuzzyHits != null ? fuzzyHits.getTotalHits() : 0});
             } catch (Exception e) {
-                log.log(Level.WARNING, "Error executing vehicle type search query: {0} {1}", new Object[]{e.getMessage(), e});
+                log.log(Level.WARNING, "Error executing fuzzy query for vehicle type: {0}", new Object[]{e.getMessage()});
             }
 
-            if (suggestHits != null && suggestHits.hasSearchHits()) {
-                for (SearchHit<VehicleInformationDocument> hit : suggestHits) {
+            if (fuzzyHits != null && fuzzyHits.hasSearchHits()) {
+                for (SearchHit<VehicleInformationDocument> hit : fuzzyHits) {
                     VehicleInformationDocument doc = hit.getContent();
                     if (doc.getVehicleType() != null) {
                         suggestions.add(doc.getVehicleType());
+                        log.log(Level.INFO, "Found vehicle type: {0}", new Object[]{doc.getVehicleType()});
                     }
                     if (suggestions.size() >= maxSuggestions) {
                         break;
                     }
                 }
-                log.log(Level.INFO, "Found {0} vehicle type suggestions: {1}", new Object[]{suggestions.size(), suggestions});
+                log.log(Level.INFO, "After fuzzy search, total vehicle type suggestions: {0}", new Object[]{suggestions.size()});
             } else {
-                log.log(Level.INFO, "No vehicle type suggestions found for prefix: {0}", new Object[]{prefix});
-            }
-
-            if (suggestions.size() >= maxSuggestions) {
-                break;
+                log.log(Level.INFO, "Fuzzy search returned no results for vehicle type prefix: {0}", new Object[]{prefix});
             }
         }
 

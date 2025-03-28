@@ -186,11 +186,21 @@ class _VehicleManagementState extends State<VehicleManagement> {
   Future<List<String>> _fetchAutocompleteSuggestions(String prefix) async {
     try {
       if (_searchType == 'licensePlate') {
+        debugPrint(
+            'Fetching license plate suggestions for owner: $_currentDriverName, prefix: $prefix');
         return await vehicleApi.apiVehiclesAutocompleteLicensePlateMeGet(
-            prefix: prefix);
+          prefix: prefix,
+          maxSuggestions: 5, // 保持与原方法一致的默认值
+          ownerName: _currentDriverName, // 传递 _currentDriverName 作为 ownerName
+        );
       } else {
+        debugPrint(
+            'Fetching vehicle type suggestions for owner: $_currentDriverName, prefix: $prefix');
         return await vehicleApi.apiVehiclesAutocompleteVehicleTypeMeGet(
-            prefix: prefix);
+          prefix: prefix,
+          maxSuggestions: 5, // 保持与原方法一致的默认值
+          ownerName: _currentDriverName, // 传递 _currentDriverName 作为 ownerName
+        );
       }
     } catch (e) {
       debugPrint('Failed to fetch autocomplete suggestions: $e');
