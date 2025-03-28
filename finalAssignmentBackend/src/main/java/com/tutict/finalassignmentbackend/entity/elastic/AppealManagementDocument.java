@@ -8,7 +8,7 @@ import org.springframework.data.elasticsearch.annotations.*;
 import java.time.LocalDateTime;
 
 @Data
-@Document(indexName = "appeal_management")
+@Document(indexName = "appeals")
 @Setting(settingPath = "elasticsearch/appeal-analyzer.json")
 public class AppealManagementDocument {
 

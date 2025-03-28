@@ -8,7 +8,7 @@ import org.springframework.data.elasticsearch.annotations.*;
 import java.time.LocalDateTime;
 
 @Data
-@Document(indexName = "offense_information")
+@Document(indexName = "offense")
 @Setting(settingPath = "elasticsearch/offense-analyzer.json")
 public class OffenseInformationDocument {
 

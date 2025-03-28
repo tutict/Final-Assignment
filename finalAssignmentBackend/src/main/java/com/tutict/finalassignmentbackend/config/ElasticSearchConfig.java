@@ -4,22 +4,15 @@ import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.json.jackson.JacksonJsonpMapper;
 import co.elastic.clients.transport.ElasticsearchTransport;
 import co.elastic.clients.transport.rest_client.RestClientTransport;
-import com.tutict.finalassignmentbackend.entity.AppealManagement;
-import com.tutict.finalassignmentbackend.entity.DriverInformation;
-import com.tutict.finalassignmentbackend.entity.OffenseInformation;
-import com.tutict.finalassignmentbackend.entity.VehicleInformation;
+import com.tutict.finalassignmentbackend.entity.*;
 import com.tutict.finalassignmentbackend.entity.elastic.AppealManagementDocument;
 import com.tutict.finalassignmentbackend.entity.elastic.DriverInformationDocument;
 import com.tutict.finalassignmentbackend.entity.elastic.OffenseInformationDocument;
 import com.tutict.finalassignmentbackend.entity.elastic.VehicleInformationDocument;
-import com.tutict.finalassignmentbackend.mapper.AppealManagementMapper;
-import com.tutict.finalassignmentbackend.mapper.DriverInformationMapper;
-import com.tutict.finalassignmentbackend.mapper.OffenseInformationMapper;
-import com.tutict.finalassignmentbackend.mapper.VehicleInformationMapper;
-import com.tutict.finalassignmentbackend.repository.AppealManagementSearchRepository;
-import com.tutict.finalassignmentbackend.repository.DriverInformationSearchRepository;
-import com.tutict.finalassignmentbackend.repository.OffenseInformationSearchRepository;
-import com.tutict.finalassignmentbackend.repository.VehicleInformationSearchRepository;
+import com.tutict.finalassignmentbackend.entity.elastic.DeductionInformationDocument;
+import com.tutict.finalassignmentbackend.entity.elastic.FineInformationDocument;
+import com.tutict.finalassignmentbackend.mapper.*;
+import com.tutict.finalassignmentbackend.repository.*;
 import jakarta.annotation.PostConstruct;
 import org.apache.http.HttpHost;
 import org.elasticsearch.client.RestClient;
@@ -48,29 +41,41 @@ public class ElasticSearchConfig {
     private final DriverInformationMapper driverInformationMapper;
     private final OffenseInformationMapper offenseInformationMapper;
     private final AppealManagementMapper appealManagementMapper;
+    private final FineInformationMapper fineInformationMapper;
+    private final DeductionInformationMapper deductionInformationMapper;
 
     private final @Lazy VehicleInformationSearchRepository vehicleInformationSearchRepository;
     private final @Lazy DriverInformationSearchRepository driverInformationSearchRepository;
     private final @Lazy OffenseInformationSearchRepository offenseInformationSearchRepository;
     private final @Lazy AppealManagementSearchRepository appealManagementSearchRepository;
+    private final @Lazy FineInformationSearchRepository fineInformationSearchRepository;
+    private final @Lazy DeductionInformationSearchRepository deductionInformationSearchRepository;
 
     public ElasticSearchConfig(
             VehicleInformationMapper vehicleInformationMapper,
             DriverInformationMapper driverInformationMapper,
             OffenseInformationMapper offenseInformationMapper,
             AppealManagementMapper appealManagementMapper,
+            FineInformationMapper fineInformationMapper,
+            DeductionInformationMapper deductionInformationMapper,
             @Lazy VehicleInformationSearchRepository vehicleInformationSearchRepository,
             @Lazy DriverInformationSearchRepository driverInformationSearchRepository,
             @Lazy OffenseInformationSearchRepository offenseInformationSearchRepository,
-            @Lazy AppealManagementSearchRepository appealManagementSearchRepository) {
+            @Lazy AppealManagementSearchRepository appealManagementSearchRepository,
+            @Lazy FineInformationSearchRepository fineInformationSearchRepository,
+            @Lazy DeductionInformationSearchRepository deductionInformationSearchRepository) {
         this.vehicleInformationMapper = vehicleInformationMapper;
         this.driverInformationMapper = driverInformationMapper;
         this.offenseInformationMapper = offenseInformationMapper;
         this.appealManagementMapper = appealManagementMapper;
+        this.fineInformationMapper = fineInformationMapper;
+        this.deductionInformationMapper = deductionInformationMapper;
         this.vehicleInformationSearchRepository = vehicleInformationSearchRepository;
         this.driverInformationSearchRepository = driverInformationSearchRepository;
         this.offenseInformationSearchRepository = offenseInformationSearchRepository;
         this.appealManagementSearchRepository = appealManagementSearchRepository;
+        this.fineInformationSearchRepository = fineInformationSearchRepository;
+        this.deductionInformationSearchRepository = deductionInformationSearchRepository;
     }
 
     @Bean
@@ -109,6 +114,12 @@ public class ElasticSearchConfig {
         syncEntities("appeals", appealManagementMapper.selectList(null),
                 appealManagementSearchRepository, AppealManagementDocument::fromEntity);
 
+        syncEntities("fines", fineInformationMapper.selectList(null),
+                fineInformationSearchRepository, FineInformationDocument::fromEntity);
+
+        syncEntities("deductions", deductionInformationMapper.selectList(null),
+                deductionInformationSearchRepository, DeductionInformationDocument::fromEntity);
+
         log.log(Level.INFO, "Completed synchronization of database to Elasticsearch");
     }
 
@@ -141,6 +152,10 @@ public class ElasticSearchConfig {
             return ((OffenseInformation) entity).getOffenseId();
         } else if (entity instanceof AppealManagement) {
             return ((AppealManagement) entity).getAppealId();
+        } else if (entity instanceof DeductionInformation) {
+            return ((DeductionInformation) entity).getDeductionId();
+        } else if (entity instanceof FineInformation) {
+            return ((FineInformation) entity).getFineId();
         }
         return null;
     }

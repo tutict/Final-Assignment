@@ -8,7 +8,7 @@ import org.springframework.data.elasticsearch.annotations.*;
 import java.time.LocalDate;
 
 @Data
-@Document(indexName = "driver_information")
+@Document(indexName = "drivers")
 @Setting(settingPath = "elasticsearch/driver-analyzer.json")
 public class DriverInformationDocument {
 
