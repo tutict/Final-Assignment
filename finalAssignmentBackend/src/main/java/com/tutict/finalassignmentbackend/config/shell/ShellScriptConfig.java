@@ -6,6 +6,9 @@ import org.springframework.context.annotation.Configuration;
 
 import java.io.IOException;
 
+/**
+ * 启动时执行脚本，用于启动 Ollama
+ */
 @Configuration
 public class ShellScriptConfig {
 

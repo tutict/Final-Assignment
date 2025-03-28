@@ -3,15 +3,13 @@ package com.tutict.finalassignmentbackend.entity.elastic;
 import lombok.Data;
 import com.tutict.finalassignmentbackend.entity.OffenseInformation;
 import org.springframework.data.annotation.Id;
-import org.springframework.data.elasticsearch.annotations.Document;
-import org.springframework.data.elasticsearch.annotations.Field;
-import org.springframework.data.elasticsearch.annotations.FieldType;
-import org.springframework.data.elasticsearch.annotations.DateFormat;
+import org.springframework.data.elasticsearch.annotations.*;
 
 import java.time.LocalDateTime;
 
 @Data
 @Document(indexName = "offense_information")
+@Setting(settingPath = "elasticsearch/offense-analyzer.json")
 public class OffenseInformationDocument {
 
     @Id

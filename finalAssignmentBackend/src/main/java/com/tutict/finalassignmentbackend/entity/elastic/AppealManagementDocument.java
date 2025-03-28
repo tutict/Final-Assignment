@@ -3,15 +3,13 @@ package com.tutict.finalassignmentbackend.entity.elastic;
 import lombok.Data;
 import com.tutict.finalassignmentbackend.entity.AppealManagement;
 import org.springframework.data.annotation.Id;
-import org.springframework.data.elasticsearch.annotations.Document;
-import org.springframework.data.elasticsearch.annotations.Field;
-import org.springframework.data.elasticsearch.annotations.FieldType;
-import org.springframework.data.elasticsearch.annotations.DateFormat;
+import org.springframework.data.elasticsearch.annotations.*;
 
 import java.time.LocalDateTime;
 
 @Data
 @Document(indexName = "appeal_management")
+@Setting(settingPath = "elasticsearch/appeal-analyzer.json")
 public class AppealManagementDocument {
 
     @Id

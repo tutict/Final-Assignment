@@ -24,7 +24,7 @@ public class KafkaConfig {
     public KafkaConsumer<String, String> kafkaConsumer(Vertx vertx) {
         Map<String, String> config = new HashMap<>();
         config.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        config.put(ConsumerConfig.GROUP_ID_CONFIG, "my-group");
+        config.put(ConsumerConfig.GROUP_ID_CONFIG, "work-group");
         config.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         config.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         config.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");

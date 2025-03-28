@@ -4,6 +4,9 @@ import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Value;
 import org.springframework.stereotype.Component;
 
+/**
+ * 用于 GraalVM 配置 python 虚拟环境地址
+ */
 @Component
 public class GraalPyContext {
     private final Context context;
