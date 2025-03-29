@@ -4,8 +4,8 @@ import com.tutict.finalassignmentbackend.entity.ProgressItem;
 import com.tutict.finalassignmentbackend.service.ProgressItemService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -23,7 +23,6 @@ public class ProgressItemController {
         this.progressItemService = progressItemService;
     }
 
-    // 创建新的进度记录（仅 USER）
     @PostMapping
     @PreAuthorize("hasRole('USER')")
     public ResponseEntity<ProgressItem> createProgress(@RequestBody ProgressItem progressItem) {
@@ -33,7 +32,6 @@ public class ProgressItemController {
         return new ResponseEntity<>(savedItem, HttpStatus.CREATED);
     }
 
-    // 管理员查看所有进度记录
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<ProgressItem>> getAllProgress() {
@@ -41,7 +39,6 @@ public class ProgressItemController {
         return ResponseEntity.ok(progressItems);
     }
 
-    // 用户查看自己的进度记录（按用户名）
     @GetMapping(params = "username")
     @PreAuthorize("hasRole('USER')")
     public ResponseEntity<List<ProgressItem>> getProgressByUsername(@RequestParam String username) {
@@ -49,21 +46,27 @@ public class ProgressItemController {
         return ResponseEntity.ok(progressItems);
     }
 
-    // 更新进度状态（仅 ADMIN）
-    @PutMapping("/{progressId}")
+    @PutMapping("/{progressId}/status")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ProgressItem> updateProgressStatus(
-            @PathVariable int progressId, @RequestBody ProgressItem updatedProgressItem) {
-        ProgressItem updatedItem = progressItemService.updateProgressStatus(progressId, updatedProgressItem);
-        if (updatedItem != null) {
-            logger.info("Progress item with ID " + progressId + " updated successfully.");
-            return ResponseEntity.ok(updatedItem);
-        } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            @PathVariable int progressId, @RequestParam String newStatus) {
+        try {
+            ProgressItem updatedItem = progressItemService.updateProgressStatus(progressId, newStatus);
+            if (updatedItem != null) {
+                logger.info("Progress item with ID " + progressId + " updated successfully to status: " + newStatus);
+                return ResponseEntity.ok(updatedItem);
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            }
+        } catch (IllegalArgumentException e) {
+            logger.warning("Invalid status provided: " + newStatus);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+        } catch (Exception e) {
+            logger.severe("Error updating progress status: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
-    // 删除进度记录（仅 ADMIN）
     @DeleteMapping("/{progressId}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteProgress(@PathVariable int progressId) {
@@ -72,11 +75,9 @@ public class ProgressItemController {
         return ResponseEntity.noContent().build();
     }
 
-    // 根据状态获取进度记录（USER 和 ADMIN）
     @GetMapping("/status/{status}")
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public ResponseEntity<List<ProgressItem>> getProgressByStatus(@PathVariable String status) {
-        // 验证状态有效性
         if (!isValidStatus(status)) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
@@ -84,7 +85,6 @@ public class ProgressItemController {
         return ResponseEntity.ok(progressItems);
     }
 
-    // 根据提交时间范围获取进度记录（USER 和 ADMIN）
     @GetMapping("/timeRange")
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public ResponseEntity<List<ProgressItem>> getProgressByTimeRange(
@@ -93,9 +93,8 @@ public class ProgressItemController {
         return ResponseEntity.ok(progressItems);
     }
 
-    // 验证状态的有效性
     private boolean isValidStatus(String status) {
-        return "Pending".equals(status) || "Processing".equals(status) ||
-                "Completed".equals(status) || "Archived".equals(status);
+        return "PENDING".equalsIgnoreCase(status) || "PROCESSING".equalsIgnoreCase(status) ||
+                "COMPLETED".equalsIgnoreCase(status) || "ARCHIVED".equalsIgnoreCase(status);
     }
 }

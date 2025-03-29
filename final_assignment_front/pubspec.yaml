@@ -117,8 +117,6 @@ dependencies:
 
   flutter_bmflocation: ^3.6.0
 
-  flutter_chart_plus: ^0.2.9
-
   fl_chart: ^0.70.2
 
   js: ^0.6.7
