@@ -21,6 +21,11 @@ public interface VehicleInformationSearchRepository extends ElasticsearchReposit
 
     // 模糊搜索车辆类型
     @Query("{\"bool\": {\"filter\": [{\"term\": {\"ownerName.keyword\": \"?1\"}}], " +
-            "\"must\": [{\"query_string\": {\"query\": \"*?0*\", \"fields\": [\"vehicleType.ngram\"]}}]}}")
-    SearchHits<VehicleInformationDocument> searchByVehicleType(String vehicleType, String ownerName);
+            "\"must\": [{\"query_string\": {\"query\": \"?0*\", \"fields\": [\"vehicleType.ngram\"]}}]}}")
+    SearchHits<VehicleInformationDocument> searchByVehicleTypePrefix(String vehicleType, String ownerName);
+
+    // 模糊匹配查询
+    @Query("{\"bool\": {\"filter\": [{\"term\": {\"ownerName.keyword\": \"?1\"}}], " +
+            "\"must\": [{\"match\": {\"vehicleType\": {\"query\": \"?0\", \"fuzziness\": \"AUTO\"}}}]}}")
+    SearchHits<VehicleInformationDocument> searchByVehicleTypeFuzzy(String vehicleType, String ownerName);
 }

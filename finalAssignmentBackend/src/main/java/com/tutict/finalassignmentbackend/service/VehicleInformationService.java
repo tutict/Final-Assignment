@@ -312,10 +312,12 @@ public class VehicleInformationService {
         log.log(Level.INFO, "Executing vehicle type search for ownerName: {0}, prefix: {1}, maxSuggestions: {2}",
                 new Object[]{ownerName, prefix, maxSuggestions});
 
+        // 1. 前缀匹配
         SearchHits<VehicleInformationDocument> suggestHits = null;
         try {
-            suggestHits = vehicleInformationSearchRepository.searchByVehicleType(prefix, ownerName);
-            log.log(Level.INFO, "Vehicle type search returned {0} hits", new Object[]{suggestHits != null ? suggestHits.getTotalHits() : 0});
+            suggestHits = vehicleInformationSearchRepository.searchByVehicleTypePrefix(prefix, ownerName);
+            log.log(Level.INFO, "Vehicle type search returned {0} hits",
+                    new Object[]{suggestHits != null ? suggestHits.getTotalHits() : 0});
         } catch (Exception e) {
             log.log(Level.WARNING, "Error executing vehicle type search query: {0}", new Object[]{e.getMessage()});
         }
@@ -331,19 +333,21 @@ public class VehicleInformationService {
                     break;
                 }
             }
-            log.log(Level.INFO, "Found {0} vehicle type suggestions: {1}", new Object[]{suggestions.size(), suggestions});
+            log.log(Level.INFO, "Found {0} vehicle type suggestions: {1}",
+                    new Object[]{suggestions.size(), suggestions});
         } else {
             log.log(Level.INFO, "No vehicle type suggestions found for prefix: {0}", new Object[]{prefix});
         }
 
-        // 如果结果不足，执行备用模糊查询
+        // 2. 如果结果不足，执行模糊查询
         if (suggestions.size() < maxSuggestions) {
-            log.log(Level.INFO, "Executing fuzzy query for vehicle type prefix: {0}, ownerName: {1}", new Object[]{prefix, ownerName});
+            log.log(Level.INFO, "Executing fuzzy query for vehicle type prefix: {0}, ownerName: {1}",
+                    new Object[]{prefix, ownerName});
             SearchHits<VehicleInformationDocument> fuzzyHits = null;
             try {
-                // Reuse the searchByVehicleType method for fuzzy search, as it already uses ik_max_word analyzer
-                fuzzyHits = vehicleInformationSearchRepository.searchByVehicleType(prefix, ownerName);
-                log.log(Level.INFO, "Fuzzy query returned {0} hits", new Object[]{fuzzyHits != null ? fuzzyHits.getTotalHits() : 0});
+                fuzzyHits = vehicleInformationSearchRepository.searchByVehicleTypeFuzzy(prefix, ownerName);
+                log.log(Level.INFO, "Fuzzy query returned {0} hits",
+                        new Object[]{fuzzyHits != null ? fuzzyHits.getTotalHits() : 0});
             } catch (Exception e) {
                 log.log(Level.WARNING, "Error executing fuzzy query for vehicle type: {0}", new Object[]{e.getMessage()});
             }
@@ -359,7 +363,8 @@ public class VehicleInformationService {
                         break;
                     }
                 }
-                log.log(Level.INFO, "After fuzzy search, total vehicle type suggestions: {0}", new Object[]{suggestions.size()});
+                log.log(Level.INFO, "After fuzzy search, total vehicle type suggestions: {0}",
+                        new Object[]{suggestions.size()});
             } else {
                 log.log(Level.INFO, "Fuzzy search returned no results for vehicle type prefix: {0}", new Object[]{prefix});
             }

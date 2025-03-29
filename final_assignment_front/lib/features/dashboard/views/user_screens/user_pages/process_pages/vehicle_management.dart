@@ -149,6 +149,19 @@ class _VehicleManagementState extends State<VehicleManagement> {
         vehicles = vehicle != null && vehicle.ownerName == _currentDriverName
             ? [vehicle]
             : [];
+      } else if (_searchType == 'vehicleType') {
+        // 精确匹配 vehicleType
+        debugPrint('Searching vehicles with exact vehicleType: $searchQuery');
+        vehicles = await vehicleApi.apiVehiclesSearchGet(
+          query:
+              'vehicleType.keyword:"$searchQuery" ownerName:$_currentDriverName',
+          page: _currentPage,
+          size: _pageSize,
+        );
+        // 二次过滤，确保 vehicleType 完全匹配
+        vehicles = vehicles
+            .where((vehicle) => vehicle.vehicleType == searchQuery)
+            .toList();
       } else {
         debugPrint('Searching vehicles with query: $searchQuery');
         vehicles = await vehicleApi.apiVehiclesSearchGet(
@@ -190,16 +203,16 @@ class _VehicleManagementState extends State<VehicleManagement> {
             'Fetching license plate suggestions for owner: $_currentDriverName, prefix: $prefix');
         return await vehicleApi.apiVehiclesAutocompleteLicensePlateMeGet(
           prefix: prefix,
-          maxSuggestions: 5, // 保持与原方法一致的默认值
-          ownerName: _currentDriverName, // 传递 _currentDriverName 作为 ownerName
+          maxSuggestions: 5,
+          ownerName: _currentDriverName,
         );
       } else {
         debugPrint(
             'Fetching vehicle type suggestions for owner: $_currentDriverName, prefix: $prefix');
         return await vehicleApi.apiVehiclesAutocompleteVehicleTypeMeGet(
           prefix: prefix,
-          maxSuggestions: 5, // 保持与原方法一致的默认值
-          ownerName: _currentDriverName, // 传递 _currentDriverName 作为 ownerName
+          maxSuggestions: 5,
+          ownerName: _currentDriverName,
         );
       }
     } catch (e) {

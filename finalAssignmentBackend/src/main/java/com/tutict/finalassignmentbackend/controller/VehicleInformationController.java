@@ -75,26 +75,26 @@ public class VehicleInformationController {
     }
 
     @GetMapping("/autocomplete/vehicle-type/me")
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public ResponseEntity<List<String>> getVehicleTypeAutocompleteSuggestions(
-            @RequestParam String prefix,
-            @RequestParam(defaultValue = "5") int maxSuggestions,
-            @RequestParam(required = false) String ownerName) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String currentUsername = authentication.getName();
-        log.log(Level.INFO, "Fetching vehicle type suggestions for user: {0}, prefix: {1}, maxSuggestions: {2}",
-                new Object[]{currentUsername, prefix, maxSuggestions});
+            @RequestParam("prefix") String prefix,
+            @RequestParam(value = "maxSuggestions", defaultValue = "5") int maxSuggestions,
+            @RequestParam("ownerName") String ownerName) {
 
-        // 解码 ownerName
-        String decodedOwnerName = ownerName != null ? URLDecoder.decode(ownerName, StandardCharsets.UTF_8) : currentUsername;
-        log.log(Level.INFO, "Decoded ownerName: {0}", new Object[]{decodedOwnerName});
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        log.log(Level.INFO, "Fetching vehicle type suggestions for user: {0}, prefix: {1}, maxSuggestions: {2}",
+                new Object[]{username, prefix, maxSuggestions});
+
+        // 解码 prefix 和 ownerName
+        String decodedPrefix = URLDecoder.decode(prefix, StandardCharsets.UTF_8);
+        String decodedOwnerName = URLDecoder.decode(ownerName, StandardCharsets.UTF_8);
+        log.log(Level.INFO, "Decoded prefix: {0}, ownerName: {1}", new Object[]{decodedPrefix, decodedOwnerName});
 
         List<String> suggestions = vehicleInformationService.getVehicleTypeAutocompleteSuggestions(
-                decodedOwnerName, prefix, maxSuggestions);
+                decodedOwnerName, decodedPrefix, maxSuggestions);
 
         if (suggestions.isEmpty()) {
-            log.log(Level.INFO, "No vehicle type suggestions found for prefix: {0} for user: {1}",
-                    new Object[]{prefix, currentUsername});
+            log.log(Level.INFO, "No vehicle type suggestions found for prefix: {0} for user: {1}", new Object[]{decodedPrefix, username});
+            return ResponseEntity.ok(Collections.emptyList());
         }
         return ResponseEntity.ok(suggestions);
     }
