@@ -20,16 +20,16 @@ import 'dart:convert';
 class ProgressController extends GetxController {
   final ProgressControllerApi _progressApi = ProgressControllerApi();
   final AppealManagementControllerApi _appealApi =
-      AppealManagementControllerApi();
+  AppealManagementControllerApi();
   final DeductionInformationControllerApi _deductionApi =
-      DeductionInformationControllerApi();
+  DeductionInformationControllerApi();
   final DriverInformationControllerApi _driverApi =
-      DriverInformationControllerApi();
+  DriverInformationControllerApi();
   final FineInformationControllerApi _fineApi = FineInformationControllerApi();
   final VehicleInformationControllerApi _vehicleApi =
-      VehicleInformationControllerApi();
+  VehicleInformationControllerApi();
   final OffenseInformationControllerApi _offenseApi =
-      OffenseInformationControllerApi();
+  OffenseInformationControllerApi();
 
   var progressItems = <ProgressItem>[].obs;
   var filteredItems = <ProgressItem>[].obs;
@@ -50,6 +50,10 @@ class ProgressController extends GetxController {
     'Completed',
     'Archived'
   ];
+
+  // 用于时间范围筛选
+  var startTime = Rxn<DateTime>();
+  var endTime = Rxn<DateTime>();
 
   @override
   void onInit() {
@@ -81,6 +85,7 @@ class ProgressController extends GetxController {
       await fetchProgress();
     } catch (e) {
       errorMessage.value = '初始化失败: $e';
+      Get.snackbar('错误', '初始化失败: $e', backgroundColor: Colors.red);
     } finally {
       isLoading.value = false;
     }
@@ -92,9 +97,9 @@ class ProgressController extends GetxController {
       final roles = decoded['roles'] is String
           ? [decoded['roles'].toString()]
           : (decoded['roles'] as List<dynamic>?)
-                  ?.map((r) => r.toString())
-                  .toList() ??
-              [];
+          ?.map((r) => r.toString())
+          .toList() ??
+          [];
       debugPrint('Roles from JWT: $roles'); // 调试日志
       isAdmin.value = roles.contains('ROLE_ADMIN') || roles.contains('ADMIN');
       debugPrint('isAdmin set to: ${isAdmin.value}');
@@ -136,7 +141,7 @@ class ProgressController extends GetxController {
             .where((f) => f.payee == currentUsername.value)
             .toList());
         vehicles.assignAll(await _vehicleApi.apiVehiclesSearchGet(
-                query: currentUsername.value) ??
+            query: currentUsername.value) ??
             []);
         offenses.assignAll((await _offenseApi.apiOffensesGet() ?? [])
             .where((o) => o.driverName == currentUsername.value)
@@ -144,6 +149,7 @@ class ProgressController extends GetxController {
       }
     } catch (e) {
       errorMessage.value = '加载业务数据失败: $e';
+      Get.snackbar('错误', '加载业务数据失败: $e', backgroundColor: Colors.red);
     }
   }
 
@@ -154,32 +160,74 @@ class ProgressController extends GetxController {
         progressItems.assignAll(await _progressApi.apiProgressGet() ?? []);
       } else {
         progressItems.assignAll(await _progressApi.apiProgressUsernameGet(
-                username: currentUsername.value) ??
+            username: currentUsername.value) ??
             []);
       }
-      filterByStatus(statusCategories[0]);
+      applyFilters();
     } catch (e) {
       errorMessage.value = '加载进度失败: $e';
       progressItems.clear();
+      Get.snackbar('错误', '加载进度失败: $e', backgroundColor: Colors.red);
     } finally {
       isLoading.value = false;
     }
   }
 
   void filterByStatus(String status) {
-    filteredItems.assignAll(
-        progressItems.where((item) => item.status == status).toList());
+    applyFilters(status: status);
+  }
+
+  Future<void> fetchProgressByTimeRange(DateTime start, DateTime end) async {
+    isLoading.value = true;
+    try {
+      startTime.value = start;
+      endTime.value = end;
+      final progressList = await _progressApi.apiProgressTimeRangeGet(
+        startTime: start.toIso8601String(),
+        endTime: end.toIso8601String(),
+      );
+      progressItems.assignAll(progressList ?? []);
+      applyFilters();
+    } catch (e) {
+      errorMessage.value = '按时间范围加载进度失败: $e';
+      progressItems.clear();
+      Get.snackbar('错误', '按时间范围加载进度失败: $e', backgroundColor: Colors.red);
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  void applyFilters({String? status}) {
+    var items = progressItems.toList();
+
+    // 按时间范围过滤
+    if (startTime.value != null && endTime.value != null) {
+      items = items.where((item) {
+        final submitTime = item.submitTime;
+        return submitTime != null &&
+            submitTime.isAfter(startTime.value!) &&
+            submitTime.isBefore(endTime.value!);
+      }).toList();
+    }
+
+    // 按状态过滤
+    if (status != null) {
+      items = items.where((item) => item.status == status).toList();
+    }
+
+    filteredItems.assignAll(items);
   }
 
   Future<void> submitProgress(String title, String? details,
       {int? appealId,
-      int? deductionId,
-      int? driverId,
-      int? fineId,
-      int? vehicleId,
-      int? offenseId}) async {
+        int? deductionId,
+        int? driverId,
+        int? fineId,
+        int? vehicleId,
+        int? offenseId}) async {
     if (title.isEmpty) {
       errorMessage.value = '进度标题不能为空';
+      Get.snackbar('错误', '进度标题不能为空', backgroundColor: Colors.red);
       return;
     }
     isLoading.value = true;
@@ -200,7 +248,7 @@ class ProgressController extends GetxController {
       );
       await _progressApi.apiProgressPost(progressItem: newItem);
       await fetchProgress();
-      Get.snackbar('成功', '进度提交成功');
+      Get.snackbar('成功', '进度提交成功', backgroundColor: Colors.green);
     } catch (e) {
       errorMessage.value = '提交进度失败: $e';
       Get.snackbar('错误', '提交进度失败: $e', backgroundColor: Colors.red);
@@ -210,15 +258,18 @@ class ProgressController extends GetxController {
   }
 
   Future<void> updateProgressStatus(int progressId, String newStatus) async {
-    if (!isAdmin.value) return;
+    if (!isAdmin.value) {
+      Get.snackbar('错误', '只有管理员可以更新进度状态', backgroundColor: Colors.red);
+      return;
+    }
     isLoading.value = true;
     try {
-      final item = progressItems.firstWhere((p) => p.id == progressId);
-      final updatedItem = item.copyWith(status: newStatus);
-      await _progressApi.apiProgressProgressIdPut(
-          progressId: progressId, progressItem: updatedItem);
+      await _progressApi.apiProgressProgressIdStatusPut(
+        progressId: progressId,
+        newStatus: newStatus,
+      );
       await fetchProgress();
-      Get.snackbar('成功', '状态更新成功');
+      Get.snackbar('成功', '状态更新成功', backgroundColor: Colors.green);
     } catch (e) {
       errorMessage.value = '更新状态失败: $e';
       Get.snackbar('错误', '更新状态失败: $e', backgroundColor: Colors.red);
@@ -228,12 +279,15 @@ class ProgressController extends GetxController {
   }
 
   Future<void> deleteProgress(int progressId) async {
-    if (!isAdmin.value) return;
+    if (!isAdmin.value) {
+      Get.snackbar('错误', '只有管理员可以删除进度', backgroundColor: Colors.red);
+      return;
+    }
     isLoading.value = true;
     try {
       await _progressApi.apiProgressProgressIdDelete(progressId: progressId);
       await fetchProgress();
-      Get.snackbar('成功', '进度删除成功');
+      Get.snackbar('成功', '进度删除成功', backgroundColor: Colors.green);
     } catch (e) {
       errorMessage.value = '删除失败: $e';
       Get.snackbar('错误', '删除失败: $e', backgroundColor: Colors.red);
@@ -245,28 +299,34 @@ class ProgressController extends GetxController {
   String getBusinessContext(ProgressItem item) {
     if (item.appealId != null) {
       final appeal =
-          appeals.firstWhereOrNull((a) => a.appealId == item.appealId);
+      appeals.firstWhereOrNull((a) => a.appealId == item.appealId);
       return '申诉: ${appeal?.appellantName ?? "未知"} (ID: ${item.appealId})';
     } else if (item.deductionId != null) {
       final deduction =
-          deductions.firstWhereOrNull((d) => d.deductionId == item.deductionId);
+      deductions.firstWhereOrNull((d) => d.deductionId == item.deductionId);
       return '扣分: ${deduction?.driverLicenseNumber ?? "未知"} (分数: ${deduction?.deductedPoints ?? 0})';
     } else if (item.driverId != null) {
       final driver =
-          drivers.firstWhereOrNull((d) => d.driverId == item.driverId);
+      drivers.firstWhereOrNull((d) => d.driverId == item.driverId);
       return '司机: ${driver?.name ?? "未知"} (驾照: ${driver?.driverLicenseNumber ?? "未知"})';
     } else if (item.fineId != null) {
       final fine = fines.firstWhereOrNull((f) => f.fineId == item.fineId);
       return '罚款: ${fine?.payee ?? "未知"} (金额: ${fine?.fineAmount ?? 0})';
     } else if (item.vehicleId != null) {
       final vehicle =
-          vehicles.firstWhereOrNull((v) => v.vehicleId == item.vehicleId);
+      vehicles.firstWhereOrNull((v) => v.vehicleId == item.vehicleId);
       return '车辆: ${vehicle?.licensePlate ?? "未知"} (车主: ${vehicle?.ownerName ?? "未知"})';
     } else if (item.offenseId != null) {
       final offense =
-          offenses.firstWhereOrNull((o) => o.offenseId == item.offenseId);
+      offenses.firstWhereOrNull((o) => o.offenseId == item.offenseId);
       return '违法: ${offense?.offenseType ?? "未知"} (车牌: ${offense?.licensePlate ?? "未知"})';
     }
     return '无关联业务';
+  }
+
+  void clearTimeRangeFilter() {
+    startTime.value = null;
+    endTime.value = null;
+    applyFilters();
   }
 }

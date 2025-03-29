@@ -1,9 +1,8 @@
-// progress_controller_api.dart
 import 'package:final_assignment_front/features/model/progress_item.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http; // 用于 Response
+import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -25,7 +24,7 @@ class ProgressControllerApi {
       throw Exception('未登录，请重新登录');
     }
     apiClient.setJwtToken(jwtToken);
-    debugPrint('Initialized SystemSettingsControllerApi with token: $jwtToken');
+    debugPrint('Initialized ProgressControllerApi with token: $jwtToken');
   }
 
   // 解码响应体的辅助方法
@@ -40,7 +39,6 @@ class ProgressControllerApi {
   }
 
   /// 创建新的进度记录。 with HTTP info returned
-  ///
   Future<http.Response> apiProgressPostWithHttpInfo({
     required ProgressItem progressItem,
     Map<String, String>? headers,
@@ -51,7 +49,7 @@ class ProgressControllerApi {
       throw ApiException(401, 'No JWT token found');
     }
 
-    Object postBody = progressItem;
+    Object postBody = progressItem.toJson();
 
     // 创建路径和映射变量
     String path = "/api/progress".replaceAll("{format}", "json");
@@ -73,11 +71,10 @@ class ProgressControllerApi {
 
     var response = await apiClient.invokeAPI(path, 'POST', queryParams,
         postBody, headerParams, formParams, nullableContentType, authNames);
-    return response as http.Response;
+    return response;
   }
 
   /// 创建新的进度记录。
-  ///
   Future<ProgressItem> apiProgressPost({
     required ProgressItem progressItem,
     Map<String, String>? headers,
@@ -91,7 +88,6 @@ class ProgressControllerApi {
   }
 
   /// 获取所有进度记录。 with HTTP info returned
-  ///
   Future<http.Response> apiProgressGetWithHttpInfo({
     Map<String, String>? headers,
   }) async {
@@ -123,11 +119,10 @@ class ProgressControllerApi {
 
     var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
         headerParams, formParams, nullableContentType, authNames);
-    return response as http.Response;
+    return response;
   }
 
   /// 获取所有进度记录。
-  ///
   Future<List<ProgressItem>> apiProgressGet({
     Map<String, String>? headers,
   }) async {
@@ -140,7 +135,6 @@ class ProgressControllerApi {
   }
 
   /// 根据用户名获取进度记录。 with HTTP info returned
-  ///
   Future<http.Response> apiProgressUsernameGetWithHttpInfo({
     required String username,
     Map<String, String>? headers,
@@ -175,11 +169,10 @@ class ProgressControllerApi {
 
     var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
         headerParams, formParams, nullableContentType, authNames);
-    return response as http.Response;
+    return response;
   }
 
   /// 根据用户名获取进度记录。
-  ///
   Future<List<ProgressItem>> apiProgressUsernameGet({
     required String username,
     Map<String, String>? headers,
@@ -194,10 +187,9 @@ class ProgressControllerApi {
   }
 
   /// 根据进度ID更新进度状态。 with HTTP info returned
-  ///
-  Future<http.Response> apiProgressProgressIdPutWithHttpInfo({
+  Future<http.Response> apiProgressProgressIdStatusPutWithHttpInfo({
     required int progressId,
-    required ProgressItem progressItem,
+    required String newStatus,
     Map<String, String>? headers,
   }) async {
     final prefs = await SharedPreferences.getInstance();
@@ -206,16 +198,16 @@ class ProgressControllerApi {
       throw ApiException(401, 'No JWT token found');
     }
 
-    Object postBody = {
-      'status': progressItem.status,
-      'details': progressItem.details,
-    };
+    Object postBody = ''; // PUT 请求这里不需要 body，因为参数在查询字符串中
 
     // 创建路径和映射变量
-    String path = "/api/progress/$progressId".replaceAll("{format}", "json");
+    String path =
+        "/api/progress/$progressId/status".replaceAll("{format}", "json");
 
     // 查询参数
-    List<QueryParam> queryParams = [];
+    List<QueryParam> queryParams = [
+      QueryParam('newStatus', newStatus),
+    ];
     Map<String, String> headerParams = {
       ...?headers,
       'Authorization': 'Bearer $jwtToken',
@@ -223,7 +215,7 @@ class ProgressControllerApi {
     };
     Map<String, String> formParams = {};
 
-    List<String> contentTypes = ["application/json"];
+    List<String> contentTypes = [];
 
     String? nullableContentType =
         contentTypes.isNotEmpty ? contentTypes[0] : null;
@@ -231,18 +223,17 @@ class ProgressControllerApi {
 
     var response = await apiClient.invokeAPI(path, 'PUT', queryParams, postBody,
         headerParams, formParams, nullableContentType, authNames);
-    return response as http.Response;
+    return response;
   }
 
   /// 根据进度ID更新进度状态。
-  ///
-  Future<ProgressItem> apiProgressProgressIdPut({
+  Future<ProgressItem> apiProgressProgressIdStatusPut({
     required int progressId,
-    required ProgressItem progressItem,
+    required String newStatus,
     Map<String, String>? headers,
   }) async {
-    http.Response response = await apiProgressProgressIdPutWithHttpInfo(
-        progressId: progressId, progressItem: progressItem, headers: headers);
+    http.Response response = await apiProgressProgressIdStatusPutWithHttpInfo(
+        progressId: progressId, newStatus: newStatus, headers: headers);
     if (response.statusCode == 200) {
       return ProgressItem.fromJson(jsonDecode(_decodeBodyBytes(response)));
     }
@@ -250,7 +241,6 @@ class ProgressControllerApi {
   }
 
   /// 删除指定进度记录。 with HTTP info returned
-  ///
   Future<http.Response> apiProgressProgressIdDeleteWithHttpInfo({
     required int progressId,
     Map<String, String>? headers,
@@ -283,11 +273,10 @@ class ProgressControllerApi {
 
     var response = await apiClient.invokeAPI(path, 'DELETE', queryParams,
         postBody, headerParams, formParams, nullableContentType, authNames);
-    return response as http.Response;
+    return response;
   }
 
   /// 删除指定进度记录。
-  ///
   Future<void> apiProgressProgressIdDelete({
     required int progressId,
     Map<String, String>? headers,
@@ -300,7 +289,6 @@ class ProgressControllerApi {
   }
 
   /// 根据状态获取进度记录。 with HTTP info returned
-  ///
   Future<http.Response> apiProgressStatusStatusGetWithHttpInfo({
     required String status,
     Map<String, String>? headers,
@@ -333,11 +321,10 @@ class ProgressControllerApi {
 
     var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
         headerParams, formParams, nullableContentType, authNames);
-    return response as http.Response;
+    return response;
   }
 
   /// 根据状态获取进度记录。
-  ///
   Future<List<ProgressItem>> apiProgressStatusStatusGet({
     required String status,
     Map<String, String>? headers,
@@ -352,10 +339,9 @@ class ProgressControllerApi {
   }
 
   /// 根据时间范围获取进度记录。 with HTTP info returned
-  ///
   Future<http.Response> apiProgressTimeRangeGetWithHttpInfo({
-    String? startTime,
-    String? endTime,
+    required String startTime,
+    required String endTime,
     Map<String, String>? headers,
   }) async {
     final prefs = await SharedPreferences.getInstance();
@@ -370,15 +356,10 @@ class ProgressControllerApi {
     String path = "/api/progress/timeRange".replaceAll("{format}", "json");
 
     // 查询参数
-    List<QueryParam> queryParams = [];
-    if (startTime != null) {
-      queryParams.addAll(
-          _convertParametersForCollectionFormat("", "startTime", startTime));
-    }
-    if (endTime != null) {
-      queryParams.addAll(
-          _convertParametersForCollectionFormat("", "endTime", endTime));
-    }
+    List<QueryParam> queryParams = [
+      QueryParam('startTime', startTime),
+      QueryParam('endTime', endTime),
+    ];
     Map<String, String> headerParams = {
       ...?headers,
       'Authorization': 'Bearer $jwtToken',
@@ -394,14 +375,13 @@ class ProgressControllerApi {
 
     var response = await apiClient.invokeAPI(path, 'GET', queryParams, postBody,
         headerParams, formParams, nullableContentType, authNames);
-    return response as http.Response;
+    return response;
   }
 
   /// 根据时间范围获取进度记录。
-  ///
   Future<List<ProgressItem>> apiProgressTimeRangeGet({
-    String? startTime,
-    String? endTime,
+    required String startTime,
+    required String endTime,
     Map<String, String>? headers,
   }) async {
     http.Response response = await apiProgressTimeRangeGetWithHttpInfo(
@@ -414,12 +394,12 @@ class ProgressControllerApi {
   }
 
   /// 根据用户名获取进度记录 (WebSocket)
-  /// 对应后端: @WsAction(service="ProgressItem", action="getProgressByUsername")
+  /// 对应后端: @WsAction(service="ProgressItemService", action="getProgressByUsername")
   Future<List<Object>?> eventbusProgressUsernameGet({
     required String username,
   }) async {
     final msg = {
-      "service": "ProgressItem",
+      "service": "ProgressItemService",
       "action": "getProgressByUsername",
       "args": [username]
     };
@@ -435,10 +415,10 @@ class ProgressControllerApi {
   }
 
   /// 获取所有进度记录 (WebSocket)
-  /// 对应 @WsAction(service="ProgressItem", action="getAllProgress")
+  /// 对应 @WsAction(service="ProgressItemService", action="getAllProgress")
   Future<List<Object>?> eventbusProgressGet() async {
     final msg = {
-      "service": "ProgressItem",
+      "service": "ProgressItemService",
       "action": "getAllProgress",
       "args": []
     };
@@ -454,12 +434,12 @@ class ProgressControllerApi {
   }
 
   /// 根据状态获取进度记录 (WebSocket)
-  /// 对应 @WsAction(service="ProgressItem", action="getProgressByStatus")
+  /// 对应 @WsAction(service="ProgressItemService", action="getProgressByStatus")
   Future<List<Object>?> eventbusProgressStatusStatusGet({
     required String status,
   }) async {
     final msg = {
-      "service": "ProgressItem",
+      "service": "ProgressItemService",
       "action": "getProgressByStatus",
       "args": [status]
     };
@@ -475,15 +455,15 @@ class ProgressControllerApi {
   }
 
   /// 根据时间范围获取进度记录 (WebSocket)
-  /// 对应 @WsAction(service="ProgressItem", action="getProgressByTimeRange")
+  /// 对应 @WsAction(service="ProgressItemService", action="getProgressByTimeRange")
   Future<List<Object>?> eventbusProgressTimeRangeGet({
-    String? startTime,
-    String? endTime,
+    required String startTime,
+    required String endTime,
   }) async {
     final msg = {
-      "service": "ProgressItem",
+      "service": "ProgressItemService",
       "action": "getProgressByTimeRange",
-      "args": [startTime ?? "", endTime ?? ""]
+      "args": [startTime, endTime]
     };
 
     final respMap = await apiClient.sendWsMessage(msg);
@@ -497,12 +477,12 @@ class ProgressControllerApi {
   }
 
   /// 根据进度ID删除进度记录 (WebSocket)
-  /// 对应 @WsAction(service="ProgressItem", action="deleteProgress")
+  /// 对应 @WsAction(service="ProgressItemService", action="deleteProgress")
   Future<Object?> eventbusProgressProgressIdDelete({
     required int progressId,
   }) async {
     final msg = {
-      "service": "ProgressItem",
+      "service": "ProgressItemService",
       "action": "deleteProgress",
       "args": [progressId]
     };
@@ -514,15 +494,16 @@ class ProgressControllerApi {
     return respMap["result"];
   }
 
-  /// 根据进度ID获取进度记录 (WebSocket)
-  /// 对应 @WsAction(service="ProgressItem", action="getProgressById")
-  Future<Object?> eventbusProgressProgressIdGet({
+  /// 根据进度ID更新进度状态 (WebSocket)
+  /// 对应 @WsAction(service="ProgressItemService", action="updateProgressStatus")
+  Future<Object?> eventbusProgressProgressIdStatusPut({
     required int progressId,
+    required String newStatus,
   }) async {
     final msg = {
-      "service": "ProgressItem",
-      "action": "getProgressById",
-      "args": [progressId]
+      "service": "ProgressItemService",
+      "action": "updateProgressStatus",
+      "args": [progressId, newStatus]
     };
 
     final respMap = await apiClient.sendWsMessage(msg);
@@ -532,16 +513,15 @@ class ProgressControllerApi {
     return respMap["result"];
   }
 
-  /// 根据进度ID更新进度状态 (WebSocket)
-  /// 对应 @WsAction(service="ProgressItem", action="updateProgressStatus")
-  Future<Object?> eventbusProgressProgressIdPut({
-    required int progressId,
+  /// 创建新的进度记录 (WebSocket)
+  /// 对应 @WsAction(service="ProgressItemService", action="createProgress")
+  Future<Object?> eventbusProgressPost({
     required ProgressItem progressItem,
   }) async {
     final msg = {
-      "service": "ProgressItem",
-      "action": "updateProgressStatus",
-      "args": [progressId, progressItem.toJson()]
+      "service": "ProgressItemService",
+      "action": "createProgress",
+      "args": [progressItem.toJson()]
     };
 
     final respMap = await apiClient.sendWsMessage(msg);

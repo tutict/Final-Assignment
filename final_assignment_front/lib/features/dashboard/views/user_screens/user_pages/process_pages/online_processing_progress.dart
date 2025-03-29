@@ -17,7 +17,7 @@ class OnlineProcessingProgressState extends State<OnlineProcessingProgress>
     with TickerProviderStateMixin {
   late TabController _tabController;
   final UserDashboardController dashboardController =
-      Get.find<UserDashboardController>();
+  Get.find<UserDashboardController>();
   final ProgressController progressController = Get.find<ProgressController>();
 
   @override
@@ -25,7 +25,7 @@ class OnlineProcessingProgressState extends State<OnlineProcessingProgress>
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(() {
-      if (_tabController.indexIsChanging) {
+      if (!_tabController.indexIsChanging) {
         progressController.filterByStatus(
             progressController.statusCategories[_tabController.index]);
       }
@@ -183,8 +183,29 @@ class OnlineProcessingProgressState extends State<OnlineProcessingProgress>
           ),
           actions: [
             IconButton(
-              icon: const Icon(Icons.add),
-              color: themeData.colorScheme.onPrimaryContainer,
+              icon: Icon(
+                Icons.date_range,
+                color: themeData.colorScheme.onPrimaryContainer,
+              ),
+              onPressed: () => _showDateRangePicker(themeData),
+              tooltip: '按时间范围筛选',
+            ),
+            IconButton(
+              icon: Icon(
+                Icons.clear,
+                color: themeData.colorScheme.onPrimaryContainer,
+              ),
+              onPressed: () {
+                progressController.clearTimeRangeFilter();
+                progressController.fetchProgress();
+              },
+              tooltip: '清除筛选',
+            ),
+            IconButton(
+              icon: Icon(
+                Icons.add,
+                color: themeData.colorScheme.onPrimaryContainer,
+              ),
               onPressed: _showSubmitProgressDialog,
               tooltip: '提交新进度',
             ),
@@ -194,27 +215,27 @@ class OnlineProcessingProgressState extends State<OnlineProcessingProgress>
           padding: const EdgeInsets.all(16.0),
           child: progressController.isLoading.value
               ? Center(
-                  child: CircularProgressIndicator(
-                    valueColor:
-                        AlwaysStoppedAnimation(themeData.colorScheme.primary),
-                  ),
-                )
+            child: CircularProgressIndicator(
+              valueColor:
+              AlwaysStoppedAnimation(themeData.colorScheme.primary),
+            ),
+          )
               : progressController.errorMessage.isNotEmpty
-                  ? Center(
-                      child: Text(
-                        progressController.errorMessage.value,
-                        style: themeData.textTheme.bodyLarge?.copyWith(
-                          color: themeData.colorScheme.error,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    )
-                  : TabBarView(
-                      controller: _tabController,
-                      children: progressController.statusCategories
-                          .map((status) => _buildProgressList(themeData))
-                          .toList(),
-                    ),
+              ? Center(
+            child: Text(
+              progressController.errorMessage.value,
+              style: themeData.textTheme.bodyLarge?.copyWith(
+                color: themeData.colorScheme.error,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          )
+              : TabBarView(
+            controller: _tabController,
+            children: progressController.statusCategories
+                .map((status) => _buildProgressList(themeData))
+                .toList(),
+          ),
         ),
       );
     });
@@ -223,78 +244,117 @@ class OnlineProcessingProgressState extends State<OnlineProcessingProgress>
   Widget _buildProgressList(ThemeData themeData) {
     return Obx(() => progressController.filteredItems.isEmpty
         ? Center(
-            child: Text(
-              '暂无记录',
-              style: themeData.textTheme.titleMedium?.copyWith(
-                color: themeData.colorScheme.onSurfaceVariant,
-                fontWeight: FontWeight.w500,
+      child: Text(
+        '暂无记录',
+        style: themeData.textTheme.titleMedium?.copyWith(
+          color: themeData.colorScheme.onSurfaceVariant,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    )
+        : ListView.builder(
+      itemCount: progressController.filteredItems.length,
+      itemBuilder: (context, index) {
+        final item = progressController.filteredItems[index];
+        return Card(
+          elevation: 3,
+          color: themeData.colorScheme.surfaceContainer,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16)),
+          margin: const EdgeInsets.symmetric(vertical: 8),
+          child: ListTile(
+            contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            leading: CircleAvatar(
+              backgroundColor: _getStatusColor(item.status, themeData),
+              radius: 24,
+              child: Text(
+                item.title.isNotEmpty ? item.title[0].toUpperCase() : '?',
+                style: themeData.textTheme.titleMedium?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
-          )
-        : ListView.builder(
-            itemCount: progressController.filteredItems.length,
-            itemBuilder: (context, index) {
-              final item = progressController.filteredItems[index];
-              return Card(
-                elevation: 3,
-                color: themeData.colorScheme.surfaceContainer,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16)),
-                margin: const EdgeInsets.symmetric(vertical: 8),
-                child: ListTile(
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  leading: CircleAvatar(
-                    backgroundColor: _getStatusColor(item.status, themeData),
-                    radius: 24,
-                    child: Text(
-                      item.title.isNotEmpty ? item.title[0].toUpperCase() : '?',
-                      style: themeData.textTheme.titleMedium?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  title: Text(
-                    item.title,
-                    style: themeData.textTheme.titleMedium?.copyWith(
-                      color: themeData.colorScheme.onSurface,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 4),
-                      Text(
-                        '提交时间: ${item.submitTime != null ? DateFormat('yyyy-MM-dd HH:mm').format(item.submitTime!) : '未知'}',
-                        style: themeData.textTheme.bodyMedium?.copyWith(
-                          color: themeData.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      Text(
-                        progressController.getBusinessContext(item),
-                        style: themeData.textTheme.bodySmall?.copyWith(
-                          color: themeData.colorScheme.onSurfaceVariant
-                              .withOpacity(0.8),
-                        ),
-                      ),
-                    ],
-                  ),
-                  trailing: Icon(
-                    Icons.arrow_forward_ios,
+            title: Text(
+              item.title,
+              style: themeData.textTheme.titleMedium?.copyWith(
+                color: themeData.colorScheme.onSurface,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 4),
+                Text(
+                  '提交时间: ${item.submitTime != null ? DateFormat('yyyy-MM-dd HH:mm').format(item.submitTime!) : '未知'}',
+                  style: themeData.textTheme.bodyMedium?.copyWith(
                     color: themeData.colorScheme.onSurfaceVariant,
-                    size: 18,
                   ),
-                  onTap: () =>
-                      Get.toNamed(AppPages.progressDetailPage, arguments: item)
-                          ?.then((result) {
-                    if (result == true) progressController.fetchProgress();
-                  }),
                 ),
-              );
-            },
-          ));
+                Text(
+                  progressController.getBusinessContext(item),
+                  style: themeData.textTheme.bodySmall?.copyWith(
+                    color: themeData.colorScheme.onSurfaceVariant
+                        .withOpacity(0.8),
+                  ),
+                ),
+              ],
+            ),
+            trailing: Icon(
+              Icons.arrow_forward_ios,
+              color: themeData.colorScheme.onSurfaceVariant,
+              size: 18,
+            ),
+            onTap: () =>
+                Get.toNamed(AppPages.progressDetailPage, arguments: item)
+                    ?.then((result) {
+                  if (result == true) progressController.fetchProgress();
+                }),
+          ),
+        );
+      },
+    ));
+  }
+
+  void _showDateRangePicker(ThemeData themeData) async {
+    final initialStartDate = DateTime.now().subtract(const Duration(days: 7));
+    final initialEndDate = DateTime.now();
+
+    final pickedRange = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now(),
+      initialDateRange: DateTimeRange(
+        start: initialStartDate,
+        end: initialEndDate,
+      ),
+      builder: (context, child) {
+        return Theme(
+          data: themeData.copyWith(
+            colorScheme: themeData.colorScheme.copyWith(
+              primary: themeData.colorScheme.primary,
+              onPrimary: themeData.colorScheme.onPrimary,
+              surface: themeData.colorScheme.surface,
+            ),
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                foregroundColor: themeData.colorScheme.primary,
+              ),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (pickedRange != null) {
+      await progressController.fetchProgressByTimeRange(
+        pickedRange.start,
+        pickedRange.end,
+      );
+    }
   }
 
   Color _getStatusColor(String? status, ThemeData themeData) {

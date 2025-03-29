@@ -1,6 +1,5 @@
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_chart_plus/flutter_chart.dart';
-import 'package:final_assignment_front/features/model/offense_information.dart';
 
 /// 条形图组件，用于展示交通违法类型的分布
 class TrafficViolationBarChart extends StatelessWidget {
@@ -22,64 +21,119 @@ class TrafficViolationBarChart extends StatelessWidget {
       );
     }
 
-    // 转换为数据列表
-    final dataList = typeCountMap.entries.map((entry) {
-      return {
-        'time': startTime, // 固定起始时间，条形图按类型分组
-        'value1': entry.value.toDouble(), // 数量作为值
-        'value2': 0.0, // 仅使用一个值，剩余设为 0
-        'value3': 0.0,
-      };
-    }).toList();
-
-    // Handle case where dataList is empty
-    if (dataList.isEmpty) {
-      return const Center(
-        child: Text('No offense data available'),
-      );
-    }
+    // 获取类型列表和最大值
+    final List<String> types = typeCountMap.keys.toList();
+    final double maxY = typeCountMap.values.isNotEmpty
+        ? (typeCountMap.values.reduce((a, b) => a > b ? a : b) * 1.2).toDouble()
+        : 100.0; // 默认最大值
 
     return SizedBox(
       height: 300,
-      child: ChartWidget(
-        coordinateRender: ChartDimensionsCoordinateRender(
-          yAxis: [
-            YAxis(
-              min: 0,
-              max: typeCountMap.values.isNotEmpty
-                  ? (typeCountMap.values.reduce((a, b) => a > b ? a : b) * 1.2)
-                  .toDouble()
-                  : 100.0, // Default max if empty
-            )
-          ],
-          margin: const EdgeInsets.only(left: 40, top: 0, right: 0, bottom: 30),
-          xAxis: XAxis(
-            count: typeCountMap.length,
-            max: typeCountMap.length.toDouble(),
-            zoom: false, // 禁用缩放
-            formatter: (index) {
-              return typeCountMap.keys.elementAt(index.toInt());
-            },
-          ),
-          charts: [
-            StackBar(
-              data: dataList,
-              position: (item) => indexOfType(
-                  item['time'] as DateTime, typeCountMap.keys.toList()),
-              direction: Axis.horizontal,
-              itemWidth: 20,
-              highlightColor: Colors.yellow,
-              values: (item) => [item['value1']],
+      child: BarChart(
+        BarChartData(
+          // 条形图对齐方式
+          alignment: BarChartAlignment.spaceAround,
+          // Y 轴范围
+          maxY: maxY,
+          minY: 0,
+          // 条形图组数据
+          barGroups: _buildBarGroups(types),
+          // 标题设置（X 轴和 Y 轴标签）
+          titlesData: FlTitlesData(
+            show: true,
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 40,
+                getTitlesWidget: (value, meta) {
+                  return Text(
+                    value.toInt().toString(),
+                    style: const TextStyle(
+                      color: Colors.black,
+                      fontSize: 12,
+                    ),
+                  );
+                },
+              ),
             ),
-          ],
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 30,
+                getTitlesWidget: (value, meta) {
+                  final index = value.toInt();
+                  if (index >= 0 && index < types.length) {
+                    return SideTitleWidget(
+                      meta: meta, // 传递 meta 参数
+                      space: 8.0, // 可选：设置标题与图表的间距
+                      child: Text(
+                        types[index],
+                        style: const TextStyle(
+                          color: Colors.black,
+                          fontSize: 12,
+                        ),
+                      ),
+                    );
+                  }
+                  return const Text('');
+                },
+              ),
+            ),
+            topTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+            rightTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+          ),
+          // 网格线设置
+          gridData: FlGridData(
+            show: true,
+            drawVerticalLine: false,
+            horizontalInterval: maxY / 5,
+          ),
+          // 边框设置
+          borderData: FlBorderData(show: false),
+          // 触摸交互设置
+          barTouchData: BarTouchData(
+            enabled: true,
+            touchTooltipData: BarTouchTooltipData(
+              getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                return BarTooltipItem(
+                  '${types[groupIndex]}: ${rod.toY.toInt()}',
+                  const TextStyle(color: Colors.white),
+                );
+              },
+            ),
+          ),
         ),
       ),
     );
   }
 
-  double indexOfType(DateTime time, List<String> types) {
-    return types
-        .indexOf(typeCountMap.keys.firstWhere((k) => true))
-        .toDouble(); // 简化为顺序索引
+  // 构建条形图组数据
+  List<BarChartGroupData> _buildBarGroups(List<String> types) {
+    return List.generate(types.length, (index) {
+      final count = typeCountMap[types[index]]?.toDouble() ?? 0.0;
+      return BarChartGroupData(
+        x: index,
+        barRods: [
+          BarChartRodData(
+            toY: count,
+            color: Colors.blue,
+            width: 20,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+            backDrawRodData: BackgroundBarChartRodData(
+              show: true,
+              toY: typeCountMap.values.isNotEmpty
+                  ? (typeCountMap.values.reduce((a, b) => a > b ? a : b) * 1.2)
+                      .toDouble()
+                  : 100.0,
+              color: Colors.grey.withOpacity(0.1),
+            ),
+          ),
+        ],
+      );
+    });
   }
 }
