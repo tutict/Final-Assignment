@@ -128,11 +128,13 @@ class _VehicleManagementState extends State<VehicleManagement> {
       _isLoading = true;
       _errorMessage = '';
     });
-    try {
-      final searchQuery = query?.trim() ?? '';
-      debugPrint(
-          'Fetching vehicles with query: $searchQuery, page: $_currentPage, searchType: $_searchType');
 
+    // Declare searchQuery outside the try block
+    final searchQuery = query?.trim() ?? '';
+    debugPrint(
+        'Fetching vehicles with query: $searchQuery, page: $_currentPage, searchType: $_searchType');
+
+    try {
       List<VehicleInformation> vehicles = [];
       if (searchQuery.isEmpty) {
         debugPrint(
@@ -144,23 +146,19 @@ class _VehicleManagementState extends State<VehicleManagement> {
         );
       } else if (_searchType == 'licensePlate' && searchQuery.length >= 3) {
         // Use specific lookup for license plate if query is detailed enough
+        debugPrint('Fetching vehicle by license plate: $searchQuery');
         final vehicle = await vehicleApi.apiVehiclesLicensePlateGet(
             licensePlate: searchQuery);
         vehicles = vehicle != null && vehicle.ownerName == _currentDriverName
             ? [vehicle]
             : [];
-      } else if (_searchType == 'vehicleType') {
-        // 精确匹配 vehicleType
-        debugPrint('Searching vehicles with exact vehicleType: $searchQuery');
-        vehicles = await vehicleApi.apiVehiclesSearchGet(
-          query:
-              'vehicleType.keyword:"$searchQuery" ownerName:$_currentDriverName',
-          page: _currentPage,
-          size: _pageSize,
-        );
-        // 二次过滤，确保 vehicleType 完全匹配
+      } else if (_searchType == 'vehicleType' && searchQuery.length >= 2) {
+        // Use specific lookup for vehicle type if query is detailed enough
+        debugPrint('Fetching vehicle by vehicle type: $searchQuery');
+        vehicles =
+            await vehicleApi.apiVehiclesTypeGet(vehicleType: searchQuery);
         vehicles = vehicles
-            .where((vehicle) => vehicle.vehicleType == searchQuery)
+            .where((vehicle) => vehicle.ownerName == _currentDriverName)
             .toList();
       } else {
         debugPrint('Searching vehicles with query: $searchQuery');
@@ -177,14 +175,15 @@ class _VehicleManagementState extends State<VehicleManagement> {
         _vehicleList.addAll(vehicles);
         if (vehicles.length < _pageSize) _hasMore = false;
         if (_vehicleList.isEmpty && _currentPage == 1) {
-          _errorMessage = query != null ? '未找到符合条件的车辆' : '您当前没有车辆记录';
+          _errorMessage = searchQuery.isNotEmpty ? '未找到符合条件的车辆' : '您当前没有车辆记录';
         }
       });
     } catch (e) {
       setState(() {
         if (e.toString().contains('404')) {
           _vehicleList.clear();
-          _errorMessage = '未找到符合条件的车辆';
+          _errorMessage =
+              '未找到符合条件的车辆，可能${_searchType == 'vehicleType' ? '车辆类型' : '车牌号'} "$searchQuery" 不存在';
           _hasMore = false;
         } else {
           _errorMessage =

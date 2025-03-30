@@ -54,6 +54,10 @@ public class DeductionInformationDocument {
 
     // 从 DeductionInformation 实体转换为文档
     public static DeductionInformationDocument fromEntity(DeductionInformation entity) {
+        if (entity == null) {
+            return null;
+        }
+
         DeductionInformationDocument doc = new DeductionInformationDocument();
         doc.setDeductionId(entity.getDeductionId());
         doc.setOffenseId(entity.getOffenseId());

@@ -19,25 +19,61 @@ public class AppealManagementDocument {
     @Field(type = FieldType.Integer)
     private Integer offenseId;
 
-    @Field(type = FieldType.Text, analyzer = "standard")
+    @MultiField(
+            mainField = @Field(type = FieldType.Text, analyzer = "ik_max_word", searchAnalyzer = "ik_max_word"),
+            otherFields = {
+                    @InnerField(suffix = "keyword", type = FieldType.Keyword),
+                    @InnerField(suffix = "icu", type = FieldType.Text, analyzer = "icu_analyzer", searchAnalyzer = "icu_analyzer")
+            }
+    )
     private String appellantName;
 
-    @Field(type = FieldType.Keyword)
+    @MultiField(
+            mainField = @Field(type = FieldType.Text, analyzer = "ik_max_word", searchAnalyzer = "ik_max_word"),
+            otherFields = {
+                    @InnerField(suffix = "keyword", type = FieldType.Keyword),
+                    @InnerField(suffix = "icu", type = FieldType.Text, analyzer = "icu_analyzer", searchAnalyzer = "icu_analyzer")
+            }
+    )
     private String idCardNumber;
 
-    @Field(type = FieldType.Keyword)
+    @MultiField(
+            mainField = @Field(type = FieldType.Text, analyzer = "ik_max_word", searchAnalyzer = "ik_max_word"),
+            otherFields = {
+                    @InnerField(suffix = "keyword", type = FieldType.Keyword),
+                    @InnerField(suffix = "icu", type = FieldType.Text, analyzer = "icu_analyzer", searchAnalyzer = "icu_analyzer")
+            }
+    )
     private String contactNumber;
 
-    @Field(type = FieldType.Text, analyzer = "standard")
+    @MultiField(
+            mainField = @Field(type = FieldType.Text, analyzer = "ik_max_word", searchAnalyzer = "ik_max_word"),
+            otherFields = {
+                    @InnerField(suffix = "keyword", type = FieldType.Keyword),
+                    @InnerField(suffix = "icu", type = FieldType.Text, analyzer = "icu_analyzer", searchAnalyzer = "icu_analyzer")
+            }
+    )
     private String appealReason;
 
     @Field(type = FieldType.Date, format = DateFormat.date_hour_minute_second, pattern = "uuuu-MM-dd'T'HH:mm:ss")
     private LocalDateTime appealTime;
 
-    @Field(type = FieldType.Keyword)
+    @MultiField(
+            mainField = @Field(type = FieldType.Text, analyzer = "ik_max_word", searchAnalyzer = "ik_max_word"),
+            otherFields = {
+                    @InnerField(suffix = "keyword", type = FieldType.Keyword),
+                    @InnerField(suffix = "icu", type = FieldType.Text, analyzer = "icu_analyzer", searchAnalyzer = "icu_analyzer")
+            }
+    )
     private String processStatus;
 
-    @Field(type = FieldType.Text)
+    @MultiField(
+            mainField = @Field(type = FieldType.Text, analyzer = "ik_max_word", searchAnalyzer = "ik_max_word"),
+            otherFields = {
+                    @InnerField(suffix = "keyword", type = FieldType.Keyword),
+                    @InnerField(suffix = "icu", type = FieldType.Text, analyzer = "icu_analyzer", searchAnalyzer = "icu_analyzer")
+            }
+    )
     private String processResult;
 
     // Convert from entity to document
@@ -62,15 +98,15 @@ public class AppealManagementDocument {
     // Convert from document to entity
     public AppealManagement toEntity() {
         AppealManagement entity = new AppealManagement();
-        entity.setAppealId(this.getAppealId());
-        entity.setOffenseId(this.getOffenseId());
-        entity.setAppellantName(this.getAppellantName());
-        entity.setIdCardNumber(this.getIdCardNumber());
-        entity.setContactNumber(this.getContactNumber());
-        entity.setAppealReason(this.getAppealReason());
-        entity.setAppealTime(this.getAppealTime());
-        entity.setProcessStatus(this.getProcessStatus());
-        entity.setProcessResult(this.getProcessResult());
+        entity.setAppealId(this.appealId);
+        entity.setOffenseId(this.offenseId);
+        entity.setAppellantName(this.appellantName);
+        entity.setIdCardNumber(this.idCardNumber);
+        entity.setContactNumber(this.contactNumber);
+        entity.setAppealReason(this.appealReason);
+        entity.setAppealTime(this.appealTime);
+        entity.setProcessStatus(this.processStatus);
+        entity.setProcessResult(this.processResult);
         return entity;
     }
 }

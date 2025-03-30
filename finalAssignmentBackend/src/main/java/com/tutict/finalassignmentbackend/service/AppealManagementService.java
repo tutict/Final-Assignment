@@ -13,15 +13,14 @@ import com.tutict.finalassignmentbackend.repository.AppealManagementSearchReposi
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
+import org.springframework.data.elasticsearch.core.SearchHit;
+import org.springframework.data.elasticsearch.core.SearchHits;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -283,23 +282,148 @@ public class AppealManagementService {
         return appealManagementMapper.selectCount(queryWrapper);
     }
 
-    public List<AppealManagement> searchAppeals(String query, int page, int size) {
+    public List<AppealManagement> searchAppealName(String query, int page, int size) {
         if (page < 1 || size < 1) {
             throw new IllegalArgumentException("Page must be >= 1 and size must be >= 1");
         }
+
+        Set<AppealManagement> suggestions = new HashSet<>();
+        int maxSuggestions = page * size; // Total results to fetch for pagination
+        int offset = (page - 1) * size; // Starting point for pagination
+
+        log.log(Level.INFO, "Executing match query for appellantName: {0}, page: {1}, size: {2}",
+                new Object[]{query, page, size});
+
+        SearchHits<AppealManagementDocument> matchHits = null;
         try {
-            Page<AppealManagementDocument> results = appealManagementSearchRepository
-                    .findByAppellantNameContainingOrAppealReasonContainingOrProcessStatusContaining(
-                            query, PageRequest.of(page - 1, size));
-            List<AppealManagement> appeals = results.getContent().stream()
-                    .map(AppealManagementDocument::toEntity)
-                    .collect(Collectors.toList());
-            log.info("Search completed for query '" + query + "' with " + appeals.size() + " results");
-            return appeals;
+            matchHits = appealManagementSearchRepository.searchByAppellantNamePrefix(query);
         } catch (Exception e) {
-            log.log(Level.SEVERE, "Failed to search appeals: " + e.getMessage(), e);
-            return Collections.emptyList();
+            log.log(Level.WARNING, "Error executing match query for appellantName: {0}", new Object[]{e.getMessage()});
         }
+
+        if (matchHits != null && matchHits.hasSearchHits()) {
+            for (SearchHit<AppealManagementDocument> hit : matchHits) {
+                AppealManagementDocument doc = hit.getContent();
+                if (doc.getAppellantName() != null) { // Assuming appellantName is the relevant field
+                    suggestions.add(doc.toEntity());
+                    log.log(Level.INFO, "Found appeal with ID: {0}", new Object[]{doc.getAppealId()});
+                }
+                if (suggestions.size() >= maxSuggestions) {
+                    break;
+                }
+            }
+            log.log(Level.INFO, "Found {0} match suggestions: {1}", new Object[]{suggestions.size(), suggestions});
+        } else {
+            log.log(Level.INFO, "No match suggestions found for appellantName: {0}", new Object[]{query});
+        }
+
+        // If results are insufficient, execute fuzzy query
+        if (suggestions.size() < maxSuggestions) {
+            log.log(Level.INFO, "Executing fuzzy query for appellantName: {0}", new Object[]{query});
+            SearchHits<AppealManagementDocument> fuzzyHits = null;
+            try {
+                fuzzyHits = appealManagementSearchRepository.searchByAppellantNameFuzzy(query);
+                log.log(Level.INFO, "Fuzzy query returned {0} hits",
+                        new Object[]{fuzzyHits != null ? fuzzyHits.getTotalHits() : 0});
+            } catch (Exception e) {
+                log.log(Level.WARNING, "Error executing fuzzy query for appellantName: {0}", new Object[]{e.getMessage()});
+            }
+
+            if (fuzzyHits != null && fuzzyHits.hasSearchHits()) {
+                for (SearchHit<AppealManagementDocument> hit : fuzzyHits) {
+                    AppealManagementDocument doc = hit.getContent();
+                    if (doc.getAppellantName() != null) {
+                        suggestions.add(doc.toEntity());
+                        log.log(Level.INFO, "Found appeal with ID: {0}", new Object[]{doc.getAppealId()});
+                    }
+                    if (suggestions.size() >= maxSuggestions) {
+                        break;
+                    }
+                }
+                log.log(Level.INFO, "After fuzzy search, total suggestions: {0}", new Object[]{suggestions.size()});
+            } else {
+                log.log(Level.INFO, "Fuzzy search returned no results for appellantName: {0}", new Object[]{query});
+            }
+        }
+
+        List<AppealManagement> resultList = new ArrayList<>(suggestions);
+        // Apply pagination
+        return resultList.stream()
+                .skip(offset)
+                .limit(size)
+                .collect(Collectors.toList());
+    }
+
+    public List<AppealManagement> searchAppealReason(String query, int page, int size) {
+        if (page < 1 || size < 1) {
+            throw new IllegalArgumentException("Page must be >= 1 and size must be >= 1");
+        }
+
+        Set<AppealManagement> suggestions = new HashSet<>();
+        int maxSuggestions = page * size; // Total results to fetch for pagination
+        int offset = (page - 1) * size; // Starting point for pagination
+
+        log.log(Level.INFO, "Executing match query for appealReason: {0}, page: {1}, size: {2}",
+                new Object[]{query, page, size});
+
+        SearchHits<AppealManagementDocument> matchHits = null;
+        try {
+            matchHits = appealManagementSearchRepository.searchByAppealReasonPrefix(query);
+        } catch (Exception e) {
+            log.log(Level.WARNING, "Error executing match query for appealReason: {0}", new Object[]{e.getMessage()});
+        }
+
+        if (matchHits != null && matchHits.hasSearchHits()) {
+            for (SearchHit<AppealManagementDocument> hit : matchHits) {
+                AppealManagementDocument doc = hit.getContent();
+                if (doc.getAppealReason() != null) { // Assuming appealReason is the relevant field
+                    suggestions.add(doc.toEntity());
+                    log.log(Level.INFO, "Found appeal with ID: {0}", new Object[]{doc.getAppealId()});
+                }
+                if (suggestions.size() >= maxSuggestions) {
+                    break;
+                }
+            }
+            log.log(Level.INFO, "Found {0} match suggestions: {1}", new Object[]{suggestions.size(), suggestions});
+        } else {
+            log.log(Level.INFO, "No match suggestions found for appealReason: {0}", new Object[]{query});
+        }
+
+        // If results are insufficient, execute fuzzy query
+        if (suggestions.size() < maxSuggestions) {
+            log.log(Level.INFO, "Executing fuzzy query for appealReason: {0}", new Object[]{query});
+            SearchHits<AppealManagementDocument> fuzzyHits = null;
+            try {
+                fuzzyHits = appealManagementSearchRepository.searchByAppealReasonFuzzy(query);
+                log.log(Level.INFO, "Fuzzy query returned {0} hits",
+                        new Object[]{fuzzyHits != null ? fuzzyHits.getTotalHits() : 0});
+            } catch (Exception e) {
+                log.log(Level.WARNING, "Error executing fuzzy query for appealReason: {0}", new Object[]{e.getMessage()});
+            }
+
+            if (fuzzyHits != null && fuzzyHits.hasSearchHits()) {
+                for (SearchHit<AppealManagementDocument> hit : fuzzyHits) {
+                    AppealManagementDocument doc = hit.getContent();
+                    if (doc.getAppealReason() != null) {
+                        suggestions.add(doc.toEntity());
+                        log.log(Level.INFO, "Found appeal with ID: {0}", new Object[]{doc.getAppealId()});
+                    }
+                    if (suggestions.size() >= maxSuggestions) {
+                        break;
+                    }
+                }
+                log.log(Level.INFO, "After fuzzy search, total suggestions: {0}", new Object[]{suggestions.size()});
+            } else {
+                log.log(Level.INFO, "Fuzzy search returned no results for appealReason: {0}", new Object[]{query});
+            }
+        }
+
+        List<AppealManagement> resultList = new ArrayList<>(suggestions);
+        // Apply pagination
+        return resultList.stream()
+                .skip(offset)
+                .limit(size)
+                .collect(Collectors.toList());
     }
 
     private void sendKafkaMessage(AppealManagement appeal, String action) {

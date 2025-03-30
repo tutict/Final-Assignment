@@ -73,6 +73,10 @@ public class FineInformationDocument {
 
     // 从 FineInformation 实体转换为文档
     public static FineInformationDocument fromEntity(FineInformation entity) {
+        if (entity == null) {
+            return null;
+        }
+
         FineInformationDocument doc = new FineInformationDocument();
         doc.setFineId(entity.getFineId());
         doc.setOffenseId(entity.getOffenseId());

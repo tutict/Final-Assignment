@@ -114,6 +114,10 @@ public class VehicleInformationDocument {
 
     // 从 VehicleInformation 实体转换为文档
     public static VehicleInformationDocument fromEntity(VehicleInformation entity) {
+        if (entity == null) {
+            return null;
+        }
+
         VehicleInformationDocument doc = new VehicleInformationDocument();
         doc.setVehicleId(entity.getVehicleId());
         doc.setLicensePlate(entity.getLicensePlate()); // 会自动同步 licensePlateCompletion

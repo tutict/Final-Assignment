@@ -36,16 +36,14 @@ class _UserAppealPageState extends State<UserAppealPage> {
   bool _hasOffenses = false;
   List<dynamic> _userOffenses = [];
 
+  // Search and filter options
+  DateTime? _startTime;
+  DateTime? _endTime;
+
   final UserDashboardController? controller =
       Get.isRegistered<UserDashboardController>()
           ? Get.find<UserDashboardController>()
           : null;
-
-  // Filter options
-  String? _selectedStatus;
-  DateTime? _startTime;
-  DateTime? _endTime;
-  final TextEditingController _reasonController = TextEditingController();
 
   @override
   void initState() {
@@ -59,7 +57,6 @@ class _UserAppealPageState extends State<UserAppealPage> {
   @override
   void dispose() {
     _searchController.dispose();
-    _reasonController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -174,13 +171,30 @@ class _UserAppealPageState extends State<UserAppealPage> {
     }
   }
 
-  Future<void> _fetchUserAppeals() async {
+  Future<void> _fetchUserAppeals({bool resetFilters = false}) async {
     setState(() {
       _isLoading = true;
       _errorMessage = '';
     });
     try {
-      final appeals = await appealApi.apiAppealsGet();
+      final user = await _fetchUserManagement();
+      final driverInfo = user?.userId != null
+          ? await _fetchDriverInformation(user!.userId!)
+          : null;
+      final currentAppellantName = driverInfo?.name ?? user?.username ?? '';
+
+      List<AppealManagement> appeals;
+      if (resetFilters) {
+        _startTime = null;
+        _endTime = null;
+        _searchController.clear();
+        appeals = await appealApi.apiAppealsNameAppellantNameGet(
+            appellantName: currentAppellantName);
+      } else {
+        appeals = await appealApi.apiAppealsNameAppellantNameGet(
+            appellantName: currentAppellantName);
+      }
+
       setState(() {
         _appeals = appeals;
         _isLoading = false;
@@ -193,50 +207,90 @@ class _UserAppealPageState extends State<UserAppealPage> {
     }
   }
 
-  Future<void> _applyFilters() async {
+  Future<List<String>> _fetchAutocompleteSuggestions(String prefix) async {
+    try {
+      debugPrint('Fetching appeal reason suggestions for prefix: $prefix');
+      return await appealApi.apiAppealsAutocompleteReasonGet(
+        prefix: prefix,
+        maxSuggestions: 5,
+      );
+    } catch (e) {
+      debugPrint('Failed to fetch autocomplete suggestions: $e');
+      return [];
+    }
+  }
+
+  Future<void> _applyFilters({bool reset = false}) async {
     setState(() {
       _isLoading = true;
       _errorMessage = '';
     });
+
+    final searchQuery = _searchController.text.trim();
+    debugPrint(
+        'Applying filters with query: $searchQuery, startTime: $_startTime, endTime: $_endTime');
+
     try {
-      if (_selectedStatus != null && _startTime != null && _endTime != null) {
-        final appeals = await appealApi.apiAppealsStatusAndTimeGet(
-          processStatus: _selectedStatus!,
-          startTime: _startTime!.toIso8601String(),
-          endTime: _endTime!.toIso8601String(),
-        );
-        setState(() {
-          _appeals = appeals;
-        });
-      } else if (_selectedStatus != null) {
-        final appeals = await appealApi.apiAppealsStatusProcessStatusGet(
-            processStatus: _selectedStatus!);
-        setState(() {
-          _appeals = appeals;
-        });
-      } else if (_startTime != null && _endTime != null) {
-        final appeals = await appealApi.apiAppealsTimeRangeGet(
-          startTime: _startTime!.toIso8601String(),
-          endTime: _endTime!.toIso8601String(),
-        );
-        setState(() {
-          _appeals = appeals;
-        });
-      } else if (_reasonController.text.isNotEmpty) {
-        final appeals = await appealApi.apiAppealsReasonReasonGet(
-            reason: _reasonController.text.trim());
-        setState(() {
-          _appeals = appeals;
-        });
-      } else if (_searchController.text.isNotEmpty) {
-        final appeals = await appealApi.apiAppealsNameAppellantNameGet(
-            appellantName: _searchController.text.trim());
-        setState(() {
-          _appeals = appeals;
-        });
-      } else {
-        await _fetchUserAppeals();
+      final user = await _fetchUserManagement();
+      final driverInfo = user?.userId != null
+          ? await _fetchDriverInformation(user!.userId!)
+          : null;
+      final currentAppellantName = driverInfo?.name ?? user?.username ?? '';
+
+      List<AppealManagement> appeals = [];
+
+      // Reset filters if requested
+      if (reset) {
+        _startTime = null;
+        _endTime = null;
+        _searchController.clear();
       }
+
+      // Base condition: Always filter by the current user's appellant name
+      if (searchQuery.isEmpty && _startTime == null && _endTime == null) {
+        debugPrint('Fetching all appeals for appellant: $currentAppellantName');
+        appeals = await appealApi.apiAppealsNameAppellantNameGet(
+            appellantName: currentAppellantName);
+      } else if (searchQuery.isNotEmpty &&
+          _startTime != null &&
+          _endTime != null) {
+        debugPrint('Filtering by reason and time range');
+        appeals =
+            await appealApi.apiAppealsReasonReasonGet(reason: searchQuery);
+        appeals = appeals
+            .where((appeal) =>
+                appeal.appellantName == currentAppellantName &&
+                appeal.appealTime != null &&
+                appeal.appealTime!.isAfter(_startTime!) &&
+                appeal.appealTime!.isBefore(_endTime!))
+            .toList();
+      } else if (searchQuery.isNotEmpty) {
+        debugPrint('Searching appeals by reason: $searchQuery');
+        appeals =
+            await appealApi.apiAppealsReasonReasonGet(reason: searchQuery);
+        appeals = appeals
+            .where((appeal) => appeal.appellantName == currentAppellantName)
+            .toList();
+      } else if (_startTime != null && _endTime != null) {
+        debugPrint('Filtering by time range');
+        appeals = await appealApi.apiAppealsTimeRangeGet(
+          startTime: _startTime!.toIso8601String(),
+          endTime: _endTime!.toIso8601String(),
+        );
+        appeals = appeals
+            .where((appeal) => appeal.appellantName == currentAppellantName)
+            .toList();
+      }
+
+      setState(() {
+        _appeals = appeals;
+        if (_appeals.isEmpty) {
+          _errorMessage =
+              searchQuery.isNotEmpty || (_startTime != null && _endTime != null)
+                  ? '未找到符合条件的申诉记录'
+                  : '暂无申诉记录';
+        }
+      });
     } catch (e) {
       setState(() {
         _errorMessage = '过滤申诉失败: $e';
@@ -500,64 +554,68 @@ class _UserAppealPageState extends State<UserAppealPage> {
             Row(
               children: [
                 Expanded(
-                  child: TextField(
-                    controller: _searchController,
-                    style: TextStyle(color: themeData.colorScheme.onSurface),
-                    decoration: InputDecoration(
-                      labelText: '按姓名搜索',
-                      labelStyle: TextStyle(
-                          color: themeData.colorScheme.onSurfaceVariant),
-                      prefixIcon: Icon(Icons.search,
-                          color: themeData.colorScheme.primary),
-                      suffixIcon: _searchController.text.isNotEmpty
-                          ? IconButton(
-                              icon: Icon(Icons.clear,
-                                  color:
-                                      themeData.colorScheme.onSurfaceVariant),
-                              onPressed: () {
-                                _searchController.clear();
-                                _applyFilters();
-                              },
-                            )
-                          : null,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8.0),
-                        borderSide: BorderSide.none,
-                      ),
-                      filled: true,
-                      fillColor: themeData.brightness == Brightness.dark
-                          ? themeData.colorScheme.surfaceContainerHighest
-                          : themeData.colorScheme.surfaceContainerLowest,
-                    ),
-                    onSubmitted: (value) => _applyFilters(),
+                  child: Autocomplete<String>(
+                    optionsBuilder: (TextEditingValue textEditingValue) async {
+                      if (textEditingValue.text.isEmpty) {
+                        return const Iterable<String>.empty();
+                      }
+                      return await _fetchAutocompleteSuggestions(
+                          textEditingValue.text);
+                    },
+                    onSelected: (String selection) {
+                      _searchController.text = selection;
+                      _applyFilters();
+                    },
+                    fieldViewBuilder:
+                        (context, controller, focusNode, onFieldSubmitted) {
+                      _searchController.text =
+                          controller.text; // Sync with outer controller
+                      return TextField(
+                        controller: controller,
+                        focusNode: focusNode,
+                        style:
+                            TextStyle(color: themeData.colorScheme.onSurface),
+                        decoration: InputDecoration(
+                          hintText: '搜索申诉原因',
+                          hintStyle: TextStyle(
+                              color: themeData.colorScheme.onSurface
+                                  .withOpacity(0.6)),
+                          prefixIcon: Icon(Icons.search,
+                              color: themeData.colorScheme.primary),
+                          suffixIcon: controller.text.isNotEmpty
+                              ? IconButton(
+                                  icon: Icon(Icons.clear,
+                                      color: themeData
+                                          .colorScheme.onSurfaceVariant),
+                                  onPressed: () {
+                                    controller.clear();
+                                    _searchController.clear();
+                                    _applyFilters(reset: true);
+                                  },
+                                )
+                              : null,
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8.0)),
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
+                                color: themeData.colorScheme.outline
+                                    .withOpacity(0.3)),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
+                                color: themeData.colorScheme.primary,
+                                width: 1.5),
+                          ),
+                          filled: true,
+                          fillColor:
+                              themeData.colorScheme.surfaceContainerLowest,
+                          contentPadding: const EdgeInsets.symmetric(
+                              vertical: 12.0, horizontal: 16.0),
+                        ),
+                        onSubmitted: (value) => _applyFilters(),
+                      );
+                    },
                   ),
-                ),
-                const SizedBox(width: 8),
-                DropdownButton<String>(
-                  hint: Text(
-                    '选择状态',
-                    style: TextStyle(
-                      color: themeData.brightness == Brightness.dark
-                          ? Colors.white // 暗色模式下显示白色
-                          : themeData.colorScheme.onSurface, // 亮色模式下使用默认颜色
-                    ),
-                  ),
-                  value: _selectedStatus,
-                  items: const [
-                    DropdownMenuItem(value: 'Pending', child: Text('待处理')),
-                    DropdownMenuItem(value: 'Approved', child: Text('已通过')),
-                    DropdownMenuItem(value: 'Rejected', child: Text('已拒绝')),
-                  ],
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedStatus = value;
-                    });
-                    _applyFilters();
-                  },
-                  style: TextStyle(color: themeData.colorScheme.onSurface),
-                  dropdownColor: themeData.colorScheme.surfaceContainer,
-                  icon: Icon(Icons.arrow_drop_down,
-                      color: themeData.colorScheme.primary),
                 ),
               ],
             ),
@@ -565,26 +623,17 @@ class _UserAppealPageState extends State<UserAppealPage> {
             Row(
               children: [
                 Expanded(
-                  child: TextField(
-                    controller: _reasonController,
-                    style: TextStyle(color: themeData.colorScheme.onSurface),
-                    decoration: InputDecoration(
-                      labelText: '按原因搜索',
-                      labelStyle: TextStyle(
-                          color: themeData.colorScheme.onSurfaceVariant),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8.0),
-                        borderSide: BorderSide.none,
-                      ),
-                      filled: true,
-                      fillColor: themeData.brightness == Brightness.dark
-                          ? themeData.colorScheme.surfaceContainerHighest
-                          : themeData.colorScheme.surfaceContainerLowest,
+                  child: Text(
+                    _startTime != null && _endTime != null
+                        ? '日期范围: ${_startTime!.toString().split(' ')[0]} 至 ${_endTime!.toString().split(' ')[0]}'
+                        : '选择日期范围',
+                    style: TextStyle(
+                      color: _startTime != null && _endTime != null
+                          ? themeData.colorScheme.onSurface
+                          : themeData.colorScheme.onSurfaceVariant,
                     ),
-                    onSubmitted: (value) => _applyFilters(),
                   ),
                 ),
-                const SizedBox(width: 8),
                 IconButton(
                   icon: Icon(Icons.date_range,
                       color: themeData.colorScheme.primary),
@@ -602,8 +651,8 @@ class _UserAppealPageState extends State<UserAppealPage> {
                       fieldEndHintText: '结束日期',
                       builder: (BuildContext context, Widget? child) {
                         return Theme(
-                          data: themeData, // 使用当前主题
-                          child: child!, // 直接使用 child，无需额外 Material
+                          data: themeData,
+                          child: child!,
                         );
                       },
                     );
@@ -616,6 +665,19 @@ class _UserAppealPageState extends State<UserAppealPage> {
                     }
                   },
                 ),
+                if (_startTime != null && _endTime != null)
+                  IconButton(
+                    icon: Icon(Icons.clear,
+                        color: themeData.colorScheme.onSurfaceVariant),
+                    tooltip: '清除日期范围',
+                    onPressed: () {
+                      setState(() {
+                        _startTime = null;
+                        _endTime = null;
+                      });
+                      _applyFilters();
+                    },
+                  ),
               ],
             ),
           ],
@@ -757,6 +819,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
   }
 }
 
+// The UserAppealDetailPage class remains unchanged
 class UserAppealDetailPage extends StatefulWidget {
   final AppealManagement appeal;
 

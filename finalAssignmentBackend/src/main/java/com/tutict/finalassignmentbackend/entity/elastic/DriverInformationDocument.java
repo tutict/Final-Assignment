@@ -19,21 +19,46 @@ public class DriverInformationDocument {
     @MultiField(
             mainField = @Field(type = FieldType.Text, analyzer = "ik_max_word", searchAnalyzer = "ik_max_word"),
             otherFields = {
-                    @InnerField(suffix = "keyword", type = FieldType.Keyword) // 用于精确匹配
+                    @InnerField(suffix = "keyword", type = FieldType.Keyword),
+                    @InnerField(suffix = "icu", type = FieldType.Text, analyzer = "icu_analyzer", searchAnalyzer = "icu_analyzer")
             }
     )
     private String name;
 
-    @Field(type = FieldType.Keyword)
+    @MultiField(
+            mainField = @Field(type = FieldType.Text, analyzer = "ik_max_word", searchAnalyzer = "ik_max_word"),
+            otherFields = {
+                    @InnerField(suffix = "keyword", type = FieldType.Keyword),
+                    @InnerField(suffix = "icu", type = FieldType.Text, analyzer = "icu_analyzer", searchAnalyzer = "icu_analyzer")
+            }
+    )
     private String idCardNumber;
 
-    @Field(type = FieldType.Keyword)
+    @MultiField(
+            mainField = @Field(type = FieldType.Text, analyzer = "ik_max_word", searchAnalyzer = "ik_max_word"),
+            otherFields = {
+                    @InnerField(suffix = "keyword", type = FieldType.Keyword),
+                    @InnerField(suffix = "icu", type = FieldType.Text, analyzer = "icu_analyzer", searchAnalyzer = "icu_analyzer")
+            }
+    )
     private String contactNumber;
 
-    @Field(type = FieldType.Keyword)
+    @MultiField(
+            mainField = @Field(type = FieldType.Text, analyzer = "ik_max_word", searchAnalyzer = "ik_max_word"),
+            otherFields = {
+                    @InnerField(suffix = "keyword", type = FieldType.Keyword),
+                    @InnerField(suffix = "icu", type = FieldType.Text, analyzer = "icu_analyzer", searchAnalyzer = "icu_analyzer")
+            }
+    )
     private String driverLicenseNumber;
 
-    @Field(type = FieldType.Keyword)
+    @MultiField(
+            mainField = @Field(type = FieldType.Text, analyzer = "ik_max_word", searchAnalyzer = "ik_max_word"),
+            otherFields = {
+                    @InnerField(suffix = "keyword", type = FieldType.Keyword),
+                    @InnerField(suffix = "icu", type = FieldType.Text, analyzer = "icu_analyzer", searchAnalyzer = "icu_analyzer")
+            }
+    )
     private String gender;
 
     @Field(type = FieldType.Date, format = DateFormat.date, pattern = "uuuu-MM-dd")
@@ -42,7 +67,13 @@ public class DriverInformationDocument {
     @Field(type = FieldType.Date, format = DateFormat.date, pattern = "uuuu-MM-dd")
     private LocalDate firstLicenseDate;
 
-    @Field(type = FieldType.Keyword)
+    @MultiField(
+            mainField = @Field(type = FieldType.Text, analyzer = "ik_max_word", searchAnalyzer = "ik_max_word"),
+            otherFields = {
+                    @InnerField(suffix = "keyword", type = FieldType.Keyword),
+                    @InnerField(suffix = "icu", type = FieldType.Text, analyzer = "icu_analyzer", searchAnalyzer = "icu_analyzer")
+            }
+    )
     private String allowedVehicleType;
 
     @Field(type = FieldType.Date, format = DateFormat.date, pattern = "uuuu-MM-dd")
@@ -51,6 +82,7 @@ public class DriverInformationDocument {
     @Field(type = FieldType.Date, format = DateFormat.date, pattern = "uuuu-MM-dd")
     private LocalDate expiryDate;
 
+    // 从 DriverInformation 实体转换为文档
     public static DriverInformationDocument fromEntity(DriverInformation entity) {
         if (entity == null) {
             return null;
@@ -71,19 +103,20 @@ public class DriverInformationDocument {
         return doc;
     }
 
+    // 从文档转换为 DriverInformation 实体
     public DriverInformation toEntity() {
         DriverInformation entity = new DriverInformation();
-        entity.setDriverId(this.getDriverId());
-        entity.setName(this.getName());
-        entity.setIdCardNumber(this.getIdCardNumber());
-        entity.setContactNumber(this.getContactNumber());
-        entity.setDriverLicenseNumber(this.getDriverLicenseNumber());
-        entity.setGender(this.getGender());
-        entity.setBirthdate(this.getBirthdate());
-        entity.setFirstLicenseDate(this.getFirstLicenseDate());
-        entity.setAllowedVehicleType(this.getAllowedVehicleType());
-        entity.setIssueDate(this.getIssueDate());
-        entity.setExpiryDate(this.getExpiryDate());
+        entity.setDriverId(this.driverId);
+        entity.setName(this.name);
+        entity.setIdCardNumber(this.idCardNumber);
+        entity.setContactNumber(this.contactNumber);
+        entity.setDriverLicenseNumber(this.driverLicenseNumber);
+        entity.setGender(this.gender);
+        entity.setBirthdate(this.birthdate);
+        entity.setFirstLicenseDate(this.firstLicenseDate);
+        entity.setAllowedVehicleType(this.allowedVehicleType);
+        entity.setIssueDate(this.issueDate);
+        entity.setExpiryDate(this.expiryDate);
         return entity;
     }
 }

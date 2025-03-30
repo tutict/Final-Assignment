@@ -305,7 +305,7 @@ class AppealManagementControllerApi {
     if (startTime.isEmpty || endTime.isEmpty) {
       throw ApiException(400, "Missing required params: startTime or endTime");
     }
-    final path = "/api/appeals/time-range";
+    const path = "/api/appeals/time-range";
     final queryParams = [
       QueryParam('startTime', startTime),
       QueryParam('endTime', endTime),
@@ -340,7 +340,7 @@ class AppealManagementControllerApi {
     if (query.isEmpty) {
       throw ApiException(400, "Missing required param: query");
     }
-    final path = "/api/appeals/search";
+    const path = "/api/appeals/search";
     final queryParams = [
       QueryParam('query', query),
       QueryParam('page', page.toString()),
@@ -432,7 +432,7 @@ class AppealManagementControllerApi {
       throw ApiException(
           400, "Missing required params: processStatus, startTime, or endTime");
     }
-    final path = "/api/appeals/status-and-time";
+    const path = "/api/appeals/status-and-time";
     final queryParams = [
       QueryParam('processStatus', processStatus),
       QueryParam('startTime', startTime),
@@ -454,6 +454,74 @@ class AppealManagementControllerApi {
     } else if (response.body.isNotEmpty) {
       final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
       return jsonList.map((json) => AppealManagement.fromJson(json)).toList();
+    } else {
+      return [];
+    }
+  }
+
+  // --- NEW: GET /api/appeals/autocomplete/appellant-name ---
+  Future<List<String>> apiAppealsAutocompleteAppellantNameGet({
+    required String prefix,
+    int maxSuggestions = 5,
+  }) async {
+    if (prefix.isEmpty) {
+      throw ApiException(400, "Missing required param: prefix");
+    }
+    const path = "/api/appeals/autocomplete/appellant-name";
+    final queryParams = [
+      QueryParam('prefix', prefix),
+      QueryParam('maxSuggestions', maxSuggestions.toString()),
+    ];
+    final headerParams = await _getHeaders();
+    final response = await apiClient.invokeAPI(
+      path,
+      'GET',
+      queryParams,
+      null,
+      headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    } else if (response.body.isNotEmpty) {
+      final List<dynamic> suggestions = jsonDecode(_decodeBodyBytes(response));
+      return suggestions.cast<String>();
+    } else {
+      return [];
+    }
+  }
+
+  // --- NEW: GET /api/appeals/autocomplete/reason ---
+  Future<List<String>> apiAppealsAutocompleteReasonGet({
+    required String prefix,
+    int maxSuggestions = 5,
+  }) async {
+    if (prefix.isEmpty) {
+      throw ApiException(400, "Missing required param: prefix");
+    }
+    const path = "/api/appeals/autocomplete/reason";
+    final queryParams = [
+      QueryParam('prefix', prefix),
+      QueryParam('maxSuggestions', maxSuggestions.toString()),
+    ];
+    final headerParams = await _getHeaders();
+    final response = await apiClient.invokeAPI(
+      path,
+      'GET',
+      queryParams,
+      null,
+      headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    } else if (response.body.isNotEmpty) {
+      final List<dynamic> suggestions = jsonDecode(_decodeBodyBytes(response));
+      return suggestions.cast<String>();
     } else {
       return [];
     }

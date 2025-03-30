@@ -5,6 +5,7 @@ import com.tutict.finalassignmentbackend.entity.OffenseInformation;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.elasticsearch.annotations.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
@@ -19,19 +20,50 @@ public class OffenseInformationDocument {
     @Field(type = FieldType.Date, format = DateFormat.date_hour_minute_second, pattern = "uuuu-MM-dd'T'HH:mm:ss")
     private LocalDateTime offenseTime;
 
-    @Field(type = FieldType.Text, analyzer = "standard")
+    @MultiField(
+            mainField = @Field(type = FieldType.Text, analyzer = "ik_max_word", searchAnalyzer = "ik_max_word"),
+            otherFields = {
+                    @InnerField(suffix = "keyword", type = FieldType.Keyword),
+                    @InnerField(suffix = "icu", type = FieldType.Text, analyzer = "icu_analyzer", searchAnalyzer = "icu_analyzer")
+            }
+    )
     private String offenseLocation;
 
-    @Field(type = FieldType.Keyword)
+    @MultiField(
+            mainField = @Field(type = FieldType.Text, analyzer = "ik_max_word", searchAnalyzer = "ik_max_word"),
+            otherFields = {
+                    @InnerField(suffix = "keyword", type = FieldType.Keyword),
+                    @InnerField(suffix = "icu", type = FieldType.Text, analyzer = "icu_analyzer", searchAnalyzer = "icu_analyzer"),
+                    @InnerField(suffix = "ngram", type = FieldType.Text, analyzer = "license_plate_analyzer", searchAnalyzer = "license_plate_analyzer")
+            }
+    )
     private String licensePlate;
 
-    @Field(type = FieldType.Text, analyzer = "standard")
+    @MultiField(
+            mainField = @Field(type = FieldType.Text, analyzer = "ik_max_word", searchAnalyzer = "ik_max_word"),
+            otherFields = {
+                    @InnerField(suffix = "keyword", type = FieldType.Keyword),
+                    @InnerField(suffix = "icu", type = FieldType.Text, analyzer = "icu_analyzer", searchAnalyzer = "icu_analyzer")
+            }
+    )
     private String driverName;
 
-    @Field(type = FieldType.Keyword)
+    @MultiField(
+            mainField = @Field(type = FieldType.Text, analyzer = "ik_max_word", searchAnalyzer = "ik_max_word"),
+            otherFields = {
+                    @InnerField(suffix = "keyword", type = FieldType.Keyword),
+                    @InnerField(suffix = "icu", type = FieldType.Text, analyzer = "icu_analyzer", searchAnalyzer = "icu_analyzer")
+            }
+    )
     private String offenseType;
 
-    @Field(type = FieldType.Keyword)
+    @MultiField(
+            mainField = @Field(type = FieldType.Text, analyzer = "ik_max_word", searchAnalyzer = "ik_max_word"),
+            otherFields = {
+                    @InnerField(suffix = "keyword", type = FieldType.Keyword),
+                    @InnerField(suffix = "icu", type = FieldType.Text, analyzer = "icu_analyzer", searchAnalyzer = "icu_analyzer")
+            }
+    )
     private String offenseCode;
 
     @Field(type = FieldType.Double)
@@ -40,10 +72,22 @@ public class OffenseInformationDocument {
     @Field(type = FieldType.Integer)
     private Integer deductedPoints;
 
-    @Field(type = FieldType.Keyword)
+    @MultiField(
+            mainField = @Field(type = FieldType.Text, analyzer = "ik_max_word", searchAnalyzer = "ik_max_word"),
+            otherFields = {
+                    @InnerField(suffix = "keyword", type = FieldType.Keyword),
+                    @InnerField(suffix = "icu", type = FieldType.Text, analyzer = "icu_analyzer", searchAnalyzer = "icu_analyzer")
+            }
+    )
     private String processStatus;
 
-    @Field(type = FieldType.Text)
+    @MultiField(
+            mainField = @Field(type = FieldType.Text, analyzer = "ik_max_word", searchAnalyzer = "ik_max_word"),
+            otherFields = {
+                    @InnerField(suffix = "keyword", type = FieldType.Keyword),
+                    @InnerField(suffix = "icu", type = FieldType.Text, analyzer = "icu_analyzer", searchAnalyzer = "icu_analyzer")
+            }
+    )
     private String processResult;
 
     @Field(type = FieldType.Integer)
@@ -78,19 +122,19 @@ public class OffenseInformationDocument {
     // Convert from document to entity
     public OffenseInformation toEntity() {
         OffenseInformation entity = new OffenseInformation();
-        entity.setOffenseId(this.getOffenseId());
-        entity.setOffenseTime(this.getOffenseTime());
-        entity.setOffenseLocation(this.getOffenseLocation());
-        entity.setLicensePlate(this.getLicensePlate());
-        entity.setDriverName(this.getDriverName());
-        entity.setOffenseType(this.getOffenseType());
-        entity.setOffenseCode(this.getOffenseCode());
-        entity.setFineAmount(this.getFineAmount() != null ? new java.math.BigDecimal(this.getFineAmount().toString()) : null); // Convert Double back to BigDecimal
-        entity.setDeductedPoints(this.getDeductedPoints());
-        entity.setProcessStatus(this.getProcessStatus());
-        entity.setProcessResult(this.getProcessResult());
-        entity.setDriverId(this.getDriverId());
-        entity.setVehicleId(this.getVehicleId());
+        entity.setOffenseId(this.offenseId);
+        entity.setOffenseTime(this.offenseTime);
+        entity.setOffenseLocation(this.offenseLocation);
+        entity.setLicensePlate(this.licensePlate);
+        entity.setDriverName(this.driverName);
+        entity.setOffenseType(this.offenseType);
+        entity.setOffenseCode(this.offenseCode);
+        entity.setFineAmount(this.fineAmount != null ? new BigDecimal(this.fineAmount.toString()) : null); // Convert Double back to BigDecimal
+        entity.setDeductedPoints(this.deductedPoints);
+        entity.setProcessStatus(this.processStatus);
+        entity.setProcessResult(this.processResult);
+        entity.setDriverId(this.driverId);
+        entity.setVehicleId(this.vehicleId);
         return entity;
     }
 }
