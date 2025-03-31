@@ -101,6 +101,43 @@ public class VehicleInformationController {
         return ResponseEntity.ok(suggestions);
     }
 
+    @GetMapping("/autocomplete/license-plate/me")
+    @PreAuthorize("hasAnyRole('ADMIN')")
+    public ResponseEntity<List<String>> getLicensePlateAutocompleteSuggestionsGlobally(
+            @RequestParam String prefix,
+            @RequestParam(defaultValue = "5") int maxSuggestions) {
+
+        log.log(Level.INFO, "Fetching license plate suggestions for prefix: {0}, maxSuggestions: {1}",
+                new Object[]{prefix, maxSuggestions});
+
+        List<String> suggestions = vehicleInformationService.getVehicleInformationByLicensePlateGlobally(prefix, maxSuggestions);
+
+        if (suggestions.isEmpty()) {
+            log.log(Level.INFO, "No license plate suggestions found for prefix: {}", prefix);
+        }
+        return ResponseEntity.ok(suggestions);
+    }
+
+    @GetMapping("/autocomplete/vehicle-type-globally/me")
+    @PreAuthorize("hasAnyRole('ADMIN')")
+    public ResponseEntity<List<String>> getVehicleTypeAutocompleteSuggestionsGlobally(
+            @RequestParam String prefix,
+            @RequestParam(defaultValue = "5") int maxSuggestions) {
+
+        log.log(Level.INFO, "Fetching vehicle type suggestions for prefix: {0}, maxSuggestions: {1}",
+                new Object[]{prefix, maxSuggestions});
+
+        // 解码 prefix
+        String decodedPrefix = URLDecoder.decode(prefix, StandardCharsets.UTF_8);
+        log.log(Level.INFO, "Decoded prefix: {}", decodedPrefix);
+        List<String> suggestions = vehicleInformationService.getVehicleInformationByTypeGlobally(decodedPrefix, maxSuggestions);
+
+        if (suggestions.isEmpty()) {
+            log.log(Level.INFO, "No vehicle type suggestions found for prefix: {}", prefix);
+        }
+        return ResponseEntity.ok(suggestions);
+    }
+
     @PostMapping
     @Transactional
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")

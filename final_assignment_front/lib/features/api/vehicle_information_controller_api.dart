@@ -63,7 +63,6 @@ class VehicleInformationControllerApi {
     int maxSuggestions = 5,
     String? ownerName, // 新增 ownerName 参数
   }) async {
-
     final effectiveOwnerName = ownerName ?? _username;
     if (effectiveOwnerName == null) {
       throw Exception('User not authenticated and no ownerName provided.');
@@ -72,7 +71,8 @@ class VehicleInformationControllerApi {
     final queryParameters = <String, dynamic>{
       'prefix': Uri.encodeQueryComponent(prefix),
       'maxSuggestions': maxSuggestions.toString(),
-      'ownerName': Uri.encodeQueryComponent(effectiveOwnerName), // 添加 ownerName 到查询参数
+      'ownerName': Uri.encodeQueryComponent(effectiveOwnerName),
+      // 添加 ownerName 到查询参数
     };
 
     final uri = Uri.parse(
@@ -116,7 +116,6 @@ class VehicleInformationControllerApi {
     int maxSuggestions = 5,
     String? ownerName, // 新增 ownerName 参数
   }) async {
-
     final effectiveOwnerName = ownerName ?? _username;
     if (effectiveOwnerName == null) {
       throw Exception('User not authenticated and no ownerName provided.');
@@ -125,7 +124,99 @@ class VehicleInformationControllerApi {
     final queryParameters = <String, dynamic>{
       'prefix': Uri.encodeQueryComponent(prefix),
       'maxSuggestions': maxSuggestions.toString(),
-      'ownerName': Uri.encodeQueryComponent(effectiveOwnerName), // 添加 ownerName 到查询参数
+      'ownerName': Uri.encodeQueryComponent(effectiveOwnerName),
+      // 添加 ownerName 到查询参数
+    };
+
+    final uri = Uri.parse(
+            'http://localhost:8081/api/vehicles/autocomplete/vehicle-type/me')
+        .replace(queryParameters: queryParameters);
+
+    final prefs = await SharedPreferences.getInstance();
+    final jwtToken = prefs.getString('jwtToken');
+    if (jwtToken == null) {
+      throw Exception('JWT token not found in SharedPreferences');
+    }
+
+    debugPrint('Request URL: $uri');
+    final response = await http.get(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $jwtToken',
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Accept': 'application/json; charset=UTF-8',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final decodedBody = utf8.decode(response.bodyBytes);
+      debugPrint('Raw response body (vehicle type autocomplete): $decodedBody');
+      final List<dynamic> data = jsonDecode(decodedBody);
+      return data.cast<String>();
+    } else if (response.statusCode == 404) {
+      debugPrint('No vehicle type suggestions found for prefix: $prefix');
+      return [];
+    } else if (response.statusCode == 400) {
+      throw Exception('Invalid prefix for vehicle type: ${response.body}');
+    }
+    throw Exception(
+        'Failed to fetch vehicle type suggestions: ${response.statusCode} - ${response.body}');
+  }
+
+  // Autocomplete suggestions for license plate globally (just for admin)
+  Future<List<String>> apiVehiclesAutocompleteLicensePlateGloballyMeGet({
+    required String prefix,
+    int maxSuggestions = 5,
+  }) async {
+    final queryParameters = <String, dynamic>{
+      'prefix': Uri.encodeQueryComponent(prefix),
+      'maxSuggestions': maxSuggestions.toString(),
+    };
+
+    final uri = Uri.parse(
+            'http://localhost:8081/api/vehicles/autocomplete/license-plate/me')
+        .replace(queryParameters: queryParameters);
+
+    final prefs = await SharedPreferences.getInstance();
+    final jwtToken = prefs.getString('jwtToken');
+    if (jwtToken == null) {
+      throw Exception('JWT token not found in SharedPreferences');
+    }
+    debugPrint('Request URL: $uri');
+    final response = await http.get(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $jwtToken',
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Accept': 'application/json; charset=UTF-8',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final decodedBody = utf8.decode(response.bodyBytes);
+      debugPrint(
+          'Raw response body (license plate autocomplete): $decodedBody');
+      final List<dynamic> data = jsonDecode(decodedBody);
+      return data.cast<String>();
+    } else if (response.statusCode == 404) {
+      debugPrint('No license plate suggestions found for prefix: $prefix');
+      return [];
+    } else if (response.statusCode == 400) {
+      throw Exception('Invalid prefix for license plate: ${response.body}');
+    }
+    throw Exception(
+        'Failed to fetch license plate suggestions: ${response.statusCode} - ${response.body}');
+  }
+
+  // Autocomplete suggestions for vehicle type globally (just for admin)
+  Future<List<String>> apiVehiclesAutocompleteVehicleTypeGloballyMeGet({
+    required String prefix,
+    int maxSuggestions = 5,
+  }) async {
+
+    final queryParameters = <String, dynamic>{
+      'prefix': Uri.encodeQueryComponent(prefix),
+      'maxSuggestions': maxSuggestions.toString(),
     };
 
     final uri = Uri.parse(

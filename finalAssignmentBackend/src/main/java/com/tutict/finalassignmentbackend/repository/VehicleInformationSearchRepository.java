@@ -28,4 +28,20 @@ public interface VehicleInformationSearchRepository extends ElasticsearchReposit
     @Query("{\"bool\": {\"filter\": [{\"term\": {\"ownerName.keyword\": \"?1\"}}], " +
             "\"must\": [{\"match\": {\"vehicleType\": {\"query\": \"?0\", \"fuzziness\": \"AUTO\"}}}]}}")
     SearchHits<VehicleInformationDocument> searchByVehicleTypeFuzzy(String vehicleType, String ownerName);
+
+    // 使用 query_string 查询，支持全局车牌号的模糊匹配
+    @Query("{\"query_string\": {\"query\": \"*?0*\", \"fields\": [\"licensePlate.ngram\"]}}")
+    SearchHits<VehicleInformationDocument> findCompletionSuggestionsGlobally(String prefix, int maxSuggestions);
+
+    // 使用 query_string 查询，支持全局车牌号的模糊匹配
+    @Query("{\"query_string\": {\"query\": \"*?0*\", \"fields\": [\"licensePlate.ngram\"]}}")
+    SearchHits<VehicleInformationDocument> searchByLicensePlateGlobally(String licensePlate);
+
+    // 模糊搜索车辆类型前缀，全局范围
+    @Query("{\"query_string\": {\"query\": \"?0*\", \"fields\": [\"vehicleType.ngram\"]}}")
+    SearchHits<VehicleInformationDocument> searchByVehicleTypePrefixGlobally(String vehicleType);
+
+    // 模糊匹配查询车辆类型，全局范围
+    @Query("{\"match\": {\"vehicleType\": {\"query\": \"?0\", \"fuzziness\": \"AUTO\"}}}")
+    SearchHits<VehicleInformationDocument> searchByVehicleTypeFuzzyGlobally(String vehicleType);
 }

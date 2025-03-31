@@ -378,6 +378,140 @@ public class VehicleInformationService {
         return resultList.size() <= maxSuggestions ? resultList : resultList.subList(0, maxSuggestions);
     }
 
+    @Cacheable(cacheNames = "vehicleCache", unless = "#result == null")
+    @WsAction(service = "VehicleInformationService", action = "getVehicleInformationByLicensePlateGlobally")
+    public List<String> getVehicleInformationByLicensePlateGlobally(String prefix, int maxSuggestions) {
+        Set<String> globalSuggestions = new HashSet<>();
+
+        log.log(Level.INFO, "Executing match query for ownerName: {0}, prefix: {1}, maxSuggestions: {2}",
+                new Object[]{prefix, maxSuggestions});
+
+        SearchHits<VehicleInformationDocument> matchHits = null;
+        try {
+            matchHits = vehicleInformationSearchRepository.findCompletionSuggestionsGlobally(prefix, maxSuggestions);
+        } catch (Exception e) {
+            log.log(Level.WARNING, "Error executing match query: {0}", new Object[]{e.getMessage()});
+        }
+
+        if (matchHits != null && matchHits.hasSearchHits()) {
+            for (SearchHit<VehicleInformationDocument> hit : matchHits) {
+                VehicleInformationDocument doc = hit.getContent();
+                if (doc.getLicensePlate() != null) {
+                    globalSuggestions.add(doc.getLicensePlate());
+                    log.log(Level.INFO, "Found license plate: {0}", new Object[]{doc.getLicensePlate()});
+                }
+                if (globalSuggestions.size() >= maxSuggestions) {
+                    break;
+                }
+            }
+            log.log(Level.INFO, "Found {0} match suggestions: {1}", new Object[]{globalSuggestions.size(), globalSuggestions});
+        } else {
+            log.log(Level.INFO, "No match suggestions found for prefix: {0}", new Object[]{prefix});
+        }
+
+        // 如果结果不足，执行备用模糊查询
+        if (globalSuggestions.size() < maxSuggestions) {
+            log.log(Level.INFO, "Executing fuzzy query for prefix: {0}, ownerName: {1}", new Object[]{prefix});
+            SearchHits<VehicleInformationDocument> fuzzyHits = null;
+            try {
+                fuzzyHits = vehicleInformationSearchRepository.searchByLicensePlateGlobally(prefix);
+                log.log(Level.INFO, "Fuzzy query returned {0} hits", new Object[]{fuzzyHits != null ? fuzzyHits.getTotalHits() : 0});
+            } catch (Exception e) {
+                log.log(Level.WARNING, "Error executing fuzzy query: {0}", new Object[]{e.getMessage()});
+            }
+
+            if (fuzzyHits != null && fuzzyHits.hasSearchHits()) {
+                for (SearchHit<VehicleInformationDocument> hit : fuzzyHits) {
+                    VehicleInformationDocument doc = hit.getContent();
+                    if (doc.getLicensePlate() != null) {
+                        globalSuggestions.add(doc.getLicensePlate());
+                        log.log(Level.INFO, "Found license plate: {0}", new Object[]{doc.getLicensePlate()});
+                    }
+                    if (globalSuggestions.size() >= maxSuggestions) {
+                        break;
+                    }
+                }
+                log.log(Level.INFO, "After fuzzy search, total suggestions: {0}", new Object[]{globalSuggestions.size()});
+            } else {
+                log.log(Level.INFO, "Fuzzy search returned no results for prefix: {0}", new Object[]{prefix});
+            }
+        }
+
+        List<String> resultList = new ArrayList<>(globalSuggestions);
+        return resultList.size() <= maxSuggestions ? resultList : resultList.subList(0, maxSuggestions);
+    }
+
+
+    @Cacheable(cacheNames = "vehicleCache", unless = "#result == null")
+    @WsAction(service = "VehicleInformationService", action = "getVehicleInformationByTypeGlobally")
+    public List<String> getVehicleInformationByTypeGlobally(String prefix, int maxSuggestions) {
+        Set<String> globalSuggestions = new HashSet<>();
+
+        log.log(Level.INFO, "Executing vehicle type search for ownerName: {0}, prefix: {1}, maxSuggestions: {2}",
+                new Object[]{prefix, maxSuggestions});
+
+        // 1. 前缀匹配
+        SearchHits<VehicleInformationDocument> suggestHits = null;
+        try {
+            suggestHits = vehicleInformationSearchRepository.searchByVehicleTypePrefixGlobally(prefix);
+            log.log(Level.INFO, "Vehicle type search returned {0} hits",
+                    new Object[]{suggestHits != null ? suggestHits.getTotalHits() : 0});
+        } catch (Exception e) {
+            log.log(Level.WARNING, "Error executing vehicle type search query: {0}", new Object[]{e.getMessage()});
+        }
+
+        if (suggestHits != null && suggestHits.hasSearchHits()) {
+            for (SearchHit<VehicleInformationDocument> hit : suggestHits) {
+                VehicleInformationDocument doc = hit.getContent();
+                if (doc.getVehicleType() != null) {
+                    globalSuggestions.add(doc.getVehicleType());
+                    log.log(Level.INFO, "Found vehicle type: {0}", new Object[]{doc.getVehicleType()});
+                }
+                if (globalSuggestions.size() >= maxSuggestions) {
+                    break;
+                }
+            }
+            log.log(Level.INFO, "Found {0} vehicle type suggestions: {1}",
+                    new Object[]{globalSuggestions.size(), globalSuggestions});
+        } else {
+            log.log(Level.INFO, "No vehicle type suggestions found for prefix: {0}", new Object[]{prefix});
+        }
+
+        // 2. 如果结果不足，执行模糊查询
+        if (globalSuggestions.size() < maxSuggestions) {
+            log.log(Level.INFO, "Executing fuzzy query for vehicle type prefix: {0}, ownerName: {1}",
+                    new Object[]{prefix});
+            SearchHits<VehicleInformationDocument> fuzzyHits = null;
+            try {
+                fuzzyHits = vehicleInformationSearchRepository.searchByVehicleTypeFuzzyGlobally(prefix);
+                log.log(Level.INFO, "Fuzzy query returned {0} hits",
+                        new Object[]{fuzzyHits != null ? fuzzyHits.getTotalHits() : 0});
+            } catch (Exception e) {
+                log.log(Level.WARNING, "Error executing fuzzy query for vehicle type: {0}", new Object[]{e.getMessage()});
+            }
+
+            if (fuzzyHits != null && fuzzyHits.hasSearchHits()) {
+                for (SearchHit<VehicleInformationDocument> hit : fuzzyHits) {
+                    VehicleInformationDocument doc = hit.getContent();
+                    if (doc.getVehicleType() != null) {
+                        globalSuggestions.add(doc.getVehicleType());
+                        log.log(Level.INFO, "Found vehicle type: {0}", new Object[]{doc.getVehicleType()});
+                    }
+                    if (globalSuggestions.size() >= maxSuggestions) {
+                        break;
+                    }
+                }
+                log.log(Level.INFO, "After fuzzy search, total vehicle type suggestions: {0}",
+                        new Object[]{globalSuggestions.size()});
+            } else {
+                log.log(Level.INFO, "Fuzzy search returned no results for vehicle type prefix: {0}", new Object[]{prefix});
+            }
+        }
+
+        List<String> resultList = new ArrayList<>(globalSuggestions);
+        return resultList.size() <= maxSuggestions ? resultList : resultList.subList(0, maxSuggestions);
+    }
+
     public List<VehicleInformation> searchVehicles(String query, int page, int size) {
         if (page < 1 || size < 1) {
             throw new IllegalArgumentException("Page must be >= 1 and size must be >= 1");
