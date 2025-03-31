@@ -174,7 +174,7 @@ class VehicleInformationControllerApi {
     };
 
     final uri = Uri.parse(
-            'http://localhost:8081/api/vehicles/autocomplete/license-plate/me')
+            'http://localhost:8081/api/vehicles/autocomplete/license-plate-globally/me')
         .replace(queryParameters: queryParameters);
 
     final prefs = await SharedPreferences.getInstance();
@@ -220,7 +220,7 @@ class VehicleInformationControllerApi {
     };
 
     final uri = Uri.parse(
-            'http://localhost:8081/api/vehicles/autocomplete/vehicle-type/me')
+            'http://localhost:8081/api/vehicles/autocomplete/vehicle-type-globally/me')
         .replace(queryParameters: queryParameters);
 
     final prefs = await SharedPreferences.getInstance();

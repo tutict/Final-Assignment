@@ -379,18 +379,18 @@ public class VehicleInformationService {
     }
 
     @Cacheable(cacheNames = "vehicleCache", unless = "#result == null")
-    @WsAction(service = "VehicleInformationService", action = "getVehicleInformationByLicensePlateGlobally")
     public List<String> getVehicleInformationByLicensePlateGlobally(String prefix, int maxSuggestions) {
         Set<String> globalSuggestions = new HashSet<>();
 
-        log.log(Level.INFO, "Executing match query for ownerName: {0}, prefix: {1}, maxSuggestions: {2}",
+        log.log(Level.INFO, "Executing match query for licensePlate prefix: {0}, maxSuggestions: {1}",
                 new Object[]{prefix, maxSuggestions});
 
-        SearchHits<VehicleInformationDocument> matchHits = null;
+        SearchHits<VehicleInformationDocument> matchHits;
         try {
             matchHits = vehicleInformationSearchRepository.findCompletionSuggestionsGlobally(prefix, maxSuggestions);
         } catch (Exception e) {
             log.log(Level.WARNING, "Error executing match query: {0}", new Object[]{e.getMessage()});
+            return new ArrayList<>();
         }
 
         if (matchHits != null && matchHits.hasSearchHits()) {
@@ -409,15 +409,16 @@ public class VehicleInformationService {
             log.log(Level.INFO, "No match suggestions found for prefix: {0}", new Object[]{prefix});
         }
 
-        // 如果结果不足，执行备用模糊查询
+        // 如果结果不足，执行模糊查询
         if (globalSuggestions.size() < maxSuggestions) {
-            log.log(Level.INFO, "Executing fuzzy query for prefix: {0}, ownerName: {1}", new Object[]{prefix});
-            SearchHits<VehicleInformationDocument> fuzzyHits = null;
+            log.log(Level.INFO, "Executing fuzzy query for licensePlate prefix: {0}", new Object[]{prefix});
+            SearchHits<VehicleInformationDocument> fuzzyHits;
             try {
                 fuzzyHits = vehicleInformationSearchRepository.searchByLicensePlateGlobally(prefix);
                 log.log(Level.INFO, "Fuzzy query returned {0} hits", new Object[]{fuzzyHits != null ? fuzzyHits.getTotalHits() : 0});
             } catch (Exception e) {
                 log.log(Level.WARNING, "Error executing fuzzy query: {0}", new Object[]{e.getMessage()});
+                return new ArrayList<>(globalSuggestions);
             }
 
             if (fuzzyHits != null && fuzzyHits.hasSearchHits()) {
@@ -441,23 +442,21 @@ public class VehicleInformationService {
         return resultList.size() <= maxSuggestions ? resultList : resultList.subList(0, maxSuggestions);
     }
 
-
     @Cacheable(cacheNames = "vehicleCache", unless = "#result == null")
-    @WsAction(service = "VehicleInformationService", action = "getVehicleInformationByTypeGlobally")
     public List<String> getVehicleInformationByTypeGlobally(String prefix, int maxSuggestions) {
         Set<String> globalSuggestions = new HashSet<>();
 
-        log.log(Level.INFO, "Executing vehicle type search for ownerName: {0}, prefix: {1}, maxSuggestions: {2}",
+        log.log(Level.INFO, "Executing vehicle type search for prefix: {0}, maxSuggestions: {1}",
                 new Object[]{prefix, maxSuggestions});
 
-        // 1. 前缀匹配
-        SearchHits<VehicleInformationDocument> suggestHits = null;
+        SearchHits<VehicleInformationDocument> suggestHits;
         try {
             suggestHits = vehicleInformationSearchRepository.searchByVehicleTypePrefixGlobally(prefix);
             log.log(Level.INFO, "Vehicle type search returned {0} hits",
                     new Object[]{suggestHits != null ? suggestHits.getTotalHits() : 0});
         } catch (Exception e) {
             log.log(Level.WARNING, "Error executing vehicle type search query: {0}", new Object[]{e.getMessage()});
+            return new ArrayList<>();
         }
 
         if (suggestHits != null && suggestHits.hasSearchHits()) {
@@ -477,17 +476,16 @@ public class VehicleInformationService {
             log.log(Level.INFO, "No vehicle type suggestions found for prefix: {0}", new Object[]{prefix});
         }
 
-        // 2. 如果结果不足，执行模糊查询
         if (globalSuggestions.size() < maxSuggestions) {
-            log.log(Level.INFO, "Executing fuzzy query for vehicle type prefix: {0}, ownerName: {1}",
-                    new Object[]{prefix});
-            SearchHits<VehicleInformationDocument> fuzzyHits = null;
+            log.log(Level.INFO, "Executing fuzzy query for vehicle type prefix: {0}", new Object[]{prefix});
+            SearchHits<VehicleInformationDocument> fuzzyHits;
             try {
                 fuzzyHits = vehicleInformationSearchRepository.searchByVehicleTypeFuzzyGlobally(prefix);
                 log.log(Level.INFO, "Fuzzy query returned {0} hits",
                         new Object[]{fuzzyHits != null ? fuzzyHits.getTotalHits() : 0});
             } catch (Exception e) {
                 log.log(Level.WARNING, "Error executing fuzzy query for vehicle type: {0}", new Object[]{e.getMessage()});
+                return new ArrayList<>(globalSuggestions);
             }
 
             if (fuzzyHits != null && fuzzyHits.hasSearchHits()) {

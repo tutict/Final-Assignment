@@ -42,10 +42,7 @@ class _VehicleManagementState extends State<VehicleManagement> {
   bool _hasMore = true;
   String _searchType = 'licensePlate'; // Default search type
 
-  final UserDashboardController? controller =
-      Get.isRegistered<UserDashboardController>()
-          ? Get.find<UserDashboardController>()
-          : null;
+  final UserDashboardController controller = Get.find<UserDashboardController>();
 
   @override
   void initState() {
@@ -216,15 +213,6 @@ class _VehicleManagementState extends State<VehicleManagement> {
     } catch (e) {
       debugPrint('Failed to fetch autocomplete suggestions: $e');
       return [];
-    }
-  }
-
-  Future<bool> _checkLicensePlateExists(String licensePlate) async {
-    try {
-      return await vehicleApi.apiVehiclesExistsGet(licensePlate: licensePlate);
-    } catch (e) {
-      debugPrint('Failed to check license plate existence: $e');
-      return false;
     }
   }
 
@@ -463,6 +451,13 @@ class _VehicleManagementState extends State<VehicleManagement> {
             icon: const Icon(Icons.add),
             onPressed: _createVehicle,
             tooltip: '添加新车辆信息',
+          ),
+          IconButton(
+            icon: Icon(themeData.brightness == Brightness.light
+                ? Icons.dark_mode
+                : Icons.light_mode),
+            onPressed: controller.toggleBodyTheme,
+            tooltip: '切换主题',
           ),
         ],
       ),

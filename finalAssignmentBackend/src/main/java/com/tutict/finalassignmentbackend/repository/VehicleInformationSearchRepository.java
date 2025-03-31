@@ -33,6 +33,9 @@ public interface VehicleInformationSearchRepository extends ElasticsearchReposit
     @Query("{\"query_string\": {\"query\": \"*?0*\", \"fields\": [\"licensePlate.ngram\"]}}")
     SearchHits<VehicleInformationDocument> findCompletionSuggestionsGlobally(String prefix, int maxSuggestions);
 
+    @Query("{\"term\": {\"licensePlate.keyword\": \"?0\"}}")
+    SearchHits<VehicleInformationDocument> searchByLicensePlateExactGlobally(String licensePlate);
+
     // 使用 query_string 查询，支持全局车牌号的模糊匹配
     @Query("{\"query_string\": {\"query\": \"*?0*\", \"fields\": [\"licensePlate.ngram\"]}}")
     SearchHits<VehicleInformationDocument> searchByLicensePlateGlobally(String licensePlate);

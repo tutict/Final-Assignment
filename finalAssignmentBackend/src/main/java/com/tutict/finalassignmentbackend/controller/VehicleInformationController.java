@@ -2,7 +2,6 @@ package com.tutict.finalassignmentbackend.controller;
 
 import com.tutict.finalassignmentbackend.entity.VehicleInformation;
 import com.tutict.finalassignmentbackend.service.VehicleInformationService;
-import org.springframework.context.support.DefaultMessageSourceResolvable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -10,8 +9,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.bind.annotation.ExceptionHandler;
 
 import javax.validation.Valid;
 import java.net.URLDecoder;
@@ -20,7 +17,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/vehicles")
@@ -101,39 +97,39 @@ public class VehicleInformationController {
         return ResponseEntity.ok(suggestions);
     }
 
-    @GetMapping("/autocomplete/license-plate/me")
-    @PreAuthorize("hasAnyRole('ADMIN')")
+    @GetMapping("/autocomplete/license-plate-globally/me")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<String>> getLicensePlateAutocompleteSuggestionsGlobally(
             @RequestParam String prefix,
             @RequestParam(defaultValue = "5") int maxSuggestions) {
 
-        log.log(Level.INFO, "Fetching license plate suggestions for prefix: {0}, maxSuggestions: {1}",
-                new Object[]{prefix, maxSuggestions});
+        // 解码 URL 编码的 prefix
+        String decodedPrefix = URLDecoder.decode(prefix, StandardCharsets.UTF_8);
+        log.log(Level.INFO, "Fetching license plate suggestions for prefix: {0}, decoded: {1}, maxSuggestions: {2}",
+                new Object[]{prefix, decodedPrefix, maxSuggestions});
 
-        List<String> suggestions = vehicleInformationService.getVehicleInformationByLicensePlateGlobally(prefix, maxSuggestions);
+        List<String> suggestions = vehicleInformationService.getVehicleInformationByLicensePlateGlobally(decodedPrefix, maxSuggestions);
 
         if (suggestions.isEmpty()) {
-            log.log(Level.INFO, "No license plate suggestions found for prefix: {}", prefix);
+            log.log(Level.INFO, "No license plate suggestions found for prefix: {0}", new Object[]{decodedPrefix});
         }
         return ResponseEntity.ok(suggestions);
     }
 
     @GetMapping("/autocomplete/vehicle-type-globally/me")
-    @PreAuthorize("hasAnyRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<String>> getVehicleTypeAutocompleteSuggestionsGlobally(
             @RequestParam String prefix,
             @RequestParam(defaultValue = "5") int maxSuggestions) {
 
-        log.log(Level.INFO, "Fetching vehicle type suggestions for prefix: {0}, maxSuggestions: {1}",
-                new Object[]{prefix, maxSuggestions});
-
-        // 解码 prefix
         String decodedPrefix = URLDecoder.decode(prefix, StandardCharsets.UTF_8);
-        log.log(Level.INFO, "Decoded prefix: {}", decodedPrefix);
+        log.log(Level.INFO, "Fetching vehicle type suggestions for prefix: {0}, decoded: {1}, maxSuggestions: {2}",
+                new Object[]{prefix, decodedPrefix, maxSuggestions});
+
         List<String> suggestions = vehicleInformationService.getVehicleInformationByTypeGlobally(decodedPrefix, maxSuggestions);
 
         if (suggestions.isEmpty()) {
-            log.log(Level.INFO, "No vehicle type suggestions found for prefix: {}", prefix);
+            log.log(Level.INFO, "No vehicle type suggestions found for prefix: {0}", new Object[]{decodedPrefix});
         }
         return ResponseEntity.ok(suggestions);
     }
@@ -296,22 +292,5 @@ public class VehicleInformationController {
             log.warning("Invalid license plate: " + licensePlate);
             return ResponseEntity.badRequest().body(false);
         }
-    }
-
-    // Exception handler for validation errors
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<String> handleValidationExceptions(MethodArgumentNotValidException ex) {
-        String errorMessage = ex.getBindingResult().getAllErrors().stream()
-                .map(DefaultMessageSourceResolvable::getDefaultMessage)
-                .collect(Collectors.joining(", "));
-        log.warning("Validation failed: " + errorMessage);
-        return ResponseEntity.badRequest().body(errorMessage);
-    }
-
-    // Generic exception handler for unexpected errors
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<String> handleGenericException(Exception ex) {
-        log.log(Level.SEVERE, "Unexpected error occurred: " + ex.getMessage(), ex);
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An unexpected error occurred");
     }
 }
