@@ -11,10 +11,14 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.logging.Logger;
+import java.util.logging.Level;
 
 @RestController
 @RequestMapping("/api/drivers")
 public class DriverInformationController {
+
+    private static final Logger logger = Logger.getLogger(DriverInformationController.class.getName());
 
     private final DriverInformationService driverInformationService;
     private final UserManagementService userManagementService; // Add this
@@ -188,46 +192,101 @@ public class DriverInformationController {
         }
     }
 
-    // 根据身份证号获取司机信息 (ADMIN 和 USER)
-    @GetMapping("/idCardNumber/{idCardNumber}")
+    @GetMapping("/by-id-card")
     @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_USER')")
-    public ResponseEntity<List<DriverInformation>> getDriversByIdCardNumber(@PathVariable String idCardNumber) {
+    public ResponseEntity<List<DriverInformation>> searchByIdCardNumber(
+            @RequestParam String query,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
+        logger.log(Level.INFO, "Received request to search drivers by ID card number: {0}, page: {1}, size: {2}",
+                new Object[]{query, page, size});
+
         try {
-            List<DriverInformation> drivers = driverInformationService.getDriversByIdCardNumber(idCardNumber);
-            return ResponseEntity.ok(drivers);
+            List<DriverInformation> results = driverInformationService.searchByIdCardNumber(query, page, size);
+
+            if (results == null || results.isEmpty()) {
+                logger.log(Level.INFO, "No drivers found for ID card number: {0}", new Object[]{query});
+                return ResponseEntity.noContent().build();
+            }
+
+            logger.log(Level.INFO, "Returning {0} drivers for ID card number: {1}",
+                    new Object[]{results.size(), query});
+            return ResponseEntity.ok(results);
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().build();
+            logger.log(Level.WARNING, "Invalid pagination parameters for ID card search: {0}", new Object[]{e.getMessage()});
+            return ResponseEntity.badRequest().body(null);
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "Error processing search by ID card number: {0}, error: {1}",
+                    new Object[]{query, e.getMessage()});
+            return ResponseEntity.status(500).body(null);
         }
     }
 
     // 根据驾驶证号获取司机信息 (ADMIN 和 USER)
-    @GetMapping("/driverLicenseNumber/{driverLicenseNumber}")
+    @GetMapping("/by-license-number")
     @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_USER')")
-    public ResponseEntity<DriverInformation> getDriverByDriverLicenseNumber(@PathVariable String driverLicenseNumber) {
+    public ResponseEntity<List<DriverInformation>> searchByDriverLicenseNumber(
+            @RequestParam String query,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
+        logger.log(Level.INFO, "Received request to search drivers by driver license number: {0}, page: {1}, size: {2}",
+                new Object[]{query, page, size});
+
         try {
-            DriverInformation driverInformation = driverInformationService.getDriverByDriverLicenseNumber(driverLicenseNumber);
-            if (driverInformation != null) {
-                return ResponseEntity.ok(driverInformation);
+            List<DriverInformation> results = driverInformationService.searchByDriverLicenseNumber(query, page, size);
+
+            if (results == null || results.isEmpty()) {
+                logger.log(Level.INFO, "No drivers found for driver license number: {0}", new Object[]{query});
+                return ResponseEntity.noContent().build();
             }
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+
+            logger.log(Level.INFO, "Returning {0} drivers for driver license number: {1}",
+                    new Object[]{results.size(), query});
+            return ResponseEntity.ok(results);
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().build();
+            logger.log(Level.WARNING, "Invalid pagination parameters for license number search: {0}", new Object[]{e.getMessage()});
+            return ResponseEntity.badRequest().body(null);
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "Error processing search by driver license number: {0}, error: {1}",
+                    new Object[]{query, e.getMessage()});
+            return ResponseEntity.status(500).body(null);
         }
     }
 
     // 根据司机姓名获取司机信息 (ADMIN 和 USER)
-    @GetMapping("/name/{name}")
+    @GetMapping("/by-name")
     @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_USER')")
-    public ResponseEntity<List<DriverInformation>> getDriversByName(@PathVariable String name) {
+    public ResponseEntity<List<DriverInformation>> searchByName(
+            @RequestParam String query,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
+        logger.log(Level.INFO, "Received request to search drivers by name: {0}, page: {1}, size: {2}",
+                new Object[]{query, page, size});
+
         try {
-            List<DriverInformation> drivers = driverInformationService.getDriversByName(name);
-            return ResponseEntity.ok(drivers);
+            List<DriverInformation> results = driverInformationService.searchByName(query, page, size);
+
+            if (results == null || results.isEmpty()) {
+                logger.log(Level.INFO, "No drivers found for name: {0}", new Object[]{query});
+                return ResponseEntity.noContent().build();
+            }
+
+            logger.log(Level.INFO, "Returning {0} drivers for name: {1}",
+                    new Object[]{results.size(), query});
+            return ResponseEntity.ok(results);
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().build();
+            logger.log(Level.WARNING, "Invalid pagination parameters for name search: {0}", new Object[]{e.getMessage()});
+            return ResponseEntity.badRequest().body(null);
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "Error processing search by name: {0}, error: {1}",
+                    new Object[]{query, e.getMessage()});
+            return ResponseEntity.status(500).body(null);
         }
     }
 
-    // Helper method to update UserManagement.modifiedTime
     private void updateUserManagementModifiedTime(int driverId) {
         UserManagement user = userManagementService.getUserById(driverId); // Assuming driverId matches userId
         if (user != null) {

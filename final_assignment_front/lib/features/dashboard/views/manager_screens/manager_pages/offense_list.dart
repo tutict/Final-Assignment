@@ -47,6 +47,12 @@ class _OffenseListPageState extends State<OffenseList> {
   void initState() {
     super.initState();
     _scrollController = ScrollController();
+    _scrollController.addListener(() {
+      if (_scrollController.position.pixels ==
+          _scrollController.position.maxScrollExtent) {
+        _loadMoreOffenses();
+      }
+    });
     _initialize();
   }
 
@@ -85,13 +91,12 @@ class _OffenseListPageState extends State<OffenseList> {
       _errorMessage = '';
     });
     try {
-      final offenses = await offenseApi.apiOffensesGet(
-              page: _currentPage, size: _pageSize) ??
-          [];
+      final offenses = await offenseApi.apiOffensesGet();
       setState(() {
         _offenseList.addAll(offenses);
         _isLoading = false;
-        if (offenses.length < _pageSize) _hasMore = false;
+        // Since /api/offenses doesn't support pagination in the backend, assume all data is fetched
+        _hasMore = false;
       });
     } catch (e) {
       setState(() {
@@ -105,7 +110,11 @@ class _OffenseListPageState extends State<OffenseList> {
   Future<void> _loadMoreOffenses() async {
     if (!_hasMore || _isLoading) return;
     _currentPage++;
-    await _fetchOffenses();
+    if (_searchController.text.isNotEmpty) {
+      await _searchOffenses(_searchController.text);
+    } else {
+      await _fetchOffenses();
+    }
   }
 
   Future<void> _searchOffenses(String query) async {
@@ -121,55 +130,41 @@ class _OffenseListPageState extends State<OffenseList> {
       _offenseList.clear();
     });
     try {
+      List<OffenseInformation> offenses;
       switch (_searchType) {
         case 'driverName':
-          final offenses = await offenseApi.apiOffensesDriverNameGet(
-                driverName: query,
-                page: _currentPage,
-                size: _pageSize,
-              ) ??
-              [];
-          setState(() {
-            _offenseList = offenses;
-            _isLoading = false;
-            if (offenses.length < _pageSize) _hasMore = false;
-            if (_offenseList.isEmpty) _errorMessage = '未找到司机名为 $query 的违法信息';
-          });
+          offenses = await offenseApi.apiOffensesByDriverNameGet(
+            query: query,
+            page: _currentPage,
+            size: _pageSize,
+          );
           break;
         case 'licensePlate':
-          final offenses = await offenseApi.apiOffensesLicensePlateGet(
-                licensePlate: query,
-                page: _currentPage,
-                size: _pageSize,
-              ) ??
-              [];
-          setState(() {
-            _offenseList = offenses;
-            _isLoading = false;
-            if (offenses.length < _pageSize) _hasMore = false;
-            if (_offenseList.isEmpty) _errorMessage = '未找到车牌号为 $query 的违法信息';
-          });
+          offenses = await offenseApi.apiOffensesByLicensePlateGet(
+            query: query,
+            page: _currentPage,
+            size: _pageSize,
+          );
           break;
-        case 'processStatus':
-          final offenses = await offenseApi.apiOffensesProcessStateGet(
-                processState: query,
-                page: _currentPage,
-                size: _pageSize,
-              ) ??
-              [];
-          setState(() {
-            _offenseList = offenses;
-            _isLoading = false;
-            if (offenses.length < _pageSize) _hasMore = false;
-            if (_offenseList.isEmpty) _errorMessage = '未找到状态为 $query 的违法信息';
-          });
+        case 'offenseType':
+          offenses = await offenseApi.apiOffensesByOffenseTypeGet(
+            query: query,
+            page: _currentPage,
+            size: _pageSize,
+          );
           break;
         default:
-          setState(() {
-            _errorMessage = '无效的搜索类型';
-            _isLoading = false;
-          });
+          throw Exception('无效的搜索类型');
       }
+      setState(() {
+        _offenseList = offenses;
+        _isLoading = false;
+        if (offenses.length < _pageSize) _hasMore = false;
+        if (_offenseList.isEmpty) {
+          _errorMessage =
+              '未找到${_searchType == 'driverName' ? '司机名为 $query' : _searchType == 'licensePlate' ? '车牌号为 $query' : '违法类型为 $query'}的违法信息';
+        }
+      });
     } catch (e) {
       setState(() {
         _errorMessage = '搜索失败：$e';
@@ -196,16 +191,13 @@ class _OffenseListPageState extends State<OffenseList> {
       });
       try {
         final offenses = await offenseApi.apiOffensesTimeRangeGet(
-              startTime: picked.start,
-              endTime: picked.end,
-              page: _currentPage,
-              size: _pageSize,
-            ) ??
-            [];
+          startTime: formatDate(picked.start),
+          endTime: formatDate(picked.end),
+        );
         setState(() {
           _offenseList = offenses;
           _isLoading = false;
-          if (offenses.length < _pageSize) _hasMore = false;
+          _hasMore = false; // /timeRange doesn't support pagination
           if (_offenseList.isEmpty) _errorMessage = '未找到该时间范围内的违法信息';
         });
       } catch (e) {
@@ -429,7 +421,6 @@ class _OffenseListPageState extends State<OffenseList> {
                                     itemBuilder: (context, index) {
                                       if (index == _offenseList.length &&
                                           _hasMore) {
-                                        _loadMoreOffenses();
                                         return const Padding(
                                           padding: EdgeInsets.all(8.0),
                                           child: Center(
@@ -472,7 +463,7 @@ class _OffenseListPageState extends State<OffenseList> {
                       ? '按司机姓名搜索'
                       : _searchType == 'licensePlate'
                           ? '按车牌号搜索'
-                          : '按处理状态搜索',
+                          : '按违法类型搜索',
                   labelStyle:
                       TextStyle(color: themeData.colorScheme.onSurfaceVariant),
                   prefixIcon:
@@ -507,7 +498,7 @@ class _OffenseListPageState extends State<OffenseList> {
                   _fetchOffenses(reset: true);
                 });
               },
-              items: <String>['driverName', 'licensePlate', 'processStatus']
+              items: <String>['driverName', 'licensePlate', 'offenseType']
                   .map<DropdownMenuItem<String>>((String value) {
                 return DropdownMenuItem<String>(
                   value: value,
@@ -516,7 +507,7 @@ class _OffenseListPageState extends State<OffenseList> {
                         ? '按司机姓名'
                         : value == 'licensePlate'
                             ? '按车牌号'
-                            : '按状态',
+                            : '按违法类型',
                     style: TextStyle(color: themeData.colorScheme.onSurface),
                   ),
                 );
@@ -686,10 +677,6 @@ class _AddOffensePageState extends State<AddOffensePage> {
     }
   }
 
-  String formatDate(DateTime date) {
-    return "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
-  }
-
   @override
   Widget build(BuildContext context) {
     return Obx(() {
@@ -811,11 +798,6 @@ class _AddOffensePageState extends State<AddOffensePage> {
           required ? (value) => value!.isEmpty ? '$label不能为空' : null : null,
     );
   }
-
-  String generateIdempotencyKey() {
-    // Replace with your actual implementation for generating an idempotency key
-    return DateTime.now().millisecondsSinceEpoch.toString();
-  }
 }
 
 class OffenseDetailPage extends StatefulWidget {
@@ -860,6 +842,7 @@ class _OffenseDetailPageState extends State<OffenseDetailPage> {
       }
       final response = await http.get(
         Uri.parse('http://localhost:8081/api/users/me'),
+        // Adjust URL as per your backend
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $jwtToken',
@@ -1230,7 +1213,8 @@ class _EditOffensePageState extends State<EditOffensePage> {
             DateTime.parse("${_offenseTimeController.text.trim()}T00:00:00");
       }
 
-      final updatedOffense = widget.offense.copyWith(
+      final updatedOffense = OffenseInformation(
+        offenseId: widget.offense.offenseId,
         driverName: _driverNameController.text.trim(),
         licensePlate: _licensePlateController.text.trim(),
         offenseType: _offenseTypeController.text.trim(),

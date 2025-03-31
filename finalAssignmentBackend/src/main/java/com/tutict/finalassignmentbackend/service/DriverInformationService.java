@@ -13,12 +13,18 @@ import com.tutict.finalassignmentbackend.repository.DriverInformationSearchRepos
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.elasticsearch.core.SearchHit;
+import org.springframework.data.elasticsearch.core.SearchHits;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -202,71 +208,221 @@ public class DriverInformationService {
 
     @Cacheable(cacheNames = "driverCache", unless = "#result == null")
     @WsAction(service = "DriverInformationService", action = "getDriversByIdCardNumber")
-    public List<DriverInformation> getDriversByIdCardNumber(String idCardNumber) {
-        if (idCardNumber == null || idCardNumber.trim().isEmpty()) {
-            throw new IllegalArgumentException("Invalid ID card number");
+    public List<DriverInformation> searchByIdCardNumber(String query, int page, int size) {
+        if (page < 1 || size < 1) {
+            throw new IllegalArgumentException("Page must be >= 1 and size must be >= 1");
         }
 
-        List<DriverInformationDocument> documents = driverInformationSearchRepository.findByIdCardNumber(idCardNumber);
-        if (!documents.isEmpty()) {
-            log.info(String.format("Drivers with ID card number %s retrieved from Elasticsearch", idCardNumber));
-            return documents.stream().map(DriverInformationDocument::toEntity).collect(Collectors.toList());
+        Set<DriverInformation> suggestions = new HashSet<>();
+        int maxSuggestions = page * size; // Total results to fetch for pagination
+        int offset = (page - 1) * size; // Starting point for pagination
+
+        log.log(Level.INFO, "Executing match query for idCardNumber: {0}, page: {1}, size: {2}",
+                new Object[]{query, page, size});
+
+        SearchHits<DriverInformationDocument> matchHits = null;
+        try {
+            matchHits = driverInformationSearchRepository.searchByIdCardNumber(query);
+        } catch (Exception e) {
+            log.log(Level.WARNING, "Error executing match query for idCardNumber: {0}", new Object[]{e.getMessage()});
         }
 
-        QueryWrapper<DriverInformation> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("id_card_number", idCardNumber);
-        List<DriverInformation> drivers = driverInformationMapper.selectList(queryWrapper);
-        if (!drivers.isEmpty()) {
-            log.info(String.format("Drivers with ID card number %s retrieved from database, syncing to Elasticsearch", idCardNumber));
-            drivers.forEach(driver -> driverInformationSearchRepository.save(DriverInformationDocument.fromEntity(driver)));
+        if (matchHits != null && matchHits.hasSearchHits()) {
+            for (SearchHit<DriverInformationDocument> hit : matchHits) {
+                DriverInformationDocument doc = hit.getContent();
+                if (doc.getIdCardNumber() != null) {
+                    suggestions.add(doc.toEntity());
+                    log.log(Level.INFO, "Found driver with ID: {0}", new Object[]{doc.getDriverId()});
+                }
+                if (suggestions.size() >= maxSuggestions) {
+                    break;
+                }
+            }
+            log.log(Level.INFO, "Found {0} match suggestions: {1}", new Object[]{suggestions.size(), suggestions});
+        } else {
+            log.log(Level.INFO, "No match suggestions found for idCardNumber: {0}", new Object[]{query});
         }
-        return drivers;
+
+        // If results are insufficient, execute fuzzy query
+        if (suggestions.size() < maxSuggestions) {
+            log.log(Level.INFO, "Executing fuzzy query for idCardNumber: {0}", new Object[]{query});
+            SearchHits<DriverInformationDocument> fuzzyHits = null;
+            try {
+                fuzzyHits = driverInformationSearchRepository.searchByIdCardNumberFuzzy(query);
+                log.log(Level.INFO, "Fuzzy query returned {0} hits",
+                        new Object[]{fuzzyHits != null ? fuzzyHits.getTotalHits() : 0});
+            } catch (Exception e) {
+                log.log(Level.WARNING, "Error executing fuzzy query for idCardNumber: {0}", new Object[]{e.getMessage()});
+            }
+
+            if (fuzzyHits != null && fuzzyHits.hasSearchHits()) {
+                for (SearchHit<DriverInformationDocument> hit : fuzzyHits) {
+                    DriverInformationDocument doc = hit.getContent();
+                    if (doc.getIdCardNumber() != null) {
+                        suggestions.add(doc.toEntity());
+                        log.log(Level.INFO, "Found driver with ID: {0}", new Object[]{doc.getDriverId()});
+                    }
+                    if (suggestions.size() >= maxSuggestions) {
+                        break;
+                    }
+                }
+                log.log(Level.INFO, "After fuzzy search, total suggestions: {0}", new Object[]{suggestions.size()});
+            } else {
+                log.log(Level.INFO, "Fuzzy search returned no results for idCardNumber: {0}", new Object[]{query});
+            }
+        }
+
+        List<DriverInformation> resultList = new ArrayList<>(suggestions);
+        return resultList.stream()
+                .skip(offset)
+                .limit(size)
+                .collect(Collectors.toList());
     }
 
     @Cacheable(cacheNames = "driverCache", unless = "#result == null")
     @WsAction(service = "DriverInformationService", action = "getDriverByDriverLicenseNumber")
-    public DriverInformation getDriverByDriverLicenseNumber(String driverLicenseNumber) {
-        if (driverLicenseNumber == null || driverLicenseNumber.trim().isEmpty()) {
-            throw new IllegalArgumentException("Invalid driver license number");
+    public List<DriverInformation> searchByDriverLicenseNumber(String query, int page, int size) {
+        if (page < 1 || size < 1) {
+            throw new IllegalArgumentException("Page must be >= 1 and size must be >= 1");
         }
 
-        DriverInformationDocument document = driverInformationSearchRepository.findByDriverLicenseNumber(driverLicenseNumber);
-        if (document != null) {
-            log.info(String.format("Driver with license number %s retrieved from Elasticsearch", driverLicenseNumber));
-            return document.toEntity();
+        Set<DriverInformation> suggestions = new HashSet<>();
+        int maxSuggestions = page * size; // Total results to fetch for pagination
+        int offset = (page - 1) * size; // Starting point for pagination
+
+        log.log(Level.INFO, "Executing match query for driverLicenseNumber: {0}, page: {1}, size: {2}",
+                new Object[]{query, page, size});
+
+        SearchHits<DriverInformationDocument> matchHits = null;
+        try {
+            matchHits = driverInformationSearchRepository.searchByDriverLicenseNumber(query);
+        } catch (Exception e) {
+            log.log(Level.WARNING, "Error executing match query for driverLicenseNumber: {0}", new Object[]{e.getMessage()});
         }
 
-        QueryWrapper<DriverInformation> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("driver_license_number", driverLicenseNumber);
-        DriverInformation driver = driverInformationMapper.selectOne(queryWrapper);
-        if (driver != null) {
-            log.info(String.format("Driver with license number %s retrieved from database, syncing to Elasticsearch", driverLicenseNumber));
-            driverInformationSearchRepository.save(DriverInformationDocument.fromEntity(driver));
+        if (matchHits != null && matchHits.hasSearchHits()) {
+            for (SearchHit<DriverInformationDocument> hit : matchHits) {
+                DriverInformationDocument doc = hit.getContent();
+                if (doc.getDriverLicenseNumber() != null) {
+                    suggestions.add(doc.toEntity());
+                    log.log(Level.INFO, "Found driver with ID: {0}", new Object[]{doc.getDriverId()});
+                }
+                if (suggestions.size() >= maxSuggestions) {
+                    break;
+                }
+            }
+            log.log(Level.INFO, "Found {0} match suggestions: {1}", new Object[]{suggestions.size(), suggestions});
+        } else {
+            log.log(Level.INFO, "No match suggestions found for driverLicenseNumber: {0}", new Object[]{query});
         }
-        return driver;
+
+        // If results are insufficient, execute fuzzy query
+        if (suggestions.size() < maxSuggestions) {
+            log.log(Level.INFO, "Executing fuzzy query for driverLicenseNumber: {0}", new Object[]{query});
+            SearchHits<DriverInformationDocument> fuzzyHits = null;
+            try {
+                fuzzyHits = driverInformationSearchRepository.searchByDriverLicenseNumberFuzzy(query);
+                log.log(Level.INFO, "Fuzzy query returned {0} hits",
+                        new Object[]{fuzzyHits != null ? fuzzyHits.getTotalHits() : 0});
+            } catch (Exception e) {
+                log.log(Level.WARNING, "Error executing fuzzy query for driverLicenseNumber: {0}", new Object[]{e.getMessage()});
+            }
+
+            if (fuzzyHits != null && fuzzyHits.hasSearchHits()) {
+                for (SearchHit<DriverInformationDocument> hit : fuzzyHits) {
+                    DriverInformationDocument doc = hit.getContent();
+                    if (doc.getDriverLicenseNumber() != null) {
+                        suggestions.add(doc.toEntity());
+                        log.log(Level.INFO, "Found driver with ID: {0}", new Object[]{doc.getDriverId()});
+                    }
+                    if (suggestions.size() >= maxSuggestions) {
+                        break;
+                    }
+                }
+                log.log(Level.INFO, "After fuzzy search, total suggestions: {0}", new Object[]{suggestions.size()});
+            } else {
+                log.log(Level.INFO, "Fuzzy search returned no results for driverLicenseNumber: {0}", new Object[]{query});
+            }
+        }
+
+        List<DriverInformation> resultList = new ArrayList<>(suggestions);
+        return resultList.stream()
+                .skip(offset)
+                .limit(size)
+                .collect(Collectors.toList());
     }
 
     @Cacheable(cacheNames = "driverCache", unless = "#result == null")
     @WsAction(service = "DriverInformationService", action = "getDriversByName")
-    public List<DriverInformation> getDriversByName(String name) {
-        if (name == null || name.trim().isEmpty()) {
-            throw new IllegalArgumentException("Invalid name");
+    public List<DriverInformation> searchByName(String query, int page, int size) {
+        if (page < 1 || size < 1) {
+            throw new IllegalArgumentException("Page must be >= 1 and size must be >= 1");
         }
 
-        List<DriverInformationDocument> documents = driverInformationSearchRepository.findByName(name);
-        if (!documents.isEmpty()) {
-            log.info(String.format("Drivers with name %s retrieved from Elasticsearch", name));
-            return documents.stream().map(DriverInformationDocument::toEntity).collect(Collectors.toList());
+        Set<DriverInformation> suggestions = new HashSet<>();
+        int maxSuggestions = page * size; // Total results to fetch for pagination
+        int offset = (page - 1) * size; // Starting point for pagination
+
+        log.log(Level.INFO, "Executing match query for name: {0}, page: {1}, size: {2}",
+                new Object[]{query, page, size});
+
+        SearchHits<DriverInformationDocument> matchHits = null;
+        try {
+            matchHits = driverInformationSearchRepository.searchByNamePrefix(query);
+        } catch (Exception e) {
+            log.log(Level.WARNING, "Error executing match query for name: {0}", new Object[]{e.getMessage()});
         }
 
-        QueryWrapper<DriverInformation> queryWrapper = new QueryWrapper<>();
-        queryWrapper.like("name", name);
-        List<DriverInformation> drivers = driverInformationMapper.selectList(queryWrapper);
-        if (!drivers.isEmpty()) {
-            log.info(String.format("Drivers with name %s retrieved from database, syncing to Elasticsearch", name));
-            drivers.forEach(driver -> driverInformationSearchRepository.save(DriverInformationDocument.fromEntity(driver)));
+        if (matchHits != null && matchHits.hasSearchHits()) {
+            for (SearchHit<DriverInformationDocument> hit : matchHits) {
+                DriverInformationDocument doc = hit.getContent();
+                if (doc.getName() != null) {
+                    suggestions.add(doc.toEntity());
+                    log.log(Level.INFO, "Found driver with ID: {0}", new Object[]{doc.getDriverId()});
+                }
+                if (suggestions.size() >= maxSuggestions) {
+                    break;
+                }
+            }
+            log.log(Level.INFO, "Found {0} match suggestions: {1}", new Object[]{suggestions.size(), suggestions});
+        } else {
+            log.log(Level.INFO, "No match suggestions found for name: {0}", new Object[]{query});
         }
-        return drivers;
+
+        // If results are insufficient, execute fuzzy query
+        if (suggestions.size() < maxSuggestions) {
+            log.log(Level.INFO, "Executing fuzzy query for name: {0}", new Object[]{query});
+            SearchHits<DriverInformationDocument> fuzzyHits = null;
+            try {
+                fuzzyHits = driverInformationSearchRepository.searchByNameFuzzy(query);
+                log.log(Level.INFO, "Fuzzy query returned {0} hits",
+                        new Object[]{fuzzyHits != null ? fuzzyHits.getTotalHits() : 0});
+            } catch (Exception e) {
+                log.log(Level.WARNING, "Error executing fuzzy query for name: {0}", new Object[]{e.getMessage()});
+            }
+
+            if (fuzzyHits != null && fuzzyHits.hasSearchHits()) {
+                for (SearchHit<DriverInformationDocument> hit : fuzzyHits) {
+                    DriverInformationDocument doc = hit.getContent();
+                    if (doc.getName() != null) {
+                        suggestions.add(doc.toEntity());
+                        log.log(Level.INFO, "Found driver with ID: {0}", new Object[]{doc.getDriverId()});
+                    }
+                    if (suggestions.size() >= maxSuggestions) {
+                        break;
+                    }
+                }
+                log.log(Level.INFO, "After fuzzy search, total suggestions: {0}", new Object[]{suggestions.size()});
+            } else {
+                log.log(Level.INFO, "Fuzzy search returned no results for name: {0}", new Object[]{query});
+            }
+        }
+
+        List<DriverInformation> resultList = new ArrayList<>(suggestions);
+        return resultList.stream()
+                .skip(offset)
+                .limit(size)
+                .collect(Collectors.toList());
     }
 
     private void sendKafkaMessage(String topic, DriverInformation driverInformation) {

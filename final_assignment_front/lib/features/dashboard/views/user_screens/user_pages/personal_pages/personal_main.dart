@@ -111,8 +111,8 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
       DriverInformation? driverInfo;
       if (user.userId != null) {
         try {
-          driverInfo = await driverApi.apiDriversDriverIdGet(
-              driverId: user.userId.toString());
+          driverInfo =
+              await driverApi.apiDriversDriverIdGet(driverId: user.userId);
           debugPrint('Driver info fetched: ${driverInfo?.toJson()}');
           if (driverInfo?.idCardNumber != null &&
               driverInfo!.idCardNumber!.isNotEmpty) {
@@ -133,8 +133,8 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
               driverInformation: driverInfo,
               idempotencyKey: idempotencyKey,
             );
-            driverInfo = await driverApi.apiDriversDriverIdGet(
-                driverId: user.userId.toString());
+            driverInfo =
+                await driverApi.apiDriversDriverIdGet(driverId: user.userId);
             debugPrint('Driver created and fetched: ${driverInfo?.toJson()}');
           } else {
             debugPrint('Driver fetch error: $e');
@@ -204,7 +204,7 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
             idempotencyKey: idempotencyKey,
           );
           _driverInfo = await driverApi.apiDriversDriverIdGet(
-              driverId: currentUser.userId.toString());
+              driverId: currentUser.userId);
           debugPrint('Driver updated and fetched: ${_driverInfo?.toJson()}');
           break;
 
@@ -222,7 +222,7 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
             idempotencyKey: idempotencyKey,
           );
           _driverInfo = await driverApi.apiDriversDriverIdGet(
-              driverId: currentUser.userId.toString());
+              driverId: currentUser.userId);
           debugPrint('Driver updated and fetched: ${_driverInfo?.toJson()}');
           break;
 
@@ -241,7 +241,7 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
             idempotencyKey: idempotencyKey,
           );
           _driverInfo = await driverApi.apiDriversDriverIdGet(
-              driverId: currentUser.userId.toString());
+              driverId: currentUser.userId);
           debugPrint('Driver updated and fetched: ${_driverInfo?.toJson()}');
           if (mounted) setState(() => _idCardNumberEdited = true);
           break;

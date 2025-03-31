@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:final_assignment_front/features/model/appeal_management.dart';
+import 'package:final_assignment_front/features/model/offense_information.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -42,70 +43,6 @@ class AppealManagementControllerApi {
     return [QueryParam('idempotencyKey', idempotencyKey)];
   }
 
-  // --- GET /api/appeals ---
-  Future<http.Response> apiAppealsGetWithHttpInfo() async {
-    const path = "/api/appeals";
-    final headerParams = await _getHeaders();
-    return await apiClient.invokeAPI(
-      path,
-      'GET',
-      [],
-      null,
-      headerParams,
-      {},
-      null,
-      ['bearerAuth'],
-    );
-  }
-
-  Future<List<AppealManagement>> apiAppealsGet() async {
-    final response = await apiAppealsGetWithHttpInfo();
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-      return jsonList.map((json) => AppealManagement.fromJson(json)).toList();
-    } else {
-      return [];
-    }
-  }
-
-  // --- GET /api/appeals/name/{appellantName} ---
-  Future<http.Response> apiAppealsNameAppellantNameGetWithHttpInfo({
-    required String appellantName,
-  }) async {
-    if (appellantName.isEmpty) {
-      throw ApiException(400, "Missing required param: appellantName");
-    }
-    final path = "/api/appeals/name/${Uri.encodeComponent(appellantName)}";
-    final headerParams = await _getHeaders();
-    return await apiClient.invokeAPI(
-      path,
-      'GET',
-      [],
-      null,
-      headerParams,
-      {},
-      null,
-      ['bearerAuth'],
-    );
-  }
-
-  Future<List<AppealManagement>> apiAppealsNameAppellantNameGet({
-    required String appellantName,
-  }) async {
-    final response = await apiAppealsNameAppellantNameGetWithHttpInfo(
-        appellantName: appellantName);
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-      return jsonList.map((json) => AppealManagement.fromJson(json)).toList();
-    } else {
-      return [];
-    }
-  }
-
   // --- POST /api/appeals ---
   Future<AppealManagement> apiAppealsPost({
     required AppealManagement appealManagement,
@@ -131,15 +68,60 @@ class AppealManagementControllerApi {
     return AppealManagement.fromJson(data);
   }
 
+  // --- GET /api/appeals/{appealId} ---
+  Future<AppealManagement> apiAppealsAppealIdGet({
+    required int appealId,
+  }) async {
+    final path = "/api/appeals/$appealId";
+    final headerParams = await _getHeaders();
+    final response = await apiClient.invokeAPI(
+      path,
+      'GET',
+      [],
+      null,
+      headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    final data = apiClient.deserialize(
+        _decodeBodyBytes(response), 'Map<String, dynamic>');
+    return AppealManagement.fromJson(data);
+  }
+
+  // --- GET /api/appeals ---
+  Future<List<AppealManagement>> apiAppealsGet() async {
+    const path = "/api/appeals";
+    final headerParams = await _getHeaders();
+    final response = await apiClient.invokeAPI(
+      path,
+      'GET',
+      [],
+      null,
+      headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    } else if (response.body.isNotEmpty) {
+      final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+      return jsonList.map((json) => AppealManagement.fromJson(json)).toList();
+    } else {
+      return [];
+    }
+  }
+
   // --- PUT /api/appeals/{appealId} ---
   Future<AppealManagement> apiAppealsAppealIdPut({
-    required String appealId,
+    required int appealId,
     required AppealManagement appealManagement,
     required String idempotencyKey,
   }) async {
-    if (appealId.isEmpty) {
-      throw ApiException(400, "Missing required param: appealId");
-    }
     final path = "/api/appeals/$appealId";
     final headerParams = await _getHeaders();
     final response = await apiClient.invokeAPI(
@@ -162,11 +144,8 @@ class AppealManagementControllerApi {
 
   // --- DELETE /api/appeals/{appealId} ---
   Future<void> apiAppealsAppealIdDelete({
-    required String appealId,
+    required int appealId,
   }) async {
-    if (appealId.isEmpty) {
-      throw ApiException(400, "Missing required param: appealId");
-    }
     final path = "/api/appeals/$appealId";
     final headerParams = await _getHeaders();
     final response = await apiClient.invokeAPI(
@@ -211,6 +190,59 @@ class AppealManagementControllerApi {
     } else {
       return [];
     }
+  }
+
+  // --- GET /api/appeals/name/{appellantName} ---
+  Future<List<AppealManagement>> apiAppealsNameAppellantNameGet({
+    required String appellantName,
+  }) async {
+    if (appellantName.isEmpty) {
+      throw ApiException(400, "Missing required param: appellantName");
+    }
+    final path = "/api/appeals/name/${Uri.encodeComponent(appellantName)}";
+    final headerParams = await _getHeaders();
+    final response = await apiClient.invokeAPI(
+      path,
+      'GET',
+      [],
+      null,
+      headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    } else if (response.body.isNotEmpty) {
+      final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+      return jsonList.map((json) => AppealManagement.fromJson(json)).toList();
+    } else {
+      return [];
+    }
+  }
+
+  // --- GET /api/appeals/{appealId}/offense ---
+  Future<OffenseInformation> apiAppealsAppealIdOffenseGet({
+    required int appealId,
+  }) async {
+    final path = "/api/appeals/$appealId/offense";
+    final headerParams = await _getHeaders();
+    final response = await apiClient.invokeAPI(
+      path,
+      'GET',
+      [],
+      null,
+      headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    final data = apiClient.deserialize(
+        _decodeBodyBytes(response), 'Map<String, dynamic>');
+    return OffenseInformation.fromJson(data);
   }
 
   // --- GET /api/appeals/id-card/{idCardNumber} ---
@@ -331,8 +363,8 @@ class AppealManagementControllerApi {
     }
   }
 
-  // --- GET /api/appeals/search ---
-  Future<List<AppealManagement>> apiAppealsSearchGet({
+  // --- GET /api/appeals/by-appellant-name ---
+  Future<List<AppealManagement>> apiAppealsByAppellantNameGet({
     required String query,
     int page = 1,
     int size = 10,
@@ -340,7 +372,43 @@ class AppealManagementControllerApi {
     if (query.isEmpty) {
       throw ApiException(400, "Missing required param: query");
     }
-    const path = "/api/appeals/search";
+    const path = "/api/appeals/by-appellant-name";
+    final queryParams = [
+      QueryParam('query', query),
+      QueryParam('page', page.toString()),
+      QueryParam('size', size.toString()),
+    ];
+    final headerParams = await _getHeaders();
+    final response = await apiClient.invokeAPI(
+      path,
+      'GET',
+      queryParams,
+      null,
+      headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    } else if (response.body.isNotEmpty) {
+      final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+      return jsonList.map((json) => AppealManagement.fromJson(json)).toList();
+    } else {
+      return [];
+    }
+  }
+
+  // --- GET /api/appeals/by-reason ---
+  Future<List<AppealManagement>> apiAppealsByReasonGet({
+    required String query,
+    int page = 1,
+    int size = 10,
+  }) async {
+    if (query.isEmpty) {
+      throw ApiException(400, "Missing required param: query");
+    }
+    const path = "/api/appeals/by-reason";
     final queryParams = [
       QueryParam('query', query),
       QueryParam('page', page.toString()),
@@ -454,74 +522,6 @@ class AppealManagementControllerApi {
     } else if (response.body.isNotEmpty) {
       final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
       return jsonList.map((json) => AppealManagement.fromJson(json)).toList();
-    } else {
-      return [];
-    }
-  }
-
-  // --- NEW: GET /api/appeals/autocomplete/appellant-name ---
-  Future<List<String>> apiAppealsAutocompleteAppellantNameGet({
-    required String prefix,
-    int maxSuggestions = 5,
-  }) async {
-    if (prefix.isEmpty) {
-      throw ApiException(400, "Missing required param: prefix");
-    }
-    const path = "/api/appeals/autocomplete/appellant-name";
-    final queryParams = [
-      QueryParam('prefix', prefix),
-      QueryParam('maxSuggestions', maxSuggestions.toString()),
-    ];
-    final headerParams = await _getHeaders();
-    final response = await apiClient.invokeAPI(
-      path,
-      'GET',
-      queryParams,
-      null,
-      headerParams,
-      {},
-      null,
-      ['bearerAuth'],
-    );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      final List<dynamic> suggestions = jsonDecode(_decodeBodyBytes(response));
-      return suggestions.cast<String>();
-    } else {
-      return [];
-    }
-  }
-
-  // --- NEW: GET /api/appeals/autocomplete/reason ---
-  Future<List<String>> apiAppealsAutocompleteReasonGet({
-    required String prefix,
-    int maxSuggestions = 5,
-  }) async {
-    if (prefix.isEmpty) {
-      throw ApiException(400, "Missing required param: prefix");
-    }
-    const path = "/api/appeals/autocomplete/reason";
-    final queryParams = [
-      QueryParam('prefix', prefix),
-      QueryParam('maxSuggestions', maxSuggestions.toString()),
-    ];
-    final headerParams = await _getHeaders();
-    final response = await apiClient.invokeAPI(
-      path,
-      'GET',
-      queryParams,
-      null,
-      headerParams,
-      {},
-      null,
-      ['bearerAuth'],
-    );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      final List<dynamic> suggestions = jsonDecode(_decodeBodyBytes(response));
-      return suggestions.cast<String>();
     } else {
       return [];
     }

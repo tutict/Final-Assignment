@@ -282,6 +282,8 @@ public class AppealManagementService {
         return appealManagementMapper.selectCount(queryWrapper);
     }
 
+    @Cacheable(cacheNames = "appealCache", unless = "#result == null")
+    @WsAction(service = "AppealManagementService", action = "searchAppealName")
     public List<AppealManagement> searchAppealName(String query, int page, int size) {
         if (page < 1 || size < 1) {
             throw new IllegalArgumentException("Page must be >= 1 and size must be >= 1");
@@ -354,6 +356,8 @@ public class AppealManagementService {
                 .collect(Collectors.toList());
     }
 
+    @Cacheable(cacheNames = "appealCache", unless = "#result == null")
+    @WsAction(service = "AppealManagementService", action = "searchAppealReason")
     public List<AppealManagement> searchAppealReason(String query, int page, int size) {
         if (page < 1 || size < 1) {
             throw new IllegalArgumentException("Page must be >= 1 and size must be >= 1");

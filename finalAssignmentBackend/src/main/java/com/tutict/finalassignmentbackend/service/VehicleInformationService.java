@@ -245,6 +245,8 @@ public class VehicleInformationService {
         return vehicleInformationMapper.selectCount(queryWrapper) > 0;
     }
 
+    @Cacheable(cacheNames = "vehicleCache", unless = "#result == null")
+    @WsAction(service = "VehicleInformationService", action = "getVehicleInformationByStatus")
     public List<String> getLicensePlateAutocompleteSuggestions(String ownerName, String prefix, int maxSuggestions) {
         Set<String> suggestions = new HashSet<>();
 
@@ -306,6 +308,8 @@ public class VehicleInformationService {
         return resultList.size() <= maxSuggestions ? resultList : resultList.subList(0, maxSuggestions);
     }
 
+    @Cacheable(cacheNames = "vehicleCache", unless = "#result == null")
+    @WsAction(service = "VehicleInformationService", action = "getVehicleInformationByType")
     public List<String> getVehicleTypeAutocompleteSuggestions(String ownerName, String prefix, int maxSuggestions) {
         Set<String> suggestions = new HashSet<>();
 

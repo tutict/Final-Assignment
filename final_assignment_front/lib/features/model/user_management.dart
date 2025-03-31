@@ -1,5 +1,5 @@
 class UserManagement {
-  int? userId;
+  int userId;
   String? username;
   String? password;
   String? contactNumber;
@@ -11,7 +11,7 @@ class UserManagement {
   String? idempotencyKey;
 
   UserManagement({
-    this.userId,
+    required this.userId,
     this.username,
     this.password,
     this.contactNumber,
@@ -30,7 +30,7 @@ class UserManagement {
 
   factory UserManagement.fromJson(Map<String, dynamic> json) {
     return UserManagement(
-      userId: json['userId'] as int?,
+      userId: json['userId'] as int,
       username: json['username'] as String?,
       password: json['password'] as String?,
       contactNumber: json['contactNumber'] as String?,
@@ -45,7 +45,7 @@ class UserManagement {
 
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> json = {};
-    if (userId != null) json['userId'] = userId;
+    json['userId'] = userId;
     if (username != null) json['username'] = username;
     if (password != null) json['password'] = password;
     if (contactNumber != null) json['contactNumber'] = contactNumber;

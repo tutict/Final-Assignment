@@ -11,6 +11,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import java.util.Date;
 import java.util.List;
 import java.util.logging.Logger;
+import java.util.logging.Level;
 
 @RestController
 @RequestMapping("/api/deductions")
@@ -96,5 +97,61 @@ public class DeductionInformationController {
     public ResponseEntity<List<DeductionInformation>> getDeductionsByTimeRange(@RequestParam Date startTime, @RequestParam Date endTime) {
         List<DeductionInformation> deductions = deductionInformationService.getDeductionsByTimeRange(startTime, endTime);
         return ResponseEntity.ok(deductions);
+    }
+
+    @GetMapping("/by-handler")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    public ResponseEntity<List<DeductionInformation>> searchByHandler(
+            @RequestParam String handler,
+            @RequestParam(defaultValue = "10") int maxSuggestions) {
+
+        logger.log(Level.INFO, "Received request to search deductions by handler: {0}, maxSuggestions: {1}",
+                new Object[]{handler, maxSuggestions});
+
+        try {
+            List<DeductionInformation> results = deductionInformationService.searchByHandler(handler, maxSuggestions);
+
+            if (results == null || results.isEmpty()) {
+                logger.log(Level.INFO, "No deductions found for handler: {0}", new Object[]{handler});
+                return ResponseEntity.noContent().build();
+            }
+
+            logger.log(Level.INFO, "Returning {0} deductions for handler: {1}",
+                    new Object[]{results.size(), handler});
+            return ResponseEntity.ok(results);
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "Error processing search by handler: {0}, error: {1}",
+                    new Object[]{handler, e.getMessage()});
+            return ResponseEntity.status(500).body(null);
+        }
+    }
+
+    @GetMapping("/by-time-range")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    public ResponseEntity<List<DeductionInformation>> searchByDeductionTimeRange(
+            @RequestParam String startTime,
+            @RequestParam String endTime,
+            @RequestParam(defaultValue = "10") int maxSuggestions) {
+
+        logger.log(Level.INFO, "Received request to search deductions by time range: startTime={0}, endTime={1}, maxSuggestions={2}",
+                new Object[]{startTime, endTime, maxSuggestions});
+
+        try {
+            List<DeductionInformation> results = deductionInformationService.searchByDeductionTimeRange(startTime, endTime, maxSuggestions);
+
+            if (results == null || results.isEmpty()) {
+                logger.log(Level.INFO, "No deductions found for time range: {0} to {1}",
+                        new Object[]{startTime, endTime});
+                return ResponseEntity.noContent().build();
+            }
+
+            logger.log(Level.INFO, "Returning {0} deductions for time range: {1} to {2}",
+                    new Object[]{results.size(), startTime, endTime});
+            return ResponseEntity.ok(results);
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "Error processing search by time range: startTime={0}, endTime={1}, error: {2}",
+                    new Object[]{startTime, endTime, e.getMessage()});
+            return ResponseEntity.status(500).body(null);
+        }
     }
 }

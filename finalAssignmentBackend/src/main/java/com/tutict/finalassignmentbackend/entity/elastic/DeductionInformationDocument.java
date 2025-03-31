@@ -29,7 +29,7 @@ public class DeductionInformationDocument {
             mainField = @Field(type = FieldType.Text, analyzer = "ik_max_word", searchAnalyzer = "ik_max_word"),
             otherFields = {
                     @InnerField(suffix = "keyword", type = FieldType.Keyword),
-                    @InnerField(suffix = "icu", type = FieldType.Text, analyzer = "icu_analyzer", searchAnalyzer = "icu_analyzer")
+                    @InnerField(suffix = "ngram", type = FieldType.Text, analyzer = "license_plate_analyzer", searchAnalyzer = "license_plate_analyzer")
             }
     )
     private String handler;
@@ -46,18 +46,13 @@ public class DeductionInformationDocument {
     @MultiField(
             mainField = @Field(type = FieldType.Text, analyzer = "ik_max_word", searchAnalyzer = "ik_max_word"),
             otherFields = {
-                    @InnerField(suffix = "keyword", type = FieldType.Keyword),
-                    @InnerField(suffix = "icu", type = FieldType.Text, analyzer = "icu_analyzer", searchAnalyzer = "icu_analyzer")
+                    @InnerField(suffix = "keyword", type = FieldType.Keyword)
             }
     )
     private String remarks;
 
-    // 从 DeductionInformation 实体转换为文档
     public static DeductionInformationDocument fromEntity(DeductionInformation entity) {
-        if (entity == null) {
-            return null;
-        }
-
+        if (entity == null) return null;
         DeductionInformationDocument doc = new DeductionInformationDocument();
         doc.setDeductionId(entity.getDeductionId());
         doc.setOffenseId(entity.getOffenseId());
@@ -69,7 +64,6 @@ public class DeductionInformationDocument {
         return doc;
     }
 
-    // 从文档转换为 DeductionInformation 实体
     public DeductionInformation toEntity() {
         DeductionInformation entity = new DeductionInformation();
         entity.setDeductionId(this.deductionId);

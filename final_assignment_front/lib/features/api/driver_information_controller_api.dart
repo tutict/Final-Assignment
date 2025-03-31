@@ -3,7 +3,7 @@ import 'package:final_assignment_front/features/model/driver_information.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// 定义一个全局的 defaultApiClient
@@ -29,8 +29,18 @@ class DriverInformationControllerApi {
   }
 
   /// 解码响应体字节到字符串，使用 UTF-8 解码
-  String _decodeBodyBytes(Response response) {
+  String _decodeBodyBytes(http.Response response) {
     return utf8.decode(response.bodyBytes); // Properly decode UTF-8
+  }
+
+  /// 获取带有 JWT 的请求头
+  Future<Map<String, String>> _getHeaders() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('jwtToken') ?? '';
+    return {
+      'Content-Type': 'application/json; charset=utf-8',
+      if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+    };
   }
 
   /// 添加 idempotencyKey 作为查询参数
@@ -38,43 +48,46 @@ class DriverInformationControllerApi {
     return [QueryParam('idempotencyKey', idempotencyKey)];
   }
 
-  /// DELETE /api/drivers/{driverId} - 删除司机信息
-  Future<void> apiDriversDriverIdDelete({required String driverId}) async {
-    if (driverId.isEmpty) {
-      throw ApiException(400, "Missing required param: driverId");
-    }
+  // HTTP Methods
+
+  /// POST /api/drivers - 创建司机信息
+  Future<void> apiDriversPost({
+    required DriverInformation driverInformation,
+    required String idempotencyKey,
+  }) async {
+    const path = '/api/drivers';
+    final headerParams = await _getHeaders();
     final response = await apiClient.invokeAPI(
-      '/api/drivers/$driverId',
-      'DELETE',
-      [],
-      '',
+      path,
+      'POST',
+      _addIdempotencyKey(idempotencyKey),
+      driverInformation.toJson(),
+      headerParams,
       {},
-      {},
-      null,
+      'application/json',
       ['bearerAuth'],
     );
     if (response.statusCode >= 400) {
-      if (response.statusCode == 404) {
-        throw ApiException(404, "Driver not found with ID: $driverId");
-      } else if (response.statusCode == 403) {
-        throw ApiException(403, "Unauthorized: Only ADMIN can delete drivers");
+      if (response.statusCode == 409) {
+        throw ApiException(409,
+            "Duplicate request detected with idempotencyKey: $idempotencyKey");
       }
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     }
   }
 
   /// GET /api/drivers/{driverId} - 根据ID获取司机信息
-  Future<DriverInformation?> apiDriversDriverIdGet(
-      {required String driverId}) async {
-    if (driverId.isEmpty) {
-      throw ApiException(400, "Missing required param: driverId");
-    }
+  Future<DriverInformation?> apiDriversDriverIdGet({
+    required int driverId,
+  }) async {
+    final path = '/api/drivers/$driverId';
+    final headerParams = await _getHeaders();
     final response = await apiClient.invokeAPI(
-      '/api/drivers/$driverId',
+      path,
       'GET',
       [],
-      '',
-      {},
+      null,
+      headerParams,
       {},
       null,
       ['bearerAuth'],
@@ -86,30 +99,48 @@ class DriverInformationControllerApi {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     }
     if (response.body.isEmpty) return null;
-    final decodedBody = _decodeBodyBytes(response);
-    debugPrint(
-        'Response: ${response.statusCode} - $decodedBody'); // Debug raw response
-    final data = apiClient.deserialize(decodedBody, 'Map<String, dynamic>');
-    debugPrint(
-        'Deserializing JSON: $data to Map<String,dynamic>'); // Debug JSON
+    final data = apiClient.deserialize(
+        _decodeBodyBytes(response), 'Map<String, dynamic>');
     return DriverInformation.fromJson(data);
   }
 
-  /// PUT /api/drivers/{driverId} - 更新司机信息
-  Future<void> apiDriversDriverIdPut({
-    required String driverId,
-    required DriverInformation driverInformation,
+  /// GET /api/drivers - 获取所有司机信息
+  Future<List<DriverInformation>> apiDriversGet() async {
+    const path = '/api/drivers';
+    final headerParams = await _getHeaders();
+    final response = await apiClient.invokeAPI(
+      path,
+      'GET',
+      [],
+      null,
+      headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    if (response.body.isEmpty) return [];
+    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+    return jsonList.map((json) => DriverInformation.fromJson(json)).toList();
+  }
+
+  /// PUT /api/drivers/{driverId}/name - 更新司机姓名
+  Future<void> apiDriversDriverIdNamePut({
+    required int driverId,
+    required String name,
     required String idempotencyKey,
   }) async {
-    if (driverId.isEmpty) {
-      throw ApiException(400, "Missing required param: driverId");
-    }
+    final path = '/api/drivers/$driverId/name';
+    final headerParams = await _getHeaders();
     final response = await apiClient.invokeAPI(
-      '/api/drivers/$driverId',
+      path,
       'PUT',
       _addIdempotencyKey(idempotencyKey),
-      driverInformation.toJson(),
-      {},
+      jsonEncode(name),
+      // String directly encoded as JSON
+      headerParams,
       {},
       'application/json',
       ['bearerAuth'],
@@ -125,139 +156,29 @@ class DriverInformationControllerApi {
     }
   }
 
-  /// GET /api/drivers/driverLicenseNumber/{driverLicenseNumber} - 根据驾照号码获取司机信息
-  Future<DriverInformation?>
-      apiDriversDriverLicenseNumberDriverLicenseNumberGet({
-    required String driverLicenseNumber,
-  }) async {
-    if (driverLicenseNumber.isEmpty) {
-      throw ApiException(400, "Missing required param: driverLicenseNumber");
-    }
-    final response = await apiClient.invokeAPI(
-      '/api/drivers/driverLicenseNumber/$driverLicenseNumber',
-      'GET',
-      [],
-      '',
-      {},
-      {},
-      null,
-      ['bearerAuth'],
-    );
-    if (response.statusCode >= 400) {
-      if (response.statusCode == 404) {
-        return null; // Not found, return null
-      }
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
-    if (response.body.isEmpty) return null;
-    final decodedBody = _decodeBodyBytes(response);
-    debugPrint('Response: ${response.statusCode} - $decodedBody');
-    final data = apiClient.deserialize(decodedBody, 'Map<String, dynamic>');
-    debugPrint('Deserializing JSON: $data to Map<String,dynamic>');
-    return DriverInformation.fromJson(data);
-  }
-
-  /// GET /api/drivers - 获取所有司机信息
-  Future<List<DriverInformation>> apiDriversGet() async {
-    final response = await apiClient.invokeAPI(
-      '/api/drivers',
-      'GET',
-      [],
-      '',
-      {},
-      {},
-      null,
-      ['bearerAuth'],
-    );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
-    final decodedBody = _decodeBodyBytes(response);
-    debugPrint('Response: ${response.statusCode} - $decodedBody');
-    final List<dynamic> data =
-        apiClient.deserialize(decodedBody, 'List<dynamic>');
-    debugPrint('Deserializing JSON: $data to List<dynamic>');
-    return DriverInformation.listFromJson(data);
-  }
-
-  /// GET /api/drivers/idCardNumber/{idCardNumber} - 根据身份证号码获取司机信息
-  Future<List<DriverInformation>> apiDriversIdCardNumberIdCardNumberGet({
-    required String idCardNumber,
-  }) async {
-    if (idCardNumber.isEmpty) {
-      throw ApiException(400, "Missing required param: idCardNumber");
-    }
-    final response = await apiClient.invokeAPI(
-      '/api/drivers/idCardNumber/$idCardNumber',
-      'GET',
-      [],
-      '',
-      {},
-      {},
-      null,
-      ['bearerAuth'],
-    );
-    if (response.statusCode >= 400) {
-      if (response.statusCode == 404) {
-        return []; // Not found, return empty list
-      }
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
-    final decodedBody = _decodeBodyBytes(response);
-    debugPrint('Response: ${response.statusCode} - $decodedBody');
-    final List<dynamic> data =
-        apiClient.deserialize(decodedBody, 'List<dynamic>');
-    debugPrint('Deserializing JSON: $data to List<dynamic>');
-    return DriverInformation.listFromJson(data);
-  }
-
-  /// GET /api/drivers/name/{name} - 根据姓名获取司机信息
-  Future<List<DriverInformation>> apiDriversNameNameGet(
-      {required String name}) async {
-    if (name.isEmpty) {
-      throw ApiException(400, "Missing required param: name");
-    }
-    final response = await apiClient.invokeAPI(
-      '/api/drivers/name/$name',
-      'GET',
-      [],
-      '',
-      {},
-      {},
-      null,
-      ['bearerAuth'],
-    );
-    if (response.statusCode >= 400) {
-      if (response.statusCode == 404) {
-        return []; // Not found, return empty list
-      }
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
-    final decodedBody = _decodeBodyBytes(response);
-    debugPrint('Response: ${response.statusCode} - $decodedBody');
-    final List<dynamic> data =
-        apiClient.deserialize(decodedBody, 'List<dynamic>');
-    debugPrint('Deserializing JSON: $data to List<dynamic>');
-    return DriverInformation.listFromJson(data);
-  }
-
-  /// POST /api/drivers - 创建司机信息
-  Future<void> apiDriversPost({
-    required DriverInformation driverInformation,
+  /// PUT /api/drivers/{driverId}/contactNumber - 更新司机联系电话
+  Future<void> apiDriversDriverIdContactNumberPut({
+    required int driverId,
+    required String contactNumber,
     required String idempotencyKey,
   }) async {
+    final path = '/api/drivers/$driverId/contactNumber';
+    final headerParams = await _getHeaders();
     final response = await apiClient.invokeAPI(
-      '/api/drivers',
-      'POST',
+      path,
+      'PUT',
       _addIdempotencyKey(idempotencyKey),
-      driverInformation.toJson(),
-      {},
+      jsonEncode(contactNumber),
+      // String directly encoded as JSON
+      headerParams,
       {},
       'application/json',
       ['bearerAuth'],
     );
     if (response.statusCode >= 400) {
-      if (response.statusCode == 409) {
+      if (response.statusCode == 404) {
+        throw ApiException(404, "Driver not found with ID: $driverId");
+      } else if (response.statusCode == 409) {
         throw ApiException(409,
             "Duplicate request detected with idempotencyKey: $idempotencyKey");
       }
@@ -265,183 +186,205 @@ class DriverInformationControllerApi {
     }
   }
 
-  // WebSocket Methods (Aligned with HTTP Endpoints)
-
-  /// DELETE /api/drivers/{driverId} (WebSocket)
-  /// 对应后端: @WsAction(service="DriverInformationService", action="deleteDriver")
-  Future<void> eventbusDriversDriverIdDelete({required String driverId}) async {
-    if (driverId.isEmpty) {
-      throw ApiException(400, "Missing required param: driverId");
-    }
-    final msg = {
-      "service": "DriverInformationService",
-      "action": "deleteDriver",
-      "args": [int.parse(driverId)]
-    };
-    final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey("error")) {
-      if (respMap["error"].toString().contains("not found")) {
-        throw ApiException(404, "Driver not found with ID: $driverId");
-      } else if (respMap["error"].toString().contains("Unauthorized")) {
-        throw ApiException(403, "Unauthorized: Only ADMIN can delete drivers");
-      }
-      throw ApiException(400, respMap["error"]);
-    }
-  }
-
-  /// GET /api/drivers/{driverId} (WebSocket)
-  /// 对应后端: @WsAction(service="DriverInformationService", action="getDriverById")
-  Future<DriverInformation?> eventbusDriversDriverIdGet(
-      {required String driverId}) async {
-    if (driverId.isEmpty) {
-      throw ApiException(400, "Missing required param: driverId");
-    }
-    final msg = {
-      "service": "DriverInformationService",
-      "action": "getDriverById",
-      "args": [int.parse(driverId)]
-    };
-    final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey("error")) {
-      if (respMap["error"].toString().contains("not found")) {
-        return null; // Not found, return null
-      }
-      throw ApiException(400, respMap["error"]);
-    }
-    if (respMap["result"] == null) return null;
-    debugPrint('WebSocket Response: $respMap'); // Debug WebSocket response
-    return DriverInformation.fromJson(
-        respMap["result"] as Map<String, dynamic>);
-  }
-
-  /// PUT /api/drivers/{driverId} (WebSocket)
-  /// 对应后端: @WsAction(service="DriverInformationService", action="updateDriver")
-  Future<void> eventbusDriversDriverIdPut({
-    required String driverId,
-    required DriverInformation driverInformation,
+  /// PUT /api/drivers/{driverId}/idCardNumber - 更新司机身份证号码
+  Future<void> apiDriversDriverIdIdCardNumberPut({
+    required int driverId,
+    required String idCardNumber,
     required String idempotencyKey,
   }) async {
-    if (driverId.isEmpty) {
-      throw ApiException(400, "Missing required param: driverId");
-    }
-    final msg = {
-      "service": "DriverInformationService",
-      "action": "updateDriver",
-      "args": [int.parse(driverId), driverInformation.toJson(), idempotencyKey]
-    };
-    final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey("error")) {
-      if (respMap["error"].toString().contains("not found")) {
+    final path = '/api/drivers/$driverId/idCardNumber';
+    final headerParams = await _getHeaders();
+    final response = await apiClient.invokeAPI(
+      path,
+      'PUT',
+      _addIdempotencyKey(idempotencyKey),
+      jsonEncode(idCardNumber),
+      // String directly encoded as JSON
+      headerParams,
+      {},
+      'application/json',
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      if (response.statusCode == 404) {
         throw ApiException(404, "Driver not found with ID: $driverId");
-      } else if (respMap["error"].toString().contains("Duplicate request")) {
+      } else if (response.statusCode == 409) {
         throw ApiException(409,
             "Duplicate request detected with idempotencyKey: $idempotencyKey");
       }
-      throw ApiException(400, respMap["error"]);
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
     }
   }
 
-  /// GET /api/drivers/driverLicenseNumber/{driverLicenseNumber} (WebSocket)
-  /// 对应后端: @WsAction(service="DriverInformationService", action="getDriverByDriverLicenseNumber")
-  Future<DriverInformation?>
-      eventbusDriversDriverLicenseNumberDriverLicenseNumberGet({
-    required String driverLicenseNumber,
+  /// PUT /api/drivers/{driverId} - 更新司机完整信息
+  Future<void> apiDriversDriverIdPut({
+    required int driverId,
+    required DriverInformation driverInformation,
+    required String idempotencyKey,
   }) async {
-    if (driverLicenseNumber.isEmpty) {
-      throw ApiException(400, "Missing required param: driverLicenseNumber");
-    }
-    final msg = {
-      "service": "DriverInformationService",
-      "action": "getDriverByDriverLicenseNumber",
-      "args": [driverLicenseNumber]
-    };
-    final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey("error")) {
-      if (respMap["error"].toString().contains("not found")) {
-        return null; // Not found, return null
+    final path = '/api/drivers/$driverId';
+    final headerParams = await _getHeaders();
+    final response = await apiClient.invokeAPI(
+      path,
+      'PUT',
+      _addIdempotencyKey(idempotencyKey),
+      driverInformation.toJson(),
+      headerParams,
+      {},
+      'application/json',
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      if (response.statusCode == 404) {
+        throw ApiException(404, "Driver not found with ID: $driverId");
+      } else if (response.statusCode == 409) {
+        throw ApiException(409,
+            "Duplicate request detected with idempotencyKey: $idempotencyKey");
       }
-      throw ApiException(400, respMap["error"]);
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
     }
-    if (respMap["result"] == null) return null;
-    debugPrint('WebSocket Response: $respMap');
-    return DriverInformation.fromJson(
-        respMap["result"] as Map<String, dynamic>);
   }
 
-  /// GET /api/drivers (WebSocket)
-  /// 对应后端: @WsAction(service="DriverInformationService", action="getAllDrivers")
-  Future<List<DriverInformation>> eventbusDriversGet() async {
-    final msg = {
-      "service": "DriverInformationService",
-      "action": "getAllDrivers",
-      "args": []
-    };
-    final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
-    }
-    if (respMap["result"] is List) {
-      debugPrint('WebSocket Response: $respMap');
-      return DriverInformation.listFromJson(respMap["result"] as List<dynamic>);
-    }
-    return [];
-  }
-
-  /// GET /api/drivers/idCardNumber/{idCardNumber} (WebSocket)
-  /// 对应后端: @WsAction(service="DriverInformationService", action="getDriversByIdCardNumber")
-  Future<List<DriverInformation>> eventbusDriversIdCardNumberIdCardNumberGet({
-    required String idCardNumber,
+  /// DELETE /api/drivers/{driverId} - 删除司机信息 (仅管理员)
+  Future<void> apiDriversDriverIdDelete({
+    required int driverId,
   }) async {
-    if (idCardNumber.isEmpty) {
-      throw ApiException(400, "Missing required param: idCardNumber");
-    }
-    final msg = {
-      "service": "DriverInformationService",
-      "action": "getDriversByIdCardNumber",
-      "args": [idCardNumber]
-    };
-    final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey("error")) {
-      if (respMap["error"].toString().contains("not found")) {
-        return []; // Not found, return empty list
+    final path = '/api/drivers/$driverId';
+    final headerParams = await _getHeaders();
+    final response = await apiClient.invokeAPI(
+      path,
+      'DELETE',
+      [],
+      null,
+      headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      if (response.statusCode == 404) {
+        throw ApiException(404, "Driver not found with ID: $driverId");
+      } else if (response.statusCode == 403) {
+        throw ApiException(403, "Unauthorized: Only ADMIN can delete drivers");
       }
-      throw ApiException(400, respMap["error"]);
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
     }
-    if (respMap["result"] is List) {
-      debugPrint('WebSocket Response: $respMap');
-      return DriverInformation.listFromJson(respMap["result"] as List<dynamic>);
-    }
-    return [];
   }
 
-  /// GET /api/drivers/name/{name} (WebSocket)
-  /// 对应后端: @WsAction(service="DriverInformationService", action="getDriversByName")
-  Future<List<DriverInformation>> eventbusDriversNameNameGet(
-      {required String name}) async {
-    if (name.isEmpty) {
-      throw ApiException(400, "Missing required param: name");
+  /// GET /api/drivers/by-id-card - 搜索司机信息按身份证号码
+  Future<List<DriverInformation>> apiDriversByIdCardGet({
+    required String query,
+    int page = 1,
+    int size = 10,
+  }) async {
+    if (query.isEmpty) {
+      throw ApiException(400, "Missing required param: query");
     }
-    final msg = {
-      "service": "DriverInformationService",
-      "action": "getDriversByName",
-      "args": [name]
-    };
-    final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey("error")) {
-      if (respMap["error"].toString().contains("not found")) {
-        return []; // Not found, return empty list
+    const path = '/api/drivers/by-id-card';
+    final queryParams = [
+      QueryParam('query', query),
+      QueryParam('page', page.toString()),
+      QueryParam('size', size.toString()),
+    ];
+    final headerParams = await _getHeaders();
+    final response = await apiClient.invokeAPI(
+      path,
+      'GET',
+      queryParams,
+      null,
+      headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      if (response.statusCode == 204) {
+        return []; // No content, return empty list
       }
-      throw ApiException(400, respMap["error"]);
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
     }
-    if (respMap["result"] is List) {
-      debugPrint('WebSocket Response: $respMap');
-      return DriverInformation.listFromJson(respMap["result"] as List<dynamic>);
-    }
-    return [];
+    if (response.body.isEmpty) return [];
+    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+    return jsonList.map((json) => DriverInformation.fromJson(json)).toList();
   }
+
+  /// GET /api/drivers/by-license-number - 搜索司机信息按驾驶证号
+  Future<List<DriverInformation>> apiDriversByLicenseNumberGet({
+    required String query,
+    int page = 1,
+    int size = 10,
+  }) async {
+    if (query.isEmpty) {
+      throw ApiException(400, "Missing required param: query");
+    }
+    const path = '/api/drivers/by-license-number';
+    final queryParams = [
+      QueryParam('query', query),
+      QueryParam('page', page.toString()),
+      QueryParam('size', size.toString()),
+    ];
+    final headerParams = await _getHeaders();
+    final response = await apiClient.invokeAPI(
+      path,
+      'GET',
+      queryParams,
+      null,
+      headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      if (response.statusCode == 204) {
+        return []; // No content, return empty list
+      }
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    if (response.body.isEmpty) return [];
+    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+    return jsonList.map((json) => DriverInformation.fromJson(json)).toList();
+  }
+
+  /// GET /api/drivers/by-name - 搜索司机信息按姓名
+  Future<List<DriverInformation>> apiDriversByNameGet({
+    required String query,
+    int page = 1,
+    int size = 10,
+  }) async {
+    if (query.isEmpty) {
+      throw ApiException(400, "Missing required param: query");
+    }
+    const path = '/api/drivers/by-name';
+    final queryParams = [
+      QueryParam('query', query),
+      QueryParam('page', page.toString()),
+      QueryParam('size', size.toString()),
+    ];
+    final headerParams = await _getHeaders();
+    final response = await apiClient.invokeAPI(
+      path,
+      'GET',
+      queryParams,
+      null,
+      headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      if (response.statusCode == 204) {
+        return []; // No content, return empty list
+      }
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    if (response.body.isEmpty) return [];
+    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+    return jsonList.map((json) => DriverInformation.fromJson(json)).toList();
+  }
+
+  // WebSocket Methods (Aligned with HTTP Endpoints)
 
   /// POST /api/drivers (WebSocket)
-  /// 对应后端: @WsAction(service="DriverInformationService", action="createDriver")
   Future<void> eventbusDriversPost({
     required DriverInformation driverInformation,
     required String idempotencyKey,
@@ -456,6 +399,90 @@ class DriverInformationControllerApi {
       if (respMap["error"].toString().contains("Duplicate request")) {
         throw ApiException(409,
             "Duplicate request detected with idempotencyKey: $idempotencyKey");
+      }
+      throw ApiException(400, respMap["error"]);
+    }
+  }
+
+  /// GET /api/drivers/{driverId} (WebSocket)
+  Future<DriverInformation?> eventbusDriversDriverIdGet({
+    required int driverId,
+  }) async {
+    final msg = {
+      "service": "DriverInformationService",
+      "action": "getDriverById",
+      "args": [driverId]
+    };
+    final respMap = await apiClient.sendWsMessage(msg);
+    if (respMap.containsKey("error")) {
+      if (respMap["error"].toString().contains("not found")) {
+        return null; // Not found, return null
+      }
+      throw ApiException(400, respMap["error"]);
+    }
+    if (respMap["result"] == null) return null;
+    return DriverInformation.fromJson(
+        respMap["result"] as Map<String, dynamic>);
+  }
+
+  /// GET /api/drivers (WebSocket)
+  Future<List<DriverInformation>> eventbusDriversGet() async {
+    final msg = {
+      "service": "DriverInformationService",
+      "action": "getAllDrivers",
+      "args": []
+    };
+    final respMap = await apiClient.sendWsMessage(msg);
+    if (respMap.containsKey("error")) {
+      throw ApiException(400, respMap["error"]);
+    }
+    if (respMap["result"] is List) {
+      return (respMap["result"] as List)
+          .map((json) =>
+              DriverInformation.fromJson(json as Map<String, dynamic>))
+          .toList();
+    }
+    return [];
+  }
+
+  /// PUT /api/drivers/{driverId} (WebSocket)
+  Future<void> eventbusDriversDriverIdPut({
+    required int driverId,
+    required DriverInformation driverInformation,
+    required String idempotencyKey,
+  }) async {
+    final msg = {
+      "service": "DriverInformationService",
+      "action": "updateDriver",
+      "args": [driverId, driverInformation.toJson(), idempotencyKey]
+    };
+    final respMap = await apiClient.sendWsMessage(msg);
+    if (respMap.containsKey("error")) {
+      if (respMap["error"].toString().contains("not found")) {
+        throw ApiException(404, "Driver not found with ID: $driverId");
+      } else if (respMap["error"].toString().contains("Duplicate request")) {
+        throw ApiException(409,
+            "Duplicate request detected with idempotencyKey: $idempotencyKey");
+      }
+      throw ApiException(400, respMap["error"]);
+    }
+  }
+
+  /// DELETE /api/drivers/{driverId} (WebSocket)
+  Future<void> eventbusDriversDriverIdDelete({
+    required int driverId,
+  }) async {
+    final msg = {
+      "service": "DriverInformationService",
+      "action": "deleteDriver",
+      "args": [driverId]
+    };
+    final respMap = await apiClient.sendWsMessage(msg);
+    if (respMap.containsKey("error")) {
+      if (respMap["error"].toString().contains("not found")) {
+        throw ApiException(404, "Driver not found with ID: $driverId");
+      } else if (respMap["error"].toString().contains("Unauthorized")) {
+        throw ApiException(403, "Unauthorized: Only ADMIN can delete drivers");
       }
       throw ApiException(400, respMap["error"]);
     }

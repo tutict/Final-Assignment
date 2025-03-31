@@ -10,10 +10,14 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Date;
 import java.util.List;
+import java.util.logging.Logger;
+import java.util.logging.Level;
 
 @RestController
 @RequestMapping("/api/offenses")
 public class OffenseInformationController {
+
+    private static final Logger logger = Logger.getLogger(OffenseInformationController.class.getName());
 
     private final OffenseInformationService offenseInformationService;
 
@@ -113,39 +117,98 @@ public class OffenseInformationController {
         }
     }
 
-    // 根据处理状态获取违法行为信息 (USER 和 ADMIN)
-    @GetMapping("/processState/{processState}")
+    @GetMapping("/by-offense-type")
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    public ResponseEntity<List<OffenseInformation>> getOffensesByProcessState(@PathVariable String processState) {
+    public ResponseEntity<List<OffenseInformation>> searchByOffenseType(
+            @RequestParam String query,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
+        logger.log(Level.INFO, "Received request to search offenses by offense type: {0}, page: {1}, size: {2}",
+                new Object[]{query, page, size});
+
         try {
-            List<OffenseInformation> offenses = offenseInformationService.getOffensesByProcessState(processState);
-            return ResponseEntity.ok(offenses);
+            List<OffenseInformation> results = offenseInformationService.searchOffenseType(query, page, size);
+
+            if (results == null || results.isEmpty()) {
+                logger.log(Level.INFO, "No offenses found for offense type: {0}", new Object[]{query});
+                return ResponseEntity.noContent().build();
+            }
+
+            logger.log(Level.INFO, "Returning {0} offenses for offense type: {1}",
+                    new Object[]{results.size(), query});
+            return ResponseEntity.ok(results);
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            logger.log(Level.WARNING, "Invalid pagination parameters for offense type search: {0}", new Object[]{e.getMessage()});
+            return ResponseEntity.badRequest().body(null);
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "Error processing search by offense type: {0}, error: {1}",
+                    new Object[]{query, e.getMessage()});
+            return ResponseEntity.status(500).body(null);
         }
     }
 
     // 根据司机姓名获取违法行为信息 (USER 和 ADMIN)
-    @GetMapping("/driverName/{driverName}")
+    @GetMapping("/by-driver-name")
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    public ResponseEntity<List<OffenseInformation>> getOffensesByDriverName(@PathVariable String driverName) {
+    public ResponseEntity<List<OffenseInformation>> searchByDriverName(
+            @RequestParam String query,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
+        logger.log(Level.INFO, "Received request to search offenses by driver name: {0}, page: {1}, size: {2}",
+                new Object[]{query, page, size});
+
         try {
-            List<OffenseInformation> offenses = offenseInformationService.getOffensesByDriverName(driverName);
-            return ResponseEntity.ok(offenses);
+            List<OffenseInformation> results = offenseInformationService.searchByDriverName(query, page, size);
+
+            if (results == null || results.isEmpty()) {
+                logger.log(Level.INFO, "No offenses found for driver name: {0}", new Object[]{query});
+                return ResponseEntity.noContent().build();
+            }
+
+            logger.log(Level.INFO, "Returning {0} offenses for driver name: {1}",
+                    new Object[]{results.size(), query});
+            return ResponseEntity.ok(results);
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            logger.log(Level.WARNING, "Invalid pagination parameters for driver name search: {0}", new Object[]{e.getMessage()});
+            return ResponseEntity.badRequest().body(null);
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "Error processing search by driver name: {0}, error: {1}",
+                    new Object[]{query, e.getMessage()});
+            return ResponseEntity.status(500).body(null);
         }
     }
 
     // 根据车牌号获取违法行为信息 (USER 和 ADMIN)
-    @GetMapping("/licensePlate/{licensePlate}")
+    @GetMapping("/by-license-plate")
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    public ResponseEntity<List<OffenseInformation>> getOffensesByLicensePlate(@PathVariable String licensePlate) {
+    public ResponseEntity<List<OffenseInformation>> searchByLicensePlate(
+            @RequestParam String query,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
+        logger.log(Level.INFO, "Received request to search offenses by license plate: {0}, page: {1}, size: {2}",
+                new Object[]{query, page, size});
+
         try {
-            List<OffenseInformation> offenses = offenseInformationService.getOffensesByLicensePlate(licensePlate);
-            return ResponseEntity.ok(offenses);
+            List<OffenseInformation> results = offenseInformationService.searchLicensePlate(query, page, size);
+
+            if (results == null || results.isEmpty()) {
+                logger.log(Level.INFO, "No offenses found for license plate: {0}", new Object[]{query});
+                return ResponseEntity.noContent().build();
+            }
+
+            logger.log(Level.INFO, "Returning {0} offenses for license plate: {1}",
+                    new Object[]{results.size(), query});
+            return ResponseEntity.ok(results);
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            logger.log(Level.WARNING, "Invalid pagination parameters for license plate search: {0}", new Object[]{e.getMessage()});
+            return ResponseEntity.badRequest().body(null);
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "Error processing search by license plate: {0}, error: {1}",
+                    new Object[]{query, e.getMessage()});
+            return ResponseEntity.status(500).body(null);
         }
     }
 }

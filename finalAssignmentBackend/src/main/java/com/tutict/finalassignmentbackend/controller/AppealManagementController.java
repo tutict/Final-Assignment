@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 @RestController
@@ -213,22 +214,67 @@ public class AppealManagementController {
         }
     }
 
-    // Search appeals with pagination (USER and ADMIN)
-    @GetMapping("/search")
+    @GetMapping("/by-appellant-name")
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    public ResponseEntity<List<AppealManagement>> searchAppeals(
+    public ResponseEntity<List<AppealManagement>> searchByAppellantName(
             @RequestParam String query,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size) {
+
+        logger.log(Level.INFO, "Received request to search appeals by appellant name: {0}, page: {1}, size: {2}",
+                new Object[]{query, page, size});
+
         try {
-            List<AppealManagement> appeals = appealManagementService.searchAppeals(query, page, size);
-            return ResponseEntity.ok(appeals);
+            List<AppealManagement> results = appealManagementService.searchAppealName(query, page, size);
+
+            if (results == null || results.isEmpty()) {
+                logger.log(Level.INFO, "No appeals found for appellant name: {0}", new Object[]{query});
+                return ResponseEntity.noContent().build();
+            }
+
+            logger.log(Level.INFO, "Returning {0} appeals for appellant name: {1}",
+                    new Object[]{results.size(), query});
+            return ResponseEntity.ok(results);
         } catch (IllegalArgumentException e) {
-            logger.warning("Invalid search parameters: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            logger.log(Level.WARNING, "Invalid pagination parameters for appellant name search: {0}",
+                    new Object[]{e.getMessage()});
+            return ResponseEntity.badRequest().body(null);
         } catch (Exception e) {
-            logger.severe("Error searching appeals: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            logger.log(Level.SEVERE, "Error processing search by appellant name: {0}, error: {1}",
+                    new Object[]{query, e.getMessage()});
+            return ResponseEntity.status(500).body(null);
+        }
+    }
+
+    @GetMapping("/by-reason")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    public ResponseEntity<List<AppealManagement>> searchByAppealReason(
+            @RequestParam String query,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
+        logger.log(Level.INFO, "Received request to search appeals by reason: {0}, page: {1}, size: {2}",
+                new Object[]{query, page, size});
+
+        try {
+            List<AppealManagement> results = appealManagementService.searchAppealReason(query, page, size);
+
+            if (results == null || results.isEmpty()) {
+                logger.log(Level.INFO, "No appeals found for reason: {0}", new Object[]{query});
+                return ResponseEntity.noContent().build();
+            }
+
+            logger.log(Level.INFO, "Returning {0} appeals for reason: {1}",
+                    new Object[]{results.size(), query});
+            return ResponseEntity.ok(results);
+        } catch (IllegalArgumentException e) {
+            logger.log(Level.WARNING, "Invalid pagination parameters for reason search: {0}",
+                    new Object[]{e.getMessage()});
+            return ResponseEntity.badRequest().body(null);
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "Error processing search by reason: {0}, error: {1}",
+                    new Object[]{query, e.getMessage()});
+            return ResponseEntity.status(500).body(null);
         }
     }
 

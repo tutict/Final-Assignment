@@ -165,8 +165,8 @@ class _LoginScreenState extends State<LoginScreen> {
         // 使用 userId 获取 DriverInformation
         if (userId != null) {
           try {
-            final driverInfo = await driverApi.apiDriversDriverIdGet(
-                driverId: userId.toString());
+            final driverInfo =
+                await driverApi.apiDriversDriverIdGet(driverId: userId);
             if (driverInfo != null && driverInfo.name != null) {
               driverName = driverInfo.name!;
               debugPrint('从数据库获取的 driverName: $driverName');
@@ -285,8 +285,8 @@ class _LoginScreenState extends State<LoginScreen> {
               driverInformation: driverInfo,
               idempotencyKey: generateIdempotencyKey(),
             );
-            final fetchedDriver = await driverApi.apiDriversDriverIdGet(
-                driverId: userId.toString());
+            final fetchedDriver =
+                await driverApi.apiDriversDriverIdGet(driverId: userId);
             driverName = fetchedDriver?.name ?? name;
             await prefs.setString('driverName', driverName);
             await prefs.setString('userEmail', email);

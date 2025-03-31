@@ -10,10 +10,14 @@ import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.util.Date;
 import java.util.List;
+import java.util.logging.Logger;
+import java.util.logging.Level;
 
 @RestController
 @RequestMapping("/api/fines")
 public class FineInformationController {
+
+    private static final Logger logger = Logger.getLogger(FineInformationController.class.getName());
 
     private final FineInformationService fineInformationService;
 
@@ -99,6 +103,35 @@ public class FineInformationController {
             return ResponseEntity.ok(fineInformation);
         } else {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+    }
+
+    @GetMapping("/by-time-range")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    public ResponseEntity<List<FineInformation>> searchByFineTimeRange(
+            @RequestParam String startTime,
+            @RequestParam String endTime,
+            @RequestParam(defaultValue = "10") int maxSuggestions) {
+
+        logger.log(Level.INFO, "Received request to search fines by time range: startTime={0}, endTime={1}, maxSuggestions={2}",
+                new Object[]{startTime, endTime, maxSuggestions});
+
+        try {
+            List<FineInformation> results = fineInformationService.searchByFineTimeRange(startTime, endTime, maxSuggestions);
+
+            if (results == null || results.isEmpty()) {
+                logger.log(Level.INFO, "No fines found for time range: {0} to {1}",
+                        new Object[]{startTime, endTime});
+                return ResponseEntity.noContent().build();
+            }
+
+            logger.log(Level.INFO, "Returning {0} fines for time range: {1} to {2}",
+                    new Object[]{results.size(), startTime, endTime});
+            return ResponseEntity.ok(results);
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "Error processing search by time range: startTime={0}, endTime={1}, error: {2}",
+                    new Object[]{startTime, endTime, e.getMessage()});
+            return ResponseEntity.status(500).body(null);
         }
     }
 }

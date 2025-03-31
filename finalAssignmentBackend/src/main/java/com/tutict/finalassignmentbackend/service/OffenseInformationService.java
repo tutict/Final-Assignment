@@ -11,12 +11,14 @@ import com.tutict.finalassignmentbackend.repository.OffenseInformationSearchRepo
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.elasticsearch.core.SearchHit;
+import org.springframework.data.elasticsearch.core.SearchHits;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Date;
-import java.util.List;
+import java.util.*;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -139,38 +141,225 @@ public class OffenseInformationService {
     }
 
     @Cacheable(cacheNames = "offenseCache")
-    @WsAction(service = "OffenseInformationService", action = "getOffensesByProcessState")
-    public List<OffenseInformation> getOffensesByProcessState(String processState) {
-        if (processState == null || processState.trim().isEmpty()) {
-            throw new IllegalArgumentException("Invalid process state");
+    @WsAction(service = "OffenseInformationService", action = "searchByDriverName")
+    public List<OffenseInformation> searchByDriverName(String query, int page, int size) {
+        if (page < 1 || size < 1) {
+            throw new IllegalArgumentException("Page must be >= 1 and size must be >= 1");
         }
-        return offenseSearchRepository.findByProcessStatus(processState)
-                .stream()
-                .map(OffenseInformationDocument::toEntity)
+
+        Set<OffenseInformation> suggestions = new HashSet<>();
+        int maxSuggestions = page * size; // Total results to fetch for pagination
+        int offset = (page - 1) * size; // Starting point for pagination
+
+        log.log(Level.INFO, "Executing match query for driverName: {0}, page: {1}, size: {2}",
+                new Object[]{query, page, size});
+
+        SearchHits<OffenseInformationDocument> matchHits = null;
+        try {
+            matchHits = offenseSearchRepository.searchByDriverNamePrefix(query);
+        } catch (Exception e) {
+            log.log(Level.WARNING, "Error executing match query for driverName: {0}", new Object[]{e.getMessage()});
+        }
+
+        if (matchHits != null && matchHits.hasSearchHits()) {
+            for (SearchHit<OffenseInformationDocument> hit : matchHits) {
+                OffenseInformationDocument doc = hit.getContent();
+                if (doc.getDriverName() != null) { // Check for non-null driverName
+                    suggestions.add(doc.toEntity());
+                    log.log(Level.INFO, "Found offense with ID: {0}", new Object[]{doc.getOffenseId()});
+                }
+                if (suggestions.size() >= maxSuggestions) {
+                    break;
+                }
+            }
+            log.log(Level.INFO, "Found {0} match suggestions: {1}", new Object[]{suggestions.size(), suggestions});
+        } else {
+            log.log(Level.INFO, "No match suggestions found for driverName: {0}", new Object[]{query});
+        }
+
+        // If results are insufficient, execute fuzzy query
+        if (suggestions.size() < maxSuggestions) {
+            log.log(Level.INFO, "Executing fuzzy query for driverName: {0}", new Object[]{query});
+            SearchHits<OffenseInformationDocument> fuzzyHits = null;
+            try {
+                fuzzyHits = offenseSearchRepository.searchByDriverNameFuzzy(query);
+                log.log(Level.INFO, "Fuzzy query returned {0} hits",
+                        new Object[]{fuzzyHits != null ? fuzzyHits.getTotalHits() : 0});
+            } catch (Exception e) {
+                log.log(Level.WARNING, "Error executing fuzzy query for driverName: {0}", new Object[]{e.getMessage()});
+            }
+
+            if (fuzzyHits != null && fuzzyHits.hasSearchHits()) {
+                for (SearchHit<OffenseInformationDocument> hit : fuzzyHits) {
+                    OffenseInformationDocument doc = hit.getContent();
+                    if (doc.getDriverName() != null) {
+                        suggestions.add(doc.toEntity());
+                        log.log(Level.INFO, "Found offense with ID: {0}", new Object[]{doc.getOffenseId()});
+                    }
+                    if (suggestions.size() >= maxSuggestions) {
+                        break;
+                    }
+                }
+                log.log(Level.INFO, "After fuzzy search, total suggestions: {0}", new Object[]{suggestions.size()});
+            } else {
+                log.log(Level.INFO, "Fuzzy search returned no results for driverName: {0}", new Object[]{query});
+            }
+        }
+
+        List<OffenseInformation> resultList = new ArrayList<>(suggestions);
+        // Apply pagination
+        return resultList.stream()
+                .skip(offset)
+                .limit(size)
                 .collect(Collectors.toList());
     }
 
     @Cacheable(cacheNames = "offenseCache")
-    @WsAction(service = "OffenseInformationService", action = "getOffensesByDriverName")
-    public List<OffenseInformation> getOffensesByDriverName(String driverName) {
-        if (driverName == null || driverName.trim().isEmpty()) {
-            throw new IllegalArgumentException("Invalid driver name");
+    @WsAction(service = "OffenseInformationService", action = "searchByLicensePlate")
+    public List<OffenseInformation> searchLicensePlate(String query, int page, int size) {
+        if (page < 1 || size < 1) {
+            throw new IllegalArgumentException("Page must be >= 1 and size must be >= 1");
         }
-        return offenseSearchRepository.findByDriverName(driverName)
-                .stream()
-                .map(OffenseInformationDocument::toEntity)
+
+        Set<OffenseInformation> suggestions = new HashSet<>();
+        int maxSuggestions = page * size; // Total results to fetch for pagination
+        int offset = (page - 1) * size; // Starting point for pagination
+
+        log.log(Level.INFO, "Executing match query for licensePlate: {0}, page: {1}, size: {2}",
+                new Object[]{query, page, size});
+
+        SearchHits<OffenseInformationDocument> matchHits = null;
+        try {
+            matchHits = offenseSearchRepository.searchByLicensePlate(query);
+        } catch (Exception e) {
+            log.log(Level.WARNING, "Error executing match query for licensePlate: {0}", new Object[]{e.getMessage()});
+        }
+
+        if (matchHits != null && matchHits.hasSearchHits()) {
+            for (SearchHit<OffenseInformationDocument> hit : matchHits) {
+                OffenseInformationDocument doc = hit.getContent();
+                if (doc.getLicensePlate() != null) { // Check for non-null licensePlate
+                    suggestions.add(doc.toEntity());
+                    log.log(Level.INFO, "Found offense with ID: {0}", new Object[]{doc.getOffenseId()});
+                }
+                if (suggestions.size() >= maxSuggestions) {
+                    break;
+                }
+            }
+            log.log(Level.INFO, "Found {0} match suggestions: {1}", new Object[]{suggestions.size(), suggestions});
+        } else {
+            log.log(Level.INFO, "No match suggestions found for licensePlate: {0}", new Object[]{query});
+        }
+
+        // If results are insufficient, execute fuzzy query
+        if (suggestions.size() < maxSuggestions) {
+            log.log(Level.INFO, "Executing fuzzy query for licensePlate: {0}", new Object[]{query});
+            SearchHits<OffenseInformationDocument> fuzzyHits = null;
+            try {
+                // Note: The repository doesn't have a fuzzy method for licensePlate, reusing prefix search as fallback
+                fuzzyHits = offenseSearchRepository.searchByLicensePlateFuzzy(query);
+                log.log(Level.INFO, "Fuzzy query returned {0} hits",
+                        new Object[]{fuzzyHits != null ? fuzzyHits.getTotalHits() : 0});
+            } catch (Exception e) {
+                log.log(Level.WARNING, "Error executing fuzzy query for licensePlate: {0}", new Object[]{e.getMessage()});
+            }
+
+            if (fuzzyHits != null && fuzzyHits.hasSearchHits()) {
+                for (SearchHit<OffenseInformationDocument> hit : fuzzyHits) {
+                    OffenseInformationDocument doc = hit.getContent();
+                    if (doc.getLicensePlate() != null) {
+                        suggestions.add(doc.toEntity());
+                        log.log(Level.INFO, "Found offense with ID: {0}", new Object[]{doc.getOffenseId()});
+                    }
+                    if (suggestions.size() >= maxSuggestions) {
+                        break;
+                    }
+                }
+                log.log(Level.INFO, "After fuzzy search, total suggestions: {0}", new Object[]{suggestions.size()});
+            } else {
+                log.log(Level.INFO, "Fuzzy search returned no results for licensePlate: {0}", new Object[]{query});
+            }
+        }
+
+        List<OffenseInformation> resultList = new ArrayList<>(suggestions);
+        // Apply pagination
+        return resultList.stream()
+                .skip(offset)
+                .limit(size)
                 .collect(Collectors.toList());
     }
 
     @Cacheable(cacheNames = "offenseCache")
-    @WsAction(service = "OffenseInformationService", action = "getOffensesByLicensePlate")
-    public List<OffenseInformation> getOffensesByLicensePlate(String offenseLicensePlate) {
-        if (offenseLicensePlate == null || offenseLicensePlate.trim().isEmpty()) {
-            throw new IllegalArgumentException("Invalid license plate");
+    @WsAction(service = "OffenseInformationService", action = "searchByOffenseType")
+    public List<OffenseInformation> searchOffenseType(String query, int page, int size) {
+        if (page < 1 || size < 1) {
+            throw new IllegalArgumentException("Page must be >= 1 and size must be >= 1");
         }
-        return offenseSearchRepository.findByLicensePlate(offenseLicensePlate)
-                .stream()
-                .map(OffenseInformationDocument::toEntity)
+
+        Set<OffenseInformation> suggestions = new HashSet<>();
+        int maxSuggestions = page * size; // Total results to fetch for pagination
+        int offset = (page - 1) * size; // Starting point for pagination
+
+        log.log(Level.INFO, "Executing match query for offenseType: {0}, page: {1}, size: {2}",
+                new Object[]{query, page, size});
+
+        SearchHits<OffenseInformationDocument> matchHits = null;
+        try {
+            matchHits = offenseSearchRepository.searchByOffenseTypePrefix(query);
+        } catch (Exception e) {
+            log.log(Level.WARNING, "Error executing match query for offenseType: {0}", new Object[]{e.getMessage()});
+        }
+
+        if (matchHits != null && matchHits.hasSearchHits()) {
+            for (SearchHit<OffenseInformationDocument> hit : matchHits) {
+                OffenseInformationDocument doc = hit.getContent();
+                if (doc.getOffenseType() != null) { // Check for non-null offenseType
+                    suggestions.add(doc.toEntity());
+                    log.log(Level.INFO, "Found offense with ID: {0}", new Object[]{doc.getOffenseId()});
+                }
+                if (suggestions.size() >= maxSuggestions) {
+                    break;
+                }
+            }
+            log.log(Level.INFO, "Found {0} match suggestions: {1}", new Object[]{suggestions.size(), suggestions});
+        } else {
+            log.log(Level.INFO, "No match suggestions found for offenseType: {0}", new Object[]{query});
+        }
+
+        // If results are insufficient, execute fuzzy query
+        if (suggestions.size() < maxSuggestions) {
+            log.log(Level.INFO, "Executing fuzzy query for offenseType: {0}", new Object[]{query});
+            SearchHits<OffenseInformationDocument> fuzzyHits = null;
+            try {
+                fuzzyHits = offenseSearchRepository.searchByOffenseTypeFuzzy(query);
+                log.log(Level.INFO, "Fuzzy query returned {0} hits",
+                        new Object[]{fuzzyHits != null ? fuzzyHits.getTotalHits() : 0});
+            } catch (Exception e) {
+                log.log(Level.WARNING, "Error executing fuzzy query for offenseType: {0}", new Object[]{e.getMessage()});
+            }
+
+            if (fuzzyHits != null && fuzzyHits.hasSearchHits()) {
+                for (SearchHit<OffenseInformationDocument> hit : fuzzyHits) {
+                    OffenseInformationDocument doc = hit.getContent();
+                    if (doc.getOffenseType() != null) {
+                        suggestions.add(doc.toEntity());
+                        log.log(Level.INFO, "Found offense with ID: {0}", new Object[]{doc.getOffenseId()});
+                    }
+                    if (suggestions.size() >= maxSuggestions) {
+                        break;
+                    }
+                }
+                log.log(Level.INFO, "After fuzzy search, total suggestions: {0}", new Object[]{suggestions.size()});
+            } else {
+                log.log(Level.INFO, "Fuzzy search returned no results for offenseType: {0}", new Object[]{query});
+            }
+        }
+
+        List<OffenseInformation> resultList = new ArrayList<>(suggestions);
+        // Apply pagination
+        return resultList.stream()
+                .skip(offset)
+                .limit(size)
                 .collect(Collectors.toList());
     }
 
