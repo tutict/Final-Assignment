@@ -71,12 +71,11 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
       List<AppealManagement> appeals;
       final searchQuery = _searchController.text.trim();
       if (searchQuery.isNotEmpty) {
-        appeals = await appealApi.apiAppealsReasonReasonGet(
-            reason: searchQuery); // Removed page, size
+        appeals =
+            await appealApi.apiAppealsReasonReasonGet(reason: searchQuery);
       } else if (_startTime != null && _endTime != null) {
         appeals = await appealApi.apiAppealsTimeRangeGet(
           startTime: _startTime!.toIso8601String().substring(0, 10),
-          // yyyy-MM-dd
           endTime: _endTime!.toIso8601String().substring(0, 10),
         );
       } else {
@@ -127,6 +126,9 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
         backgroundColor: isError
             ? themeData.colorScheme.error
             : themeData.colorScheme.primary,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
+        margin: const EdgeInsets.all(10.0),
       ),
     );
   }
@@ -139,24 +141,26 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
 
   Widget _buildSearchBar(ThemeData themeData) {
     return Card(
-      elevation: 2,
-      color: themeData.colorScheme.surfaceContainer,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+      elevation: 4,
+      color: themeData.colorScheme.surfaceContainerLowest,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
       child: Padding(
-        padding: const EdgeInsets.all(8.0),
+        padding: const EdgeInsets.all(12.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
                 Expanded(
                   child: TextField(
                     controller: _searchController,
-                    style: TextStyle(color: themeData.colorScheme.onSurface),
+                    style: themeData.textTheme.bodyMedium
+                        ?.copyWith(color: themeData.colorScheme.onSurface),
                     decoration: InputDecoration(
                       hintText: '搜索申诉原因',
-                      hintStyle: TextStyle(
-                          color:
-                              themeData.colorScheme.onSurface.withOpacity(0.6)),
+                      hintStyle: themeData.textTheme.bodyMedium?.copyWith(
+                        color: themeData.colorScheme.onSurface.withOpacity(0.6),
+                      ),
                       prefixIcon: Icon(Icons.search,
                           color: themeData.colorScheme.primary),
                       suffixIcon: _searchController.text.isNotEmpty
@@ -171,27 +175,20 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
                             )
                           : null,
                       border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8.0)),
-                      enabledBorder: OutlineInputBorder(
-                        borderSide: BorderSide(
-                            color:
-                                themeData.colorScheme.outline.withOpacity(0.3)),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderSide: BorderSide(
-                            color: themeData.colorScheme.primary, width: 1.5),
+                        borderRadius: BorderRadius.circular(12.0),
+                        borderSide: BorderSide.none,
                       ),
                       filled: true,
-                      fillColor: themeData.colorScheme.surfaceContainerLowest,
+                      fillColor: themeData.colorScheme.surfaceContainer,
                       contentPadding: const EdgeInsets.symmetric(
-                          vertical: 12.0, horizontal: 16.0),
+                          vertical: 14.0, horizontal: 16.0),
                     ),
                     onSubmitted: (value) => _loadAppeals(reset: true),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
@@ -199,7 +196,7 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
                     _startTime != null && _endTime != null
                         ? '日期范围: ${formatDateTime(_startTime)} 至 ${formatDateTime(_endTime)}'
                         : '选择日期范围',
-                    style: TextStyle(
+                    style: themeData.textTheme.bodyMedium?.copyWith(
                       color: _startTime != null && _endTime != null
                           ? themeData.colorScheme.onSurface
                           : themeData.colorScheme.onSurfaceVariant,
@@ -223,7 +220,17 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
                       fieldEndHintText: '结束日期',
                       builder: (BuildContext context, Widget? child) {
                         return Theme(
-                          data: themeData,
+                          data: themeData.copyWith(
+                            colorScheme: themeData.colorScheme.copyWith(
+                              primary: themeData.colorScheme.primary,
+                              onPrimary: themeData.colorScheme.onPrimary,
+                            ),
+                            textButtonTheme: TextButtonThemeData(
+                              style: TextButton.styleFrom(
+                                foregroundColor: themeData.colorScheme.primary,
+                              ),
+                            ),
+                          ),
                           child: child!,
                         );
                       },
@@ -260,30 +267,54 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
 
   Widget _buildAppealCard(AppealManagement appeal, ThemeData themeData) {
     return Card(
-      elevation: 3,
-      color: themeData.colorScheme.surfaceContainer,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
-      margin: const EdgeInsets.symmetric(vertical: 6.0),
+      elevation: 4,
+      color: themeData.colorScheme.surfaceContainerLowest,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+      margin: const EdgeInsets.symmetric(vertical: 8.0),
       child: ListTile(
         contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
         title: Text(
           '申诉人: ${appeal.appellantName ?? "未知"} (ID: ${appeal.appealId ?? "无"})',
-          style: themeData.textTheme.bodyLarge?.copyWith(
+          style: themeData.textTheme.titleMedium?.copyWith(
             color: themeData.colorScheme.onSurface,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.bold,
           ),
         ),
-        subtitle: Text(
-          '原因: ${appeal.appealReason ?? "无"}\n状态: ${appeal.processStatus ?? "Pending"}\n时间: ${formatDateTime(appeal.appealTime)}',
-          style: themeData.textTheme.bodyMedium?.copyWith(
-            color: themeData.colorScheme.onSurfaceVariant,
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 4.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '原因: ${appeal.appealReason ?? "无"}',
+                style: themeData.textTheme.bodyMedium?.copyWith(
+                  color: themeData.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              Text(
+                '状态: ${appeal.processStatus ?? "Pending"}',
+                style: themeData.textTheme.bodyMedium?.copyWith(
+                  color: appeal.processStatus == 'Approved'
+                      ? Colors.green
+                      : appeal.processStatus == 'Rejected'
+                          ? Colors.red
+                          : themeData.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              Text(
+                '时间: ${formatDateTime(appeal.appealTime)}',
+                style: themeData.textTheme.bodyMedium?.copyWith(
+                  color: themeData.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
           ),
         ),
         trailing: Icon(
           CupertinoIcons.forward,
           color: themeData.colorScheme.primary,
-          size: 16,
+          size: 18,
         ),
         onTap: () => _goToDetailPage(appeal),
       ),
@@ -313,6 +344,7 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
               child: Icon(
                 CupertinoIcons.back,
                 color: themeData.colorScheme.onPrimaryContainer,
+                size: 24,
               ),
             ),
             backgroundColor: themeData.colorScheme.primaryContainer,
@@ -322,14 +354,23 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
                 width: 1.0,
               ),
             ),
+            trailing: GestureDetector(
+              onTap: () => _loadAppeals(reset: true),
+              child: Icon(
+                CupertinoIcons.refresh,
+                color: themeData.colorScheme.onPrimaryContainer,
+                size: 24,
+              ),
+            ),
           ),
           child: SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _buildSearchBar(themeData),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
                   Expanded(
                     child: _isLoading
                         ? Center(
@@ -340,25 +381,74 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
                           )
                         : _errorMessage.isNotEmpty
                             ? Center(
-                                child: Text(
-                                  _errorMessage,
-                                  style:
-                                      themeData.textTheme.bodyLarge?.copyWith(
-                                    color: themeData.colorScheme.error,
-                                    fontSize: 18,
-                                  ),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      CupertinoIcons.exclamationmark_triangle,
+                                      color: themeData.colorScheme.error,
+                                      size: 48,
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      _errorMessage,
+                                      style: themeData.textTheme.titleMedium
+                                          ?.copyWith(
+                                        color: themeData.colorScheme.error,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                    if (_errorMessage.contains('未授权'))
+                                      Padding(
+                                        padding:
+                                            const EdgeInsets.only(top: 20.0),
+                                        child: ElevatedButton(
+                                          onPressed: _redirectToLogin,
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor:
+                                                themeData.colorScheme.primary,
+                                            foregroundColor:
+                                                themeData.colorScheme.onPrimary,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(12.0),
+                                            ),
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 24.0,
+                                              vertical: 12.0,
+                                            ),
+                                          ),
+                                          child: const Text('重新登录'),
+                                        ),
+                                      ),
+                                  ],
                                 ),
                               )
                             : _appeals.isEmpty
                                 ? Center(
-                                    child: Text(
-                                      '暂无申诉记录',
-                                      style: themeData.textTheme.bodyLarge
-                                          ?.copyWith(
-                                        color: themeData
-                                            .colorScheme.onSurfaceVariant,
-                                        fontWeight: FontWeight.w500,
-                                      ),
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          CupertinoIcons.doc,
+                                          color: themeData
+                                              .colorScheme.onSurfaceVariant,
+                                          size: 18,
+                                        ),
+                                        const SizedBox(height: 16),
+                                        Text(
+                                          '暂无申诉记录',
+                                          style: themeData.textTheme.bodyMedium
+                                              ?.copyWith(
+                                            color: themeData
+                                                .colorScheme.onSurfaceVariant,
+                                            fontWeight: FontWeight
+                                                .w100, // Adjusted for better readability
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   )
                                 : CupertinoScrollbar(
@@ -424,7 +514,6 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
   }
 
   Future<void> _approveAppeal(int appealId) async {
-    // Changed to int
     setState(() => _isLoading = true);
     try {
       final updatedAppeal = AppealManagement(
@@ -439,7 +528,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
         processResult: '申诉已通过',
       );
       await appealApi.apiAppealsAppealIdPut(
-        appealId: appealId, // Convert to String for API
+        appealId: appealId,
         appealManagement: updatedAppeal,
         idempotencyKey: generateIdempotencyKey(),
       );
@@ -453,123 +542,123 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
   }
 
   Future<void> _rejectAppeal(int appealId) async {
-    // Changed to int
     final themeData = controller.currentBodyTheme.value;
     showDialog(
       context: context,
       builder: (ctx) => Theme(
         data: themeData,
         child: Dialog(
-          backgroundColor: themeData.colorScheme.surfaceContainer,
+          backgroundColor: themeData.colorScheme.surfaceContainerLowest,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
-          child: ConstrainedBox(
-            constraints:
-                const BoxConstraints(maxWidth: 300.0, minHeight: 200.0),
-            child: Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    '驳回申诉',
-                    style: themeData.textTheme.titleMedium?.copyWith(
-                      color: themeData.colorScheme.onSurface,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  '驳回申诉',
+                  style: themeData.textTheme.titleLarge?.copyWith(
+                    color: themeData.colorScheme.onSurface,
+                    fontWeight: FontWeight.bold,
                   ),
-                  const SizedBox(height: 12.0),
-                  TextField(
-                    controller: _rejectionReasonController,
-                    decoration: InputDecoration(
-                      labelText: '驳回原因',
-                      labelStyle: TextStyle(
-                          color: themeData.colorScheme.onSurfaceVariant),
-                      filled: true,
-                      fillColor: themeData.colorScheme.surfaceContainerLow,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8.0),
-                        borderSide: BorderSide(
-                            color:
-                                themeData.colorScheme.outline.withOpacity(0.3)),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8.0),
-                        borderSide: BorderSide(
-                            color: themeData.colorScheme.primary, width: 2.0),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16.0),
+                TextField(
+                  controller: _rejectionReasonController,
+                  decoration: InputDecoration(
+                    labelText: '驳回原因',
+                    labelStyle: themeData.textTheme.bodyMedium?.copyWith(
+                      color: themeData.colorScheme.onSurfaceVariant,
+                    ),
+                    filled: true,
+                    fillColor: themeData.colorScheme.surfaceContainer,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12.0),
+                      borderSide: BorderSide.none,
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12.0),
+                      borderSide: BorderSide(
+                        color: themeData.colorScheme.primary,
+                        width: 2.0,
                       ),
                     ),
-                    maxLines: 3,
-                    style: TextStyle(color: themeData.colorScheme.onSurface),
                   ),
-                  const SizedBox(height: 16.0),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        child: Text(
-                          '取消',
-                          style: themeData.textTheme.labelMedium?.copyWith(
-                            color: themeData.colorScheme.onSurface,
-                          ),
+                  maxLines: 3,
+                  style: themeData.textTheme.bodyMedium?.copyWith(
+                    color: themeData.colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 20.0),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: Text(
+                        '取消',
+                        style: themeData.textTheme.labelLarge?.copyWith(
+                          color: themeData.colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                      ElevatedButton(
-                        onPressed: () async {
-                          final reason = _rejectionReasonController.text.trim();
-                          if (reason.isEmpty) {
-                            _showSnackBar('请填写驳回原因', isError: true);
-                            return;
-                          }
-                          setState(() => _isLoading = true);
-                          try {
-                            final updatedAppeal = AppealManagement(
-                              appealId: widget.appeal.appealId,
-                              offenseId: widget.appeal.offenseId,
-                              appellantName: widget.appeal.appellantName,
-                              idCardNumber: widget.appeal.idCardNumber,
-                              contactNumber: widget.appeal.contactNumber,
-                              appealReason: widget.appeal.appealReason,
-                              appealTime: widget.appeal.appealTime,
-                              processStatus: 'Rejected',
-                              processResult: reason,
-                            );
-                            await appealApi.apiAppealsAppealIdPut(
-                              appealId: appealId,
-                              // Convert to String for API
-                              appealManagement: updatedAppeal,
-                              idempotencyKey: generateIdempotencyKey(),
-                            );
-                            _showSnackBar('申诉已驳回，用户可重新提交');
-                            Navigator.pop(ctx);
-                            if (mounted) Navigator.pop(context, true);
-                          } catch (e) {
-                            _showSnackBar('驳回失败: $e', isError: true);
-                          } finally {
-                            if (mounted) setState(() => _isLoading = false);
-                          }
-                        },
-                        style: themeData.elevatedButtonTheme.style?.copyWith(
-                          backgroundColor: WidgetStatePropertyAll(
-                              themeData.colorScheme.error),
-                          foregroundColor: WidgetStatePropertyAll(
-                              themeData.colorScheme.onError),
-                        ),
-                        child: Text(
-                          '确认驳回',
-                          style: themeData.textTheme.labelMedium?.copyWith(
-                            color: themeData.colorScheme.onError,
-                            fontWeight: FontWeight.bold,
-                          ),
+                    ),
+                    ElevatedButton(
+                      onPressed: () async {
+                        final reason = _rejectionReasonController.text.trim();
+                        if (reason.isEmpty) {
+                          _showSnackBar('请填写驳回原因', isError: true);
+                          return;
+                        }
+                        setState(() => _isLoading = true);
+                        try {
+                          final updatedAppeal = AppealManagement(
+                            appealId: widget.appeal.appealId,
+                            offenseId: widget.appeal.offenseId,
+                            appellantName: widget.appeal.appellantName,
+                            idCardNumber: widget.appeal.idCardNumber,
+                            contactNumber: widget.appeal.contactNumber,
+                            appealReason: widget.appeal.appealReason,
+                            appealTime: widget.appeal.appealTime,
+                            processStatus: 'Rejected',
+                            processResult: reason,
+                          );
+                          await appealApi.apiAppealsAppealIdPut(
+                            appealId: appealId,
+                            appealManagement: updatedAppeal,
+                            idempotencyKey: generateIdempotencyKey(),
+                          );
+                          _showSnackBar('申诉已驳回，用户可重新提交');
+                          Navigator.pop(ctx);
+                          if (mounted) Navigator.pop(context, true);
+                        } catch (e) {
+                          _showSnackBar('驳回失败: $e', isError: true);
+                        } finally {
+                          if (mounted) setState(() => _isLoading = false);
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: themeData.colorScheme.error,
+                        foregroundColor: themeData.colorScheme.onError,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12.0)),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20.0, vertical: 12.0),
+                      ),
+                      child: Text(
+                        '确认驳回',
+                        style: themeData.textTheme.labelLarge?.copyWith(
+                          color: themeData.colorScheme.onError,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                    ],
-                  ),
-                ],
-              ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ),
@@ -593,6 +682,9 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
         backgroundColor: isError
             ? themeData.colorScheme.error
             : themeData.colorScheme.primary,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
+        margin: const EdgeInsets.all(10.0),
       ),
     );
   }
@@ -629,6 +721,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
               child: Icon(
                 CupertinoIcons.back,
                 color: themeData.colorScheme.onPrimaryContainer,
+                size: 24,
               ),
             ),
             backgroundColor: themeData.colorScheme.primaryContainer,
@@ -656,15 +749,16 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
                       thicknessWhileDragging: 10.0,
                       child: SingleChildScrollView(
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             Card(
-                              elevation: 2,
-                              color: themeData.colorScheme.surfaceContainer,
+                              elevation: 4,
+                              color:
+                                  themeData.colorScheme.surfaceContainerLowest,
                               shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12.0)),
+                                  borderRadius: BorderRadius.circular(16.0)),
                               child: Padding(
-                                padding: const EdgeInsets.all(16.0),
+                                padding: const EdgeInsets.all(20.0),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
@@ -677,13 +771,19 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
                                     _buildDetailRow('联系电话', contact, themeData),
                                     _buildDetailRow('上诉原因', reason, themeData),
                                     _buildDetailRow('上诉时间', time, themeData),
-                                    _buildDetailRow('处理状态', status, themeData),
+                                    _buildDetailRow('处理状态', status, themeData,
+                                        valueColor: status == 'Approved'
+                                            ? Colors.green
+                                            : status == 'Rejected'
+                                                ? Colors.red
+                                                : themeData.colorScheme
+                                                    .onSurfaceVariant),
                                     _buildDetailRow('处理结果', result, themeData),
                                   ],
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 20),
+                            const SizedBox(height: 24),
                             if (status == 'Pending') ...[
                               Row(
                                 mainAxisAlignment:
@@ -692,33 +792,59 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
                                   ElevatedButton.icon(
                                     onPressed: () => _approveAppeal(
                                         widget.appeal.appealId ?? 0),
-                                    icon: const Icon(CupertinoIcons.checkmark),
+                                    icon: const Icon(CupertinoIcons.checkmark,
+                                        size: 20),
                                     label: const Text('通过'),
-                                    style: themeData.elevatedButtonTheme.style,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.green,
+                                      foregroundColor: Colors.white,
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(12.0)),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 20.0, vertical: 12.0),
+                                      elevation: 2,
+                                    ),
                                   ),
                                   ElevatedButton.icon(
                                     onPressed: () => _rejectAppeal(
                                         widget.appeal.appealId ?? 0),
-                                    icon: const Icon(CupertinoIcons.xmark),
+                                    icon: const Icon(CupertinoIcons.xmark,
+                                        size: 20),
                                     label: const Text('驳回'),
-                                    style: themeData.elevatedButtonTheme.style
-                                        ?.copyWith(
-                                      backgroundColor: WidgetStatePropertyAll(
-                                          themeData.colorScheme.error),
-                                      foregroundColor: WidgetStatePropertyAll(
-                                          themeData.colorScheme.onError),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor:
+                                          themeData.colorScheme.error,
+                                      foregroundColor:
+                                          themeData.colorScheme.onError,
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(12.0)),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 20.0, vertical: 12.0),
+                                      elevation: 2,
                                     ),
                                   ),
                                 ],
                               ),
                             ] else
                               Center(
-                                child: Text(
-                                  '此申诉已处理，无法再次审批',
-                                  style:
-                                      themeData.textTheme.bodyMedium?.copyWith(
-                                    color: themeData.colorScheme.error,
-                                    fontStyle: FontStyle.italic,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 12.0, horizontal: 20.0),
+                                  decoration: BoxDecoration(
+                                    color:
+                                        themeData.colorScheme.surfaceContainer,
+                                    borderRadius: BorderRadius.circular(12.0),
+                                  ),
+                                  child: Text(
+                                    '此申诉已处理，无法再次审批',
+                                    style:
+                                        themeData.textTheme.bodyLarge?.copyWith(
+                                      color: themeData
+                                          .colorScheme.onSurfaceVariant,
+                                      fontStyle: FontStyle.italic,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -733,15 +859,16 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
     });
   }
 
-  Widget _buildDetailRow(String label, String value, ThemeData themeData) {
+  Widget _buildDetailRow(String label, String value, ThemeData themeData,
+      {Color? valueColor}) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      padding: const EdgeInsets.symmetric(vertical: 10.0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             '$label: ',
-            style: themeData.textTheme.bodyLarge?.copyWith(
+            style: themeData.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.bold,
               color: themeData.colorScheme.onSurface,
             ),
@@ -749,8 +876,8 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
           Expanded(
             child: Text(
               value,
-              style: themeData.textTheme.bodyMedium?.copyWith(
-                color: themeData.colorScheme.onSurfaceVariant,
+              style: themeData.textTheme.bodyLarge?.copyWith(
+                color: valueColor ?? themeData.colorScheme.onSurfaceVariant,
               ),
             ),
           ),

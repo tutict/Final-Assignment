@@ -6,6 +6,7 @@ import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/features/api/fine_information_controller_api.dart';
 import 'package:final_assignment_front/features/model/fine_information.dart';
 import 'package:get/get.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// 唯一标识生成工具
@@ -79,31 +80,22 @@ class _FineListState extends State<FineList> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final jwtToken = prefs.getString('jwtToken');
-      final response = await http.get(
-        Uri.parse('http://localhost:8081/api/users/me'),
-        headers: {
-          'Authorization': 'Bearer $jwtToken',
-          'Content-Type': 'application/json',
-        },
-      );
-      if (response.statusCode == 200) {
-        final userData = jsonDecode(utf8.decode(response.bodyBytes));
-        final roles = (userData['roles'] as List<dynamic>?)
-                ?.map((r) => r.toString())
-                .toList() ??
-            [];
-        setState(() => _isAdmin = roles.contains('ADMIN'));
-        if (!_isAdmin) {
-          setState(() => _errorMessage = '权限不足：仅管理员可访问此页面');
-        }
-      } else {
-        throw Exception('验证失败：${response.statusCode}');
+      if (jwtToken == null) throw Exception('未找到 JWT');
+
+      // 直接解析JWT
+      final decodedToken = JwtDecoder.decode(jwtToken);
+      final roles = decodedToken['roles'] is String
+          ? [decodedToken['roles']] // 如果是字符串，转换为列表
+          : (decodedToken['roles'] as List<dynamic>?)?.map((r) => r.toString()).toList() ?? [];
+
+      setState(() => _isAdmin = roles.contains('ADMIN'));
+      if (!_isAdmin) {
+        setState(() => _errorMessage = '权限不足：仅管理员可访问此页面');
       }
     } catch (e) {
       setState(() => _errorMessage = '加载权限失败: $e');
     }
   }
-
   @override
   void dispose() {
     _searchController.dispose();

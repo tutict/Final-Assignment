@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_dashboard_screen.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:final_assignment_front/config/routes/app_pages.dart';
@@ -31,54 +30,55 @@ class _OffenseListPageState extends State<OffenseList> {
   final OffenseInformationControllerApi offenseApi =
       OffenseInformationControllerApi();
   final TextEditingController _searchController = TextEditingController();
-  List<OffenseInformation> _offenseList = [];
+  final List<OffenseInformation> _offenseList = [];
   bool _isLoading = true;
   String _errorMessage = '';
   int _currentPage = 1;
   final int _pageSize = 10;
   bool _hasMore = true;
   String? _currentUsername;
-  String _searchType = 'driverName'; // 默认搜索类型为司机姓名
-  late ScrollController _scrollController;
+  String _searchType = 'driverName';
+  DateTime? _startDate;
+  DateTime? _endDate;
 
   final DashboardController controller = Get.find<DashboardController>();
 
   @override
   void initState() {
     super.initState();
-    _scrollController = ScrollController();
-    _scrollController.addListener(() {
-      if (_scrollController.position.pixels ==
-          _scrollController.position.maxScrollExtent) {
-        _loadMoreOffenses();
-      }
-    });
     _initialize();
+  }
+
+  Future<void> _initialize() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _currentUsername = prefs.getString('userName');
+      final jwtToken = prefs.getString('jwtToken');
+      if (_currentUsername == null || jwtToken == null) {
+        throw Exception('请先登录以查看违法信息');
+      }
+      await offenseApi.initializeWithJwt();
+      await _fetchOffenses(reset: true);
+    } catch (e) {
+      setState(() {
+        _errorMessage = '初始化失败: $e';
+      });
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
   @override
   void dispose() {
     _searchController.dispose();
-    _scrollController.dispose();
     super.dispose();
   }
 
-  Future<void> _initialize() async {
-    final prefs = await SharedPreferences.getInstance();
-    _currentUsername = prefs.getString('userName');
-    final jwtToken = prefs.getString('jwtToken');
-    if (_currentUsername == null || jwtToken == null) {
-      setState(() {
-        _isLoading = false;
-        _errorMessage = '请先登录以查看违法信息';
-      });
-      return;
-    }
-    await offenseApi.initializeWithJwt();
-    _fetchOffenses(reset: true);
-  }
-
-  Future<void> _fetchOffenses({bool reset = false}) async {
+  Future<void> _fetchOffenses({bool reset = false, String? query}) async {
     if (reset) {
       _currentPage = 1;
       _hasMore = true;
@@ -90,468 +90,522 @@ class _OffenseListPageState extends State<OffenseList> {
       _isLoading = true;
       _errorMessage = '';
     });
+
+    final searchQuery = query?.trim() ?? '';
     try {
-      final offenses = await offenseApi.apiOffensesGet();
+      List<OffenseInformation> offenses = [];
+      if (searchQuery.isEmpty && _startDate == null && _endDate == null) {
+        offenses = await offenseApi.apiOffensesGet();
+      } else if (_searchType == 'driverName' && searchQuery.isNotEmpty) {
+        offenses = await offenseApi.apiOffensesByDriverNameGet(
+          query: searchQuery,
+          page: _currentPage,
+          size: _pageSize,
+        );
+      } else if (_searchType == 'licensePlate' && searchQuery.isNotEmpty) {
+        offenses = await offenseApi.apiOffensesByLicensePlateGet(
+          query: searchQuery,
+          page: _currentPage,
+          size: _pageSize,
+        );
+      } else if (_searchType == 'offenseType' && searchQuery.isNotEmpty) {
+        offenses = await offenseApi.apiOffensesByOffenseTypeGet(
+          query: searchQuery,
+          page: _currentPage,
+          size: _pageSize,
+        );
+      } else if (_startDate != null && _endDate != null) {
+        offenses = await offenseApi.apiOffensesTimeRangeGet(
+          startTime: formatDate(_startDate),
+          endTime: formatDate(_endDate),
+        );
+      }
+
       setState(() {
         _offenseList.addAll(offenses);
-        _isLoading = false;
-        // Since /api/offenses doesn't support pagination in the backend, assume all data is fetched
-        _hasMore = false;
+        if (offenses.length < _pageSize) _hasMore = false;
+        if (_offenseList.isEmpty && _currentPage == 1) {
+          _errorMessage =
+              searchQuery.isNotEmpty || (_startDate != null && _endDate != null)
+                  ? '未找到符合条件的违法信息'
+                  : '当前没有违法记录';
+        }
       });
     } catch (e) {
       setState(() {
-        _isLoading = false;
-        _errorMessage =
-            e.toString().contains('403') ? '未授权，请重新登录' : '获取违法信息失败: $e';
+        if (e.toString().contains('404')) {
+          _offenseList.clear();
+          _errorMessage = '未找到符合条件的违法信息，可能 $_searchType "$searchQuery" 不存在';
+          _hasMore = false;
+        } else {
+          _errorMessage =
+              e.toString().contains('403') ? '未授权，请重新登录' : '获取违法信息失败: $e';
+        }
       });
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
   Future<void> _loadMoreOffenses() async {
     if (!_hasMore || _isLoading) return;
     _currentPage++;
-    if (_searchController.text.isNotEmpty) {
-      await _searchOffenses(_searchController.text);
-    } else {
-      await _fetchOffenses();
-    }
+    await _fetchOffenses(query: _searchController.text);
   }
 
-  Future<void> _searchOffenses(String query) async {
-    if (query.isEmpty) {
-      await _fetchOffenses(reset: true);
-      return;
-    }
+  Future<void> _refreshOffenses() async {
+    _searchController.clear();
     setState(() {
-      _isLoading = true;
-      _errorMessage = '';
-      _currentPage = 1;
-      _hasMore = true;
-      _offenseList.clear();
+      _startDate = null;
+      _endDate = null;
     });
-    try {
-      List<OffenseInformation> offenses;
-      switch (_searchType) {
-        case 'driverName':
-          offenses = await offenseApi.apiOffensesByDriverNameGet(
-            query: query,
-            page: _currentPage,
-            size: _pageSize,
-          );
-          break;
-        case 'licensePlate':
-          offenses = await offenseApi.apiOffensesByLicensePlateGet(
-            query: query,
-            page: _currentPage,
-            size: _pageSize,
-          );
-          break;
-        case 'offenseType':
-          offenses = await offenseApi.apiOffensesByOffenseTypeGet(
-            query: query,
-            page: _currentPage,
-            size: _pageSize,
-          );
-          break;
-        default:
-          throw Exception('无效的搜索类型');
-      }
-      setState(() {
-        _offenseList = offenses;
-        _isLoading = false;
-        if (offenses.length < _pageSize) _hasMore = false;
-        if (_offenseList.isEmpty) {
-          _errorMessage =
-              '未找到${_searchType == 'driverName' ? '司机名为 $query' : _searchType == 'licensePlate' ? '车牌号为 $query' : '违法类型为 $query'}的违法信息';
-        }
-      });
-    } catch (e) {
-      setState(() {
-        _errorMessage = '搜索失败：$e';
-        _isLoading = false;
-      });
-    }
+    await _fetchOffenses(reset: true);
   }
 
-  Future<void> _selectDateRange() async {
-    final picked = await showDateRangePicker(
-      context: context,
-      firstDate: DateTime(1970),
-      lastDate: DateTime(2100),
-      builder: (context, child) =>
-          Theme(data: controller.currentBodyTheme.value, child: child!),
-    );
-    if (picked != null && mounted) {
-      setState(() {
-        _isLoading = true;
-        _errorMessage = '';
-        _currentPage = 1;
-        _hasMore = true;
-        _offenseList.clear();
-      });
-      try {
-        final offenses = await offenseApi.apiOffensesTimeRangeGet(
-          startTime: formatDate(picked.start),
-          endTime: formatDate(picked.end),
-        );
-        setState(() {
-          _offenseList = offenses;
-          _isLoading = false;
-          _hasMore = false; // /timeRange doesn't support pagination
-          if (_offenseList.isEmpty) _errorMessage = '未找到该时间范围内的违法信息';
-        });
-      } catch (e) {
-        setState(() {
-          _errorMessage = '按时间范围搜索失败：$e';
-          _isLoading = false;
-        });
-      }
-    }
+  Future<void> _searchOffenses() async {
+    final query = _searchController.text.trim();
+    await _fetchOffenses(reset: true, query: query);
   }
 
   void _createOffense() {
-    Get.to(() => const AddOffensePage())?.then((value) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const AddOffensePage()),
+    ).then((value) {
       if (value == true && mounted) _fetchOffenses(reset: true);
     });
   }
 
   void _goToDetailPage(OffenseInformation offense) {
-    Get.to(() => OffenseDetailPage(offense: offense))?.then((value) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+          builder: (context) => OffenseDetailPage(offense: offense)),
+    ).then((value) {
       if (value == true && mounted) _fetchOffenses(reset: true);
     });
   }
 
   Future<void> _deleteOffense(int offenseId) async {
-    final confirmed = await _showConfirmationDialog('确认删除', '您确定要删除此违法信息吗？');
-    if (!confirmed) return;
-
-    try {
-      await offenseApi.apiOffensesOffenseIdDelete(offenseId: offenseId);
-      _showSnackBar('删除违法信息成功！');
-      _fetchOffenses(reset: true);
-    } catch (e) {
-      _showSnackBar('删除失败: $e', isError: true);
-    }
+    _showDeleteConfirmationDialog('删除', () async {
+      setState(() => _isLoading = true);
+      try {
+        await offenseApi.apiOffensesOffenseIdDelete(offenseId: offenseId);
+        _showSnackBar('删除违法信息成功！');
+        _fetchOffenses(reset: true);
+      } catch (e) {
+        _showSnackBar('删除失败: $e', isError: true);
+      } finally {
+        setState(() => _isLoading = false);
+      }
+    });
   }
 
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    final themeData = controller.currentBodyTheme.value;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(
-          message,
-          style: TextStyle(
-            color: isError
-                ? themeData.colorScheme.onError
-                : themeData.colorScheme.onPrimary,
-          ),
-        ),
-        backgroundColor: isError
-            ? themeData.colorScheme.error
-            : themeData.colorScheme.primary,
+        content: Text(message, style: const TextStyle(color: Colors.white)),
+        backgroundColor: isError ? Colors.red : Colors.green,
       ),
     );
   }
 
-  Future<bool> _showConfirmationDialog(String title, String content) async {
-    if (!mounted) return false;
-    final themeData = controller.currentBodyTheme.value;
-    return await showDialog<bool>(
-          context: context,
-          builder: (context) => Theme(
-            data: themeData,
-            child: AlertDialog(
-              backgroundColor: themeData.colorScheme.surfaceContainer,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16.0)),
-              title: Text(title,
-                  style: themeData.textTheme.titleMedium
-                      ?.copyWith(color: themeData.colorScheme.onSurface)),
-              content: Text(content,
-                  style: themeData.textTheme.bodyMedium?.copyWith(
-                      color: themeData.colorScheme.onSurfaceVariant)),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: Text('取消',
-                      style: themeData.textTheme.labelMedium
-                          ?.copyWith(color: themeData.colorScheme.onSurface)),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.pop(context, true),
-                  child: Text('确定',
-                      style: themeData.textTheme.labelMedium
-                          ?.copyWith(color: themeData.colorScheme.primary)),
-                ),
-              ],
+  void _showDeleteConfirmationDialog(String action, VoidCallback onConfirm) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        final themeData = controller.currentBodyTheme.value;
+        return AlertDialog(
+          backgroundColor: themeData.colorScheme.surfaceContainerHighest,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(
+            '确认删除',
+            style: themeData.textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: themeData.colorScheme.onSurface,
             ),
           ),
-        ) ??
-        false;
+          content: Text(
+            '您确定要$action此违法信息吗？此操作不可撤销。',
+            style: themeData.textTheme.bodyMedium?.copyWith(
+              color: themeData.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(
+                '取消',
+                style: themeData.textTheme.labelLarge?.copyWith(
+                  color: themeData.colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                onConfirm();
+                Navigator.pop(ctx);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: themeData.colorScheme.error,
+                foregroundColor: themeData.colorScheme.onError,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              ),
+              child: const Text('删除'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildSearchField(ThemeData themeData) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _searchController,
+                  style: TextStyle(color: themeData.colorScheme.onSurface),
+                  decoration: InputDecoration(
+                    hintText: _searchType == 'driverName'
+                        ? '搜索司机姓名'
+                        : _searchType == 'licensePlate'
+                            ? '搜索车牌号'
+                            : '搜索违法类型',
+                    hintStyle: TextStyle(
+                        color:
+                            themeData.colorScheme.onSurface.withOpacity(0.6)),
+                    prefixIcon: Icon(Icons.search,
+                        color: themeData.colorScheme.primary),
+                    suffixIcon: _searchController.text.isNotEmpty
+                        ? IconButton(
+                            icon: Icon(Icons.clear,
+                                color: themeData.colorScheme.onSurfaceVariant),
+                            onPressed: () {
+                              _searchController.clear();
+                              _fetchOffenses(reset: true);
+                            },
+                          )
+                        : null,
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12.0)),
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(
+                          color:
+                              themeData.colorScheme.outline.withOpacity(0.3)),
+                      borderRadius: BorderRadius.circular(12.0),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(
+                          color: themeData.colorScheme.primary, width: 1.5),
+                      borderRadius: BorderRadius.circular(12.0),
+                    ),
+                    filled: true,
+                    fillColor: themeData.colorScheme.surfaceContainerLowest,
+                    contentPadding: const EdgeInsets.symmetric(
+                        vertical: 12.0, horizontal: 16.0),
+                  ),
+                  onSubmitted: (value) => _searchOffenses(),
+                  onChanged: (value) => setState(() {}),
+                ),
+              ),
+              const SizedBox(width: 8),
+              DropdownButton<String>(
+                value: _searchType,
+                onChanged: (String? newValue) {
+                  setState(() {
+                    _searchType = newValue!;
+                    _searchController.clear();
+                    _fetchOffenses(reset: true);
+                  });
+                },
+                items: <String>['driverName', 'licensePlate', 'offenseType']
+                    .map<DropdownMenuItem<String>>((String value) {
+                  return DropdownMenuItem<String>(
+                    value: value,
+                    child: Text(
+                      value == 'driverName'
+                          ? '按司机姓名'
+                          : value == 'licensePlate'
+                              ? '按车牌号'
+                              : '按违法类型',
+                      style: TextStyle(color: themeData.colorScheme.onSurface),
+                    ),
+                  );
+                }).toList(),
+                dropdownColor: themeData.colorScheme.surfaceContainer,
+                icon: Icon(Icons.arrow_drop_down,
+                    color: themeData.colorScheme.primary),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  _startDate != null && _endDate != null
+                      ? '违法时间范围: ${formatDate(_startDate)} 至 ${formatDate(_endDate)}'
+                      : '选择违法时间范围',
+                  style: TextStyle(
+                    color: _startDate != null && _endDate != null
+                        ? themeData.colorScheme.onSurface
+                        : themeData.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: Icon(Icons.date_range,
+                    color: themeData.colorScheme.primary),
+                tooltip: '按违法时间范围搜索',
+                onPressed: () async {
+                  final range = await showDateRangePicker(
+                    context: context,
+                    firstDate: DateTime(1900),
+                    lastDate: DateTime.now(),
+                    locale: const Locale('zh', 'CN'),
+                    helpText: '选择违法时间范围',
+                    cancelText: '取消',
+                    confirmText: '确定',
+                    fieldStartHintText: '开始日期',
+                    fieldEndHintText: '结束日期',
+                    builder: (BuildContext context, Widget? child) {
+                      return Theme(
+                          data: controller.currentBodyTheme.value,
+                          child: child!);
+                    },
+                  );
+                  if (range != null) {
+                    setState(() {
+                      _startDate = range.start;
+                      _endDate = range.end;
+                    });
+                    _searchOffenses();
+                  }
+                },
+              ),
+              if (_startDate != null && _endDate != null)
+                IconButton(
+                  icon: Icon(Icons.clear,
+                      color: themeData.colorScheme.onSurfaceVariant),
+                  tooltip: '清除日期范围',
+                  onPressed: () {
+                    setState(() {
+                      _startDate = null;
+                      _endDate = null;
+                    });
+                    _searchOffenses();
+                  },
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Obx(() {
       final themeData = controller.currentBodyTheme.value;
-
-      if (!_isLoading && _errorMessage.isNotEmpty) {
-        return Theme(
-          data: themeData,
-          child: CupertinoPageScaffold(
-            backgroundColor: themeData.colorScheme.surface,
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    _errorMessage,
-                    style: themeData.textTheme.titleMedium?.copyWith(
-                      color: themeData.colorScheme.error,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  if (_errorMessage.contains('登录'))
-                    Padding(
-                      padding: const EdgeInsets.only(top: 16.0),
-                      child: ElevatedButton(
-                        onPressed: () => Get.offAllNamed(AppPages.login),
-                        style: themeData.elevatedButtonTheme.style,
-                        child: const Text('前往登录'),
-                      ),
-                    ),
-                ],
-              ),
+      return Scaffold(
+        backgroundColor: themeData.colorScheme.surface,
+        appBar: AppBar(
+          title: Text('违法行为管理',
+              style: themeData.textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: themeData.colorScheme.onPrimaryContainer)),
+          backgroundColor: themeData.colorScheme.primaryContainer,
+          foregroundColor: themeData.colorScheme.onPrimaryContainer,
+          elevation: 2,
+          actions: [
+            IconButton(
+                icon: const Icon(Icons.refresh),
+                onPressed: _refreshOffenses,
+                tooltip: '刷新列表'),
+            IconButton(
+                icon: const Icon(Icons.add),
+                onPressed: _createOffense,
+                tooltip: '添加新违法信息'),
+            IconButton(
+              icon: Icon(themeData.brightness == Brightness.light
+                  ? Icons.dark_mode
+                  : Icons.light_mode),
+              onPressed: controller.toggleBodyTheme,
+              tooltip: '切换主题',
             ),
-          ),
-        );
-      }
-
-      return Theme(
-        data: themeData,
-        child: CupertinoPageScaffold(
-          backgroundColor: themeData.colorScheme.surface,
-          navigationBar: CupertinoNavigationBar(
-            middle: Text(
-              '违法行为列表',
-              style: themeData.textTheme.headlineSmall?.copyWith(
-                color: themeData.colorScheme.onPrimaryContainer,
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
-              ),
-            ),
-            leading: GestureDetector(
-              onTap: () => Get.back(),
-              child: Icon(
-                CupertinoIcons.back,
-                color: themeData.colorScheme.onPrimaryContainer,
-              ),
-            ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
+          ],
+        ),
+        body: RefreshIndicator(
+          onRefresh: _refreshOffenses,
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
               children: [
-                GestureDetector(
-                  onTap: _selectDateRange,
-                  child: Icon(
-                    CupertinoIcons.calendar_today,
-                    color: themeData.colorScheme.onPrimaryContainer,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                GestureDetector(
-                  onTap: _createOffense,
-                  child: Icon(
-                    CupertinoIcons.add,
-                    color: themeData.colorScheme.onPrimaryContainer,
+                _buildSearchField(themeData),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: NotificationListener<ScrollNotification>(
+                    onNotification: (scrollInfo) {
+                      if (scrollInfo.metrics.pixels ==
+                              scrollInfo.metrics.maxScrollExtent &&
+                          _hasMore) {
+                        _loadMoreOffenses();
+                      }
+                      return false;
+                    },
+                    child: _isLoading && _currentPage == 1
+                        ? Center(
+                            child: CircularProgressIndicator(
+                                valueColor: AlwaysStoppedAnimation(
+                                    themeData.colorScheme.primary)))
+                        : _errorMessage.isNotEmpty && _offenseList.isEmpty
+                            ? Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      _errorMessage,
+                                      style: themeData.textTheme.titleMedium
+                                          ?.copyWith(
+                                              color:
+                                                  themeData.colorScheme.error,
+                                              fontWeight: FontWeight.w500),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                    if (_errorMessage.contains('未授权'))
+                                      Padding(
+                                        padding:
+                                            const EdgeInsets.only(top: 16.0),
+                                        child: ElevatedButton(
+                                          onPressed: () =>
+                                              Navigator.pushReplacementNamed(
+                                                  context, AppPages.login),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor:
+                                                themeData.colorScheme.primary,
+                                            foregroundColor:
+                                                themeData.colorScheme.onPrimary,
+                                          ),
+                                          child: const Text('重新登录'),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              )
+                            : ListView.builder(
+                                itemCount:
+                                    _offenseList.length + (_hasMore ? 1 : 0),
+                                itemBuilder: (context, index) {
+                                  if (index == _offenseList.length &&
+                                      _hasMore) {
+                                    return const Padding(
+                                        padding: EdgeInsets.all(8.0),
+                                        child: Center(
+                                            child:
+                                                CircularProgressIndicator()));
+                                  }
+                                  final offense = _offenseList[index];
+                                  return Card(
+                                    margin: const EdgeInsets.symmetric(
+                                        vertical: 8.0),
+                                    elevation: 3,
+                                    color:
+                                        themeData.colorScheme.surfaceContainer,
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(16.0)),
+                                    child: ListTile(
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                              horizontal: 16.0, vertical: 12.0),
+                                      title: Text(
+                                        '违法类型: ${offense.offenseType ?? '未知类型'}',
+                                        style: themeData.textTheme.titleMedium
+                                            ?.copyWith(
+                                                color: themeData
+                                                    .colorScheme.onSurface,
+                                                fontWeight: FontWeight.w600),
+                                      ),
+                                      subtitle: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          const SizedBox(height: 4),
+                                          Text(
+                                              '车牌号: ${offense.licensePlate ?? '未知车牌'}',
+                                              style: themeData
+                                                  .textTheme.bodyMedium
+                                                  ?.copyWith(
+                                                      color: themeData
+                                                          .colorScheme
+                                                          .onSurfaceVariant)),
+                                          Text(
+                                              '司机姓名: ${offense.driverName ?? '未知司机'}',
+                                              style: themeData
+                                                  .textTheme.bodyMedium
+                                                  ?.copyWith(
+                                                      color: themeData
+                                                          .colorScheme
+                                                          .onSurfaceVariant)),
+                                          Text(
+                                              '状态: ${offense.processStatus ?? '无'}',
+                                              style: themeData
+                                                  .textTheme.bodyMedium
+                                                  ?.copyWith(
+                                                      color: themeData
+                                                          .colorScheme
+                                                          .onSurfaceVariant)),
+                                        ],
+                                      ),
+                                      trailing: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          IconButton(
+                                            icon: Icon(Icons.delete,
+                                                size: 18,
+                                                color: themeData
+                                                    .colorScheme.error),
+                                            onPressed: () => _deleteOffense(
+                                                offense.offenseId ?? 0),
+                                            tooltip: '删除违法信息',
+                                          ),
+                                          Icon(Icons.arrow_forward_ios,
+                                              color: themeData
+                                                  .colorScheme.onSurfaceVariant,
+                                              size: 18),
+                                        ],
+                                      ),
+                                      onTap: () => _goToDetailPage(offense),
+                                    ),
+                                  );
+                                },
+                              ),
                   ),
                 ),
               ],
             ),
-            backgroundColor: themeData.colorScheme.primaryContainer,
-            border: Border(
-              bottom: BorderSide(
-                color: themeData.colorScheme.outline.withOpacity(0.2),
-                width: 1.0,
-              ),
-            ),
           ),
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  _buildSearchBar(themeData),
-                  const SizedBox(height: 16),
-                  Expanded(
-                    child: _isLoading && _currentPage == 1
-                        ? Center(
-                            child: CupertinoActivityIndicator(
-                              color: themeData.colorScheme.primary,
-                              radius: 16.0,
-                            ),
-                          )
-                        : _offenseList.isEmpty
-                            ? Center(
-                                child: Text(
-                                  '暂无违法信息',
-                                  style:
-                                      themeData.textTheme.bodyLarge?.copyWith(
-                                    color:
-                                        themeData.colorScheme.onSurfaceVariant,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              )
-                            : CupertinoScrollbar(
-                                controller: _scrollController,
-                                thumbVisibility: true,
-                                thickness: 6.0,
-                                thicknessWhileDragging: 10.0,
-                                child: RefreshIndicator(
-                                  onRefresh: () => _fetchOffenses(reset: true),
-                                  color: themeData.colorScheme.primary,
-                                  backgroundColor:
-                                      themeData.colorScheme.surfaceContainer,
-                                  child: ListView.builder(
-                                    controller: _scrollController,
-                                    itemCount: _offenseList.length +
-                                        (_hasMore ? 1 : 0),
-                                    itemBuilder: (context, index) {
-                                      if (index == _offenseList.length &&
-                                          _hasMore) {
-                                        return const Padding(
-                                          padding: EdgeInsets.all(8.0),
-                                          child: Center(
-                                              child:
-                                                  CupertinoActivityIndicator()),
-                                        );
-                                      }
-                                      final offense = _offenseList[index];
-                                      return _buildOffenseCard(
-                                          offense, themeData);
-                                    },
-                                  ),
-                                ),
-                              ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+        ),
+        floatingActionButton: FloatingActionButton(
+          onPressed: _createOffense,
+          backgroundColor: themeData.colorScheme.primary,
+          foregroundColor: themeData.colorScheme.onPrimary,
+          tooltip: '添加新违法信息',
+          child: const Icon(Icons.add),
         ),
       );
     });
-  }
-
-  Widget _buildSearchBar(ThemeData themeData) {
-    return Card(
-      elevation: 2,
-      color: themeData.colorScheme.surfaceContainer,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
-      child: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _searchController,
-                style: TextStyle(color: themeData.colorScheme.onSurface),
-                decoration: InputDecoration(
-                  labelText: _searchType == 'driverName'
-                      ? '按司机姓名搜索'
-                      : _searchType == 'licensePlate'
-                          ? '按车牌号搜索'
-                          : '按违法类型搜索',
-                  labelStyle:
-                      TextStyle(color: themeData.colorScheme.onSurfaceVariant),
-                  prefixIcon:
-                      Icon(Icons.search, color: themeData.colorScheme.primary),
-                  suffixIcon: _searchController.text.isNotEmpty
-                      ? IconButton(
-                          icon: Icon(Icons.clear,
-                              color: themeData.colorScheme.onSurfaceVariant),
-                          onPressed: () {
-                            _searchController.clear();
-                            _fetchOffenses(reset: true);
-                          },
-                        )
-                      : null,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8.0),
-                    borderSide: BorderSide.none,
-                  ),
-                  filled: true,
-                  fillColor: themeData.colorScheme.surfaceContainerLow,
-                ),
-                onSubmitted: (value) => _searchOffenses(value),
-              ),
-            ),
-            const SizedBox(width: 8),
-            DropdownButton<String>(
-              value: _searchType,
-              onChanged: (String? newValue) {
-                setState(() {
-                  _searchType = newValue!;
-                  _searchController.clear();
-                  _fetchOffenses(reset: true);
-                });
-              },
-              items: <String>['driverName', 'licensePlate', 'offenseType']
-                  .map<DropdownMenuItem<String>>((String value) {
-                return DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(
-                    value == 'driverName'
-                        ? '按司机姓名'
-                        : value == 'licensePlate'
-                            ? '按车牌号'
-                            : '按违法类型',
-                    style: TextStyle(color: themeData.colorScheme.onSurface),
-                  ),
-                );
-              }).toList(),
-              dropdownColor: themeData.colorScheme.surfaceContainer,
-              icon: Icon(Icons.arrow_drop_down,
-                  color: themeData.colorScheme.primary),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildOffenseCard(OffenseInformation offense, ThemeData themeData) {
-    return Card(
-      elevation: 3,
-      color: themeData.colorScheme.surfaceContainer,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
-      margin: const EdgeInsets.symmetric(vertical: 6.0),
-      child: ListTile(
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-        title: Text(
-          '违法类型: ${offense.offenseType ?? "未知类型"}',
-          style: themeData.textTheme.bodyLarge?.copyWith(
-            color: themeData.colorScheme.onSurface,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        subtitle: Text(
-          '车牌号: ${offense.licensePlate ?? "未知车牌"}\n状态: ${offense.processStatus ?? "未知状态"}\n时间: ${formatDate(offense.offenseTime)}',
-          style: themeData.textTheme.bodyMedium?.copyWith(
-            color: themeData.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        trailing: Icon(
-          CupertinoIcons.forward,
-          color: themeData.colorScheme.primary,
-          size: 16,
-        ),
-        onTap: () => _goToDetailPage(offense),
-      ),
-    );
   }
 }
 
@@ -583,7 +637,18 @@ class _AddOffensePageState extends State<AddOffensePage> {
   @override
   void initState() {
     super.initState();
-    offenseApi.initializeWithJwt();
+    _initialize();
+  }
+
+  Future<void> _initialize() async {
+    setState(() => _isLoading = true);
+    try {
+      await offenseApi.initializeWithJwt();
+    } catch (e) {
+      _showSnackBar('初始化失败: $e', isError: true);
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -606,34 +671,57 @@ class _AddOffensePageState extends State<AddOffensePage> {
 
     setState(() => _isLoading = true);
     try {
-      DateTime? offenseTime;
-      if (_offenseTimeController.text.isNotEmpty) {
-        offenseTime =
-            DateTime.parse("${_offenseTimeController.text.trim()}T00:00:00");
-      }
+      final offenseTime = _offenseTimeController.text.isEmpty
+          ? null
+          : DateTime.parse(
+              "${_offenseTimeController.text.trim()}T00:00:00.000");
 
-      final offense = OffenseInformation(
-        offenseId: null,
-        driverName: _driverNameController.text.trim(),
-        licensePlate: _licensePlateController.text.trim(),
-        offenseType: _offenseTypeController.text.trim(),
-        offenseCode: _offenseCodeController.text.trim(),
-        offenseLocation: _offenseLocationController.text.trim(),
-        offenseTime: offenseTime,
-        deductedPoints: int.tryParse(_deductedPointsController.text.trim()),
-        fineAmount: num.tryParse(_fineAmountController.text.trim()),
-        processStatus: _processStatusController.text.trim(),
-        processResult: _processResultController.text.trim(),
-      );
+      final offensePayload = {
+        'offenseId': null,
+        'driverName': _driverNameController.text.trim(),
+        'licensePlate': _licensePlateController.text.trim(),
+        'offenseType': _offenseTypeController.text.trim(),
+        'offenseCode': _offenseCodeController.text.trim().isEmpty
+            ? null
+            : _offenseCodeController.text.trim(),
+        'offenseLocation': _offenseLocationController.text.trim().isEmpty
+            ? null
+            : _offenseLocationController.text.trim(),
+        'offenseTime': offenseTime?.toIso8601String(),
+        'deductedPoints': _deductedPointsController.text.trim().isEmpty
+            ? null
+            : int.parse(_deductedPointsController.text.trim()),
+        'fineAmount': _fineAmountController.text.trim().isEmpty
+            ? null
+            : num.parse(_fineAmountController.text.trim()),
+        'processStatus': _processStatusController.text.trim().isEmpty
+            ? null
+            : _processStatusController.text.trim(),
+        'processResult': _processResultController.text.trim().isEmpty
+            ? null
+            : _processResultController.text.trim(),
+      };
 
       final idempotencyKey = generateIdempotencyKey();
-      await offenseApi.apiOffensesPost(
-        offenseInformation: offense,
-        idempotencyKey: idempotencyKey,
+      final prefs = await SharedPreferences.getInstance();
+      final jwtToken = prefs.getString('jwtToken');
+      final response = await http.post(
+        Uri.parse(
+            'http://localhost:8081/api/offenses?idempotencyKey=$idempotencyKey'),
+        headers: {
+          'Authorization': 'Bearer $jwtToken',
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+        body: jsonEncode(offensePayload),
       );
 
+      if (response.statusCode != 201) {
+        throw Exception(
+            'Failed to create offense: ${response.statusCode} - ${response.body}');
+      }
+
       _showSnackBar('创建违法行为记录成功！');
-      if (mounted) Get.back(result: true);
+      if (mounted) Navigator.pop(context, true);
     } catch (e) {
       _showSnackBar('创建违法行为记录失败: $e', isError: true);
     } finally {
@@ -643,20 +731,10 @@ class _AddOffensePageState extends State<AddOffensePage> {
 
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    final themeData = controller.currentBodyTheme.value;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(
-          message,
-          style: TextStyle(
-            color: isError
-                ? themeData.colorScheme.onError
-                : themeData.colorScheme.onPrimary,
-          ),
-        ),
-        backgroundColor: isError
-            ? themeData.colorScheme.error
-            : themeData.colorScheme.primary,
+        content: Text(message, style: const TextStyle(color: Colors.white)),
+        backgroundColor: isError ? Colors.red : Colors.green,
       ),
     );
   }
@@ -665,138 +743,140 @@ class _AddOffensePageState extends State<AddOffensePage> {
     final pickedDate = await showDatePicker(
       context: context,
       initialDate: DateTime.now(),
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2101),
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now(),
       builder: (context, child) =>
           Theme(data: controller.currentBodyTheme.value, child: child!),
     );
     if (pickedDate != null && mounted) {
-      setState(() {
-        _offenseTimeController.text = formatDate(pickedDate);
-      });
+      setState(() => _offenseTimeController.text = formatDate(pickedDate));
     }
+  }
+
+  Widget _buildTextField(
+      String label, TextEditingController controller, ThemeData themeData,
+      {TextInputType? keyboardType,
+      bool readOnly = false,
+      VoidCallback? onTap,
+      bool required = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6.0),
+      child: TextFormField(
+        controller: controller,
+        style: TextStyle(color: themeData.colorScheme.onSurface),
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: TextStyle(color: themeData.colorScheme.onSurfaceVariant),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
+          enabledBorder: OutlineInputBorder(
+              borderSide: BorderSide(
+                  color: themeData.colorScheme.outline.withOpacity(0.3))),
+          focusedBorder: OutlineInputBorder(
+              borderSide:
+                  BorderSide(color: themeData.colorScheme.primary, width: 1.5)),
+          filled: true,
+          fillColor: themeData.colorScheme.surfaceContainerLowest,
+          suffixIcon: readOnly
+              ? Icon(Icons.calendar_today,
+                  size: 18, color: themeData.colorScheme.primary)
+              : null,
+        ),
+        keyboardType: keyboardType,
+        readOnly: readOnly,
+        onTap: onTap,
+        validator:
+            required ? (value) => value!.isEmpty ? '$label不能为空' : null : null,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Obx(() {
       final themeData = controller.currentBodyTheme.value;
-
-      return Theme(
-        data: themeData,
-        child: Scaffold(
-          backgroundColor: themeData.colorScheme.surface,
-          appBar: AppBar(
-            title: Text(
-              '添加新违法行为',
-              style: themeData.textTheme.headlineSmall?.copyWith(
-                color: themeData.colorScheme.onPrimaryContainer,
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
-              ),
-            ),
-            leading: IconButton(
-              icon: Icon(
-                Icons.arrow_back,
-                color: themeData.colorScheme.onPrimaryContainer,
-              ),
-              onPressed: () => Get.back(),
-            ),
-            backgroundColor: themeData.colorScheme.primaryContainer,
-            elevation: 1,
-          ),
-          body: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: _isLoading
-                  ? Center(
-                      child: CircularProgressIndicator(
-                        color: themeData.colorScheme.primary,
-                      ),
-                    )
-                  : Form(
-                      key: _formKey,
-                      child: SingleChildScrollView(
-                        child: _buildOffenseForm(themeData),
-                      ),
+      return Scaffold(
+        backgroundColor: themeData.colorScheme.surface,
+        appBar: AppBar(
+          title: Text('添加新违法行为',
+              style: themeData.textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: themeData.colorScheme.onPrimaryContainer)),
+          backgroundColor: themeData.colorScheme.primaryContainer,
+          foregroundColor: themeData.colorScheme.onPrimaryContainer,
+          elevation: 2,
+        ),
+        body: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : Form(
+                  key: _formKey,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        Card(
+                          elevation: 3,
+                          color: themeData.colorScheme.surfaceContainer,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16.0)),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              children: [
+                                _buildTextField(
+                                    '司机姓名', _driverNameController, themeData,
+                                    required: true),
+                                _buildTextField(
+                                    '车牌号', _licensePlateController, themeData,
+                                    required: true),
+                                _buildTextField(
+                                    '违法类型', _offenseTypeController, themeData,
+                                    required: true),
+                                _buildTextField(
+                                    '违法代码', _offenseCodeController, themeData),
+                                _buildTextField('违法地点',
+                                    _offenseLocationController, themeData),
+                                _buildTextField(
+                                    '违法时间', _offenseTimeController, themeData,
+                                    readOnly: true, onTap: _pickDate),
+                                _buildTextField(
+                                    '扣分', _deductedPointsController, themeData,
+                                    keyboardType: TextInputType.number),
+                                _buildTextField(
+                                    '罚款金额', _fineAmountController, themeData,
+                                    keyboardType:
+                                        const TextInputType.numberWithOptions(
+                                            decimal: true)),
+                                _buildTextField('处理状态',
+                                    _processStatusController, themeData),
+                                _buildTextField('处理结果',
+                                    _processResultController, themeData),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        ElevatedButton(
+                          onPressed: _submitOffense,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: themeData.colorScheme.primary,
+                            foregroundColor: themeData.colorScheme.onPrimary,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12.0)),
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 14.0, horizontal: 20.0),
+                            textStyle: themeData.textTheme.labelLarge
+                                ?.copyWith(fontWeight: FontWeight.bold),
+                          ),
+                          child: const Text('提交'),
+                        ),
+                      ],
                     ),
-            ),
-          ),
+                  ),
+                ),
         ),
       );
     });
-  }
-
-  Widget _buildOffenseForm(ThemeData themeData) {
-    return Column(
-      children: [
-        _buildTextField(themeData, '司机姓名', Icons.person, _driverNameController,
-            required: true),
-        const SizedBox(height: 12),
-        _buildTextField(
-            themeData, '车牌号', Icons.directions_car, _licensePlateController,
-            required: true),
-        const SizedBox(height: 12),
-        _buildTextField(
-            themeData, '违法类型', Icons.warning, _offenseTypeController,
-            required: true),
-        const SizedBox(height: 12),
-        _buildTextField(themeData, '违法代码', Icons.code, _offenseCodeController),
-        const SizedBox(height: 12),
-        _buildTextField(
-            themeData, '违法地点', Icons.location_on, _offenseLocationController),
-        const SizedBox(height: 12),
-        _buildTextField(
-            themeData, '违法时间', Icons.calendar_today, _offenseTimeController,
-            readOnly: true, onTap: _pickDate),
-        const SizedBox(height: 12),
-        _buildTextField(
-            themeData, '扣分', Icons.remove_circle, _deductedPointsController,
-            keyboardType: TextInputType.number),
-        const SizedBox(height: 12),
-        _buildTextField(themeData, '罚款金额', Icons.money, _fineAmountController,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true)),
-        const SizedBox(height: 12),
-        _buildTextField(
-            themeData, '处理状态', Icons.assignment, _processStatusController),
-        const SizedBox(height: 12),
-        _buildTextField(
-            themeData, '处理结果', Icons.check_circle, _processResultController),
-        const SizedBox(height: 20),
-        ElevatedButton(
-          onPressed: _submitOffense,
-          style: themeData.elevatedButtonTheme.style,
-          child: const Text('提交'),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTextField(ThemeData themeData, String label, IconData icon,
-      TextEditingController controller,
-      {TextInputType? keyboardType,
-      bool readOnly = false,
-      VoidCallback? onTap,
-      bool required = false}) {
-    return TextFormField(
-      controller: controller,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon, color: themeData.colorScheme.primary),
-        border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8.0),
-            borderSide: BorderSide.none),
-        filled: true,
-        fillColor: themeData.colorScheme.surfaceContainerLow,
-        labelStyle: TextStyle(color: themeData.colorScheme.onSurfaceVariant),
-      ),
-      style: TextStyle(color: themeData.colorScheme.onSurface),
-      keyboardType: keyboardType,
-      readOnly: readOnly,
-      onTap: onTap,
-      validator:
-          required ? (value) => value!.isEmpty ? '$label不能为空' : null : null,
-    );
   }
 }
 
@@ -825,56 +905,50 @@ class _OffenseDetailPageState extends State<OffenseDetailPage> {
   }
 
   Future<void> _initialize() async {
-    await offenseApi.initializeWithJwt();
-    _checkUserRole();
+    setState(() => _isLoading = true);
+    try {
+      await offenseApi.initializeWithJwt();
+      await _checkUserRole();
+    } catch (e) {
+      setState(() => _errorMessage = '初始化失败: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
   Future<void> _checkUserRole() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final jwtToken = prefs.getString('jwtToken');
-      if (jwtToken == null) {
-        setState(() {
-          _errorMessage = '未登录，请重新登录';
-          _isLoading = false;
-        });
-        return;
-      }
+      if (jwtToken == null) throw Exception('未登录，请重新登录');
       final response = await http.get(
         Uri.parse('http://localhost:8081/api/users/me'),
-        // Adjust URL as per your backend
         headers: {
-          'Content-Type': 'application/json',
           'Authorization': 'Bearer $jwtToken',
+          'Content-Type': 'application/json',
         },
       );
       if (response.statusCode == 200) {
-        final roleData = jsonDecode(response.body);
-        final roles = roleData['roles'] as List<dynamic>;
-        setState(() {
-          _isEditable = roles.contains('ADMIN');
-          _isLoading = false;
-        });
+        final userData = jsonDecode(utf8.decode(response.bodyBytes));
+        final roles = (userData['roles'] as List<dynamic>?)
+                ?.map((r) => r.toString())
+                .toList() ??
+            [];
+        setState(() => _isEditable = roles.contains('ROLE_ADMIN'));
       } else {
-        throw Exception('验证失败：${response.statusCode} - ${response.body}');
+        throw Exception('验证失败：${response.statusCode}');
       }
     } catch (e) {
-      setState(() {
-        _errorMessage = '加载权限失败: $e';
-        _isLoading = false;
-      });
+      setState(() => _errorMessage = '加载权限失败: $e');
     }
   }
 
   Future<void> _deleteOffense(int offenseId) async {
-    final confirmed = await _showConfirmationDialog('确认删除', '您确定要删除此违法信息吗？');
-    if (!confirmed) return;
-
     setState(() => _isLoading = true);
     try {
       await offenseApi.apiOffensesOffenseIdDelete(offenseId: offenseId);
       _showSnackBar('删除违法信息成功！');
-      if (mounted) Get.back(result: true);
+      if (mounted) Navigator.pop(context, true);
     } catch (e) {
       _showSnackBar('删除失败: $e', isError: true);
     } finally {
@@ -884,230 +958,10 @@ class _OffenseDetailPageState extends State<OffenseDetailPage> {
 
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    final themeData = controller.currentBodyTheme.value;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(
-          message,
-          style: TextStyle(
-            color: isError
-                ? themeData.colorScheme.onError
-                : themeData.colorScheme.onPrimary,
-          ),
-        ),
-        backgroundColor: isError
-            ? themeData.colorScheme.error
-            : themeData.colorScheme.primary,
-      ),
-    );
-  }
-
-  Future<bool> _showConfirmationDialog(String title, String content) async {
-    if (!mounted) return false;
-    final themeData = controller.currentBodyTheme.value;
-    return await showDialog<bool>(
-          context: context,
-          builder: (context) => Theme(
-            data: themeData,
-            child: AlertDialog(
-              backgroundColor: themeData.colorScheme.surfaceContainer,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16.0)),
-              title: Text(title,
-                  style: themeData.textTheme.titleMedium
-                      ?.copyWith(color: themeData.colorScheme.onSurface)),
-              content: Text(content,
-                  style: themeData.textTheme.bodyMedium?.copyWith(
-                      color: themeData.colorScheme.onSurfaceVariant)),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: Text('取消',
-                      style: themeData.textTheme.labelMedium
-                          ?.copyWith(color: themeData.colorScheme.onSurface)),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.pop(context, true),
-                  child: Text('确定',
-                      style: themeData.textTheme.labelMedium
-                          ?.copyWith(color: themeData.colorScheme.primary)),
-                ),
-              ],
-            ),
-          ),
-        ) ??
-        false;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Obx(() {
-      final themeData = controller.currentBodyTheme.value;
-
-      if (_errorMessage.isNotEmpty) {
-        return Theme(
-          data: themeData,
-          child: CupertinoPageScaffold(
-            backgroundColor: themeData.colorScheme.surface,
-            child: Center(
-              child: Text(
-                _errorMessage,
-                style: themeData.textTheme.titleMedium?.copyWith(
-                  color: themeData.colorScheme.error,
-                  fontWeight: FontWeight.w500,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ),
-        );
-      }
-
-      return Theme(
-        data: themeData,
-        child: CupertinoPageScaffold(
-          backgroundColor: themeData.colorScheme.surface,
-          navigationBar: CupertinoNavigationBar(
-            middle: Text(
-              '违法行为详情',
-              style: themeData.textTheme.headlineSmall?.copyWith(
-                color: themeData.colorScheme.onPrimaryContainer,
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
-              ),
-            ),
-            leading: GestureDetector(
-              onTap: () => Get.back(),
-              child: Icon(
-                CupertinoIcons.back,
-                color: themeData.colorScheme.onPrimaryContainer,
-              ),
-            ),
-            trailing: _isEditable
-                ? GestureDetector(
-                    onTap: () => _showActions(widget.offense),
-                    child: Icon(
-                      CupertinoIcons.ellipsis_vertical,
-                      color: themeData.colorScheme.onPrimaryContainer,
-                    ),
-                  )
-                : null,
-            backgroundColor: themeData.colorScheme.primaryContainer,
-            border: Border(
-              bottom: BorderSide(
-                color: themeData.colorScheme.outline.withOpacity(0.2),
-                width: 1.0,
-              ),
-            ),
-          ),
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: _isLoading
-                  ? Center(
-                      child: CupertinoActivityIndicator(
-                        color: themeData.colorScheme.primary,
-                        radius: 16.0,
-                      ),
-                    )
-                  : CupertinoScrollbar(
-                      controller: ScrollController(),
-                      thumbVisibility: true,
-                      thickness: 6.0,
-                      thicknessWhileDragging: 10.0,
-                      child: SingleChildScrollView(
-                        child: Card(
-                          elevation: 2,
-                          color: themeData.colorScheme.surfaceContainer,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12.0)),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _buildDetailRow(
-                                    '司机姓名',
-                                    widget.offense.driverName ?? '未知',
-                                    themeData),
-                                _buildDetailRow(
-                                    '车牌号',
-                                    widget.offense.licensePlate ?? '未知',
-                                    themeData),
-                                _buildDetailRow(
-                                    '违法类型',
-                                    widget.offense.offenseType ?? '未知',
-                                    themeData),
-                                _buildDetailRow(
-                                    '违法代码',
-                                    widget.offense.offenseCode ?? '未知',
-                                    themeData),
-                                _buildDetailRow(
-                                    '违法地点',
-                                    widget.offense.offenseLocation ?? '未知',
-                                    themeData),
-                                _buildDetailRow(
-                                    '违法时间',
-                                    formatDate(widget.offense.offenseTime),
-                                    themeData),
-                                _buildDetailRow(
-                                    '扣分',
-                                    widget.offense.deductedPoints?.toString() ??
-                                        '未知',
-                                    themeData),
-                                _buildDetailRow(
-                                    '罚款金额',
-                                    widget.offense.fineAmount?.toString() ??
-                                        '未知',
-                                    themeData),
-                                _buildDetailRow(
-                                    '处理状态',
-                                    widget.offense.processStatus ?? '未知',
-                                    themeData),
-                                _buildDetailRow(
-                                    '处理结果',
-                                    widget.offense.processResult ?? '未知',
-                                    themeData),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-            ),
-          ),
-        ),
-      );
-    });
-  }
-
-  void _showActions(OffenseInformation offense) {
-    showCupertinoModalPopup(
-      context: context,
-      builder: (context) => CupertinoActionSheet(
-        actions: [
-          CupertinoActionSheetAction(
-            onPressed: () {
-              Navigator.pop(context);
-              Get.to(() => EditOffensePage(offense: offense))?.then((value) {
-                if (value == true && mounted) Get.back(result: true);
-              });
-            },
-            child: const Text('编辑'),
-          ),
-          CupertinoActionSheetAction(
-            onPressed: () {
-              Navigator.pop(context);
-              _deleteOffense(offense.offenseId ?? 0);
-            },
-            isDestructiveAction: true,
-            child: const Text('删除'),
-          ),
-        ],
-        cancelButton: CupertinoActionSheetAction(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('取消'),
-        ),
+        content: Text(message, style: const TextStyle(color: Colors.white)),
+        backgroundColor: isError ? Colors.red : Colors.green,
       ),
     );
   }
@@ -1118,24 +972,189 @@ class _OffenseDetailPageState extends State<OffenseDetailPage> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '$label: ',
-            style: themeData.textTheme.bodyLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: themeData.colorScheme.onSurface,
-            ),
-          ),
+          Text('$label: ',
+              style: themeData.textTheme.bodyLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: themeData.colorScheme.onSurface)),
           Expanded(
-            child: Text(
-              value,
-              style: themeData.textTheme.bodyMedium?.copyWith(
-                color: themeData.colorScheme.onSurfaceVariant,
-              ),
-            ),
+            child: Text(value,
+                style: themeData.textTheme.bodyMedium
+                    ?.copyWith(color: themeData.colorScheme.onSurfaceVariant)),
           ),
         ],
       ),
     );
+  }
+
+  void _showDeleteConfirmationDialog(String action, VoidCallback onConfirm) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        final themeData = controller.currentBodyTheme.value;
+        return AlertDialog(
+          backgroundColor: themeData.colorScheme.surfaceContainerHighest,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text('确认删除',
+              style: themeData.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: themeData.colorScheme.onSurface)),
+          content: Text('您确定要$action此违法信息吗？此操作不可撤销。',
+              style: themeData.textTheme.bodyMedium
+                  ?.copyWith(color: themeData.colorScheme.onSurfaceVariant)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text('取消',
+                  style: themeData.textTheme.labelLarge?.copyWith(
+                      color: themeData.colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                onConfirm();
+                Navigator.pop(ctx);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: themeData.colorScheme.error,
+                foregroundColor: themeData.colorScheme.onError,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              ),
+              child: const Text('删除'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final themeData = controller.currentBodyTheme.value;
+      if (_errorMessage.isNotEmpty) {
+        return Scaffold(
+          backgroundColor: themeData.colorScheme.surface,
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(_errorMessage,
+                    style: themeData.textTheme.titleMedium?.copyWith(
+                        color: themeData.colorScheme.error,
+                        fontWeight: FontWeight.w500),
+                    textAlign: TextAlign.center),
+                if (_errorMessage.contains('登录'))
+                  Padding(
+                    padding: const EdgeInsets.only(top: 16.0),
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pushReplacementNamed(
+                          context, AppPages.login),
+                      style: ElevatedButton.styleFrom(
+                          backgroundColor: themeData.colorScheme.primary,
+                          foregroundColor: themeData.colorScheme.onPrimary),
+                      child: const Text('前往登录'),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      }
+
+      return Scaffold(
+        backgroundColor: themeData.colorScheme.surface,
+        appBar: AppBar(
+          title: Text('违法行为详情',
+              style: themeData.textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: themeData.colorScheme.onPrimaryContainer)),
+          backgroundColor: themeData.colorScheme.primaryContainer,
+          foregroundColor: themeData.colorScheme.onPrimaryContainer,
+          elevation: 2,
+          actions: _isEditable
+              ? [
+                  IconButton(
+                    icon: const Icon(Icons.edit),
+                    onPressed: () {
+                      Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (context) =>
+                                      EditOffensePage(offense: widget.offense)))
+                          .then((value) {
+                        if (value == true && mounted) {
+                          Navigator.pop(context, true);
+                        }
+                      });
+                    },
+                    tooltip: '编辑违法信息',
+                  ),
+                  IconButton(
+                    icon:
+                        Icon(Icons.delete, color: themeData.colorScheme.error),
+                    onPressed: () => _showDeleteConfirmationDialog('删除',
+                        () => _deleteOffense(widget.offense.offenseId ?? 0)),
+                    tooltip: '删除违法信息',
+                  ),
+                ]
+              : [],
+        ),
+        body: _isLoading
+            ? Center(
+                child: CircularProgressIndicator(
+                    valueColor:
+                        AlwaysStoppedAnimation(themeData.colorScheme.primary)))
+            : Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Card(
+                  elevation: 3,
+                  color: themeData.colorScheme.surfaceContainer,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16.0)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildDetailRow('司机姓名',
+                              widget.offense.driverName ?? '未知', themeData),
+                          _buildDetailRow('车牌号',
+                              widget.offense.licensePlate ?? '未知', themeData),
+                          _buildDetailRow('违法类型',
+                              widget.offense.offenseType ?? '未知', themeData),
+                          _buildDetailRow('违法代码',
+                              widget.offense.offenseCode ?? '无', themeData),
+                          _buildDetailRow('违法地点',
+                              widget.offense.offenseLocation ?? '无', themeData),
+                          _buildDetailRow(
+                              '违法时间',
+                              formatDate(widget.offense.offenseTime),
+                              themeData),
+                          _buildDetailRow(
+                              '扣分',
+                              widget.offense.deductedPoints?.toString() ?? '无',
+                              themeData),
+                          _buildDetailRow(
+                              '罚款金额',
+                              widget.offense.fineAmount?.toString() ?? '无',
+                              themeData),
+                          _buildDetailRow('处理状态',
+                              widget.offense.processStatus ?? '无', themeData),
+                          _buildDetailRow('处理结果',
+                              widget.offense.processResult ?? '无', themeData),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+      );
+    });
   }
 }
 
@@ -1169,8 +1188,19 @@ class _EditOffensePageState extends State<EditOffensePage> {
   @override
   void initState() {
     super.initState();
-    _initializeFields();
-    offenseApi.initializeWithJwt();
+    _initialize();
+  }
+
+  Future<void> _initialize() async {
+    setState(() => _isLoading = true);
+    try {
+      await offenseApi.initializeWithJwt();
+      _initializeFields();
+    } catch (e) {
+      _showSnackBar('初始化失败: $e', isError: true);
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
   void _initializeFields() {
@@ -1207,35 +1237,57 @@ class _EditOffensePageState extends State<EditOffensePage> {
 
     setState(() => _isLoading = true);
     try {
-      DateTime? offenseTime;
-      if (_offenseTimeController.text.isNotEmpty) {
-        offenseTime =
-            DateTime.parse("${_offenseTimeController.text.trim()}T00:00:00");
-      }
+      final offenseTime = _offenseTimeController.text.isEmpty
+          ? null
+          : DateTime.parse(
+              "${_offenseTimeController.text.trim()}T00:00:00.000");
 
-      final updatedOffense = OffenseInformation(
-        offenseId: widget.offense.offenseId,
-        driverName: _driverNameController.text.trim(),
-        licensePlate: _licensePlateController.text.trim(),
-        offenseType: _offenseTypeController.text.trim(),
-        offenseCode: _offenseCodeController.text.trim(),
-        offenseLocation: _offenseLocationController.text.trim(),
-        offenseTime: offenseTime,
-        deductedPoints: int.tryParse(_deductedPointsController.text.trim()),
-        fineAmount: num.tryParse(_fineAmountController.text.trim()),
-        processStatus: _processStatusController.text.trim(),
-        processResult: _processResultController.text.trim(),
-      );
+      final offensePayload = {
+        'offenseId': widget.offense.offenseId,
+        'driverName': _driverNameController.text.trim(),
+        'licensePlate': _licensePlateController.text.trim(),
+        'offenseType': _offenseTypeController.text.trim(),
+        'offenseCode': _offenseCodeController.text.trim().isEmpty
+            ? null
+            : _offenseCodeController.text.trim(),
+        'offenseLocation': _offenseLocationController.text.trim().isEmpty
+            ? null
+            : _offenseLocationController.text.trim(),
+        'offenseTime': offenseTime?.toIso8601String(),
+        'deductedPoints': _deductedPointsController.text.trim().isEmpty
+            ? null
+            : int.parse(_deductedPointsController.text.trim()),
+        'fineAmount': _fineAmountController.text.trim().isEmpty
+            ? null
+            : num.parse(_fineAmountController.text.trim()),
+        'processStatus': _processStatusController.text.trim().isEmpty
+            ? null
+            : _processStatusController.text.trim(),
+        'processResult': _processResultController.text.trim().isEmpty
+            ? null
+            : _processResultController.text.trim(),
+      };
 
       final idempotencyKey = generateIdempotencyKey();
-      await offenseApi.apiOffensesOffenseIdPut(
-        offenseId: widget.offense.offenseId ?? 0,
-        offenseInformation: updatedOffense,
-        idempotencyKey: idempotencyKey,
+      final prefs = await SharedPreferences.getInstance();
+      final jwtToken = prefs.getString('jwtToken');
+      final response = await http.put(
+        Uri.parse(
+            'http://localhost:8081/api/offenses/${widget.offense.offenseId}?idempotencyKey=$idempotencyKey'),
+        headers: {
+          'Authorization': 'Bearer $jwtToken',
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+        body: jsonEncode(offensePayload),
       );
 
+      if (response.statusCode != 200) {
+        throw Exception(
+            'Failed to update offense: ${response.statusCode} - ${response.body}');
+      }
+
       _showSnackBar('更新违法行为记录成功！');
-      if (mounted) Get.back(result: true);
+      if (mounted) Navigator.pop(context, true);
     } catch (e) {
       _showSnackBar('更新违法行为记录失败: $e', isError: true);
     } finally {
@@ -1245,20 +1297,10 @@ class _EditOffensePageState extends State<EditOffensePage> {
 
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    final themeData = controller.currentBodyTheme.value;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(
-          message,
-          style: TextStyle(
-            color: isError
-                ? themeData.colorScheme.onError
-                : themeData.colorScheme.onPrimary,
-          ),
-        ),
-        backgroundColor: isError
-            ? themeData.colorScheme.error
-            : themeData.colorScheme.primary,
+        content: Text(message, style: const TextStyle(color: Colors.white)),
+        backgroundColor: isError ? Colors.red : Colors.green,
       ),
     );
   }
@@ -1267,146 +1309,139 @@ class _EditOffensePageState extends State<EditOffensePage> {
     final pickedDate = await showDatePicker(
       context: context,
       initialDate: widget.offense.offenseTime ?? DateTime.now(),
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2101),
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now(),
       builder: (context, child) =>
           Theme(data: controller.currentBodyTheme.value, child: child!),
     );
     if (pickedDate != null && mounted) {
-      setState(() {
-        _offenseTimeController.text = formatDate(pickedDate);
-      });
+      setState(() => _offenseTimeController.text = formatDate(pickedDate));
     }
+  }
+
+  Widget _buildTextField(
+      String label, TextEditingController controller, ThemeData themeData,
+      {TextInputType? keyboardType,
+      bool readOnly = false,
+      VoidCallback? onTap,
+      bool required = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6.0),
+      child: TextFormField(
+        controller: controller,
+        style: TextStyle(color: themeData.colorScheme.onSurface),
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: TextStyle(color: themeData.colorScheme.onSurfaceVariant),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
+          enabledBorder: OutlineInputBorder(
+              borderSide: BorderSide(
+                  color: themeData.colorScheme.outline.withOpacity(0.3))),
+          focusedBorder: OutlineInputBorder(
+              borderSide:
+                  BorderSide(color: themeData.colorScheme.primary, width: 1.5)),
+          filled: true,
+          fillColor: themeData.colorScheme.surfaceContainerLowest,
+          suffixIcon: readOnly
+              ? Icon(Icons.calendar_today,
+                  size: 18, color: themeData.colorScheme.primary)
+              : null,
+        ),
+        keyboardType: keyboardType,
+        readOnly: readOnly,
+        onTap: onTap,
+        validator:
+            required ? (value) => value!.isEmpty ? '$label不能为空' : null : null,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Obx(() {
       final themeData = controller.currentBodyTheme.value;
-
-      return Theme(
-        data: themeData,
-        child: CupertinoPageScaffold(
-          backgroundColor: themeData.colorScheme.surface,
-          navigationBar: CupertinoNavigationBar(
-            middle: Text(
-              '编辑违法行为信息',
-              style: themeData.textTheme.headlineSmall?.copyWith(
-                color: themeData.colorScheme.onPrimaryContainer,
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
-              ),
-            ),
-            leading: GestureDetector(
-              onTap: () => Get.back(),
-              child: Icon(
-                CupertinoIcons.back,
-                color: themeData.colorScheme.onPrimaryContainer,
-              ),
-            ),
-            backgroundColor: themeData.colorScheme.primaryContainer,
-            border: Border(
-              bottom: BorderSide(
-                color: themeData.colorScheme.outline.withOpacity(0.2),
-                width: 1.0,
-              ),
-            ),
-          ),
-          child: SafeArea(
-            child: Material(
-              color: themeData.colorScheme.surface,
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: _isLoading
-                    ? Center(
-                        child: CupertinoActivityIndicator(
-                          color: themeData.colorScheme.primary,
-                          radius: 16.0,
+      return Scaffold(
+        backgroundColor: themeData.colorScheme.surface,
+        appBar: AppBar(
+          title: Text('编辑违法行为信息',
+              style: themeData.textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: themeData.colorScheme.onPrimaryContainer)),
+          backgroundColor: themeData.colorScheme.primaryContainer,
+          foregroundColor: themeData.colorScheme.onPrimaryContainer,
+          elevation: 2,
+        ),
+        body: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : Form(
+                  key: _formKey,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        Card(
+                          elevation: 3,
+                          color: themeData.colorScheme.surfaceContainer,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16.0)),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              children: [
+                                _buildTextField(
+                                    '司机姓名', _driverNameController, themeData,
+                                    required: true),
+                                _buildTextField(
+                                    '车牌号', _licensePlateController, themeData,
+                                    required: true),
+                                _buildTextField(
+                                    '违法类型', _offenseTypeController, themeData,
+                                    required: true),
+                                _buildTextField(
+                                    '违法代码', _offenseCodeController, themeData),
+                                _buildTextField('违法地点',
+                                    _offenseLocationController, themeData),
+                                _buildTextField(
+                                    '违法时间', _offenseTimeController, themeData,
+                                    readOnly: true, onTap: _pickDate),
+                                _buildTextField(
+                                    '扣分', _deductedPointsController, themeData,
+                                    keyboardType: TextInputType.number),
+                                _buildTextField(
+                                    '罚款金额', _fineAmountController, themeData,
+                                    keyboardType:
+                                        const TextInputType.numberWithOptions(
+                                            decimal: true)),
+                                _buildTextField('处理状态',
+                                    _processStatusController, themeData),
+                                _buildTextField('处理结果',
+                                    _processResultController, themeData),
+                              ],
+                            ),
+                          ),
                         ),
-                      )
-                    : Form(
-                        key: _formKey,
-                        child: SingleChildScrollView(
-                          child: _buildOffenseForm(themeData),
+                        const SizedBox(height: 20),
+                        ElevatedButton(
+                          onPressed: _updateOffense,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: themeData.colorScheme.primary,
+                            foregroundColor: themeData.colorScheme.onPrimary,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12.0)),
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 14.0, horizontal: 20.0),
+                            textStyle: themeData.textTheme.labelLarge
+                                ?.copyWith(fontWeight: FontWeight.bold),
+                          ),
+                          child: const Text('保存'),
                         ),
-                      ),
-              ),
-            ),
-          ),
+                      ],
+                    ),
+                  ),
+                ),
         ),
       );
     });
-  }
-
-  Widget _buildOffenseForm(ThemeData themeData) {
-    return Column(
-      children: [
-        _buildTextField(themeData, '司机姓名', Icons.person, _driverNameController,
-            required: true),
-        const SizedBox(height: 12),
-        _buildTextField(
-            themeData, '车牌号', Icons.directions_car, _licensePlateController,
-            required: true),
-        const SizedBox(height: 12),
-        _buildTextField(
-            themeData, '违法类型', Icons.warning, _offenseTypeController,
-            required: true),
-        const SizedBox(height: 12),
-        _buildTextField(themeData, '违法代码', Icons.code, _offenseCodeController),
-        const SizedBox(height: 12),
-        _buildTextField(
-            themeData, '违法地点', Icons.location_on, _offenseLocationController),
-        const SizedBox(height: 12),
-        _buildTextField(
-            themeData, '违法时间', Icons.calendar_today, _offenseTimeController,
-            readOnly: true, onTap: _pickDate),
-        const SizedBox(height: 12),
-        _buildTextField(
-            themeData, '扣分', Icons.remove_circle, _deductedPointsController,
-            keyboardType: TextInputType.number),
-        const SizedBox(height: 12),
-        _buildTextField(themeData, '罚款金额', Icons.money, _fineAmountController,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true)),
-        const SizedBox(height: 12),
-        _buildTextField(
-            themeData, '处理状态', Icons.assignment, _processStatusController),
-        const SizedBox(height: 12),
-        _buildTextField(
-            themeData, '处理结果', Icons.check_circle, _processResultController),
-        const SizedBox(height: 20),
-        ElevatedButton(
-          onPressed: _updateOffense,
-          style: themeData.elevatedButtonTheme.style,
-          child: const Text('保存'),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTextField(ThemeData themeData, String label, IconData icon,
-      TextEditingController controller,
-      {TextInputType? keyboardType,
-      bool readOnly = false,
-      VoidCallback? onTap,
-      bool required = false}) {
-    return TextFormField(
-      controller: controller,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon, color: themeData.colorScheme.primary),
-        border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8.0),
-            borderSide: BorderSide.none),
-        filled: true,
-        fillColor: themeData.colorScheme.surfaceContainerLow,
-        labelStyle: TextStyle(color: themeData.colorScheme.onSurfaceVariant),
-      ),
-      style: TextStyle(color: themeData.colorScheme.onSurface),
-      keyboardType: keyboardType,
-      readOnly: readOnly,
-      onTap: onTap,
-      validator:
-          required ? (value) => value!.isEmpty ? '$label不能为空' : null : null,
-    );
   }
 }
