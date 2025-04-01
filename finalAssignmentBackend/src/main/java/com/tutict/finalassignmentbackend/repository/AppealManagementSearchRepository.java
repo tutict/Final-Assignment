@@ -25,6 +25,12 @@ public interface AppealManagementSearchRepository extends ElasticsearchRepositor
     @Query("{\"bool\": {\"must\": [{\"match\": {\"appealReason\": {\"query\": \"?0\", \"fuzziness\": \"AUTO\"}}}]}}")
     SearchHits<AppealManagementDocument> searchByAppealReasonFuzzy(String appealReason);
 
+    // New aggregation method with query_string
+    @Query("{\"bool\": {\"filter\": [{\"range\": {\"appealTime\": {\"gte\": \"?0\"}}], " +
+            "\"must\": [{\"query_string\": {\"query\": \"*?1*\", \"fields\": [\"appealReason.ngram\"]}}]}, " +
+            "\"aggs\": {\"by_reason\": {\"terms\": {\"field\": \"appealReason.keyword\", \"size\": 10}}}}")
+    SearchHits<AppealManagementDocument> aggregateByAppealReason(String fromTime, String appealReason);
+
     // 按 processStatus 精确匹配
     @Query("{\"bool\": {\"filter\": [{\"term\": {\"processStatus.keyword\": \"?0\"}}]}}")
     SearchHits<AppealManagementDocument> searchByProcessStatus(String processStatus);

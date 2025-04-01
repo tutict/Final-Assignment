@@ -29,4 +29,16 @@ public interface OffenseInformationSearchRepository extends ElasticsearchReposit
 
     @Query("{\"bool\": {\"must\": [{\"match\": {\"driverName\": {\"query\": \"?0\", \"fuzziness\": \"AUTO\"}}}]}}")
     SearchHits<OffenseInformationDocument> searchByDriverNameFuzzy(String driverName);
+
+    // Custom aggregation for violation type counts
+    @Query("{\"bool\": {\"filter\": [{\"range\": {\"offenseTime\": {\"gte\": \"?0\"}}]}, " +
+            "\"aggs\": {\"by_type\": {\"terms\": {\"field\": \"offenseType.keyword\", \"size\": 10}}}}")
+    SearchHits<OffenseInformationDocument> aggregateByOffenseType(String fromTime);
+
+    // Custom aggregation for time-series data
+    @Query("{\"bool\": {\"filter\": [{\"range\": {\"offenseTime\": {\"gte\": \"?0\"}}]}, " +
+            "\"aggs\": {\"by_day\": {\"date_histogram\": {\"field\": \"offenseTime\", \"calendar_interval\": \"day\"}, " +
+            "\"aggs\": {\"total_fine\": {\"sum\": {\"field\": \"fineAmount\"}}, " +
+            "\"total_points\": {\"sum\": {\"field\": \"deductedPoints\"}}}}}}")
+    SearchHits<OffenseInformationDocument> aggregateByDate(String fromTime);
 }

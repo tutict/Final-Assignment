@@ -145,14 +145,16 @@ class _DriverListPageState extends State<DriverList> {
         content: Text(
           message,
           style: TextStyle(
-            color: isError
-                ? themeData.colorScheme.onError
-                : themeData.colorScheme.onPrimary,
-          ),
+              color: isError
+                  ? themeData.colorScheme.onError
+                  : themeData.colorScheme.onPrimary),
         ),
         backgroundColor: isError
             ? themeData.colorScheme.error
             : themeData.colorScheme.primary,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
+        margin: const EdgeInsets.all(10.0),
       ),
     );
   }
@@ -161,6 +163,184 @@ class _DriverListPageState extends State<DriverList> {
     Get.to(() => DriverDetailPage(driver: driver))?.then((value) {
       if (value == true && mounted) _loadDrivers();
     });
+  }
+
+  Widget _buildSearchBar(ThemeData themeData) {
+    return Card(
+      elevation: 4,
+      color: themeData.colorScheme.surfaceContainerLowest,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _nameController,
+                    style: themeData.textTheme.bodyMedium
+                        ?.copyWith(color: themeData.colorScheme.onSurface),
+                    decoration: InputDecoration(
+                      labelText: '按姓名搜索',
+                      labelStyle: themeData.textTheme.bodyMedium?.copyWith(
+                          color: themeData.colorScheme.onSurfaceVariant),
+                      prefixIcon: Icon(Icons.person,
+                          color: themeData.colorScheme.primary),
+                      suffixIcon: _nameController.text.isNotEmpty
+                          ? IconButton(
+                              icon: Icon(Icons.clear,
+                                  color:
+                                      themeData.colorScheme.onSurfaceVariant),
+                              onPressed: () {
+                                _nameController.clear();
+                                _applyFilters();
+                              },
+                            )
+                          : null,
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12.0),
+                          borderSide: BorderSide.none),
+                      filled: true,
+                      fillColor: themeData.colorScheme.surfaceContainer,
+                      contentPadding: const EdgeInsets.symmetric(
+                          vertical: 14.0, horizontal: 16.0),
+                    ),
+                    onChanged: (value) => _applyFilters(),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _idCardNumberController,
+                    style: themeData.textTheme.bodyMedium
+                        ?.copyWith(color: themeData.colorScheme.onSurface),
+                    decoration: InputDecoration(
+                      labelText: '按身份证号搜索',
+                      labelStyle: themeData.textTheme.bodyMedium?.copyWith(
+                          color: themeData.colorScheme.onSurfaceVariant),
+                      prefixIcon: Icon(Icons.card_membership,
+                          color: themeData.colorScheme.primary),
+                      suffixIcon: _idCardNumberController.text.isNotEmpty
+                          ? IconButton(
+                              icon: Icon(Icons.clear,
+                                  color:
+                                      themeData.colorScheme.onSurfaceVariant),
+                              onPressed: () {
+                                _idCardNumberController.clear();
+                                _applyFilters();
+                              },
+                            )
+                          : null,
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12.0),
+                          borderSide: BorderSide.none),
+                      filled: true,
+                      fillColor: themeData.colorScheme.surfaceContainer,
+                      contentPadding: const EdgeInsets.symmetric(
+                          vertical: 14.0, horizontal: 16.0),
+                    ),
+                    keyboardType: TextInputType.number,
+                    onChanged: (value) => _applyFilters(),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _driverLicenseNumberController,
+                    style: themeData.textTheme.bodyMedium
+                        ?.copyWith(color: themeData.colorScheme.onSurface),
+                    decoration: InputDecoration(
+                      labelText: '按驾驶证号搜索',
+                      labelStyle: themeData.textTheme.bodyMedium?.copyWith(
+                          color: themeData.colorScheme.onSurfaceVariant),
+                      prefixIcon: Icon(Icons.drive_eta,
+                          color: themeData.colorScheme.primary),
+                      suffixIcon: _driverLicenseNumberController.text.isNotEmpty
+                          ? IconButton(
+                              icon: Icon(Icons.clear,
+                                  color:
+                                      themeData.colorScheme.onSurfaceVariant),
+                              onPressed: () {
+                                _driverLicenseNumberController.clear();
+                                _applyFilters();
+                              },
+                            )
+                          : null,
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12.0),
+                          borderSide: BorderSide.none),
+                      filled: true,
+                      fillColor: themeData.colorScheme.surfaceContainer,
+                      contentPadding: const EdgeInsets.symmetric(
+                          vertical: 14.0, horizontal: 16.0),
+                    ),
+                    onChanged: (value) => _applyFilters(),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDriverCard(DriverInformation driver, ThemeData themeData) {
+    return Card(
+      elevation: 4,
+      color: themeData.colorScheme.surfaceContainerLowest,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+      margin: const EdgeInsets.symmetric(vertical: 8.0),
+      child: ListTile(
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+        title: Text(
+          '姓名: ${driver.name ?? "未知"} (ID: ${driver.driverId ?? "无"})',
+          style: themeData.textTheme.titleMedium?.copyWith(
+            color: themeData.colorScheme.onSurface,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 4.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '驾驶证号: ${driver.driverLicenseNumber ?? "无"}',
+                style: themeData.textTheme.bodyMedium
+                    ?.copyWith(color: themeData.colorScheme.onSurfaceVariant),
+              ),
+              Text(
+                '联系电话: ${driver.contactNumber ?? "无"}',
+                style: themeData.textTheme.bodyMedium
+                    ?.copyWith(color: themeData.colorScheme.onSurfaceVariant),
+              ),
+              Text(
+                '出生日期: ${formatDateTime(driver.birthdate)}',
+                style: themeData.textTheme.bodyMedium
+                    ?.copyWith(color: themeData.colorScheme.onSurfaceVariant),
+              ),
+            ],
+          ),
+        ),
+        trailing: Icon(
+          CupertinoIcons.forward,
+          color: themeData.colorScheme.primary,
+          size: 18,
+        ),
+        onTap: () => _goToDetailPage(driver),
+      ),
+    );
   }
 
   @override
@@ -186,6 +366,7 @@ class _DriverListPageState extends State<DriverList> {
               child: Icon(
                 CupertinoIcons.back,
                 color: themeData.colorScheme.onPrimaryContainer,
+                size: 24,
               ),
             ),
             trailing: Row(
@@ -196,6 +377,7 @@ class _DriverListPageState extends State<DriverList> {
                   child: Icon(
                     CupertinoIcons.refresh,
                     color: themeData.colorScheme.onPrimaryContainer,
+                    size: 24,
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -207,6 +389,7 @@ class _DriverListPageState extends State<DriverList> {
                   child: Icon(
                     CupertinoIcons.add,
                     color: themeData.colorScheme.onPrimaryContainer,
+                    size: 24,
                   ),
                 ),
               ],
@@ -223,9 +406,10 @@ class _DriverListPageState extends State<DriverList> {
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _buildSearchBar(themeData),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
                   Expanded(
                     child: _isLoading
                         ? Center(
@@ -239,19 +423,25 @@ class _DriverListPageState extends State<DriverList> {
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
+                                    Icon(
+                                      CupertinoIcons.exclamationmark_triangle,
+                                      color: themeData.colorScheme.error,
+                                      size: 48,
+                                    ),
+                                    const SizedBox(height: 16),
                                     Text(
                                       _errorMessage,
-                                      style: themeData.textTheme.bodyLarge
+                                      style: themeData.textTheme.titleMedium
                                           ?.copyWith(
                                         color: themeData.colorScheme.error,
-                                        fontSize: 18,
+                                        fontWeight: FontWeight.w500,
                                       ),
                                       textAlign: TextAlign.center,
                                     ),
                                     if (_errorMessage.contains('无权限'))
                                       Padding(
                                         padding:
-                                            const EdgeInsets.only(top: 16.0),
+                                            const EdgeInsets.only(top: 20.0),
                                         child: ElevatedButton(
                                           onPressed: _redirectToLogin,
                                           style: ElevatedButton.styleFrom(
@@ -259,6 +449,13 @@ class _DriverListPageState extends State<DriverList> {
                                                 themeData.colorScheme.primary,
                                             foregroundColor:
                                                 themeData.colorScheme.onPrimary,
+                                            shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(
+                                                        12.0)),
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 24.0,
+                                                vertical: 12.0),
                                           ),
                                           child: const Text('重新登录'),
                                         ),
@@ -276,15 +473,42 @@ class _DriverListPageState extends State<DriverList> {
                                   color: themeData.colorScheme.primary,
                                   backgroundColor:
                                       themeData.colorScheme.surfaceContainer,
-                                  child: ListView.builder(
-                                    controller: _scrollController,
-                                    itemCount: _filteredDrivers.length,
-                                    itemBuilder: (context, index) {
-                                      final driver = _filteredDrivers[index];
-                                      return _buildDriverCard(
-                                          driver, themeData);
-                                    },
-                                  ),
+                                  child: _filteredDrivers.isEmpty
+                                      ? Center(
+                                          child: Column(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              Icon(
+                                                CupertinoIcons.person_2,
+                                                color: themeData.colorScheme
+                                                    .onSurfaceVariant,
+                                                size: 48,
+                                              ),
+                                              const SizedBox(height: 16),
+                                              Text(
+                                                '暂无司机信息',
+                                                style: themeData
+                                                    .textTheme.bodyMedium
+                                                    ?.copyWith(
+                                                  color: themeData.colorScheme
+                                                      .onSurfaceVariant,
+                                                  fontWeight: FontWeight.w400,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        )
+                                      : ListView.builder(
+                                          controller: _scrollController,
+                                          itemCount: _filteredDrivers.length,
+                                          itemBuilder: (context, index) {
+                                            final driver =
+                                                _filteredDrivers[index];
+                                            return _buildDriverCard(
+                                                driver, themeData);
+                                          },
+                                        ),
                                 ),
                               ),
                   ),
@@ -295,161 +519,6 @@ class _DriverListPageState extends State<DriverList> {
         ),
       );
     });
-  }
-
-  Widget _buildSearchBar(ThemeData themeData) {
-    return Card(
-      elevation: 2,
-      color: themeData.colorScheme.surfaceContainer,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
-      child: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _nameController,
-                    style: TextStyle(color: themeData.colorScheme.onSurface),
-                    decoration: InputDecoration(
-                      labelText: '按姓名搜索',
-                      labelStyle: TextStyle(
-                          color: themeData.colorScheme.onSurfaceVariant),
-                      prefixIcon: Icon(Icons.person,
-                          color: themeData.colorScheme.primary),
-                      suffixIcon: _nameController.text.isNotEmpty
-                          ? IconButton(
-                              icon: Icon(Icons.clear,
-                                  color:
-                                      themeData.colorScheme.onSurfaceVariant),
-                              onPressed: () {
-                                _nameController.clear();
-                                _applyFilters();
-                              },
-                            )
-                          : null,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8.0),
-                        borderSide: BorderSide.none,
-                      ),
-                      filled: true,
-                      fillColor: themeData.colorScheme.surfaceContainerLow,
-                    ),
-                    onChanged: (value) => _applyFilters(),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _idCardNumberController,
-                    style: TextStyle(color: themeData.colorScheme.onSurface),
-                    decoration: InputDecoration(
-                      labelText: '按身份证号搜索',
-                      labelStyle: TextStyle(
-                          color: themeData.colorScheme.onSurfaceVariant),
-                      prefixIcon: Icon(Icons.card_membership,
-                          color: themeData.colorScheme.primary),
-                      suffixIcon: _idCardNumberController.text.isNotEmpty
-                          ? IconButton(
-                              icon: Icon(Icons.clear,
-                                  color:
-                                      themeData.colorScheme.onSurfaceVariant),
-                              onPressed: () {
-                                _idCardNumberController.clear();
-                                _applyFilters();
-                              },
-                            )
-                          : null,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8.0),
-                        borderSide: BorderSide.none,
-                      ),
-                      filled: true,
-                      fillColor: themeData.colorScheme.surfaceContainerLow,
-                    ),
-                    keyboardType: TextInputType.number,
-                    onChanged: (value) => _applyFilters(),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _driverLicenseNumberController,
-                    style: TextStyle(color: themeData.colorScheme.onSurface),
-                    decoration: InputDecoration(
-                      labelText: '按驾驶证号搜索',
-                      labelStyle: TextStyle(
-                          color: themeData.colorScheme.onSurfaceVariant),
-                      prefixIcon: Icon(Icons.drive_eta,
-                          color: themeData.colorScheme.primary),
-                      suffixIcon: _driverLicenseNumberController.text.isNotEmpty
-                          ? IconButton(
-                              icon: Icon(Icons.clear,
-                                  color:
-                                      themeData.colorScheme.onSurfaceVariant),
-                              onPressed: () {
-                                _driverLicenseNumberController.clear();
-                                _applyFilters();
-                              },
-                            )
-                          : null,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8.0),
-                        borderSide: BorderSide.none,
-                      ),
-                      filled: true,
-                      fillColor: themeData.colorScheme.surfaceContainerLow,
-                    ),
-                    onChanged: (value) => _applyFilters(),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDriverCard(DriverInformation driver, ThemeData themeData) {
-    return Card(
-      elevation: 3,
-      color: themeData.colorScheme.surfaceContainer,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
-      margin: const EdgeInsets.symmetric(vertical: 6.0),
-      child: ListTile(
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-        title: Text(
-          '姓名: ${driver.name ?? "未知"} (ID: ${driver.driverId ?? "无"})',
-          style: themeData.textTheme.bodyLarge?.copyWith(
-            color: themeData.colorScheme.onSurface,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        subtitle: Text(
-          '驾驶证号: ${driver.driverLicenseNumber ?? "无"}\n联系电话: ${driver.contactNumber ?? "无"}\n出生日期: ${formatDateTime(driver.birthdate)}',
-          style: themeData.textTheme.bodyMedium?.copyWith(
-            color: themeData.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        trailing: Icon(
-          CupertinoIcons.forward,
-          color: themeData.colorScheme.primary,
-          size: 16,
-        ),
-        onTap: () => _goToDetailPage(driver),
-      ),
-    );
   }
 }
 
@@ -565,14 +634,16 @@ class _AddDriverPageState extends State<AddDriverPage> {
         content: Text(
           message,
           style: TextStyle(
-            color: isError
-                ? themeData.colorScheme.onError
-                : themeData.colorScheme.onPrimary,
-          ),
+              color: isError
+                  ? themeData.colorScheme.onError
+                  : themeData.colorScheme.onPrimary),
         ),
         backgroundColor: isError
             ? themeData.colorScheme.error
             : themeData.colorScheme.primary,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
+        margin: const EdgeInsets.all(10.0),
       ),
     );
   }
@@ -584,8 +655,20 @@ class _AddDriverPageState extends State<AddDriverPage> {
       firstDate: DateTime(1900),
       lastDate: DateTime(2100),
       locale: const Locale('zh', 'CN'),
-      builder: (context, child) =>
-          Theme(data: controller.currentBodyTheme.value, child: child!),
+      builder: (context, child) => Theme(
+        data: controller.currentBodyTheme.value.copyWith(
+          colorScheme: controller.currentBodyTheme.value.colorScheme.copyWith(
+            primary: controller.currentBodyTheme.value.colorScheme.primary,
+            onPrimary: controller.currentBodyTheme.value.colorScheme.onPrimary,
+          ),
+          textButtonTheme: TextButtonThemeData(
+            style: TextButton.styleFrom(
+                foregroundColor:
+                    controller.currentBodyTheme.value.colorScheme.primary),
+          ),
+        ),
+        child: child!,
+      ),
     );
     if (pickedDate != null && mounted) {
       setState(() {
@@ -633,6 +716,7 @@ class _AddDriverPageState extends State<AddDriverPage> {
               child: Icon(
                 CupertinoIcons.back,
                 color: themeData.colorScheme.onPrimaryContainer,
+                size: 24,
               ),
             ),
             backgroundColor: themeData.colorScheme.primaryContainer,
@@ -657,18 +741,19 @@ class _AddDriverPageState extends State<AddDriverPage> {
                       key: _formKey,
                       child: SingleChildScrollView(
                         child: Card(
-                          elevation: 2,
-                          color: themeData.colorScheme.surfaceContainer,
+                          elevation: 4,
+                          color: themeData.colorScheme.surfaceContainerLowest,
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12.0)),
+                              borderRadius: BorderRadius.circular(16.0)),
                           child: Padding(
-                            padding: const EdgeInsets.all(16.0),
+                            padding: const EdgeInsets.all(20.0),
                             child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
                                 _buildTextField(themeData, '姓名 *', Icons.person,
                                     _nameController,
                                     required: true),
-                                const SizedBox(height: 12),
+                                const SizedBox(height: 16),
                                 _buildTextField(
                                     themeData,
                                     '身份证号码 *',
@@ -676,28 +761,28 @@ class _AddDriverPageState extends State<AddDriverPage> {
                                     _idCardNumberController,
                                     keyboardType: TextInputType.number,
                                     required: true),
-                                const SizedBox(height: 12),
+                                const SizedBox(height: 16),
                                 _buildTextField(themeData, '联系电话 *',
                                     Icons.phone, _contactNumberController,
                                     keyboardType: TextInputType.phone,
                                     required: true),
-                                const SizedBox(height: 12),
+                                const SizedBox(height: 16),
                                 _buildTextField(
                                     themeData,
                                     '驾驶证号 *',
                                     Icons.drive_eta,
                                     _driverLicenseNumberController,
                                     required: true),
-                                const SizedBox(height: 12),
+                                const SizedBox(height: 16),
                                 _buildTextField(themeData, '性别',
                                     Icons.person_outline, _genderController),
-                                const SizedBox(height: 12),
+                                const SizedBox(height: 16),
                                 _buildTextField(themeData, '出生日期',
                                     Icons.calendar_today, _birthdateController,
                                     readOnly: true,
                                     onTap: () =>
                                         _selectDate(_birthdateController)),
-                                const SizedBox(height: 12),
+                                const SizedBox(height: 16),
                                 _buildTextField(
                                     themeData,
                                     '首次领证日期',
@@ -706,25 +791,25 @@ class _AddDriverPageState extends State<AddDriverPage> {
                                     readOnly: true,
                                     onTap: () => _selectDate(
                                         _firstLicenseDateController)),
-                                const SizedBox(height: 12),
+                                const SizedBox(height: 16),
                                 _buildTextField(
                                     themeData,
                                     '允许驾驶车辆类型',
                                     Icons.directions_car,
                                     _allowedVehicleTypeController),
-                                const SizedBox(height: 12),
+                                const SizedBox(height: 16),
                                 _buildTextField(themeData, '发证日期',
                                     Icons.calendar_today, _issueDateController,
                                     readOnly: true,
                                     onTap: () =>
                                         _selectDate(_issueDateController)),
-                                const SizedBox(height: 12),
+                                const SizedBox(height: 16),
                                 _buildTextField(themeData, '有效期截止日期',
                                     Icons.calendar_today, _expiryDateController,
                                     readOnly: true,
                                     onTap: () =>
                                         _selectDate(_expiryDateController)),
-                                const SizedBox(height: 20),
+                                const SizedBox(height: 24),
                                 ElevatedButton(
                                   onPressed: _submitDriver,
                                   style: ElevatedButton.styleFrom(
@@ -736,9 +821,17 @@ class _AddDriverPageState extends State<AddDriverPage> {
                                         borderRadius:
                                             BorderRadius.circular(12.0)),
                                     padding: const EdgeInsets.symmetric(
-                                        vertical: 14.0, horizontal: 20.0),
+                                        vertical: 14.0, horizontal: 24.0),
+                                    elevation: 2,
                                   ),
-                                  child: const Text('提交'),
+                                  child: Text(
+                                    '提交',
+                                    style: themeData.textTheme.labelLarge
+                                        ?.copyWith(
+                                      color: themeData.colorScheme.onPrimary,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),
@@ -768,13 +861,17 @@ class _AddDriverPageState extends State<AddDriverPage> {
             ? Icon(Icons.calendar_today, color: themeData.colorScheme.primary)
             : null,
         border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8.0),
+            borderRadius: BorderRadius.circular(12.0),
             borderSide: BorderSide.none),
         filled: true,
-        fillColor: themeData.colorScheme.surfaceContainerLow,
-        labelStyle: TextStyle(color: themeData.colorScheme.onSurfaceVariant),
+        fillColor: themeData.colorScheme.surfaceContainer,
+        labelStyle: themeData.textTheme.bodyMedium
+            ?.copyWith(color: themeData.colorScheme.onSurfaceVariant),
+        contentPadding:
+            const EdgeInsets.symmetric(vertical: 14.0, horizontal: 16.0),
       ),
-      style: TextStyle(color: themeData.colorScheme.onSurface),
+      style: themeData.textTheme.bodyMedium
+          ?.copyWith(color: themeData.colorScheme.onSurface),
       keyboardType: keyboardType,
       readOnly: readOnly,
       onTap: onTap,
@@ -920,14 +1017,16 @@ class _EditDriverPageState extends State<EditDriverPage> {
         content: Text(
           message,
           style: TextStyle(
-            color: isError
-                ? themeData.colorScheme.onError
-                : themeData.colorScheme.onPrimary,
-          ),
+              color: isError
+                  ? themeData.colorScheme.onError
+                  : themeData.colorScheme.onPrimary),
         ),
         backgroundColor: isError
             ? themeData.colorScheme.error
             : themeData.colorScheme.primary,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
+        margin: const EdgeInsets.all(10.0),
       ),
     );
   }
@@ -939,8 +1038,20 @@ class _EditDriverPageState extends State<EditDriverPage> {
       firstDate: DateTime(1900),
       lastDate: DateTime(2100),
       locale: const Locale('zh', 'CN'),
-      builder: (context, child) =>
-          Theme(data: controller.currentBodyTheme.value, child: child!),
+      builder: (context, child) => Theme(
+        data: controller.currentBodyTheme.value.copyWith(
+          colorScheme: controller.currentBodyTheme.value.colorScheme.copyWith(
+            primary: controller.currentBodyTheme.value.colorScheme.primary,
+            onPrimary: controller.currentBodyTheme.value.colorScheme.onPrimary,
+          ),
+          textButtonTheme: TextButtonThemeData(
+            style: TextButton.styleFrom(
+                foregroundColor:
+                    controller.currentBodyTheme.value.colorScheme.primary),
+          ),
+        ),
+        child: child!,
+      ),
     );
     if (pickedDate != null && mounted) {
       setState(() {
@@ -990,6 +1101,7 @@ class _EditDriverPageState extends State<EditDriverPage> {
               child: Icon(
                 CupertinoIcons.back,
                 color: themeData.colorScheme.onPrimaryContainer,
+                size: 24,
               ),
             ),
             backgroundColor: themeData.colorScheme.primaryContainer,
@@ -1014,18 +1126,19 @@ class _EditDriverPageState extends State<EditDriverPage> {
                       key: _formKey,
                       child: SingleChildScrollView(
                         child: Card(
-                          elevation: 2,
-                          color: themeData.colorScheme.surfaceContainer,
+                          elevation: 4,
+                          color: themeData.colorScheme.surfaceContainerLowest,
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12.0)),
+                              borderRadius: BorderRadius.circular(16.0)),
                           child: Padding(
-                            padding: const EdgeInsets.all(16.0),
+                            padding: const EdgeInsets.all(20.0),
                             child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
                                 _buildTextField(themeData, '姓名 *', Icons.person,
                                     _nameController,
                                     required: true),
-                                const SizedBox(height: 12),
+                                const SizedBox(height: 16),
                                 _buildTextField(
                                     themeData,
                                     '身份证号码 *',
@@ -1033,28 +1146,28 @@ class _EditDriverPageState extends State<EditDriverPage> {
                                     _idCardNumberController,
                                     keyboardType: TextInputType.number,
                                     required: true),
-                                const SizedBox(height: 12),
+                                const SizedBox(height: 16),
                                 _buildTextField(themeData, '联系电话 *',
                                     Icons.phone, _contactNumberController,
                                     keyboardType: TextInputType.phone,
                                     required: true),
-                                const SizedBox(height: 12),
+                                const SizedBox(height: 16),
                                 _buildTextField(
                                     themeData,
                                     '驾驶证号 *',
                                     Icons.drive_eta,
                                     _driverLicenseNumberController,
                                     required: true),
-                                const SizedBox(height: 12),
+                                const SizedBox(height: 16),
                                 _buildTextField(themeData, '性别',
                                     Icons.person_outline, _genderController),
-                                const SizedBox(height: 12),
+                                const SizedBox(height: 16),
                                 _buildTextField(themeData, '出生日期',
                                     Icons.calendar_today, _birthdateController,
                                     readOnly: true,
                                     onTap: () =>
                                         _selectDate(_birthdateController)),
-                                const SizedBox(height: 12),
+                                const SizedBox(height: 16),
                                 _buildTextField(
                                     themeData,
                                     '首次领证日期',
@@ -1063,25 +1176,25 @@ class _EditDriverPageState extends State<EditDriverPage> {
                                     readOnly: true,
                                     onTap: () => _selectDate(
                                         _firstLicenseDateController)),
-                                const SizedBox(height: 12),
+                                const SizedBox(height: 16),
                                 _buildTextField(
                                     themeData,
                                     '允许驾驶车辆类型',
                                     Icons.directions_car,
                                     _allowedVehicleTypeController),
-                                const SizedBox(height: 12),
+                                const SizedBox(height: 16),
                                 _buildTextField(themeData, '发证日期',
                                     Icons.calendar_today, _issueDateController,
                                     readOnly: true,
                                     onTap: () =>
                                         _selectDate(_issueDateController)),
-                                const SizedBox(height: 12),
+                                const SizedBox(height: 16),
                                 _buildTextField(themeData, '有效期截止日期',
                                     Icons.calendar_today, _expiryDateController,
                                     readOnly: true,
                                     onTap: () =>
                                         _selectDate(_expiryDateController)),
-                                const SizedBox(height: 20),
+                                const SizedBox(height: 24),
                                 ElevatedButton(
                                   onPressed: _submitDriver,
                                   style: ElevatedButton.styleFrom(
@@ -1093,9 +1206,17 @@ class _EditDriverPageState extends State<EditDriverPage> {
                                         borderRadius:
                                             BorderRadius.circular(12.0)),
                                     padding: const EdgeInsets.symmetric(
-                                        vertical: 14.0, horizontal: 20.0),
+                                        vertical: 14.0, horizontal: 24.0),
+                                    elevation: 2,
                                   ),
-                                  child: const Text('保存'),
+                                  child: Text(
+                                    '保存',
+                                    style: themeData.textTheme.labelLarge
+                                        ?.copyWith(
+                                      color: themeData.colorScheme.onPrimary,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),
@@ -1125,13 +1246,17 @@ class _EditDriverPageState extends State<EditDriverPage> {
             ? Icon(Icons.calendar_today, color: themeData.colorScheme.primary)
             : null,
         border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8.0),
+            borderRadius: BorderRadius.circular(12.0),
             borderSide: BorderSide.none),
         filled: true,
-        fillColor: themeData.colorScheme.surfaceContainerLow,
-        labelStyle: TextStyle(color: themeData.colorScheme.onSurfaceVariant),
+        fillColor: themeData.colorScheme.surfaceContainer,
+        labelStyle: themeData.textTheme.bodyMedium
+            ?.copyWith(color: themeData.colorScheme.onSurfaceVariant),
+        contentPadding:
+            const EdgeInsets.symmetric(vertical: 14.0, horizontal: 16.0),
       ),
-      style: TextStyle(color: themeData.colorScheme.onSurface),
+      style: themeData.textTheme.bodyMedium
+          ?.copyWith(color: themeData.colorScheme.onSurface),
       keyboardType: keyboardType,
       readOnly: readOnly,
       onTap: onTap,
@@ -1203,14 +1328,16 @@ class _DriverDetailPageState extends State<DriverDetailPage> {
         content: Text(
           message,
           style: TextStyle(
-            color: isError
-                ? themeData.colorScheme.onError
-                : themeData.colorScheme.onPrimary,
-          ),
+              color: isError
+                  ? themeData.colorScheme.onError
+                  : themeData.colorScheme.onPrimary),
         ),
         backgroundColor: isError
             ? themeData.colorScheme.error
             : themeData.colorScheme.primary,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
+        margin: const EdgeInsets.all(10.0),
       ),
     );
   }
@@ -1223,12 +1350,12 @@ class _DriverDetailPageState extends State<DriverDetailPage> {
           builder: (context) => Theme(
             data: themeData,
             child: AlertDialog(
-              backgroundColor: themeData.colorScheme.surfaceContainer,
+              backgroundColor: themeData.colorScheme.surfaceContainerLowest,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16.0)),
               title: Text(
                 title,
-                style: themeData.textTheme.titleMedium?.copyWith(
+                style: themeData.textTheme.titleLarge?.copyWith(
                   color: themeData.colorScheme.onSurface,
                   fontWeight: FontWeight.bold,
                 ),
@@ -1244,8 +1371,9 @@ class _DriverDetailPageState extends State<DriverDetailPage> {
                   onPressed: () => Navigator.pop(context, false),
                   child: Text(
                     '取消',
-                    style: themeData.textTheme.labelMedium?.copyWith(
-                      color: themeData.colorScheme.onSurface,
+                    style: themeData.textTheme.labelLarge?.copyWith(
+                      color: themeData.colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
@@ -1253,8 +1381,9 @@ class _DriverDetailPageState extends State<DriverDetailPage> {
                   onPressed: () => Navigator.pop(context, true),
                   child: Text(
                     '确定',
-                    style: themeData.textTheme.labelMedium?.copyWith(
+                    style: themeData.textTheme.labelLarge?.copyWith(
                       color: themeData.colorScheme.error,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
@@ -1318,6 +1447,7 @@ class _DriverDetailPageState extends State<DriverDetailPage> {
               child: Icon(
                 CupertinoIcons.back,
                 color: themeData.colorScheme.onPrimaryContainer,
+                size: 24,
               ),
             ),
             trailing: Row(
@@ -1331,6 +1461,7 @@ class _DriverDetailPageState extends State<DriverDetailPage> {
                   child: Icon(
                     CupertinoIcons.pencil,
                     color: themeData.colorScheme.onPrimaryContainer,
+                    size: 24,
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -1339,6 +1470,7 @@ class _DriverDetailPageState extends State<DriverDetailPage> {
                   child: Icon(
                     CupertinoIcons.trash,
                     color: themeData.colorScheme.error,
+                    size: 24,
                   ),
                 ),
               ],
@@ -1368,12 +1500,12 @@ class _DriverDetailPageState extends State<DriverDetailPage> {
                       thicknessWhileDragging: 10.0,
                       child: SingleChildScrollView(
                         child: Card(
-                          elevation: 2,
-                          color: themeData.colorScheme.surfaceContainer,
+                          elevation: 4,
+                          color: themeData.colorScheme.surfaceContainerLowest,
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12.0)),
+                              borderRadius: BorderRadius.circular(16.0)),
                           child: Padding(
-                            padding: const EdgeInsets.all(16.0),
+                            padding: const EdgeInsets.all(20.0),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -1406,13 +1538,13 @@ class _DriverDetailPageState extends State<DriverDetailPage> {
 
   Widget _buildDetailRow(String label, String value, ThemeData themeData) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      padding: const EdgeInsets.symmetric(vertical: 10.0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             '$label: ',
-            style: themeData.textTheme.bodyLarge?.copyWith(
+            style: themeData.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.bold,
               color: themeData.colorScheme.onSurface,
             ),
@@ -1420,7 +1552,7 @@ class _DriverDetailPageState extends State<DriverDetailPage> {
           Expanded(
             child: Text(
               value,
-              style: themeData.textTheme.bodyMedium?.copyWith(
+              style: themeData.textTheme.bodyLarge?.copyWith(
                 color: themeData.colorScheme.onSurfaceVariant,
               ),
             ),
