@@ -18,6 +18,8 @@ import org.springframework.data.elasticsearch.core.SearchHits;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -88,6 +90,7 @@ public class AppealManagementService {
     @Transactional
     @CacheEvict(cacheNames = "appealCache", allEntries = true)
     public AppealManagement createAppeal(AppealManagement appeal) {
+        // Input validation
         validateInput(appeal.getAppellantName(), "Appellant name cannot be null or empty");
         validateInput(appeal.getAppealReason(), "Appeal reason cannot be null or empty");
         if (appeal.getOffenseId() == null || appeal.getOffenseId() <= 0) {
@@ -95,9 +98,26 @@ public class AppealManagementService {
         }
 
         try {
+            log.log(Level.INFO, "Creating appeal: {0}", appeal);
             appealManagementMapper.insert(appeal);
-            appealManagementSearchRepository.save(AppealManagementDocument.fromEntity(appeal));
-            log.info(String.format("Appeal created successfully, appealId=%d", appeal.getAppealId()));
+
+            // Verify appealId was generated
+            Integer appealId = appeal.getAppealId();
+            if (appealId == null) {
+                throw new RuntimeException("Failed to generate appealId after insert");
+            }
+            log.info("Database insert successful, appealId=" + appealId);
+
+            // Register ES indexing after commit
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    AppealManagementDocument doc = AppealManagementDocument.fromEntity(appeal);
+                    appealManagementSearchRepository.save(doc);
+                    log.info(String.format("Post-commit: Elasticsearch indexed, appealId=%d", appealId));
+                }
+            });
+
             return appeal;
         } catch (Exception e) {
             log.log(Level.SEVERE, "Failed to create appeal: " + e.getMessage(), e);

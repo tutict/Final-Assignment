@@ -1,6 +1,5 @@
 package com.tutict.finalassignmentbackend.service;
 
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.RequestHistory;
 import com.tutict.finalassignmentbackend.entity.UserManagement;
@@ -18,6 +17,8 @@ import org.springframework.data.elasticsearch.core.SearchHits;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -92,23 +93,48 @@ public class DriverInformationService {
     @Transactional
     @CacheEvict(cacheNames = "driverCache", allEntries = true)
     public void createDriver(DriverInformation driverInformation) {
-        if (driverInformation == null) {
-            throw new IllegalArgumentException("Driver information cannot be null");
+
+        validateInput(driverInformation);
+        if (driverInformation.getDriverId() != null && driverInformation.getDriverId() <= 0) {
+            throw new IllegalArgumentException("Invalid driver ID: must be positive if provided");
         }
 
-        DriverInformation existingDriver = driverInformationMapper.selectById(driverInformation.getDriverId());
-        if (existingDriver == null) {
-            driverInformationMapper.insert(driverInformation);
-            log.info(String.format("Driver created with ID %s", driverInformation.getDriverId()));
-        } else {
-            driverInformationMapper.updateById(driverInformation);
-            log.info(String.format("Driver updated with ID %s", driverInformation.getDriverId()));
-        }
+        try {
+            log.log(Level.INFO, "Processing driver: {0}", driverInformation);
+            DriverInformation existingDriver = driverInformationMapper.selectById(driverInformation.getDriverId());
 
-        DriverInformationDocument document = DriverInformationDocument.fromEntity(driverInformation);
-        if (document != null) {
-            driverInformationSearchRepository.save(document);
-            log.info(String.format("Driver synced to Elasticsearch with ID %s", driverInformation.getDriverId()));
+            Integer driverId;
+            if (existingDriver == null) {
+                log.log(Level.INFO, "No existing driver found, inserting new record");
+                driverInformationMapper.insert(driverInformation);
+                driverId = driverInformation.getDriverId();
+                if (driverId == null) {
+                    throw new RuntimeException("Failed to generate driverId after insert");
+                }
+                log.log(Level.INFO, "Database insert successful, driverId={0}", driverId);
+            } else {
+                log.log(Level.INFO, "Existing driver found, updating record with driverId={0}", existingDriver.getDriverId());
+                driverInformationMapper.updateById(driverInformation);
+                driverId = driverInformation.getDriverId();
+                log.log(Level.INFO, "Database update successful, driverId={0}", driverId);
+            }
+
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    DriverInformationDocument document = DriverInformationDocument.fromEntity(driverInformation);
+                    if (document != null) {
+                        driverInformationSearchRepository.save(document);
+                        log.log(Level.INFO, "Post-commit: Elasticsearch indexed, driverId={0}", driverId);
+                    } else {
+                        log.log(Level.WARNING, "Failed to create DriverInformationDocument for driverId={0}", driverId);
+                    }
+                }
+            });
+
+        } catch (Exception e) {
+            log.log(Level.SEVERE, "Failed to process driver: " + e.getMessage(), e);
+            throw new RuntimeException("Failed to create or update driver", e);
         }
     }
 
@@ -426,7 +452,21 @@ public class DriverInformationService {
     }
 
     private void sendKafkaMessage(String topic, DriverInformation driverInformation) {
-        kafkaTemplate.send(topic, driverInformation);
-        log.info(String.format("Message sent to Kafka topic %s successfully", topic));
+        if (driverInformation == null || topic == null) {
+            log.warning("Invalid input for sending Kafka message");
+            return;
+        }
+        try {
+            kafkaTemplate.send(topic, driverInformation);
+            log.info(String.format("Message sent to Kafka topic %s successfully", topic));
+        } catch (Exception e) {
+            log.log(Level.WARNING, "Error sending Kafka message: {0}", new Object[]{e.getMessage()});
+        }
+    }
+
+    private void validateInput(DriverInformation driverInformation) {
+        if (driverInformation == null) {
+            throw new IllegalArgumentException("Deduction information cannot be null");
+        }
     }
 }

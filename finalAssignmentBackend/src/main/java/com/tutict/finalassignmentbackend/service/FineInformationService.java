@@ -16,6 +16,8 @@ import org.springframework.data.elasticsearch.core.SearchHits;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.*;
 import java.util.logging.Level;
@@ -76,22 +78,85 @@ public class FineInformationService {
     @Transactional
     @CacheEvict(cacheNames = "fineCache", allEntries = true)
     public void createFine(FineInformation fineInformation) {
-        FineInformation existingFine = fineInformationMapper.selectById(fineInformation.getFineId());
-        if (existingFine == null) {
-            fineInformationMapper.insert(fineInformation);
-        } else {
-            fineInformationMapper.updateById(fineInformation);
+
+        validateInput(fineInformation);
+        if (fineInformation.getFineId() != null && fineInformation.getFineId() <= 0) {
+            throw new IllegalArgumentException("Invalid fine ID: must be positive if provided");
+        }
+
+        try {
+            log.log(Level.INFO, "Processing fine: {0}", fineInformation);
+            FineInformation existingFine = fineInformationMapper.selectById(fineInformation.getFineId());
+
+            Integer fineId;
+            if (existingFine == null) {
+                log.log(Level.INFO, "No existing fine found, inserting new record");
+                fineInformationMapper.insert(fineInformation);
+                fineId = fineInformation.getFineId();
+                if (fineId == null) {
+                    throw new RuntimeException("Failed to generate fineId after insert");
+                }
+                log.log(Level.INFO, "Database insert successful, fineId={0}", fineId);
+            } else {
+                log.log(Level.INFO, "Existing fine found, updating record with fineId={0}", existingFine.getFineId());
+                fineInformationMapper.updateById(fineInformation);
+                fineId = fineInformation.getFineId();
+                log.log(Level.INFO, "Database update successful, fineId={0}", fineId);
+            }
+
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    FineInformationDocument document = FineInformationDocument.fromEntity(fineInformation);
+                    if (document != null) {
+                        fineInformationSearchRepository.save(document);
+                        log.log(Level.INFO, "Post-commit: Elasticsearch indexed, fineId={0}", fineId);
+                    } else {
+                        log.log(Level.WARNING, "Failed to create FineInformationDocument for fineId={0}", fineId);
+                    }
+                }
+            });
+
+        } catch (Exception e) {
+            log.log(Level.SEVERE, "Failed to process fine: " + e.getMessage(), e);
+            throw new RuntimeException("Failed to create or update fine", e);
         }
     }
 
     @Transactional
     @CacheEvict(cacheNames = "fineCache", allEntries = true)
     public void updateFine(FineInformation fineInformation) {
-        FineInformation existingFine = fineInformationMapper.selectById(fineInformation.getFineId());
-        if (existingFine == null) {
-            fineInformationMapper.insert(fineInformation);
-        } else {
-            fineInformationMapper.updateById(fineInformation);
+
+        validateInput(fineInformation);
+        if (fineInformation.getFineId() == null || fineInformation.getFineId() <= 0) {
+            throw new IllegalArgumentException("Fine ID cannot be null or invalid");
+        }
+
+        try {
+            log.log(Level.INFO, "Updating fine: {0}", fineInformation);
+            int rowsAffected = fineInformationMapper.updateById(fineInformation);
+            if (rowsAffected == 0) {
+                log.log(Level.WARNING, "No fine found to update for ID: {0}", fineInformation.getFineId());
+                throw new RuntimeException("Fine not found");
+            }
+            log.log(Level.INFO, "Database update successful, fineId={0}", fineInformation.getFineId());
+
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    FineInformationDocument document = FineInformationDocument.fromEntity(fineInformation);
+                    if (document != null) {
+                        fineInformationSearchRepository.save(document);
+                        log.log(Level.INFO, "Post-commit: Elasticsearch indexed, fineId={0}", fineInformation.getFineId());
+                    } else {
+                        log.log(Level.WARNING, "Failed to create FineInformationDocument for fineId={0}", fineInformation.getFineId());
+                    }
+                }
+            });
+
+        } catch (Exception e) {
+            log.log(Level.SEVERE, "Failed to update fine: " + e.getMessage(), e);
+            throw new RuntimeException("Failed to update fine information", e);
         }
     }
 
@@ -99,14 +164,33 @@ public class FineInformationService {
     @CacheEvict(cacheNames = "fineCache", allEntries = true)
     @WsAction(service = "FineInformationService", action = "deleteFine")
     public void deleteFine(int fineId) {
+
+        // Input validation
         if (fineId <= 0) {
-            throw new IllegalArgumentException("Invalid fine ID");
+            throw new IllegalArgumentException("Invalid fine ID: " + fineId);
         }
-        int result = fineInformationMapper.deleteById(fineId);
-        if (result > 0) {
-            log.info(String.format("Fine with ID %s deleted successfully", fineId));
-        } else {
-            log.severe(String.format("Failed to delete fine with ID %s", fineId));
+
+        try {
+            log.log(Level.INFO, "Deleting fine with ID: {}", fineId);
+            int rowsAffected = fineInformationMapper.deleteById(fineId);
+            if (rowsAffected == 0) {
+                log.log(Level.WARNING, "No fine found to delete for ID: {}", fineId);
+                throw new RuntimeException("Fine not found");
+            }
+            log.log(Level.INFO, "Database deletion successful, fineId={}", fineId);
+
+            // Register ES deletion after commit
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    fineInformationSearchRepository.deleteById(fineId);
+                    log.log(Level.INFO, "Post-commit: Elasticsearch record deleted, fineId={}", fineId);
+                }
+            });
+
+        } catch (Exception e) {
+            log.log(Level.WARNING, "Failed to delete fine: {0} {1}", new Object[]{e.getMessage(), e});
+            throw new RuntimeException("Failed to delete fine information", e);
         }
     }
 
@@ -269,7 +353,21 @@ public class FineInformationService {
     }
 
     private void sendKafkaMessage(String topic, FineInformation fineInformation) {
-        kafkaTemplate.send(topic, fineInformation);
-        log.info(String.format("Message sent to Kafka topic %s successfully", topic));
+        if (fineInformation == null || topic == null) {
+            log.warning("Invalid input parameters for sending Kafka message");
+            return;
+        }
+        try {
+            kafkaTemplate.send(topic, fineInformation);
+            log.info(String.format("Message sent to Kafka topic %s successfully", topic));
+        } catch (Exception e) {
+            log.log(Level.WARNING, "Error sending Kafka message: {0}", new Object[]{e.getMessage()});
+        }
+    }
+
+    private void validateInput(FineInformation fineInformation) {
+        if (fineInformation == null) {
+            throw new IllegalArgumentException("Deduction information cannot be null");
+        }
     }
 }

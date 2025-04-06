@@ -16,6 +16,8 @@ import org.springframework.data.elasticsearch.core.SearchHits;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.*;
 import java.util.logging.Level;
@@ -74,22 +76,85 @@ public class DeductionInformationService {
     @Transactional
     @CacheEvict(cacheNames = "deductionCache", allEntries = true)
     public void createDeduction(DeductionInformation deduction) {
-        DeductionInformation existingDeduction = deductionInformationMapper.selectById(deduction.getDeductionId());
-        if (existingDeduction == null) {
-            deductionInformationMapper.insert(deduction);
-        } else {
-            deductionInformationMapper.updateById(deduction);
+        // Input validation
+        validateInput(deduction);
+        if (deduction.getDeductionId() != null && deduction.getDeductionId() <= 0) {
+            throw new IllegalArgumentException("Invalid deduction ID: must be positive if provided");
+        }
+
+        try {
+            log.log(Level.INFO, "Processing deduction: {}", deduction);
+
+            DeductionInformation existingDeduction = deductionInformationMapper.selectById(deduction.getDeductionId());
+
+            Integer deductionId;
+            if (existingDeduction == null) {
+                // Insert new deduction
+                log.info("No existing deduction found, inserting new record");
+                deductionInformationMapper.insert(deduction);
+                deductionId = deduction.getDeductionId();
+                if (deductionId == null) {
+                    throw new RuntimeException("Failed to generate deductionId after insert");
+                }
+                log.log(Level.INFO, "Database insert successful, deductionId={}", deductionId);
+            } else {
+                // Update existing deduction
+                log.log(Level.INFO, "Existing deduction found, updating record with deductionId={}", existingDeduction.getDeductionId());
+                deductionInformationMapper.updateById(deduction);
+                deductionId = deduction.getDeductionId();
+                log.log(Level.INFO, "Database update successful, deductionId={}", deductionId);
+            }
+
+            // Register ES indexing after commit
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    DeductionInformationDocument doc = DeductionInformationDocument.fromEntity(deduction);
+                    deductionInformationSearchRepository.save(doc);
+                    log.log(Level.INFO, "Post-commit: Elasticsearch indexed, deductionId={}", deductionId);
+                }
+            });
+
+        } catch (Exception e) {
+            log.log(Level.WARNING, "Failed to process deduction: {0} {1}", new Object[]{deduction, e});
+            throw new RuntimeException("Failed to create or update deduction", e);
         }
     }
 
     @Transactional
     @CacheEvict(cacheNames = "deductionCache", allEntries = true)
     public void updateDeduction(DeductionInformation deduction) {
-        DeductionInformation existingDeduction = deductionInformationMapper.selectById(deduction.getDeductionId());
-        if (existingDeduction == null) {
-            deductionInformationMapper.insert(deduction);
-        } else {
-            deductionInformationMapper.updateById(deduction);
+
+        validateInput(deduction);
+        if (deduction.getDeductionId() == null || deduction.getDeductionId() <= 0) {
+            throw new IllegalArgumentException("Deduction ID cannot be null or invalid");
+        }
+
+        try {
+            log.log(Level.INFO, "Updating deduction: {0}", deduction);
+            int rowsAffected = deductionInformationMapper.updateById(deduction);
+            if (rowsAffected == 0) {
+                log.log(Level.WARNING, "No deduction found to update for ID: {0}", deduction.getDeductionId());
+                throw new RuntimeException("Deduction not found");
+            }
+            log.log(Level.INFO, "Database update successful, deductionId={0}", deduction.getDeductionId());
+
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    DeductionInformationDocument document = DeductionInformationDocument.fromEntity(deduction);
+                    if (document != null) {
+                        deductionInformationSearchRepository.save(document);
+                        log.log(Level.INFO, "Post-commit: Elasticsearch indexed, deductionId={0}", deduction.getDeductionId());
+                    } else {
+                        log.log(Level.WARNING, "Failed to create DeductionInformationDocument for deductionId={0}", deduction.getDeductionId());
+                    }
+                }
+            });
+
+        } catch (Exception e) {
+            log.log(Level.SEVERE, "Failed to update deduction: " + e.getMessage(), e);
+            throw new RuntimeException("Failed to update deduction information", e);
         }
     }
 
@@ -97,14 +162,31 @@ public class DeductionInformationService {
     @CacheEvict(cacheNames = "deductionCache", allEntries = true)
     @WsAction(service = "DeductionInformationService", action = "deleteDeduction")
     public void deleteDeduction(int deductionId) {
+
         if (deductionId <= 0) {
-            throw new IllegalArgumentException("Invalid deduction ID");
+            throw new IllegalArgumentException("Invalid deduction ID: " + deductionId);
         }
-        int result = deductionInformationMapper.deleteById(deductionId);
-        if (result > 0) {
-            log.info(String.format("Deduction with ID %s deleted successfully", deductionId));
-        } else {
-            log.severe(String.format("Failed to delete deduction with ID %s", deductionId));
+
+        try {
+            log.log(Level.INFO, "Deleting deduction with ID: {0}", deductionId);
+            int rowsAffected = deductionInformationMapper.deleteById(deductionId);
+            if (rowsAffected == 0) {
+                log.log(Level.WARNING, "No deduction found to delete for ID: {0}", deductionId);
+                throw new RuntimeException("Deduction not found");
+            }
+            log.log(Level.INFO, "Database deletion successful, deductionId={0}", deductionId);
+
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    deductionInformationSearchRepository.deleteById(deductionId);
+                    log.log(Level.INFO, "Post-commit: Elasticsearch record deleted, deductionId={0}", deductionId);
+                }
+            });
+
+        } catch (Exception e) {
+            log.log(Level.SEVERE, "Failed to delete deduction: " + e.getMessage(), e);
+            throw new RuntimeException("Failed to delete deduction information", e);
         }
     }
 
@@ -257,7 +339,21 @@ public class DeductionInformationService {
     }
 
     private void sendKafkaMessage(String topic, DeductionInformation deductionInformation) {
-        kafkaTemplate.send(topic, deductionInformation);
-        log.info(String.format("Message sent to Kafka topic %s successfully", topic));
+        if (deductionInformation == null || topic == null) {
+            log.warning("Invalid input for sending Kafka message");
+            return;
+        }
+        try {
+            kafkaTemplate.send(topic, deductionInformation);
+            log.info(String.format("Message sent to Kafka topic %s successfully", topic));
+        } catch (Exception e) {
+            log.log(Level.WARNING, "Error sending Kafka message: {0}", new Object[]{e.getMessage()});
+        }
+    }
+
+    private void validateInput(DeductionInformation deduction) {
+        if (deduction == null) {
+            throw new IllegalArgumentException("Deduction information cannot be null");
+        }
     }
 }

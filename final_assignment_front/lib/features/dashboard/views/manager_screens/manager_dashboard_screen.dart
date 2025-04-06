@@ -1,5 +1,6 @@
 library manager_dashboard;
 
+import 'dart:convert';
 import 'dart:developer';
 import 'dart:ui';
 
@@ -10,6 +11,7 @@ import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/config/themes/app_theme.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
 import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
+import 'package:final_assignment_front/features/api/traffic_violation_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/models/profile.dart';
 import 'package:final_assignment_front/features/dashboard/views/components/ai_chat.dart';
 import 'package:final_assignment_front/features/dashboard/views/components/profile_tile.dart';
@@ -25,12 +27,15 @@ import 'package:final_assignment_front/shared_components/project_card.dart';
 import 'package:final_assignment_front/shared_components/responsive_builder.dart';
 import 'package:final_assignment_front/shared_components/selection_button.dart';
 import 'package:final_assignment_front/shared_components/today_text.dart';
+import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
 import 'package:final_assignment_front/utils/mixins/app_mixins.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:get/get.dart';
+import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // binding
@@ -294,8 +299,11 @@ class DashboardScreen extends GetView<DashboardController>
     );
   }
 
-  Widget _buildActiveProjectSection(BuildContext context,
-      {required int crossAxisCount, required double childAspectRatio}) {
+  Widget _buildActiveProjectSection(
+    BuildContext context, {
+    required int crossAxisCount,
+    required double childAspectRatio,
+  }) {
     double gridHeight;
     if (crossAxisCount == 2) {
       gridHeight = MediaQuery.of(context).size.height * 1.44;
@@ -311,26 +319,57 @@ class DashboardScreen extends GetView<DashboardController>
         onPressedSeeAll: () => log("查看所有项目"),
         child: SizedBox(
           height: gridHeight,
-          child: FutureBuilder<Map<String, int>>(
-            future: controller.getOffenseTypeDistribution(),
+          child: FutureBuilder<Map<String, dynamic>>(
+            future: _fetchTrafficViolationData(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
               } else if (snapshot.hasError) {
+                log('Error in FutureBuilder: ${snapshot.error}');
+                String errorMessage = 'Failed to load traffic violation data';
+                if (snapshot.error is ApiException) {
+                  final apiError = snapshot.error as ApiException;
+                  errorMessage =
+                      'API Error ${apiError.code}: ${apiError.message}';
+                  try {
+                    final errorJson = jsonDecode(apiError.message);
+                    if (errorJson['message'] != null) {
+                      errorMessage += ' - ${errorJson['message']}';
+                    }
+                  } catch (_) {
+                    // If message isn't JSON or lacks detail, use raw message
+                  }
+                }
                 return Center(
-                  child: Text('Error loading offense data: ${snapshot.error}'),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(errorMessage, style: const TextStyle(color: Colors.red)),
+                      const SizedBox(height: 8),
+                      ElevatedButton(
+                        onPressed: () => (() {}), // Retry fetch
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
                 );
               } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                return const Center(
-                  child: Text('No offense data available'),
-                );
+                return const Center(child: Text('No data available'));
               } else {
-                final offenseDistribution = snapshot.data!;
-                final startTime = DateTime.now(); // 假设使用当前时间作为起始时间
+                final data = snapshot.data!;
+                final violationTypes =
+                    data['violationTypes'] as Map<String, int>;
+                final timeSeries =
+                    data['timeSeries'] as List<Map<String, dynamic>>;
+                final paymentStatus = data['paymentStatus'] as Map<String, int>;
+                final startTime = DateTime.now().subtract(const Duration(days: 30));
 
                 return GridView.builder(
-                  itemCount: crossAxisCount >= 2 ? 2 : 1,
-                  // 显示1个或2个图表
+                  itemCount: crossAxisCount >= 3
+                      ? 3
+                      : crossAxisCount >= 2
+                          ? 2
+                          : 1,
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -342,12 +381,14 @@ class DashboardScreen extends GetView<DashboardController>
                   itemBuilder: (context, index) {
                     if (index == 0) {
                       return TrafficViolationBarChart(
-                        typeCountMap: offenseDistribution,
+                        typeCountMap: violationTypes,
                         startTime: startTime,
                       );
+                    } else if (index == 1) {
+                      return _buildTimeSeriesChart(timeSeries, startTime);
                     } else {
                       return TrafficViolationPieChart(
-                        typeCountMap: offenseDistribution,
+                        typeCountMap: paymentStatus,
                       );
                     }
                   },
@@ -356,6 +397,199 @@ class DashboardScreen extends GetView<DashboardController>
             },
           ),
         ),
+      ),
+    );
+  }
+
+  Future<Map<String, dynamic>> _fetchTrafficViolationData() async {
+    final api = TrafficViolationControllerApi();
+    await api.initializeWithJwt();
+    final startTimeStr = DateFormat('yyyy-MM-ddTHH:mm:ssZ')
+        .format(DateTime.now().subtract(const Duration(days: 30)));
+
+    try {
+      log('Fetching traffic violation data with startTime: $startTimeStr');
+      final violationTypes = await api.apiTrafficViolationsViolationTypesGet(
+          startTime: startTimeStr);
+      final timeSeries =
+          await api.apiTrafficViolationsTimeSeriesGet(startTime: startTimeStr);
+      final paymentStatus = await api.apiTrafficViolationsFinePaymentStatusGet(
+          startTime: startTimeStr);
+
+      return {
+        'violationTypes': violationTypes,
+        'timeSeries': timeSeries,
+        'paymentStatus': paymentStatus,
+      };
+    } catch (e) {
+      log('Error fetching traffic violation data: $e');
+      rethrow; // Let FutureBuilder handle the error
+    }
+  }
+
+// Time series chart implementation remains unchanged (as previously provided)
+  Widget _buildTimeSeriesChart(
+      List<Map<String, dynamic>> timeSeries, DateTime startTime) {
+    if (timeSeries.isEmpty) {
+      return const SizedBox(
+        height: 200,
+        child: Center(child: Text('No time series data available')),
+      );
+    }
+
+    final dataList = timeSeries
+        .map((item) => {
+              'time': DateTime.parse(item['time']),
+              'value1': item['value1'] as num,
+              'value2': item['value2'] as num,
+            })
+        .toList();
+
+    final maxX = dataList
+        .map((item) => (item['time'] as DateTime).difference(startTime).inDays)
+        .reduce((a, b) => a > b ? a : b)
+        .toDouble();
+    final maxY1 = dataList
+        .map((item) => (item['value1'] as num).toDouble())
+        .reduce((a, b) => a > b ? a : b);
+    final maxY2 = dataList
+        .map((item) => (item['value2'] as num).toDouble())
+        .reduce((a, b) => a > b ? a : b);
+    final maxY = (maxY1 > maxY2 ? maxY1 : maxY2) * 1.2;
+
+    return SizedBox(
+      height: 200,
+      child: Stack(
+        children: [
+          BarChart(
+            BarChartData(
+              alignment: BarChartAlignment.spaceAround,
+              maxY: maxY > 0 ? maxY : 500,
+              minY: 0,
+              barGroups: dataList.map((item) {
+                final days =
+                    (item['time'] as DateTime).difference(startTime).inDays;
+                final value = (item['value1'] as num).toDouble();
+                return BarChartGroupData(
+                  x: days,
+                  barRods: [
+                    BarChartRodData(
+                      toY: value,
+                      color: Colors.yellow.withOpacity(0.5),
+                      width: 8,
+                      borderRadius:
+                          const BorderRadius.vertical(top: Radius.circular(2)),
+                    ),
+                  ],
+                );
+              }).toList(),
+              titlesData: FlTitlesData(
+                show: true,
+                leftTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: 40,
+                    interval: maxY / 5,
+                    getTitlesWidget: (value, meta) => Text(
+                      value.toInt().toString(),
+                      style: const TextStyle(color: Colors.black, fontSize: 12),
+                    ),
+                  ),
+                ),
+                bottomTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: 30,
+                    interval: maxX > 7 ? maxX / 7 : 1,
+                    getTitlesWidget: (value, meta) {
+                      final index = value.toInt();
+                      final date = startTime.add(Duration(days: index));
+                      return Text(
+                        DateFormat('dd').format(date),
+                        style: const TextStyle(color: Colors.black, fontSize: 12),
+                      );
+                    },
+                  ),
+                ),
+                topTitles:
+                    const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                rightTitles:
+                    const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              ),
+              gridData: FlGridData(
+                show: true,
+                drawVerticalLine: true,
+                horizontalInterval: maxY / 5,
+                verticalInterval: maxX > 7 ? maxX / 7 : 1,
+              ),
+              borderData: FlBorderData(show: false),
+              barTouchData: BarTouchData(
+                enabled: true,
+                touchTooltipData: BarTouchTooltipData(
+                  getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                    final date = startTime.add(Duration(days: group.x));
+                    return BarTooltipItem(
+                      '${DateFormat('yyyy-MM-dd').format(date)}\nFines: ${rod.toY.toInt()}',
+                      const TextStyle(color: Colors.white),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+          LineChart(
+            LineChartData(
+              lineBarsData: [
+                LineChartBarData(
+                  spots: dataList.map((item) {
+                    final days = (item['time'] as DateTime)
+                        .difference(startTime)
+                        .inDays
+                        .toDouble();
+                    return FlSpot(days, (item['value1'] as num).toDouble());
+                  }).toList(),
+                  isCurved: false,
+                  color: Colors.yellow,
+                  barWidth: 2,
+                  dotData: const FlDotData(show: false),
+                ),
+                LineChartBarData(
+                  spots: dataList.map((item) {
+                    final days = (item['time'] as DateTime)
+                        .difference(startTime)
+                        .inDays
+                        .toDouble();
+                    return FlSpot(days, (item['value2'] as num).toDouble());
+                  }).toList(),
+                  isCurved: false,
+                  color: Colors.green,
+                  barWidth: 2,
+                  dotData: const FlDotData(show: false),
+                ),
+              ],
+              minX: 0,
+              maxX: maxX > 0 ? maxX : 20,
+              minY: 0,
+              maxY: maxY > 0 ? maxY : 500,
+              titlesData: const FlTitlesData(show: false),
+              gridData: const FlGridData(show: false),
+              borderData: FlBorderData(show: false),
+              lineTouchData: LineTouchData(
+                enabled: true,
+                touchTooltipData: LineTouchTooltipData(
+                  getTooltipItems: (touchedSpots) => touchedSpots.map((spot) {
+                    final date = startTime.add(Duration(days: spot.x.toInt()));
+                    final label = spot.barIndex == 0 ? 'Fines' : 'Points';
+                    return LineTooltipItem(
+                      '${DateFormat('yyyy-MM-dd').format(date)}\n$label: ${spot.y.toInt()}',
+                      const TextStyle(color: Colors.white),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

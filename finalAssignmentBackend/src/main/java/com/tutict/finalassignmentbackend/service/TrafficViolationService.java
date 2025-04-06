@@ -6,6 +6,8 @@ import com.tutict.finalassignmentbackend.entity.elastic.OffenseInformationDocume
 import com.tutict.finalassignmentbackend.repository.AppealManagementSearchRepository;
 import com.tutict.finalassignmentbackend.repository.FineInformationSearchRepository;
 import com.tutict.finalassignmentbackend.repository.OffenseInformationSearchRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.elasticsearch.client.elc.ElasticsearchAggregation;
 import org.springframework.data.elasticsearch.client.elc.ElasticsearchAggregations;
@@ -19,6 +21,8 @@ import java.util.*;
 @Service
 public class TrafficViolationService {
 
+    private static final Logger logger = LoggerFactory.getLogger(TrafficViolationService.class);
+
     private final OffenseInformationSearchRepository offenseRepository;
     private final AppealManagementSearchRepository appealRepository;
     private final FineInformationSearchRepository fineRepository;
@@ -27,8 +31,7 @@ public class TrafficViolationService {
     public TrafficViolationService(
             OffenseInformationSearchRepository offenseRepository,
             AppealManagementSearchRepository appealRepository,
-            FineInformationSearchRepository fineRepository
-    ) {
+            FineInformationSearchRepository fineRepository) {
         this.offenseRepository = offenseRepository;
         this.appealRepository = appealRepository;
         this.fineRepository = fineRepository;
@@ -36,108 +39,135 @@ public class TrafficViolationService {
 
     public Map<String, Integer> getViolationTypeCounts(String startTime, String driverName, String licensePlate) {
         String fromTime = startTime != null ? startTime : Instant.now().minus(30, ChronoUnit.DAYS).toString();
-        SearchHits<OffenseInformationDocument> searchHits = offenseRepository.aggregateByOffenseType(fromTime);
+        logger.debug("Querying offense types with fromTime: {}, driverName: {}, licensePlate: {}",
+                fromTime, driverName, licensePlate);
 
-        Map<String, Integer> typeCountMap = new HashMap<>();
-        if (searchHits.hasAggregations()) {
-            ElasticsearchAggregations aggregations =
-                    (ElasticsearchAggregations) Objects.requireNonNull(searchHits.getAggregations());
+        try {
+            SearchHits<OffenseInformationDocument> searchHits = offenseRepository.aggregateByOffenseType(fromTime);
+            Map<String, Integer> typeCountMap = new HashMap<>();
 
-            ElasticsearchAggregation byTypeAgg = aggregations.get("by_type");
-            if (byTypeAgg == null) {
-                throw new IllegalStateException("Aggregation 'by_type' not found");
+            if (searchHits.hasAggregations()) {
+                ElasticsearchAggregations aggregations = (ElasticsearchAggregations) Objects.requireNonNull(searchHits.getAggregations());
+                ElasticsearchAggregation byTypeAgg = aggregations.get("by_type");
+
+                if (byTypeAgg == null) {
+                    throw new IllegalStateException("Aggregation 'by_type' not found in response");
+                }
+
+                var byType = byTypeAgg.aggregation().getAggregate().sterms();
+                byType.buckets().array().forEach(bucket ->
+                        typeCountMap.put(bucket.key().stringValue(), (int) bucket.docCount()));
+            } else {
+                logger.warn("No aggregations found for violation type counts with fromTime: {}", fromTime);
             }
 
-            var byType = byTypeAgg.aggregation().getAggregate().sterms();
-            byType.buckets().array().forEach(bucket -> typeCountMap.put(bucket.key().stringValue(), (int) bucket.docCount()));
+            return typeCountMap;
+        } catch (Exception e) {
+            logger.error("Failed to retrieve violation type counts: {}", e.getMessage(), e);
+            throw e; // Re-throw to be caught in controller
         }
-        return typeCountMap;
     }
 
     public List<Map<String, Object>> getTimeSeriesData(String startTime, String driverName) {
-        // Default to 30 days ago if no startTime is provided
         String fromTime = startTime != null ? startTime : Instant.now().minus(30, ChronoUnit.DAYS).toString();
+        logger.debug("Querying time series data with fromTime: {}, driverName: {}", fromTime, driverName);
 
-        // Assuming aggregateByDate returns SearchHits with a date histogram aggregation
-        SearchHits<OffenseInformationDocument> searchHits = offenseRepository.aggregateByDate(fromTime);
+        try {
+            SearchHits<OffenseInformationDocument> searchHits = offenseRepository.aggregateByDate(fromTime);
+            List<Map<String, Object>> dataList = new ArrayList<>();
 
-        List<Map<String, Object>> dataList = new ArrayList<>();
-        if (searchHits.hasAggregations()) {
-            // Cast to ElasticsearchAggregations
-            ElasticsearchAggregations aggregations =
-                    (ElasticsearchAggregations) Objects.requireNonNull(searchHits.getAggregations());
+            if (searchHits.hasAggregations()) {
+                ElasticsearchAggregations aggregations = (ElasticsearchAggregations) Objects.requireNonNull(searchHits.getAggregations());
+                ElasticsearchAggregation byDayAgg = aggregations.get("by_day");
 
-            // Get the "by_day" aggregation by name
-            ElasticsearchAggregation byDayAgg = aggregations.get("by_day");
-            if (byDayAgg == null) {
-                throw new IllegalStateException("Aggregation 'by_day' not found");
+                if (byDayAgg == null) {
+                    throw new IllegalStateException("Aggregation 'by_day' not found in response");
+                }
+
+                var dateHistogram = byDayAgg.aggregation().getAggregate().dateHistogram();
+                dateHistogram.buckets().array().forEach(bucket -> {
+                    Map<String, Object> dataPoint = new HashMap<>();
+                    dataPoint.put("time", bucket.keyAsString());
+
+                    var totalFineAgg = bucket.aggregations().get("total_fine").sum();
+                    var totalPointsAgg = bucket.aggregations().get("total_points").sum();
+
+                    dataPoint.put("value1", totalFineAgg.value());
+                    dataPoint.put("value2", totalPointsAgg.value());
+                    dataList.add(dataPoint);
+                });
+            } else {
+                logger.warn("No aggregations found for time series data with fromTime: {}", fromTime);
             }
 
-            // Get the DateHistogramAggregation
-            var dateHistogram = byDayAgg.aggregation().getAggregate().dateHistogram();
-
-            // Iterate over the date histogram buckets
-            dateHistogram.buckets().array().forEach(bucket -> {
-                Map<String, Object> dataPoint = new HashMap<>();
-                dataPoint.put("time", bucket.keyAsString()); // Date key as string
-
-                // Get sub-aggregations for total_fine and total_points
-                var totalFineAgg = bucket.aggregations().get("total_fine").sum();
-                var totalPointsAgg = bucket.aggregations().get("total_points").sum();
-
-                dataPoint.put("value1", totalFineAgg.value()); // Sum of fines
-                dataPoint.put("value2", totalPointsAgg.value()); // Sum of points
-                dataList.add(dataPoint);
-            });
+            return dataList;
+        } catch (Exception e) {
+            logger.error("Failed to retrieve time series data: {}", e.getMessage(), e);
+            throw e;
         }
-        return dataList;
     }
 
     public Map<String, Integer> getAppealReasonCounts(String startTime, String appealReason) {
         String fromTime = startTime != null ? startTime : Instant.now().minus(30, ChronoUnit.DAYS).toString();
         String reasonFilter = appealReason != null ? appealReason : "";
+        logger.debug("Querying appeal reasons with fromTime: {}, reasonFilter: {}", fromTime, reasonFilter);
 
-        SearchHits<AppealManagementDocument> searchHits = appealRepository.aggregateByAppealReason(fromTime, reasonFilter);
+        try {
+            SearchHits<AppealManagementDocument> searchHits = appealRepository.aggregateByAppealReason(fromTime, reasonFilter);
+            Map<String, Integer> reasonCountMap = new HashMap<>();
 
-        Map<String, Integer> reasonCountMap = new HashMap<>();
-        if (searchHits.hasAggregations()) {
-            ElasticsearchAggregations aggregations =
-                    (ElasticsearchAggregations) Objects.requireNonNull(searchHits.getAggregations());
+            if (searchHits.hasAggregations()) {
+                ElasticsearchAggregations aggregations = (ElasticsearchAggregations) Objects.requireNonNull(searchHits.getAggregations());
+                ElasticsearchAggregation byReasonAgg = aggregations.get("by_reason");
 
-            ElasticsearchAggregation byReasonAgg = aggregations.get("by_reason");
-            if (byReasonAgg == null) {
-                throw new IllegalStateException("Aggregation 'by_reason' not found");
+                if (byReasonAgg == null) {
+                    throw new IllegalStateException("Aggregation 'by_reason' not found in response");
+                }
+
+                var byReason = byReasonAgg.aggregation().getAggregate().sterms();
+                byReason.buckets().array().forEach(bucket ->
+                        reasonCountMap.put(bucket.key().stringValue(), (int) bucket.docCount()));
+            } else {
+                logger.warn("No aggregations found for appeal reasons with fromTime: {}", fromTime);
             }
 
-            var byReason = byReasonAgg.aggregation().getAggregate().sterms();
-            byReason.buckets().array().forEach(bucket -> reasonCountMap.put(bucket.key().stringValue(), (int) bucket.docCount()));
+            return reasonCountMap;
+        } catch (Exception e) {
+            logger.error("Failed to retrieve appeal reason counts: {}", e.getMessage(), e);
+            throw e;
         }
-        return reasonCountMap;
     }
 
-    // Updated getFinePaymentStatus
     public Map<String, Integer> getFinePaymentStatus(String startTime) {
         String fromTime = startTime != null ? startTime : Instant.now().minus(30, ChronoUnit.DAYS).toString();
+        logger.debug("Querying fine payment status with fromTime: {}", fromTime);
 
-        SearchHits<FineInformationDocument> searchHits = fineRepository.aggregateByPaymentStatus(fromTime);
+        try {
+            SearchHits<FineInformationDocument> searchHits = fineRepository.aggregateByPaymentStatus(fromTime);
+            Map<String, Integer> paymentStatusMap = new HashMap<>();
 
-        Map<String, Integer> paymentStatusMap = new HashMap<>();
-        if (searchHits.hasAggregations()) {
-            ElasticsearchAggregations aggregations =
-                    (ElasticsearchAggregations) Objects.requireNonNull(searchHits.getAggregations());
+            if (searchHits.hasAggregations()) {
+                ElasticsearchAggregations aggregations = (ElasticsearchAggregations) Objects.requireNonNull(searchHits.getAggregations());
+                ElasticsearchAggregation byPaidAgg = aggregations.get("by_paid");
 
-            ElasticsearchAggregation byPaidAgg = aggregations.get("by_paid");
-            if (byPaidAgg == null) {
-                throw new IllegalStateException("Aggregation 'by_paid' not found");
+                if (byPaidAgg == null) {
+                    throw new IllegalStateException("Aggregation 'by_paid' not found in response");
+                }
+
+                var byPaid = byPaidAgg.aggregation().getAggregate().sterms();
+                byPaid.buckets().array().forEach(bucket -> {
+                    String key = bucket.key() == null || bucket.key().stringValue().isEmpty() ||
+                            bucket.key().stringValue().equalsIgnoreCase("unpaid") ? "Unpaid" : "Paid";
+                    paymentStatusMap.put(key, (int) bucket.docCount());
+                });
+            } else {
+                logger.warn("No aggregations found for fine payment status with fromTime: {}", fromTime);
             }
 
-            var byPaid = byPaidAgg.aggregation().getAggregate().sterms();
-            byPaid.buckets().array().forEach(bucket -> {
-                String key = bucket.key() == null || bucket.key().stringValue().isEmpty() ||
-                        bucket.key().stringValue().equalsIgnoreCase("unpaid") ? "Unpaid" : "Paid";
-                paymentStatusMap.put(key, (int) bucket.docCount());
-            });
+            return paymentStatusMap;
+        } catch (Exception e) {
+            logger.error("Failed to retrieve fine payment status: {}", e.getMessage(), e);
+            throw e;
         }
-        return paymentStatusMap;
     }
 }

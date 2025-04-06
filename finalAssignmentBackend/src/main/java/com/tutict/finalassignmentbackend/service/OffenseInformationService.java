@@ -16,6 +16,8 @@ import org.springframework.data.elasticsearch.core.SearchHits;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.*;
 import java.util.logging.Level;
@@ -75,14 +77,49 @@ public class OffenseInformationService {
     @Transactional
     @CacheEvict(cacheNames = "offenseCache", allEntries = true)
     public void createOffense(OffenseInformation offenseInformation) {
-        OffenseInformation existingOffense = offenseInformationMapper.selectById(offenseInformation.getOffenseId());
-        if (existingOffense == null) {
-            offenseInformationMapper.insert(offenseInformation);
-        } else {
-            offenseInformationMapper.updateById(offenseInformation);
+
+        validateInput(offenseInformation);
+        if (offenseInformation.getOffenseId() != null && offenseInformation.getOffenseId() <= 0) {
+            throw new IllegalArgumentException("Invalid offense ID: must be positive if provided");
         }
-        // Sync with Elasticsearch
-        offenseSearchRepository.save(OffenseInformationDocument.fromEntity(offenseInformation));
+
+        try {
+            log.log(Level.INFO, "Processing offense: {0}", offenseInformation);
+            OffenseInformation existingOffense = offenseInformationMapper.selectById(offenseInformation.getOffenseId());
+
+            Integer offenseId;
+            if (existingOffense == null) {
+                log.log(Level.INFO, "No existing offense found, inserting new record");
+                offenseInformationMapper.insert(offenseInformation);
+                offenseId = offenseInformation.getOffenseId();
+                if (offenseId == null) {
+                    throw new RuntimeException("Failed to generate offenseId after insert");
+                }
+                log.log(Level.INFO, "Database insert successful, offenseId={0}", offenseId);
+            } else {
+                log.log(Level.INFO, "Existing offense found, updating record with offenseId={0}", existingOffense.getOffenseId());
+                offenseInformationMapper.updateById(offenseInformation);
+                offenseId = offenseInformation.getOffenseId();
+                log.log(Level.INFO, "Database update successful, offenseId={0}", offenseId);
+            }
+
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    OffenseInformationDocument document = OffenseInformationDocument.fromEntity(offenseInformation);
+                    if (document != null) {
+                        offenseSearchRepository.save(document);
+                        log.log(Level.INFO, "Post-commit: Elasticsearch indexed, offenseId={0}", offenseId);
+                    } else {
+                        log.log(Level.WARNING, "Failed to create OffenseInformationDocument for offenseId={0}", offenseId);
+                    }
+                }
+            });
+
+        } catch (Exception e) {
+            log.log(Level.SEVERE, "Failed to process offense: " + e.getMessage(), e);
+            throw new RuntimeException("Failed to create or update offense", e);
+        }
     }
 
     @Transactional
@@ -364,7 +401,21 @@ public class OffenseInformationService {
     }
 
     private void sendKafkaMessage(String topic, OffenseInformation offenseInformation) {
-        kafkaTemplate.send(topic, offenseInformation);
-        log.info(String.format("Message sent to Kafka topic %s successfully", topic));
+        if (offenseInformation == null || topic == null) {
+            log.warning("Invalid input for sending Kafka message");
+            return;
+        }
+        try {
+            kafkaTemplate.send(topic, offenseInformation);
+            log.info(String.format("Message sent to Kafka topic %s successfully", topic));
+        } catch (Exception e) {
+            log.log(Level.WARNING, "Error sending message to Kafka: {0}", new Object[]{e.getMessage()});
+        }
+    }
+
+    private void validateInput(OffenseInformation offenseInformation) {
+        if (offenseInformation == null) {
+            throw new IllegalArgumentException("Deduction information cannot be null");
+        }
     }
 }
