@@ -17,4 +17,9 @@ public interface FineInformationSearchRepository extends ElasticsearchRepository
 
     @Query("{\"bool\": {\"filter\": [{\"range\": {\"fineTime\": {\"gte\": \"?0\", \"lte\": \"?1\"}}}}}")
     SearchHits<FineInformationDocument> searchByFineTimeRange(String startTime, String endTime);
+
+    // New aggregation method for payment status
+    @Query("{\"bool\": {\"filter\": [{\"range\": {\"fineTime\": {\"gte\": \"?0\"}}]}, " +
+            "\"aggs\": {\"by_paid\": {\"terms\": {\"field\": \"receiptNumber.keyword\", \"missing\": \"unpaid\", \"size\": 2}}}}")
+    SearchHits<FineInformationDocument> aggregateByPaymentStatus(String fromTime);
 }
