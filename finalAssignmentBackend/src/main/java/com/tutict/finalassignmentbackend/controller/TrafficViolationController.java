@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/traffic-violations")
@@ -33,7 +34,17 @@ public class TrafficViolationController {
         try {
             logger.info("Fetching violation type counts with startTime: {}, driverName: {}, licensePlate: {}",
                     startTime, driverName, licensePlate);
-            Map<String, Integer> violationTypeCounts = trafficViolationService.getViolationTypeCounts(startTime, driverName, licensePlate);
+            // 从 service 层获取 Map<String, Long>
+            Map<String, Long> violationTypeCountsLong = trafficViolationService.getViolationTypeCounts(startTime, driverName, licensePlate);
+
+            // 转换 Map<String, Long> 为 Map<String, Integer>
+            Map<String, Integer> violationTypeCounts = violationTypeCountsLong.entrySet()
+                    .stream()
+                    .collect(Collectors.toMap(
+                            Map.Entry::getKey,
+                            e -> e.getValue().intValue() // 注意：确保 Long 的值不会超出 Integer 范围
+                    ));
+
             logger.debug("Violation type counts retrieved: {}", violationTypeCounts);
             return ResponseEntity.ok(violationTypeCounts);
         } catch (IllegalStateException e) {
