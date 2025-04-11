@@ -9,7 +9,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
-@Document(indexName = "offense")
+@Document(indexName = "offense_information")
 @Setting(settingPath = "elasticsearch/offense-analyzer.json")
 public class OffenseInformationDocument {
 
@@ -68,7 +68,7 @@ public class OffenseInformationDocument {
     private String offenseCode;
 
     @Field(type = FieldType.Double)
-    private Double fineAmount; // Changed from BigDecimal to Double
+    private Double fineAmount;
 
     @Field(type = FieldType.Integer)
     private Integer deductedPoints;
@@ -111,7 +111,7 @@ public class OffenseInformationDocument {
         doc.setDriverName(entity.getDriverName());
         doc.setOffenseType(entity.getOffenseType());
         doc.setOffenseCode(entity.getOffenseCode());
-        doc.setFineAmount(entity.getFineAmount() != null ? entity.getFineAmount().doubleValue() : null); // Convert BigDecimal to Double
+        doc.setFineAmount(entity.getFineAmount() != null ? entity.getFineAmount().doubleValue() : null);
         doc.setDeductedPoints(entity.getDeductedPoints());
         doc.setProcessStatus(entity.getProcessStatus());
         doc.setProcessResult(entity.getProcessResult());
@@ -130,7 +130,7 @@ public class OffenseInformationDocument {
         entity.setDriverName(this.driverName);
         entity.setOffenseType(this.offenseType);
         entity.setOffenseCode(this.offenseCode);
-        entity.setFineAmount(this.fineAmount != null ? new BigDecimal(this.fineAmount.toString()) : null); // Convert Double back to BigDecimal
+        entity.setFineAmount(this.fineAmount != null ? new BigDecimal(this.fineAmount.toString()) : null);
         entity.setDeductedPoints(this.deductedPoints);
         entity.setProcessStatus(this.processStatus);
         entity.setProcessResult(this.processResult);

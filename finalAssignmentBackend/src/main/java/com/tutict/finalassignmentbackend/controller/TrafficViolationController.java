@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -68,10 +69,14 @@ public class TrafficViolationController {
             return ResponseEntity.ok(timeSeriesData);
         } catch (IllegalStateException e) {
             logger.warn("Bad request for time series data: {}", e.getMessage());
-            return ResponseEntity.badRequest().body(List.of(createErrorMap(400, e.getMessage())));
+            return ResponseEntity.badRequest().body(Collections.singletonList(
+                    Map.of("error_code", 400, "message", e.getMessage())
+            ));
         } catch (Exception e) {
             logger.error("Error fetching time series data: {}", e.getMessage(), e);
-            return ResponseEntity.status(500).body(List.of(createErrorMap(500, e.getMessage())));
+            return ResponseEntity.status(500).body(Collections.singletonList(
+                    Map.of("error_code", 500, "message", e.getMessage())
+            ));
         }
     }
 
@@ -116,13 +121,6 @@ public class TrafficViolationController {
         Map<String, Integer> errorMap = new HashMap<>();
         errorMap.put("error_code", errorCode);
         logger.debug("Error message for code {}: {}", errorCode, message);
-        return errorMap;
-    }
-
-    private Map<String, Object> createErrorMap(int errorCode, String message) {
-        Map<String, Object> errorMap = new HashMap<>();
-        errorMap.put("error_code", errorCode);
-        errorMap.put("message", message);
         return errorMap;
     }
 }

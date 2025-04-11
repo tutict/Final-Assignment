@@ -327,7 +327,6 @@
                             <packages>
                                 <package>requests</package>
                                 <package>beautifulsoup4</package>
-                                <package>scrapy</package>
                             </packages>
                         </configuration>
                         <goals>

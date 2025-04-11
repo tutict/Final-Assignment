@@ -124,7 +124,7 @@ public class TrafficViolationService {
     }
 
     public List<Map<String, Object>> getTimeSeriesData(String startTime, String driverName) {
-        // 如果 startTime 为 null，默认取最近 30 天的数据
+        // If startTime is null or empty, default to 30 days ago
         String fromTime = (startTime != null && !startTime.isEmpty())
                 ? startTime
                 : Instant.now().minus(30, ChronoUnit.DAYS).toString();
@@ -132,44 +132,56 @@ public class TrafficViolationService {
         logger.debug("Querying time series data with fromTime: {}, driverName: {}", fromTime, driverName);
 
         try {
-            // 调用 repository 自定义方法获取查询结果
-            SearchHits<OffenseInformationDocument> searchHits = offenseRepository.aggregateByDate(fromTime);
+            // Call the repository method with both fromTime and driverName
+            SearchHits<OffenseInformationDocument> searchHits;
+            if (driverName != null && !driverName.isEmpty()) {
+                searchHits = offenseRepository.aggregateByDate(fromTime, driverName);
+            } else {
+                searchHits = offenseRepository.aggregateByDate(fromTime);
+            }
+            logger.debug("SearchHits retrieved: total hits = {}, aggregations present = {}",
+                    searchHits.getTotalHits(), searchHits.hasAggregations());
+
             List<Map<String, Object>> dataList = new ArrayList<>();
 
             if (searchHits.hasAggregations()) {
-                // 这里将 SearchHits 中的 aggregations 转换为 ElasticsearchAggregations 类型
                 ElasticsearchAggregations aggregations = (ElasticsearchAggregations)
-                        Objects.requireNonNull(searchHits.getAggregations());
-                // 获取名为 "by_day" 的聚合
+                        Objects.requireNonNull(searchHits.getAggregations(), "Aggregations are null");
                 ElasticsearchAggregation byDayAgg = aggregations.get("by_day");
 
                 if (byDayAgg == null) {
                     throw new IllegalStateException("Aggregation 'by_day' not found in response");
                 }
 
-                // 解析日期直方图聚合
+                // Parse the date_histogram aggregation
                 var dateHistogram = byDayAgg.aggregation().getAggregate().dateHistogram();
-                dateHistogram.buckets().array().forEach(bucket -> {
-                    Map<String, Object> dataPoint = new HashMap<>();
-                    // 将 bucket 的 keyAsString（即日期字符串）设置到 time 字段
-                    dataPoint.put("time", bucket.keyAsString());
+                if (dateHistogram == null || dateHistogram.buckets().array().isEmpty()) {
+                    logger.warn("No buckets found in date_histogram aggregation for fromTime: {}, driverName: {}",
+                            fromTime, driverName);
+                } else {
+                    dateHistogram.buckets().array().forEach(bucket -> {
+                        Map<String, Object> dataPoint = new HashMap<>();
+                        dataPoint.put("time", bucket.keyAsString());
 
-                    // 从该 bucket 中获取内部聚合：total_fine 和 total_points
-                    var totalFineAgg = bucket.aggregations().get("total_fine").sum();
-                    var totalPointsAgg = bucket.aggregations().get("total_points").sum();
+                        // Extract sub-aggregations
+                        var totalFineAgg = bucket.aggregations().get("total_fine").sum();
+                        var totalPointsAgg = bucket.aggregations().get("total_points").sum();
 
-                    dataPoint.put("value1", totalFineAgg.value());
-                    dataPoint.put("value2", totalPointsAgg.value());
-                    dataList.add(dataPoint);
-                });
+                        dataPoint.put("value1", totalFineAgg.value()); // Total fine
+                        dataPoint.put("value2", totalPointsAgg.value()); // Total points
+                        dataList.add(dataPoint);
+                    });
+                    logger.debug("Parsed {} data points from aggregation", dataList.size());
+                }
             } else {
-                logger.warn("No aggregations found for time series data with fromTime: {}", fromTime);
+                logger.warn("No aggregations found for time series data with fromTime: {}, driverName: {}",
+                        fromTime, driverName);
             }
 
             return dataList;
         } catch (Exception e) {
             logger.error("Failed to retrieve time series data: {}", e.getMessage(), e);
-            throw e;
+            throw new UncategorizedElasticsearchException("Failed to retrieve time series data", e);
         }
     }
 

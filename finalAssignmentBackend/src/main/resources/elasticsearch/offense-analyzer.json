@@ -5,7 +5,6 @@
         "type": "custom",
         "tokenizer": "ik_max_word",
         "filter": [
-          "synonym_filter",
           "lowercase"
         ]
       },
@@ -32,19 +31,6 @@
         "token_chars": [
           "letter",
           "digit"
-        ]
-      }
-    },
-    "filter": {
-      "synonym_filter": {
-        "type": "synonym",
-        "synonyms": [
-          "honda => 本田",
-          "toyota => 丰田",
-          "nissan => 日产",
-          "lexus => 雷克萨斯",
-          "sedan => 轿车",
-          "suv => 越野车"
         ]
       }
     }
