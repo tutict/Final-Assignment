@@ -76,36 +76,3 @@ configurations.configureEach {
     exclude group: 'org.slf4j', module: 'slf4j-simple'
     exclude group: 'org.slf4j', module: 'slf4j-jdk14'
 }
-
-// TODO: 调整到编译时可执行
-tasks.register('startDocker', Exec) {
-
-    logger.info("当前操作系统为：${System.getProperty("os.name")}")
-
-    // 获取当前操作系统名称
-    def osName = System.getProperty("os.name").toLowerCase()
-    // 获取项目的根目录路径
-    def projectDirPath = project.projectDir.absolutePath
-    // 定义脚本的相对路径
-    def windowsScript = "${projectDirPath}/finalAssignmentTools/quarkus_start_docker/run.bat"
-    def unixScript = "${projectDirPath}/finalAssignmentTools/use_docker/run.sh"
-
-    if (osName.contains("windows")) {
-        // Windows 系统，执行 run.bat
-        commandLine 'cmd', '/c', windowsScript
-    } else if (osName.contains("linux") || osName.contains("mac")) {
-        // Linux 或 macOS 系统，执行 run.sh
-        commandLine 'sh', unixScript
-    } else {
-        // 不支持的操作系统
-        doFirst {
-            logger.warn("当前操作系统 (${osName}) 不受支持。")
-        }
-    }
-}
-
-// 将 startDocker 任务设置为 quarkusDev 任务的前置任务
-// 确保 startDocker 任务在 quarkusDev 任务之前执行
-tasks.named('quarkusDev') {
-    dependsOn 'startDocker'
-}

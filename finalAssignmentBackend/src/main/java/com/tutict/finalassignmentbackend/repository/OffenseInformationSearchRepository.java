@@ -27,19 +27,24 @@ public interface OffenseInformationSearchRepository extends ElasticsearchReposit
     @Query("{\"bool\": {\"must\": [{\"match\": {\"driverName\": {\"query\": \"?0\", \"fuzziness\": \"AUTO\"}}}]}}")
     SearchHits<OffenseInformationDocument> searchByDriverNameFuzzy(String driverName);
 
-    @Query("{\"query\": {\"bool\": {\"must\": [{\"query_string\": {\"query\": \"?1\", \"fields\": [\"driverName\"], \"default_operator\": \"AND\"}}], \"filter\": [{\"range\": {\"offenseTime\": {\"gte\": \"?0\", \"format\": \"yyyy-MM-dd'T'HH:mm:ss\"}}}]}}, " +
+    @Query("{\"bool\": {\"must\": [{\"query_string\": {\"query\": \"?1\", \"fields\": [\"driverName.keyword\"], \"default_operator\": \"AND\"}}], " +
+            "\"filter\": [{\"range\": {\"offenseTime\": {\"gte\": \"?0\", \"format\": \"yyyy-MM-dd'T'HH:mm:ss\"}}}]}," +
             "\"aggs\": {\"by_day\": {\"date_histogram\": {" +
             "    \"field\": \"offenseTime\", \"calendar_interval\": \"day\", \"format\": \"yyyy-MM-dd\"}," +
-            "    \"aggs\": {\"total_fine\": {\"sum\": {\"field\": \"fineAmount\"}}," +
-            "             \"total_points\": {\"sum\": {\"field\": \"deductedPoints\"}}}" +
+            "    \"aggs\": {" +
+            "             \"total_fine\": {\"sum\": {\"field\": \"fineAmount\"}}," +
+            "             \"total_points\": {\"sum\": {\"field\": \"deductedPoints\"}}" +
+            "    }" +
             "}}}")
     SearchHits<OffenseInformationDocument> aggregateByDate(String fromTime, String driverName);
 
-    @Query("{\"query\": {\"bool\": {\"filter\": [{\"range\": {\"offenseTime\": {\"gte\": \"?0\", \"format\": \"yyyy-MM-dd'T'HH:mm:ss\"}}}]}}, " +
+    @Query("{\"bool\": {\"filter\": [{\"range\": {\"offenseTime\": {\"gte\": \"?0\", \"format\": \"yyyy-MM-dd'T'HH:mm:ss\"}}}]}," +
             "\"aggs\": {\"by_day\": {\"date_histogram\": {" +
             "    \"field\": \"offenseTime\", \"calendar_interval\": \"day\", \"format\": \"yyyy-MM-dd\"}," +
-            "    \"aggs\": {\"total_fine\": {\"sum\": {\"field\": \"fineAmount\"}}," +
-            "             \"total_points\": {\"sum\": {\"field\": \"deductedPoints\"}}}" +
+            "    \"aggs\": {" +
+            "             \"total_fine\": {\"sum\": {\"field\": \"fineAmount\"}}," +
+            "             \"total_points\": {\"sum\": {\"field\": \"deductedPoints\"}}" +
+            "    }" +
             "}}}")
     SearchHits<OffenseInformationDocument> aggregateByDate(String fromTime);
 }
