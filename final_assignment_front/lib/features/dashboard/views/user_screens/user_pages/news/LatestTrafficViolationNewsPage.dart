@@ -28,8 +28,8 @@ class _LatestTrafficViolationNewsPageState
             colors: [
               isDarkMode ? Colors.blue[900]! : Colors.blueAccent, // 暗色模式使用更深的蓝色
               isDarkMode
-                  ? Theme.of(context).colorScheme.background
-                  : Theme.of(context).colorScheme.background,
+                  ? Theme.of(context).colorScheme.surface
+                  : Theme.of(context).colorScheme.surface,
             ],
           ),
         ),

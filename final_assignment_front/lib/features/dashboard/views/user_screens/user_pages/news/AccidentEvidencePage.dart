@@ -26,8 +26,8 @@ class _AccidentEvidencePageState extends State<AccidentEvidencePage> {
             colors: [
               isDarkMode ? Colors.orange : Colors.orangeAccent, // 暗色模式使用纯橙色
               isDarkMode
-                  ? Theme.of(context).colorScheme.background
-                  : Theme.of(context).colorScheme.background,
+                  ? Theme.of(context).colorScheme.surface
+                  : Theme.of(context).colorScheme.surface,
             ],
           ),
         ),

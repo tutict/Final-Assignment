@@ -54,8 +54,9 @@ class OffenseInformation {
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{};
     if (offenseId != null) json['offenseId'] = offenseId;
-    if (offenseTime != null)
+    if (offenseTime != null) {
       json['offenseTime'] = offenseTime!.toIso8601String();
+    }
     if (offenseLocation != null) json['offenseLocation'] = offenseLocation;
     if (licensePlate != null) json['licensePlate'] = licensePlate;
     if (driverName != null) json['driverName'] = driverName;

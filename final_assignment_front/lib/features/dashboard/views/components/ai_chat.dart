@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:final_assignment_front/constants/app_constants.dart';
 import 'package:flutter/material.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/chat_controller.dart';
@@ -60,7 +59,7 @@ class AiChat extends GetView<ChatController> {
                               .colorScheme
                               .primary
                               .withOpacity(0.9)
-                          : Theme.of(context).colorScheme.surfaceVariant,
+                          : Theme.of(context).colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(

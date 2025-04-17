@@ -110,7 +110,7 @@ quarkus.langchain4j.ollama.chat-model.model-id=deepseek-r1:7b
 #### 技术架构
 
 - 🚀 **核心框架**  
-  Spring Boot 3.4.4 + Graalvm 23 
+  Spring Boot 3.4.4 + Graalvm 24 
 - 🛠 **数据层**  
   MyBatis Plus 3.5.7 + MySQL + Redis 多级缓存
 - **docker**
@@ -183,6 +183,8 @@ spring.ai.ollama.base-url=http://localhost:11434
 ```
 * 注1: ES的端口由RunDocker类里的TestContainers自动配置,然后在ES配置类里直接调用,所以没有在application.properties里配置
 * 注2: 在maven同步下载完依赖包后,需要手动再mvn install一下,Graalpy会在项目里的target文件夹里build一个虚拟环境
+* 注3: 可以使用finalAssignmentTools/generate_secret_key文件夹下的脚本生成jwt的secret key
+ 
 ## 八股选猿
 
 - 等赶完毕设DLL后，对八股文的一些练习将放在`final_assignment_backend_quarkus/src/test/java/bagu`路径下

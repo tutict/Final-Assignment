@@ -281,7 +281,7 @@ class _VehicleManagementState extends State<VehicleManagement> {
       context: context,
       builder: (ctx) {
         final themeData =
-            controller?.currentBodyTheme.value ?? ThemeData.light();
+            controller.currentBodyTheme.value ?? ThemeData.light();
         return AlertDialog(
           backgroundColor: themeData.colorScheme.surfaceContainerHighest,
           shape:
@@ -428,7 +428,7 @@ class _VehicleManagementState extends State<VehicleManagement> {
 
   @override
   Widget build(BuildContext context) {
-    final themeData = controller?.currentBodyTheme.value ?? ThemeData.light();
+    final themeData = controller.currentBodyTheme.value ?? ThemeData.light();
 
     return Scaffold(
       backgroundColor: themeData.colorScheme.surface,
@@ -683,7 +683,7 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
   Future<void> _preFillForm(String username) async {
     final user = await _fetchUserManagement();
     final driverInfo = user?.userId != null
-        ? await driverApi.apiDriversDriverIdGet(driverId: user!.userId!)
+        ? await driverApi.apiDriversDriverIdGet(driverId: user!.userId)
         : null;
 
     debugPrint('Fetched UserManagement: ${user?.toJson()}');
@@ -1058,7 +1058,7 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
 
     final user = await _fetchUserManagement();
     final driverInfo = user?.userId != null
-        ? await driverApi.apiDriversDriverIdGet(driverId: user!.userId!)
+        ? await driverApi.apiDriversDriverIdGet(driverId: user!.userId)
         : null;
     if (driverInfo == null || driverInfo.name == null) {
       throw Exception('无法获取驾驶员信息或姓名');

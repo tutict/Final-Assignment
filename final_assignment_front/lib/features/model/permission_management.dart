@@ -54,12 +54,15 @@ class PermissionManagement {
     final Map<String, dynamic> json = {};
     if (permissionId != null) json['permissionId'] = permissionId;
     if (permissionName != null) json['permissionName'] = permissionName;
-    if (permissionDescription != null)
+    if (permissionDescription != null) {
       json['permissionDescription'] = permissionDescription;
-    if (createdTime != null)
+    }
+    if (createdTime != null) {
       json['createdTime'] = createdTime!.toIso8601String();
-    if (modifiedTime != null)
+    }
+    if (modifiedTime != null) {
       json['modifiedTime'] = modifiedTime!.toIso8601String();
+    }
     if (remarks != null) json['remarks'] = remarks;
     if (idempotencyKey != null) json['idempotencyKey'] = idempotencyKey;
     return json;

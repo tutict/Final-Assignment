@@ -204,8 +204,7 @@ class ProgressController extends GetxController {
     if (startTime.value != null && endTime.value != null) {
       items = items.where((item) {
         final submitTime = item.submitTime;
-        return submitTime != null &&
-            submitTime.isAfter(startTime.value!) &&
+        return submitTime.isAfter(startTime.value!) &&
             submitTime.isBefore(endTime.value!);
       }).toList();
     }

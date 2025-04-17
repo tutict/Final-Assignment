@@ -27,8 +27,8 @@ class _AccidentProgressPageState extends State<AccidentProgressPage> {
               isDarkMode ? Colors.deepPurple[900]! : Colors.deepPurple,
               // 暗色模式使用更深的紫色
               isDarkMode
-                  ? Theme.of(context).colorScheme.background
-                  : Theme.of(context).colorScheme.background,
+                  ? Theme.of(context).colorScheme.surface
+                  : Theme.of(context).colorScheme.surface,
             ],
           ),
         ),

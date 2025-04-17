@@ -28,8 +28,8 @@ class _FinePaymentNoticePageState extends State<FinePaymentNoticePage> {
                   ? Theme.of(context).colorScheme.primary
                   : Theme.of(context).colorScheme.primary, // 保持主题主色
               isDarkMode
-                  ? Theme.of(context).colorScheme.background
-                  : Theme.of(context).colorScheme.background,
+                  ? Theme.of(context).colorScheme.surface
+                  : Theme.of(context).colorScheme.surface,
             ],
           ),
         ),
@@ -108,7 +108,7 @@ class _FinePaymentNoticePageState extends State<FinePaymentNoticePage> {
           fontWeight: FontWeight.bold,
           color: isDarkMode
               ? Colors.white
-              : Theme.of(context).colorScheme.onBackground,
+              : Theme.of(context).colorScheme.onSurface,
         ),
       ),
     );

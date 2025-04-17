@@ -109,44 +109,40 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
       final user = UserManagement.fromJson(data);
 
       DriverInformation? driverInfo;
-      if (user.userId != null) {
-        try {
+      try {
+        driverInfo =
+            await driverApi.apiDriversDriverIdGet(driverId: user.userId);
+        debugPrint('Driver info fetched: ${driverInfo?.toJson()}');
+        if (driverInfo?.idCardNumber != null &&
+            driverInfo!.idCardNumber!.isNotEmpty) {
+          _idCardNumberEdited = true;
+        }
+      } catch (e) {
+        if (e is ApiException && e.code == 404) {
+          final idempotencyKey = generateIdempotencyKey();
+          driverInfo = DriverInformation(
+            driverId: user.userId,
+            name: user.username ?? '未知用户',
+            contactNumber: user.contactNumber ?? '',
+            idCardNumber: '',
+          );
+          debugPrint(
+              'Creating new driver with driverId: ${user.userId}, name: ${user.username}');
+          await driverApi.apiDriversPost(
+            driverInformation: driverInfo,
+            idempotencyKey: idempotencyKey,
+          );
           driverInfo =
               await driverApi.apiDriversDriverIdGet(driverId: user.userId);
-          debugPrint('Driver info fetched: ${driverInfo?.toJson()}');
-          if (driverInfo?.idCardNumber != null &&
-              driverInfo!.idCardNumber!.isNotEmpty) {
-            _idCardNumberEdited = true;
-          }
-        } catch (e) {
-          if (e is ApiException && e.code == 404) {
-            final idempotencyKey = generateIdempotencyKey();
-            driverInfo = DriverInformation(
-              driverId: user.userId,
-              name: user.username ?? '未知用户',
-              contactNumber: user.contactNumber ?? '',
-              idCardNumber: '',
-            );
-            debugPrint(
-                'Creating new driver with driverId: ${user.userId}, name: ${user.username}');
-            await driverApi.apiDriversPost(
-              driverInformation: driverInfo,
-              idempotencyKey: idempotencyKey,
-            );
-            driverInfo =
-                await driverApi.apiDriversDriverIdGet(driverId: user.userId);
-            debugPrint('Driver created and fetched: ${driverInfo?.toJson()}');
-          } else {
-            debugPrint('Driver fetch error: $e');
-            if (mounted) setState(() => _errorMessage = _formatErrorMessage(e));
-            rethrow;
-          }
+          debugPrint('Driver created and fetched: ${driverInfo?.toJson()}');
+        } else {
+          debugPrint('Driver fetch error: $e');
+          if (mounted) setState(() => _errorMessage = _formatErrorMessage(e));
+          rethrow;
         }
-        _driverInfo = driverInfo;
-      } else {
-        throw Exception('用户ID为空，无法加载或创建司机信息');
       }
-
+      _driverInfo = driverInfo;
+    
       if (mounted) {
         setState(() {
           _userFuture = Future.value(user);

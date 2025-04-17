@@ -15,7 +15,7 @@
     <name>finalAssignmetBackend</name>
     <description>finalAssignmetBackend</description>
     <properties>
-        <java.version>23</java.version>
+        <java.version>24</java.version>
     </properties>
 
     <dependencies>
@@ -135,7 +135,7 @@
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <version>1.18.36</version>
+            <version>1.18.38</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -275,19 +275,19 @@
         <dependency>
             <groupId>org.graalvm.polyglot</groupId>
             <artifactId>polyglot</artifactId>
-            <version>24.1.2</version>
+            <version>24.2.0</version>
         </dependency>
         <dependency>
             <groupId>org.graalvm.polyglot</groupId>
             <artifactId>python</artifactId>
-            <version>24.1.2</version>
+            <version>24.2.0</version>
             <type>pom</type>
             <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>org.graalvm.python</groupId>
             <artifactId>python-embedding</artifactId>
-            <version>24.1.2</version>
+            <version>24.2.0</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.statemachine</groupId>
@@ -310,21 +310,16 @@
     <build>
         <plugins>
             <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-            </plugin>
-            <plugin>
-                <groupId>org.graalvm.buildtools</groupId>
-                <artifactId>native-maven-plugin</artifactId>
-            </plugin>
-            <plugin>
                 <groupId>org.graalvm.python</groupId>
                 <artifactId>graalpy-maven-plugin</artifactId>
-                <version>24.1.2</version>
+                <version>24.2.0</version>
                 <executions>
                     <execution>
                         <configuration>
                             <packages>
+<!--                                <package>pyproject</package>-->
+<!--                                <package>scrapy</package>-->
+<!--                                <package>lxml</package>-->
                                 <package>requests</package>
                                 <package>beautifulsoup4</package>
                             </packages>

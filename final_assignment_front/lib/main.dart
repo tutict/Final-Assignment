@@ -4,10 +4,7 @@ import 'package:final_assignment_front/features/dashboard/views/manager_screens/
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart'
-    show
-        GlobalCupertinoLocalizations,
-        GlobalMaterialLocalizations,
-        GlobalWidgetsLocalizations; // 添加此导入
+    show GlobalCupertinoLocalizations, GlobalMaterialLocalizations, GlobalWidgetsLocalizations;
 import 'package:get/get.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
@@ -17,7 +14,6 @@ import 'config/themes/app_theme.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize date formatting with error handling
   try {
     await initializeDateFormatting('zh_CN', null);
     debugPrint('Date formatting initialized for zh_CN');
@@ -28,8 +24,7 @@ void main() async {
   Get.put(DashboardController());
   Get.put(UserDashboardController());
   Get.put(ChatController());
-  final progressController = Get.put(ProgressController());
-  await progressController.initialize();
+  Get.put(ProgressController());
 
   runApp(const MainApp());
 }
@@ -54,17 +49,15 @@ class MainApp extends StatelessWidget {
         );
       },
       locale: const Locale('zh', 'CN'),
-      // 默认中文
       fallbackLocale: const Locale('en', 'US'),
-      // 回退英文
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: const [
-        Locale('en', 'US'), // 英文
-        Locale('zh', 'CN'), // 中文
+        Locale('en', 'US'),
+        Locale('zh', 'CN'),
       ],
     );
   }

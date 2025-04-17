@@ -143,7 +143,7 @@ class ProgressManagementPage extends StatelessWidget {
                                                 ),
                                               ),
                                               Text(
-                                                '提交时间: ${item.submitTime != null ? DateFormat('yyyy-MM-dd HH:mm').format(item.submitTime!) : '未知'}',
+                                                '提交时间: ${item.submitTime != null ? DateFormat('yyyy-MM-dd HH:mm').format(item.submitTime) : '未知'}',
                                                 style: themeData
                                                     .textTheme.bodyMedium
                                                     ?.copyWith(

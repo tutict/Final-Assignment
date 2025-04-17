@@ -26,8 +26,8 @@ class _AccidentVideoQuickPageState extends State<AccidentVideoQuickPage> {
             colors: [
               isDarkMode ? Colors.green[900]! : Colors.green, // 暗色模式使用更深的绿色
               isDarkMode
-                  ? Theme.of(context).colorScheme.background
-                  : Theme.of(context).colorScheme.background,
+                  ? Theme.of(context).colorScheme.surface
+                  : Theme.of(context).colorScheme.surface,
             ],
           ),
         ),

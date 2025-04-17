@@ -26,8 +26,8 @@ class _AccidentQuickGuidePageState extends State<AccidentQuickGuidePage> {
             colors: [
               isDarkMode ? Colors.teal[900]! : Colors.teal, // 暗色模式使用更深的青色
               isDarkMode
-                  ? Theme.of(context).colorScheme.background
-                  : Theme.of(context).colorScheme.background,
+                  ? Theme.of(context).colorScheme.surface
+                  : Theme.of(context).colorScheme.surface,
             ],
           ),
         ),

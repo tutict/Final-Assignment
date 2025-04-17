@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:final_assignment_front/constants/app_constants.dart';
 
 /// AppTheme 类包含了应用的所有自定义主题样式。
 class AppTheme {
