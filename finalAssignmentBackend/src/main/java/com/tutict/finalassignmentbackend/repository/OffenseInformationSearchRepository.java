@@ -31,20 +31,16 @@ public interface OffenseInformationSearchRepository extends ElasticsearchReposit
             "\"filter\": [{\"range\": {\"offenseTime\": {\"gte\": \"?0\", \"format\": \"yyyy-MM-dd'T'HH:mm:ss\"}}}]}," +
             "\"aggs\": {\"by_day\": {\"date_histogram\": {" +
             "    \"field\": \"offenseTime\", \"calendar_interval\": \"day\", \"format\": \"yyyy-MM-dd\"}," +
-            "    \"aggs\": {" +
-            "             \"total_fine\": {\"sum\": {\"field\": \"fineAmount\"}}," +
-            "             \"total_points\": {\"sum\": {\"field\": \"deductedPoints\"}}" +
-            "    }" +
+            "    \"aggs\": {\"total_fine\": {\"sum\": {\"field\": \"fineAmount\"}}," +
+            "             \"total_points\": {\"sum\": {\"field\": \"deductedPoints\"}}}" +
             "}}}")
     SearchHits<OffenseInformationDocument> aggregateByDate(String fromTime, String driverName);
 
     @Query("{\"bool\": {\"filter\": [{\"range\": {\"offenseTime\": {\"gte\": \"?0\", \"format\": \"yyyy-MM-dd'T'HH:mm:ss\"}}}]}," +
             "\"aggs\": {\"by_day\": {\"date_histogram\": {" +
             "    \"field\": \"offenseTime\", \"calendar_interval\": \"day\", \"format\": \"yyyy-MM-dd\"}," +
-            "    \"aggs\": {" +
-            "             \"total_fine\": {\"sum\": {\"field\": \"fineAmount\"}}," +
-            "             \"total_points\": {\"sum\": {\"field\": \"deductedPoints\"}}" +
-            "    }" +
+            "    \"aggs\": {\"total_fine\": {\"sum\": {\"field\": \"fineAmount\"}}," +
+            "             \"total_points\": {\"sum\": {\"field\": \"deductedPoints\"}}}" +
             "}}}")
     SearchHits<OffenseInformationDocument> aggregateByDate(String fromTime);
 }

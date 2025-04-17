@@ -110,7 +110,7 @@ quarkus.langchain4j.ollama.chat-model.model-id=deepseek-r1:7b
 #### 技术架构
 
 - 🚀 **核心框架**  
-  Spring Boot 3.4.2 + Graalvm 23
+  Spring Boot 3.4.4 + Graalvm 23 
 - 🛠 **数据层**  
   MyBatis Plus 3.5.7 + MySQL + Redis 多级缓存
 - **docker**
@@ -134,6 +134,7 @@ quarkus.langchain4j.ollama.chat-model.model-id=deepseek-r1:7b
 - 📘 OpenAPI 3 规范接口
 - 🔌 混合通信模式（HTTP/REST + WebSocket）
 - WebSocket 实时推送
+- 提升 Python 爬虫脚本性能 (目前发现Graalpy对CPython的兼容不太好, 装lxml或scrapy的时候总是提示缺少头文件)
 
 #### application.properties参考：
 
@@ -142,15 +143,18 @@ quarkus.langchain4j.ollama.chat-model.model-id=deepseek-r1:7b
 spring.application.name=finalAssignmentBackend
 server.port=8080
 spring.main.allow-circular-references=true
+management.endpoints.web.exposure.include=health,metrics
 spring.datasource.url=jdbc:mysql://localhost:3306/cesi
-spring.datasource.username=xxxx
-spring.datasource.password=xxxx
+spring.datasource.username=XXXX
+spring.datasource.password=XXXX
 spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
 mybatis-plus.mapper-locations=classpath*:/mapper/**/*.xml
 mybatis-plus.type-aliases-package=com.tutict.finalassignmentbackend.entity
 mybatis-plus.configuration.map-underscore-to-camel-case=true
 logging.level.root=INFO
-logging.level.com.example.finalassignmentbackend=DEBUG
+logging.level.org.springframework.security=TRACE
+logging.level.org.springframework.security.web.FilterChainProxy=DEBUG
+logging.level.com.tutict.finalassignmentbackend=INFO
 debug=true
 # Kafka settings
 spring.kafka.bootstrap-servers=${spring.kafka.bootstrap-servers}
@@ -161,11 +165,13 @@ spring.kafka.consumer.value-deserializer=org.apache.kafka.common.serialization.S
 spring.kafka.producer.acks=1
 spring.kafka.producer.key-serializer=org.apache.kafka.common.serialization.StringSerializer
 spring.kafka.producer.value-serializer=org.springframework.kafka.support.serializer.JsonSerializer
-#jwt set secret key2
+#jwt set secret key
 jwt.secret.key=XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX=
 #redis settings
 spring.data.redis.host=${spring.data.redis.host}
 spring.data.redis.port=${spring.data.redis.port}
+# ElasticSearch settings
+spring.data.elasticsearch.repositories.enabled=true
 # Backend Service Configuration
 backend.url=http://localhost
 backend.port=8080
@@ -175,7 +181,8 @@ spring.ai.ollama.chat.model=deepseek-r1:7b
 spring.ai.ollama.base-url=http://localhost:11434
 
 ```
-
+* 注1: ES的端口由RunDocker类里的TestContainers自动配置,然后在ES配置类里直接调用,所以没有在application.properties里配置
+* 注2: 在maven同步下载完依赖包后,需要手动再mvn install一下,Graalpy会在项目里的target文件夹里build一个虚拟环境
 ## 八股选猿
 
 - 等赶完毕设DLL后，对八股文的一些练习将放在`final_assignment_backend_quarkus/src/test/java/bagu`路径下
