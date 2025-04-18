@@ -112,16 +112,18 @@ quarkus.langchain4j.ollama.chat-model.model-id=deepseek-r1:7b
 - 🚀 **核心框架**  
   Spring Boot 3.4.4 + Graalvm 24 
 - 🛠 **数据层**  
-  MyBatis Plus 3.5.7 + MySQL + Redis 多级缓存
+  MyBatis Plus 3.5.10.1 + MySQL 8.0.41 + Redis 多级缓存
 - **docker**
-  基于testcontainers, 使用 Redis + Redpanda + ElasticSearch
+  基于testcontainers, 使用 Redis + Redpanda(Kafka) + ElasticSearch 8
 - **AI**
-      使用本地 DeepSeek AI 服务（ollama），并利用Graalpy，实现本地模型通过Python爬虫脚本爬取数据来进行联网
+     - 使用本地 DeepSeek AI 服务（ollama），并利用Graalpy，实现本地模型通过Python爬虫脚本爬取数据来进行联网
+     - 为了此项目微调的deepseek-r1:8b模型文件，已上传HuggingFace仓库，地址：https://huggingface.co/4513P/deepseek-for-my-bishe/tree/main
+      
 
 #### 关键特性
 
 - 🔐 **安全体系**  
-  JWT 鉴权 + Spring Security 6.3 + BCrypt 加密
+  JWT 鉴权 + Spring Security 6.4 + BCrypt 加密
 - 📡 **实时处理**  
   Kafka 消息队列 + 异步 Vert.x 处理
 - ☁️ **云原生支持**  
