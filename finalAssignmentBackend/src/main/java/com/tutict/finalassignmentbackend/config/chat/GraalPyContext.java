@@ -1,4 +1,4 @@
-package com.tutict.finalassignmentbackend.config.ai;
+package com.tutict.finalassignmentbackend.config.chat;
 
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Value;
@@ -28,7 +28,7 @@ public class GraalPyContext {
             }
 
             // 读取 PythonPath 和 Executable 路径
-            String pythonPath = new File(venvDir, "Lib/site-packages").getAbsolutePath();
+            String pythonPath = new File(venvDir, "lib/python3.11/site-packages").getAbsolutePath();
             String executablePath = new File(venvDir, "Scripts/graalpy.exe").getAbsolutePath();
 
             // 配置 GraalPy Context

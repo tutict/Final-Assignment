@@ -1,4 +1,4 @@
-package com.tutict.finalassignmentbackend.entity.view;
+package com.tutict.finalassignmentbackend.entity;
 
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
@@ -85,22 +85,8 @@ public class OffenseDetails implements Serializable {
 
     /**
      * 带参数的构造函数。
-     *
-     * @param offenseId 违章ID
-     * @param offenseTime 违章时间
-     * @param offenseLocation 违章地点
-     * @param offenseType 违章类型
-     * @param offenseCode 违章代码
-     * @param driverName 驾驶员姓名
-     * @param driverIdCardNumber 驾驶员身份证号
-     * @param licensePlate 车牌号
-     * @param vehicleType 车辆类型
-     * @param ownerName 车主姓名
      */
-    public OffenseDetails(Integer offenseId, LocalDateTime offenseTime, String offenseLocation,
-                          String offenseType, String offenseCode, String driverName,
-                          String driverIdCardNumber, String licensePlate, String vehicleType,
-                          String ownerName) {
+    public OffenseDetails() {
         this.offenseId = offenseId;
         this.offenseTime = offenseTime;
         this.offenseLocation = offenseLocation;

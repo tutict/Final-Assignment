@@ -5,12 +5,7 @@ import co.elastic.clients.json.jackson.JacksonJsonpMapper;
 import co.elastic.clients.transport.ElasticsearchTransport;
 import co.elastic.clients.transport.rest_client.RestClientTransport;
 import com.tutict.finalassignmentbackend.entity.*;
-import com.tutict.finalassignmentbackend.entity.elastic.AppealManagementDocument;
-import com.tutict.finalassignmentbackend.entity.elastic.DriverInformationDocument;
-import com.tutict.finalassignmentbackend.entity.elastic.OffenseInformationDocument;
-import com.tutict.finalassignmentbackend.entity.elastic.VehicleInformationDocument;
-import com.tutict.finalassignmentbackend.entity.elastic.DeductionInformationDocument;
-import com.tutict.finalassignmentbackend.entity.elastic.FineInformationDocument;
+import com.tutict.finalassignmentbackend.entity.elastic.*;
 import com.tutict.finalassignmentbackend.mapper.*;
 import com.tutict.finalassignmentbackend.repository.*;
 import jakarta.annotation.PostConstruct;
@@ -43,6 +38,7 @@ public class ElasticSearchConfig {
     private final AppealManagementMapper appealManagementMapper;
     private final FineInformationMapper fineInformationMapper;
     private final DeductionInformationMapper deductionInformationMapper;
+    private final OffenseDetailsMapper offenseDetailsMapper;
 
     private final @Lazy VehicleInformationSearchRepository vehicleInformationSearchRepository;
     private final @Lazy DriverInformationSearchRepository driverInformationSearchRepository;
@@ -50,6 +46,7 @@ public class ElasticSearchConfig {
     private final @Lazy AppealManagementSearchRepository appealManagementSearchRepository;
     private final @Lazy FineInformationSearchRepository fineInformationSearchRepository;
     private final @Lazy DeductionInformationSearchRepository deductionInformationSearchRepository;
+    private final @Lazy OffenseDetailsSearchRepository offenseDetailsSearchRepository;
 
     public ElasticSearchConfig(
             VehicleInformationMapper vehicleInformationMapper,
@@ -58,17 +55,20 @@ public class ElasticSearchConfig {
             AppealManagementMapper appealManagementMapper,
             FineInformationMapper fineInformationMapper,
             DeductionInformationMapper deductionInformationMapper,
+            OffenseDetailsMapper offenseDetailsMapper,
             @Lazy VehicleInformationSearchRepository vehicleInformationSearchRepository,
             @Lazy DriverInformationSearchRepository driverInformationSearchRepository,
             @Lazy OffenseInformationSearchRepository offenseInformationSearchRepository,
             @Lazy AppealManagementSearchRepository appealManagementSearchRepository,
             @Lazy FineInformationSearchRepository fineInformationSearchRepository,
-            @Lazy DeductionInformationSearchRepository deductionInformationSearchRepository) {
+            @Lazy DeductionInformationSearchRepository deductionInformationSearchRepository,
+            @Lazy OffenseDetailsSearchRepository offenseDetailsSearchRepository) {
         this.vehicleInformationMapper = vehicleInformationMapper;
         this.driverInformationMapper = driverInformationMapper;
         this.offenseInformationMapper = offenseInformationMapper;
         this.appealManagementMapper = appealManagementMapper;
         this.fineInformationMapper = fineInformationMapper;
+        this.offenseDetailsMapper = offenseDetailsMapper;
         this.deductionInformationMapper = deductionInformationMapper;
         this.vehicleInformationSearchRepository = vehicleInformationSearchRepository;
         this.driverInformationSearchRepository = driverInformationSearchRepository;
@@ -76,6 +76,7 @@ public class ElasticSearchConfig {
         this.appealManagementSearchRepository = appealManagementSearchRepository;
         this.fineInformationSearchRepository = fineInformationSearchRepository;
         this.deductionInformationSearchRepository = deductionInformationSearchRepository;
+        this.offenseDetailsSearchRepository = offenseDetailsSearchRepository;
     }
 
     @Bean
@@ -120,6 +121,9 @@ public class ElasticSearchConfig {
         syncEntities("deductions", deductionInformationMapper.selectList(null),
                 deductionInformationSearchRepository, DeductionInformationDocument::fromEntity);
 
+        syncEntities("offense_details", offenseDetailsMapper.selectList(null),
+                offenseDetailsSearchRepository, OffenseDetailsDocument::fromEntity);
+
         log.log(Level.INFO, "Completed synchronization of database to Elasticsearch");
     }
 
@@ -156,6 +160,8 @@ public class ElasticSearchConfig {
             return ((DeductionInformation) entity).getDeductionId();
         } else if (entity instanceof FineInformation) {
             return ((FineInformation) entity).getFineId();
+        } else if (entity instanceof OffenseDetails) {
+            return ((OffenseDetails) entity).getOffenseId();
         }
         return null;
     }

@@ -30,7 +30,7 @@ public class RedisConfig {
     private String redisHost; // Redis 主机地址，默认值为 localhost
 
     @Value("${spring.data.redis.port}")
-    private int redisPort; // Redis 端口号，默认值为 6379
+    private int redisPort; // Redis 端口号，默认为 Testcontainers分配
 
     @Value("${spring.data.redis.database:0}")
     private int redisDatabase; // Redis 数据库索引，默认值为 0

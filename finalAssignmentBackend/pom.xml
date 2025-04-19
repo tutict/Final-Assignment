@@ -317,9 +317,7 @@
                     <execution>
                         <configuration>
                             <packages>
-<!--                                <package>pyproject</package>-->
-<!--                                <package>scrapy</package>-->
-<!--                                <package>lxml</package>-->
+                                <package>scrapy</package>
                                 <package>requests</package>
                                 <package>beautifulsoup4</package>
                             </packages>
