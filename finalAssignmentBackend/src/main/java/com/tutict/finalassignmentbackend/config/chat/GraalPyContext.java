@@ -12,20 +12,30 @@ public class GraalPyContext {
 
     public GraalPyContext() {
         try {
+            String sitePackagesPath;
+            String executablePath;
             // Get project root directory
             String projectRoot = System.getProperty("user.dir");
             // Get target directory path
             File targetDir = new File(projectRoot, "finalAssignmentBackend/target");
             // Get venv directory path
             File venvDir = new File(targetDir, "classes/org.graalvm.python.vfs/venv");
+            String os = System.getProperty("os.name").toLowerCase();
 
             // Verify venv directory exists
             if (!venvDir.exists()) {
                 throw new RuntimeException("venv directory does not exist: " + venvDir.getAbsolutePath());
             }
 
-            // Get site-packages path
-            String sitePackagesPath = new File(venvDir, "lib/python3.11/site-packages").getAbsolutePath();
+            if (os.startsWith("windows")) {
+                // Get site-packages path
+                sitePackagesPath = new File(venvDir, "Lib/site-packages").getAbsolutePath();
+
+            } else if (os.startsWith("linux")) {
+                sitePackagesPath = new File(venvDir, "lib/python3.11/site-packages").getAbsolutePath();
+            } else {
+                throw new RuntimeException("Unsupported operating system: " + os);
+            }
 
             // Get directory containing baidu_crawler.py
             File pythonScriptDir = new File(projectRoot, "finalAssignmentBackend/src/main/resources/python/");
@@ -37,8 +47,14 @@ public class GraalPyContext {
             // Combine site-packages and script directory paths
             String pythonPath = sitePackagesPath + File.pathSeparator + pythonScriptPath;
 
-            // Get executable path
-            String executablePath = new File(venvDir, "Scripts/graalpy.exe").getAbsolutePath();
+            if (os.startsWith("windows")) {
+                executablePath = new File(venvDir, "Scripts/graalpy.exe").getAbsolutePath();
+            } else if (os.startsWith("linux")) {
+                executablePath = new File(venvDir, "Scripts/graalpy.sh").getAbsolutePath();
+            } else {
+                throw new RuntimeException("Unsupported operating system: " + os);
+            }
+
 
             // Configure GraalPy Context
             context = Context.newBuilder("python")

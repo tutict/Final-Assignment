@@ -63,6 +63,12 @@ class _Sidebar extends StatelessWidget {
                           routeName: Routes.managerBusinessProcessing,
                         ),
                         SelectionButtonData(
+                          activeIcon: EvaIcons.book,
+                          icon: EvaIcons.bookOutline,
+                          label: "日志查阅",
+                          routeName: Routes.managerBusinessProcessing,
+                        ),
+                        SelectionButtonData(
                           activeIcon: EvaIcons.email,
                           icon: EvaIcons.emailOutline,
                           label: "消息",

@@ -1,4 +1,3 @@
-import 'package:chinese_font_library/chinese_font_library.dart';
 import 'package:eva_icons_flutter/eva_icons_flutter.dart';
 import 'package:final_assignment_front/features/dashboard/models/profile.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
@@ -48,6 +47,7 @@ class ProfilTile extends StatelessWidget {
         return Obx(() {
           String displayName;
           String displayEmail;
+          String displayPost;
 
           if (userRole == 'USER') {
             displayName = _userController.currentDriverName.value.isNotEmpty
@@ -56,6 +56,7 @@ class ProfilTile extends StatelessWidget {
             displayEmail = _userController.currentEmail.value.isNotEmpty
                 ? _userController.currentEmail.value
                 : data.email;
+            displayPost = '欢迎使用交通违法行为处理管理系统用户端';
           } else {
             displayName = _adminController.currentDriverName.value.isNotEmpty
                 ? _adminController.currentDriverName.value
@@ -63,6 +64,7 @@ class ProfilTile extends StatelessWidget {
             displayEmail = _adminController.currentEmail.value.isNotEmpty
                 ? _adminController.currentEmail.value
                 : data.email;
+            displayPost = '欢迎使用交通违法行为处理管理系统管理员端';
           }
 
           return AnimatedContainer(
@@ -97,33 +99,48 @@ class ProfilTile extends StatelessWidget {
                       : null,
                 ),
               ),
-              title: Text(
-                displayName,
-                style: Theme.of(context)
-                    .textTheme
-                    .titleLarge!
-                    .copyWith(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      color: defaultTextColor,
-                      letterSpacing: 0.5,
-                    )
-                    .useSystemChineseFont(),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              title: Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      displayName,
+                      style: Theme.of(context).textTheme.titleLarge!.copyWith(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                            color: defaultTextColor,
+                            letterSpacing: 0.5,
+                            fontFamily: 'SimsunExtG',
+                          ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 60), // Increased spacing
+                  Expanded(
+                    child: Text(
+                      displayPost,
+                      style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w400,
+                            color: subtitleTextColor,
+                            letterSpacing: 0.2,
+                            fontFamily: 'SimsunExtG',
+                          ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
               ),
               subtitle: Text(
                 displayEmail,
-                style: Theme.of(context)
-                    .textTheme
-                    .bodyMedium!
-                    .copyWith(
+                style: Theme.of(context).textTheme.bodyMedium!.copyWith(
                       fontSize: 16,
                       color: subtitleTextColor,
                       fontWeight: FontWeight.w400,
                       letterSpacing: 0.2,
-                    )
-                    .useSystemChineseFont(),
+                      fontFamily: 'SimsunExtG',
+                    ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),

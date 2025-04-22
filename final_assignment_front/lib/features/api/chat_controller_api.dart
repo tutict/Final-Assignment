@@ -15,7 +15,6 @@ class ChatControllerApi {
   ChatControllerApi([ApiClient? apiClient])
       : apiClient = apiClient ?? defaultApiClient;
 
-  // 非流式 GET 请求（保留原有方法）
   Future<http.Response> apiAiChatGetWithHttpInfo(String message) async {
     Object postBody = '';
     String path = "/api/ai/chat".replaceAll("{format}", "json");
@@ -52,10 +51,10 @@ class ChatControllerApi {
         if (jsonResponse is Map<String, dynamic> &&
             jsonResponse['message'] != null) {
           String rawMessage = jsonResponse['message'].toString();
-          String noMarkdownMessage = removeMarkdown(rawMessage);
-          developer.log("Processed AI response: $noMarkdownMessage",
+          String processedMessage = removeMarkdown(rawMessage);
+          developer.log("Processed AI response: $processedMessage",
               name: 'ChatControllerApi');
-          return noMarkdownMessage;
+          return processedMessage;
         }
         developer.log("No valid 'message' field in response: $decodedBody",
             name: 'ChatControllerApi');
@@ -69,8 +68,7 @@ class ChatControllerApi {
     }
   }
 
-// 流式 GET 请求方法
-  Stream<String> apiAiChatStream(String message) async* {
+  Stream<String> apiAiChatStream(String message, bool webSearch) async* {
     final prefs = await SharedPreferences.getInstance();
     String? jwtToken = prefs.getString('jwtToken');
     Map<String, String> headers = {
@@ -86,7 +84,8 @@ class ChatControllerApi {
       developer.log("No JWT token found for stream", name: 'ChatControllerApi');
     }
 
-    final uri = Uri.parse('http://localhost:8080/api/ai/chat?massage=$message');
+    final uri = Uri.parse(
+        'http://localhost:8080/api/ai/chat?massage=$message&webSearch=$webSearch');
     final request = http.Request('GET', uri)..headers.addAll(headers);
 
     final client = http.Client();
@@ -101,27 +100,44 @@ class ChatControllerApi {
       }
 
       StringBuffer dataBuffer = StringBuffer();
+      Set<String> processedChunks = {}; // Deduplication set
+
       await for (final data in response.stream.transform(utf8.decoder)) {
         dataBuffer.write(data);
-
         String bufferedData = dataBuffer.toString();
+        developer.log("Raw buffered data: $bufferedData",
+            name: 'ChatControllerApi');
 
-        // 按行分割缓冲数据
+// Split by lines, process complete lines
         List<String> lines = bufferedData.split('\n');
         for (int i = 0; i < lines.length - 1; i++) {
           String line = lines[i].trim();
-          if (line.startsWith('data:')) {
+          if (line.startsWith('data:') && line.length > 5) {
             int colonIndex = line.indexOf(':');
             if (colonIndex != -1) {
               String jsonString = line.substring(colonIndex + 1).trim();
               try {
                 final jsonData = jsonDecode(jsonString);
-                if (jsonData is Map<String, dynamic> &&
-                    jsonData['message'] != null) {
-                  String rawMessage = jsonData['message'].toString();
-                  String noMarkdownMessage = removeMarkdown(rawMessage);
-                  if (noMarkdownMessage.isNotEmpty) {
-                    yield noMarkdownMessage;
+                if (jsonData is Map<String, dynamic>) {
+                  if (jsonData['message'] != null) {
+                    String rawMessage = jsonData['message'].toString();
+                    String processedMessage = removeMarkdown(rawMessage);
+// Deduplicate
+                    if (processedMessage.isNotEmpty &&
+                        !processedChunks.contains(processedMessage)) {
+                      processedChunks.add(processedMessage);
+                      developer.log("Yielding message: $processedMessage",
+                          name: 'ChatControllerApi');
+                      yield processedMessage;
+                    }
+                  } else if (jsonData['searchResults'] != null) {
+                    String searchResult = '[搜索结果] ${jsonData['searchResults']}';
+                    if (!processedChunks.contains(searchResult)) {
+                      processedChunks.add(searchResult);
+                      developer.log("Yielding search result: $searchResult",
+                          name: 'ChatControllerApi');
+                      yield searchResult;
+                    }
                   }
                 }
               } catch (e) {
@@ -133,11 +149,46 @@ class ChatControllerApi {
           }
         }
 
-        // 保留最后一行（可能不完整）
-        if (lines.last.isNotEmpty) {
-          dataBuffer = StringBuffer(lines.last);
-        } else {
-          dataBuffer.clear();
+// Keep only the last (potentially incomplete) line
+        dataBuffer = StringBuffer(lines.last.isNotEmpty ? lines.last : '');
+        developer.log("Remaining buffer: ${dataBuffer.toString()}",
+            name: 'ChatControllerApi');
+      }
+
+// Process any remaining data
+      String remainingData = dataBuffer.toString().trim();
+      if (remainingData.startsWith('data:') && remainingData.length > 5) {
+        int colonIndex = remainingData.indexOf(':');
+        if (colonIndex != -1) {
+          String jsonString = remainingData.substring(colonIndex + 1).trim();
+          try {
+            final jsonData = jsonDecode(jsonString);
+            if (jsonData is Map<String, dynamic>) {
+              if (jsonData['message'] != null) {
+                String rawMessage = jsonData['message'].toString();
+                String processedMessage = removeMarkdown(rawMessage);
+                if (processedMessage.isNotEmpty &&
+                    !processedChunks.contains(processedMessage)) {
+                  processedChunks.add(processedMessage);
+                  developer.log("Yielding final message: $processedMessage",
+                      name: 'ChatControllerApi');
+                  yield processedMessage;
+                }
+              } else if (jsonData['searchResults'] != null) {
+                String searchResult = '[搜索结果] ${jsonData['searchResults']}';
+                if (!processedChunks.contains(searchResult)) {
+                  processedChunks.add(searchResult);
+                  developer.log("Yielding final search result: $searchResult",
+                      name: 'ChatControllerApi');
+                  yield searchResult;
+                }
+              }
+            }
+          } catch (e) {
+            developer.log(
+                "Failed to parse final SSE chunk: '$jsonString', error: $e",
+                name: 'ChatControllerApi');
+          }
         }
       }
     } catch (e) {
@@ -148,13 +199,10 @@ class ChatControllerApi {
     }
   }
 
-// 移除 Markdown 语法的函数
   String removeMarkdown(String text) {
-    // 移除 <think>...</think> 标签，包括跨行情况
-    text = text.replaceAll(RegExp(r'<think>[\s\S]*?</think>'), '');
-    // 移除单独的 <think> 或 </think>
+    text = text.replaceAllMapped(RegExp(r'<think>([\s\S]*?)</think>'),
+        (match) => '[THINK]${match.group(1)}[/THINK]');
     text = text.replaceAll(RegExp(r'</?think>'), '');
-    // 其他 Markdown 处理
     text = text.replaceAllMapped(
         RegExp(r'\*\*(.*?)\*\*'), (match) => match.group(1)!);
     text =
@@ -163,10 +211,13 @@ class ChatControllerApi {
         text.replaceAllMapped(RegExp(r'##(.*?)##'), (match) => match.group(1)!);
     text =
         text.replaceAllMapped(RegExp(r'_(.*?)_'), (match) => match.group(1)!);
-    return text;
+    text =
+        text.replaceAllMapped(RegExp(r'-(.*?)-'), (match) => match.group(1)!);
+    text = text.replaceAllMapped(
+        RegExp(r'###(.*?)###'), (match) => match.group(1)!);
+    return text.trim();
   }
 
-  // WebSocket 方法（保留）
   Future<ChatResponse?> eventbusAiChatGet() async {
     final msg = {
       "service": "AiService",
