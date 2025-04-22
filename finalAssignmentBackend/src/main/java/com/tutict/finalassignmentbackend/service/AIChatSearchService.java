@@ -2,174 +2,142 @@ package com.tutict.finalassignmentbackend.service;
 
 import com.tutict.finalassignmentbackend.config.chat.GraalPyContext;
 import jakarta.annotation.PreDestroy;
-import org.graalvm.polyglot.PolyglotException;
-import org.graalvm.polyglot.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.InputStreamReader;
-import java.net.URL;
-import java.util.ArrayList;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import org.graalvm.polyglot.PolyglotException;
+import org.graalvm.polyglot.Value;
+
+import java.io.UnsupportedEncodingException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 @Service
 public class AIChatSearchService {
     private static final Logger logger = LoggerFactory.getLogger(AIChatSearchService.class);
     private final GraalPyContext graalPyContext;
-    private static final String PYTHON_MODULE = "baidu_crawler_scrapy";
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
-    private boolean useGraalPy = true;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public AIChatSearchService(GraalPyContext context) {
         this.graalPyContext = context;
-        initializeGraalPy();
-    }
-
-    private void initializeGraalPy() {
         try {
-            // 获取 Python 资源路径
-            URL resourceUrl = getClass().getClassLoader().getResource("python");
-            if (resourceUrl == null) {
-                logger.error("Python resource directory not found");
-                throw new RuntimeException("Python resource directory not found");
-            }
-            String resourcePath = new File(resourceUrl.toURI()).getAbsolutePath().replace("\\", "/");
-            logger.info("Python resource path: {}", resourcePath);
-
-            // 逐行执行初始化代码，调试
-            String[] initSteps = {
-                    "import sys; import os; os.environ['PYTHONIOENCODING'] = 'gbk'; print('Set PYTHONIOENCODING to gbk')",
-                    "print('sys.executable: %s' % sys.executable)",
-                    "print('sys.path before: %s' % sys.path)",
-                    String.format("sys.path.append('%s'); print('sys.path after: %%s' %% sys.path)", resourcePath),
-                    String.format("import %s; print('%s imported successfully')", PYTHON_MODULE, PYTHON_MODULE)
-            };
-
-            for (int i = 0; i < initSteps.length; i++) {
-                logger.debug("Executing init step {}: {}", i, initSteps[i]);
-                try {
-                    graalPyContext.eval(initSteps[i]);
-                } catch (PolyglotException e) {
-                    logger.error("Failed at init step {}: {}", i, e.getMessage(), e);
-                    throw new RuntimeException("GraalPy init failed at step " + i + ": " + e.getMessage(), e);
-                }
-            }
-
-            logger.info("GraalPy initialized with {} in GBK encoding", PYTHON_MODULE);
+            graalPyContext.eval(
+                    "import json\n" +
+                            "from baidu_crawler import search\n"
+            );
+            logger.info("GraalPy Python 环境已就绪，模块 baidu_crawler.search 可用");
+        } catch (PolyglotException e) {
+            logger.error("无法导入 baidu_crawler.search: {}\nPython stacktrace: {}", e.getMessage(), e.getPolyglotStackTrace(), e);
+            throw new RuntimeException("无法初始化 AIChatSearchService: " + e.getMessage(), e);
         } catch (Exception e) {
-            logger.error("GraalPy initialization failed, switching to pure Python", e);
-            useGraalPy = false; // 回退到纯 Python
+            logger.error("初始化 GraalPy 环境失败: {}", e.getMessage(), e);
+            throw new RuntimeException("无法初始化 AIChatSearchService: " + e.getMessage(), e);
         }
     }
 
     public List<Map<String, String>> search(String query) {
         if (query == null || query.trim().isEmpty()) {
-            logger.warn("Search query is empty or null");
+            logger.warn("搜索 query 为空，直接返回空列表");
             return Collections.emptyList();
         }
-
-        if (useGraalPy) {
-            return searchWithGraalPy(query);
-        } else {
-            return searchWithPurePython(query);
-        }
-    }
-
-    private List<Map<String, String>> searchWithGraalPy(String query) {
-        String searchCode = String.format("""
-                from %s import BaiduSpider
-                from scrapy.crawler import CrawlerProcess
-                from scrapy.utils.project import get_project_settings
-                try:
-                    settings = get_project_settings()
-                    settings.update(BaiduSpider.custom_settings)
-                    process = CrawlerProcess(settings)
-                    process.crawl(BaiduSpider, query='%s', num_results=20, debug=1)
-                    process.start()
-                except Exception as e:
-                    print('Search failed: %%s' %% str(e))
-                    raise
-                """, PYTHON_MODULE, query.replace("'", "\\'"));
-
-        logger.debug("Executing GraalPy search code: {}", searchCode);
-
         try {
-            List<Map<String, String>> searchResults = executor.submit(() -> {
-                List<Map<String, String>> results = new ArrayList<>();
-                Value result = graalPyContext.eval(searchCode);
-
-                if (!result.hasArrayElements()) {
-                    logger.error("GraalPy returned non-list value: {}", result);
-                    throw new RuntimeException("Expected a list from Python but got: " + result);
-                }
-
-                long size = result.getArraySize();
-                for (int i = 0; i < size; i++) {
-                    Value element = result.getArrayElement(i);
-                    if (element.hasMembers()) {
-                        results.add(element.as(Map.class));
-                    } else {
-                        logger.warn("Skipping invalid result element at index {}: {}", i, element);
-                    }
-                }
-                return results;
-            }).get(5, TimeUnit.MINUTES);
-
-            logger.info("Search completed for query '{}', found {} results", query, searchResults.size());
-            return searchResults;
-
-        } catch (PolyglotException e) {
-            logger.error("GraalPy execution error for query '{}': {}", query, e.getMessage(), e);
-            throw new RuntimeException("Failed to execute search: " + e.getMessage(), e);
-        } catch (Exception e) {
-            logger.error("Unexpected error during GraalPy search for query '{}'", query, e);
-            throw new RuntimeException("Unexpected error during search: " + e.getMessage(), e);
-        }
-    }
-
-    private List<Map<String, String>> searchWithPurePython(String query) {
-        try {
-            String pythonScriptPath = "src/main/resources/python/" + PYTHON_MODULE + ".py";
-            ProcessBuilder pb = new ProcessBuilder(
-                    "python",
-                    pythonScriptPath,
-                    "-q", query,
-                    "-n", "20",
-                    "-d", "1"
-            );
-            pb.environment().put("PYTHONIOENCODING", "gbk");
-            pb.redirectErrorStream(true);
-            Process process = pb.start();
-
-            List<Map<String, String>> results = new ArrayList<>();
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream(), "GBK"))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    logger.debug("Python output: {}", line);
-                }
+            List<Map<String, String>> results = searchWithGraalPy(query);
+            for (int i = 0; i < results.size(); i++) {
+                Map<String, String> item = results.get(i);
+                String title = item.getOrDefault("title", "<无标题>");
+                String abstractText = item.getOrDefault("abstract", "<无摘要>");
+                logger.info("搜索结果 {}: 标题=\"{}\", 摘要=\"{}\"", i + 1, title, abstractText);
             }
-
-            int exitCode = process.waitFor();
-            if (exitCode != 0) {
-                logger.error("Python process exited with code {}", exitCode);
-                throw new RuntimeException("Python process failed with exit code " + exitCode);
-            }
-
-            logger.info("Pure Python search completed for query '{}', found {} results", query, results.size());
+            logger.info("搜索完成，query='{}'，共 {} 条结果", query, results.size());
             return results;
-
         } catch (Exception e) {
-            logger.error("Pure Python search failed for query '{}': {}", query, e.getMessage(), e);
-            throw new RuntimeException("Pure Python search failed: " + e.getMessage(), e);
+            logger.error("GraalPy 搜索失败，query='{}': {}", query, e.getMessage(), e);
+            throw new RuntimeException("GraalPy 搜索失败: " + e.getMessage(), e);
         }
+    }
+
+    private List<Map<String, String>> searchWithGraalPy(String query) throws Exception {
+        // Encode query to GBK
+        String gbkQuery;
+        try {
+            gbkQuery = new String(query.getBytes("GBK"), "GBK").replace("'", "\\'");
+            logger.debug("GBK 编码后的 query: {}", gbkQuery);
+        } catch (UnsupportedEncodingException e) {
+            logger.error("无法将 query 编码为 GBK: {}", query, e);
+            throw new RuntimeException("查询编码失败: " + e.getMessage(), e);
+        }
+
+        // Construct Python script
+        String pythonCode = String.format(
+                "import json\n" +
+                        "from baidu_crawler import search\n" +
+                        "res = search('%s', num_results=15, debug=True)\n" +
+                        "json.dumps(res, ensure_ascii=False)\n",
+                gbkQuery
+        );
+
+        logger.debug("执行 GraalPy 脚本: {}", pythonCode);
+
+        // Execute Python script
+        Future<Value> future = executor.submit(() -> graalPyContext.eval(pythonCode));
+        Value pyResult;
+        try {
+            pyResult = future.get(5, TimeUnit.MINUTES);
+        } catch (TimeoutException e) {
+            logger.error("GraalPy 执行超时，query='{}'", query, e);
+            throw new RuntimeException("搜索超时: " + e.getMessage(), e);
+        } catch (ExecutionException e) {
+            logger.error("GraalPy 执行失败，query='{}': {}", query, e.getCause().getMessage(), e);
+            throw new RuntimeException("搜索执行失败: " + e.getCause().getMessage(), e.getCause());
+        }
+
+        if (!pyResult.isString()) {
+            logger.error("GraalPy 返回非字符串结果: {}", pyResult);
+            throw new RuntimeException("预期 JSON 字符串，但得到: " + pyResult);
+        }
+
+        String json = pyResult.asString();
+        logger.debug("从 Python 收到 JSON: {}", json);
+
+        // Deserialize JSON
+        List<Map<String, String>> results;
+        try {
+            results = objectMapper.readValue(
+                    json,
+                    new TypeReference<List<Map<String, String>>>() {
+                    }
+            );
+            // Convert GBK-encoded fields to UTF-8
+            for (Map<String, String> result : results) {
+                result.replaceAll((key, value) -> {
+                    try {
+                        // Try UTF-8 first, fall back to GBK if invalid
+                        byte[] bytes = value.getBytes("UTF-8");
+                        String test = new String(bytes, "UTF-8");
+                        return test; // If valid UTF-8, use it
+                    } catch (Exception e) {
+                        try {
+                            return new String(value.getBytes("GBK"), "UTF-8");
+                        } catch (UnsupportedEncodingException ex) {
+                            logger.warn("无法转换字段 {}: {}", key, value, ex);
+                            return value;
+                        }
+                    }
+                });
+            }
+        } catch (Exception e) {
+            logger.error("JSON 反序列化失败: {}", json, e);
+            throw new RuntimeException("JSON 解析失败: " + e.getMessage(), e);
+        }
+
+        return results;
     }
 
     @PreDestroy
@@ -177,12 +145,12 @@ public class AIChatSearchService {
         try {
             executor.shutdown();
             if (!executor.awaitTermination(10, TimeUnit.SECONDS)) {
-                logger.warn("ExecutorService did not terminate within 10 seconds, forcing shutdown");
+                logger.warn("ExecutorService 未在 10 秒内终止，强制关闭");
                 executor.shutdownNow();
             }
-            logger.info("ExecutorService shut down successfully");
+            logger.info("ExecutorService 已成功关闭");
         } catch (InterruptedException e) {
-            logger.error("Interrupted while shutting down ExecutorService", e);
+            logger.error("关闭 ExecutorService 时被中断", e);
             executor.shutdownNow();
             Thread.currentThread().interrupt();
         }

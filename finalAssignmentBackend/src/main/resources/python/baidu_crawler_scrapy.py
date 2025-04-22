@@ -2,14 +2,19 @@ import scrapy
 import random
 import re
 import logging
+import json
+import sys
+import argparse
 from urllib.parse import quote, urljoin
 from scrapy.exceptions import DropItem
+
 
 # 数据结构
 class BaiduSearchItem(scrapy.Item):
     title = scrapy.Field()
     url = scrapy.Field()
     abstract = scrapy.Field()
+
 
 # 数据处理管道
 class BaiduSearchPipeline:
@@ -44,7 +49,10 @@ class BaiduSearchPipeline:
             self.logger.info(f"URL: {item['url']}")
             self.logger.info(f"Abstract: {item['abstract'].encode('gbk', errors='replace').decode('gbk')}")
 
+        # 存储到 spider.results
+        spider.results.append(dict(item))
         return item
+
 
 # 爬虫逻辑
 class BaiduSpider(scrapy.Spider):
@@ -57,23 +65,19 @@ class BaiduSpider(scrapy.Spider):
         'BOT_NAME': 'baidu_scraper',
         'USER_AGENT_LIST': [
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/68.0.3440.106 Safari/537.36',
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0',
             'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Safari/605.1.15',
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Edge/91.0.864.59'
         ],
         'ROBOTSTXT_OBEY': False,
         'DOWNLOAD_DELAY': 3,
         'RANDOMIZE_DOWNLOAD_DELAY': True,
         'DEFAULT_REQUEST_HEADERS': {
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
             "Content-Type": "application/x-www-form-urlencoded",
             "Referer": "http://www.baidu.com/",
             "Accept-Encoding": "gzip, deflate",
             "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
             "Connection": "keep-alive",
-            "Upgrade-Insecure-Requests": "1",
-            "Cache-Control": "max-age=0"
         },
         'ITEM_PIPELINES': {
             '__main__.BaiduSearchPipeline': 300,
@@ -91,12 +95,12 @@ class BaiduSpider(scrapy.Spider):
         self.query = query.encode('gbk', errors='replace').decode('gbk')
         self.num_results = int(num_results)
         self.debug = int(debug)
-        self.results_fetched = 0
+        self.results = []  # 初始化 results 列表
 
     def start_requests(self):
-        """初始化请求，访问百度首页建立会话"""
         if self.debug:
-            self.logger.info(f"Searching for: {self.query.encode('gbk', errors='replace').decode('gbk')}, num_results: {self.num_results}")
+            self.logger.info(
+                f"Searching for: {self.query.encode('gbk', errors='replace').decode('gbk')}, num_results: {self.num_results}")
             self.logger.info(f"Visiting Baidu homepage to establish session")
         yield scrapy.Request(
             url=self.baidu_host_url,
@@ -106,7 +110,6 @@ class BaiduSpider(scrapy.Spider):
         )
 
     def parse_homepage(self, response):
-        """处理首页响应，开始搜索"""
         if self.debug:
             self.logger.info(f"Homepage response status: {response.status}")
             self.logger.info(f"Initial Cookies: {response.headers.getlist('Set-Cookie')}")
@@ -126,7 +129,6 @@ class BaiduSpider(scrapy.Spider):
             )
 
     def parse_search(self, response):
-        """解析搜索结果页面"""
         page = response.meta['page']
         response._set_body(response.body.decode('gbk', errors='replace').encode('gbk'))
         if self.debug:
@@ -138,7 +140,7 @@ class BaiduSpider(scrapy.Spider):
             self.logger.info(f"Found {len(result_containers)} result containers on page {page}")
 
         for container in result_containers:
-            if self.results_fetched >= self.num_results:
+            if len(self.results) >= self.num_results:
                 return
 
             title_tag = container.css("h3 a::text").get()
@@ -158,8 +160,7 @@ class BaiduSpider(scrapy.Spider):
                 )
 
     def parse_redirect(self, response):
-        """解析重定向后的真实 URL"""
-        if self.results_fetched >= self.num_results:
+        if len(self.results) >= self.num_results:
             return
 
         item = BaiduSearchItem()
@@ -167,23 +168,28 @@ class BaiduSpider(scrapy.Spider):
         item['url'] = response.url
         item['abstract'] = response.meta['abstract'].encode('gbk', errors='replace').decode('gbk')
 
-        self.results_fetched += 1
         if self.debug:
-            self.logger.info(f"Fetched result {self.results_fetched}: {item['title'].encode('gbk', errors='replace').decode('gbk')}")
+            self.logger.info(f"Fetched result: {item['title'].encode('gbk', errors='replace').decode('gbk')}")
         yield item
 
     def handle_error(self, failure):
-        """处理请求错误"""
         if self.debug:
             self.logger.error(f"Request failed: {str(failure).encode('gbk', errors='replace').decode('gbk')}")
 
-# 主函数
+
+# 主函数（仅用于调试）
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Baidu Scrapy Spider")
+    parser.add_argument("-q", "--query", default="交通违法处罚条款", help="Search query")
+    parser.add_argument("-n", "--num-results", type=int, default=5, help="Number of results")
+    parser.add_argument("-d", "--debug", type=int, default=0, help="Debug mode (0 or 1)")
+    args = parser.parse_args()
+
     from scrapy.crawler import CrawlerProcess
     from scrapy.utils.project import get_project_settings
 
     settings = get_project_settings()
     settings.update(BaiduSpider.custom_settings)
     process = CrawlerProcess(settings)
-    process.crawl(BaiduSpider, query="交通违法处罚条款", num_results=5, debug=1)
+    process.crawl(BaiduSpider, query=args.query, num_results=args.num_results, debug=args.debug)
     process.start()
