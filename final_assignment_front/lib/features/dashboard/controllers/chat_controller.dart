@@ -44,16 +44,19 @@ class ChatController extends GetxController {
 
     messages.add(ChatMessage(formalContent: text, isUser: true));
     debugPrint('添加用户消息: $text');
+// Add "Thinking..." message
+    messages.add(ChatMessage(formalContent: 'THINKING:思考中...', isUser: false));
+    debugPrint('添加思考中消息');
     textController.clear();
 
     try {
-      messages.add(ChatMessage(formalContent: "DeepSeek: ", isUser: false));
       int aiMessageIndex = messages.length - 1;
       StringBuffer thinkBuffer = StringBuffer();
       StringBuffer formalBuffer = StringBuffer();
       StringBuffer chunkBuffer = StringBuffer();
       Timer? debounceTimer;
       Set<String> processedChunks = {}; // Deduplication set
+      bool isFirstMessage = true;
 
       await for (String chunk
           in chatApi.apiAiChatStream(text, webSearchEnabled.value)) {
@@ -66,9 +69,23 @@ class ChatController extends GetxController {
         debugPrint('Processing chunk: $chunk');
 
         if (chunk.startsWith('[搜索结果]') && webSearchEnabled.value) {
-          searchResults.add(chunk.substring(7));
-          debugPrint('收到搜索结果: ${chunk.substring(7)}');
+          final result = chunk.substring(7).trim();
+          if (result.isNotEmpty) {
+            searchResults.add(result);
+            debugPrint('收到搜索结果: $result');
+          }
           continue;
+        }
+
+// Remove "Thinking..." message on first AI message
+        if (isFirstMessage &&
+            messages.isNotEmpty &&
+            messages.last.formalContent.startsWith('THINKING:')) {
+          messages.removeLast();
+          messages.add(ChatMessage(formalContent: "DeepSeek: ", isUser: false));
+          aiMessageIndex = messages.length - 1;
+          isFirstMessage = false;
+          debugPrint('移除思考中消息，添加DeepSeek消息');
         }
 
         chunkBuffer.write(chunk);
@@ -167,16 +184,39 @@ class ChatController extends GetxController {
         }
       }
 
+// Final message update
       if (debounceTimer?.isActive ?? false) debounceTimer!.cancel();
+      String finalThinkContent = thinkBuffer.toString();
+      String finalFormalContent = formalBuffer.toString();
+
+// Deduplication: Prioritize structured formalContent
+      if (finalFormalContent.isNotEmpty) {
+        bool isFormalStructured = finalFormalContent
+            .contains(RegExp(r'^\s*(\d+\.\s+|[-*]\s+)', multiLine: true));
+        if (isFormalStructured) {
+          finalThinkContent =
+              ''; // Clear thinkContent if formalContent is structured
+          debugPrint(
+              'Prioritized structured formalContent, cleared thinkContent');
+        } else {
+          debugPrint('Retained thinkContent: non-structured formalContent');
+        }
+      }
+
       messages[aiMessageIndex] = ChatMessage(
-        thinkContent: thinkBuffer.toString(),
-        formalContent: "DeepSeek: ${formalBuffer.toString()}",
+        thinkContent: finalThinkContent,
+        formalContent: "DeepSeek: $finalFormalContent",
         isUser: false,
       );
 
       debugPrint('AI 流完成: $text');
     } catch (e) {
       debugPrint('流式 AI 响应错误: $e');
+// Remove "Thinking..." message on error
+      if (messages.isNotEmpty &&
+          messages.last.formalContent.startsWith('THINKING:')) {
+        messages.removeLast();
+      }
       messages.add(ChatMessage(formalContent: "错误: $e", isUser: false));
     }
   }
@@ -185,10 +225,10 @@ class ChatController extends GetxController {
     String thinkContent = '';
     String formalContent = text;
 
-    RegExp thinkRegex = RegExp(r'\[THINK\](.*?)\[/THINK\]');
+    RegExp thinkRegex = RegExp(r'\[THINK\](.*?)\[\/THINK\]', dotAll: true);
     Iterable<Match> matches = thinkRegex.allMatches(text);
     for (Match match in matches) {
-      thinkContent += match.group(1)!;
+      thinkContent += match.group(1)!.trim();
     }
     formalContent = text.replaceAll(thinkRegex, '').trim();
 

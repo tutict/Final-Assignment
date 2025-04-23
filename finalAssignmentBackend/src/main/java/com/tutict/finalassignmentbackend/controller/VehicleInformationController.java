@@ -216,6 +216,18 @@ public class VehicleInformationController {
         }
     }
 
+    @GetMapping("/id-card-number/{idCardNumber}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    public ResponseEntity<List<VehicleInformation>> getVehicleInformationByIdCardNumber(@PathVariable String idCardNumber) {
+        try {
+            List<VehicleInformation> vehicleInformationList = vehicleInformationService.getVehicleInformationByIdCardNumber(idCardNumber);
+            return ResponseEntity.ok(vehicleInformationList);
+        } catch (IllegalArgumentException e) {
+            log.warning("Invalid ID card number: " + idCardNumber);
+            return ResponseEntity.badRequest().body(Collections.emptyList());
+        }
+    }
+
     @GetMapping("/status/{currentStatus}")
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public ResponseEntity<List<VehicleInformation>> getVehicleInformationByStatus(@PathVariable String currentStatus) {

@@ -171,6 +171,17 @@ public class VehicleInformationService {
         return result != null ? result : Collections.emptyList();
     }
 
+
+    @Cacheable(cacheNames = "vehicleCache")
+    @WsAction(service = "VehicleInformationService", action = "getVehicleInformationByIdCardNumber")
+    public List<VehicleInformation> getVehicleInformationByIdCardNumber(String idCardNumber) {
+        validateInput(idCardNumber, "Invalid ID card number");
+        QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("id_card_number", idCardNumber);
+        List<VehicleInformation> result = vehicleInformationMapper.selectList(queryWrapper);
+        return result != null ? result : Collections.emptyList();
+    }
+
     @Transactional
     @CacheEvict(cacheNames = "vehicleCache", allEntries = true)
     public void updateVehicleInformation(VehicleInformation vehicleInformation) {
@@ -244,6 +255,7 @@ public class VehicleInformationService {
         queryWrapper.eq("license_plate", licensePlate);
         return vehicleInformationMapper.selectCount(queryWrapper) > 0;
     }
+
 
     @Cacheable(cacheNames = "vehicleCache", unless = "#result == null")
     @WsAction(service = "VehicleInformationService", action = "getVehicleInformationByStatus")
