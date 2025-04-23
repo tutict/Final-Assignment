@@ -7,15 +7,17 @@ import 'package:final_assignment_front/features/dashboard/views/components/chang
 import 'package:final_assignment_front/features/dashboard/views/components/map.dart';
 import 'package:final_assignment_front/features/dashboard/views/components/progress_detail.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_dashboard_screen.dart';
-import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/appeal_management.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/main_process_pages/appeal_management.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/backup_and_restore.dart';
-import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/driver_list.dart';
-import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/manager_business_processing.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/main_process_pages/driver_list.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/management_pages/log_management.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/management_pages/manager_business_processing.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/management_pages/user_management_page.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/manager_personal_page.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/manager_setting.dart';
-import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/offense_list.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/main_process_pages/offense_list.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/progress_management.dart';
-import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/vehicle_list.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/main_process_pages/vehicle_list.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/news/AccidentEvidencePage.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/news/AccidentProgressPage.dart';
@@ -26,10 +28,10 @@ import 'package:final_assignment_front/features/dashboard/views/user_screens/use
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/consultation_feedback.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/personal_main.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/setting/setting_main.dart';
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/process_pages/business_progress.dart';
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/process_pages/fine_information.dart';
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/process_pages/online_processing_progress.dart';
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/process_pages/vehicle_management.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/main_process_pages/business_progress.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/main_process_pages/fine_information.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/main_process_pages/online_processing_progress.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/main_process_pages/vehicle_management.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/scanner/main_scan.dart';
 import 'package:final_assignment_front/features/login_screen/login.dart';
 import 'package:final_assignment_front/features/model/progress_item.dart';
@@ -162,6 +164,13 @@ class AppPages {
   // 进度详情
   static const progressDetailPage = Routes.progressDetailPage;
 
+  // 日志管理
+  static const logManagement = Routes.logManagement;
+
+  // 用户管理
+  static const userManagementPage = Routes.userManagementPage;
+
+
   // 配置应用中的所有页面路由
   static final routes = [
     GetPage(
@@ -259,6 +268,14 @@ class AppPages {
         item: Get.arguments as ProgressItem, // 通过 Get.arguments 接收 ProgressItem
       ),
       transition: Transition.fadeIn,
+    ),
+    GetPage(
+      name: _Paths.logManagement,
+      page: () => const LogManagement(),
+    ),
+    GetPage(
+      name: _Paths.userManagementPage,
+      page: () => const UserManagementPage(),
     ),
   ];
 }

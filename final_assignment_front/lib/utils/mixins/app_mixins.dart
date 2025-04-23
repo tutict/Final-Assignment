@@ -6,7 +6,7 @@ import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/features/dashboard/views/components/ai_chat.dart';
 import 'package:final_assignment_front/features/dashboard/views/components/change_themes.dart';
 import 'package:final_assignment_front/features/dashboard/views/components/map.dart';
-import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/manager_business_processing.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/management_pages/manager_business_processing.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/manager_personal_page.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/manager_setting.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/progress_management.dart';
@@ -19,8 +19,8 @@ import 'package:final_assignment_front/features/dashboard/views/user_screens/use
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/consultation_feedback.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/personal_main.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/personal_pages/setting/setting_main.dart';
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/process_pages/business_progress.dart';
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/process_pages/online_processing_progress.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/main_process_pages/business_progress.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/main_process_pages/online_processing_progress.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/scanner/main_scan.dart';
 import 'package:flutter/material.dart';
 

@@ -391,6 +391,34 @@ class VehicleInformationControllerApi {
     throw Exception('Failed to fetch vehicles by type: ${response.statusCode}');
   }
 
+  Future<List<VehicleInformation>> apiVehiclesOwnerIdCardNumberGet({
+    String? idCardNumber,
+    int page = 1,
+    int size = 10,
+  }) async {
+    final effectiveOwnerIdCardNumber = idCardNumber;
+    final response = await _apiClient.invokeAPI(
+      '/api/vehicles/id-card-number/$effectiveOwnerIdCardNumber',
+      'GET',
+      [],
+      null,
+      {'Content-Type': 'application/json; charset=UTF-8'},
+      {'Accept': 'application/json; charset=UTF-8'},
+      'application/json',
+      ['bearerAuth'],
+    );
+    if (response.statusCode == 200) {
+      final decodedBody = utf8.decode(response.bodyBytes);
+      debugPrint('Raw response body (get by owner ID card number): $decodedBody');
+      final List<dynamic> data = jsonDecode(decodedBody);
+      return VehicleInformation.listFromJson(data);
+    } else if (response.statusCode == 404) {
+      return [];
+    }
+    throw Exception(
+        "Failed to fetch vehicles by owner's ID card number : ${response.statusCode}");
+  }
+
   // Get vehicles by owner
   Future<List<VehicleInformation>> apiVehiclesOwnerGet({
     String? ownerName,

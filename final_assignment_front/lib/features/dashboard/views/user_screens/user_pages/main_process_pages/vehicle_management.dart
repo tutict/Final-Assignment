@@ -37,6 +37,7 @@ class _VehicleManagementState extends State<VehicleManagement> {
   bool _isLoading = true;
   String _errorMessage = '';
   String? _currentDriverName;
+  String? _currentDriverIdCardNumber;
   int _currentPage = 1;
   final int _pageSize = 10;
   bool _hasMore = true;
@@ -72,6 +73,7 @@ class _VehicleManagementState extends State<VehicleManagement> {
           ? await driverApi.apiDriversDriverIdGet(driverId: user!.userId)
           : null;
       _currentDriverName = driverInfo?.name ?? username;
+      _currentDriverIdCardNumber = driverInfo?.idCardNumber;
       debugPrint('Current driver name: $_currentDriverName');
 
       await _fetchUserVehicles(reset: true);
@@ -134,9 +136,9 @@ class _VehicleManagementState extends State<VehicleManagement> {
       List<VehicleInformation> vehicles = [];
       if (searchQuery.isEmpty) {
         debugPrint(
-            'Fetching all vehicles for owner: $_currentDriverName, page: $_currentPage');
-        vehicles = await vehicleApi.apiVehiclesOwnerGet(
-          ownerName: _currentDriverName,
+            'Fetching all vehicles for owner: $_currentDriverIdCardNumber, page: $_currentPage');
+        vehicles = await vehicleApi.apiVehiclesOwnerIdCardNumberGet(
+          idCardNumber: _currentDriverIdCardNumber,
           page: _currentPage,
           size: _pageSize,
         );
@@ -281,7 +283,7 @@ class _VehicleManagementState extends State<VehicleManagement> {
       context: context,
       builder: (ctx) {
         final themeData =
-            controller.currentBodyTheme.value ?? ThemeData.light();
+            controller.currentBodyTheme.value;
         return AlertDialog(
           backgroundColor: themeData.colorScheme.surfaceContainerHighest,
           shape:
@@ -428,7 +430,7 @@ class _VehicleManagementState extends State<VehicleManagement> {
 
   @override
   Widget build(BuildContext context) {
-    final themeData = controller.currentBodyTheme.value ?? ThemeData.light();
+    final themeData = controller.currentBodyTheme.value;
 
     return Scaffold(
       backgroundColor: themeData.colorScheme.surface,

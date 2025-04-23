@@ -122,8 +122,14 @@ class Routes {
   // 管理员管理进度页面
   static const progressManagement = _Paths.progressManagement;
 
-  // 进度详情页面
+  // 进度详情页面路由
   static const progressDetailPage = _Paths.progressDetailPage;
+
+  // 日志管理页面路由
+  static const logManagement = _Paths.logManagement;
+
+  // 用户管理页面路由
+  static const userManagementPage = _Paths.userManagementPage;
 }
 
 /// 包含路由名称列表。
@@ -252,6 +258,11 @@ class _Paths {
   // 进度详情页面
   static const progressDetailPage = '/progressDetailPage';
 
+  //  日志管理页面路由
+  static const logManagement = '/logManagement';
+
+  // 用户管理页面路由
+  static const userManagementPage = '/userManagementPage';
 // 示例：
 // static const index = '/';
 // static const splash = '/splash';

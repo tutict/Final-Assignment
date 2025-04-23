@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/Get.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/process_pages/fine_information.dart';
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/process_pages/user_appeal.dart';
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/process_pages/vehicle_management.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/main_process_pages/fine_information.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/main_process_pages/user_appeal.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/main_process_pages/vehicle_management.dart';
 
 class BusinessProgressPage extends StatefulWidget {
   const BusinessProgressPage({super.key});
