@@ -117,7 +117,8 @@ class Routes {
   static const finePaymentNoticePage = _Paths.finePaymentNoticePage;
 
   // 最新交通违章新闻介绍路由
-  static const latestTrafficViolationNewsPage = _Paths.latestTrafficViolationNewsPage;
+  static const latestTrafficViolationNewsPage =
+      _Paths.latestTrafficViolationNewsPage;
 
   // 管理员管理进度页面
   static const progressManagement = _Paths.progressManagement;
@@ -130,6 +131,15 @@ class Routes {
 
   // 用户管理页面路由
   static const userManagementPage = _Paths.userManagementPage;
+
+  // 登录日志页面路由
+  static const loginLogPage = _Paths.loginLogPage;
+
+  // 操作日志页面路由
+  static const operationLogPage = _Paths.operationLogPage;
+
+  // 系统日志页面路由
+  static const systemLogPage = _Paths.systemLogPage;
 }
 
 /// 包含路由名称列表。
@@ -250,7 +260,8 @@ class _Paths {
   static const finePaymentNoticePage = '/finePaymentNoticePage';
 
   // 最新交通违章新闻路由
-  static const latestTrafficViolationNewsPage = '/latestTrafficViolationNewsPage';
+  static const latestTrafficViolationNewsPage =
+      '/latestTrafficViolationNewsPage';
 
   // 管理员进度管理页面
   static const progressManagement = '/progressManagement';
@@ -263,6 +274,15 @@ class _Paths {
 
   // 用户管理页面路由
   static const userManagementPage = '/userManagementPage';
+
+  // 登录日志页面路由
+  static const loginLogPage = '/loginLogPage';
+
+  // 操作日志页面路由
+  static const operationLogPage = '/operationLogPage';
+
+  // 系统日志页面
+  static const systemLogPage = '/systemLogPage';
 // 示例：
 // static const index = '/';
 // static const splash = '/splash';

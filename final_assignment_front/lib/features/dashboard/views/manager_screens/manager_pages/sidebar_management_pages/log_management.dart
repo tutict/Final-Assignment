@@ -1,15 +1,18 @@
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_dashboard_screen.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/log_pages/login_log_page.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/log_pages/operation_log_page.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/log_pages/system_log_page.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-class UserManagementPage extends StatefulWidget {
-  const UserManagementPage({super.key});
+class LogManagement extends StatefulWidget {
+  const LogManagement({super.key});
 
   @override
-  State<UserManagementPage> createState() => _UserManagementPageState();
+  State<LogManagement> createState() => _LogManagementState();
 }
 
-class _UserManagementPageState extends State<UserManagementPage> {
+class _LogManagementState extends State<LogManagement> {
   late DashboardController controller;
 
   @override
@@ -23,21 +26,26 @@ class _UserManagementPageState extends State<UserManagementPage> {
     }
   }
 
-  // 用户管理选项数据
-  final List<Map<String, dynamic>> userOptions = [
-    // {
-    //   'title': '用户列表',
-    //   'icon': Icons.group,
-    //   'route': const UserList(),
-    // },
-    // {
-    //   'title': '角色管理',
-    //   'icon': Icons.admin_panel_settings,
-    //   'route': const RoleManagement(),
-    // },
+  // 日志管理选项数据
+  final List<Map<String, dynamic>> logOptions = [
+    {
+      'title': '登录日志',
+      'icon': Icons.login_rounded,
+      'route': const LoginLogPage(),
+    },
+    {
+      'title': '操作日志',
+      'icon': Icons.history,
+      'route': const OperationLogPage(),
+    },
+    {
+      'title': '系统日志',
+      'icon': Icons.book_outlined,
+      'route': const SystemLogPage(),
+    },
   ];
 
-  void _navigateToUserPage(Widget route) {
+  void _navigateToLogPage(Widget route) {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => route),
@@ -47,18 +55,18 @@ class _UserManagementPageState extends State<UserManagementPage> {
   @override
   Widget build(BuildContext context) {
     return Obx(
-          () => Theme(
+      () => Theme(
         data: controller.currentBodyTheme.value,
         child: Scaffold(
           appBar: AppBar(
-            title: const Text('用户管理菜单'),
+            title: const Text('日志管理菜单'),
           ),
           body: Padding(
             padding: const EdgeInsets.all(16.0),
             child: ListView.builder(
-              itemCount: userOptions.length,
+              itemCount: logOptions.length,
               itemBuilder: (context, index) {
-                final option = userOptions[index];
+                final option = logOptions[index];
                 return Column(
                   children: [
                     ListTile(
@@ -73,9 +81,9 @@ class _UserManagementPageState extends State<UserManagementPage> {
                         Icons.arrow_forward_ios,
                         color: Colors.grey,
                       ),
-                      onTap: () => _navigateToUserPage(option['route']),
+                      onTap: () => _navigateToLogPage(option['route']),
                     ),
-                    if (index < userOptions.length - 1)
+                    if (index < logOptions.length - 1)
                       const SizedBox(height: 16.0),
                   ],
                 );

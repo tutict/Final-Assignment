@@ -23,7 +23,7 @@ public class SystemLogsController {
 
     // 创建新的系统日志记录 (仅 ADMIN)
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public ResponseEntity<Void> createSystemLog(@RequestBody SystemLogs systemLog, @RequestParam String idempotencyKey) {
         systemLogsService.checkAndInsertIdempotency(idempotencyKey, systemLog, "create");
         return ResponseEntity.status(HttpStatus.CREATED).build();

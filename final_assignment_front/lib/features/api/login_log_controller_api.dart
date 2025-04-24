@@ -1,35 +1,31 @@
+import 'dart:convert';
 import 'package:final_assignment_front/features/model/login_log.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// 定义一个全局的 defaultApiClient
-final ApiClient defaultApiClient = ApiClient();
-
 class LoginLogControllerApi {
-  final ApiClient apiClient;
+  final ApiClient _apiClient;
+  String? _username;
 
-  /// 构造函数，可传入 ApiClient，否则使用全局默认实例
-  LoginLogControllerApi([ApiClient? apiClient])
-      : apiClient = apiClient ?? defaultApiClient;
+  LoginLogControllerApi()
+      : _apiClient = ApiClient(basePath: 'http://localhost:8081');
 
-  /// 从 SharedPreferences 中读取 jwtToken 并设置到 ApiClient 中
   Future<void> initializeWithJwt() async {
     final prefs = await SharedPreferences.getInstance();
     final jwtToken = prefs.getString('jwtToken');
-    if (jwtToken == null) {
-      throw Exception('未登录，请重新登录');
+    if (jwtToken != null) {
+      _apiClient.setJwtToken(jwtToken);
+      final decodedToken = JwtDecoder.decode(jwtToken);
+      _username = decodedToken['sub'] ?? 'Unknown';
+      debugPrint('Initialized with username: $_username');
+    } else {
+      throw Exception('JWT token not found in SharedPreferences');
     }
-    apiClient.setJwtToken(jwtToken);
-    debugPrint('Initialized LoginLogControllerApi with token: $jwtToken');
   }
 
-  /// 解码响应体字节到字符串
-  String _decodeBodyBytes(Response response) => response.body;
-
-  /// 辅助方法：添加查询参数（如时间范围）
   List<QueryParam> _addQueryParams({String? startTime, String? endTime}) {
     final queryParams = <QueryParam>[];
     if (startTime != null) queryParams.add(QueryParam('startTime', startTime));
@@ -37,319 +33,363 @@ class LoginLogControllerApi {
     return queryParams;
   }
 
-  /// GET /api/loginLogs - 获取所有登录日志
-  Future<List<LoginLog>> apiLoginLogsGet() async {
-    final response = await apiClient.invokeAPI(
+  Future<List<LoginLog>> apiLoginLogsGet({
+    int page = 1,
+    int size = 10,
+  }) async {
+    final queryParams = [
+      QueryParam('page', page.toString()),
+      QueryParam('size', size.toString()),
+    ];
+    final response = await _apiClient.invokeAPI(
       '/api/loginLogs',
       'GET',
-      [],
-      '',
-      {},
-      {},
+      queryParams,
       null,
+      {'Content-Type': 'application/json; charset=UTF-8'},
+      {'Accept': 'application/json; charset=UTF-8'},
+      'application/json',
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    if (response.statusCode == 200) {
+      final decodedBody = utf8.decode(response.bodyBytes);
+      debugPrint('Raw response body (get all): $decodedBody');
+      final List<dynamic> data = jsonDecode(decodedBody);
+      return LoginLog.listFromJson(data);
+    } else if (response.statusCode == 404) {
+      return [];
     }
-    final List<dynamic> data =
-        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
-    return LoginLog.listFromJson(data);
+    throw ApiException(response.statusCode,
+        'Failed to fetch all login logs: ${response.body}');
   }
 
-  /// DELETE /api/loginLogs/{logId} - 删除登录日志 (仅管理员)
   Future<void> apiLoginLogsLogIdDelete({required String logId}) async {
     if (logId.isEmpty) {
-      throw ApiException(400, "Missing required param: logId");
+      throw ApiException(400, 'Missing required param: logId');
     }
-    final response = await apiClient.invokeAPI(
+    final response = await _apiClient.invokeAPI(
       '/api/loginLogs/$logId',
       'DELETE',
       [],
-      '',
-      {},
-      {},
       null,
+      {'Content-Type': 'application/json; charset=UTF-8'},
+      {'Accept': 'application/json; charset=UTF-8'},
+      'application/json',
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    if (response.statusCode != 204) {
+      throw ApiException(
+          response.statusCode, 'Failed to delete login log: ${response.body}');
     }
   }
 
-  /// GET /api/loginLogs/{logId} - 根据ID获取登录日志
   Future<LoginLog?> apiLoginLogsLogIdGet({required String logId}) async {
     if (logId.isEmpty) {
-      throw ApiException(400, "Missing required param: logId");
+      throw ApiException(400, 'Missing required param: logId');
     }
-    final response = await apiClient.invokeAPI(
+    final response = await _apiClient.invokeAPI(
       '/api/loginLogs/$logId',
       'GET',
       [],
-      '',
-      {},
-      {},
       null,
+      {'Content-Type': 'application/json; charset=UTF-8'},
+      {'Accept': 'application/json; charset=UTF-8'},
+      'application/json',
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    if (response.statusCode == 200) {
+      final decodedBody = utf8.decode(response.bodyBytes);
+      debugPrint('Raw response body (get by ID): $decodedBody');
+      return LoginLog.fromJson(jsonDecode(decodedBody));
+    } else if (response.statusCode == 404) {
+      return null;
     }
-    if (response.body.isEmpty) return null;
-    final data = apiClient.deserialize(
-        _decodeBodyBytes(response), 'Map<String, dynamic>');
-    return LoginLog.fromJson(data);
+    throw ApiException(response.statusCode,
+        'Failed to fetch login log by ID: ${response.body}');
   }
 
-  /// PUT /api/loginLogs/{logId} - 更新登录日志 (仅管理员)
   Future<LoginLog> apiLoginLogsLogIdPut({
     required String logId,
     required LoginLog loginLog,
+    required String idempotencyKey,
   }) async {
     if (logId.isEmpty) {
-      throw ApiException(400, "Missing required param: logId");
+      throw ApiException(400, 'Missing required param: logId');
     }
-    final response = await apiClient.invokeAPI(
+    final queryParams = [QueryParam('idempotencyKey', idempotencyKey)];
+    final response = await _apiClient.invokeAPI(
       '/api/loginLogs/$logId',
       'PUT',
-      [],
+      queryParams,
       loginLog.toJson(),
-      {},
-      {},
+      {'Content-Type': 'application/json; charset=UTF-8'},
+      {'Accept': 'application/json; charset=UTF-8'},
       'application/json',
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    if (response.statusCode == 200) {
+      final decodedBody = utf8.decode(response.bodyBytes);
+      debugPrint('Raw response body (update): $decodedBody');
+      return LoginLog.fromJson(jsonDecode(decodedBody));
     }
-    final data = apiClient.deserialize(
-        _decodeBodyBytes(response), 'Map<String, dynamic>');
-    return LoginLog.fromJson(data);
+    throw ApiException(
+        response.statusCode, 'Failed to update login log: ${response.body}');
   }
 
-  /// GET /api/loginLogs/loginResult/{loginResult} - 根据登录结果获取日志
-  Future<List<LoginLog>> apiLoginLogsLoginResultLoginResultGet(
-      {required String loginResult}) async {
+  Future<List<LoginLog>> apiLoginLogsLoginResultLoginResultGet({
+    required String loginResult,
+    int page = 1,
+    int size = 10,
+  }) async {
     if (loginResult.isEmpty) {
-      throw ApiException(400, "Missing required param: loginResult");
+      throw ApiException(400, 'Missing required param: loginResult');
     }
-    final response = await apiClient.invokeAPI(
+    final queryParams = [
+      QueryParam('page', page.toString()),
+      QueryParam('size', size.toString()),
+    ];
+    final response = await _apiClient.invokeAPI(
       '/api/loginLogs/loginResult/$loginResult',
       'GET',
-      [],
-      '',
-      {},
-      {},
+      queryParams,
       null,
-      ['bearerAuth'],
-    );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
-    final List<dynamic> data =
-        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
-    return LoginLog.listFromJson(data);
-  }
-
-  /// POST /api/loginLogs - 创建登录日志
-  Future<LoginLog> apiLoginLogsPost({required LoginLog loginLog}) async {
-    final response = await apiClient.invokeAPI(
-      '/api/loginLogs',
-      'POST',
-      [],
-      loginLog.toJson(),
-      {},
-      {},
+      {'Content-Type': 'application/json; charset=UTF-8'},
+      {'Accept': 'application/json; charset=UTF-8'},
       'application/json',
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    if (response.statusCode == 200) {
+      final decodedBody = utf8.decode(response.bodyBytes);
+      debugPrint('Raw response body (get by login result): $decodedBody');
+      final List<dynamic> data = jsonDecode(decodedBody);
+      return LoginLog.listFromJson(data);
+    } else if (response.statusCode == 404) {
+      return [];
     }
-    final data = apiClient.deserialize(
-        _decodeBodyBytes(response), 'Map<String, dynamic>');
-    return LoginLog.fromJson(data);
+    throw ApiException(response.statusCode,
+        'Failed to fetch login logs by login result: ${response.body}');
   }
 
-  /// GET /api/loginLogs/timeRange - 根据时间范围获取登录日志
-  Future<List<LoginLog>> apiLoginLogsTimeRangeGet(
-      {String? startTime, String? endTime}) async {
-    final response = await apiClient.invokeAPI(
+  Future<LoginLog> apiLoginLogsPost({
+    required LoginLog loginLog,
+    required String idempotencyKey,
+  }) async {
+    final queryParams = [QueryParam('idempotencyKey', idempotencyKey)];
+    final response = await _apiClient.invokeAPI(
+      '/api/loginLogs',
+      'POST',
+      queryParams,
+      loginLog.toJson(),
+      {'Content-Type': 'application/json; charset=UTF-8'},
+      {'Accept': 'application/json; charset=UTF-8'},
+      'application/json',
+      ['bearerAuth'],
+    );
+    if (response.statusCode == 201) {
+      final decodedBody = utf8.decode(response.bodyBytes);
+      debugPrint('Raw response body (create): $decodedBody');
+      return LoginLog.fromJson(jsonDecode(decodedBody));
+    }
+    throw ApiException(
+        response.statusCode, 'Failed to create login log: ${response.body}');
+  }
+
+  Future<List<LoginLog>> apiLoginLogsTimeRangeGet({
+    String? startTime,
+    String? endTime,
+    int page = 1,
+    int size = 10,
+  }) async {
+    final queryParams = _addQueryParams(startTime: startTime, endTime: endTime)
+      ..addAll([
+        QueryParam('page', page.toString()),
+        QueryParam('size', size.toString()),
+      ]);
+    final response = await _apiClient.invokeAPI(
       '/api/loginLogs/timeRange',
       'GET',
-      _addQueryParams(startTime: startTime, endTime: endTime),
-      '',
-      {},
-      {},
+      queryParams,
       null,
+      {'Content-Type': 'application/json; charset=UTF-8'},
+      {'Accept': 'application/json; charset=UTF-8'},
+      'application/json',
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    if (response.statusCode == 200) {
+      final decodedBody = utf8.decode(response.bodyBytes);
+      debugPrint('Raw response body (get by time range): $decodedBody');
+      final List<dynamic> data = jsonDecode(decodedBody);
+      return LoginLog.listFromJson(data);
+    } else if (response.statusCode == 404) {
+      return [];
     }
-    final List<dynamic> data =
-        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
-    return LoginLog.listFromJson(data);
+    throw ApiException(response.statusCode,
+        'Failed to fetch login logs by time range: ${response.body}');
   }
 
-  /// GET /api/loginLogs/username/{username} - 根据用户名获取登录日志
-  Future<List<LoginLog>> apiLoginLogsUsernameUsernameGet(
-      {required String username}) async {
+  Future<List<LoginLog>> apiLoginLogsUsernameUsernameGet({
+    required String username,
+    int page = 1,
+    int size = 10,
+  }) async {
     if (username.isEmpty) {
-      throw ApiException(400, "Missing required param: username");
+      throw ApiException(400, 'Missing required param: username');
     }
-    final response = await apiClient.invokeAPI(
+    final queryParams = [
+      QueryParam('page', page.toString()),
+      QueryParam('size', size.toString()),
+    ];
+    final response = await _apiClient.invokeAPI(
       '/api/loginLogs/username/$username',
       'GET',
-      [],
-      '',
-      {},
-      {},
+      queryParams,
       null,
+      {'Content-Type': 'application/json; charset=UTF-8'},
+      {'Accept': 'application/json; charset=UTF-8'},
+      'application/json',
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    if (response.statusCode == 200) {
+      final decodedBody = utf8.decode(response.bodyBytes);
+      debugPrint('Raw response body (get by username): $decodedBody');
+      final List<dynamic> data = jsonDecode(decodedBody);
+      return LoginLog.listFromJson(data);
+    } else if (response.statusCode == 404) {
+      return [];
     }
-    final List<dynamic> data =
-        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
-    return LoginLog.listFromJson(data);
+    throw ApiException(response.statusCode,
+        'Failed to fetch login logs by username: ${response.body}');
   }
 
-  // WebSocket Methods (Aligned with HTTP Endpoints)
-
-  /// DELETE /api/loginLogs/{logId} (WebSocket)
-  /// 对应后端: @WsAction(service="LoginLogService", action="deleteLoginLog")
   Future<bool> eventbusLoginLogsLogIdDelete({required String logId}) async {
     if (logId.isEmpty) {
-      throw ApiException(400, "Missing required param: logId");
+      throw ApiException(400, 'Missing required param: logId');
     }
     final msg = {
-      "service": "LoginLogService",
-      "action": "deleteLoginLog",
-      "args": [int.parse(logId)]
+      'service': 'LoginLogService',
+      'action': 'deleteLoginLog',
+      'args': [int.parse(logId)],
     };
-    final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+    final respMap = await _apiClient.sendWsMessage(msg);
+    if (respMap.containsKey('error')) {
+      throw ApiException(400, respMap['error']);
     }
-    return true; // Success if no error
+    return true;
   }
 
-  /// GET /api/loginLogs/{logId} (WebSocket)
-  /// 对应后端: @WsAction(service="LoginLogService", action="getLoginLog")
-  Future<Object?> eventbusLoginLogsLogIdGet({required String logId}) async {
+  Future<LoginLog?> eventbusLoginLogsLogIdGet({required String logId}) async {
     if (logId.isEmpty) {
-      throw ApiException(400, "Missing required param: logId");
+      throw ApiException(400, 'Missing required param: logId');
     }
     final msg = {
-      "service": "LoginLogService",
-      "action": "getLoginLog",
-      "args": [int.parse(logId)]
+      'service': 'LoginLogService',
+      'action': 'getLoginLog',
+      'args': [int.parse(logId)],
     };
-    final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+    final respMap = await _apiClient.sendWsMessage(msg);
+    if (respMap.containsKey('error')) {
+      throw ApiException(400, respMap['error']);
     }
-    return respMap["result"];
+    final result = respMap['result'];
+    if (result == null) return null;
+    return LoginLog.fromJson(result);
   }
 
-  /// PUT /api/loginLogs/{logId} (WebSocket)
-  /// 对应后端: @WsAction(service="LoginLogService", action="updateLoginLog")
-  Future<Object?> eventbusLoginLogsLogIdPut({
+  Future<LoginLog> eventbusLoginLogsLogIdPut({
     required String logId,
     required LoginLog loginLog,
   }) async {
     if (logId.isEmpty) {
-      throw ApiException(400, "Missing required param: logId");
+      throw ApiException(400, 'Missing required param: logId');
     }
     final msg = {
-      "service": "LoginLogService",
-      "action": "updateLoginLog",
-      "args": [int.parse(logId), loginLog.toJson()]
+      'service': 'LoginLogService',
+      'action': 'updateLoginLog',
+      'args': [int.parse(logId), loginLog.toJson()],
     };
-    final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+    final respMap = await _apiClient.sendWsMessage(msg);
+    if (respMap.containsKey('error')) {
+      throw ApiException(400, respMap['error']);
     }
-    return respMap["result"];
+    final result = respMap['result'];
+    if (result == null) {
+      throw ApiException(400, 'No result returned from WebSocket');
+    }
+    return LoginLog.fromJson(result);
   }
 
-  /// GET /api/loginLogs/loginResult/{loginResult} (WebSocket)
-  /// 对应后端: @WsAction(service="LoginLogService", action="getLoginLogsByLoginResult")
-  Future<List<Object>?> eventbusLoginLogsLoginResultLoginResultGet(
-      {required String loginResult}) async {
+  Future<List<LoginLog>> eventbusLoginLogsLoginResultLoginResultGet({
+    required String loginResult,
+  }) async {
     if (loginResult.isEmpty) {
-      throw ApiException(400, "Missing required param: loginResult");
+      throw ApiException(400, 'Missing required param: loginResult');
     }
     final msg = {
-      "service": "LoginLogService",
-      "action": "getLoginLogsByLoginResult",
-      "args": [loginResult]
+      'service': 'LoginLogService',
+      'action': 'getLoginLogsByLoginResult',
+      'args': [loginResult],
     };
-    final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+    final respMap = await _apiClient.sendWsMessage(msg);
+    if (respMap.containsKey('error')) {
+      throw ApiException(400, respMap['error']);
     }
-    if (respMap["result"] is List) {
-      return (respMap["result"] as List).cast<Object>();
-    }
-    return null;
+    final result = respMap['result'] as List<dynamic>?;
+    if (result == null) return [];
+    return LoginLog.listFromJson(result);
   }
 
-  /// POST /api/loginLogs (WebSocket)
-  /// 对应后端: @WsAction(service="LoginLogService", action="createLoginLog")
-  Future<Object?> eventbusLoginLogsPost({required LoginLog loginLog}) async {
+  Future<LoginLog> eventbusLoginLogsPost({required LoginLog loginLog}) async {
     final msg = {
-      "service": "LoginLogService",
-      "action": "createLoginLog",
-      "args": [loginLog.toJson()]
+      'service': 'LoginLogService',
+      'action': 'createLoginLog',
+      'args': [loginLog.toJson()],
     };
-    final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+    final respMap = await _apiClient.sendWsMessage(msg);
+    if (respMap.containsKey('error')) {
+      throw ApiException(400, respMap['error']);
     }
-    return respMap["result"];
+    final result = respMap['result'];
+    if (result == null) {
+      throw ApiException(400, 'No result returned from WebSocket');
+    }
+    return LoginLog.fromJson(result);
   }
 
-  /// GET /api/loginLogs/timeRange (WebSocket)
-  /// 对应后端: @WsAction(service="LoginLogService", action="getLoginLogsByTimeRange")
-  Future<List<Object>?> eventbusLoginLogsTimeRangeGet(
-      {String? startTime, String? endTime}) async {
+  Future<List<LoginLog>> eventbusLoginLogsTimeRangeGet({
+    String? startTime,
+    String? endTime,
+  }) async {
     final msg = {
-      "service": "LoginLogService",
-      "action": "getLoginLogsByTimeRange",
-      "args": [startTime ?? "", endTime ?? ""]
+      'service': 'LoginLogService',
+      'action': 'getLoginLogsByTimeRange',
+      'args': [startTime ?? '', endTime ?? ''],
     };
-    final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+    final respMap = await _apiClient.sendWsMessage(msg);
+    if (respMap.containsKey('error')) {
+      throw ApiException(400, respMap['error']);
     }
-    if (respMap["result"] is List) {
-      return (respMap["result"] as List).cast<Object>();
-    }
-    return null;
+    final result = respMap['result'] as List<dynamic>?;
+    if (result == null) return [];
+    return LoginLog.listFromJson(result);
   }
 
-  /// GET /api/loginLogs/username/{username} (WebSocket)
-  /// 对应后端: @WsAction(service="LoginLogService", action="getLoginLogsByUsername")
-  Future<List<Object>?> eventbusLoginLogsUsernameUsernameGet(
-      {required String username}) async {
+  Future<List<LoginLog>> eventbusLoginLogsUsernameUsernameGet({
+    required String username,
+  }) async {
     if (username.isEmpty) {
-      throw ApiException(400, "Missing required param: username");
+      throw ApiException(400, 'Missing required param: username');
     }
     final msg = {
-      "service": "LoginLogService",
-      "action": "getLoginLogsByUsername",
-      "args": [username]
+      'service': 'LoginLogService',
+      'action': 'getLoginLogsByUsername',
+      'args': [username],
     };
-    final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+    final respMap = await _apiClient.sendWsMessage(msg);
+    if (respMap.containsKey('error')) {
+      throw ApiException(400, respMap['error']);
     }
-    if (respMap["result"] is List) {
-      return (respMap["result"] as List).cast<Object>();
-    }
-    return null;
+    final result = respMap['result'] as List<dynamic>?;
+    if (result == null) return [];
+    return LoginLog.listFromJson(result);
   }
 }

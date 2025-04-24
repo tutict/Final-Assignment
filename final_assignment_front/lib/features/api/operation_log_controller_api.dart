@@ -1,35 +1,31 @@
+import 'dart:convert';
 import 'package:final_assignment_front/features/model/operation_log.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// 定义一个全局的 defaultApiClient
-final ApiClient defaultApiClient = ApiClient();
-
 class OperationLogControllerApi {
-  final ApiClient apiClient;
+  final ApiClient _apiClient;
+  String? _username;
 
-  /// 构造函数，可传入 ApiClient，否则使用全局默认实例
-  OperationLogControllerApi([ApiClient? apiClient])
-      : apiClient = apiClient ?? defaultApiClient;
+  OperationLogControllerApi()
+      : _apiClient = ApiClient(basePath: 'http://localhost:8081');
 
-  /// 从 SharedPreferences 中读取 jwtToken 并设置到 ApiClient 中
   Future<void> initializeWithJwt() async {
     final prefs = await SharedPreferences.getInstance();
     final jwtToken = prefs.getString('jwtToken');
-    if (jwtToken == null) {
-      throw Exception('未登录，请重新登录');
+    if (jwtToken != null) {
+      _apiClient.setJwtToken(jwtToken);
+      final decodedToken = JwtDecoder.decode(jwtToken);
+      _username = decodedToken['sub'] ?? 'Unknown';
+      debugPrint('Initialized with username: $_username');
+    } else {
+      throw Exception('JWT token not found in SharedPreferences');
     }
-    apiClient.setJwtToken(jwtToken);
-    debugPrint('Initialized OperationLogControllerApi with token: $jwtToken');
   }
 
-  /// 解码响应体字节到字符串
-  String _decodeBodyBytes(Response response) => response.body;
-
-  /// 辅助方法：添加查询参数（如时间范围）
   List<QueryParam> _addQueryParams({String? startTime, String? endTime}) {
     final queryParams = <QueryParam>[];
     if (startTime != null) queryParams.add(QueryParam('startTime', startTime));
@@ -37,340 +33,383 @@ class OperationLogControllerApi {
     return queryParams;
   }
 
-  /// GET /api/operationLogs - 获取所有操作日志
-  Future<List<OperationLog>> apiOperationLogsGet() async {
-    final response = await apiClient.invokeAPI(
+  Future<List<OperationLog>> apiOperationLogsGet({
+    int page = 1,
+    int size = 10,
+  }) async {
+    final queryParams = [
+      QueryParam('page', page.toString()),
+      QueryParam('size', size.toString()),
+    ];
+    final response = await _apiClient.invokeAPI(
       '/api/operationLogs',
       'GET',
-      [],
-      '',
-      {},
-      {},
+      queryParams,
       null,
+      {'Content-Type': 'application/json; charset=UTF-8'},
+      {'Accept': 'application/json; charset=UTF-8'},
+      'application/json',
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    if (response.statusCode == 200) {
+      final decodedBody = utf8.decode(response.bodyBytes);
+      debugPrint('Raw response body (get all): $decodedBody');
+      final List<dynamic> data = jsonDecode(decodedBody);
+      return OperationLog.listFromJson(data);
+    } else if (response.statusCode == 404) {
+      return [];
     }
-    final List<dynamic> data =
-        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
-    return OperationLog.listFromJson(data);
+    throw ApiException(response.statusCode,
+        'Failed to fetch all operation logs: ${response.body}');
   }
 
-  /// DELETE /api/operationLogs/{logId} - 删除操作日志 (仅管理员)
   Future<void> apiOperationLogsLogIdDelete({required String logId}) async {
     if (logId.isEmpty) {
-      throw ApiException(400, "Missing required param: logId");
+      throw ApiException(400, 'Missing required param: logId');
     }
-    final response = await apiClient.invokeAPI(
+    final response = await _apiClient.invokeAPI(
       '/api/operationLogs/$logId',
       'DELETE',
       [],
-      '',
-      {},
-      {},
       null,
+      {'Content-Type': 'application/json; charset=UTF-8'},
+      {'Accept': 'application/json; charset=UTF-8'},
+      'application/json',
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    if (response.statusCode != 204) {
+      throw ApiException(response.statusCode,
+          'Failed to delete operation log: ${response.body}');
     }
   }
 
-  /// GET /api/operationLogs/{logId} - 根据ID获取操作日志
   Future<OperationLog?> apiOperationLogsLogIdGet(
       {required String logId}) async {
     if (logId.isEmpty) {
-      throw ApiException(400, "Missing required param: logId");
+      throw ApiException(400, 'Missing required param: logId');
     }
-    final response = await apiClient.invokeAPI(
+    final response = await _apiClient.invokeAPI(
       '/api/operationLogs/$logId',
       'GET',
       [],
-      '',
-      {},
-      {},
       null,
+      {'Content-Type': 'application/json; charset=UTF-8'},
+      {'Accept': 'application/json; charset=UTF-8'},
+      'application/json',
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    if (response.statusCode == 200) {
+      final decodedBody = utf8.decode(response.bodyBytes);
+      debugPrint('Raw response body (get by ID): $decodedBody');
+      return OperationLog.fromJson(jsonDecode(decodedBody));
+    } else if (response.statusCode == 404) {
+      return null;
     }
-    if (response.body.isEmpty) return null;
-    final data = apiClient.deserialize(
-        _decodeBodyBytes(response), 'Map<String, dynamic>');
-    return OperationLog.fromJson(data);
+    throw ApiException(response.statusCode,
+        'Failed to fetch operation log by ID: ${response.body}');
   }
 
-  /// PUT /api/operationLogs/{logId} - 更新操作日志 (仅管理员)
   Future<OperationLog> apiOperationLogsLogIdPut({
     required String logId,
     required OperationLog operationLog,
+    required String idempotencyKey,
   }) async {
     if (logId.isEmpty) {
-      throw ApiException(400, "Missing required param: logId");
+      throw ApiException(400, 'Missing required param: logId');
     }
-    final response = await apiClient.invokeAPI(
+    final queryParams = [QueryParam('idempotencyKey', idempotencyKey)];
+    final response = await _apiClient.invokeAPI(
       '/api/operationLogs/$logId',
       'PUT',
-      [],
+      queryParams,
       operationLog.toJson(),
-      {},
-      {},
+      {'Content-Type': 'application/json; charset=UTF-8'},
+      {'Accept': 'application/json; charset=UTF-8'},
       'application/json',
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    if (response.statusCode == 200) {
+      final decodedBody = utf8.decode(response.bodyBytes);
+      debugPrint('Raw response body (update): $decodedBody');
+      return OperationLog.fromJson(jsonDecode(decodedBody));
     }
-    final data = apiClient.deserialize(
-        _decodeBodyBytes(response), 'Map<String, dynamic>');
-    return OperationLog.fromJson(data);
+    throw ApiException(response.statusCode,
+        'Failed to update operation log: ${response.body}');
   }
 
-  /// POST /api/operationLogs - 创建操作日志
-  Future<OperationLog> apiOperationLogsPost(
-      {required OperationLog operationLog}) async {
-    final response = await apiClient.invokeAPI(
+  Future<OperationLog> apiOperationLogsPost({
+    required OperationLog operationLog,
+    required String idempotencyKey,
+  }) async {
+    final queryParams = [QueryParam('idempotencyKey', idempotencyKey)];
+    final response = await _apiClient.invokeAPI(
       '/api/operationLogs',
       'POST',
-      [],
+      queryParams,
       operationLog.toJson(),
-      {},
-      {},
+      {'Content-Type': 'application/json; charset=UTF-8'},
+      {'Accept': 'application/json; charset=UTF-8'},
       'application/json',
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    if (response.statusCode == 201) {
+      final decodedBody = utf8.decode(response.bodyBytes);
+      debugPrint('Raw response body (create): $decodedBody');
+      return OperationLog.fromJson(jsonDecode(decodedBody));
     }
-    final data = apiClient.deserialize(
-        _decodeBodyBytes(response), 'Map<String, dynamic>');
-    return OperationLog.fromJson(data);
+    throw ApiException(response.statusCode,
+        'Failed to create operation log: ${response.body}');
   }
 
-  /// GET /api/operationLogs/result/{result} - 根据操作结果获取日志
-  Future<List<OperationLog>> apiOperationLogsResultResultGet(
-      {required String result}) async {
+  Future<List<OperationLog>> apiOperationLogsResultResultGet({
+    required String result,
+    int page = 1,
+    int size = 10,
+  }) async {
     if (result.isEmpty) {
-      throw ApiException(400, "Missing required param: result");
+      throw ApiException(400, 'Missing required param: result');
     }
-    final response = await apiClient.invokeAPI(
+    final queryParams = [
+      QueryParam('page', page.toString()),
+      QueryParam('size', size.toString()),
+    ];
+    final response = await _apiClient.invokeAPI(
       '/api/operationLogs/result/$result',
       'GET',
-      [],
-      '',
-      {},
-      {},
+      queryParams,
       null,
+      {'Content-Type': 'application/json; charset=UTF-8'},
+      {'Accept': 'application/json; charset=UTF-8'},
+      'application/json',
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    if (response.statusCode == 200) {
+      final decodedBody = utf8.decode(response.bodyBytes);
+      debugPrint('Raw response body (get by result): $decodedBody');
+      final List<dynamic> data = jsonDecode(decodedBody);
+      return OperationLog.listFromJson(data);
+    } else if (response.statusCode == 404) {
+      return [];
     }
-    final List<dynamic> data =
-        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
-    return OperationLog.listFromJson(data);
+    throw ApiException(response.statusCode,
+        'Failed to fetch operation logs by result: ${response.body}');
   }
 
-  /// GET /api/operationLogs/timeRange - 根据时间范围获取操作日志
-  Future<List<OperationLog>> apiOperationLogsTimeRangeGet(
-      {String? startTime, String? endTime}) async {
-    final response = await apiClient.invokeAPI(
+  Future<List<OperationLog>> apiOperationLogsTimeRangeGet({
+    String? startTime,
+    String? endTime,
+    int page = 1,
+    int size = 10,
+  }) async {
+    final queryParams = _addQueryParams(startTime: startTime, endTime: endTime)
+      ..addAll([
+        QueryParam('page', page.toString()),
+        QueryParam('size', size.toString()),
+      ]);
+    final response = await _apiClient.invokeAPI(
       '/api/operationLogs/timeRange',
       'GET',
-      _addQueryParams(startTime: startTime, endTime: endTime),
-      '',
-      {},
-      {},
+      queryParams,
       null,
+      {'Content-Type': 'application/json; charset=UTF-8'},
+      {'Accept': 'application/json; charset=UTF-8'},
+      'application/json',
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    if (response.statusCode == 200) {
+      final decodedBody = utf8.decode(response.bodyBytes);
+      debugPrint('Raw response body (get by time range): $decodedBody');
+      final List<dynamic> data = jsonDecode(decodedBody);
+      return OperationLog.listFromJson(data);
+    } else if (response.statusCode == 404) {
+      return [];
     }
-    final List<dynamic> data =
-        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
-    return OperationLog.listFromJson(data);
+    throw ApiException(response.statusCode,
+        'Failed to fetch operation logs by time range: ${response.body}');
   }
 
-  /// GET /api/operationLogs/userId/{userId} - 根据用户ID获取操作日志
-  Future<List<OperationLog>> apiOperationLogsUserIdUserIdGet(
-      {required String userId}) async {
+  Future<List<OperationLog>> apiOperationLogsUserIdUserIdGet({
+    required String userId,
+    int page = 1,
+    int size = 10,
+  }) async {
     if (userId.isEmpty) {
-      throw ApiException(400, "Missing required param: userId");
+      throw ApiException(400, 'Missing required param: userId');
     }
-    final response = await apiClient.invokeAPI(
+    final queryParams = [
+      QueryParam('page', page.toString()),
+      QueryParam('size', size.toString()),
+    ];
+    final response = await _apiClient.invokeAPI(
       '/api/operationLogs/userId/$userId',
       'GET',
-      [],
-      '',
-      {},
-      {},
+      queryParams,
       null,
+      {'Content-Type': 'application/json; charset=UTF-8'},
+      {'Accept': 'application/json; charset=UTF-8'},
+      'application/json',
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    if (response.statusCode == 200) {
+      final decodedBody = utf8.decode(response.bodyBytes);
+      debugPrint('Raw response body (get by user ID): $decodedBody');
+      final List<dynamic> data = jsonDecode(decodedBody);
+      return OperationLog.listFromJson(data);
+    } else if (response.statusCode == 404) {
+      return [];
     }
-    final List<dynamic> data =
-        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
-    return OperationLog.listFromJson(data);
+    throw ApiException(response.statusCode,
+        'Failed to fetch operation logs by user ID: ${response.body}');
   }
 
-  // WebSocket Methods (Aligned with HTTP Endpoints)
-
-  /// GET /api/operationLogs (WebSocket)
-  /// 对应后端: @WsAction(service="OperationLogService", action="getAllOperationLogs")
-  Future<List<Object>?> eventbusOperationLogsGet() async {
+  Future<List<OperationLog>> eventbusOperationLogsGet() async {
     final msg = {
-      "service": "OperationLogService",
-      "action": "getAllOperationLogs",
-      "args": []
+      'service': 'OperationLogService',
+      'action': 'getAllOperationLogs',
+      'args': [],
     };
-    final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+    final respMap = await _apiClient.sendWsMessage(msg);
+    if (respMap.containsKey('error')) {
+      throw ApiException(400, respMap['error']);
     }
-    if (respMap["result"] is List) {
-      return (respMap["result"] as List).cast<Object>();
-    }
-    return null;
+    final result = respMap['result'] as List<dynamic>?;
+    if (result == null) return [];
+    return OperationLog.listFromJson(result);
   }
 
-  /// DELETE /api/operationLogs/{logId} (WebSocket)
-  /// 对应后端: @WsAction(service="OperationLogService", action="deleteOperationLog")
   Future<bool> eventbusOperationLogsLogIdDelete({required String logId}) async {
     if (logId.isEmpty) {
-      throw ApiException(400, "Missing required param: logId");
+      throw ApiException(400, 'Missing required param: logId');
     }
     final msg = {
-      "service": "OperationLogService",
-      "action": "deleteOperationLog",
-      "args": [int.parse(logId)]
+      'service': 'OperationLogService',
+      'action': 'deleteOperationLog',
+      'args': [int.parse(logId)],
     };
-    final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+    final respMap = await _apiClient.sendWsMessage(msg);
+    if (respMap.containsKey('error')) {
+      throw ApiException(400, respMap['error']);
     }
-    return true; // Success if no error
+    return true;
   }
 
-  /// GET /api/operationLogs/{logId} (WebSocket)
-  /// 对应后端: @WsAction(service="OperationLogService", action="getOperationLog")
-  Future<Object?> eventbusOperationLogsLogIdGet({required String logId}) async {
+  Future<OperationLog?> eventbusOperationLogsLogIdGet({
+    required String logId,
+  }) async {
     if (logId.isEmpty) {
-      throw ApiException(400, "Missing required param: logId");
+      throw ApiException(400, 'Missing required param: logId');
     }
     final msg = {
-      "service": "OperationLogService",
-      "action": "getOperationLog",
-      "args": [int.parse(logId)]
+      'service': 'OperationLogService',
+      'action': 'getOperationLog',
+      'args': [int.parse(logId)],
     };
-    final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+    final respMap = await _apiClient.sendWsMessage(msg);
+    if (respMap.containsKey('error')) {
+      throw ApiException(400, respMap['error']);
     }
-    return respMap["result"];
+    final result = respMap['result'];
+    if (result == null) return null;
+    return OperationLog.fromJson(result);
   }
 
-  /// PUT /api/operationLogs/{logId} (WebSocket)
-  /// 对应后端: @WsAction(service="OperationLogService", action="updateOperationLog")
-  Future<Object?> eventbusOperationLogsLogIdPut({
+  Future<OperationLog> eventbusOperationLogsLogIdPut({
     required String logId,
     required OperationLog operationLog,
   }) async {
     if (logId.isEmpty) {
-      throw ApiException(400, "Missing required param: logId");
+      throw ApiException(400, 'Missing required param: logId');
     }
     final msg = {
-      "service": "OperationLogService",
-      "action": "updateOperationLog",
-      "args": [int.parse(logId), operationLog.toJson()]
+      'service': 'OperationLogService',
+      'action': 'updateOperationLog',
+      'args': [int.parse(logId), operationLog.toJson()],
     };
-    final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+    final respMap = await _apiClient.sendWsMessage(msg);
+    if (respMap.containsKey('error')) {
+      throw ApiException(400, respMap['error']);
     }
-    return respMap["result"];
+    final result = respMap['result'];
+    if (result == null) {
+      throw ApiException(400, 'No result returned from WebSocket');
+    }
+    return OperationLog.fromJson(result);
   }
 
-  /// POST /api/operationLogs (WebSocket)
-  /// 对应后端: @WsAction(service="OperationLogService", action="createOperationLog")
-  Future<Object?> eventbusOperationLogsPost(
-      {required OperationLog operationLog}) async {
+  Future<OperationLog> eventbusOperationLogsPost({
+    required OperationLog operationLog,
+  }) async {
     final msg = {
-      "service": "OperationLogService",
-      "action": "createOperationLog",
-      "args": [operationLog.toJson()]
+      'service': 'OperationLogService',
+      'action': 'createOperationLog',
+      'args': [operationLog.toJson()],
     };
-    final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+    final respMap = await _apiClient.sendWsMessage(msg);
+    if (respMap.containsKey('error')) {
+      throw ApiException(400, respMap['error']);
     }
-    return respMap["result"];
+    final result = respMap['result'];
+    if (result == null) {
+      throw ApiException(400, 'No result returned from WebSocket');
+    }
+    return OperationLog.fromJson(result);
   }
 
-  /// GET /api/operationLogs/result/{result} (WebSocket)
-  /// 对应后端: @WsAction(service="OperationLogService", action="getOperationLogsByResult")
-  Future<List<Object>?> eventbusOperationLogsResultResultGet(
-      {required String result}) async {
+  Future<List<OperationLog>> eventbusOperationLogsResultResultGet({
+    required String result,
+  }) async {
     if (result.isEmpty) {
-      throw ApiException(400, "Missing required param: result");
+      throw ApiException(400, 'Missing required param: result');
     }
     final msg = {
-      "service": "OperationLogService",
-      "action": "getOperationLogsByResult",
-      "args": [result]
+      'service': 'OperationLogService',
+      'action': 'getOperationLogsByResult',
+      'args': [result],
     };
-    final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+    final respMap = await _apiClient.sendWsMessage(msg);
+    if (respMap.containsKey('error')) {
+      throw ApiException(400, respMap['error']);
     }
-    if (respMap["result"] is List) {
-      return (respMap["result"] as List).cast<Object>();
-    }
-    return null;
+    final resultList = respMap['result'] as List<dynamic>?;
+    if (resultList == null) return [];
+    return OperationLog.listFromJson(resultList);
   }
 
-  /// GET /api/operationLogs/timeRange (WebSocket)
-  /// 对应后端: @WsAction(service="OperationLogService", action="getOperationLogsByTimeRange")
-  Future<List<Object>?> eventbusOperationLogsTimeRangeGet(
-      {String? startTime, String? endTime}) async {
+  Future<List<OperationLog>> eventbusOperationLogsTimeRangeGet({
+    String? startTime,
+    String? endTime,
+  }) async {
     final msg = {
-      "service": "OperationLogService",
-      "action": "getOperationLogsByTimeRange",
-      "args": [startTime ?? "", endTime ?? ""]
+      'service': 'OperationLogService',
+      'action': 'getOperationLogsByTimeRange',
+      'args': [startTime ?? '', endTime ?? ''],
     };
-    final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+    final respMap = await _apiClient.sendWsMessage(msg);
+    if (respMap.containsKey('error')) {
+      throw ApiException(400, respMap['error']);
     }
-    if (respMap["result"] is List) {
-      return (respMap["result"] as List).cast<Object>();
-    }
-    return null;
+    final result = respMap['result'] as List<dynamic>?;
+    if (result == null) return [];
+    return OperationLog.listFromJson(result);
   }
 
-  /// GET /api/operationLogs/userId/{userId} (WebSocket)
-  /// 对应后端: @WsAction(service="OperationLogService", action="getOperationLogsByUserId")
-  Future<List<Object>?> eventbusOperationLogsUserIdUserIdGet(
-      {required String userId}) async {
+  Future<List<OperationLog>> eventbusOperationLogsUserIdUserIdGet({
+    required String userId,
+  }) async {
     if (userId.isEmpty) {
-      throw ApiException(400, "Missing required param: userId");
+      throw ApiException(400, 'Missing required param: userId');
     }
     final msg = {
-      "service": "OperationLogService",
-      "action": "getOperationLogsByUserId",
-      "args": [int.parse(userId)]
+      'service': 'OperationLogService',
+      'action': 'getOperationLogsByUserId',
+      'args': [int.parse(userId)],
     };
-    final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey("error")) {
-      throw ApiException(400, respMap["error"]);
+    final respMap = await _apiClient.sendWsMessage(msg);
+    if (respMap.containsKey('error')) {
+      throw ApiException(400, respMap['error']);
     }
-    if (respMap["result"] is List) {
-      return (respMap["result"] as List).cast<Object>();
-    }
-    return null;
+    final result = respMap['result'] as List<dynamic>?;
+    if (result == null) return [];
+    return OperationLog.listFromJson(result);
   }
 }

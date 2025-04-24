@@ -136,7 +136,7 @@ class _VehicleManagementState extends State<VehicleManagement> {
       List<VehicleInformation> vehicles = [];
       if (searchQuery.isEmpty) {
         debugPrint(
-            'Fetching all vehicles for owner: $_currentDriverIdCardNumber, page: $_currentPage');
+            'Fetching all vehicles for owner: $_currentDriverName, id: $_currentDriverIdCardNumber, page: $_currentPage');
         vehicles = await vehicleApi.apiVehiclesOwnerIdCardNumberGet(
           idCardNumber: _currentDriverIdCardNumber,
           page: _currentPage,

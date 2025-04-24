@@ -43,6 +43,10 @@ mixin NavigationMixin {
         return const LatestTrafficViolationNewsPage();
       case AppPages.progressManagement:
         return const ProgressManagementPage();
+      case AppPages.logManagement:
+        return const LogManagement();
+      case AppPages.userManagementPage:
+        return const UserManagementPage();
       default:
         debugPrint('Unknown route: $routeName');
         return const Center(child: Text('页面未找到'));

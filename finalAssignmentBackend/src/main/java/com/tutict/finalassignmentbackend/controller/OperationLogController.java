@@ -23,7 +23,7 @@ public class OperationLogController {
 
     // 创建新的操作日志 (仅 ADMIN)
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public ResponseEntity<Void> createOperationLog(@RequestBody OperationLog operationLog, @RequestParam String idempotencyKey) {
         operationLogService.checkAndInsertIdempotency(idempotencyKey, operationLog, "create");
         return ResponseEntity.status(HttpStatus.CREATED).build();

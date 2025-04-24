@@ -7,12 +7,15 @@ import 'package:final_assignment_front/features/dashboard/views/components/chang
 import 'package:final_assignment_front/features/dashboard/views/components/map.dart';
 import 'package:final_assignment_front/features/dashboard/views/components/progress_detail.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_dashboard_screen.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/log_pages/login_log_page.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/log_pages/operation_log_page.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/log_pages/system_log_page.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/main_process_pages/appeal_management.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/backup_and_restore.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/main_process_pages/driver_list.dart';
-import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/management_pages/log_management.dart';
-import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/management_pages/manager_business_processing.dart';
-import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/management_pages/user_management_page.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/sidebar_management_pages/log_management.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/sidebar_management_pages/manager_business_processing.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/sidebar_management_pages/user_management_page.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/manager_personal_page.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/manager_setting.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/main_process_pages/offense_list.dart';
@@ -170,6 +173,14 @@ class AppPages {
   // 用户管理
   static const userManagementPage = Routes.userManagementPage;
 
+  // 登录日志管理
+  static const loginLogPage = Routes.loginLogPage;
+
+  // 操作日志管理
+  static const operationLogPage = Routes.operationLogPage;
+
+  // 系统日志管理
+  static const systemLogPage = Routes.systemLogPage;
 
   // 配置应用中的所有页面路由
   static final routes = [
@@ -276,6 +287,18 @@ class AppPages {
     GetPage(
       name: _Paths.userManagementPage,
       page: () => const UserManagementPage(),
+    ),
+    GetPage(
+      name: _Paths.loginLogPage,
+      page: () => const LoginLogPage(),
+    ),
+    GetPage(
+      name: _Paths.operationLogPage,
+      page: () => const OperationLogPage(),
+    ),
+    GetPage(
+      name: _Paths.systemLogPage,
+      page: () => const SystemLogPage(),
     ),
   ];
 }

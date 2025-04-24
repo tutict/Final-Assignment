@@ -23,7 +23,7 @@ public class LoginLogController {
 
     // 创建新的登录日志 (仅 ADMIN)
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public ResponseEntity<Void> createLoginLog(@RequestBody LoginLog loginLog, @RequestParam String idempotencyKey) {
         loginLogService.checkAndInsertIdempotency(idempotencyKey, loginLog, "create");
         return ResponseEntity.status(HttpStatus.CREATED).build();
