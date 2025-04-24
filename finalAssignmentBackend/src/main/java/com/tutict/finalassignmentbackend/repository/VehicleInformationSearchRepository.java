@@ -9,42 +9,43 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface VehicleInformationSearchRepository extends ElasticsearchRepository<VehicleInformationDocument, Integer> {
 
-    // 使用 query_string 查询，支持更灵活的模糊匹配
-    @Query("{\"bool\": {\"filter\": [{\"term\": {\"ownerName.keyword\": \"?0\"}}], " +
+    // Completion suggestions for licensePlate
+    @Query("{\"bool\": {\"filter\": [{\"term\": {\"idCardNumber.keyword\": \"?0\"}}], " +
             "\"must\": [{\"query_string\": {\"query\": \"*?1*\", \"fields\": [\"licensePlate.ngram\"]}}]}}")
-    SearchHits<VehicleInformationDocument> findCompletionSuggestions(String ownerName, String prefix, int maxSuggestions);
+    SearchHits<VehicleInformationDocument> findCompletionSuggestions(String idCardNumber, String prefix, int maxSuggestions);
 
-    // 使用 query_string 查询，支持更灵活的模糊匹配
-    @Query("{\"bool\": {\"filter\": [{\"term\": {\"ownerName.keyword\": \"?1\"}}], " +
+    // Search by licensePlate with idCardNumber filter
+    @Query("{\"bool\": {\"filter\": [{\"term\": {\"idCardNumber.keyword\": \"?1\"}}], " +
             "\"must\": [{\"query_string\": {\"query\": \"*?0*\", \"fields\": [\"licensePlate.ngram\"]}}]}}")
-    SearchHits<VehicleInformationDocument> searchByLicensePlate(String licensePlate, String ownerName);
+    SearchHits<VehicleInformationDocument> searchByLicensePlate(String licensePlate, String idCardNumber);
 
-    // 模糊搜索车辆类型
-    @Query("{\"bool\": {\"filter\": [{\"term\": {\"ownerName.keyword\": \"?1\"}}], " +
+    // Search by vehicleType prefix with idCardNumber filter
+    @Query("{\"bool\": {\"filter\": [{\"term\": {\"idCardNumber.keyword\": \"?1\"}}], " +
             "\"must\": [{\"query_string\": {\"query\": \"?0*\", \"fields\": [\"vehicleType.ngram\"]}}]}}")
-    SearchHits<VehicleInformationDocument> searchByVehicleTypePrefix(String vehicleType, String ownerName);
+    SearchHits<VehicleInformationDocument> searchByVehicleTypePrefix(String vehicleType, String idCardNumber);
 
-    // 模糊匹配查询
-    @Query("{\"bool\": {\"filter\": [{\"term\": {\"ownerName.keyword\": \"?1\"}}], " +
-            "\"must\": [{\"match\": {\"vehicleType\": {\"query\": \"?0\", \"fuzziness\": \"AUTO\"}}}]}}")
-    SearchHits<VehicleInformationDocument> searchByVehicleTypeFuzzy(String vehicleType, String ownerName);
+    // Fuzzy search by vehicleType with idCardNumber filter
+    @Query("{\"bool\": {\"filter\": [{\"term\": {\"idCardNumber.keyword\": \"?1\"}}], " +
+            "\"must\": [{\"query_string\": {\"query\": \"*?0*\", \"fields\": [\"vehicleType.ngram\"], \"fuzzy_transpositions\": true, \"fuzzy_max_expansions\": 50}}]}}")
+    SearchHits<VehicleInformationDocument> searchByVehicleTypeFuzzy(String vehicleType, String idCardNumber);
 
-    // 使用 query_string 查询，支持全局车牌号的模糊匹配
+    // Global completion suggestions for licensePlate
     @Query("{\"query_string\": {\"query\": \"*?0*\", \"fields\": [\"licensePlate.ngram\"]}}")
     SearchHits<VehicleInformationDocument> findCompletionSuggestionsGlobally(String prefix, int maxSuggestions);
 
+    // Global exact licensePlate search
     @Query("{\"term\": {\"licensePlate.keyword\": \"?0\"}}")
     SearchHits<VehicleInformationDocument> searchByLicensePlateExactGlobally(String licensePlate);
 
-    // 使用 query_string 查询，支持全局车牌号的模糊匹配
+    // Global licensePlate fuzzy search
     @Query("{\"query_string\": {\"query\": \"*?0*\", \"fields\": [\"licensePlate.ngram\"]}}")
     SearchHits<VehicleInformationDocument> searchByLicensePlateGlobally(String licensePlate);
 
-    // 模糊搜索车辆类型前缀，全局范围
+    // Global vehicleType prefix search
     @Query("{\"query_string\": {\"query\": \"?0*\", \"fields\": [\"vehicleType.ngram\"]}}")
     SearchHits<VehicleInformationDocument> searchByVehicleTypePrefixGlobally(String vehicleType);
 
-    // 模糊匹配查询车辆类型，全局范围
-    @Query("{\"match\": {\"vehicleType\": {\"query\": \"?0\", \"fuzziness\": \"AUTO\"}}}")
+    // Global vehicleType fuzzy search
+    @Query("{\"query_string\": {\"query\": \"*?0*\", \"fields\": [\"vehicleType.ngram\"], \"fuzzy_transpositions\": true, \"fuzzy_max_expansions\": 50}}")
     SearchHits<VehicleInformationDocument> searchByVehicleTypeFuzzyGlobally(String vehicleType);
 }

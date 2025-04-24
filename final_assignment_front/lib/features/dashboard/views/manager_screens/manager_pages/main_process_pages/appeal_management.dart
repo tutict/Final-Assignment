@@ -32,11 +32,11 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
   String _errorMessage = '';
   final TextEditingController _searchController = TextEditingController();
   late ScrollController _scrollController;
-
-  final DashboardController controller = Get.find<DashboardController>();
-
+  String _searchType = 'appealReason'; // Default search type
   DateTime? _startTime;
   DateTime? _endTime;
+
+  final DashboardController controller = Get.find<DashboardController>();
 
   @override
   void initState() {
@@ -51,6 +51,48 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
     _searchController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  Future<List<String>> _fetchAutocompleteSuggestions(String prefix) async {
+    try {
+      List<AppealManagement> appeals;
+      switch (_searchType) {
+        case 'appealReason':
+          appeals =
+              await appealApi.apiAppealsReasonReasonGet(reason: prefix.trim());
+          return appeals
+              .map((appeal) => appeal.appealReason ?? '')
+              .where((reason) =>
+                  reason.isNotEmpty &&
+                  reason.toLowerCase().contains(prefix.toLowerCase()))
+              .take(5)
+              .toList();
+        case 'appellantName':
+          appeals = await appealApi
+              .apiAppealsGet(); // Assume API supports filtering by name
+          return appeals
+              .map((appeal) => appeal.appellantName ?? '')
+              .where((name) =>
+                  name.isNotEmpty &&
+                  name.toLowerCase().contains(prefix.toLowerCase()))
+              .take(5)
+              .toList();
+        case 'processStatus':
+          appeals = await appealApi.apiAppealsGet();
+          return appeals
+              .map((appeal) => appeal.processStatus ?? '')
+              .where((status) =>
+                  status.isNotEmpty &&
+                  status.toLowerCase().contains(prefix.toLowerCase()))
+              .take(5)
+              .toList();
+        default:
+          return [];
+      }
+    } catch (e) {
+      developer.log('Failed to fetch autocomplete suggestions: $e');
+      return [];
+    }
   }
 
   Future<void> _loadAppeals({bool reset = false}) async {
@@ -70,10 +112,30 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
 
       List<AppealManagement> appeals;
       final searchQuery = _searchController.text.trim();
-      if (searchQuery.isNotEmpty) {
+      if (_searchType == 'appealReason' && searchQuery.isNotEmpty) {
         appeals =
             await appealApi.apiAppealsReasonReasonGet(reason: searchQuery);
-      } else if (_startTime != null && _endTime != null) {
+      } else if (_searchType == 'appellantName' && searchQuery.isNotEmpty) {
+        appeals = await appealApi.apiAppealsGet(); // Filter client-side
+        appeals = appeals
+            .where((appeal) =>
+                appeal.appellantName
+                    ?.toLowerCase()
+                    .contains(searchQuery.toLowerCase()) ??
+                false)
+            .toList();
+      } else if (_searchType == 'processStatus' && searchQuery.isNotEmpty) {
+        appeals = await appealApi.apiAppealsGet(); // Filter client-side
+        appeals = appeals
+            .where((appeal) =>
+                appeal.processStatus
+                    ?.toLowerCase()
+                    .contains(searchQuery.toLowerCase()) ??
+                false)
+            .toList();
+      } else if (_searchType == 'timeRange' &&
+          _startTime != null &&
+          _endTime != null) {
         appeals = await appealApi.apiAppealsTimeRangeGet(
           startTime: _startTime!.toIso8601String().substring(0, 10),
           endTime: _endTime!.toIso8601String().substring(0, 10),
@@ -152,39 +214,120 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
             Row(
               children: [
                 Expanded(
-                  child: TextField(
-                    controller: _searchController,
-                    style: themeData.textTheme.bodyMedium
-                        ?.copyWith(color: themeData.colorScheme.onSurface),
-                    decoration: InputDecoration(
-                      hintText: '搜索申诉原因',
-                      hintStyle: themeData.textTheme.bodyMedium?.copyWith(
-                        color: themeData.colorScheme.onSurface.withOpacity(0.6),
-                      ),
-                      prefixIcon: Icon(Icons.search,
-                          color: themeData.colorScheme.primary),
-                      suffixIcon: _searchController.text.isNotEmpty
-                          ? IconButton(
-                              icon: Icon(Icons.clear,
-                                  color:
-                                      themeData.colorScheme.onSurfaceVariant),
-                              onPressed: () {
-                                _searchController.clear();
-                                _loadAppeals(reset: true);
-                              },
-                            )
-                          : null,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12.0),
-                        borderSide: BorderSide.none,
-                      ),
-                      filled: true,
-                      fillColor: themeData.colorScheme.surfaceContainer,
-                      contentPadding: const EdgeInsets.symmetric(
-                          vertical: 14.0, horizontal: 16.0),
-                    ),
-                    onSubmitted: (value) => _loadAppeals(reset: true),
+                  child: Autocomplete<String>(
+                    optionsBuilder: (TextEditingValue textEditingValue) async {
+                      if (textEditingValue.text.isEmpty ||
+                          _searchType == 'timeRange') {
+                        return const Iterable<String>.empty();
+                      }
+                      return await _fetchAutocompleteSuggestions(
+                          textEditingValue.text);
+                    },
+                    onSelected: (String selection) {
+                      _searchController.text = selection;
+                      _loadAppeals(reset: true);
+                    },
+                    fieldViewBuilder:
+                        (context, controller, focusNode, onFieldSubmitted) {
+                      _searchController.text = controller.text;
+                      return TextField(
+                        controller: controller,
+                        focusNode: focusNode,
+                        style: themeData.textTheme.bodyMedium
+                            ?.copyWith(color: themeData.colorScheme.onSurface),
+                        decoration: InputDecoration(
+                          hintText: _searchType == 'appealReason'
+                              ? '搜索申诉原因'
+                              : _searchType == 'appellantName'
+                                  ? '搜索申诉人姓名'
+                                  : _searchType == 'processStatus'
+                                      ? '搜索处理状态'
+                                      : '搜索时间范围（已选择）',
+                          hintStyle: themeData.textTheme.bodyMedium?.copyWith(
+                            color: themeData.colorScheme.onSurface
+                                .withOpacity(0.6),
+                          ),
+                          prefixIcon: Icon(Icons.search,
+                              color: themeData.colorScheme.primary),
+                          suffixIcon: controller.text.isNotEmpty ||
+                                  (_startTime != null && _endTime != null)
+                              ? IconButton(
+                                  icon: Icon(Icons.clear,
+                                      color: themeData
+                                          .colorScheme.onSurfaceVariant),
+                                  onPressed: () {
+                                    controller.clear();
+                                    _searchController.clear();
+                                    setState(() {
+                                      _startTime = null;
+                                      _endTime = null;
+                                      _searchType = 'appealReason';
+                                    });
+                                    _loadAppeals(reset: true);
+                                  },
+                                )
+                              : null,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12.0),
+                            borderSide: BorderSide.none,
+                          ),
+                          filled: true,
+                          fillColor: themeData.colorScheme.surfaceContainer,
+                          contentPadding: const EdgeInsets.symmetric(
+                              vertical: 14.0, horizontal: 16.0),
+                        ),
+                        onChanged: (value) {
+                          if (value.isEmpty) {
+                            setState(() {
+                              _startTime = null;
+                              _endTime = null;
+                              _searchType = 'appealReason';
+                            });
+                            _loadAppeals(reset: true);
+                          }
+                        },
+                        onSubmitted: (value) => _loadAppeals(reset: true),
+                        enabled: _searchType != 'timeRange',
+                      );
+                    },
                   ),
+                ),
+                const SizedBox(width: 8),
+                DropdownButton<String>(
+                  value: _searchType,
+                  onChanged: (String? newValue) {
+                    setState(() {
+                      _searchType = newValue!;
+                      _searchController.clear();
+                      _startTime = null;
+                      _endTime = null;
+                      _loadAppeals(reset: true);
+                    });
+                  },
+                  items: <String>[
+                    'appealReason',
+                    'appellantName',
+                    'processStatus',
+                    'timeRange'
+                  ].map<DropdownMenuItem<String>>((String value) {
+                    return DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(
+                        value == 'appealReason'
+                            ? '按申诉原因'
+                            : value == 'appellantName'
+                                ? '按申诉人姓名'
+                                : value == 'processStatus'
+                                    ? '按处理状态'
+                                    : '按时间范围',
+                        style:
+                            TextStyle(color: themeData.colorScheme.onSurface),
+                      ),
+                    );
+                  }).toList(),
+                  dropdownColor: themeData.colorScheme.surfaceContainer,
+                  icon: Icon(Icons.arrow_drop_down,
+                      color: themeData.colorScheme.primary),
                 ),
               ],
             ),
@@ -239,6 +382,8 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
                       setState(() {
                         _startTime = range.start;
                         _endTime = range.end;
+                        _searchType = 'timeRange';
+                        _searchController.clear();
                       });
                       _loadAppeals(reset: true);
                     }
@@ -253,6 +398,8 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
                       setState(() {
                         _startTime = null;
                         _endTime = null;
+                        _searchType = 'appealReason';
+                        _searchController.clear();
                       });
                       _loadAppeals(reset: true);
                     },
@@ -444,8 +591,7 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
                                               ?.copyWith(
                                             color: themeData
                                                 .colorScheme.onSurfaceVariant,
-                                            fontWeight: FontWeight
-                                                .w100, // Adjusted for better readability
+                                            fontWeight: FontWeight.w100,
                                           ),
                                         ),
                                       ],

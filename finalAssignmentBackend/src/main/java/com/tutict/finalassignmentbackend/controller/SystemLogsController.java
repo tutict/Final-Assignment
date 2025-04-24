@@ -21,7 +21,7 @@ public class SystemLogsController {
         this.systemLogsService = systemLogsService;
     }
 
-    // 创建新的系统日志记录 (仅 ADMIN)
+    // 创建新的系统日志记录
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public ResponseEntity<Void> createSystemLog(@RequestBody SystemLogs systemLog, @RequestParam String idempotencyKey) {

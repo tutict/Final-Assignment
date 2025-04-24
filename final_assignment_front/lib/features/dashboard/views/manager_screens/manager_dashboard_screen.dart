@@ -185,11 +185,14 @@ class DashboardScreen extends GetView<DashboardController>
     return SingleChildScrollView(
       child: Padding(
         padding: const EdgeInsets.symmetric(
-            horizontal: kSpacing, vertical: kSpacing),
+            horizontal: kSpacing, vertical: kSpacing / 2),
+        // Reduced vertical padding
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SizedBox(height: kSpacing * (kIsWeb || isDesktop ? 2.5 : 3.5)),
+            // Removed or reduced SizedBox to minimize top space
+            SizedBox(height: kSpacing * (kIsWeb || isDesktop ? 1.0 : 1.5)),
+            // Adjusted multiplier
             const Divider(),
             Obx(() {
               final pageContent = controller.selectedPage.value;
@@ -208,7 +211,7 @@ class DashboardScreen extends GetView<DashboardController>
                   children: [
                     _buildProfileSection(context),
                     _buildTeamMemberSection(context),
-                    _buildProgressSection(Axis.horizontal, context), // 强制使用水平布局
+                    _buildProgressSection(Axis.horizontal, context),
                     _buildActiveProjectSection(
                       context,
                       crossAxisCount: isDesktop ? 4 : 2,
@@ -344,7 +347,8 @@ class DashboardScreen extends GetView<DashboardController>
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(errorMessage, style: const TextStyle(color: Colors.red)),
+                      Text(errorMessage,
+                          style: const TextStyle(color: Colors.red)),
                       const SizedBox(height: 8),
                       ElevatedButton(
                         onPressed: () => (() {}), // Retry fetch
@@ -362,7 +366,8 @@ class DashboardScreen extends GetView<DashboardController>
                 final timeSeries =
                     data['timeSeries'] as List<Map<String, dynamic>>;
                 final paymentStatus = data['paymentStatus'] as Map<String, int>;
-                final startTime = DateTime.now().subtract(const Duration(days: 30));
+                final startTime =
+                    DateTime.now().subtract(const Duration(days: 30));
 
                 return GridView.builder(
                   itemCount: crossAxisCount >= 3
@@ -506,7 +511,8 @@ class DashboardScreen extends GetView<DashboardController>
                       final date = startTime.add(Duration(days: index));
                       return Text(
                         DateFormat('dd').format(date),
-                        style: const TextStyle(color: Colors.black, fontSize: 12),
+                        style:
+                            const TextStyle(color: Colors.black, fontSize: 12),
                       );
                     },
                   ),

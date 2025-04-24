@@ -85,8 +85,11 @@ class _FineListState extends State<FineList> {
       // 直接解析JWT
       final decodedToken = JwtDecoder.decode(jwtToken);
       final roles = decodedToken['roles'] is String
-          ? [decodedToken['roles']] // 如果是字符串，转换为列表
-          : (decodedToken['roles'] as List<dynamic>?)?.map((r) => r.toString()).toList() ?? [];
+          ? [decodedToken['roles']]
+          : (decodedToken['roles'] as List<dynamic>?)
+                  ?.map((r) => r.toString())
+                  .toList() ??
+              [];
 
       setState(() => _isAdmin = roles.contains('ADMIN'));
       if (!_isAdmin) {
@@ -96,10 +99,30 @@ class _FineListState extends State<FineList> {
       setState(() => _errorMessage = '加载权限失败: $e');
     }
   }
+
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  Future<List<String>> _fetchAutocompleteSuggestions(String prefix) async {
+    try {
+      if (_searchType == 'payee') {
+        final fines = await fineApi.apiFinesPayeePayeeGet(payee: prefix.trim());
+        return fines
+                ?.map((fine) => fine.payee ?? '')
+                .where((payee) =>
+                    payee.toLowerCase().contains(prefix.toLowerCase()))
+                .take(5)
+                .toList() ??
+            [];
+      }
+      return [];
+    } catch (e) {
+      debugPrint('Failed to fetch autocomplete suggestions: $e');
+      return [];
+    }
   }
 
   Future<void> _fetchFines({bool reset = false, String? query}) async {
@@ -126,7 +149,9 @@ class _FineListState extends State<FineList> {
         fines = await fineApi.apiFinesGet() ?? [];
       } else if (_searchType == 'payee' && searchQuery.isNotEmpty) {
         fines = await fineApi.apiFinesPayeePayeeGet(payee: searchQuery) ?? [];
-      } else if (_startDate != null && _endDate != null) {
+      } else if (_searchType == 'timeRange' &&
+          _startDate != null &&
+          _endDate != null) {
         fines = await fineApi.apiFinesTimeRangeGet(
               startTime: _startDate!.toIso8601String(),
               endTime: _endDate!.toIso8601String(),
@@ -172,6 +197,7 @@ class _FineListState extends State<FineList> {
     setState(() {
       _startDate = null;
       _endDate = null;
+      _searchType = 'payee';
     });
     await _fetchFines(reset: true);
   }
@@ -279,150 +305,195 @@ class _FineListState extends State<FineList> {
   }
 
   Widget _buildSearchField(ThemeData themeData) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _searchController,
-                  style: TextStyle(color: themeData.colorScheme.onSurface),
-                  decoration: InputDecoration(
-                    hintText: _searchType == 'payee' ? '搜索缴款人' : '搜索时间范围（已选择）',
-                    hintStyle: TextStyle(
-                        color:
-                            themeData.colorScheme.onSurface.withOpacity(0.6)),
-                    prefixIcon: Icon(Icons.search,
-                        color: themeData.colorScheme.primary),
-                    suffixIcon: _searchController.text.isNotEmpty ||
-                            (_startDate != null && _endDate != null)
-                        ? IconButton(
-                            icon: Icon(Icons.clear,
-                                color: themeData.colorScheme.onSurfaceVariant),
-                            onPressed: () {
-                              _searchController.clear();
-                              setState(() {
-                                _startDate = null;
-                                _endDate = null;
-                              });
-                              _fetchFines(reset: true);
-                            },
-                          )
-                        : null,
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12.0)),
-                    enabledBorder: OutlineInputBorder(
-                      borderSide: BorderSide(
-                          color:
-                              themeData.colorScheme.outline.withOpacity(0.3)),
-                      borderRadius: BorderRadius.circular(12.0),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderSide: BorderSide(
-                          color: themeData.colorScheme.primary, width: 1.5),
-                      borderRadius: BorderRadius.circular(12.0),
-                    ),
-                    filled: true,
-                    fillColor: themeData.colorScheme.surfaceContainerLowest,
-                    contentPadding: const EdgeInsets.symmetric(
-                        vertical: 12.0, horizontal: 16.0),
-                  ),
-                  onSubmitted: (value) => _searchFines(),
-                  onChanged: (value) => setState(() {}),
-                ),
-              ),
-              const SizedBox(width: 8),
-              DropdownButton<String>(
-                value: _searchType,
-                onChanged: (String? newValue) {
-                  setState(() {
-                    _searchType = newValue!;
-                    _searchController.clear();
-                    _startDate = null;
-                    _endDate = null;
-                    _fetchFines(reset: true);
-                  });
-                },
-                items: <String>['payee', 'timeRange']
-                    .map<DropdownMenuItem<String>>((String value) {
-                  return DropdownMenuItem<String>(
-                    value: value,
-                    child: Text(
-                      value == 'payee' ? '按缴款人' : '按时间范围',
-                      style: TextStyle(color: themeData.colorScheme.onSurface),
-                    ),
-                  );
-                }).toList(),
-                dropdownColor: themeData.colorScheme.surfaceContainer,
-                icon: Icon(Icons.arrow_drop_down,
-                    color: themeData.colorScheme.primary),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  _startDate != null && _endDate != null
-                      ? '罚款日期范围: ${formatDate(_startDate.toString())} 至 ${formatDate(_endDate.toString())}'
-                      : '选择罚款日期范围',
-                  style: TextStyle(
-                    color: _startDate != null && _endDate != null
-                        ? themeData.colorScheme.onSurface
-                        : themeData.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-              IconButton(
-                icon: Icon(Icons.date_range,
-                    color: themeData.colorScheme.primary),
-                tooltip: '按罚款日期范围搜索',
-                onPressed: () async {
-                  final range = await showDateRangePicker(
-                    context: context,
-                    firstDate: DateTime(1900),
-                    lastDate: DateTime.now(),
-                    locale: const Locale('zh', 'CN'),
-                    helpText: '选择罚款日期范围',
-                    cancelText: '取消',
-                    confirmText: '确定',
-                    fieldStartHintText: '开始日期',
-                    fieldEndHintText: '结束日期',
-                    builder: (BuildContext context, Widget? child) {
-                      return Theme(
-                          data: controller.currentBodyTheme.value,
-                          child: child!);
+    return Card(
+      elevation: 2,
+      color: themeData.colorScheme.surfaceContainer,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+      child: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Autocomplete<String>(
+                    optionsBuilder: (TextEditingValue textEditingValue) async {
+                      if (textEditingValue.text.isEmpty ||
+                          _searchType != 'payee') {
+                        return const Iterable<String>.empty();
+                      }
+                      return await _fetchAutocompleteSuggestions(
+                          textEditingValue.text);
                     },
-                  );
-                  if (range != null) {
+                    onSelected: (String selection) {
+                      _searchController.text = selection;
+                      _searchFines();
+                    },
+                    fieldViewBuilder:
+                        (context, controller, focusNode, onFieldSubmitted) {
+                      _searchController.text = controller.text;
+                      return TextField(
+                        controller: controller,
+                        focusNode: focusNode,
+                        style:
+                            TextStyle(color: themeData.colorScheme.onSurface),
+                        decoration: InputDecoration(
+                          hintText:
+                              _searchType == 'payee' ? '搜索缴款人' : '搜索时间范围（已选择）',
+                          hintStyle: TextStyle(
+                              color: themeData.colorScheme.onSurface
+                                  .withOpacity(0.6)),
+                          prefixIcon: Icon(Icons.search,
+                              color: themeData.colorScheme.primary),
+                          suffixIcon: controller.text.isNotEmpty ||
+                                  (_startDate != null && _endDate != null)
+                              ? IconButton(
+                                  icon: Icon(Icons.clear,
+                                      color: themeData
+                                          .colorScheme.onSurfaceVariant),
+                                  onPressed: () {
+                                    controller.clear();
+                                    _searchController.clear();
+                                    setState(() {
+                                      _startDate = null;
+                                      _endDate = null;
+                                      _searchType = 'payee';
+                                    });
+                                    _fetchFines(reset: true);
+                                  },
+                                )
+                              : null,
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8.0)),
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
+                                color: themeData.colorScheme.outline
+                                    .withOpacity(0.3)),
+                            borderRadius: BorderRadius.circular(8.0),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
+                                color: themeData.colorScheme.primary,
+                                width: 1.5),
+                            borderRadius: BorderRadius.circular(8.0),
+                          ),
+                          filled: true,
+                          fillColor:
+                              themeData.colorScheme.surfaceContainerLowest,
+                          contentPadding: const EdgeInsets.symmetric(
+                              vertical: 12.0, horizontal: 16.0),
+                        ),
+                        onChanged: (value) {
+                          if (value.isEmpty) {
+                            setState(() {
+                              _startDate = null;
+                              _endDate = null;
+                              _searchType = 'payee';
+                            });
+                            _fetchFines(reset: true);
+                          }
+                        },
+                        onSubmitted: (value) => _searchFines(),
+                        enabled: _searchType == 'payee',
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                DropdownButton<String>(
+                  value: _searchType,
+                  onChanged: (String? newValue) {
                     setState(() {
-                      _startDate = range.start;
-                      _endDate = range.end;
-                      _searchType = 'timeRange';
-                    });
-                    _searchFines();
-                  }
-                },
-              ),
-              if (_startDate != null && _endDate != null)
-                IconButton(
-                  icon: Icon(Icons.clear,
-                      color: themeData.colorScheme.onSurfaceVariant),
-                  tooltip: '清除日期范围',
-                  onPressed: () {
-                    setState(() {
+                      _searchType = newValue!;
+                      _searchController.clear();
                       _startDate = null;
                       _endDate = null;
+                      _fetchFines(reset: true);
                     });
-                    _searchFines();
+                  },
+                  items: <String>['payee', 'timeRange']
+                      .map<DropdownMenuItem<String>>((String value) {
+                    return DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(
+                        value == 'payee' ? '按缴款人' : '按时间范围',
+                        style:
+                            TextStyle(color: themeData.colorScheme.onSurface),
+                      ),
+                    );
+                  }).toList(),
+                  dropdownColor: themeData.colorScheme.surfaceContainer,
+                  icon: Icon(Icons.arrow_drop_down,
+                      color: themeData.colorScheme.primary),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _startDate != null && _endDate != null
+                        ? '罚款日期范围: ${formatDate(_startDate.toString())} 至 ${formatDate(_endDate.toString())}'
+                        : '选择罚款日期范围',
+                    style: TextStyle(
+                      color: _startDate != null && _endDate != null
+                          ? themeData.colorScheme.onSurface
+                          : themeData.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(Icons.date_range,
+                      color: themeData.colorScheme.primary),
+                  tooltip: '按罚款日期范围搜索',
+                  onPressed: () async {
+                    final range = await showDateRangePicker(
+                      context: context,
+                      firstDate: DateTime(1900),
+                      lastDate: DateTime.now(),
+                      locale: const Locale('zh', 'CN'),
+                      helpText: '选择罚款日期范围',
+                      cancelText: '取消',
+                      confirmText: '确定',
+                      fieldStartHintText: '开始日期',
+                      fieldEndHintText: '结束日期',
+                      builder: (BuildContext context, Widget? child) {
+                        return Theme(
+                            data: controller.currentBodyTheme.value,
+                            child: child!);
+                      },
+                    );
+                    if (range != null) {
+                      setState(() {
+                        _startDate = range.start;
+                        _endDate = range.end;
+                        _searchType = 'timeRange';
+                        _searchController.clear();
+                      });
+                      _searchFines();
+                    }
                   },
                 ),
-            ],
-          ),
-        ],
+                if (_startDate != null && _endDate != null)
+                  IconButton(
+                    icon: Icon(Icons.clear,
+                        color: themeData.colorScheme.onSurfaceVariant),
+                    tooltip: '清除日期范围',
+                    onPressed: () {
+                      setState(() {
+                        _startDate = null;
+                        _endDate = null;
+                        _searchType = 'payee';
+                        _searchController.clear();
+                      });
+                      _searchFines();
+                    },
+                  ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

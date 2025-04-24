@@ -4,7 +4,6 @@ import 'package:final_assignment_front/features/api/user_management_controller_a
 import 'package:final_assignment_front/features/api/role_management_controller_api.dart';
 import 'package:final_assignment_front/features/model/user_management.dart';
 import 'package:final_assignment_front/features/model/role_management.dart';
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
@@ -32,8 +31,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
   bool _isAdmin = false;
   List<RoleManagement> _roles = [];
 
-  final DashboardController controller =
-      Get.find<DashboardController>();
+  final DashboardController controller = Get.find<DashboardController>();
 
   @override
   void initState() {
@@ -55,22 +53,35 @@ class _UserManagementPageState extends State<UserManagementPage> {
       if (_currentUsername!.isEmpty) throw Exception('JWT 中未找到用户名');
       debugPrint('Current username from JWT: $_currentUsername');
 
+      // Check if user has ADMIN role
+      final roles = decodedToken['roles'] ?? '';
+      _isAdmin = roles.contains('ADMIN') || roles.contains('ROLE_ADMIN');
+      debugPrint('User isAdmin: $_isAdmin (Roles: $roles)');
+
       await userApi.initializeWithJwt();
       await roleApi.initializeWithJwt();
 
       // Fetch roles for potential role display
       _roles = await roleApi.apiRolesGet();
       debugPrint('Roles fetched: ${_roles.map((r) => r.toJson()).toList()}');
+      if (_roles.isEmpty) {
+        debugPrint('Warning: No roles returned from /api/roles');
+      }
 
-      await _fetchUsers(reset: true);
+      // Fetch users only if admin
+      if (_isAdmin) {
+        await _fetchUsers(reset: true);
+      } else {
+        setState(() {
+          _errorMessage = '仅管理员可访问用户管理页面';
+        });
+      }
     } catch (e) {
       setState(() {
         _errorMessage = '初始化失败: $e';
       });
     } finally {
-      if (_isAdmin) {
-        setState(() => _isLoading = false);
-      }
+      setState(() => _isLoading = false);
     }
   }
 
@@ -80,8 +91,31 @@ class _UserManagementPageState extends State<UserManagementPage> {
     super.dispose();
   }
 
+  Future<bool> _checkUsernameAvailability(String username,
+      {String? excludeUserId}) async {
+    try {
+      final existingUser =
+          await userApi.apiUsersUsernameUsernameGet(username: username);
+      if (existingUser == null) return true; // Username is available
+      // If editing, allow the same username for the same user
+      if (excludeUserId != null &&
+          existingUser.userId.toString() == excludeUserId) {
+        return true;
+      }
+      return false; // Username is taken
+    } catch (e) {
+      debugPrint('Error checking username availability: $e');
+      return false;
+    }
+  }
+
   Future<void> _fetchUsers({bool reset = false, String? query}) async {
-    if (!_isAdmin) return;
+    if (!_isAdmin) {
+      setState(() {
+        _errorMessage = '仅管理员可访问用户管理页面';
+      });
+      return;
+    }
     if (reset) {
       _currentPage = 1;
       _hasMore = true;
@@ -125,7 +159,11 @@ class _UserManagementPageState extends State<UserManagementPage> {
             .toList();
       }
 
-      debugPrint('Users fetched: ${users.map((u) => u.toJson()).toList()}');
+      // Filter out admin users (e.g., hgl@admin.com)
+      users = users.where((u) => u.username != _currentUsername).toList();
+      debugPrint(
+          'Users after admin filter: ${users.map((u) => u.toJson()).toList()}');
+
       setState(() {
         _userList.addAll(users);
         if (users.length < _pageSize) _hasMore = false;
@@ -160,7 +198,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
         ]; // Placeholder: Replace with actual API
       } else if (_searchType == 'status') {
         debugPrint('Fetching status suggestions with prefix: $prefix');
-        return ['ACTIVE', 'INACTIVE', 'SUSPENDED'];
+        return ['Active', 'Inactive'];
       } else if (_searchType == 'contactNumber') {
         debugPrint('Fetching contactNumber suggestions with prefix: $prefix');
         return ['1234567890', '0987654321']; // Placeholder
@@ -206,7 +244,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
     final contactNumberController = TextEditingController();
     final emailController = TextEditingController();
     final remarksController = TextEditingController();
-    String? selectedStatus = 'ACTIVE';
+    String? selectedStatus = 'Active'; // Default to match database
     final formKey = GlobalKey<FormState>();
     final idempotencyKey = const Uuid().v4();
 
@@ -230,7 +268,16 @@ class _UserManagementPageState extends State<UserManagementPage> {
                       border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12.0)),
                     ),
-                    validator: (value) => value!.isEmpty ? '用户名不能为空' : null,
+                    maxLength: 50,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return '用户名不能为空';
+                      }
+                      if (value.length > 50) {
+                        return '用户名不能超过50个字符';
+                      }
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
@@ -241,7 +288,16 @@ class _UserManagementPageState extends State<UserManagementPage> {
                           borderRadius: BorderRadius.circular(12.0)),
                     ),
                     obscureText: true,
-                    validator: (value) => value!.isEmpty ? '密码不能为空' : null,
+                    maxLength: 255,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return '密码不能为空';
+                      }
+                      if (value.length > 255) {
+                        return '密码不能超过255个字符';
+                      }
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
@@ -252,6 +308,15 @@ class _UserManagementPageState extends State<UserManagementPage> {
                           borderRadius: BorderRadius.circular(12.0)),
                     ),
                     keyboardType: TextInputType.phone,
+                    maxLength: 20,
+                    validator: (value) {
+                      if (value != null &&
+                          value.isNotEmpty &&
+                          value.length > 20) {
+                        return '联系电话不能超过20个字符';
+                      }
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
@@ -262,11 +327,16 @@ class _UserManagementPageState extends State<UserManagementPage> {
                           borderRadius: BorderRadius.circular(12.0)),
                     ),
                     keyboardType: TextInputType.emailAddress,
+                    maxLength: 100,
                     validator: (value) {
-                      if (value!.isNotEmpty &&
-                          !RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
-                              .hasMatch(value)) {
-                        return '请输入有效的邮箱地址';
+                      if (value != null && value.isNotEmpty) {
+                        if (value.length > 100) {
+                          return '邮箱不能超过100个字符';
+                        }
+                        if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
+                            .hasMatch(value)) {
+                          return '请输入有效的邮箱地址';
+                        }
                       }
                       return null;
                     },
@@ -279,13 +349,16 @@ class _UserManagementPageState extends State<UserManagementPage> {
                       border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12.0)),
                     ),
-                    items: ['ACTIVE', 'INACTIVE', 'SUSPENDED']
+                    items: ['Active', 'Inactive']
                         .map((status) => DropdownMenuItem(
-                              value: status,
-                              child: Text(status),
-                            ))
+                            value: status, child: Text(status)))
                         .toList(),
-                    onChanged: (value) => selectedStatus = value,
+                    onChanged: (value) {
+                      setState(() {
+                        selectedStatus = value;
+                      });
+                    },
+                    validator: (value) => value == null ? '请选择状态' : null,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
@@ -310,6 +383,14 @@ class _UserManagementPageState extends State<UserManagementPage> {
             ElevatedButton(
               onPressed: () async {
                 if (formKey.currentState!.validate()) {
+                  // Check username availability
+                  final isUsernameAvailable =
+                      await _checkUsernameAvailability(usernameController.text);
+                  if (!isUsernameAvailable) {
+                    _showSnackBar('用户名已存在，请选择其他用户名', isError: true);
+                    return;
+                  }
+
                   try {
                     final newUser = UserManagement(
                       userId: 0,
@@ -355,7 +436,8 @@ class _UserManagementPageState extends State<UserManagementPage> {
         TextEditingController(text: user.contactNumber);
     final emailController = TextEditingController(text: user.email);
     final remarksController = TextEditingController(text: user.remarks);
-    String? selectedStatus = user.status;
+    String? selectedStatus =
+        user.status ?? 'Active'; // Default to 'Active' if null
     final formKey = GlobalKey<FormState>();
     final idempotencyKey = const Uuid().v4();
 
@@ -379,7 +461,16 @@ class _UserManagementPageState extends State<UserManagementPage> {
                       border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12.0)),
                     ),
-                    validator: (value) => value!.isEmpty ? '用户名不能为空' : null,
+                    maxLength: 50,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return '用户名不能为空';
+                      }
+                      if (value.length > 50) {
+                        return '用户名不能超过50个字符';
+                      }
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
@@ -390,6 +481,15 @@ class _UserManagementPageState extends State<UserManagementPage> {
                           borderRadius: BorderRadius.circular(12.0)),
                     ),
                     keyboardType: TextInputType.phone,
+                    maxLength: 20,
+                    validator: (value) {
+                      if (value != null &&
+                          value.isNotEmpty &&
+                          value.length > 20) {
+                        return '联系电话不能超过20个字符';
+                      }
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
@@ -400,11 +500,16 @@ class _UserManagementPageState extends State<UserManagementPage> {
                           borderRadius: BorderRadius.circular(12.0)),
                     ),
                     keyboardType: TextInputType.emailAddress,
+                    maxLength: 100,
                     validator: (value) {
-                      if (value!.isNotEmpty &&
-                          !RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
-                              .hasMatch(value)) {
-                        return '请输入有效的邮箱地址';
+                      if (value != null && value.isNotEmpty) {
+                        if (value.length > 100) {
+                          return '邮箱不能超过100个字符';
+                        }
+                        if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
+                            .hasMatch(value)) {
+                          return '请输入有效的邮箱地址';
+                        }
                       }
                       return null;
                     },
@@ -417,13 +522,16 @@ class _UserManagementPageState extends State<UserManagementPage> {
                       border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12.0)),
                     ),
-                    items: ['ACTIVE', 'INACTIVE', 'SUSPENDED']
+                    items: ['Active', 'Inactive']
                         .map((status) => DropdownMenuItem(
-                              value: status,
-                              child: Text(status),
-                            ))
+                            value: status, child: Text(status)))
                         .toList(),
-                    onChanged: (value) => selectedStatus = value,
+                    onChanged: (value) {
+                      setState(() {
+                        selectedStatus = value;
+                      });
+                    },
+                    validator: (value) => value == null ? '请选择状态' : null,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
@@ -448,6 +556,16 @@ class _UserManagementPageState extends State<UserManagementPage> {
             ElevatedButton(
               onPressed: () async {
                 if (formKey.currentState!.validate()) {
+                  // Check username availability, excluding current user
+                  final isUsernameAvailable = await _checkUsernameAvailability(
+                    usernameController.text,
+                    excludeUserId: user.userId.toString(),
+                  );
+                  if (!isUsernameAvailable) {
+                    _showSnackBar('用户名已存在，请选择其他用户名', isError: true);
+                    return;
+                  }
+
                   try {
                     final updatedUser = UserManagement(
                       userId: user.userId,
@@ -668,8 +786,8 @@ class _UserManagementPageState extends State<UserManagementPage> {
           ? FloatingActionButton(
               onPressed: _showCreateUserDialog,
               backgroundColor: themeData.colorScheme.primary,
-              child: Icon(Icons.add, color: themeData.colorScheme.onPrimary),
               tooltip: '创建新用户',
+              child: Icon(Icons.add, color: themeData.colorScheme.onPrimary),
             )
           : null,
       body: RefreshIndicator(

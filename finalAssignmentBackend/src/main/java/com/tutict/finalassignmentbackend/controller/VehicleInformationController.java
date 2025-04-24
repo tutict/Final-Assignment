@@ -50,22 +50,30 @@ public class VehicleInformationController {
     public ResponseEntity<List<String>> getLicensePlateAutocompleteSuggestions(
             @RequestParam String prefix,
             @RequestParam(defaultValue = "5") int maxSuggestions,
-            @RequestParam(required = false) String ownerName) {
+            @RequestParam String idCardNumber) {
+        Logger log = Logger.getLogger(this.getClass().getName());
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String currentUsername = authentication.getName();
-        log.log(Level.INFO, "Fetching license plate suggestions for user: {0}, prefix: {1}, maxSuggestions: {2}",
-                new Object[]{currentUsername, prefix, maxSuggestions});
+        log.log(Level.INFO, "Fetching license plate suggestions for user: {0}, prefix: {1}, maxSuggestions: {2}, idCardNumber: {3}",
+                new Object[]{currentUsername, prefix, maxSuggestions, idCardNumber});
 
-        // 解码 ownerName
-        String decodedOwnerName = ownerName != null ? URLDecoder.decode(ownerName, StandardCharsets.UTF_8) : currentUsername;
-        log.log(Level.INFO, "Decoded ownerName: {0}", new Object[]{decodedOwnerName});
+        // 验证 idCardNumber
+        if (idCardNumber == null || idCardNumber.trim().isEmpty()) {
+            log.log(Level.WARNING, "Invalid idCardNumber provided for user: {0}", new Object[]{currentUsername});
+            return ResponseEntity.badRequest().body(List.of());
+        }
+
+        // 解码 prefix 和 idCardNumber
+        String decodedPrefix = URLDecoder.decode(prefix, StandardCharsets.UTF_8);
+        String decodedIdCardNumber = URLDecoder.decode(idCardNumber, StandardCharsets.UTF_8);
+        log.log(Level.INFO, "Decoded prefix: {0}, idCardNumber: {1}", new Object[]{decodedPrefix, decodedIdCardNumber});
 
         List<String> suggestions = vehicleInformationService.getLicensePlateAutocompleteSuggestions(
-                decodedOwnerName, prefix, maxSuggestions);
+                decodedIdCardNumber, decodedPrefix, maxSuggestions);
 
         if (suggestions.isEmpty()) {
-            log.log(Level.INFO, "No license plate suggestions found for prefix: {0} for user: {1}",
-                    new Object[]{prefix, currentUsername});
+            log.log(Level.INFO, "No license plate suggestions found for prefix: {0} with idCardNumber: {1} for user: {2}",
+                    new Object[]{decodedPrefix, decodedIdCardNumber, currentUsername});
         }
         return ResponseEntity.ok(suggestions);
     }
@@ -75,24 +83,30 @@ public class VehicleInformationController {
     public ResponseEntity<List<String>> getVehicleTypeAutocompleteSuggestions(
             @RequestParam String prefix,
             @RequestParam(defaultValue = "5") int maxSuggestions,
-            @RequestParam(required = false) String ownerName) {
-
+            @RequestParam String idCardNumber) {
+        Logger log = Logger.getLogger(this.getClass().getName());
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String currentUsername = authentication.getName();
-        log.log(Level.INFO, "Fetching vehicle type suggestions for user: {0}, prefix: {1}, maxSuggestions: {2}",
-                new Object[]{currentUsername, prefix, maxSuggestions});
+        log.log(Level.INFO, "Fetching vehicle type suggestions for user: {0}, prefix: {1}, maxSuggestions: {2}, idCardNumber: {3}",
+                new Object[]{currentUsername, prefix, maxSuggestions, idCardNumber});
 
-        // 解码 prefix 和 ownerName
+        // 验证 idCardNumber
+        if (idCardNumber == null || idCardNumber.trim().isEmpty()) {
+            log.log(Level.WARNING, "Invalid idCardNumber provided for user: {0}", new Object[]{currentUsername});
+            return ResponseEntity.badRequest().body(List.of());
+        }
+
+        // 解码 prefix 和 idCardNumber
         String decodedPrefix = URLDecoder.decode(prefix, StandardCharsets.UTF_8);
-        String decodedOwnerName = ownerName != null ? URLDecoder.decode(ownerName, StandardCharsets.UTF_8) : currentUsername;
-        log.log(Level.INFO, "Decoded prefix: {0}, ownerName: {1}", new Object[]{decodedPrefix, decodedOwnerName});
+        String decodedIdCardNumber = URLDecoder.decode(idCardNumber, StandardCharsets.UTF_8);
+        log.log(Level.INFO, "Decoded prefix: {0}, idCardNumber: {1}", new Object[]{decodedPrefix, decodedIdCardNumber});
 
         List<String> suggestions = vehicleInformationService.getVehicleTypeAutocompleteSuggestions(
-                decodedOwnerName, decodedPrefix, maxSuggestions);
+                decodedIdCardNumber, decodedPrefix, maxSuggestions);
 
         if (suggestions.isEmpty()) {
-            log.log(Level.INFO, "No vehicle type suggestions found for prefix: {0} for user: {1}",
-                    new Object[]{prefix, currentUsername});
+            log.log(Level.INFO, "No vehicle type suggestions found for prefix: {0} with idCardNumber: {1} for user: {2}",
+                    new Object[]{decodedPrefix, decodedIdCardNumber, currentUsername});
         }
         return ResponseEntity.ok(suggestions);
     }

@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:final_assignment_front/features/api/system_logs_controller_api.dart';
 import 'package:final_assignment_front/features/api/role_management_controller_api.dart';
 import 'package:final_assignment_front/features/model/system_logs.dart';
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
@@ -24,16 +23,12 @@ class _SystemLogPageState extends State<SystemLogPage> {
   final List<SystemLogs> _logList = [];
   bool _isLoading = true;
   String _errorMessage = '';
-  int _currentPage = 1;
-  final int _pageSize = 10;
-  bool _hasMore = true;
   String _searchType = 'logType'; // Default search type
   String? _currentUsername;
   bool _isAdmin = false;
   DateTimeRange? _selectedDateRange;
 
-  final DashboardController controller =
-      Get.find<DashboardController>();
+  final DashboardController controller = Get.find<DashboardController>();
 
   @override
   void initState() {
@@ -53,19 +48,27 @@ class _SystemLogPageState extends State<SystemLogPage> {
       final decodedToken = JwtDecoder.decode(jwtToken);
       _currentUsername = decodedToken['sub'] ?? '';
       if (_currentUsername!.isEmpty) throw Exception('JWT 中未找到用户名');
-      debugPrint('Current username from JWT: $_currentUsername');
+// Check for admin role
+      final roles = decodedToken['roles'] as List<dynamic>? ?? [];
+      _isAdmin = roles.contains('ROLE_ADMIN');
+      debugPrint(
+          'Current username from JWT: $_currentUsername, isAdmin: $_isAdmin');
 
       await logApi.initializeWithJwt();
       await roleApi.initializeWithJwt();
-      await _fetchLogs(reset: true);
+      if (_isAdmin) {
+        await _fetchLogs(reset: true);
+      } else {
+        setState(() {
+          _errorMessage = '仅管理员可查看系统日志';
+        });
+      }
     } catch (e) {
       setState(() {
         _errorMessage = '初始化失败: $e';
       });
     } finally {
-      if (_isAdmin) {
-        setState(() => _isLoading = false);
-      }
+      setState(() => _isLoading = false);
     }
   }
 
@@ -78,11 +81,8 @@ class _SystemLogPageState extends State<SystemLogPage> {
   Future<void> _fetchLogs({bool reset = false, String? query}) async {
     if (!_isAdmin) return;
     if (reset) {
-      _currentPage = 1;
-      _hasMore = true;
       _logList.clear();
     }
-    if (!_hasMore) return;
 
     setState(() {
       _isLoading = true;
@@ -91,7 +91,7 @@ class _SystemLogPageState extends State<SystemLogPage> {
 
     final searchQuery = query?.trim() ?? '';
     debugPrint(
-        'Fetching logs with query: $searchQuery, page: $_currentPage, searchType: $_searchType, dateRange: $_selectedDateRange');
+        'Fetching logs with query: $searchQuery, searchType: $_searchType, dateRange: $_selectedDateRange');
 
     try {
       List<SystemLogs> logs = [];
@@ -102,36 +102,26 @@ class _SystemLogPageState extends State<SystemLogPage> {
         logs = await logApi.apiSystemLogsTimeRangeGet(
           startTime: startTime,
           endTime: endTime,
-          page: _currentPage,
-          size: _pageSize,
         );
       } else if (searchQuery.isEmpty) {
-        debugPrint('Fetching all logs for page: $_currentPage');
-        logs = await logApi.apiSystemLogsGet(
-          page: _currentPage,
-          size: _pageSize,
-        );
+        debugPrint('Fetching all logs');
+        logs = await logApi.apiSystemLogsGet();
       } else if (_searchType == 'logType') {
         debugPrint('Fetching logs by logType: $searchQuery');
         logs = await logApi.apiSystemLogsTypeLogTypeGet(
           logType: searchQuery,
-          page: _currentPage,
-          size: _pageSize,
         );
       } else if (_searchType == 'operationUser') {
         debugPrint('Fetching logs by operationUser: $searchQuery');
         logs = await logApi.apiSystemLogsOperationUserGet(
           operationUser: searchQuery,
-          page: _currentPage,
-          size: _pageSize,
         );
       }
 
       debugPrint('Logs fetched: ${logs.map((l) => l.toJson()).toList()}');
       setState(() {
         _logList.addAll(logs);
-        if (logs.length < _pageSize) _hasMore = false;
-        if (_logList.isEmpty && _currentPage == 1) {
+        if (_logList.isEmpty) {
           _errorMessage = searchQuery.isNotEmpty || _selectedDateRange != null
               ? '未找到符合条件的日志'
               : '当前没有日志记录';
@@ -142,7 +132,6 @@ class _SystemLogPageState extends State<SystemLogPage> {
         if (e.toString().contains('404')) {
           _logList.clear();
           _errorMessage = '未找到符合条件的日志';
-          _hasMore = false;
         } else {
           _errorMessage =
               e.toString().contains('403') ? '未授权，请重新登录' : '获取日志失败: $e';
@@ -170,12 +159,6 @@ class _SystemLogPageState extends State<SystemLogPage> {
       debugPrint('Failed to fetch autocomplete suggestions: $e');
       return [];
     }
-  }
-
-  Future<void> _loadMoreLogs() async {
-    if (!_hasMore || _isLoading) return;
-    _currentPage++;
-    await _fetchLogs(query: _searchController.text);
   }
 
   Future<void> _refreshLogs() async {
@@ -654,162 +637,143 @@ class _SystemLogPageState extends State<SystemLogPage> {
                   ),
                 ),
               Expanded(
-                child: NotificationListener<ScrollNotification>(
-                  onNotification: (scrollInfo) {
-                    if (scrollInfo.metrics.pixels ==
-                            scrollInfo.metrics.maxScrollExtent &&
-                        _hasMore &&
-                        _isAdmin) {
-                      _loadMoreLogs();
-                    }
-                    return false;
-                  },
-                  child: _isLoading
-                      ? Center(
-                          child: CircularProgressIndicator(
-                              valueColor: AlwaysStoppedAnimation(
-                                  themeData.colorScheme.primary)))
-                      : _errorMessage.isNotEmpty && _logList.isEmpty
-                          ? Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    _errorMessage,
+                child: _isLoading
+                    ? Center(
+                        child: CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation(
+                                themeData.colorScheme.primary)))
+                    : _errorMessage.isNotEmpty && _logList.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  _errorMessage,
+                                  style:
+                                      themeData.textTheme.titleMedium?.copyWith(
+                                    color: themeData.colorScheme.error,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                if (_errorMessage.contains('未授权') ||
+                                    _errorMessage.contains('仅管理员'))
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 16.0),
+                                    child: ElevatedButton(
+                                      onPressed: () =>
+                                          Navigator.pushReplacementNamed(
+                                              context, '/login'),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor:
+                                            themeData.colorScheme.primary,
+                                        foregroundColor:
+                                            themeData.colorScheme.onPrimary,
+                                      ),
+                                      child: const Text('重新登录'),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          )
+                        : ListView.builder(
+                            itemCount: _logList.length,
+                            itemBuilder: (context, index) {
+                              final log = _logList[index];
+                              return Card(
+                                margin:
+                                    const EdgeInsets.symmetric(vertical: 8.0),
+                                elevation: 3,
+                                color: themeData.colorScheme.surfaceContainer,
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16.0)),
+                                child: ListTile(
+                                  contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 16.0, vertical: 12.0),
+                                  title: Text(
+                                    '日志ID: ${log.logId ?? '未知ID'}',
                                     style: themeData.textTheme.titleMedium
                                         ?.copyWith(
-                                      color: themeData.colorScheme.error,
-                                      fontWeight: FontWeight.w500,
+                                      color: themeData.colorScheme.onSurface,
+                                      fontWeight: FontWeight.w600,
                                     ),
-                                    textAlign: TextAlign.center,
                                   ),
-                                  if (_errorMessage.contains('未授权') ||
-                                      _errorMessage.contains('仅管理员'))
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 16.0),
-                                      child: ElevatedButton(
-                                        onPressed: () =>
-                                            Navigator.pushReplacementNamed(
-                                                context, '/login'),
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor:
-                                              themeData.colorScheme.primary,
-                                          foregroundColor:
-                                              themeData.colorScheme.onPrimary,
+                                  subtitle: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        '日志类型: ${log.logType ?? '未知类型'}',
+                                        style: themeData.textTheme.bodyMedium
+                                            ?.copyWith(
+                                          color: themeData
+                                              .colorScheme.onSurfaceVariant,
                                         ),
-                                        child: const Text('重新登录'),
                                       ),
-                                    ),
-                                ],
-                              ),
-                            )
-                          : ListView.builder(
-                              itemCount: _logList.length + (_hasMore ? 1 : 0),
-                              itemBuilder: (context, index) {
-                                if (index == _logList.length && _hasMore) {
-                                  return const Padding(
-                                    padding: EdgeInsets.all(8.0),
-                                    child: Center(
-                                        child: CircularProgressIndicator()),
-                                  );
-                                }
-                                final log = _logList[index];
-                                return Card(
-                                  margin:
-                                      const EdgeInsets.symmetric(vertical: 8.0),
-                                  elevation: 3,
-                                  color: themeData.colorScheme.surfaceContainer,
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius:
-                                          BorderRadius.circular(16.0)),
-                                  child: ListTile(
-                                    contentPadding: const EdgeInsets.symmetric(
-                                        horizontal: 16.0, vertical: 12.0),
-                                    title: Text(
-                                      '日志ID: ${log.logId ?? '未知ID'}',
-                                      style: themeData.textTheme.titleMedium
-                                          ?.copyWith(
-                                        color: themeData.colorScheme.onSurface,
-                                        fontWeight: FontWeight.w600,
+                                      Text(
+                                        '内容: ${log.logContent ?? '无内容'}',
+                                        style: themeData.textTheme.bodyMedium
+                                            ?.copyWith(
+                                          color: themeData
+                                              .colorScheme.onSurfaceVariant,
+                                        ),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
-                                    ),
-                                    subtitle: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          '日志类型: ${log.logType ?? '未知类型'}',
-                                          style: themeData.textTheme.bodyMedium
-                                              ?.copyWith(
-                                            color: themeData
-                                                .colorScheme.onSurfaceVariant,
-                                          ),
+                                      Text(
+                                        '操作时间: ${log.operationTime != null ? DateFormat('yyyy-MM-dd HH:mm:ss').format(log.operationTime!) : '无'}',
+                                        style: themeData.textTheme.bodyMedium
+                                            ?.copyWith(
+                                          color: themeData
+                                              .colorScheme.onSurfaceVariant,
                                         ),
-                                        Text(
-                                          '内容: ${log.logContent ?? '无内容'}',
-                                          style: themeData.textTheme.bodyMedium
-                                              ?.copyWith(
-                                            color: themeData
-                                                .colorScheme.onSurfaceVariant,
-                                          ),
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
+                                      ),
+                                      Text(
+                                        '操作用户: ${log.operationUser ?? '未知用户'}',
+                                        style: themeData.textTheme.bodyMedium
+                                            ?.copyWith(
+                                          color: themeData
+                                              .colorScheme.onSurfaceVariant,
                                         ),
-                                        Text(
-                                          '操作时间: ${log.operationTime != null ? DateFormat('yyyy-MM-dd HH:mm:ss').format(log.operationTime!) : '无'}',
-                                          style: themeData.textTheme.bodyMedium
-                                              ?.copyWith(
-                                            color: themeData
-                                                .colorScheme.onSurfaceVariant,
-                                          ),
+                                      ),
+                                      Text(
+                                        '备注: ${log.remarks ?? '无'}',
+                                        style: themeData.textTheme.bodyMedium
+                                            ?.copyWith(
+                                          color: themeData
+                                              .colorScheme.onSurfaceVariant,
                                         ),
-                                        Text(
-                                          '操作用户: ${log.operationUser ?? '未知用户'}',
-                                          style: themeData.textTheme.bodyMedium
-                                              ?.copyWith(
-                                            color: themeData
-                                                .colorScheme.onSurfaceVariant,
-                                          ),
-                                        ),
-                                        Text(
-                                          '备注: ${log.remarks ?? '无'}',
-                                          style: themeData.textTheme.bodyMedium
-                                              ?.copyWith(
-                                            color: themeData
-                                                .colorScheme.onSurfaceVariant,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    trailing: _isAdmin
-                                        ? Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              IconButton(
-                                                icon: Icon(Icons.edit,
-                                                    color: themeData
-                                                        .colorScheme.primary),
-                                                onPressed: () =>
-                                                    _showEditLogDialog(log),
-                                                tooltip: '编辑日志',
-                                              ),
-                                              IconButton(
-                                                icon: Icon(Icons.delete,
-                                                    color: themeData
-                                                        .colorScheme.error),
-                                                onPressed: () => _deleteLog(
-                                                    log.logId.toString()),
-                                                tooltip: '删除日志',
-                                              ),
-                                            ],
-                                          )
-                                        : null,
+                                      ),
+                                    ],
                                   ),
-                                );
-                              },
-                            ),
-                ),
+                                  trailing: _isAdmin
+                                      ? Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            IconButton(
+                                              icon: Icon(Icons.edit,
+                                                  color: themeData
+                                                      .colorScheme.primary),
+                                              onPressed: () =>
+                                                  _showEditLogDialog(log),
+                                              tooltip: '编辑日志',
+                                            ),
+                                            IconButton(
+                                              icon: Icon(Icons.delete,
+                                                  color: themeData
+                                                      .colorScheme.error),
+                                              onPressed: () => _deleteLog(
+                                                  log.logId.toString()),
+                                              tooltip: '删除日志',
+                                            ),
+                                          ],
+                                        )
+                                      : null,
+                                ),
+                              );
+                            },
+                          ),
               ),
             ],
           ),

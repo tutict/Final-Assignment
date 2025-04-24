@@ -5,6 +5,7 @@ import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:flutter/material.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
 
 class OperationLogControllerApi {
   final ApiClient _apiClient;
@@ -26,31 +27,23 @@ class OperationLogControllerApi {
     }
   }
 
-  List<QueryParam> _addQueryParams({String? startTime, String? endTime}) {
-    final queryParams = <QueryParam>[];
-    if (startTime != null) queryParams.add(QueryParam('startTime', startTime));
-    if (endTime != null) queryParams.add(QueryParam('endTime', endTime));
-    return queryParams;
-  }
-
-  Future<List<OperationLog>> apiOperationLogsGet({
-    int page = 1,
-    int size = 10,
-  }) async {
-    final queryParams = [
-      QueryParam('page', page.toString()),
-      QueryParam('size', size.toString()),
-    ];
-    final response = await _apiClient.invokeAPI(
-      '/api/operationLogs',
-      'GET',
-      queryParams,
-      null,
-      {'Content-Type': 'application/json; charset=UTF-8'},
-      {'Accept': 'application/json; charset=UTF-8'},
-      'application/json',
-      ['bearerAuth'],
+  Future<List<OperationLog>> apiOperationLogsGet() async {
+    final uri = Uri.parse('http://localhost:8081/api/operationLogs');
+    final prefs = await SharedPreferences.getInstance();
+    final jwtToken = prefs.getString('jwtToken');
+    if (jwtToken == null) {
+      throw Exception('JWT token not found in SharedPreferences');
+    }
+    debugPrint('Request URL: $uri');
+    final response = await http.get(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $jwtToken',
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Accept': 'application/json; charset=UTF-8',
+      },
     );
+
     if (response.statusCode == 200) {
       final decodedBody = utf8.decode(response.bodyBytes);
       debugPrint('Raw response body (get all): $decodedBody');
@@ -67,16 +60,22 @@ class OperationLogControllerApi {
     if (logId.isEmpty) {
       throw ApiException(400, 'Missing required param: logId');
     }
-    final response = await _apiClient.invokeAPI(
-      '/api/operationLogs/$logId',
-      'DELETE',
-      [],
-      null,
-      {'Content-Type': 'application/json; charset=UTF-8'},
-      {'Accept': 'application/json; charset=UTF-8'},
-      'application/json',
-      ['bearerAuth'],
+    final uri = Uri.parse('http://localhost:8081/api/operationLogs/$logId');
+    final prefs = await SharedPreferences.getInstance();
+    final jwtToken = prefs.getString('jwtToken');
+    if (jwtToken == null) {
+      throw Exception('JWT token not found in SharedPreferences');
+    }
+    debugPrint('Request URL: $uri');
+    final response = await http.delete(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $jwtToken',
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Accept': 'application/json; charset=UTF-8',
+      },
     );
+
     if (response.statusCode != 204) {
       throw ApiException(response.statusCode,
           'Failed to delete operation log: ${response.body}');
@@ -88,16 +87,22 @@ class OperationLogControllerApi {
     if (logId.isEmpty) {
       throw ApiException(400, 'Missing required param: logId');
     }
-    final response = await _apiClient.invokeAPI(
-      '/api/operationLogs/$logId',
-      'GET',
-      [],
-      null,
-      {'Content-Type': 'application/json; charset=UTF-8'},
-      {'Accept': 'application/json; charset=UTF-8'},
-      'application/json',
-      ['bearerAuth'],
+    final uri = Uri.parse('http://localhost:8081/api/operationLogs/$logId');
+    final prefs = await SharedPreferences.getInstance();
+    final jwtToken = prefs.getString('jwtToken');
+    if (jwtToken == null) {
+      throw Exception('JWT token not found in SharedPreferences');
+    }
+    debugPrint('Request URL: $uri');
+    final response = await http.get(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $jwtToken',
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Accept': 'application/json; charset=UTF-8',
+      },
     );
+
     if (response.statusCode == 200) {
       final decodedBody = utf8.decode(response.bodyBytes);
       debugPrint('Raw response body (get by ID): $decodedBody');
@@ -117,17 +122,24 @@ class OperationLogControllerApi {
     if (logId.isEmpty) {
       throw ApiException(400, 'Missing required param: logId');
     }
-    final queryParams = [QueryParam('idempotencyKey', idempotencyKey)];
-    final response = await _apiClient.invokeAPI(
-      '/api/operationLogs/$logId',
-      'PUT',
-      queryParams,
-      operationLog.toJson(),
-      {'Content-Type': 'application/json; charset=UTF-8'},
-      {'Accept': 'application/json; charset=UTF-8'},
-      'application/json',
-      ['bearerAuth'],
+    final uri = Uri.parse(
+        'http://localhost:8081/api/operationLogs/$logId?idempotencyKey=$idempotencyKey');
+    final prefs = await SharedPreferences.getInstance();
+    final jwtToken = prefs.getString('jwtToken');
+    if (jwtToken == null) {
+      throw Exception('JWT token not found in SharedPreferences');
+    }
+    debugPrint('Request URL: $uri');
+    final response = await http.put(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $jwtToken',
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Accept': 'application/json; charset=UTF-8',
+      },
+      body: jsonEncode(operationLog.toJson()),
     );
+
     if (response.statusCode == 200) {
       final decodedBody = utf8.decode(response.bodyBytes);
       debugPrint('Raw response body (update): $decodedBody');
@@ -137,52 +149,57 @@ class OperationLogControllerApi {
         'Failed to update operation log: ${response.body}');
   }
 
-  Future<OperationLog> apiOperationLogsPost({
+  Future<void> apiOperationLogsPost({
     required OperationLog operationLog,
     required String idempotencyKey,
   }) async {
-    final queryParams = [QueryParam('idempotencyKey', idempotencyKey)];
-    final response = await _apiClient.invokeAPI(
-      '/api/operationLogs',
-      'POST',
-      queryParams,
-      operationLog.toJson(),
-      {'Content-Type': 'application/json; charset=UTF-8'},
-      {'Accept': 'application/json; charset=UTF-8'},
-      'application/json',
-      ['bearerAuth'],
-    );
-    if (response.statusCode == 201) {
-      final decodedBody = utf8.decode(response.bodyBytes);
-      debugPrint('Raw response body (create): $decodedBody');
-      return OperationLog.fromJson(jsonDecode(decodedBody));
+    final uri = Uri.parse(
+        'http://localhost:8081/api/operationLogs?idempotencyKey=$idempotencyKey');
+    final prefs = await SharedPreferences.getInstance();
+    final jwtToken = prefs.getString('jwtToken');
+    if (jwtToken == null) {
+      throw Exception('JWT token not found in SharedPreferences');
     }
-    throw ApiException(response.statusCode,
-        'Failed to create operation log: ${response.body}');
+    debugPrint('Request URL: $uri');
+    final response = await http.post(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $jwtToken',
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Accept': 'application/json; charset=UTF-8',
+      },
+      body: jsonEncode(operationLog.toJson()),
+    );
+
+    if (response.statusCode != 201) {
+      throw ApiException(response.statusCode,
+          'Failed to create operation log: ${response.body}');
+    }
   }
 
   Future<List<OperationLog>> apiOperationLogsResultResultGet({
     required String result,
-    int page = 1,
-    int size = 10,
   }) async {
     if (result.isEmpty) {
       throw ApiException(400, 'Missing required param: result');
     }
-    final queryParams = [
-      QueryParam('page', page.toString()),
-      QueryParam('size', size.toString()),
-    ];
-    final response = await _apiClient.invokeAPI(
-      '/api/operationLogs/result/$result',
-      'GET',
-      queryParams,
-      null,
-      {'Content-Type': 'application/json; charset=UTF-8'},
-      {'Accept': 'application/json; charset=UTF-8'},
-      'application/json',
-      ['bearerAuth'],
+    final uri =
+        Uri.parse('http://localhost:8081/api/operationLogs/result/$result');
+    final prefs = await SharedPreferences.getInstance();
+    final jwtToken = prefs.getString('jwtToken');
+    if (jwtToken == null) {
+      throw Exception('JWT token not found in SharedPreferences');
+    }
+    debugPrint('Request URL: $uri');
+    final response = await http.get(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $jwtToken',
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Accept': 'application/json; charset=UTF-8',
+      },
     );
+
     if (response.statusCode == 200) {
       final decodedBody = utf8.decode(response.bodyBytes);
       debugPrint('Raw response body (get by result): $decodedBody');
@@ -198,24 +215,28 @@ class OperationLogControllerApi {
   Future<List<OperationLog>> apiOperationLogsTimeRangeGet({
     String? startTime,
     String? endTime,
-    int page = 1,
-    int size = 10,
   }) async {
-    final queryParams = _addQueryParams(startTime: startTime, endTime: endTime)
-      ..addAll([
-        QueryParam('page', page.toString()),
-        QueryParam('size', size.toString()),
-      ]);
-    final response = await _apiClient.invokeAPI(
-      '/api/operationLogs/timeRange',
-      'GET',
-      queryParams,
-      null,
-      {'Content-Type': 'application/json; charset=UTF-8'},
-      {'Accept': 'application/json; charset=UTF-8'},
-      'application/json',
-      ['bearerAuth'],
+    final queryParameters = <String, String>{
+      if (startTime != null) 'startTime': startTime,
+      if (endTime != null) 'endTime': endTime,
+    };
+    final uri = Uri.parse('http://localhost:8081/api/operationLogs/timeRange')
+        .replace(queryParameters: queryParameters);
+    final prefs = await SharedPreferences.getInstance();
+    final jwtToken = prefs.getString('jwtToken');
+    if (jwtToken == null) {
+      throw Exception('JWT token not found in SharedPreferences');
+    }
+    debugPrint('Request URL: $uri');
+    final response = await http.get(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $jwtToken',
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Accept': 'application/json; charset=UTF-8',
+      },
     );
+
     if (response.statusCode == 200) {
       final decodedBody = utf8.decode(response.bodyBytes);
       debugPrint('Raw response body (get by time range): $decodedBody');
@@ -230,26 +251,27 @@ class OperationLogControllerApi {
 
   Future<List<OperationLog>> apiOperationLogsUserIdUserIdGet({
     required String userId,
-    int page = 1,
-    int size = 10,
   }) async {
     if (userId.isEmpty) {
       throw ApiException(400, 'Missing required param: userId');
     }
-    final queryParams = [
-      QueryParam('page', page.toString()),
-      QueryParam('size', size.toString()),
-    ];
-    final response = await _apiClient.invokeAPI(
-      '/api/operationLogs/userId/$userId',
-      'GET',
-      queryParams,
-      null,
-      {'Content-Type': 'application/json; charset=UTF-8'},
-      {'Accept': 'application/json; charset=UTF-8'},
-      'application/json',
-      ['bearerAuth'],
+    final uri =
+        Uri.parse('http://localhost:8081/api/operationLogs/userId/$userId');
+    final prefs = await SharedPreferences.getInstance();
+    final jwtToken = prefs.getString('jwtToken');
+    if (jwtToken == null) {
+      throw Exception('JWT token not found in SharedPreferences');
+    }
+    debugPrint('Request URL: $uri');
+    final response = await http.get(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $jwtToken',
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Accept': 'application/json; charset=UTF-8',
+      },
     );
+
     if (response.statusCode == 200) {
       final decodedBody = utf8.decode(response.bodyBytes);
       debugPrint('Raw response body (get by user ID): $decodedBody');

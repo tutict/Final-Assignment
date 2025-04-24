@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:final_assignment_front/features/model/vehicle_information.dart'; // Assuming this is the correct model
+import 'package:final_assignment_front/features/model/vehicle_information.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:flutter/material.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
@@ -26,7 +26,7 @@ class VehicleInformationControllerApi {
     }
   }
 
-  // Search vehicles by query
+// Search vehicles by query
   Future<List<VehicleInformation>> apiVehiclesSearchGet({
     required String query,
     int page = 1,
@@ -57,26 +57,23 @@ class VehicleInformationControllerApi {
         'Failed to search vehicles: ${response.statusCode} - ${response.body}');
   }
 
-  // Autocomplete suggestions for license plate (current user)
+// Autocomplete suggestions for license plate (current user)
   Future<List<String>> apiVehiclesAutocompleteLicensePlateMeGet({
     required String prefix,
+    required String idCardNumber,
     int maxSuggestions = 5,
-    String? ownerName, // 新增 ownerName 参数
   }) async {
-    final effectiveOwnerName = ownerName ?? _username;
-    if (effectiveOwnerName == null) {
-      throw Exception('User not authenticated and no ownerName provided.');
+    if (idCardNumber.trim().isEmpty) {
+      throw Exception('ID card number is required.');
     }
 
     final queryParameters = <String, dynamic>{
       'prefix': Uri.encodeQueryComponent(prefix),
       'maxSuggestions': maxSuggestions.toString(),
-      'ownerName': Uri.encodeQueryComponent(effectiveOwnerName),
-      // 添加 ownerName 到查询参数
+      'idCardNumber': Uri.encodeQueryComponent(idCardNumber),
     };
 
-    final uri = Uri.parse(
-            'http://localhost:8081/api/vehicles/autocomplete/license-plate/me')
+    final uri = Uri.parse('http://localhost:8081/autocomplete/license-plate/me')
         .replace(queryParameters: queryParameters);
 
     final prefs = await SharedPreferences.getInstance();
@@ -100,36 +97,35 @@ class VehicleInformationControllerApi {
           'Raw response body (license plate autocomplete): $decodedBody');
       final List<dynamic> data = jsonDecode(decodedBody);
       return data.cast<String>();
-    } else if (response.statusCode == 404) {
-      debugPrint('No license plate suggestions found for prefix: $prefix');
-      return [];
     } else if (response.statusCode == 400) {
-      throw Exception('Invalid prefix for license plate: ${response.body}');
+      debugPrint('Invalid idCardNumber or prefix: ${response.body}');
+      throw Exception('Invalid ID card number or prefix: ${response.body}');
+    } else if (response.statusCode == 404) {
+      debugPrint(
+          'No license plate suggestions found for prefix: $prefix, idCardNumber: $idCardNumber');
+      return [];
     }
     throw Exception(
         'Failed to fetch license plate suggestions: ${response.statusCode} - ${response.body}');
   }
 
-  // Autocomplete suggestions for vehicle type (current user)
+// Autocomplete suggestions for vehicle type (current user)
   Future<List<String>> apiVehiclesAutocompleteVehicleTypeMeGet({
     required String prefix,
+    required String idCardNumber,
     int maxSuggestions = 5,
-    String? ownerName, // 新增 ownerName 参数
   }) async {
-    final effectiveOwnerName = ownerName ?? _username;
-    if (effectiveOwnerName == null) {
-      throw Exception('User not authenticated and no ownerName provided.');
+    if (idCardNumber.trim().isEmpty) {
+      throw Exception('ID card number is required.');
     }
 
     final queryParameters = <String, dynamic>{
       'prefix': Uri.encodeQueryComponent(prefix),
       'maxSuggestions': maxSuggestions.toString(),
-      'ownerName': Uri.encodeQueryComponent(effectiveOwnerName),
-      // 添加 ownerName 到查询参数
+      'idCardNumber': Uri.encodeQueryComponent(idCardNumber),
     };
 
-    final uri = Uri.parse(
-            'http://localhost:8081/api/vehicles/autocomplete/vehicle-type/me')
+    final uri = Uri.parse('http://localhost:8081/autocomplete/vehicle-type/me')
         .replace(queryParameters: queryParameters);
 
     final prefs = await SharedPreferences.getInstance();
@@ -137,7 +133,6 @@ class VehicleInformationControllerApi {
     if (jwtToken == null) {
       throw Exception('JWT token not found in SharedPreferences');
     }
-
     debugPrint('Request URL: $uri');
     final response = await http.get(
       uri,
@@ -153,17 +148,19 @@ class VehicleInformationControllerApi {
       debugPrint('Raw response body (vehicle type autocomplete): $decodedBody');
       final List<dynamic> data = jsonDecode(decodedBody);
       return data.cast<String>();
-    } else if (response.statusCode == 404) {
-      debugPrint('No vehicle type suggestions found for prefix: $prefix');
-      return [];
     } else if (response.statusCode == 400) {
-      throw Exception('Invalid prefix for vehicle type: ${response.body}');
+      debugPrint('Invalid idCardNumber or prefix: ${response.body}');
+      throw Exception('Invalid ID card number or prefix: ${response.body}');
+    } else if (response.statusCode == 404) {
+      debugPrint(
+          'No vehicle type suggestions found for prefix: $prefix, idCardNumber: $idCardNumber');
+      return [];
     }
     throw Exception(
         'Failed to fetch vehicle type suggestions: ${response.statusCode} - ${response.body}');
   }
 
-  // Autocomplete suggestions for license plate globally (just for admin)
+// Autocomplete suggestions for license plate globally (just for admin)
   Future<List<String>> apiVehiclesAutocompleteLicensePlateGloballyMeGet({
     required String prefix,
     int maxSuggestions = 5,
@@ -174,7 +171,7 @@ class VehicleInformationControllerApi {
     };
 
     final uri = Uri.parse(
-            'http://localhost:8081/api/vehicles/autocomplete/license-plate-globally/me')
+            'http://localhost:8081/autocomplete/license-plate-globally/me')
         .replace(queryParameters: queryParameters);
 
     final prefs = await SharedPreferences.getInstance();
@@ -195,7 +192,7 @@ class VehicleInformationControllerApi {
     if (response.statusCode == 200) {
       final decodedBody = utf8.decode(response.bodyBytes);
       debugPrint(
-          'Raw response body (license plate autocomplete): $decodedBody');
+          'Raw response body (license plate autocomplete globally): $decodedBody');
       final List<dynamic> data = jsonDecode(decodedBody);
       return data.cast<String>();
     } else if (response.statusCode == 404) {
@@ -208,27 +205,25 @@ class VehicleInformationControllerApi {
         'Failed to fetch license plate suggestions: ${response.statusCode} - ${response.body}');
   }
 
-  // Autocomplete suggestions for vehicle type globally (just for admin)
+// Autocomplete suggestions for vehicle type globally (just for admin)
   Future<List<String>> apiVehiclesAutocompleteVehicleTypeGloballyMeGet({
     required String prefix,
     int maxSuggestions = 5,
   }) async {
-
     final queryParameters = <String, dynamic>{
       'prefix': Uri.encodeQueryComponent(prefix),
       'maxSuggestions': maxSuggestions.toString(),
     };
 
-    final uri = Uri.parse(
-            'http://localhost:8081/api/vehicles/autocomplete/vehicle-type-globally/me')
-        .replace(queryParameters: queryParameters);
+    final uri =
+        Uri.parse('http://localhost:8081/autocomplete/vehicle-type-globally/me')
+            .replace(queryParameters: queryParameters);
 
     final prefs = await SharedPreferences.getInstance();
     final jwtToken = prefs.getString('jwtToken');
     if (jwtToken == null) {
       throw Exception('JWT token not found in SharedPreferences');
     }
-
     debugPrint('Request URL: $uri');
     final response = await http.get(
       uri,
@@ -241,7 +236,8 @@ class VehicleInformationControllerApi {
 
     if (response.statusCode == 200) {
       final decodedBody = utf8.decode(response.bodyBytes);
-      debugPrint('Raw response body (vehicle type autocomplete): $decodedBody');
+      debugPrint(
+          'Raw response body (vehicle type autocomplete globally): $decodedBody');
       final List<dynamic> data = jsonDecode(decodedBody);
       return data.cast<String>();
     } else if (response.statusCode == 404) {
@@ -254,7 +250,7 @@ class VehicleInformationControllerApi {
         'Failed to fetch vehicle type suggestions: ${response.statusCode} - ${response.body}');
   }
 
-  // Create vehicle
+// Create vehicle
   Future<void> apiVehiclesPost({
     required VehicleInformation vehicleInformation,
     required String idempotencyKey,
@@ -281,7 +277,7 @@ class VehicleInformationControllerApi {
     }
   }
 
-  // Get all vehicles
+// Get all vehicles
   Future<List<VehicleInformation>> apiVehiclesGet({
     int page = 1,
     int size = 10,
@@ -311,7 +307,7 @@ class VehicleInformationControllerApi {
     throw Exception('Failed to fetch all vehicles: ${response.statusCode}');
   }
 
-  // Get vehicle by ID
+// Get vehicle by ID
   Future<VehicleInformation?> apiVehiclesVehicleIdGet({
     required int vehicleId,
   }) async {
@@ -335,7 +331,7 @@ class VehicleInformationControllerApi {
     throw Exception('Failed to fetch vehicle by ID: ${response.statusCode}');
   }
 
-  // Get vehicle by license plate
+// Get vehicle by license plate
   Future<VehicleInformation?> apiVehiclesLicensePlateGet({
     required String licensePlate,
   }) async {
@@ -360,7 +356,7 @@ class VehicleInformationControllerApi {
         'Failed to fetch vehicle by license plate: ${response.statusCode}');
   }
 
-  // Get vehicles by type
+// Get vehicles by type
   Future<List<VehicleInformation>> apiVehiclesTypeGet({
     required String vehicleType,
     int page = 1,
@@ -391,16 +387,23 @@ class VehicleInformationControllerApi {
     throw Exception('Failed to fetch vehicles by type: ${response.statusCode}');
   }
 
+// Get vehicles by owner's ID card number
   Future<List<VehicleInformation>> apiVehiclesOwnerIdCardNumberGet({
-    String? idCardNumber,
+    required String idCardNumber,
     int page = 1,
     int size = 10,
   }) async {
-    final effectiveOwnerIdCardNumber = idCardNumber;
+    if (idCardNumber.trim().isEmpty) {
+      throw Exception('ID card number is required.');
+    }
+    final queryParams = [
+      QueryParam('page', page.toString()),
+      QueryParam('size', size.toString()),
+    ];
     final response = await _apiClient.invokeAPI(
-      '/api/vehicles/id-card-number/$effectiveOwnerIdCardNumber',
+      '/api/vehicles/id-card-number/$idCardNumber',
       'GET',
-      [],
+      queryParams,
       null,
       {'Content-Type': 'application/json; charset=UTF-8'},
       {'Accept': 'application/json; charset=UTF-8'},
@@ -409,17 +412,18 @@ class VehicleInformationControllerApi {
     );
     if (response.statusCode == 200) {
       final decodedBody = utf8.decode(response.bodyBytes);
-      debugPrint('Raw response body (get by owner ID card number): $decodedBody');
+      debugPrint(
+          'Raw response body (get by owner ID card number): $decodedBody');
       final List<dynamic> data = jsonDecode(decodedBody);
       return VehicleInformation.listFromJson(data);
     } else if (response.statusCode == 404) {
       return [];
     }
     throw Exception(
-        "Failed to fetch vehicles by owner's ID card number : ${response.statusCode}");
+        "Failed to fetch vehicles by owner's ID card number: ${response.statusCode} - ${response.body}");
   }
 
-  // Get vehicles by owner
+// Get vehicles by owner
   Future<List<VehicleInformation>> apiVehiclesOwnerGet({
     String? ownerName,
     int page = 1,
@@ -429,10 +433,14 @@ class VehicleInformationControllerApi {
     if (effectiveOwnerName == null) {
       throw Exception('User not authenticated and no ownerName provided.');
     }
+    final queryParams = [
+      QueryParam('page', page.toString()),
+      QueryParam('size', size.toString()),
+    ];
     final response = await _apiClient.invokeAPI(
       '/api/vehicles/owner/$effectiveOwnerName',
       'GET',
-      [],
+      queryParams,
       null,
       {'Content-Type': 'application/json; charset=UTF-8'},
       {'Accept': 'application/json; charset=UTF-8'},
@@ -448,17 +456,23 @@ class VehicleInformationControllerApi {
       return [];
     }
     throw Exception(
-        'Failed to fetch vehicles by owner: ${response.statusCode}');
+        'Failed to fetch vehicles by owner: ${response.statusCode} - ${response.body}');
   }
 
-  // Get vehicles by status
+// Get vehicles by status
   Future<List<VehicleInformation>> apiVehiclesStatusGet({
     required String currentStatus,
+    int page = 1,
+    int size = 10,
   }) async {
+    final queryParams = [
+      QueryParam('page', page.toString()),
+      QueryParam('size', size.toString()),
+    ];
     final response = await _apiClient.invokeAPI(
       '/api/vehicles/status/$currentStatus',
       'GET',
-      [],
+      queryParams,
       null,
       {'Content-Type': 'application/json; charset=UTF-8'},
       {'Accept': 'application/json; charset=UTF-8'},
@@ -474,10 +488,10 @@ class VehicleInformationControllerApi {
       return [];
     }
     throw Exception(
-        'Failed to fetch vehicles by status: ${response.statusCode}');
+        'Failed to fetch vehicles by status: ${response.statusCode} - ${response.body}');
   }
 
-  // Update vehicle
+// Update vehicle
   Future<VehicleInformation> apiVehiclesVehicleIdPut({
     required int vehicleId,
     required VehicleInformation vehicleInformation,
@@ -503,7 +517,7 @@ class VehicleInformationControllerApi {
         'Failed to update vehicle: ${response.statusCode} - ${response.body}');
   }
 
-  // Delete vehicle by ID
+// Delete vehicle by ID
   Future<void> apiVehiclesVehicleIdDelete({
     required int vehicleId,
   }) async {
@@ -523,7 +537,7 @@ class VehicleInformationControllerApi {
     }
   }
 
-  // Delete vehicle by license plate
+// Delete vehicle by license plate
   Future<void> apiVehiclesLicensePlateDelete({
     required String licensePlate,
   }) async {
@@ -543,7 +557,7 @@ class VehicleInformationControllerApi {
     }
   }
 
-  // Check if license plate exists
+// Check if license plate exists
   Future<bool> apiVehiclesExistsGet({
     required String licensePlate,
   }) async {
@@ -563,6 +577,6 @@ class VehicleInformationControllerApi {
       return jsonDecode(decodedBody) as bool;
     }
     throw Exception(
-        'Failed to check license plate existence: ${response.statusCode}');
+        'Failed to check license plate existence: ${response.statusCode} - ${response.body}');
   }
 }

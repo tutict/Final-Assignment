@@ -1,33 +1,20 @@
 package com.tutict.finalassignmentbackend.service;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
-import co.elastic.clients.elasticsearch._types.aggregations.Aggregate;
 import co.elastic.clients.elasticsearch._types.aggregations.Aggregation;
 import co.elastic.clients.elasticsearch._types.aggregations.CalendarInterval;
 import co.elastic.clients.elasticsearch._types.aggregations.StringTermsAggregate;
 import co.elastic.clients.elasticsearch._types.query_dsl.Query;
-import co.elastic.clients.elasticsearch._types.query_dsl.RangeQuery;
 import co.elastic.clients.elasticsearch.core.SearchRequest;
 import co.elastic.clients.elasticsearch.core.SearchResponse;
 import co.elastic.clients.json.JsonData;
-import com.tutict.finalassignmentbackend.entity.elastic.AppealManagementDocument;
-import com.tutict.finalassignmentbackend.entity.elastic.FineInformationDocument;
 import com.tutict.finalassignmentbackend.entity.elastic.OffenseInformationDocument;
-import com.tutict.finalassignmentbackend.repository.AppealManagementSearchRepository;
-import com.tutict.finalassignmentbackend.repository.FineInformationSearchRepository;
-import com.tutict.finalassignmentbackend.repository.OffenseInformationSearchRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.elasticsearch.UncategorizedElasticsearchException;
-import org.springframework.data.elasticsearch.client.elc.ElasticsearchAggregation;
-import org.springframework.data.elasticsearch.client.elc.ElasticsearchAggregations;
-import org.springframework.data.elasticsearch.core.SearchHits;
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
+import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
@@ -37,349 +24,351 @@ import java.util.*;
 public class TrafficViolationService {
 
     private static final Logger logger = LoggerFactory.getLogger(TrafficViolationService.class);
+    private static final DateTimeFormatter ISO_LOCAL_DATE_TIME =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
 
-    private final OffenseInformationSearchRepository offenseRepository;
-    private final AppealManagementSearchRepository appealRepository;
-    private final FineInformationSearchRepository fineRepository;
     private final ElasticsearchClient elasticsearchClient;
 
-    // 定义时间格式化器，支持无时区的输入
-    private static final DateTimeFormatter ISO_LOCAL_DATE_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
-
-    @Autowired
-    public TrafficViolationService(
-            OffenseInformationSearchRepository offenseRepository,
-            AppealManagementSearchRepository appealRepository,
-            FineInformationSearchRepository fineRepository,
-            ElasticsearchClient elasticsearchClient) {
-        this.offenseRepository = offenseRepository;
-        this.appealRepository = appealRepository;
-        this.fineRepository = fineRepository;
+    public TrafficViolationService(ElasticsearchClient elasticsearchClient) {
         this.elasticsearchClient = elasticsearchClient;
     }
 
-    public Map<String, Long> getViolationTypeCounts(String startTime, String driverName, String licensePlate) {
+    /**
+     * 按天聚合违法事件的罚款和扣分总计。
+     *
+     * @param startTime  可选 ISO-8601 字符串（带Z或不带都支持），为空则过去30天。
+     * @param driverName 可选驾驶人姓名过滤，空则不过滤。
+     * @return 每天一条：{ time: "yyyy-MM-dd", value1: 累计罚款, value2: 累计扣分 }
+     */
+    public List<Map<String, Object>> getTimeSeriesData(String startTime, String driverName) {
+        // 1) 解析 startTime
+        Instant fromInstant;
         try {
-            List<Query> filters = new ArrayList<>();
-
-            if (startTime != null && !startTime.isEmpty()) {
+            if (startTime == null || startTime.isBlank()) {
+                fromInstant = Instant.now().minus(30, ChronoUnit.DAYS);
+            } else {
                 try {
-                    Instant instant;
-                    try {
-                        instant = Instant.parse(startTime);
-                    } catch (DateTimeParseException e) {
-                        LocalDateTime localDateTime = LocalDateTime.parse(startTime, ISO_LOCAL_DATE_TIME);
-                        instant = localDateTime.atZone(ZoneOffset.UTC).toInstant();
-                    }
-                    Instant finalInstant = instant;
-                    RangeQuery rangeQuery = RangeQuery.of(r -> r.untyped(u ->
-                            u.field("offenseTime")
-                                    .gte(JsonData.of(finalInstant.toString()))
-                                    .format("yyyy-MM-dd'T'HH:mm:ss")
-                    ));
-                    filters.add(Query.of(q -> q.range(rangeQuery)));
-                } catch (DateTimeParseException e) {
-                    logger.error("Invalid startTime format: {}", startTime, e);
-                    throw new IllegalArgumentException("Invalid startTime format, expected ISO-8601 (e.g., 2025-03-13T20:37:49Z or 2025-03-13T20:37:49)");
+                    fromInstant = Instant.parse(startTime);
+                } catch (DateTimeParseException ex) {
+                    LocalDateTime ldt = LocalDateTime.parse(startTime, ISO_LOCAL_DATE_TIME);
+                    fromInstant = ldt.toInstant(ZoneOffset.UTC);
                 }
             }
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Invalid startTime 格式，需 ISO-8601", ex);
+        }
+        String fromTimeIso = fromInstant.toString();
 
-            if (driverName != null && !driverName.isEmpty()) {
-                Query driverQuery = Query.of(q -> q.match(m -> m
-                        .field("driverName")
-                        .query(driverName)
-                ));
-                filters.add(driverQuery);
-            }
-
-            if (licensePlate != null && !licensePlate.isEmpty()) {
-                Query licensePlateQuery = Query.of(q -> q.match(m -> m
-                        .field("licensePlate")
-                        .query(licensePlate)
-                ));
-                filters.add(licensePlateQuery);
-            }
-
-            Query boolQuery = Query.of(q -> q.bool(b -> b.filter(filters)));
-
-            Aggregation aggregation = Aggregation.of(a -> a.terms(t -> t.field("offenseType.keyword")));
-
-            SearchRequest searchRequest = SearchRequest.of(s -> s
-                    .index("offense_information")
-                    .query(boolQuery)
-                    .aggregations("by_offense_type", aggregation)
+        try {
+            // 2) 构造时间范围 filter（通过 untyped 接口）
+            Query timeRangeQuery = Query.of(q -> q
+                    .range(r -> r
+                            .untyped(u -> u
+                                    .field("offenseTime")
+                                    .gte(JsonData.of(fromTimeIso))
+                                    .format("strict_date_optional_time")
+                            )
+                    )
             );
 
-            logger.info("Executing Elasticsearch query for offense types: {}", searchRequest);
-
-            SearchResponse<OffenseInformationDocument> searchResponse = elasticsearchClient.search(
-                    searchRequest, OffenseInformationDocument.class);
-
-            Map<String, Long> result = new HashMap<>();
-            Aggregate agg = searchResponse.aggregations().get("by_offense_type");
-
-            if (agg != null && agg.isSterms()) {
-                StringTermsAggregate termsAgg = agg.sterms();
-                termsAgg.buckets().array().forEach(bucket ->
-                        result.put(String.valueOf(bucket.key()), bucket.docCount())
-                );
-            } else {
-                logger.warn("No 'by_offense_type' aggregation found");
-            }
-
-            return result;
-        } catch (Exception e) {
-            String errorMsg = "Failed to retrieve offense type counts: " + e.getMessage();
-            if (e.getMessage().contains("all shards failed")) {
-                errorMsg += ". Possible causes: incorrect field mappings (e.g., 'offenseType' must be 'keyword', 'offenseTime' must be 'date'), index missing, or unhealthy cluster.";
-            }
-            logger.error(errorMsg, e);
-            throw new UncategorizedElasticsearchException(errorMsg, e);
-        }
-    }
-
-    public List<Map<String, Object>> getTimeSeriesData(String startTime, String driverName) {
-        String fromTime = (startTime != null && !startTime.isEmpty())
-                ? startTime
-                : Instant.now().minus(30, ChronoUnit.DAYS).toString();
-
-        logger.info("Querying time series data with fromTime: {}, driverName: {}", fromTime, driverName);
-
-        try {
-            try {
-                // 验证时间格式
-                Instant instant;
-                try {
-                    instant = Instant.parse(fromTime);
-                } catch (DateTimeParseException e) {
-                    LocalDateTime localDateTime = LocalDateTime.parse(fromTime, ISO_LOCAL_DATE_TIME);
-                    instant = localDateTime.atZone(ZoneOffset.UTC).toInstant();
+            // 3) 如果提供了 driverName，就再加一个 match filter
+            Query fullBool = Query.of(q -> q.bool(b -> {
+                b.filter(timeRangeQuery);
+                if (driverName != null && !driverName.isBlank()) {
+                    b.filter(Query.of(m -> m
+                            .match(mm -> mm
+                                    .field("driverName.keyword")
+                                    .query(driverName)
+                            )
+                    ));
                 }
-                fromTime = instant.toString();
-            } catch (DateTimeParseException e) {
-                logger.error("Invalid fromTime format: {}", fromTime, e);
-                throw new IllegalArgumentException("Invalid startTime format, expected ISO-8601 (e.g., 2025-03-13T20:37:49Z or 2025-03-13T20:37:49)");
-            }
+                return b;
+            }));
 
-            SearchHits<OffenseInformationDocument> searchHits;
-            if (driverName != null && !driverName.trim().isEmpty()) {
-                logger.debug("Calling aggregateByDate with driverName: {}", driverName);
-                searchHits = offenseRepository.aggregateByDate(fromTime, driverName);
-            } else {
-                logger.debug("Calling aggregateByDate without driverName");
-                searchHits = offenseRepository.aggregateByDate(fromTime);
-            }
-
-            logger.debug("SearchHits retrieved: total hits = {}, aggregations present = {}",
-                    searchHits.getTotalHits(), searchHits.hasAggregations());
-
-            List<Map<String, Object>> dataList = new ArrayList<>();
-
-            if (searchHits.hasAggregations()) {
-                ElasticsearchAggregations aggregations = (ElasticsearchAggregations)
-                        Objects.requireNonNull(searchHits.getAggregations(), "Aggregations are null");
-                ElasticsearchAggregation byDayAgg = aggregations.get("by_day");
-
-                if (byDayAgg == null) {
-                    logger.warn("Aggregation 'by_day' not found in response");
-                    return dataList;
-                }
-
-                var dateHistogram = byDayAgg.aggregation().getAggregate().dateHistogram();
-                if (dateHistogram == null || dateHistogram.buckets().array().isEmpty()) {
-                    logger.info("No buckets found in date_histogram for fromTime: {}, driverName: {}",
-                            fromTime, driverName);
-                    return dataList;
-                }
-
-                dateHistogram.buckets().array().forEach(bucket -> {
-                    Map<String, Object> dataPoint = new HashMap<>();
-                    dataPoint.put("time", bucket.keyAsString());
-                    var totalFineAgg = bucket.aggregations().get("total_fine").sum();
-                    var totalPointsAgg = bucket.aggregations().get("total_points").sum();
-                    dataPoint.put("value1", totalFineAgg.value());
-                    dataPoint.put("value2", totalPointsAgg.value());
-                    dataList.add(dataPoint);
-                });
-                logger.debug("Parsed {} data points from aggregation", dataList.size());
-            } else {
-                logger.info("No aggregations found for fromTime: {}, driverName: {}", fromTime, driverName);
-            }
-
-            return dataList;
-        } catch (Exception e) {
-            logger.error("Failed to retrieve time series data for fromTime: {}, driverName: {}. Error: {}",
-                    fromTime, driverName, e.getMessage(), e);
-            throw new UncategorizedElasticsearchException("Failed to retrieve time series data", e);
-        }
-    }
-
-    public List<Map<String, Object>> getTimeSeriesDataDirect(String startTime, String driverName) {
-        try {
-            String fromTime = (startTime != null && !startTime.isEmpty())
-                    ? startTime
-                    : Instant.now().minus(30, ChronoUnit.DAYS).toString();
-
-            try {
-                // 验证时间格式
-                Instant instant;
-                try {
-                    instant = Instant.parse(fromTime);
-                } catch (DateTimeParseException e) {
-                    LocalDateTime localDateTime = LocalDateTime.parse(fromTime, ISO_LOCAL_DATE_TIME);
-                    instant = localDateTime.atZone(ZoneOffset.UTC).toInstant();
-                }
-                fromTime = instant.toString();
-            } catch (DateTimeParseException e) {
-                logger.error("Invalid fromTime format: {}", fromTime, e);
-                throw new IllegalArgumentException("Invalid startTime format, expected ISO-8601 (e.g., 2025-03-13T20:37:49Z or 2025-03-13T20:37:49)");
-            }
-
-            List<Query> filters = new ArrayList<>();
-            String finalFromTime = fromTime;
-            filters.add(Query.of(q -> q.range(r -> r.untyped(u ->
-                    u.field("offenseTime")
-                            .gte(JsonData.of(finalFromTime))
-                            .format("yyyy-MM-dd'T'HH:mm:ss")
-            ))));
-
-            if (driverName != null && !driverName.isEmpty()) {
-                filters.add(Query.of(q -> q.match(m -> m.field("driverName.keyword").query(driverName))));
-            }
-
-            Query boolQuery = Query.of(q -> q.bool(b -> b.filter(filters)));
-
-            // 7.x 兼容方式：将聚合放在 SearchRequest 级别
-            Map<String, Aggregation> aggregations = new HashMap<>();
-            aggregations.put("by_day", Aggregation.of(a -> a
-                    .dateHistogram(d -> d
+            // 4) 顶层聚合：按天分桶 + 两个 sum
+            Map<String, Aggregation> aggs = new LinkedHashMap<>();
+            aggs.put("by_day", Aggregation.of(a -> a
+                    .dateHistogram(dh -> dh
                             .field("offenseTime")
                             .calendarInterval(CalendarInterval.Day)
                             .format("yyyy-MM-dd")
                     )
             ));
-            aggregations.put("total_fine", Aggregation.of(a -> a.sum(s -> s.field("fineAmount"))));
-            aggregations.put("total_points", Aggregation.of(a -> a.sum(s -> s.field("deductedPoints"))));
+            aggs.put("total_fine", Aggregation.of(a -> a.sum(s -> s.field("fineAmount"))));
+            aggs.put("total_points", Aggregation.of(a -> a.sum(s -> s.field("deductedPoints"))));
 
-            SearchRequest request = SearchRequest.of(s -> s
+            // 5) 构造并执行 SearchRequest
+            SearchRequest req = SearchRequest.of(s -> s
                     .index("offense_information")
-                    .query(boolQuery)
-                    .aggregations(aggregations)
+                    .query(fullBool)
+                    .aggregations(aggs)
+            );
+            logger.info("Executing time-series DSL query: {}", req);
+
+            SearchResponse<OffenseInformationDocument> resp =
+                    elasticsearchClient.search(req, OffenseInformationDocument.class);
+
+            // 6) 解析结果
+            var buckets = resp.aggregations()
+                    .get("by_day")
+                    .dateHistogram()
+                    .buckets()
+                    .array();
+
+            List<Map<String, Object>> out = new ArrayList<>();
+            for (var b : buckets) {
+                Map<String, Object> point = new HashMap<>();
+                point.put("time", b.keyAsString());
+                point.put("value1", b.aggregations().get("total_fine").sum().value());
+                point.put("value2", b.aggregations().get("total_points").sum().value());
+                out.add(point);
+            }
+            return out;
+
+        } catch (Exception ex) {
+            logger.error("Failed to retrieve time series data", ex);
+            throw new UncategorizedElasticsearchException("Failed to retrieve time series data", ex);
+        }
+    }
+
+    // ────────────────────────────────────────────────────────────────────────────
+    // 新增 1. 按违法类型统计
+    // ────────────────────────────────────────────────────────────────────────────
+    public Map<String, Integer> getViolationTypeCounts(String startTime,
+                                                       String driverName,
+                                                       String licensePlate) {
+        // 解析时间
+        Instant fromInstant;
+        try {
+            if (startTime == null || startTime.isBlank()) {
+                fromInstant = Instant.now().minus(30, ChronoUnit.DAYS);
+            } else {
+                try {
+                    fromInstant = Instant.parse(startTime);
+                } catch (DateTimeParseException ex) {
+                    LocalDateTime ldt = LocalDateTime.parse(startTime, ISO_LOCAL_DATE_TIME);
+                    fromInstant = ldt.toInstant(ZoneOffset.UTC);
+                }
+            }
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Invalid startTime 格式，需 ISO-8601", ex);
+        }
+        String fromTimeIso = fromInstant.toString();
+
+        try {
+            // time range filter
+            Query timeFilter = Query.of(q -> q
+                    .range(r -> r
+                            .untyped(u -> u
+                                    .field("offenseTime")
+                                    .gte(JsonData.of(fromTimeIso))
+                                    .format("strict_date_optional_time")
+                            )
+                    )
             );
 
-            logger.info("Executing direct Elasticsearch query for time series: {}", request);
+            // bool query 合并 driverName / licensePlate
+            Query boolQ = Query.of(q -> q.bool(b -> {
+                b.filter(timeFilter);
+                if (driverName != null && !driverName.isBlank()) {
+                    b.filter(Query.of(m -> m
+                            .match(mm -> mm
+                                    .field("driverName.keyword")
+                                    .query(driverName)
+                            )
+                    ));
+                }
+                if (licensePlate != null && !licensePlate.isBlank()) {
+                    b.filter(Query.of(m -> m
+                            .match(mm -> mm
+                                    .field("licensePlate.keyword")
+                                    .query(licensePlate)
+                            )
+                    ));
+                }
+                return b;
+            }));
 
-            SearchResponse<OffenseInformationDocument> response = elasticsearchClient.search(
-                    request, OffenseInformationDocument.class);
+            // terms 聚合：offenseType.keyword
+            Map<String, Aggregation> aggs = Map.of(
+                    "by_offense_type", Aggregation.of(a -> a
+                            .terms(t -> t.field("offenseType.keyword"))
+                    )
+            );
 
-            List<Map<String, Object>> dataList = new ArrayList<>();
-            var buckets = response.aggregations().get("by_day").dateHistogram().buckets().array();
-            for (var bucket : buckets) {
-                Map<String, Object> dataPoint = new HashMap<>();
-                dataPoint.put("time", bucket.keyAsString());
-                // 注意：total_fine 和 total_points 是顶级聚合
-                dataPoint.put("value1", response.aggregations().get("total_fine").sum().value());
-                dataPoint.put("value2", response.aggregations().get("total_points").sum().value());
-                dataList.add(dataPoint);
-            }
+            SearchRequest req = SearchRequest.of(s -> s
+                    .index("offense_information")
+                    .query(boolQ)
+                    .aggregations(aggs)
+            );
+            logger.info("Executing violation-type DSL query: {}", req);
 
-            logger.debug("Parsed {} data points from direct query", dataList.size());
-            return dataList;
-        } catch (Exception e) {
-            logger.error("Failed to retrieve time series data (direct): {}", e.getMessage(), e);
-            throw new UncategorizedElasticsearchException("Failed to retrieve time series data (direct)", e);
+            SearchResponse<OffenseInformationDocument> resp =
+                    elasticsearchClient.search(req, OffenseInformationDocument.class);
+
+            // 解析结果
+            StringTermsAggregate terms = resp.aggregations()
+                    .get("by_offense_type").sterms();
+
+            Map<String, Integer> result = new LinkedHashMap<>();
+            terms.buckets().array().forEach(bucket ->
+                    result.put(bucket.key().toString(), (int) bucket.docCount())
+            );
+            return result;
+
+        } catch (Exception ex) {
+            logger.error("Failed to retrieve violation type counts", ex);
+            throw new UncategorizedElasticsearchException("Failed to retrieve violation type counts", ex);
         }
     }
 
-    public Map<String, Integer> getAppealReasonCounts(String startTime, String appealReason) {
-        String fromTime = startTime != null ? startTime : Instant.now().minus(30, ChronoUnit.DAYS).toString();
-        String reasonFilter = appealReason != null ? appealReason : "";
-        logger.debug("Querying appeal reasons with fromTime: {}, reasonFilter: {}", fromTime, reasonFilter);
+    // 按申诉原因统计
+    public Map<String, Integer> getAppealReasonCounts(String startTime,
+                                                      String appealReason) {
+        // 时间范围同上，假设文档索引为 "appeal_management" 并字段名为 appealTime / appealReason.keyword
+        Instant fromInstant;
+        try {
+            if (startTime == null || startTime.isBlank()) {
+                fromInstant = Instant.now().minus(30, ChronoUnit.DAYS);
+            } else {
+                try {
+                    fromInstant = Instant.parse(startTime);
+                } catch (DateTimeParseException ex) {
+                    LocalDateTime ldt = LocalDateTime.parse(startTime, ISO_LOCAL_DATE_TIME);
+                    fromInstant = ldt.toInstant(ZoneOffset.UTC);
+                }
+            }
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Invalid startTime 格式，需 ISO-8601", ex);
+        }
+        String fromTimeIso = fromInstant.toString();
 
         try {
-            try {
-                Instant instant;
-                try {
-                    instant = Instant.parse(fromTime);
-                } catch (DateTimeParseException e) {
-                    LocalDateTime localDateTime = LocalDateTime.parse(fromTime, ISO_LOCAL_DATE_TIME);
-                    instant = localDateTime.atZone(ZoneOffset.UTC).toInstant();
+            Query timeFilter = Query.of(q -> q
+                    .range(r -> r
+                            .untyped(u -> u
+                                    .field("appealTime")
+                                    .gte(JsonData.of(fromTimeIso))
+                                    .format("strict_date_optional_time")
+                            )
+                    )
+            );
+
+            Query boolQ = Query.of(q -> q.bool(b -> {
+                b.filter(timeFilter);
+                if (appealReason != null && !appealReason.isBlank()) {
+                    b.filter(Query.of(m -> m
+                            .match(mm -> mm
+                                    .field("appealReason.keyword")
+                                    .query(appealReason)
+                            )
+                    ));
                 }
-                fromTime = instant.toString();
-            } catch (DateTimeParseException e) {
-                logger.error("Invalid fromTime format: {}", fromTime, e);
-                throw new IllegalArgumentException("Invalid startTime format, expected ISO-8601 (e.g., 2025-03-13T20:37:49Z or 2025-03-13T20:37:49)");
-            }
+                return b;
+            }));
 
-            SearchHits<AppealManagementDocument> searchHits = appealRepository.aggregateByAppealReason(fromTime, reasonFilter);
-            Map<String, Integer> reasonCountMap = new HashMap<>();
+            Map<String, Aggregation> aggs = Map.of(
+                    "by_reason", Aggregation.of(a -> a
+                            .terms(t -> t.field("appealReason.keyword"))
+                    )
+            );
 
-            if (searchHits.hasAggregations()) {
-                ElasticsearchAggregations aggregations = (ElasticsearchAggregations) Objects.requireNonNull(searchHits.getAggregations());
-                ElasticsearchAggregation byReasonAgg = aggregations.get("by_reason");
+            SearchRequest req = SearchRequest.of(s -> s
+                    .index("appeal_management")
+                    .query(boolQ)
+                    .aggregations(aggs)
+            );
+            logger.info("Executing appeal-reason DSL query: {}", req);
 
-                if (byReasonAgg == null) {
-                    throw new IllegalStateException("Aggregation 'by_reason' not found in response");
-                }
+            SearchResponse<Void> resp = elasticsearchClient.search(req, Void.class);
 
-                var byReason = byReasonAgg.aggregation().getAggregate().sterms();
-                byReason.buckets().array().forEach(bucket ->
-                        reasonCountMap.put(bucket.key().stringValue(), (int) bucket.docCount()));
-            } else {
-                logger.warn("No aggregations found for appeal reasons with fromTime: {}", fromTime);
-            }
+            StringTermsAggregate terms = resp.aggregations()
+                    .get("by_reason").sterms();
 
-            return reasonCountMap;
-        } catch (Exception e) {
-            logger.error("Failed to retrieve appeal reason counts: {}", e.getMessage(), e);
-            throw e;
+            Map<String, Integer> result = new LinkedHashMap<>();
+            terms.buckets().array().forEach(bucket ->
+                    result.put(bucket.key().toString(), (int) bucket.docCount())
+            );
+            return result;
+
+        } catch (Exception ex) {
+            logger.error("Failed to retrieve appeal reason counts", ex);
+            throw new UncategorizedElasticsearchException("Failed to retrieve appeal reason counts", ex);
         }
     }
 
+    // 按罚款支付状态统计
     public Map<String, Integer> getFinePaymentStatus(String startTime) {
-        String fromTime = startTime != null ? startTime : Instant.now().minus(30, ChronoUnit.DAYS).toString();
-        logger.debug("Querying fine payment status with fromTime: {}", fromTime);
+        // 时间范围，同 getTimeSeriesData
+        Instant fromInstant;
+        try {
+            if (startTime == null || startTime.isBlank()) {
+                fromInstant = Instant.now().minus(30, ChronoUnit.DAYS);
+            } else {
+                try {
+                    fromInstant = Instant.parse(startTime);
+                } catch (DateTimeParseException ex) {
+                    LocalDateTime ldt = LocalDateTime.parse(startTime, ISO_LOCAL_DATE_TIME);
+                    fromInstant = ldt.toInstant(ZoneOffset.UTC);
+                }
+            }
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Invalid startTime 格式，需 ISO-8601", ex);
+        }
+        String fromTimeIso = fromInstant.toString();
 
         try {
-            try {
-                Instant instant;
-                try {
-                    instant = Instant.parse(fromTime);
-                } catch (DateTimeParseException e) {
-                    LocalDateTime localDateTime = LocalDateTime.parse(fromTime, ISO_LOCAL_DATE_TIME);
-                    instant = localDateTime.atZone(ZoneOffset.UTC).toInstant();
+            Query timeFilter = Query.of(q -> q
+                    .range(r -> r
+                            .untyped(u -> u
+                                    .field("fineTime")
+                                    .gte(JsonData.of(fromTimeIso))
+                                    .format("strict_date_optional_time")
+                            )
+                    )
+            );
+
+            Query boolQ = Query.of(q -> q.bool(b -> {
+                b.filter(timeFilter);
+                return b;
+            }));
+
+            Map<String, Aggregation> aggs = Map.of(
+                    "by_paid", Aggregation.of(a -> a
+                            .terms(t -> t
+                                    .field("receiptNumber.keyword")
+                                    .missing("unpaid")
+                                    .size(2)
+                            )
+                    )
+            );
+
+            SearchRequest req = SearchRequest.of(s -> s
+                    .index("fine_information")
+                    .query(boolQ)
+                    .aggregations(aggs)
+            );
+            logger.info("Executing fine-payment-status DSL query: {}", req);
+
+            SearchResponse<Void> resp = elasticsearchClient.search(req, Void.class);
+
+            StringTermsAggregate terms = resp.aggregations()
+                    .get("by_paid").sterms();
+
+            Map<String, Integer> result = new LinkedHashMap<>();
+            terms.buckets().array().forEach(bucket -> {
+                String key = bucket.key().toString();
+                if ("unpaid".equals(key)) {
+                    result.put("Unpaid", (int) bucket.docCount());
+                } else {
+                    result.put("Paid", (int) bucket.docCount());
                 }
-                fromTime = instant.toString();
-            } catch (DateTimeParseException e) {
-                logger.error("Invalid fromTime format: {}", fromTime, e);
-                throw new IllegalArgumentException("Invalid startTime format, expected ISO-8601 (e.g., 2025-03-13T20:37:49Z or 2025-03-13T20:37:49)");
-            }
+            });
+            return result;
 
-            SearchHits<FineInformationDocument> searchHits = fineRepository.aggregateByPaymentStatus(fromTime);
-            Map<String, Integer> paymentStatusMap = new HashMap<>();
-
-            if (searchHits.hasAggregations()) {
-                ElasticsearchAggregations aggregations = (ElasticsearchAggregations) Objects.requireNonNull(searchHits.getAggregations());
-                ElasticsearchAggregation byPaidAgg = aggregations.get("by_paid");
-
-                if (byPaidAgg == null) {
-                    throw new IllegalStateException("Aggregation 'by_paid' not found in response");
-                }
-
-                var byPaid = byPaidAgg.aggregation().getAggregate().sterms();
-                byPaid.buckets().array().forEach(bucket -> {
-                    String key = bucket.key() == null || bucket.key().stringValue().isEmpty() ||
-                            bucket.key().stringValue().equalsIgnoreCase("unpaid") ? "Unpaid" : "Paid";
-                    paymentStatusMap.put(key, (int) bucket.docCount());
-                });
-            } else {
-                logger.warn("No aggregations found for fine payment status with fromTime: {}", fromTime);
-            }
-
-            return paymentStatusMap;
-        } catch (Exception e) {
-            logger.error("Failed to retrieve fine payment status: {}", e.getMessage(), e);
-            throw e;
+        } catch (Exception ex) {
+            logger.error("Failed to retrieve fine payment status", ex);
+            throw new UncategorizedElasticsearchException("Failed to retrieve fine payment status", ex);
         }
     }
 }

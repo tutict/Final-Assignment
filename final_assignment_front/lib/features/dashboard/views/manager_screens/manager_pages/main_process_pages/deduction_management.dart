@@ -33,8 +33,7 @@ class _DeductionManagementState extends State<DeductionManagement> {
   int _currentPage = 1;
   final int _pageSize = 10;
   bool _hasMore = true;
-  final String _searchType =
-      'handler'; // Default to handler since driverLicense is removed
+  String _searchType = 'handler'; // Support both handler and timeRange
   DateTime? _startTime;
   DateTime? _endTime;
 
@@ -50,6 +49,28 @@ class _DeductionManagementState extends State<DeductionManagement> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  Future<List<String>> _fetchAutocompleteSuggestions(String prefix) async {
+    try {
+      if (_searchType == 'handler') {
+        final deductions = await deductionApi.apiDeductionsByHandlerGet(
+            handler: prefix.trim());
+        return deductions
+                ?.map((deduction) => deduction.handler ?? '')
+                .where((handler) =>
+                    handler.isNotEmpty &&
+                    handler.toLowerCase().contains(prefix.toLowerCase()))
+                .take(5)
+                .toList() ??
+            [];
+      }
+      return [];
+    } catch (e) {
+      developer.log('Failed to fetch autocomplete suggestions: $e',
+          stackTrace: StackTrace.current);
+      return [];
+    }
   }
 
   Future<void> _loadDeductions({bool reset = false, String? query}) async {
@@ -73,10 +94,11 @@ class _DeductionManagementState extends State<DeductionManagement> {
         deductions = await deductionApi.apiDeductionsGet() ?? [];
       } else if (_searchType == 'handler' && searchQuery.isNotEmpty) {
         deductions = await deductionApi.apiDeductionsByHandlerGet(
-              handler: searchQuery,
-            ) ??
+                handler: searchQuery) ??
             [];
-      } else if (_startTime != null && _endTime != null) {
+      } else if (_searchType == 'timeRange' &&
+          _startTime != null &&
+          _endTime != null) {
         deductions = await deductionApi.apiDeductionsByTimeRangeGet(
               startTime: formatDateTime(_startTime),
               endTime: formatDateTime(_endTime),
@@ -101,7 +123,8 @@ class _DeductionManagementState extends State<DeductionManagement> {
       setState(() {
         if (e is ApiException && e.code == 404) {
           _deductions.clear();
-          _errorMessage = '未找到符合条件的扣分记录，可能 $_searchType "$searchQuery" 不存在';
+          _errorMessage =
+              '未找到符合条件的扣分记录，可能 ${_searchType == 'handler' ? '处理人' : '时间范围'} "$searchQuery" 不存在';
           _hasMore = false;
         } else {
           _errorMessage =
@@ -124,6 +147,7 @@ class _DeductionManagementState extends State<DeductionManagement> {
     setState(() {
       _startTime = null;
       _endTime = null;
+      _searchType = 'handler';
     });
     await _loadDeductions(reset: true);
   }
@@ -227,117 +251,193 @@ class _DeductionManagementState extends State<DeductionManagement> {
   }
 
   Widget _buildSearchField(ThemeData themeData) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _searchController,
-                  style: TextStyle(color: themeData.colorScheme.onSurface),
-                  decoration: InputDecoration(
-                    hintText: '搜索处理人',
-                    // Only handler search remains
-                    hintStyle: TextStyle(
-                        color:
-                            themeData.colorScheme.onSurface.withOpacity(0.6)),
-                    prefixIcon: Icon(Icons.search,
-                        color: themeData.colorScheme.primary),
-                    suffixIcon: _searchController.text.isNotEmpty
-                        ? IconButton(
-                            icon: Icon(Icons.clear,
-                                color: themeData.colorScheme.onSurfaceVariant),
-                            onPressed: () {
-                              _searchController.clear();
-                              _loadDeductions(reset: true);
-                            },
-                          )
-                        : null,
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12.0)),
-                    enabledBorder: OutlineInputBorder(
-                      borderSide: BorderSide(
-                          color:
-                              themeData.colorScheme.outline.withOpacity(0.3)),
-                      borderRadius: BorderRadius.circular(12.0),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderSide: BorderSide(
-                          color: themeData.colorScheme.primary, width: 1.5),
-                      borderRadius: BorderRadius.circular(12.0),
-                    ),
-                    filled: true,
-                    fillColor: themeData.colorScheme.surfaceContainerLowest,
-                    contentPadding: const EdgeInsets.symmetric(
-                        vertical: 12.0, horizontal: 16.0),
+    return Card(
+      elevation: 2,
+      color: themeData.colorScheme.surfaceContainer,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+      child: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Autocomplete<String>(
+                    optionsBuilder: (TextEditingValue textEditingValue) async {
+                      if (textEditingValue.text.isEmpty ||
+                          _searchType != 'handler') {
+                        return const Iterable<String>.empty();
+                      }
+                      return await _fetchAutocompleteSuggestions(
+                          textEditingValue.text);
+                    },
+                    onSelected: (String selection) {
+                      _searchController.text = selection;
+                      _searchDeductions();
+                    },
+                    fieldViewBuilder:
+                        (context, controller, focusNode, onFieldSubmitted) {
+                      _searchController.text = controller.text;
+                      return TextField(
+                        controller: controller,
+                        focusNode: focusNode,
+                        style:
+                            TextStyle(color: themeData.colorScheme.onSurface),
+                        decoration: InputDecoration(
+                          hintText: _searchType == 'handler'
+                              ? '搜索处理人'
+                              : '搜索时间范围（已选择）',
+                          hintStyle: TextStyle(
+                              color: themeData.colorScheme.onSurface
+                                  .withOpacity(0.6)),
+                          prefixIcon: Icon(Icons.search,
+                              color: themeData.colorScheme.primary),
+                          suffixIcon: controller.text.isNotEmpty ||
+                                  (_startTime != null && _endTime != null)
+                              ? IconButton(
+                                  icon: Icon(Icons.clear,
+                                      color: themeData
+                                          .colorScheme.onSurfaceVariant),
+                                  onPressed: () {
+                                    controller.clear();
+                                    _searchController.clear();
+                                    setState(() {
+                                      _startTime = null;
+                                      _endTime = null;
+                                      _searchType = 'handler';
+                                    });
+                                    _loadDeductions(reset: true);
+                                  },
+                                )
+                              : null,
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8.0)),
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
+                                color: themeData.colorScheme.outline
+                                    .withOpacity(0.3)),
+                            borderRadius: BorderRadius.circular(8.0),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
+                                color: themeData.colorScheme.primary,
+                                width: 1.5),
+                            borderRadius: BorderRadius.circular(8.0),
+                          ),
+                          filled: true,
+                          fillColor:
+                              themeData.colorScheme.surfaceContainerLowest,
+                          contentPadding: const EdgeInsets.symmetric(
+                              vertical: 12.0, horizontal: 16.0),
+                        ),
+                        onChanged: (value) {
+                          if (value.isEmpty) {
+                            setState(() {
+                              _startTime = null;
+                              _endTime = null;
+                              _searchType = 'handler';
+                            });
+                            _loadDeductions(reset: true);
+                          }
+                        },
+                        onSubmitted: (value) => _searchDeductions(),
+                        enabled: _searchType == 'handler',
+                      );
+                    },
                   ),
-                  onSubmitted: (value) => _searchDeductions(),
-                  onChanged: (value) => setState(() {}),
                 ),
-              ),
-              // Removed the DropdownButton since only handler search is supported
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  _startTime != null && _endTime != null
-                      ? '时间范围: ${formatDateTime(_startTime)} 至 ${formatDateTime(_endTime)}'
-                      : '选择时间范围',
-                  style: TextStyle(
-                    color: _startTime != null && _endTime != null
-                        ? themeData.colorScheme.onSurface
-                        : themeData.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-              IconButton(
-                icon: Icon(Icons.date_range,
-                    color: themeData.colorScheme.primary),
-                tooltip: '按时间范围搜索',
-                onPressed: () async {
-                  final range = await showDateRangePicker(
-                    context: context,
-                    firstDate: DateTime(2000),
-                    lastDate: DateTime.now(),
-                    locale: const Locale('zh', 'CN'),
-                    helpText: '选择时间范围',
-                    cancelText: '取消',
-                    confirmText: '确定',
-                    fieldStartHintText: '开始日期',
-                    fieldEndHintText: '结束日期',
-                    builder: (context, child) =>
-                        Theme(data: themeData, child: child!),
-                  );
-                  if (range != null) {
+                const SizedBox(width: 8),
+                DropdownButton<String>(
+                  value: _searchType,
+                  onChanged: (String? newValue) {
                     setState(() {
-                      _startTime = range.start;
-                      _endTime = range.end;
-                    });
-                    _searchDeductions();
-                  }
-                },
-              ),
-              if (_startTime != null && _endTime != null)
-                IconButton(
-                  icon: Icon(Icons.clear,
-                      color: themeData.colorScheme.onSurfaceVariant),
-                  tooltip: '清除日期范围',
-                  onPressed: () {
-                    setState(() {
+                      _searchType = newValue!;
+                      _searchController.clear();
                       _startTime = null;
                       _endTime = null;
+                      _loadDeductions(reset: true);
                     });
-                    _searchDeductions();
+                  },
+                  items: <String>['handler', 'timeRange']
+                      .map<DropdownMenuItem<String>>((String value) {
+                    return DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(
+                        value == 'handler' ? '按处理人' : '按时间范围',
+                        style:
+                            TextStyle(color: themeData.colorScheme.onSurface),
+                      ),
+                    );
+                  }).toList(),
+                  dropdownColor: themeData.colorScheme.surfaceContainer,
+                  icon: Icon(Icons.arrow_drop_down,
+                      color: themeData.colorScheme.primary),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _startTime != null && _endTime != null
+                        ? '时间范围: ${formatDateTime(_startTime)} 至 ${formatDateTime(_endTime)}'
+                        : '选择时间范围',
+                    style: TextStyle(
+                      color: _startTime != null && _endTime != null
+                          ? themeData.colorScheme.onSurface
+                          : themeData.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(Icons.date_range,
+                      color: themeData.colorScheme.primary),
+                  tooltip: '按时间范围搜索',
+                  onPressed: () async {
+                    final range = await showDateRangePicker(
+                      context: context,
+                      firstDate: DateTime(2000),
+                      lastDate: DateTime.now(),
+                      locale: const Locale('zh', 'CN'),
+                      helpText: '选择时间范围',
+                      cancelText: '取消',
+                      confirmText: '确定',
+                      fieldStartHintText: '开始日期',
+                      fieldEndHintText: '结束日期',
+                      builder: (context, child) =>
+                          Theme(data: themeData, child: child!),
+                    );
+                    if (range != null) {
+                      setState(() {
+                        _startTime = range.start;
+                        _endTime = range.end;
+                        _searchType = 'timeRange';
+                        _searchController.clear();
+                      });
+                      _searchDeductions();
+                    }
                   },
                 ),
-            ],
-          ),
-        ],
+                if (_startTime != null && _endTime != null)
+                  IconButton(
+                    icon: Icon(Icons.clear,
+                        color: themeData.colorScheme.onSurfaceVariant),
+                    tooltip: '清除日期范围',
+                    onPressed: () {
+                      setState(() {
+                        _startTime = null;
+                        _endTime = null;
+                        _searchType = 'handler';
+                        _searchController.clear();
+                      });
+                      _searchDeductions();
+                    },
+                  ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

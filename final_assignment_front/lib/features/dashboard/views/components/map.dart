@@ -30,7 +30,7 @@ class _MapPageState extends State<MapPage> {
           : Colors.black.withOpacity(0.4),
       navigationBar: CupertinoNavigationBar(
         middle: Text(
-          '哈尔滨业务点地图',
+          '哈尔滨交通地图',
           style: TextStyle(
             color: isLight ? CupertinoColors.black : CupertinoColors.white,
             fontWeight: FontWeight.bold,
