@@ -17,6 +17,14 @@ public interface DeductionInformationSearchRepository extends ElasticsearchRepos
     @Query("{\"bool\": {\"must\": [{\"match\": {\"handler\": {\"query\": \"?0\", \"fuzziness\": \"AUTO\"}}}]}}")
     SearchHits<DeductionInformationDocument> searchByHandlerFuzzy(String handler);
 
+    // Search by deductionId with prefix matching
+    @Query("{\"bool\": {\"must\": [{\"query_string\": {\"query\": \"*?0*\", \"fields\": [\"deductionId.ngram\"]}}]}}")
+    SearchHits<DeductionInformationDocument> searchByDeductionIdPrefix(String deductionId);
+
+    // Fuzzy search by deductionId
+    @Query("{\"bool\": {\"must\": [{\"match\": {\"deductionId\": {\"query\": \"?0\", \"fuzziness\": \"AUTO\"}}}]}}")
+    SearchHits<DeductionInformationDocument> searchByDeductionIdFuzzy(String deductionId);
+
     // Search by deductionTime within a range
     @Query("{\"bool\": {\"filter\": [{\"range\": {\"deductionTime\": {\"gte\": \"?0\", \"lte\": \"?1\"}}}}}")
     SearchHits<DeductionInformationDocument> searchByDeductionTimeRange(String startTime, String endTime);

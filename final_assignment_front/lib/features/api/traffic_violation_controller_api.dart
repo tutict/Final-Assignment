@@ -48,9 +48,38 @@ class TrafficViolationControllerApi {
         .toList();
   }
 
+  /// 处理错误响应，提取错误信息
+  void _handleErrorResponse(http.Response response) {
+    final body = _decodeBodyBytes(response);
+    try {
+      final data = jsonDecode(body);
+      String message = 'Error ${response.statusCode}';
+      if (data is Map && data.containsKey('error_code')) {
+        message += ': ${data['error_code']}';
+        if (data.containsKey('message')) {
+          message += ' - ${data['message']}';
+        }
+      } else if (data is List && data.isNotEmpty && data[0] is Map) {
+        message += ': ${data[0]['error_code'] ?? response.statusCode}';
+        if (data[0].containsKey('message')) {
+          message += ' - ${data[0]['message']}';
+        }
+      }
+      throw ApiException(response.statusCode, message);
+    } catch (e) {
+      throw ApiException(response.statusCode, 'Failed to parse error: $body');
+    }
+  }
+
   // HTTP Methods
 
-  /// GET /api/traffic-violations/violation-types - 获取违规类型统计
+  /// GET /api/traffic-violations/violation-types
+  /// 获取违规类型统计
+  /// 返回: Map<offenseType, count>
+  /// 参数:
+  /// - startTime: 可选，格式为 yyyy-MM-dd'T'HH:mm:ss
+  /// - driverName: 可选，驾驶员姓名
+  /// - licensePlate: 可选，车牌号
   Future<Map<String, int>> apiTrafficViolationsViolationTypesGet({
     String? startTime,
     String? driverName,
@@ -63,6 +92,8 @@ class TrafficViolationControllerApi {
       'licensePlate': licensePlate,
     });
     final headerParams = await _getHeaders();
+    debugPrint(
+        'Requesting violation types with params: startTime=$startTime, driverName=$driverName, licensePlate=$licensePlate');
     final response = await apiClient.invokeAPI(
       path,
       'GET',
@@ -74,13 +105,20 @@ class TrafficViolationControllerApi {
       ['bearerAuth'],
     );
     if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+      _handleErrorResponse(response);
     }
     final data = jsonDecode(_decodeBodyBytes(response)) as Map<String, dynamic>;
-    return data.map((key, value) => MapEntry(key, value as int));
+    final result = data.map((key, value) => MapEntry(key, value as int));
+    debugPrint('Violation types response: $result');
+    return result;
   }
 
-  /// GET /api/traffic-violations/time-series - 获取时间序列数据
+  /// GET /api/traffic-violations/time-series
+  /// 获取时间序列数据
+  /// 返回: List<{ time: yyyy-MM-dd, value1: totalFine, value2: totalPoints }>
+  /// 参数:
+  /// - startTime: 可选，格式为 yyyy-MM-dd'T'HH:mm:ss
+  /// - driverName: 可选，驾驶员姓名
   Future<List<Map<String, dynamic>>> apiTrafficViolationsTimeSeriesGet({
     String? startTime,
     String? driverName,
@@ -91,6 +129,8 @@ class TrafficViolationControllerApi {
       'driverName': driverName,
     });
     final headerParams = await _getHeaders();
+    debugPrint(
+        'Requesting time series with params: startTime=$startTime, driverName=$driverName');
     final response = await apiClient.invokeAPI(
       path,
       'GET',
@@ -102,13 +142,20 @@ class TrafficViolationControllerApi {
       ['bearerAuth'],
     );
     if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+      _handleErrorResponse(response);
     }
     final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-    return jsonList.cast<Map<String, dynamic>>();
+    final result = jsonList.cast<Map<String, dynamic>>();
+    debugPrint('Time series response: $result');
+    return result;
   }
 
-  /// GET /api/traffic-violations/appeal-reasons - 获取申诉理由统计
+  /// GET /api/traffic-violations/appeal-reasons
+  /// 获取申诉理由统计
+  /// 返回: Map<appealReason, count>
+  /// 参数:
+  /// - startTime: 可选，格式为 yyyy-MM-dd'T'HH:mm:ss
+  /// - appealReason: 可选，申诉理由
   Future<Map<String, int>> apiTrafficViolationsAppealReasonsGet({
     String? startTime,
     String? appealReason,
@@ -119,6 +166,8 @@ class TrafficViolationControllerApi {
       'appealReason': appealReason,
     });
     final headerParams = await _getHeaders();
+    debugPrint(
+        'Requesting appeal reasons with params: startTime=$startTime, appealReason=$appealReason');
     final response = await apiClient.invokeAPI(
       path,
       'GET',
@@ -130,13 +179,19 @@ class TrafficViolationControllerApi {
       ['bearerAuth'],
     );
     if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+      _handleErrorResponse(response);
     }
     final data = jsonDecode(_decodeBodyBytes(response)) as Map<String, dynamic>;
-    return data.map((key, value) => MapEntry(key, value as int));
+    final result = data.map((key, value) => MapEntry(key, value as int));
+    debugPrint('Appeal reasons response: $result');
+    return result;
   }
 
-  /// GET /api/traffic-violations/fine-payment-status - 获取罚款支付状态统计
+  /// GET /api/traffic-violations/fine-payment-status
+  /// 获取罚款支付状态统计
+  /// 返回: Map<"Paid"/"Unpaid", count>
+  /// 参数:
+  /// - startTime: 可选，格式为 yyyy-MM-dd'T'HH:mm:ss
   Future<Map<String, int>> apiTrafficViolationsFinePaymentStatusGet({
     String? startTime,
   }) async {
@@ -145,6 +200,8 @@ class TrafficViolationControllerApi {
       'startTime': startTime,
     });
     final headerParams = await _getHeaders();
+    debugPrint(
+        'Requesting fine payment status with params: startTime=$startTime');
     final response = await apiClient.invokeAPI(
       path,
       'GET',
@@ -156,9 +213,11 @@ class TrafficViolationControllerApi {
       ['bearerAuth'],
     );
     if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+      _handleErrorResponse(response);
     }
     final data = jsonDecode(_decodeBodyBytes(response)) as Map<String, dynamic>;
-    return data.map((key, value) => MapEntry(key, value as int));
+    final result = data.map((key, value) => MapEntry(key, value as int));
+    debugPrint('Fine payment status response: $result');
+    return result;
   }
 }

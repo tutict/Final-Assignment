@@ -48,11 +48,20 @@ class _SystemLogPageState extends State<SystemLogPage> {
       final decodedToken = JwtDecoder.decode(jwtToken);
       _currentUsername = decodedToken['sub'] ?? '';
       if (_currentUsername!.isEmpty) throw Exception('JWT 中未找到用户名');
-// Check for admin role
-      final roles = decodedToken['roles'] as List<dynamic>? ?? [];
-      _isAdmin = roles.contains('ROLE_ADMIN');
+// Handle roles as String or List
+      List<String> roles;
+      final rawRoles = decodedToken['roles'];
+      if (rawRoles is String) {
+        roles = rawRoles.split(',').map((role) => role.trim()).toList();
+      } else if (rawRoles is List<dynamic>) {
+        roles = rawRoles.cast<String>();
+      } else {
+        roles = [];
+      }
+// Check for ADMIN role (case-insensitive)
+      _isAdmin = roles.any((role) => role.toUpperCase() == 'ADMIN');
       debugPrint(
-          'Current username from JWT: $_currentUsername, isAdmin: $_isAdmin');
+          'Current username from JWT: $_currentUsername, isAdmin: $_isAdmin, roles: $roles');
 
       await logApi.initializeWithJwt();
       await roleApi.initializeWithJwt();
@@ -397,6 +406,7 @@ class _SystemLogPageState extends State<SystemLogPage> {
                       logContent: logContentController.text,
                       operationUser: operationUserController.text,
                       operationTime: log.operationTime,
+                      operationIpAddress: log.operationIpAddress,
                       remarks: remarksController.text.isEmpty
                           ? null
                           : remarksController.text,
@@ -563,219 +573,222 @@ class _SystemLogPageState extends State<SystemLogPage> {
   Widget build(BuildContext context) {
     final themeData = controller.currentBodyTheme.value;
 
-    return Scaffold(
-      backgroundColor: themeData.colorScheme.surface,
-      appBar: AppBar(
-        title: Text(
-          '系统日志',
-          style: themeData.textTheme.headlineMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: themeData.colorScheme.onPrimaryContainer,
+    return ScaffoldMessenger(
+      child: Scaffold(
+        backgroundColor: themeData.colorScheme.surface,
+        appBar: AppBar(
+          title: Text(
+            '系统日志',
+            style: themeData.textTheme.headlineMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: themeData.colorScheme.onPrimaryContainer,
+            ),
           ),
+          backgroundColor: themeData.colorScheme.primaryContainer,
+          foregroundColor: themeData.colorScheme.onPrimaryContainer,
+          elevation: 2,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.date_range),
+              onPressed: _selectDateRange,
+              tooltip: '选择时间范围',
+            ),
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: _refreshLogs,
+              tooltip: '刷新日志列表',
+            ),
+            IconButton(
+              icon: Icon(themeData.brightness == Brightness.light
+                  ? Icons.dark_mode
+                  : Icons.light_mode),
+              onPressed: controller.toggleBodyTheme,
+              tooltip: '切换主题',
+            ),
+          ],
         ),
-        backgroundColor: themeData.colorScheme.primaryContainer,
-        foregroundColor: themeData.colorScheme.onPrimaryContainer,
-        elevation: 2,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.date_range),
-            onPressed: _selectDateRange,
-            tooltip: '选择时间范围',
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _refreshLogs,
-            tooltip: '刷新日志列表',
-          ),
-          IconButton(
-            icon: Icon(themeData.brightness == Brightness.light
-                ? Icons.dark_mode
-                : Icons.light_mode),
-            onPressed: controller.toggleBodyTheme,
-            tooltip: '切换主题',
-          ),
-        ],
-      ),
-      floatingActionButton: _isAdmin
-          ? FloatingActionButton(
-              onPressed: _showCreateLogDialog,
-              backgroundColor: themeData.colorScheme.primary,
-              tooltip: '创建新日志',
-              child: Icon(Icons.add, color: themeData.colorScheme.onPrimary),
-            )
-          : null,
-      body: RefreshIndicator(
-        onRefresh: _refreshLogs,
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: [
-              if (_isAdmin) _buildSearchField(themeData),
-              const SizedBox(height: 12),
-              if (_selectedDateRange != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8.0),
-                  child: Row(
-                    children: [
-                      Text(
-                        '时间范围: ${DateFormat('yyyy-MM-dd').format(_selectedDateRange!.start)} 至 ${DateFormat('yyyy-MM-dd').format(_selectedDateRange!.end)}',
-                        style: themeData.textTheme.bodyMedium?.copyWith(
-                          color: themeData.colorScheme.onSurface,
+        floatingActionButton: _isAdmin
+            ? FloatingActionButton(
+                onPressed: _showCreateLogDialog,
+                backgroundColor: themeData.colorScheme.primary,
+                tooltip: '创建新日志',
+                child: Icon(Icons.add, color: themeData.colorScheme.onPrimary),
+              )
+            : null,
+        body: RefreshIndicator(
+          onRefresh: _refreshLogs,
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              children: [
+                if (_isAdmin) _buildSearchField(themeData),
+                const SizedBox(height: 12),
+                if (_selectedDateRange != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0),
+                    child: Row(
+                      children: [
+                        Text(
+                          '时间范围: ${DateFormat('yyyy-MM-dd').format(_selectedDateRange!.start)} 至 ${DateFormat('yyyy-MM-dd').format(_selectedDateRange!.end)}',
+                          style: themeData.textTheme.bodyMedium?.copyWith(
+                            color: themeData.colorScheme.onSurface,
+                          ),
                         ),
-                      ),
-                      const Spacer(),
-                      IconButton(
-                        icon: Icon(Icons.clear,
-                            color: themeData.colorScheme.error),
-                        onPressed: () {
-                          setState(() => _selectedDateRange = null);
-                          _fetchLogs(reset: true);
-                        },
-                        tooltip: '清除时间范围',
-                      ),
-                    ],
+                        const Spacer(),
+                        IconButton(
+                          icon: Icon(Icons.clear,
+                              color: themeData.colorScheme.error),
+                          onPressed: () {
+                            setState(() => _selectedDateRange = null);
+                            _fetchLogs(reset: true);
+                          },
+                          tooltip: '清除时间范围',
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              Expanded(
-                child: _isLoading
-                    ? Center(
-                        child: CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation(
-                                themeData.colorScheme.primary)))
-                    : _errorMessage.isNotEmpty && _logList.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  _errorMessage,
-                                  style:
-                                      themeData.textTheme.titleMedium?.copyWith(
-                                    color: themeData.colorScheme.error,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                                if (_errorMessage.contains('未授权') ||
-                                    _errorMessage.contains('仅管理员'))
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 16.0),
-                                    child: ElevatedButton(
-                                      onPressed: () =>
-                                          Navigator.pushReplacementNamed(
-                                              context, '/login'),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor:
-                                            themeData.colorScheme.primary,
-                                        foregroundColor:
-                                            themeData.colorScheme.onPrimary,
-                                      ),
-                                      child: const Text('重新登录'),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          )
-                        : ListView.builder(
-                            itemCount: _logList.length,
-                            itemBuilder: (context, index) {
-                              final log = _logList[index];
-                              return Card(
-                                margin:
-                                    const EdgeInsets.symmetric(vertical: 8.0),
-                                elevation: 3,
-                                color: themeData.colorScheme.surfaceContainer,
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16.0)),
-                                child: ListTile(
-                                  contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 16.0, vertical: 12.0),
-                                  title: Text(
-                                    '日志ID: ${log.logId ?? '未知ID'}',
+                Expanded(
+                  child: _isLoading
+                      ? Center(
+                          child: CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation(
+                                  themeData.colorScheme.primary)))
+                      : _errorMessage.isNotEmpty && _logList.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    _errorMessage,
                                     style: themeData.textTheme.titleMedium
                                         ?.copyWith(
-                                      color: themeData.colorScheme.onSurface,
-                                      fontWeight: FontWeight.w600,
+                                      color: themeData.colorScheme.error,
+                                      fontWeight: FontWeight.w500,
                                     ),
+                                    textAlign: TextAlign.center,
                                   ),
-                                  subtitle: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        '日志类型: ${log.logType ?? '未知类型'}',
-                                        style: themeData.textTheme.bodyMedium
-                                            ?.copyWith(
-                                          color: themeData
-                                              .colorScheme.onSurfaceVariant,
+                                  if (_errorMessage.contains('未授权') ||
+                                      _errorMessage.contains('仅管理员'))
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 16.0),
+                                      child: ElevatedButton(
+                                        onPressed: () =>
+                                            Navigator.pushReplacementNamed(
+                                                context, '/login'),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor:
+                                              themeData.colorScheme.primary,
+                                          foregroundColor:
+                                              themeData.colorScheme.onPrimary,
                                         ),
+                                        child: const Text('重新登录'),
                                       ),
-                                      Text(
-                                        '内容: ${log.logContent ?? '无内容'}',
-                                        style: themeData.textTheme.bodyMedium
-                                            ?.copyWith(
-                                          color: themeData
-                                              .colorScheme.onSurfaceVariant,
+                                    ),
+                                ],
+                              ),
+                            )
+                          : ListView.builder(
+                              itemCount: _logList.length,
+                              itemBuilder: (context, index) {
+                                final log = _logList[index];
+                                return Card(
+                                  margin:
+                                      const EdgeInsets.symmetric(vertical: 8.0),
+                                  elevation: 3,
+                                  color: themeData.colorScheme.surfaceContainer,
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius:
+                                          BorderRadius.circular(16.0)),
+                                  child: ListTile(
+                                    contentPadding: const EdgeInsets.symmetric(
+                                        horizontal: 16.0, vertical: 12.0),
+                                    title: Text(
+                                      '日志ID: ${log.logId ?? '未知ID'}',
+                                      style: themeData.textTheme.titleMedium
+                                          ?.copyWith(
+                                        color: themeData.colorScheme.onSurface,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    subtitle: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          '日志类型: ${log.logType ?? '未知类型'}',
+                                          style: themeData.textTheme.bodyMedium
+                                              ?.copyWith(
+                                            color: themeData
+                                                .colorScheme.onSurfaceVariant,
+                                          ),
                                         ),
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      Text(
-                                        '操作时间: ${log.operationTime != null ? DateFormat('yyyy-MM-dd HH:mm:ss').format(log.operationTime!) : '无'}',
-                                        style: themeData.textTheme.bodyMedium
-                                            ?.copyWith(
-                                          color: themeData
-                                              .colorScheme.onSurfaceVariant,
+                                        Text(
+                                          '内容: ${log.logContent ?? '无内容'}',
+                                          style: themeData.textTheme.bodyMedium
+                                              ?.copyWith(
+                                            color: themeData
+                                                .colorScheme.onSurfaceVariant,
+                                          ),
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
                                         ),
-                                      ),
-                                      Text(
-                                        '操作用户: ${log.operationUser ?? '未知用户'}',
-                                        style: themeData.textTheme.bodyMedium
-                                            ?.copyWith(
-                                          color: themeData
-                                              .colorScheme.onSurfaceVariant,
+                                        Text(
+                                          '操作时间: ${log.operationTime != null ? DateFormat('yyyy-MM-dd HH:mm:ss').format(log.operationTime!) : '无'}',
+                                          style: themeData.textTheme.bodyMedium
+                                              ?.copyWith(
+                                            color: themeData
+                                                .colorScheme.onSurfaceVariant,
+                                          ),
                                         ),
-                                      ),
-                                      Text(
-                                        '备注: ${log.remarks ?? '无'}',
-                                        style: themeData.textTheme.bodyMedium
-                                            ?.copyWith(
-                                          color: themeData
-                                              .colorScheme.onSurfaceVariant,
+                                        Text(
+                                          '操作用户: ${log.operationUser ?? '未知用户'}',
+                                          style: themeData.textTheme.bodyMedium
+                                              ?.copyWith(
+                                            color: themeData
+                                                .colorScheme.onSurfaceVariant,
+                                          ),
                                         ),
-                                      ),
-                                    ],
+                                        Text(
+                                          '备注: ${log.remarks ?? '无'}',
+                                          style: themeData.textTheme.bodyMedium
+                                              ?.copyWith(
+                                            color: themeData
+                                                .colorScheme.onSurfaceVariant,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    trailing: _isAdmin
+                                        ? Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              IconButton(
+                                                icon: Icon(Icons.edit,
+                                                    color: themeData
+                                                        .colorScheme.primary),
+                                                onPressed: () =>
+                                                    _showEditLogDialog(log),
+                                                tooltip: '编辑日志',
+                                              ),
+                                              IconButton(
+                                                icon: Icon(Icons.delete,
+                                                    color: themeData
+                                                        .colorScheme.error),
+                                                onPressed: () => _deleteLog(
+                                                    log.logId.toString()),
+                                                tooltip: '删除日志',
+                                              ),
+                                            ],
+                                          )
+                                        : null,
                                   ),
-                                  trailing: _isAdmin
-                                      ? Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            IconButton(
-                                              icon: Icon(Icons.edit,
-                                                  color: themeData
-                                                      .colorScheme.primary),
-                                              onPressed: () =>
-                                                  _showEditLogDialog(log),
-                                              tooltip: '编辑日志',
-                                            ),
-                                            IconButton(
-                                              icon: Icon(Icons.delete,
-                                                  color: themeData
-                                                      .colorScheme.error),
-                                              onPressed: () => _deleteLog(
-                                                  log.logId.toString()),
-                                              tooltip: '删除日志',
-                                            ),
-                                          ],
-                                        )
-                                      : null,
-                                ),
-                              );
-                            },
-                          ),
-              ),
-            ],
+                                );
+                              },
+                            ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

@@ -9,7 +9,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface VehicleInformationSearchRepository extends ElasticsearchRepository<VehicleInformationDocument, Integer> {
 
-    // Completion suggestions for licensePlate
+    // Completion suggestions for licensePlate with idCardNumber filter
     @Query("{\"bool\": {\"filter\": [{\"term\": {\"idCardNumber.keyword\": \"?0\"}}], " +
             "\"must\": [{\"query_string\": {\"query\": \"*?1*\", \"fields\": [\"licensePlate.ngram\"]}}]}}")
     SearchHits<VehicleInformationDocument> findCompletionSuggestions(String idCardNumber, String prefix, int maxSuggestions);
@@ -28,6 +28,21 @@ public interface VehicleInformationSearchRepository extends ElasticsearchReposit
     @Query("{\"bool\": {\"filter\": [{\"term\": {\"idCardNumber.keyword\": \"?1\"}}], " +
             "\"must\": [{\"query_string\": {\"query\": \"*?0*\", \"fields\": [\"vehicleType.ngram\"], \"fuzzy_transpositions\": true, \"fuzzy_max_expansions\": 50}}]}}")
     SearchHits<VehicleInformationDocument> searchByVehicleTypeFuzzy(String vehicleType, String idCardNumber);
+
+    // Search by vehicleId with idCardNumber filter
+    @Query("{\"bool\": {\"filter\": [{\"term\": {\"idCardNumber.keyword\": \"?1\"}}], " +
+            "\"must\": [{\"query_string\": {\"query\": \"*?0*\", \"fields\": [\"vehicleId.ngram\"]}}]}}")
+    SearchHits<VehicleInformationDocument> searchByVehicleId(String vehicleId, String idCardNumber);
+
+    // Fuzzy search by vehicleId with idCardNumber filter
+    @Query("{\"bool\": {\"filter\": [{\"term\": {\"idCardNumber.keyword\": \"?1\"}}], " +
+            "\"must\": [{\"query_string\": {\"query\": \"*?0*\", \"fields\": [\"vehicleId.ngram\"], \"fuzzy_transpositions\": true, \"fuzzy_max_expansions\": 50}}]}}")
+    SearchHits<VehicleInformationDocument> searchByVehicleIdFuzzy(String vehicleId, String idCardNumber);
+
+    // Completion suggestions for vehicleId with idCardNumber filter
+    @Query("{\"bool\": {\"filter\": [{\"term\": {\"idCardNumber.keyword\": \"?0\"}}], " +
+            "\"must\": [{\"query_string\": {\"query\": \"*?1*\", \"fields\": [\"vehicleId.ngram\"]}}]}}")
+    SearchHits<VehicleInformationDocument> findVehicleIdCompletionSuggestions(String idCardNumber, String prefix, int maxSuggestions);
 
     // Global completion suggestions for licensePlate
     @Query("{\"query_string\": {\"query\": \"*?0*\", \"fields\": [\"licensePlate.ngram\"]}}")
@@ -48,4 +63,16 @@ public interface VehicleInformationSearchRepository extends ElasticsearchReposit
     // Global vehicleType fuzzy search
     @Query("{\"query_string\": {\"query\": \"*?0*\", \"fields\": [\"vehicleType.ngram\"], \"fuzzy_transpositions\": true, \"fuzzy_max_expansions\": 50}}")
     SearchHits<VehicleInformationDocument> searchByVehicleTypeFuzzyGlobally(String vehicleType);
+
+    // Global vehicleId prefix search
+    @Query("{\"query_string\": {\"query\": \"*?0*\", \"fields\": [\"vehicleId.ngram\"]}}")
+    SearchHits<VehicleInformationDocument> searchByVehicleIdPrefixGlobally(String vehicleId);
+
+    // Global vehicleId fuzzy search
+    @Query("{\"query_string\": {\"query\": \"*?0*\", \"fields\": [\"vehicleId.ngram\"], \"fuzzy_transpositions\": true, \"fuzzy_max_expansions\": 50}}")
+    SearchHits<VehicleInformationDocument> searchByVehicleIdFuzzyGlobally(String vehicleId);
+
+    // Global completion suggestions for vehicleId
+    @Query("{\"query_string\": {\"query\": \"*?0*\", \"fields\": [\"vehicleId.ngram\"]}}")
+    SearchHits<VehicleInformationDocument> findVehicleIdCompletionSuggestionsGlobally(String prefix, int maxSuggestions);
 }

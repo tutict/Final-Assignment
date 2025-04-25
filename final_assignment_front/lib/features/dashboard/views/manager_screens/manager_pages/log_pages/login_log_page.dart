@@ -48,11 +48,20 @@ class _LoginLogPageState extends State<LoginLogPage> {
       final decodedToken = JwtDecoder.decode(jwtToken);
       _currentUsername = decodedToken['sub'] ?? '';
       if (_currentUsername!.isEmpty) throw Exception('JWT 中未找到用户名');
-// Check for admin role
-      final roles = decodedToken['roles'] as List<dynamic>? ?? [];
-      _isAdmin = roles.contains('ROLE_ADMIN');
+// Handle roles as String or List
+      List<String> roles;
+      final rawRoles = decodedToken['roles'];
+      if (rawRoles is String) {
+        roles = rawRoles.split(',').map((role) => role.trim()).toList();
+      } else if (rawRoles is List<dynamic>) {
+        roles = rawRoles.cast<String>();
+      } else {
+        roles = [];
+      }
+// Check for ADMIN role (case-insensitive)
+      _isAdmin = roles.any((role) => role.toUpperCase() == 'ADMIN');
       debugPrint(
-          'Current username from JWT: $_currentUsername, isAdmin: $_isAdmin');
+          'Current username from JWT: $_currentUsername, isAdmin: $_isAdmin, roles: $roles');
 
       await logApi.initializeWithJwt();
       await roleApi.initializeWithJwt();
@@ -108,14 +117,12 @@ class _LoginLogPageState extends State<LoginLogPage> {
         logs = await logApi.apiLoginLogsGet();
       } else if (_searchType == 'username') {
         debugPrint('Fetching logs by username: $searchQuery');
-        logs = await logApi.apiLoginLogsUsernameUsernameGet(
-          username: searchQuery,
-        );
+        logs =
+            await logApi.apiLoginLogsUsernameUsernameGet(username: searchQuery);
       } else if (_searchType == 'loginResult') {
         debugPrint('Fetching logs by loginResult: $searchQuery');
         logs = await logApi.apiLoginLogsLoginResultLoginResultGet(
-          loginResult: searchQuery,
-        );
+            loginResult: searchQuery);
       }
 
       debugPrint('Logs fetched: ${logs.map((l) => l.toJson()).toList()}');
@@ -149,7 +156,7 @@ class _LoginLogPageState extends State<LoginLogPage> {
         return [
           'admin',
           'user1',
-          'test'
+          'user2'
         ]; // Placeholder: Replace with actual API
       } else {
         debugPrint('Fetching loginResult suggestions with prefix: $prefix');
@@ -209,7 +216,10 @@ class _LoginLogPageState extends State<LoginLogPage> {
 
   Future<void> _showCreateLogDialog() async {
     final usernameController = TextEditingController();
+    final loginIpAddressController = TextEditingController();
     final loginResultController = TextEditingController();
+    final browserTypeController = TextEditingController();
+    final osVersionController = TextEditingController();
     final remarksController = TextEditingController();
     final formKey = GlobalKey<FormState>();
     final idempotencyKey = const Uuid().v4();
@@ -238,6 +248,16 @@ class _LoginLogPageState extends State<LoginLogPage> {
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
+                    controller: loginIpAddressController,
+                    decoration: InputDecoration(
+                      labelText: '登录IP地址',
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12.0)),
+                    ),
+                    validator: (value) => value!.isEmpty ? '登录IP地址不能为空' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
                     controller: loginResultController,
                     decoration: InputDecoration(
                       labelText: '登录结果',
@@ -245,6 +265,24 @@ class _LoginLogPageState extends State<LoginLogPage> {
                           borderRadius: BorderRadius.circular(12.0)),
                     ),
                     validator: (value) => value!.isEmpty ? '登录结果不能为空' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: browserTypeController,
+                    decoration: InputDecoration(
+                      labelText: '浏览器类型',
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12.0)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: osVersionController,
+                    decoration: InputDecoration(
+                      labelText: '操作系统版本',
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12.0)),
+                    ),
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
@@ -272,7 +310,14 @@ class _LoginLogPageState extends State<LoginLogPage> {
                   try {
                     final newLog = LoginLog(
                       username: usernameController.text,
+                      loginIpAddress: loginIpAddressController.text,
                       loginResult: loginResultController.text,
+                      browserType: browserTypeController.text.isEmpty
+                          ? null
+                          : browserTypeController.text,
+                      osVersion: osVersionController.text.isEmpty
+                          ? null
+                          : osVersionController.text,
                       remarks: remarksController.text.isEmpty
                           ? null
                           : remarksController.text,
@@ -304,7 +349,11 @@ class _LoginLogPageState extends State<LoginLogPage> {
 
   Future<void> _showEditLogDialog(LoginLog log) async {
     final usernameController = TextEditingController(text: log.username);
+    final loginIpAddressController =
+        TextEditingController(text: log.loginIpAddress);
     final loginResultController = TextEditingController(text: log.loginResult);
+    final browserTypeController = TextEditingController(text: log.browserType);
+    final osVersionController = TextEditingController(text: log.osVersion);
     final remarksController = TextEditingController(text: log.remarks);
     final formKey = GlobalKey<FormState>();
     final idempotencyKey = const Uuid().v4();
@@ -333,6 +382,16 @@ class _LoginLogPageState extends State<LoginLogPage> {
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
+                    controller: loginIpAddressController,
+                    decoration: InputDecoration(
+                      labelText: '登录IP地址',
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12.0)),
+                    ),
+                    validator: (value) => value!.isEmpty ? '登录IP地址不能为空' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
                     controller: loginResultController,
                     decoration: InputDecoration(
                       labelText: '登录结果',
@@ -340,6 +399,24 @@ class _LoginLogPageState extends State<LoginLogPage> {
                           borderRadius: BorderRadius.circular(12.0)),
                     ),
                     validator: (value) => value!.isEmpty ? '登录结果不能为空' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: browserTypeController,
+                    decoration: InputDecoration(
+                      labelText: '浏览器类型',
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12.0)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: osVersionController,
+                    decoration: InputDecoration(
+                      labelText: '操作系统版本',
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12.0)),
+                    ),
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
@@ -368,11 +445,15 @@ class _LoginLogPageState extends State<LoginLogPage> {
                     final updatedLog = LoginLog(
                       logId: log.logId,
                       username: usernameController.text,
+                      loginIpAddress: loginIpAddressController.text,
                       loginResult: loginResultController.text,
                       loginTime: log.loginTime,
-                      loginIpAddress: log.loginIpAddress,
-                      browserType: log.browserType,
-                      osVersion: log.osVersion,
+                      browserType: browserTypeController.text.isEmpty
+                          ? null
+                          : browserTypeController.text,
+                      osVersion: osVersionController.text.isEmpty
+                          ? null
+                          : osVersionController.text,
                       remarks: remarksController.text.isEmpty
                           ? null
                           : remarksController.text,
@@ -680,7 +761,15 @@ class _LoginLogPageState extends State<LoginLogPage> {
                                     children: [
                                       const SizedBox(height: 4),
                                       Text(
-                                        '用户名: ${log.username ?? '未知用户'}',
+                                        '用户名: ${log.username ?? '未知用户名'}',
+                                        style: themeData.textTheme.bodyMedium
+                                            ?.copyWith(
+                                          color: themeData
+                                              .colorScheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                      Text(
+                                        '登录IP地址: ${log.loginIpAddress ?? '无'}',
                                         style: themeData.textTheme.bodyMedium
                                             ?.copyWith(
                                           color: themeData
@@ -704,7 +793,7 @@ class _LoginLogPageState extends State<LoginLogPage> {
                                         ),
                                       ),
                                       Text(
-                                        'IP地址: ${log.loginIpAddress ?? '无'}',
+                                        '浏览器类型: ${log.browserType ?? '无'}',
                                         style: themeData.textTheme.bodyMedium
                                             ?.copyWith(
                                           color: themeData
@@ -712,15 +801,7 @@ class _LoginLogPageState extends State<LoginLogPage> {
                                         ),
                                       ),
                                       Text(
-                                        '浏览器: ${log.browserType ?? '无'}',
-                                        style: themeData.textTheme.bodyMedium
-                                            ?.copyWith(
-                                          color: themeData
-                                              .colorScheme.onSurfaceVariant,
-                                        ),
-                                      ),
-                                      Text(
-                                        '操作系统: ${log.osVersion ?? '无'}',
+                                        '操作系统版本: ${log.osVersion ?? '无'}',
                                         style: themeData.textTheme.bodyMedium
                                             ?.copyWith(
                                           color: themeData

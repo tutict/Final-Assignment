@@ -9,7 +9,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
-@Document(indexName = "fines")
+@Document(indexName = "fine_information")
 @Setting(settingPath = "elasticsearch/fine-analyzer.json")
 public class FineInformationDocument {
 
