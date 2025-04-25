@@ -48,7 +48,7 @@ class _SystemLogPageState extends State<SystemLogPage> {
       final decodedToken = JwtDecoder.decode(jwtToken);
       _currentUsername = decodedToken['sub'] ?? '';
       if (_currentUsername!.isEmpty) throw Exception('JWT 中未找到用户名');
-// Handle roles as String or List
+      // Handle roles as String or List
       List<String> roles;
       final rawRoles = decodedToken['roles'];
       if (rawRoles is String) {
@@ -58,7 +58,7 @@ class _SystemLogPageState extends State<SystemLogPage> {
       } else {
         roles = [];
       }
-// Check for ADMIN role (case-insensitive)
+      // Check for ADMIN role (case-insensitive)
       _isAdmin = roles.any((role) => role.toUpperCase() == 'ADMIN');
       debugPrint(
           'Current username from JWT: $_currentUsername, isAdmin: $_isAdmin, roles: $roles');

@@ -171,7 +171,6 @@ public class VehicleInformationService {
         return result != null ? result : Collections.emptyList();
     }
 
-
     @Cacheable(cacheNames = "vehicleCache")
     @WsAction(service = "VehicleInformationService", action = "getVehicleInformationByIdCardNumber")
     public List<VehicleInformation> getVehicleInformationByIdCardNumber(String idCardNumber) {
@@ -255,7 +254,6 @@ public class VehicleInformationService {
         queryWrapper.eq("license_plate", licensePlate);
         return vehicleInformationMapper.selectCount(queryWrapper) > 0;
     }
-
 
     @Cacheable(cacheNames = "vehicleCache", unless = "#result == null")
     @WsAction(service = "VehicleInformationService", action = "getVehicleInformationByStatus")
@@ -393,135 +391,49 @@ public class VehicleInformationService {
     }
 
     @Cacheable(cacheNames = "vehicleCache", unless = "#result == null")
-    public List<String> getVehicleInformationByLicensePlateGlobally(String prefix, int maxSuggestions) {
-        Set<String> globalSuggestions = new HashSet<>();
+    @WsAction(service = "VehicleInformationService", action = "getVehicleInformationByLicensePlateGlobally")
+    public VehicleInformation getVehicleInformationByLicensePlateGlobally(String licensePlate) {
+        validateInput(licensePlate, "Invalid license plate number");
+        log.log(Level.INFO, "Fetching vehicle for license plate: {0}", new Object[]{licensePlate});
 
-        log.log(Level.INFO, "Executing match query for licensePlate prefix: {0}, maxSuggestions: {1}",
-                new Object[]{prefix, maxSuggestions});
-
-        SearchHits<VehicleInformationDocument> matchHits;
         try {
-            matchHits = vehicleInformationSearchRepository.findCompletionSuggestionsGlobally(prefix, maxSuggestions);
+            QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
+            queryWrapper.eq("license_plate", licensePlate);
+            List<VehicleInformation> results = vehicleInformationMapper.selectList(queryWrapper);
+            if (results.isEmpty()) {
+                log.info("No vehicle found for license plate: " + licensePlate);
+                return null;
+            } else if (results.size() > 1) {
+                log.warning("Multiple vehicles found for license plate: " + licensePlate + ". Returning first result.");
+                return results.getFirst();
+            }
+            log.log(Level.INFO, "Found vehicle for license plate: {0}", new Object[]{licensePlate});
+            return results.getFirst();
         } catch (Exception e) {
-            log.log(Level.WARNING, "Error executing match query: {0}", new Object[]{e.getMessage()});
-            return new ArrayList<>();
+            log.log(Level.WARNING, "Error fetching vehicle for license plate {0}: {1}",
+                    new Object[]{licensePlate, e.getMessage()});
+            return null;
         }
-
-        if (matchHits != null && matchHits.hasSearchHits()) {
-            for (SearchHit<VehicleInformationDocument> hit : matchHits) {
-                VehicleInformationDocument doc = hit.getContent();
-                if (doc.getLicensePlate() != null) {
-                    globalSuggestions.add(doc.getLicensePlate());
-                    log.log(Level.INFO, "Found license plate: {0}", new Object[]{doc.getLicensePlate()});
-                }
-                if (globalSuggestions.size() >= maxSuggestions) {
-                    break;
-                }
-            }
-            log.log(Level.INFO, "Found {0} match suggestions: {1}", new Object[]{globalSuggestions.size(), globalSuggestions});
-        } else {
-            log.log(Level.INFO, "No match suggestions found for prefix: {0}", new Object[]{prefix});
-        }
-
-        // 如果结果不足，执行模糊查询
-        if (globalSuggestions.size() < maxSuggestions) {
-            log.log(Level.INFO, "Executing fuzzy query for licensePlate prefix: {0}", new Object[]{prefix});
-            SearchHits<VehicleInformationDocument> fuzzyHits;
-            try {
-                fuzzyHits = vehicleInformationSearchRepository.searchByLicensePlateGlobally(prefix);
-                log.log(Level.INFO, "Fuzzy query returned {0} hits", new Object[]{fuzzyHits != null ? fuzzyHits.getTotalHits() : 0});
-            } catch (Exception e) {
-                log.log(Level.WARNING, "Error executing fuzzy query: {0}", new Object[]{e.getMessage()});
-                return new ArrayList<>(globalSuggestions);
-            }
-
-            if (fuzzyHits != null && fuzzyHits.hasSearchHits()) {
-                for (SearchHit<VehicleInformationDocument> hit : fuzzyHits) {
-                    VehicleInformationDocument doc = hit.getContent();
-                    if (doc.getLicensePlate() != null) {
-                        globalSuggestions.add(doc.getLicensePlate());
-                        log.log(Level.INFO, "Found license plate: {0}", new Object[]{doc.getLicensePlate()});
-                    }
-                    if (globalSuggestions.size() >= maxSuggestions) {
-                        break;
-                    }
-                }
-                log.log(Level.INFO, "After fuzzy search, total suggestions: {0}", new Object[]{globalSuggestions.size()});
-            } else {
-                log.log(Level.INFO, "Fuzzy search returned no results for prefix: {0}", new Object[]{prefix});
-            }
-        }
-
-        List<String> resultList = new ArrayList<>(globalSuggestions);
-        return resultList.size() <= maxSuggestions ? resultList : resultList.subList(0, maxSuggestions);
     }
 
-    @Cacheable(cacheNames = "vehicleCache", unless = "#result == null")
-    public List<String> getVehicleInformationByTypeGlobally(String prefix, int maxSuggestions) {
-        Set<String> globalSuggestions = new HashSet<>();
+    @Cacheable(cacheNames = "vehicleCache", unless = "#result.isEmpty()")
+    @WsAction(service = "VehicleInformationService", action = "getVehicleInformationByTypeGlobally")
+    public List<VehicleInformation> getVehicleInformationByTypeGlobally(String vehicleType) {
+        validateInput(vehicleType, "Invalid vehicle type");
+        log.log(Level.INFO, "Fetching vehicles for vehicle type: {0}", new Object[]{vehicleType});
 
-        log.log(Level.INFO, "Executing vehicle type search for prefix: {0}, maxSuggestions: {1}",
-                new Object[]{prefix, maxSuggestions});
-
-        SearchHits<VehicleInformationDocument> suggestHits;
         try {
-            suggestHits = vehicleInformationSearchRepository.searchByVehicleTypePrefixGlobally(prefix);
-            log.log(Level.INFO, "Vehicle type search returned {0} hits",
-                    new Object[]{suggestHits != null ? suggestHits.getTotalHits() : 0});
+            QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
+            queryWrapper.eq("vehicle_type", vehicleType);
+            List<VehicleInformation> results = vehicleInformationMapper.selectList(queryWrapper);
+            log.log(Level.INFO, "Found {0} vehicles for vehicle type: {1}",
+                    new Object[]{results.size(), vehicleType});
+            return results != null ? results : Collections.emptyList();
         } catch (Exception e) {
-            log.log(Level.WARNING, "Error executing vehicle type search query: {0}", new Object[]{e.getMessage()});
-            return new ArrayList<>();
+            log.log(Level.WARNING, "Error fetching vehicles for vehicle type {0}: {1}",
+                    new Object[]{vehicleType, e.getMessage()});
+            return Collections.emptyList();
         }
-
-        if (suggestHits != null && suggestHits.hasSearchHits()) {
-            for (SearchHit<VehicleInformationDocument> hit : suggestHits) {
-                VehicleInformationDocument doc = hit.getContent();
-                if (doc.getVehicleType() != null) {
-                    globalSuggestions.add(doc.getVehicleType());
-                    log.log(Level.INFO, "Found vehicle type: {0}", new Object[]{doc.getVehicleType()});
-                }
-                if (globalSuggestions.size() >= maxSuggestions) {
-                    break;
-                }
-            }
-            log.log(Level.INFO, "Found {0} vehicle type suggestions: {1}",
-                    new Object[]{globalSuggestions.size(), globalSuggestions});
-        } else {
-            log.log(Level.INFO, "No vehicle type suggestions found for prefix: {0}", new Object[]{prefix});
-        }
-
-        if (globalSuggestions.size() < maxSuggestions) {
-            log.log(Level.INFO, "Executing fuzzy query for vehicle type prefix: {0}", new Object[]{prefix});
-            SearchHits<VehicleInformationDocument> fuzzyHits;
-            try {
-                fuzzyHits = vehicleInformationSearchRepository.searchByVehicleTypeFuzzyGlobally(prefix);
-                log.log(Level.INFO, "Fuzzy query returned {0} hits",
-                        new Object[]{fuzzyHits != null ? fuzzyHits.getTotalHits() : 0});
-            } catch (Exception e) {
-                log.log(Level.WARNING, "Error executing fuzzy query for vehicle type: {0}", new Object[]{e.getMessage()});
-                return new ArrayList<>(globalSuggestions);
-            }
-
-            if (fuzzyHits != null && fuzzyHits.hasSearchHits()) {
-                for (SearchHit<VehicleInformationDocument> hit : fuzzyHits) {
-                    VehicleInformationDocument doc = hit.getContent();
-                    if (doc.getVehicleType() != null) {
-                        globalSuggestions.add(doc.getVehicleType());
-                        log.log(Level.INFO, "Found vehicle type: {0}", new Object[]{doc.getVehicleType()});
-                    }
-                    if (globalSuggestions.size() >= maxSuggestions) {
-                        break;
-                    }
-                }
-                log.log(Level.INFO, "After fuzzy search, total vehicle type suggestions: {0}",
-                        new Object[]{globalSuggestions.size()});
-            } else {
-                log.log(Level.INFO, "Fuzzy search returned no results for vehicle type prefix: {0}", new Object[]{prefix});
-            }
-        }
-
-        List<String> resultList = new ArrayList<>(globalSuggestions);
-        return resultList.size() <= maxSuggestions ? resultList : resultList.subList(0, maxSuggestions);
     }
 
     public List<VehicleInformation> searchVehicles(String query, int page, int size) {

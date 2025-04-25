@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_dashboard_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:final_assignment_front/features/api/user_management_controller_api.dart';
@@ -7,7 +8,11 @@ import 'package:final_assignment_front/features/model/role_management.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
-import 'package:uuid/uuid.dart';
+import 'package:http/http.dart' as http;
+
+String generateIdempotencyKey() {
+  return DateTime.now().millisecondsSinceEpoch.toString();
+}
 
 class UserManagementPage extends StatefulWidget {
   const UserManagementPage({super.key});
@@ -26,7 +31,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
   int _currentPage = 1;
   final int _pageSize = 10;
   bool _hasMore = true;
-  String _searchType = 'username'; // Default search type
+  String _searchType = 'username';
   String? _currentUsername;
   bool _isAdmin = false;
   List<RoleManagement> _roles = [];
@@ -53,22 +58,22 @@ class _UserManagementPageState extends State<UserManagementPage> {
       if (_currentUsername!.isEmpty) throw Exception('JWT 中未找到用户名');
       debugPrint('Current username from JWT: $_currentUsername');
 
-      // Check if user has ADMIN role
-      final roles = decodedToken['roles'] ?? '';
-      _isAdmin = roles.contains('ADMIN') || roles.contains('ROLE_ADMIN');
+      final roles = decodedToken['roles'];
+      if (roles is String) {
+        _isAdmin = roles == 'ADMIN';
+      } else if (roles is List) {
+        _isAdmin = roles.contains('ADMIN') || roles.contains('ROLE_ADMIN');
+      } else {
+        _isAdmin = false;
+      }
       debugPrint('User isAdmin: $_isAdmin (Roles: $roles)');
 
       await userApi.initializeWithJwt();
       await roleApi.initializeWithJwt();
 
-      // Fetch roles for potential role display
       _roles = await roleApi.apiRolesGet();
       debugPrint('Roles fetched: ${_roles.map((r) => r.toJson()).toList()}');
-      if (_roles.isEmpty) {
-        debugPrint('Warning: No roles returned from /api/roles');
-      }
 
-      // Fetch users only if admin
       if (_isAdmin) {
         await _fetchUsers(reset: true);
       } else {
@@ -96,13 +101,12 @@ class _UserManagementPageState extends State<UserManagementPage> {
     try {
       final existingUser =
           await userApi.apiUsersUsernameUsernameGet(username: username);
-      if (existingUser == null) return true; // Username is available
-      // If editing, allow the same username for the same user
+      if (existingUser == null) return true;
       if (excludeUserId != null &&
           existingUser.userId.toString() == excludeUserId) {
         return true;
       }
-      return false; // Username is taken
+      return false;
     } catch (e) {
       debugPrint('Error checking username availability: $e');
       return false;
@@ -135,35 +139,26 @@ class _UserManagementPageState extends State<UserManagementPage> {
     try {
       List<UserManagement> users = [];
       if (searchQuery.isEmpty) {
-        debugPrint('Fetching all users for page: $_currentPage');
         users = await userApi.apiUsersGet();
       } else if (_searchType == 'username') {
-        debugPrint('Fetching user by username: $searchQuery');
         final user =
             await userApi.apiUsersUsernameUsernameGet(username: searchQuery);
         users = user != null ? [user] : [];
       } else if (_searchType == 'status') {
-        debugPrint('Fetching users by status: $searchQuery');
         users = await userApi.apiUsersStatusStatusGet(status: searchQuery);
       } else if (_searchType == 'contactNumber') {
-        debugPrint('Fetching users by contactNumber: $searchQuery');
-        users = await userApi.apiUsersGet(); // Placeholder: Filter client-side
+        users = await userApi.apiUsersGet();
         users = users
             .where((u) => u.contactNumber?.contains(searchQuery) ?? false)
             .toList();
       } else if (_searchType == 'email') {
-        debugPrint('Fetching users by email: $searchQuery');
-        users = await userApi.apiUsersGet(); // Placeholder: Filter client-side
+        users = await userApi.apiUsersGet();
         users = users
             .where((u) => u.email?.contains(searchQuery) ?? false)
             .toList();
       }
 
-      // Filter out admin users (e.g., hgl@admin.com)
       users = users.where((u) => u.username != _currentUsername).toList();
-      debugPrint(
-          'Users after admin filter: ${users.map((u) => u.toJson()).toList()}');
-
       setState(() {
         _userList.addAll(users);
         if (users.length < _pageSize) _hasMore = false;
@@ -190,21 +185,13 @@ class _UserManagementPageState extends State<UserManagementPage> {
   Future<List<String>> _fetchAutocompleteSuggestions(String prefix) async {
     try {
       if (_searchType == 'username') {
-        debugPrint('Fetching username suggestions with prefix: $prefix');
-        return [
-          'admin',
-          'user',
-          'test'
-        ]; // Placeholder: Replace with actual API
+        return ['admin', 'user', 'test'];
       } else if (_searchType == 'status') {
-        debugPrint('Fetching status suggestions with prefix: $prefix');
         return ['Active', 'Inactive'];
       } else if (_searchType == 'contactNumber') {
-        debugPrint('Fetching contactNumber suggestions with prefix: $prefix');
-        return ['1234567890', '0987654321']; // Placeholder
+        return ['1234567890', '0987654321'];
       } else {
-        debugPrint('Fetching email suggestions with prefix: $prefix');
-        return ['user@example.com', 'admin@example.com']; // Placeholder
+        return ['user@example.com', 'admin@example.com'];
       }
     } catch (e) {
       debugPrint('Failed to fetch autocomplete suggestions: $e');
@@ -218,22 +205,44 @@ class _UserManagementPageState extends State<UserManagementPage> {
     await _fetchUsers(query: _searchController.text);
   }
 
-  Future<void> _refreshUsers() async {
-    _searchController.clear();
-    await _fetchUsers(reset: true);
+// New helper method to standardize refresh logic
+  Future<void> _refreshUserList({String? query}) async {
+    setState(() {
+      _userList.clear();
+      _currentPage = 1;
+      _hasMore = true;
+      _isLoading = true;
+      if (query == null) {
+        _searchController.clear();
+      }
+    });
+    await _fetchUsers(reset: true, query: query);
   }
 
   Future<void> _searchUsers() async {
     final query = _searchController.text.trim();
-    await _fetchUsers(reset: true, query: query);
+    await _refreshUserList(query: query);
   }
 
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
+    final themeData = controller.currentBodyTheme.value;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message, style: const TextStyle(color: Colors.white)),
-        backgroundColor: isError ? Colors.red : Colors.green,
+        content: Text(
+          message,
+          style: TextStyle(
+            color: isError
+                ? themeData.colorScheme.onError
+                : themeData.colorScheme.onPrimary,
+          ),
+        ),
+        backgroundColor: isError
+            ? themeData.colorScheme.error
+            : themeData.colorScheme.primary,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
+        margin: const EdgeInsets.all(10.0),
       ),
     );
   }
@@ -244,9 +253,9 @@ class _UserManagementPageState extends State<UserManagementPage> {
     final contactNumberController = TextEditingController();
     final emailController = TextEditingController();
     final remarksController = TextEditingController();
-    String? selectedStatus = 'Active'; // Default to match database
+    String? selectedStatus = 'Active';
     final formKey = GlobalKey<FormState>();
-    final idempotencyKey = const Uuid().v4();
+    final idempotencyKey = generateIdempotencyKey();
 
     await showDialog(
       context: context,
@@ -383,7 +392,6 @@ class _UserManagementPageState extends State<UserManagementPage> {
             ElevatedButton(
               onPressed: () async {
                 if (formKey.currentState!.validate()) {
-                  // Check username availability
                   final isUsernameAvailable =
                       await _checkUsernameAvailability(usernameController.text);
                   if (!isUsernameAvailable) {
@@ -394,7 +402,6 @@ class _UserManagementPageState extends State<UserManagementPage> {
                   try {
                     final newUser = UserManagement(
                       userId: 0,
-                      // Backend assigns userId
                       username: usernameController.text,
                       password: passwordController.text,
                       contactNumber: contactNumberController.text.isEmpty
@@ -407,12 +414,28 @@ class _UserManagementPageState extends State<UserManagementPage> {
                       remarks: remarksController.text.isEmpty
                           ? null
                           : remarksController.text,
-                      idempotencyKey: idempotencyKey,
                     );
-                    await userApi.apiUsersPost(userManagement: newUser);
+
+                    final prefs = await SharedPreferences.getInstance();
+                    final jwtToken = prefs.getString('jwtToken');
+                    final response = await http.post(
+                      Uri.parse(
+                          'http://localhost:8081/api/users?idempotencyKey=$idempotencyKey'),
+                      headers: {
+                        'Authorization': 'Bearer $jwtToken',
+                        'Content-Type': 'application/json; charset=UTF-8',
+                      },
+                      body: jsonEncode(newUser.toJson()),
+                    );
+
+                    if (response.statusCode != 201) {
+                      throw Exception(
+                          'Failed to create user: ${response.statusCode} - ${response.body}');
+                    }
+
                     _showSnackBar('用户创建成功');
                     Navigator.pop(context);
-                    await _refreshUsers();
+                    await _refreshUserList();
                   } catch (e) {
                     _showSnackBar('创建用户失败: $e', isError: true);
                   }
@@ -436,10 +459,9 @@ class _UserManagementPageState extends State<UserManagementPage> {
         TextEditingController(text: user.contactNumber);
     final emailController = TextEditingController(text: user.email);
     final remarksController = TextEditingController(text: user.remarks);
-    String? selectedStatus =
-        user.status ?? 'Active'; // Default to 'Active' if null
+    String? selectedStatus = user.status ?? 'Active';
     final formKey = GlobalKey<FormState>();
-    final idempotencyKey = const Uuid().v4();
+    final idempotencyKey = generateIdempotencyKey();
 
     await showDialog(
       context: context,
@@ -556,7 +578,6 @@ class _UserManagementPageState extends State<UserManagementPage> {
             ElevatedButton(
               onPressed: () async {
                 if (formKey.currentState!.validate()) {
-                  // Check username availability, excluding current user
                   final isUsernameAvailable = await _checkUsernameAvailability(
                     usernameController.text,
                     excludeUserId: user.userId.toString(),
@@ -580,15 +601,28 @@ class _UserManagementPageState extends State<UserManagementPage> {
                       remarks: remarksController.text.isEmpty
                           ? null
                           : remarksController.text,
-                      idempotencyKey: idempotencyKey,
                     );
-                    await userApi.apiUsersUserIdPut(
-                      userId: user.userId.toString(),
-                      userManagement: updatedUser,
+
+                    final prefs = await SharedPreferences.getInstance();
+                    final jwtToken = prefs.getString('jwtToken');
+                    final response = await http.put(
+                      Uri.parse(
+                          'http://localhost:8081/api/users/${user.userId}?idempotencyKey=$idempotencyKey'),
+                      headers: {
+                        'Authorization': 'Bearer $jwtToken',
+                        'Content-Type': 'application/json; charset=UTF-8',
+                      },
+                      body: jsonEncode(updatedUser.toJson()),
                     );
+
+                    if (response.statusCode != 200) {
+                      throw Exception(
+                          'Failed to update user: ${response.statusCode} - ${response.body}');
+                    }
+
                     _showSnackBar('用户更新成功');
                     Navigator.pop(context);
-                    await _refreshUsers();
+                    await _refreshUserList();
                   } catch (e) {
                     _showSnackBar('更新用户失败: $e', isError: true);
                   }
@@ -638,7 +672,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
       try {
         await userApi.apiUsersUserIdDelete(userId: userId);
         _showSnackBar('用户删除成功');
-        await _refreshUsers();
+        await _refreshUserList();
       } catch (e) {
         _showSnackBar('删除用户失败: $e', isError: true);
       }
@@ -690,7 +724,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                             onPressed: () {
                               controller.clear();
                               _searchController.clear();
-                              _fetchUsers(reset: true);
+                              _refreshUserList();
                             },
                           )
                         : null,
@@ -722,7 +756,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
               setState(() {
                 _searchType = newValue!;
                 _searchController.clear();
-                _fetchUsers(reset: true);
+                _refreshUserList();
               });
             },
             items: <String>['username', 'status', 'contactNumber', 'email']
@@ -770,7 +804,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _refreshUsers,
+            onPressed: () => _refreshUserList(),
             tooltip: '刷新用户列表',
           ),
           IconButton(
@@ -791,7 +825,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
             )
           : null,
       body: RefreshIndicator(
-        onRefresh: _refreshUsers,
+        onRefresh: () => _refreshUserList(),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(

@@ -73,7 +73,7 @@ class VehicleInformationControllerApi {
       'idCardNumber': Uri.encodeQueryComponent(idCardNumber),
     };
 
-    final uri = Uri.parse('http://localhost:8081/autocomplete/license-plate/me')
+    final uri = Uri.parse('http://localhost:8081/api/vehicles/autocomplete/license-plate/me')
         .replace(queryParameters: queryParameters);
 
     final prefs = await SharedPreferences.getInstance();
@@ -125,7 +125,7 @@ class VehicleInformationControllerApi {
       'idCardNumber': Uri.encodeQueryComponent(idCardNumber),
     };
 
-    final uri = Uri.parse('http://localhost:8081/autocomplete/vehicle-type/me')
+    final uri = Uri.parse('http://localhost:8081/api/vehicles/autocomplete/vehicle-type/me')
         .replace(queryParameters: queryParameters);
 
     final prefs = await SharedPreferences.getInstance();
@@ -171,7 +171,7 @@ class VehicleInformationControllerApi {
     };
 
     final uri = Uri.parse(
-            'http://localhost:8081/autocomplete/license-plate-globally/me')
+            'http://localhost:8081/api/vehicles/autocomplete/license-plate-globally/me')
         .replace(queryParameters: queryParameters);
 
     final prefs = await SharedPreferences.getInstance();
@@ -216,7 +216,7 @@ class VehicleInformationControllerApi {
     };
 
     final uri =
-        Uri.parse('http://localhost:8081/autocomplete/vehicle-type-globally/me')
+        Uri.parse('http://localhost:8081/api/vehicles/autocomplete/vehicle-type-globally/me')
             .replace(queryParameters: queryParameters);
 
     final prefs = await SharedPreferences.getInstance();

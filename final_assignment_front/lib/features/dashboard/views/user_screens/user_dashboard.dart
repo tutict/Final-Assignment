@@ -10,6 +10,7 @@ import 'package:final_assignment_front/config/themes/app_theme.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
 import 'package:final_assignment_front/features/dashboard/models/profile.dart';
 import 'package:final_assignment_front/features/dashboard/views/components/ai_chat.dart';
+import 'package:final_assignment_front/features/dashboard/views/components/notification_bar.dart';
 import 'package:final_assignment_front/features/dashboard/views/components/profile_tile.dart';
 import 'package:final_assignment_front/shared_components/case_card.dart';
 import 'package:final_assignment_front/shared_components/floating_window.dart';
@@ -159,11 +160,19 @@ class UserDashboard extends GetView<UserDashboardController>
     return SingleChildScrollView(
       child: Padding(
         padding: const EdgeInsets.symmetric(
-            horizontal: kSpacing, vertical: kSpacing),
+            horizontal: kSpacing, vertical: kSpacing / 4),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SizedBox(height: kSpacing * (kIsWeb || isDesktop ? 2.5 : 3.5)),
+            SizedBox(height: kSpacing * (kIsWeb || isDesktop ? 0.5 : 0.75)),
+            NotificationBar(
+              message: "请及时完善身份证号和驾驶证号",
+              onPressedAction: () {
+                Get.toNamed('/input-credentials');
+              },
+              actionText: "去输入",
+            ),
+            const SizedBox(height: kSpacing),
             const Divider(),
             Obx(() {
               final pageContent = controller.selectedPage.value;

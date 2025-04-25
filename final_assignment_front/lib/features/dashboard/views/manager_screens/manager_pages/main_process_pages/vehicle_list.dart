@@ -152,12 +152,12 @@ class _VehicleListState extends State<VehicleList> {
           page: _currentPage,
           size: _pageSize,
         );
-      } else if (_searchType == 'licensePlate' && searchQuery.length >= 3) {
+      } else if (_searchType == 'licensePlate' && searchQuery.isNotEmpty) {
         debugPrint('Fetching vehicle by license plate: $searchQuery');
         final vehicle = await vehicleApi.apiVehiclesLicensePlateGet(
             licensePlate: searchQuery);
         vehicles = vehicle != null ? [vehicle] : [];
-      } else if (_searchType == 'vehicleType' && searchQuery.length >= 2) {
+      } else if (_searchType == 'vehicleType' && searchQuery.isNotEmpty) {
         debugPrint('Fetching vehicle by vehicle type: $searchQuery');
         vehicles =
             await vehicleApi.apiVehiclesTypeGet(vehicleType: searchQuery);
@@ -208,51 +208,31 @@ class _VehicleListState extends State<VehicleList> {
     }
   }
 
-  Future<List<String>> _fetchAutocompleteSuggestions(String prefix) async {
-    try {
-      debugPrint(
-          'Fetching autocomplete suggestions for prefix: $prefix, searchType: $_searchType');
-      List<String> suggestions;
-      if (_searchType == 'licensePlate') {
-        suggestions =
-            await vehicleApi.apiVehiclesAutocompleteLicensePlateGloballyMeGet(
-          prefix: prefix,
-          maxSuggestions: 5,
-        );
-      } else {
-        suggestions =
-            await vehicleApi.apiVehiclesAutocompleteVehicleTypeGloballyMeGet(
-          prefix: prefix,
-          maxSuggestions: 5,
-        );
-      }
-      debugPrint('Suggestions fetched: $suggestions');
-      return suggestions;
-    } catch (e) {
-      debugPrint('Failed to fetch autocomplete suggestions: $e');
-      return [];
-    }
-  }
-
   Future<void> _loadMoreVehicles() async {
     if (!_hasMore || _isLoading) return;
     _currentPage++;
     await _fetchVehicles(query: _searchController.text);
   }
 
-  Future<void> _refreshVehicles() async {
+  Future<void> _refreshVehicleList({String? query}) async {
     setState(() {
-      _searchController.clear();
-      _startDate = null;
-      _endDate = null;
-      _searchType = 'licensePlate';
+      _vehicleList.clear();
+      _currentPage = 1;
+      _hasMore = true;
+      _isLoading = true;
+      if (query == null) {
+        _searchController.clear();
+        _startDate = null;
+        _endDate = null;
+        _searchType = 'licensePlate';
+      }
     });
-    await _fetchVehicles(reset: true);
+    await _fetchVehicles(reset: true, query: query);
   }
 
   Future<void> _searchVehicles() async {
     final query = _searchController.text.trim();
-    await _fetchVehicles(reset: true, query: query);
+    await _refreshVehicleList(query: query);
   }
 
   void _createVehicle() {
@@ -260,7 +240,9 @@ class _VehicleListState extends State<VehicleList> {
       context,
       MaterialPageRoute(builder: (context) => const AddVehiclePage()),
     ).then((value) {
-      if (value == true && mounted) _fetchVehicles(reset: true);
+      if (value == true && mounted) {
+        _refreshVehicleList();
+      }
     });
   }
 
@@ -270,7 +252,9 @@ class _VehicleListState extends State<VehicleList> {
       MaterialPageRoute(
           builder: (context) => VehicleDetailPage(vehicle: vehicle)),
     ).then((value) {
-      if (value == true && mounted) _fetchVehicles(reset: true);
+      if (value == true && mounted) {
+        _refreshVehicleList();
+      }
     });
   }
 
@@ -280,7 +264,9 @@ class _VehicleListState extends State<VehicleList> {
       MaterialPageRoute(
           builder: (context) => EditVehiclePage(vehicle: vehicle)),
     ).then((value) {
-      if (value == true && mounted) _fetchVehicles(reset: true);
+      if (value == true && mounted) {
+        _refreshVehicleList();
+      }
     });
   }
 
@@ -290,7 +276,7 @@ class _VehicleListState extends State<VehicleList> {
       try {
         await vehicleApi.apiVehiclesVehicleIdDelete(vehicleId: vehicleId);
         _showSnackBar('删除车辆成功！');
-        _fetchVehicles(reset: true);
+        await _refreshVehicleList();
       } catch (e) {
         _showSnackBar('删除失败: $e', isError: true);
       } finally {
@@ -389,107 +375,44 @@ class _VehicleListState extends State<VehicleList> {
             Row(
               children: [
                 Expanded(
-                  child: Autocomplete<String>(
-                    optionsBuilder: (TextEditingValue textEditingValue) async {
-                      if (textEditingValue.text.isEmpty) {
-                        return const Iterable<String>.empty();
-                      }
-                      return await _fetchAutocompleteSuggestions(
-                          textEditingValue.text);
-                    },
-                    onSelected: (String selection) async {
-                      _searchController.text = selection;
-                      await _fetchVehicles(reset: true, query: selection);
-                    },
-                    fieldViewBuilder:
-                        (context, controller, focusNode, onFieldSubmitted) {
-                      _searchController.text = controller.text;
-                      return TextField(
-                        controller: controller,
-                        focusNode: focusNode,
-                        style: themeData.textTheme.bodyMedium
-                            ?.copyWith(color: themeData.colorScheme.onSurface),
-                        decoration: InputDecoration(
-                          hintText: _searchType == 'licensePlate'
-                              ? '搜索车牌号'
-                              : '搜索车辆类型',
-                          hintStyle: themeData.textTheme.bodyMedium?.copyWith(
-                            color: themeData.colorScheme.onSurface
-                                .withOpacity(0.6),
-                          ),
-                          prefixIcon: Icon(Icons.search,
-                              color: themeData.colorScheme.primary),
-                          suffixIcon: controller.text.isNotEmpty ||
-                                  (_startDate != null && _endDate != null)
-                              ? IconButton(
-                                  icon: Icon(Icons.clear,
-                                      color: themeData
-                                          .colorScheme.onSurfaceVariant),
-                                  onPressed: () {
-                                    controller.clear();
-                                    setState(() {
-                                      _searchController.clear();
-                                      _startDate = null;
-                                      _endDate = null;
-                                      _searchType = 'licensePlate';
-                                    });
-                                    _fetchVehicles(reset: true);
-                                  },
-                                )
-                              : null,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12.0),
-                            borderSide: BorderSide.none,
-                          ),
-                          filled: true,
-                          fillColor: themeData.colorScheme.surfaceContainer,
-                          contentPadding: const EdgeInsets.symmetric(
-                              vertical: 14.0, horizontal: 16.0),
-                        ),
-                        onSubmitted: (value) => _searchVehicles(),
-                        onChanged: (value) {
-                          if (value.isEmpty) {
-                            setState(() {
-                              _startDate = null;
-                              _endDate = null;
-                              _searchType = 'licensePlate';
-                            });
-                            _fetchVehicles(reset: true);
-                          }
-                        },
-                      );
-                    },
-                    optionsViewBuilder: (context, onSelected, options) {
-                      return Align(
-                        alignment: Alignment.topLeft,
-                        child: Material(
-                          elevation: 4.0,
-                          borderRadius: BorderRadius.circular(8.0),
-                          color: themeData.colorScheme.surfaceContainer,
-                          child: Container(
-                            width: MediaQuery.of(context).size.width - 80,
-                            constraints: const BoxConstraints(maxHeight: 200),
-                            child: ListView.builder(
-                              padding: const EdgeInsets.all(8.0),
-                              shrinkWrap: true,
-                              itemCount: options.length,
-                              itemBuilder: (context, index) {
-                                final option = options.elementAt(index);
-                                return ListTile(
-                                  title: Text(
-                                    option,
-                                    style: themeData.textTheme.bodyMedium
-                                        ?.copyWith(
-                                      color: themeData.colorScheme.onSurface,
-                                    ),
-                                  ),
-                                  onTap: () => onSelected(option),
-                                );
+                  child: TextField(
+                    controller: _searchController,
+                    style: themeData.textTheme.bodyMedium
+                        ?.copyWith(color: themeData.colorScheme.onSurface),
+                    decoration: InputDecoration(
+                      hintText:
+                          _searchType == 'licensePlate' ? '搜索车牌号' : '搜索车辆类型',
+                      hintStyle: themeData.textTheme.bodyMedium?.copyWith(
+                        color: themeData.colorScheme.onSurface.withOpacity(0.6),
+                      ),
+                      prefixIcon: Icon(Icons.search,
+                          color: themeData.colorScheme.primary),
+                      suffixIcon: _searchController.text.isNotEmpty ||
+                              (_startDate != null && _endDate != null)
+                          ? IconButton(
+                              icon: Icon(Icons.clear,
+                                  color:
+                                      themeData.colorScheme.onSurfaceVariant),
+                              onPressed: () {
+                                _searchController.clear();
+                                _refreshVehicleList();
                               },
-                            ),
-                          ),
-                        ),
-                      );
+                            )
+                          : null,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12.0),
+                        borderSide: BorderSide.none,
+                      ),
+                      filled: true,
+                      fillColor: themeData.colorScheme.surfaceContainer,
+                      contentPadding: const EdgeInsets.symmetric(
+                          vertical: 14.0, horizontal: 16.0),
+                    ),
+                    onChanged: (value) {
+                      _searchVehicles();
+                    },
+                    onSubmitted: (value) {
+                      _searchVehicles();
                     },
                   ),
                 ),
@@ -502,7 +425,7 @@ class _VehicleListState extends State<VehicleList> {
                       _searchController.clear();
                       _startDate = null;
                       _endDate = null;
-                      _fetchVehicles(reset: true);
+                      _refreshVehicleList();
                     });
                   },
                   items: <String>['licensePlate', 'vehicleType']
@@ -576,7 +499,7 @@ class _VehicleListState extends State<VehicleList> {
                         _endDate = range.end;
                         _searchType = 'dateRange';
                       });
-                      _searchVehicles();
+                      await _refreshVehicleList();
                     }
                   },
                 ),
@@ -586,13 +509,7 @@ class _VehicleListState extends State<VehicleList> {
                         color: themeData.colorScheme.onSurfaceVariant),
                     tooltip: '清除日期范围',
                     onPressed: () {
-                      setState(() {
-                        _startDate = null;
-                        _endDate = null;
-                        _searchType = 'licensePlate';
-                        _searchController.clear();
-                      });
-                      _searchVehicles();
+                      _refreshVehicleList();
                     },
                   ),
               ],
@@ -620,12 +537,13 @@ class _VehicleListState extends State<VehicleList> {
           actions: [
             IconButton(
                 icon: const Icon(Icons.refresh),
-                onPressed: _refreshVehicles,
+                onPressed: () => _refreshVehicleList(),
                 tooltip: '刷新车辆列表'),
-            IconButton(
-                icon: const Icon(Icons.add),
-                onPressed: _createVehicle,
-                tooltip: '添加新车辆信息'),
+            if (_isAdmin)
+              IconButton(
+                  icon: const Icon(Icons.add),
+                  onPressed: _createVehicle,
+                  tooltip: '添加新车辆信息'),
             IconButton(
               icon: Icon(themeData.brightness == Brightness.light
                   ? Icons.dark_mode
@@ -636,7 +554,7 @@ class _VehicleListState extends State<VehicleList> {
           ],
         ),
         body: RefreshIndicator(
-          onRefresh: _refreshVehicles,
+          onRefresh: () => _refreshVehicleList(),
           color: themeData.colorScheme.primary,
           backgroundColor: themeData.colorScheme.surfaceContainer,
           child: Padding(
@@ -759,33 +677,40 @@ class _VehicleListState extends State<VehicleList> {
                                                           .onSurfaceVariant)),
                                         ],
                                       ),
-                                      trailing: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          IconButton(
-                                            icon: const Icon(Icons.edit,
-                                                size: 18),
-                                            color:
-                                                themeData.colorScheme.primary,
-                                            onPressed: () =>
-                                                _editVehicle(vehicle),
-                                            tooltip: '编辑车辆',
-                                          ),
-                                          IconButton(
-                                            icon: Icon(Icons.delete,
-                                                size: 18,
-                                                color: themeData
-                                                    .colorScheme.error),
-                                            onPressed: () => _deleteVehicle(
-                                                vehicle.vehicleId ?? 0),
-                                            tooltip: '删除车辆',
-                                          ),
-                                          Icon(Icons.arrow_forward_ios,
+                                      trailing: _isAdmin
+                                          ? Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                IconButton(
+                                                  icon: const Icon(Icons.edit,
+                                                      size: 18),
+                                                  color: themeData
+                                                      .colorScheme.primary,
+                                                  onPressed: () =>
+                                                      _editVehicle(vehicle),
+                                                  tooltip: '编辑车辆',
+                                                ),
+                                                IconButton(
+                                                  icon: Icon(Icons.delete,
+                                                      size: 18,
+                                                      color: themeData
+                                                          .colorScheme.error),
+                                                  onPressed: () =>
+                                                      _deleteVehicle(
+                                                          vehicle.vehicleId ??
+                                                              0),
+                                                  tooltip: '删除车辆',
+                                                ),
+                                                Icon(Icons.arrow_forward_ios,
+                                                    color: themeData.colorScheme
+                                                        .onSurfaceVariant,
+                                                    size: 18),
+                                              ],
+                                            )
+                                          : Icon(Icons.arrow_forward_ios,
                                               color: themeData
                                                   .colorScheme.onSurfaceVariant,
                                               size: 18),
-                                        ],
-                                      ),
                                       onTap: () => _goToDetailPage(vehicle),
                                     ),
                                   );
@@ -797,13 +722,15 @@ class _VehicleListState extends State<VehicleList> {
             ),
           ),
         ),
-        floatingActionButton: FloatingActionButton(
-          onPressed: _createVehicle,
-          backgroundColor: themeData.colorScheme.primary,
-          foregroundColor: themeData.colorScheme.onPrimary,
-          tooltip: '添加新车辆',
-          child: const Icon(Icons.add),
-        ),
+        floatingActionButton: _isAdmin
+            ? FloatingActionButton(
+                onPressed: _createVehicle,
+                backgroundColor: themeData.colorScheme.primary,
+                foregroundColor: themeData.colorScheme.onPrimary,
+                tooltip: '添加新车辆',
+                child: const Icon(Icons.add),
+              )
+            : null,
       );
     });
   }
@@ -856,7 +783,7 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
 
       await vehicleApi.initializeWithJwt();
       await driverApi.initializeWithJwt();
-      // No pre-filling for ownerName and idCardNumber
+// No pre-filling for ownerName and idCardNumber
       setState(() {
         _contactNumberController.text = ''; // Optional field, leave empty
       });
@@ -1459,7 +1386,7 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
                   size: 18, color: themeData.colorScheme.primary)
               : null,
           hintText: readOnly && label == '身份证号码' ? '请在用户信息管理中修改身份证号码' : null,
-          // Fixed typo: 'weather' to 'label'
+// Fixed typo: 'weather' to 'label'
           hintStyle: TextStyle(
               color: themeData.colorScheme.onSurfaceVariant.withOpacity(0.6)),
         ),
