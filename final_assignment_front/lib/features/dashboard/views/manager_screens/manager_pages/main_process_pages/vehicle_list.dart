@@ -185,12 +185,19 @@ class _VehicleListState extends State<VehicleList> {
         final roles = (userData['roles'] as List<dynamic>?)
                 ?.map((r) => r.toString())
                 .toList() ??
-            [];
-        setState(() => _isAdmin = roles.contains('ROLE_ADMIN'));
+            (JwtDecoder.decode(jwtToken)['roles'] is String
+                ? [JwtDecoder.decode(jwtToken)['roles']]
+                : []);
+        debugPrint('User roles from /api/users/me: $roles');
+        debugPrint('Full userData: $userData');
+        setState(() => _isAdmin = roles.contains('ADMIN')); // Changed to ADMIN
       } else {
+        debugPrint(
+            'Role check failed: Status ${response.statusCode}, Body: ${response.body}');
         throw Exception('验证失败：${response.statusCode}');
       }
     } catch (e) {
+      debugPrint('Error checking role: $e');
       setState(() => _errorMessage = '验证角色失败: $e');
     }
   }
@@ -597,29 +604,52 @@ class _VehicleListState extends State<VehicleList> {
       return Scaffold(
         backgroundColor: themeData.colorScheme.surface,
         appBar: AppBar(
-          title: Text('车辆管理',
-              style: themeData.textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: themeData.colorScheme.onPrimaryContainer)),
+          title: Text(
+            '车辆管理',
+            style: themeData.textTheme.headlineMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: themeData.colorScheme.onPrimaryContainer,
+            ),
+          ),
           backgroundColor: themeData.colorScheme.primaryContainer,
           foregroundColor: themeData.colorScheme.onPrimaryContainer,
           elevation: 2,
           actions: [
-            IconButton(
-                icon: const Icon(Icons.refresh),
-                onPressed: () => _refreshVehicleList(),
-                tooltip: '刷新车辆列表'),
-            if (_isAdmin)
+            // Admin buttons (only shown for admins)
+            if (_isAdmin) ...[
               IconButton(
-                  icon: const Icon(Icons.add),
-                  onPressed: _createVehicle,
-                  tooltip: '添加新车辆信息'),
+                icon: Icon(
+                  Icons.add,
+                  color: themeData.colorScheme.onPrimaryContainer,
+                  size: 24,
+                ),
+                onPressed: _createVehicle,
+                tooltip: '添加车辆',
+                padding: const EdgeInsets.symmetric(horizontal: 12.0),
+              ),
+              IconButton(
+                icon: Icon(
+                  Icons.refresh,
+                  color: themeData.colorScheme.onPrimaryContainer,
+                  size: 24,
+                ),
+                onPressed: () => _refreshVehicleList(),
+                tooltip: '刷新列表',
+                padding: const EdgeInsets.symmetric(horizontal: 12.0),
+              ),
+            ],
+            // Theme toggle button
             IconButton(
-              icon: Icon(themeData.brightness == Brightness.light
-                  ? Icons.dark_mode
-                  : Icons.light_mode),
+              icon: Icon(
+                themeData.brightness == Brightness.light
+                    ? Icons.dark_mode
+                    : Icons.light_mode,
+                color: themeData.colorScheme.onPrimaryContainer,
+                size: 24,
+              ),
               onPressed: controller.toggleBodyTheme,
               tooltip: '切换主题',
+              padding: const EdgeInsets.symmetric(horizontal: 12.0),
             ),
           ],
         ),
@@ -631,6 +661,7 @@ class _VehicleListState extends State<VehicleList> {
             padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
+                const SizedBox(height: 12),
                 _buildSearchField(themeData),
                 const SizedBox(height: 12),
                 Expanded(
@@ -646,8 +677,10 @@ class _VehicleListState extends State<VehicleList> {
                     child: _isLoading && _currentPage == 1
                         ? Center(
                             child: CircularProgressIndicator(
-                                valueColor: AlwaysStoppedAnimation(
-                                    themeData.colorScheme.primary)))
+                              valueColor: AlwaysStoppedAnimation(
+                                  themeData.colorScheme.primary),
+                            ),
+                          )
                         : _errorMessage.isNotEmpty &&
                                 _filteredVehicleList.isEmpty
                             ? Center(
@@ -658,9 +691,9 @@ class _VehicleListState extends State<VehicleList> {
                                       _errorMessage,
                                       style: themeData.textTheme.titleMedium
                                           ?.copyWith(
-                                              color:
-                                                  themeData.colorScheme.error,
-                                              fontWeight: FontWeight.w500),
+                                        color: themeData.colorScheme.error,
+                                        fontWeight: FontWeight.w500,
+                                      ),
                                       textAlign: TextAlign.center,
                                     ),
                                     if (_errorMessage.contains('未授权') ||
@@ -691,10 +724,11 @@ class _VehicleListState extends State<VehicleList> {
                                   if (index == _filteredVehicleList.length &&
                                       _hasMore) {
                                     return const Padding(
-                                        padding: EdgeInsets.all(8.0),
-                                        child: Center(
-                                            child:
-                                                CircularProgressIndicator()));
+                                      padding: EdgeInsets.all(8.0),
+                                      child: Center(
+                                        child: CircularProgressIndicator(),
+                                      ),
+                                    );
                                   }
                                   final vehicle = _filteredVehicleList[index];
                                   return Card(
@@ -704,8 +738,8 @@ class _VehicleListState extends State<VehicleList> {
                                     color:
                                         themeData.colorScheme.surfaceContainer,
                                     shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(16.0)),
+                                      borderRadius: BorderRadius.circular(16.0),
+                                    ),
                                     child: ListTile(
                                       contentPadding:
                                           const EdgeInsets.symmetric(
@@ -714,9 +748,10 @@ class _VehicleListState extends State<VehicleList> {
                                         '车牌号: ${vehicle.licensePlate ?? '未知车牌'}',
                                         style: themeData.textTheme.titleMedium
                                             ?.copyWith(
-                                                color: themeData
-                                                    .colorScheme.onSurface,
-                                                fontWeight: FontWeight.w600),
+                                          color:
+                                              themeData.colorScheme.onSurface,
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
                                       subtitle: Column(
                                         crossAxisAlignment:
@@ -724,29 +759,32 @@ class _VehicleListState extends State<VehicleList> {
                                         children: [
                                           const SizedBox(height: 4),
                                           Text(
-                                              '类型: ${vehicle.vehicleType ?? '未知类型'}',
-                                              style: themeData
-                                                  .textTheme.bodyMedium
-                                                  ?.copyWith(
-                                                      color: themeData
-                                                          .colorScheme
-                                                          .onSurfaceVariant)),
+                                            '类型: ${vehicle.vehicleType ?? '未知类型'}',
+                                            style: themeData
+                                                .textTheme.bodyMedium
+                                                ?.copyWith(
+                                              color: themeData
+                                                  .colorScheme.onSurfaceVariant,
+                                            ),
+                                          ),
                                           Text(
-                                              '车主: ${vehicle.ownerName ?? '未知车主'}',
-                                              style: themeData
-                                                  .textTheme.bodyMedium
-                                                  ?.copyWith(
-                                                      color: themeData
-                                                          .colorScheme
-                                                          .onSurfaceVariant)),
+                                            '车主: ${vehicle.ownerName ?? '未知车主'}',
+                                            style: themeData
+                                                .textTheme.bodyMedium
+                                                ?.copyWith(
+                                              color: themeData
+                                                  .colorScheme.onSurfaceVariant,
+                                            ),
+                                          ),
                                           Text(
-                                              '状态: ${vehicle.currentStatus ?? '无'}',
-                                              style: themeData
-                                                  .textTheme.bodyMedium
-                                                  ?.copyWith(
-                                                      color: themeData
-                                                          .colorScheme
-                                                          .onSurfaceVariant)),
+                                            '状态: ${vehicle.currentStatus ?? '无'}',
+                                            style: themeData
+                                                .textTheme.bodyMedium
+                                                ?.copyWith(
+                                              color: themeData
+                                                  .colorScheme.onSurfaceVariant,
+                                            ),
+                                          ),
                                         ],
                                       ),
                                       trailing: _isAdmin
@@ -763,26 +801,32 @@ class _VehicleListState extends State<VehicleList> {
                                                   tooltip: '编辑车辆',
                                                 ),
                                                 IconButton(
-                                                  icon: Icon(Icons.delete,
-                                                      size: 18,
-                                                      color: themeData
-                                                          .colorScheme.error),
+                                                  icon: Icon(
+                                                    Icons.delete,
+                                                    size: 18,
+                                                    color: themeData
+                                                        .colorScheme.error,
+                                                  ),
                                                   onPressed: () =>
                                                       _deleteVehicle(
                                                           vehicle.vehicleId ??
                                                               0),
                                                   tooltip: '删除车辆',
                                                 ),
-                                                Icon(Icons.arrow_forward_ios,
-                                                    color: themeData.colorScheme
-                                                        .onSurfaceVariant,
-                                                    size: 18),
+                                                Icon(
+                                                  Icons.arrow_forward_ios,
+                                                  color: themeData.colorScheme
+                                                      .onSurfaceVariant,
+                                                  size: 18,
+                                                ),
                                               ],
                                             )
-                                          : Icon(Icons.arrow_forward_ios,
+                                          : Icon(
+                                              Icons.arrow_forward_ios,
                                               color: themeData
                                                   .colorScheme.onSurfaceVariant,
-                                              size: 18),
+                                              size: 18,
+                                            ),
                                       onTap: () => _goToDetailPage(vehicle),
                                     ),
                                   );
@@ -794,15 +838,6 @@ class _VehicleListState extends State<VehicleList> {
             ),
           ),
         ),
-        floatingActionButton: _isAdmin
-            ? FloatingActionButton(
-                onPressed: _createVehicle,
-                backgroundColor: themeData.colorScheme.primary,
-                foregroundColor: themeData.colorScheme.onPrimary,
-                tooltip: '添加新车辆',
-                child: const Icon(Icons.add),
-              )
-            : null,
       );
     });
   }
@@ -1799,13 +1834,21 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
         final roles = (userData['roles'] as List<dynamic>?)
                 ?.map((r) => r.toString())
                 .toList() ??
-            [];
-        setState(() => _isEditable = roles.contains('ROLE_ADMIN') ||
-            (_currentDriverName == widget.vehicle.ownerName));
+            (JwtDecoder.decode(jwtToken)['roles'] is String
+                ? [JwtDecoder.decode(jwtToken)['roles']]
+                : []);
+        debugPrint('User roles from /api/users/me: $roles');
+        debugPrint('Full userData: $userData');
+        setState(
+            () => _isEditable = roles.contains('ADMIN') || // Changed to ADMIN
+                (_currentDriverName == widget.vehicle.ownerName));
       } else {
+        debugPrint(
+            'Role check failed: Status ${response.statusCode}, Body: ${response.body}');
         throw Exception('验证失败：${response.statusCode}');
       }
     } catch (e) {
+      debugPrint('Error checking role: $e');
       setState(() => _errorMessage = '加载权限失败: $e');
     }
   }
