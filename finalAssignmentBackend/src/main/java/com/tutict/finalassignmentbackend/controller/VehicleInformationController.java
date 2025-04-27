@@ -114,37 +114,52 @@ public class VehicleInformationController {
     @GetMapping("/autocomplete/license-plate-globally/me")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<String>> getLicensePlateAutocompleteSuggestionsGlobally(
-            @RequestParam String prefix,
-            @RequestParam(defaultValue = "5") int maxSuggestions) {
+            @RequestParam String licensePlate) {
 
-        // 解码 URL 编码的 prefix
-        String decodedPrefix = URLDecoder.decode(prefix, StandardCharsets.UTF_8);
-        log.log(Level.INFO, "Fetching license plate suggestions for prefix: {0}, decoded: {1}, maxSuggestions: {2}",
-                new Object[]{prefix, decodedPrefix, maxSuggestions});
+        // Decode URL-encoded prefix
+        String decodedPrefix = URLDecoder.decode(licensePlate, StandardCharsets.UTF_8);
+        log.log(Level.INFO, "Fetching license plate suggestions for prefix: {0}, decoded: {1}",
+                new Object[]{licensePlate, decodedPrefix});
 
-        List<String> suggestions = vehicleInformationService.getVehicleInformationByLicensePlateGlobally(decodedPrefix, maxSuggestions);
+        // Fetch suggestions, default to empty list if null
+        List<String> suggestions = vehicleInformationService.getVehicleInformationByLicensePlateGlobally(decodedPrefix);
+        if (suggestions == null) {
+            suggestions = Collections.emptyList();
+        }
 
         if (suggestions.isEmpty()) {
             log.log(Level.INFO, "No license plate suggestions found for prefix: {0}", new Object[]{decodedPrefix});
+        } else {
+            log.log(Level.INFO, "Found {0} license plate suggestions for prefix: {1}",
+                    new Object[]{suggestions.size(), decodedPrefix});
         }
+
         return ResponseEntity.ok(suggestions);
     }
 
     @GetMapping("/autocomplete/vehicle-type-globally/me")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<String>> getVehicleTypeAutocompleteSuggestionsGlobally(
-            @RequestParam String prefix,
-            @RequestParam(defaultValue = "5") int maxSuggestions) {
+            @RequestParam String vehicleType) {
 
-        String decodedPrefix = URLDecoder.decode(prefix, StandardCharsets.UTF_8);
-        log.log(Level.INFO, "Fetching vehicle type suggestions for prefix: {0}, decoded: {1}, maxSuggestions: {2}",
-                new Object[]{prefix, decodedPrefix, maxSuggestions});
+        // Decode URL-encoded prefix
+        String decodedPrefix = URLDecoder.decode(vehicleType, StandardCharsets.UTF_8);
+        log.log(Level.INFO, "Fetching vehicle type suggestions for prefix: {0}, decoded: {1}",
+                new Object[]{vehicleType, decodedPrefix});
 
-        List<String> suggestions = vehicleInformationService.getVehicleInformationByTypeGlobally(decodedPrefix, maxSuggestions);
+        // Fetch suggestions, default to empty list if null
+        List<String> suggestions = vehicleInformationService.getVehicleTypesByPrefixGlobally(decodedPrefix);
+        if (suggestions == null) {
+            suggestions = Collections.emptyList();
+        }
 
         if (suggestions.isEmpty()) {
             log.log(Level.INFO, "No vehicle type suggestions found for prefix: {0}", new Object[]{decodedPrefix});
+        } else {
+            log.log(Level.INFO, "Found {0} vehicle type suggestions for prefix: {1}",
+                    new Object[]{suggestions.size(), decodedPrefix});
         }
+
         return ResponseEntity.ok(suggestions);
     }
 

@@ -390,48 +390,54 @@ public class VehicleInformationService {
         return resultList.size() <= maxSuggestions ? resultList : resultList.subList(0, maxSuggestions);
     }
 
-    @Cacheable(cacheNames = "vehicleCache", unless = "#result == null")
-    @WsAction(service = "VehicleInformationService", action = "getVehicleInformationByLicensePlateGlobally")
-    public VehicleInformation getVehicleInformationByLicensePlateGlobally(String licensePlate) {
-        validateInput(licensePlate, "Invalid license plate number");
-        log.log(Level.INFO, "Fetching vehicle for license plate: {0}", new Object[]{licensePlate});
+    @Cacheable(cacheNames = "vehicleCache", unless = "#result.isEmpty()")
+    public List<String> getVehicleInformationByLicensePlateGlobally(String prefix) {
+        validateInput(prefix, "Invalid license plate prefix");
+        log.log(Level.INFO, "Fetching license plate suggestions for prefix: {0}", new Object[]{prefix});
 
         try {
-            QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
-            queryWrapper.eq("license_plate", licensePlate);
-            List<VehicleInformation> results = vehicleInformationMapper.selectList(queryWrapper);
-            if (results.isEmpty()) {
-                log.info("No vehicle found for license plate: " + licensePlate);
-                return null;
-            } else if (results.size() > 1) {
-                log.warning("Multiple vehicles found for license plate: " + licensePlate + ". Returning first result.");
-                return results.getFirst();
-            }
-            log.log(Level.INFO, "Found vehicle for license plate: {0}", new Object[]{licensePlate});
-            return results.getFirst();
+            SearchHits<VehicleInformationDocument> searchHits = vehicleInformationSearchRepository
+                    .findCompletionSuggestionsGlobally(prefix, 10);
+            List<String> suggestions = searchHits.getSearchHits().stream()
+                    .map(SearchHit::getContent)
+                    .map(VehicleInformationDocument::getLicensePlate)
+                    .filter(licensePlate -> licensePlate != null)
+                    .distinct()
+                    .limit(10)
+                    .collect(Collectors.toList());
+
+            log.log(Level.INFO, "Found {0} license plate suggestions for prefix: {1}",
+                    new Object[]{suggestions.size(), prefix});
+            return suggestions.isEmpty() ? Collections.emptyList() : suggestions;
         } catch (Exception e) {
-            log.log(Level.WARNING, "Error fetching vehicle for license plate {0}: {1}",
-                    new Object[]{licensePlate, e.getMessage()});
-            return null;
+            log.log(Level.WARNING, "Error fetching license plate suggestions for prefix {0}: {1}",
+                    new Object[]{prefix, e.getMessage()});
+            return Collections.emptyList();
         }
     }
 
     @Cacheable(cacheNames = "vehicleCache", unless = "#result.isEmpty()")
-    @WsAction(service = "VehicleInformationService", action = "getVehicleInformationByTypeGlobally")
-    public List<VehicleInformation> getVehicleInformationByTypeGlobally(String vehicleType) {
-        validateInput(vehicleType, "Invalid vehicle type");
-        log.log(Level.INFO, "Fetching vehicles for vehicle type: {0}", new Object[]{vehicleType});
+    public List<String> getVehicleTypesByPrefixGlobally(String prefix) {
+        validateInput(prefix, "Invalid vehicle type prefix");
+        log.log(Level.INFO, "Fetching vehicle type suggestions for prefix: {0}", new Object[]{prefix});
 
         try {
-            QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
-            queryWrapper.eq("vehicle_type", vehicleType);
-            List<VehicleInformation> results = vehicleInformationMapper.selectList(queryWrapper);
-            log.log(Level.INFO, "Found {0} vehicles for vehicle type: {1}",
-                    new Object[]{results.size(), vehicleType});
-            return results != null ? results : Collections.emptyList();
+            SearchHits<VehicleInformationDocument> searchHits = vehicleInformationSearchRepository
+                    .searchByVehicleTypePrefixGlobally(prefix);
+            List<String> suggestions = searchHits.getSearchHits().stream()
+                    .map(SearchHit::getContent)
+                    .map(VehicleInformationDocument::getVehicleType)
+                    .filter(vehicleType -> vehicleType != null)
+                    .distinct()
+                    .limit(10)
+                    .collect(Collectors.toList());
+
+            log.log(Level.INFO, "Found {0} vehicle type suggestions for prefix: {1}",
+                    new Object[]{suggestions.size(), prefix});
+            return suggestions.isEmpty() ? Collections.emptyList() : suggestions;
         } catch (Exception e) {
-            log.log(Level.WARNING, "Error fetching vehicles for vehicle type {0}: {1}",
-                    new Object[]{vehicleType, e.getMessage()});
+            log.log(Level.WARNING, "Error fetching vehicle type suggestions for prefix {0}: {1}",
+                    new Object[]{prefix, e.getMessage()});
             return Collections.emptyList();
         }
     }

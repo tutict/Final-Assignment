@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:final_assignment_front/features/dashboard/controllers/progress_controller.dart';
+import 'package:final_assignment_front/features/dashboard/controllers/progress_controller.dart' hide UserManagement;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';

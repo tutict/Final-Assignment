@@ -26,7 +26,7 @@ class VehicleInformationControllerApi {
     }
   }
 
-// Search vehicles by query
+  // Search vehicles by query
   Future<List<VehicleInformation>> apiVehiclesSearchGet({
     required String query,
     int page = 1,
@@ -57,7 +57,7 @@ class VehicleInformationControllerApi {
         'Failed to search vehicles: ${response.statusCode} - ${response.body}');
   }
 
-// Autocomplete suggestions for license plate (current user)
+  // Autocomplete suggestions for license plate (current user)
   Future<List<String>> apiVehiclesAutocompleteLicensePlateMeGet({
     required String prefix,
     required String idCardNumber,
@@ -73,7 +73,8 @@ class VehicleInformationControllerApi {
       'idCardNumber': Uri.encodeQueryComponent(idCardNumber),
     };
 
-    final uri = Uri.parse('http://localhost:8081/api/vehicles/autocomplete/license-plate/me')
+    final uri = Uri.parse(
+            'http://localhost:8081/api/vehicles/autocomplete/license-plate/me')
         .replace(queryParameters: queryParameters);
 
     final prefs = await SharedPreferences.getInstance();
@@ -109,7 +110,7 @@ class VehicleInformationControllerApi {
         'Failed to fetch license plate suggestions: ${response.statusCode} - ${response.body}');
   }
 
-// Autocomplete suggestions for vehicle type (current user)
+  // Autocomplete suggestions for vehicle type (current user)
   Future<List<String>> apiVehiclesAutocompleteVehicleTypeMeGet({
     required String prefix,
     required String idCardNumber,
@@ -125,7 +126,8 @@ class VehicleInformationControllerApi {
       'idCardNumber': Uri.encodeQueryComponent(idCardNumber),
     };
 
-    final uri = Uri.parse('http://localhost:8081/api/vehicles/autocomplete/vehicle-type/me')
+    final uri = Uri.parse(
+            'http://localhost:8081/api/vehicles/autocomplete/vehicle-type/me')
         .replace(queryParameters: queryParameters);
 
     final prefs = await SharedPreferences.getInstance();
@@ -160,14 +162,86 @@ class VehicleInformationControllerApi {
         'Failed to fetch vehicle type suggestions: ${response.statusCode} - ${response.body}');
   }
 
-// Autocomplete suggestions for license plate globally (just for admin)
-  Future<List<String>> apiVehiclesAutocompleteLicensePlateGloballyMeGet({
-    required String prefix,
-    int maxSuggestions = 5,
+  // Existing methods (e.g., getAllVehicles, getVehiclesByOwnerIdCardNumber) remain unchanged
+  Future<List<VehicleInformation>?> getAllVehicles({
+    required int page,
+    required int size,
   }) async {
     final queryParameters = <String, dynamic>{
-      'prefix': Uri.encodeQueryComponent(prefix),
-      'maxSuggestions': maxSuggestions.toString(),
+      'page': page,
+      'size': size,
+    };
+
+    final uri = Uri.parse('http://localhost:8081/api/vehicles/all')
+        .replace(queryParameters: queryParameters);
+
+    final prefs = await SharedPreferences.getInstance();
+    final jwtToken = prefs.getString('jwtToken');
+    if (jwtToken == null) {
+      throw Exception('JWT token not found in SharedPreferences');
+    }
+    final response = await http.get(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $jwtToken',
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Accept': 'application/json; charset=UTF-8',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final decodedBody = utf8.decode(response.bodyBytes);
+      final List<dynamic> data = jsonDecode(decodedBody);
+      return data.map((json) => VehicleInformation.fromJson(json)).toList();
+    }
+    debugPrint(
+        'Error fetching all vehicles: ${response.statusCode} - ${response.body}');
+    return null;
+  }
+
+  Future<List<VehicleInformation>?> getVehiclesByOwnerIdCardNumber({
+    required String idCardNumber,
+    required int page,
+    required int size,
+  }) async {
+    final queryParameters = <String, dynamic>{
+      'page': page,
+      'size': size,
+    };
+
+    final uri =
+        Uri.parse('http://localhost:8081/api/vehicles/owner/$idCardNumber')
+            .replace(queryParameters: queryParameters);
+
+    final prefs = await SharedPreferences.getInstance();
+    final jwtToken = prefs.getString('jwtToken');
+    if (jwtToken == null) {
+      throw Exception('JWT token not found in SharedPreferences');
+    }
+    final response = await http.get(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $jwtToken',
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Accept': 'application/json; charset=UTF-8',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final decodedBody = utf8.decode(response.bodyBytes);
+      final List<dynamic> data = jsonDecode(decodedBody);
+      return data.map((json) => VehicleInformation.fromJson(json)).toList();
+    }
+    debugPrint(
+        'Error fetching vehicles by idCardNumber: ${response.statusCode} - ${response.body}');
+    return null;
+  }
+
+  Future<List<String>> apiVehiclesLicensePlateGloballyGet({
+    required String licensePlate,
+  }) async {
+    final queryParameters = <String, dynamic>{
+      'licensePlate': Uri.encodeQueryComponent(licensePlate),
     };
 
     final uri = Uri.parse(
@@ -191,33 +265,28 @@ class VehicleInformationControllerApi {
 
     if (response.statusCode == 200) {
       final decodedBody = utf8.decode(response.bodyBytes);
-      debugPrint(
-          'Raw response body (license plate autocomplete globally): $decodedBody');
+      debugPrint('Raw response body (license plate suggestions): $decodedBody');
       final List<dynamic> data = jsonDecode(decodedBody);
       return data.cast<String>();
-    } else if (response.statusCode == 404) {
-      debugPrint('No license plate suggestions found for prefix: $prefix');
+    } else if (response.statusCode == 404 || response.statusCode == 400) {
+      debugPrint('No license plate suggestions found for: $licensePlate');
       return [];
-    } else if (response.statusCode == 400) {
-      throw Exception('Invalid prefix for license plate: ${response.body}');
     }
     throw Exception(
         'Failed to fetch license plate suggestions: ${response.statusCode} - ${response.body}');
   }
 
-// Autocomplete suggestions for vehicle type globally (just for admin)
-  Future<List<String>> apiVehiclesAutocompleteVehicleTypeGloballyMeGet({
-    required String prefix,
-    int maxSuggestions = 5,
+  // Get vehicle type suggestions globally
+  Future<List<String>> apiVehiclesTypeGloballyGet({
+    required String vehicleType,
   }) async {
     final queryParameters = <String, dynamic>{
-      'prefix': Uri.encodeQueryComponent(prefix),
-      'maxSuggestions': maxSuggestions.toString(),
+      'vehicleType': Uri.encodeQueryComponent(vehicleType),
     };
 
-    final uri =
-        Uri.parse('http://localhost:8081/api/vehicles/autocomplete/vehicle-type-globally/me')
-            .replace(queryParameters: queryParameters);
+    final uri = Uri.parse(
+            'http://localhost:8081/api/vehicles/autocomplete/vehicle-type-globally/me')
+        .replace(queryParameters: queryParameters);
 
     final prefs = await SharedPreferences.getInstance();
     final jwtToken = prefs.getString('jwtToken');
@@ -236,21 +305,55 @@ class VehicleInformationControllerApi {
 
     if (response.statusCode == 200) {
       final decodedBody = utf8.decode(response.bodyBytes);
-      debugPrint(
-          'Raw response body (vehicle type autocomplete globally): $decodedBody');
+      debugPrint('Raw response body (vehicle type suggestions): $decodedBody');
       final List<dynamic> data = jsonDecode(decodedBody);
       return data.cast<String>();
-    } else if (response.statusCode == 404) {
-      debugPrint('No vehicle type suggestions found for prefix: $prefix');
+    } else if (response.statusCode == 404 || response.statusCode == 400) {
+      debugPrint('No vehicle type suggestions found for: $vehicleType');
       return [];
-    } else if (response.statusCode == 400) {
-      throw Exception('Invalid prefix for vehicle type: ${response.body}');
     }
     throw Exception(
         'Failed to fetch vehicle type suggestions: ${response.statusCode} - ${response.body}');
   }
 
-// Create vehicle
+  // Get vehicle by license plate
+  Future<VehicleInformation?> getVehicleByLicensePlate({
+    required String licensePlate,
+  }) async {
+    final uri = Uri.parse(
+        'http://localhost:8081/api/vehicles/license-plate/${Uri.encodeComponent(licensePlate)}');
+
+    final prefs = await SharedPreferences.getInstance();
+    final jwtToken = prefs.getString('jwtToken');
+    if (jwtToken == null) {
+      throw Exception('JWT token not found in SharedPreferences');
+    }
+    debugPrint('Request URL: $uri');
+    final response = await http.get(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $jwtToken',
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Accept': 'application/json; charset=UTF-8',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final decodedBody = utf8.decode(response.bodyBytes);
+      debugPrint('Raw response body (vehicle by license plate): $decodedBody');
+      return VehicleInformation.fromJson(jsonDecode(decodedBody));
+    } else if (response.statusCode == 404) {
+      debugPrint('No vehicle found for license plate: $licensePlate');
+      return null;
+    } else if (response.statusCode == 400) {
+      debugPrint('Invalid license plate: ${response.body}');
+      throw Exception('Invalid license plate: ${response.body}');
+    }
+    throw Exception(
+        'Failed to fetch vehicle by license plate: ${response.statusCode} - ${response.body}');
+  }
+
+  // Create vehicle
   Future<void> apiVehiclesPost({
     required VehicleInformation vehicleInformation,
     required String idempotencyKey,
@@ -277,34 +380,37 @@ class VehicleInformationControllerApi {
     }
   }
 
-// Get all vehicles
-  Future<List<VehicleInformation>> apiVehiclesGet({
-    int page = 1,
-    int size = 10,
-  }) async {
-    final queryParams = [
-      QueryParam('page', page.toString()),
-      QueryParam('size', size.toString()),
-    ];
+  // Get all vehicles
+  Future<List<VehicleInformation>> apiVehiclesGet() async {
     final response = await _apiClient.invokeAPI(
       '/api/vehicles',
       'GET',
-      queryParams,
+      [],
       null,
       {'Content-Type': 'application/json; charset=UTF-8'},
       {'Accept': 'application/json; charset=UTF-8'},
       'application/json',
       ['bearerAuth'],
     );
+
     if (response.statusCode == 200) {
       final decodedBody = utf8.decode(response.bodyBytes);
-      debugPrint('Raw response body (get all): $decodedBody');
+      debugPrint('Raw response body (get all vehicles): $decodedBody');
       final List<dynamic> data = jsonDecode(decodedBody);
       return VehicleInformation.listFromJson(data);
     } else if (response.statusCode == 404) {
+      debugPrint('No vehicles found (404)');
       return [];
+    } else if (response.statusCode == 403) {
+      debugPrint('Access denied: Invalid or missing JWT (403)');
+      throw Exception('认证失败：请重新登录');
+    } else if (response.statusCode == 401) {
+      debugPrint('Unauthorized: Invalid JWT (401)');
+      throw Exception('未授权：请重新登录');
     }
-    throw Exception('Failed to fetch all vehicles: ${response.statusCode}');
+    debugPrint(
+        'Failed to fetch vehicles: ${response.statusCode} - ${response.body}');
+    throw Exception('获取车辆信息失败：${response.statusCode}');
   }
 
 // Get vehicle by ID
