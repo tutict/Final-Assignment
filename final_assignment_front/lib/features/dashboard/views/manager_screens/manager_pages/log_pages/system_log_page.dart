@@ -1,13 +1,28 @@
-import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_dashboard_screen.dart';
-import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'dart:developer' as developer;
+
+import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/features/api/system_logs_controller_api.dart';
-import 'package:final_assignment_front/features/api/role_management_controller_api.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_dashboard_screen.dart';
 import 'package:final_assignment_front/features/model/system_logs.dart';
+import 'package:final_assignment_front/utils/helpers/api_exception.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:jwt_decoder/jwt_decoder.dart';
-import 'package:uuid/uuid.dart';
+import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
+
+String generateIdempotencyKey() {
+  return const Uuid().v4();
+}
+
+String formatDateTime(DateTime? dateTime) {
+  if (dateTime == null) return '未提供';
+  return DateFormat('yyyy-MM-dd HH:mm:ss').format(dateTime);
+}
 
 class SystemLogPage extends StatefulWidget {
   const SystemLogPage({super.key});
@@ -17,80 +32,153 @@ class SystemLogPage extends StatefulWidget {
 }
 
 class _SystemLogPageState extends State<SystemLogPage> {
-  final TextEditingController _searchController = TextEditingController();
   final SystemLogsControllerApi logApi = SystemLogsControllerApi();
-  final RoleManagementControllerApi roleApi = RoleManagementControllerApi();
-  final List<SystemLogs> _logList = [];
-  bool _isLoading = true;
-  String _errorMessage = '';
-  String _searchType = 'logType'; // Default search type
-  String? _currentUsername;
-  bool _isAdmin = false;
-  DateTimeRange? _selectedDateRange;
-
+  final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   final DashboardController controller = Get.find<DashboardController>();
+  List<SystemLogs> _logs = [];
+  List<SystemLogs> _filteredLogs = [];
+  String _searchType = 'logType';
+  DateTime? _startTime;
+  DateTime? _endTime;
+  int _currentPage = 1;
+  final int _pageSize = 20;
+  bool _hasMore = true;
+  bool _isLoading = false;
+  bool _isAdmin = false;
+  String _errorMessage = '';
+  String? _currentUsername;
 
   @override
   void initState() {
     super.initState();
     _initialize();
-  }
-
-  Future<void> _initialize() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = '';
+    _searchController.addListener(() {
+      _applyFilters(_searchController.text);
     });
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken');
-      if (jwtToken == null) throw Exception('未找到 JWT，请重新登录');
-      final decodedToken = JwtDecoder.decode(jwtToken);
-      _currentUsername = decodedToken['sub'] ?? '';
-      if (_currentUsername!.isEmpty) throw Exception('JWT 中未找到用户名');
-      // Handle roles as String or List
-      List<String> roles;
-      final rawRoles = decodedToken['roles'];
-      if (rawRoles is String) {
-        roles = rawRoles.split(',').map((role) => role.trim()).toList();
-      } else if (rawRoles is List<dynamic>) {
-        roles = rawRoles.cast<String>();
-      } else {
-        roles = [];
+    _scrollController.addListener(() {
+      if (_scrollController.position.pixels ==
+              _scrollController.position.maxScrollExtent &&
+          _hasMore &&
+          !_isLoading) {
+        _loadMoreLogs();
       }
-      // Check for ADMIN role (case-insensitive)
-      _isAdmin = roles.any((role) => role.toUpperCase() == 'ADMIN');
-      debugPrint(
-          'Current username from JWT: $_currentUsername, isAdmin: $_isAdmin, roles: $roles');
-
-      await logApi.initializeWithJwt();
-      await roleApi.initializeWithJwt();
-      if (_isAdmin) {
-        await _fetchLogs(reset: true);
-      } else {
-        setState(() {
-          _errorMessage = '仅管理员可查看系统日志';
-        });
-      }
-    } catch (e) {
-      setState(() {
-        _errorMessage = '初始化失败: $e';
-      });
-    } finally {
-      setState(() => _isLoading = false);
-    }
+    });
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
+  Future<bool> _validateJwtToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    String? jwtToken = prefs.getString('jwtToken');
+    if (jwtToken == null || jwtToken.isEmpty) {
+      setState(() => _errorMessage = '未授权，请重新登录');
+      return false;
+    }
+    try {
+      final decodedToken = JwtDecoder.decode(jwtToken);
+      if (JwtDecoder.isExpired(jwtToken)) {
+        jwtToken = await _refreshJwtToken();
+        if (jwtToken == null) {
+          setState(() => _errorMessage = '登录已过期，请重新登录');
+          return false;
+        }
+        await prefs.setString('jwtToken', jwtToken);
+        if (JwtDecoder.isExpired(jwtToken)) {
+          setState(() => _errorMessage = '新登录信息已过期，请重新登录');
+          return false;
+        }
+        await logApi.initializeWithJwt();
+      }
+      _currentUsername = decodedToken['sub'] ?? '';
+      return true;
+    } catch (e) {
+      setState(() => _errorMessage = '无效的登录信息，请重新登录');
+      return false;
+    }
+  }
+
+  Future<String?> _refreshJwtToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    final refreshToken = prefs.getString('refreshToken');
+    if (refreshToken == null) return null;
+    try {
+      final response = await http.post(
+        Uri.parse('http://localhost:8081/api/auth/refresh'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'refreshToken': refreshToken}),
+      );
+      if (response.statusCode == 200) {
+        final newJwt = jsonDecode(response.body)['jwtToken'];
+        await prefs.setString('jwtToken', newJwt);
+        return newJwt;
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Future<void> _initialize() async {
+    setState(() => _isLoading = true);
+    try {
+      if (!await _validateJwtToken()) {
+        Get.offAllNamed(AppPages.login);
+        return;
+      }
+      await logApi.initializeWithJwt();
+      await _checkUserRole();
+      if (_isAdmin) {
+        await _fetchLogs(reset: true);
+      } else {
+        setState(() => _errorMessage = '权限不足：仅管理员可访问此页面');
+      }
+    } catch (e) {
+      setState(() => _errorMessage = '初始化失败: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _checkUserRole() async {
+    try {
+      if (!await _validateJwtToken()) {
+        Get.offAllNamed(AppPages.login);
+        return;
+      }
+      final prefs = await SharedPreferences.getInstance();
+      final jwtToken = prefs.getString('jwtToken')!;
+      final decodedToken = JwtDecoder.decode(jwtToken);
+      final roles = decodedToken['roles'] is List
+          ? (decodedToken['roles'] as List).map((r) => r.toString()).toList()
+          : decodedToken['roles'] is String
+              ? [decodedToken['roles'].toString()]
+              : [];
+      setState(() => _isAdmin = roles.contains('ADMIN'));
+      if (!_isAdmin) {
+        setState(() => _errorMessage = '权限不足：仅管理员可访问此页面');
+      }
+      developer.log('User roles from JWT: $roles');
+    } catch (e) {
+      setState(() => _errorMessage = '验证角色失败: $e');
+      developer.log('Error checking user role: $e',
+          stackTrace: StackTrace.current);
+    }
+  }
+
   Future<void> _fetchLogs({bool reset = false, String? query}) async {
-    if (!_isAdmin) return;
+    if (!_isAdmin || !_hasMore) return;
+
     if (reset) {
-      _logList.clear();
+      _currentPage = 1;
+      _hasMore = true;
+      _logs.clear();
+      _filteredLogs.clear();
     }
 
     setState(() {
@@ -98,52 +186,56 @@ class _SystemLogPageState extends State<SystemLogPage> {
       _errorMessage = '';
     });
 
-    final searchQuery = query?.trim() ?? '';
-    debugPrint(
-        'Fetching logs with query: $searchQuery, searchType: $_searchType, dateRange: $_selectedDateRange');
-
     try {
+      if (!await _validateJwtToken()) {
+        Get.offAllNamed(AppPages.login);
+        return;
+      }
       List<SystemLogs> logs = [];
-      if (_selectedDateRange != null) {
-        final startTime = _selectedDateRange!.start.toIso8601String();
-        final endTime = _selectedDateRange!.end.toIso8601String();
-        debugPrint('Fetching logs by time range: $startTime to $endTime');
-        logs = await logApi.apiSystemLogsTimeRangeGet(
-          startTime: startTime,
-          endTime: endTime,
-        );
-      } else if (searchQuery.isEmpty) {
-        debugPrint('Fetching all logs');
-        logs = await logApi.apiSystemLogsGet();
-      } else if (_searchType == 'logType') {
-        debugPrint('Fetching logs by logType: $searchQuery');
+      final searchQuery = query?.trim() ?? '';
+      if (_searchType == 'logType' && searchQuery.isNotEmpty) {
         logs = await logApi.apiSystemLogsTypeLogTypeGet(
           logType: searchQuery,
         );
-      } else if (_searchType == 'operationUser') {
-        debugPrint('Fetching logs by operationUser: $searchQuery');
+      } else if (_searchType == 'operationUser' && searchQuery.isNotEmpty) {
         logs = await logApi.apiSystemLogsOperationUserGet(
           operationUser: searchQuery,
         );
+      } else if (_startTime != null && _endTime != null) {
+        logs = await logApi.apiSystemLogsTimeRangeGet(
+          startTime: _startTime!.toIso8601String(),
+          endTime: _endTime!.add(const Duration(days: 1)).toIso8601String(),
+        );
+      } else {
+        logs = await logApi.apiSystemLogsGet();
       }
 
-      debugPrint('Logs fetched: ${logs.map((l) => l.toJson()).toList()}');
       setState(() {
-        _logList.addAll(logs);
-        if (_logList.isEmpty) {
-          _errorMessage = searchQuery.isNotEmpty || _selectedDateRange != null
-              ? '未找到符合条件的日志'
-              : '当前没有日志记录';
-        }
-      });
-    } catch (e) {
-      setState(() {
-        if (e.toString().contains('404')) {
-          _logList.clear();
-          _errorMessage = '未找到符合条件的日志';
-        } else {
+        _logs.addAll(logs);
+        _hasMore = logs.length == _pageSize;
+        _applyFilters(query ?? _searchController.text);
+        if (_filteredLogs.isEmpty) {
           _errorMessage =
-              e.toString().contains('403') ? '未授权，请重新登录' : '获取日志失败: $e';
+              searchQuery.isNotEmpty || (_startTime != null && _endTime != null)
+                  ? '未找到符合条件的日志记录'
+                  : '暂无日志记录';
+        }
+        _currentPage++;
+      });
+      developer.log('Loaded logs: ${_logs.length}');
+    } catch (e) {
+      developer.log('Error fetching logs: $e', stackTrace: StackTrace.current);
+      setState(() {
+        if (e is ApiException && e.code == 404) {
+          _logs.clear();
+          _filteredLogs.clear();
+          _errorMessage = '未找到符合条件的日志记录';
+          _hasMore = false;
+        } else if (e.toString().contains('403')) {
+          _errorMessage = '未授权，请重新登录';
+          Get.offAllNamed(AppPages.login);
+        } else {
+          _errorMessage = '加载日志信息失败: ${_formatErrorMessage(e)}';
         }
       });
     } finally {
@@ -151,174 +243,220 @@ class _SystemLogPageState extends State<SystemLogPage> {
     }
   }
 
+  void _applyFilters(String query) {
+    final searchQuery = query.trim().toLowerCase();
+    setState(() {
+      _filteredLogs = _logs.where((log) {
+        final logType = (log.logType ?? '').toLowerCase();
+        final operationUser = (log.operationUser ?? '').toLowerCase();
+        final operationTime = log.operationTime;
+
+        bool matchesQuery = true;
+        if (searchQuery.isNotEmpty) {
+          if (_searchType == 'logType') {
+            matchesQuery = logType.contains(searchQuery);
+          } else if (_searchType == 'operationUser') {
+            matchesQuery = operationUser.contains(searchQuery);
+          }
+        }
+
+        bool matchesDateRange = true;
+        if (_startTime != null && _endTime != null && operationTime != null) {
+          matchesDateRange = operationTime.isAfter(_startTime!) &&
+              operationTime.isBefore(_endTime!.add(const Duration(days: 1)));
+        } else if (_startTime != null &&
+            _endTime != null &&
+            operationTime == null) {
+          matchesDateRange = false;
+        }
+
+        return matchesQuery && matchesDateRange;
+      }).toList();
+
+      if (_filteredLogs.isEmpty && _logs.isNotEmpty) {
+        _errorMessage = '未找到符合条件的日志记录';
+      } else {
+        _errorMessage = _filteredLogs.isEmpty && _logs.isEmpty ? '暂无日志记录' : '';
+      }
+    });
+  }
+
   Future<List<String>> _fetchAutocompleteSuggestions(String prefix) async {
     try {
+      if (!await _validateJwtToken()) {
+        Get.offAllNamed(AppPages.login);
+        return [];
+      }
+      List<SystemLogs> logs;
       if (_searchType == 'logType') {
-        debugPrint('Fetching logType suggestions with prefix: $prefix');
-        return [
-          'LOGIN',
-          'ERROR',
-          'AUDIT'
-        ]; // Placeholder: Replace with actual API
+        logs = await logApi.apiSystemLogsGet();
+        return logs
+            .map((log) => log.logType ?? '')
+            .where((type) => type.toLowerCase().contains(prefix.toLowerCase()))
+            .take(5)
+            .toList();
       } else {
-        debugPrint('Fetching operationUser suggestions with prefix: $prefix');
-        return ['admin', 'user', 'test']; // Placeholder
+        logs = await logApi.apiSystemLogsGet();
+        return logs
+            .map((log) => log.operationUser ?? '')
+            .where((user) => user.toLowerCase().contains(prefix.toLowerCase()))
+            .take(5)
+            .toList();
       }
     } catch (e) {
-      debugPrint('Failed to fetch autocomplete suggestions: $e');
+      developer.log('Failed to fetch autocomplete suggestions: $e',
+          stackTrace: StackTrace.current);
       return [];
     }
   }
 
-  Future<void> _refreshLogs() async {
-    _searchController.clear();
-    _selectedDateRange = null;
-    await _fetchLogs(reset: true);
-  }
-
-  Future<void> _searchLogs() async {
-    final query = _searchController.text.trim();
-    await _fetchLogs(reset: true, query: query);
-  }
-
-  Future<void> _selectDateRange() async {
-    final range = await showDateRangePicker(
-      context: context,
-      firstDate: DateTime(2000),
-      lastDate: DateTime.now(),
-      builder: (context, child) {
-        final themeData = controller.currentBodyTheme.value;
-        return Theme(
-          data: ThemeData(
-            colorScheme: themeData.colorScheme,
-            dialogBackgroundColor: themeData.colorScheme.surfaceContainer,
-          ),
-          child: child!,
-        );
-      },
-    );
-    if (range != null) {
-      setState(() {
-        _selectedDateRange = range;
-        _searchController.clear();
-      });
-      await _fetchLogs(reset: true);
+  Future<void> _loadMoreLogs() async {
+    if (!_isLoading && _hasMore) {
+      await _fetchLogs();
     }
   }
 
-  void _showSnackBar(String message, {bool isError = false}) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message, style: const TextStyle(color: Colors.white)),
-        backgroundColor: isError ? Colors.red : Colors.green,
-      ),
-    );
+  Future<void> _refreshLogs({String? query}) async {
+    setState(() {
+      _logs.clear();
+      _filteredLogs.clear();
+      _currentPage = 1;
+      _hasMore = true;
+      _isLoading = true;
+      if (query == null) {
+        _searchController.clear();
+        _startTime = null;
+        _endTime = null;
+        _searchType = 'logType';
+      }
+    });
+    await _fetchLogs(reset: true, query: query);
   }
 
   Future<void> _showCreateLogDialog() async {
     final logTypeController = TextEditingController();
     final logContentController = TextEditingController();
-    final operationUserController = TextEditingController();
+    final operationUserController =
+        TextEditingController(text: _currentUsername);
     final remarksController = TextEditingController();
     final formKey = GlobalKey<FormState>();
-    final idempotencyKey = const Uuid().v4();
+    final idempotencyKey = generateIdempotencyKey();
 
     await showDialog(
       context: context,
       builder: (context) {
         final themeData = controller.currentBodyTheme.value;
-        return AlertDialog(
-          title: Text('创建日志', style: themeData.textTheme.titleLarge),
-          backgroundColor: themeData.colorScheme.surfaceContainer,
-          content: Form(
-            key: formKey,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextFormField(
-                    controller: logTypeController,
-                    decoration: InputDecoration(
-                      labelText: '日志类型',
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12.0)),
+        return Theme(
+          data: themeData,
+          child: AlertDialog(
+            title: Text('创建日志', style: themeData.textTheme.titleLarge),
+            backgroundColor: themeData.colorScheme.surfaceContainerLowest,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16.0)),
+            content: Form(
+              key: formKey,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: logTypeController,
+                      decoration: InputDecoration(
+                        labelText: '日志类型',
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12.0)),
+                        filled: true,
+                        fillColor: themeData.colorScheme.surfaceContainer,
+                      ),
+                      validator: (value) => value!.isEmpty ? '日志类型不能为空' : null,
                     ),
-                    validator: (value) => value!.isEmpty ? '日志类型不能为空' : null,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: logContentController,
-                    decoration: InputDecoration(
-                      labelText: '日志内容',
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12.0)),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: logContentController,
+                      decoration: InputDecoration(
+                        labelText: '日志内容',
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12.0)),
+                        filled: true,
+                        fillColor: themeData.colorScheme.surfaceContainer,
+                      ),
+                      maxLines: 3,
+                      validator: (value) => value!.isEmpty ? '日志内容不能为空' : null,
                     ),
-                    maxLines: 3,
-                    validator: (value) => value!.isEmpty ? '日志内容不能为空' : null,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: operationUserController,
-                    decoration: InputDecoration(
-                      labelText: '操作用户',
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12.0)),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: operationUserController,
+                      decoration: InputDecoration(
+                        labelText: '操作用户',
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12.0)),
+                        filled: true,
+                        fillColor: themeData.colorScheme.surfaceContainer,
+                      ),
+                      validator: (value) => value!.isEmpty ? '操作用户不能为空' : null,
                     ),
-                    validator: (value) => value!.isEmpty ? '操作用户不能为空' : null,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: remarksController,
-                    decoration: InputDecoration(
-                      labelText: '备注',
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12.0)),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: remarksController,
+                      decoration: InputDecoration(
+                        labelText: '备注',
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12.0)),
+                        filled: true,
+                        fillColor: themeData.colorScheme.surfaceContainer,
+                      ),
+                      maxLines: 3,
                     ),
-                    maxLines: 3,
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('取消',
-                  style: TextStyle(color: themeData.colorScheme.error)),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                if (formKey.currentState!.validate()) {
-                  try {
-                    final newLog = SystemLogs(
-                      logType: logTypeController.text,
-                      logContent: logContentController.text,
-                      operationUser: operationUserController.text,
-                      remarks: remarksController.text.isEmpty
-                          ? null
-                          : remarksController.text,
-                      idempotencyKey: idempotencyKey,
-                    );
-                    await logApi.apiSystemLogsPost(
-                      systemLogs: newLog,
-                      idempotencyKey: idempotencyKey,
-                    );
-                    _showSnackBar('日志创建成功');
-                    Navigator.pop(context);
-                    await _refreshLogs();
-                  } catch (e) {
-                    _showSnackBar('创建日志失败: $e', isError: true);
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('取消',
+                    style: TextStyle(color: themeData.colorScheme.error)),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  if (formKey.currentState!.validate()) {
+                    if (!await _validateJwtToken()) {
+                      Get.offAllNamed(AppPages.login);
+                      return;
+                    }
+                    try {
+                      final newLog = SystemLogs(
+                        logType: logTypeController.text,
+                        logContent: logContentController.text,
+                        operationUser: operationUserController.text,
+                        remarks: remarksController.text.isEmpty
+                            ? null
+                            : remarksController.text,
+                        idempotencyKey: idempotencyKey,
+                        operationTime: DateTime.now(),
+                      );
+                      await logApi.apiSystemLogsPost(
+                        systemLogs: newLog,
+                        idempotencyKey: idempotencyKey,
+                      );
+                      _showSnackBar('日志创建成功');
+                      Navigator.pop(context);
+                      await _refreshLogs();
+                    } catch (e) {
+                      _showSnackBar(_formatErrorMessage(e), isError: true);
+                    }
                   }
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: themeData.colorScheme.primary,
-                foregroundColor: themeData.colorScheme.onPrimary,
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: themeData.colorScheme.primary,
+                  foregroundColor: themeData.colorScheme.onPrimary,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12.0)),
+                ),
+                child: const Text('创建'),
               ),
-              child: const Text('创建'),
-            ),
-          ],
+            ],
+          ),
         );
       },
     );
@@ -331,467 +469,678 @@ class _SystemLogPageState extends State<SystemLogPage> {
         TextEditingController(text: log.operationUser);
     final remarksController = TextEditingController(text: log.remarks);
     final formKey = GlobalKey<FormState>();
-    final idempotencyKey = const Uuid().v4();
+    final idempotencyKey = generateIdempotencyKey();
 
     await showDialog(
       context: context,
       builder: (context) {
         final themeData = controller.currentBodyTheme.value;
-        return AlertDialog(
-          title: Text('编辑日志', style: themeData.textTheme.titleLarge),
-          backgroundColor: themeData.colorScheme.surfaceContainer,
-          content: Form(
-            key: formKey,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextFormField(
-                    controller: logTypeController,
-                    decoration: InputDecoration(
-                      labelText: '日志类型',
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12.0)),
+        return Theme(
+          data: themeData,
+          child: AlertDialog(
+            title: Text('编辑日志', style: themeData.textTheme.titleLarge),
+            backgroundColor: themeData.colorScheme.surfaceContainerLowest,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16.0)),
+            content: Form(
+              key: formKey,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: logTypeController,
+                      decoration: InputDecoration(
+                        labelText: '日志类型',
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12.0)),
+                        filled: true,
+                        fillColor: themeData.colorScheme.surfaceContainer,
+                      ),
+                      validator: (value) => value!.isEmpty ? '日志类型不能为空' : null,
                     ),
-                    validator: (value) => value!.isEmpty ? '日志类型不能为空' : null,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: logContentController,
-                    decoration: InputDecoration(
-                      labelText: '日志内容',
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12.0)),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: logContentController,
+                      decoration: InputDecoration(
+                        labelText: '日志内容',
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12.0)),
+                        filled: true,
+                        fillColor: themeData.colorScheme.surfaceContainer,
+                      ),
+                      maxLines: 3,
+                      validator: (value) => value!.isEmpty ? '日志内容不能为空' : null,
                     ),
-                    maxLines: 3,
-                    validator: (value) => value!.isEmpty ? '日志内容不能为空' : null,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: operationUserController,
-                    decoration: InputDecoration(
-                      labelText: '操作用户',
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12.0)),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: operationUserController,
+                      decoration: InputDecoration(
+                        labelText: '操作用户',
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12.0)),
+                        filled: true,
+                        fillColor: themeData.colorScheme.surfaceContainer,
+                      ),
+                      validator: (value) => value!.isEmpty ? '操作用户不能为空' : null,
                     ),
-                    validator: (value) => value!.isEmpty ? '操作用户不能为空' : null,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: remarksController,
-                    decoration: InputDecoration(
-                      labelText: '备注',
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12.0)),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: remarksController,
+                      decoration: InputDecoration(
+                        labelText: '备注',
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12.0)),
+                        filled: true,
+                        fillColor: themeData.colorScheme.surfaceContainer,
+                      ),
+                      maxLines: 3,
                     ),
-                    maxLines: 3,
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('取消',
-                  style: TextStyle(color: themeData.colorScheme.error)),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                if (formKey.currentState!.validate()) {
-                  try {
-                    final updatedLog = SystemLogs(
-                      logId: log.logId,
-                      logType: logTypeController.text,
-                      logContent: logContentController.text,
-                      operationUser: operationUserController.text,
-                      operationTime: log.operationTime,
-                      operationIpAddress: log.operationIpAddress,
-                      remarks: remarksController.text.isEmpty
-                          ? null
-                          : remarksController.text,
-                      idempotencyKey: idempotencyKey,
-                    );
-                    await logApi.apiSystemLogsLogIdPut(
-                      logId: log.logId.toString(),
-                      systemLogs: updatedLog,
-                      idempotencyKey: idempotencyKey,
-                    );
-                    _showSnackBar('日志更新成功');
-                    Navigator.pop(context);
-                    await _refreshLogs();
-                  } catch (e) {
-                    _showSnackBar('更新日志失败: $e', isError: true);
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('取消',
+                    style: TextStyle(color: themeData.colorScheme.error)),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  if (formKey.currentState!.validate()) {
+                    if (!await _validateJwtToken()) {
+                      Get.offAllNamed(AppPages.login);
+                      return;
+                    }
+                    try {
+                      final updatedLog = SystemLogs(
+                        logId: log.logId,
+                        logType: logTypeController.text,
+                        logContent: logContentController.text,
+                        operationUser: operationUserController.text,
+                        operationTime: log.operationTime,
+                        operationIpAddress: log.operationIpAddress,
+                        remarks: remarksController.text.isEmpty
+                            ? null
+                            : remarksController.text,
+                        idempotencyKey: idempotencyKey,
+                      );
+                      await logApi.apiSystemLogsLogIdPut(
+                        logId: log.logId.toString(),
+                        systemLogs: updatedLog,
+                        idempotencyKey: idempotencyKey,
+                      );
+                      _showSnackBar('日志更新成功');
+                      Navigator.pop(context);
+                      await _refreshLogs();
+                    } catch (e) {
+                      _showSnackBar(_formatErrorMessage(e), isError: true);
+                    }
                   }
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: themeData.colorScheme.primary,
-                foregroundColor: themeData.colorScheme.onPrimary,
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: themeData.colorScheme.primary,
+                  foregroundColor: themeData.colorScheme.onPrimary,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12.0)),
+                ),
+                child: const Text('保存'),
               ),
-              child: const Text('保存'),
-            ),
-          ],
+            ],
+          ),
         );
       },
     );
   }
 
   Future<void> _deleteLog(String logId) async {
+    final themeData = controller.currentBodyTheme.value;
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('确认删除'),
-        content: const Text('确定要删除此日志吗？此操作不可撤销。'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text('取消',
-                style: TextStyle(
-                    color:
-                        controller.currentBodyTheme.value.colorScheme.error)),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor:
-                  controller.currentBodyTheme.value.colorScheme.error,
-              foregroundColor:
-                  controller.currentBodyTheme.value.colorScheme.onError,
+      builder: (context) => Theme(
+        data: themeData,
+        child: AlertDialog(
+          title: const Text('确认删除'),
+          content: const Text('确定要删除此日志吗？此操作不可撤销。'),
+          backgroundColor: themeData.colorScheme.surfaceContainerLowest,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text('取消',
+                  style: TextStyle(color: themeData.colorScheme.error)),
             ),
-            child: const Text('删除'),
-          ),
-        ],
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: themeData.colorScheme.error,
+                foregroundColor: themeData.colorScheme.onError,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12.0)),
+              ),
+              child: const Text('删除'),
+            ),
+          ],
+        ),
       ),
     );
 
     if (confirmed == true) {
+      if (!await _validateJwtToken()) {
+        Get.offAllNamed(AppPages.login);
+        return;
+      }
       try {
         await logApi.apiSystemLogsLogIdDelete(logId: logId);
         _showSnackBar('日志删除成功');
         await _refreshLogs();
       } catch (e) {
-        _showSnackBar('删除日志失败: $e', isError: true);
+        _showSnackBar(_formatErrorMessage(e), isError: true);
       }
     }
   }
 
-  Widget _buildSearchField(ThemeData themeData) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        children: [
-          Expanded(
-            child: Autocomplete<String>(
-              optionsBuilder: (TextEditingValue textEditingValue) async {
-                if (textEditingValue.text.isEmpty) {
-                  return const Iterable<String>.empty();
-                }
-                return await _fetchAutocompleteSuggestions(
-                    textEditingValue.text);
-              },
-              onSelected: (String selection) {
-                _searchController.text = selection;
-                _searchLogs();
-              },
-              fieldViewBuilder:
-                  (context, controller, focusNode, onFieldSubmitted) {
-                _searchController.text = controller.text;
-                return TextField(
-                  controller: controller,
-                  focusNode: focusNode,
-                  style: TextStyle(color: themeData.colorScheme.onSurface),
-                  decoration: InputDecoration(
-                    hintText: _searchType == 'logType' ? '搜索日志类型' : '搜索操作用户',
-                    hintStyle: TextStyle(
-                        color:
-                            themeData.colorScheme.onSurface.withOpacity(0.6)),
-                    prefixIcon: Icon(Icons.search,
-                        color: themeData.colorScheme.primary),
-                    suffixIcon: controller.text.isNotEmpty
-                        ? IconButton(
-                            icon: Icon(Icons.clear,
-                                color: themeData.colorScheme.onSurfaceVariant),
-                            onPressed: () {
-                              controller.clear();
-                              _searchController.clear();
-                              _fetchLogs(reset: true);
-                            },
-                          )
-                        : null,
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12.0)),
-                    enabledBorder: OutlineInputBorder(
-                      borderSide: BorderSide(
-                          color:
-                              themeData.colorScheme.outline.withOpacity(0.3)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderSide: BorderSide(
-                          color: themeData.colorScheme.primary, width: 1.5),
-                    ),
-                    filled: true,
-                    fillColor: themeData.colorScheme.surfaceContainerLowest,
-                    contentPadding: const EdgeInsets.symmetric(
-                        vertical: 12.0, horizontal: 16.0),
+  void _showSnackBar(String message, {bool isError = false}) {
+    if (!mounted) return;
+    final themeData = controller.currentBodyTheme.value;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          style: TextStyle(
+            color: isError
+                ? themeData.colorScheme.onError
+                : themeData.colorScheme.onPrimary,
+          ),
+        ),
+        backgroundColor: isError
+            ? themeData.colorScheme.error
+            : themeData.colorScheme.primary,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
+        margin: const EdgeInsets.all(10.0),
+      ),
+    );
+  }
+
+  String _formatErrorMessage(dynamic error) {
+    if (error is ApiException) {
+      switch (error.code) {
+        case 400:
+          return '请求错误: ${error.message}';
+        case 403:
+          return '无权限: ${error.message}';
+        case 404:
+          return '未找到: ${error.message}';
+        case 409:
+          return '重复请求: ${error.message}';
+        default:
+          return '服务器错误: ${error.message}';
+      }
+    }
+    return '操作失败: $error';
+  }
+
+  Widget _buildSearchBar(ThemeData themeData) {
+    return Card(
+      elevation: 4,
+      color: themeData.colorScheme.surfaceContainerLowest,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Autocomplete<String>(
+                    optionsBuilder: (TextEditingValue textEditingValue) async {
+                      if (textEditingValue.text.isEmpty ||
+                          _searchType == 'timeRange') {
+                        return const Iterable<String>.empty();
+                      }
+                      return await _fetchAutocompleteSuggestions(
+                          textEditingValue.text);
+                    },
+                    onSelected: (String selection) {
+                      _searchController.text = selection;
+                      _applyFilters(selection);
+                    },
+                    fieldViewBuilder:
+                        (context, controller, focusNode, onFieldSubmitted) {
+                      return TextField(
+                        controller: _searchController,
+                        focusNode: focusNode,
+                        style: themeData.textTheme.bodyMedium
+                            ?.copyWith(color: themeData.colorScheme.onSurface),
+                        decoration: InputDecoration(
+                          hintText: _searchType == 'logType'
+                              ? '搜索日志类型'
+                              : _searchType == 'operationUser'
+                                  ? '搜索操作用户'
+                                  : '搜索时间范围（已选择）',
+                          hintStyle: themeData.textTheme.bodyMedium?.copyWith(
+                            color: themeData.colorScheme.onSurface
+                                .withOpacity(0.6),
+                          ),
+                          prefixIcon: Icon(Icons.search,
+                              color: themeData.colorScheme.primary),
+                          suffixIcon: _searchController.text.isNotEmpty ||
+                                  (_startTime != null && _endTime != null)
+                              ? IconButton(
+                                  icon: Icon(Icons.clear,
+                                      color: themeData
+                                          .colorScheme.onSurfaceVariant),
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    setState(() {
+                                      _startTime = null;
+                                      _endTime = null;
+                                      _searchType = 'logType';
+                                    });
+                                    _applyFilters('');
+                                  },
+                                )
+                              : null,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12.0),
+                            borderSide: BorderSide.none,
+                          ),
+                          filled: true,
+                          fillColor: themeData.colorScheme.surfaceContainer,
+                          contentPadding: const EdgeInsets.symmetric(
+                              vertical: 14.0, horizontal: 16.0),
+                        ),
+                        onChanged: (value) => _applyFilters(value),
+                        onSubmitted: (value) => _applyFilters(value),
+                        enabled: _searchType != 'timeRange',
+                      );
+                    },
                   ),
-                  onSubmitted: (value) => _searchLogs(),
-                );
-              },
-            ),
-          ),
-          const SizedBox(width: 8),
-          DropdownButton<String>(
-            value: _searchType,
-            onChanged: (String? newValue) {
-              setState(() {
-                _searchType = newValue!;
-                _searchController.clear();
-                _fetchLogs(reset: true);
-              });
-            },
-            items: <String>['logType', 'operationUser']
-                .map<DropdownMenuItem<String>>((String value) {
-              return DropdownMenuItem<String>(
-                value: value,
-                child: Text(
-                  value == 'logType' ? '按日志类型' : '按操作用户',
-                  style: TextStyle(color: themeData.colorScheme.onSurface),
                 ),
-              );
-            }).toList(),
-            dropdownColor: themeData.colorScheme.surfaceContainer,
-            icon: Icon(Icons.arrow_drop_down,
-                color: themeData.colorScheme.primary),
+                const SizedBox(width: 8),
+                DropdownButton<String>(
+                  value: _searchType,
+                  onChanged: (String? newValue) {
+                    setState(() {
+                      _searchType = newValue!;
+                      _searchController.clear();
+                      _startTime = null;
+                      _endTime = null;
+                      _applyFilters('');
+                    });
+                  },
+                  items: <String>['logType', 'operationUser', 'timeRange']
+                      .map<DropdownMenuItem<String>>((String value) {
+                    return DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(
+                        value == 'logType'
+                            ? '按日志类型'
+                            : value == 'operationUser'
+                                ? '按操作用户'
+                                : '按时间范围',
+                        style:
+                            TextStyle(color: themeData.colorScheme.onSurface),
+                      ),
+                    );
+                  }).toList(),
+                  dropdownColor: themeData.colorScheme.surfaceContainer,
+                  icon: Icon(Icons.arrow_drop_down,
+                      color: themeData.colorScheme.primary),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _startTime != null && _endTime != null
+                        ? '日期范围: ${formatDateTime(_startTime)} 至 ${formatDateTime(_endTime)}'
+                        : '选择日期范围',
+                    style: themeData.textTheme.bodyMedium?.copyWith(
+                      color: _startTime != null && _endTime != null
+                          ? themeData.colorScheme.onSurface
+                          : themeData.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(Icons.date_range,
+                      color: themeData.colorScheme.primary),
+                  tooltip: '按日期范围搜索',
+                  onPressed: () async {
+                    final range = await showDateRangePicker(
+                      context: context,
+                      firstDate: DateTime(2000),
+                      lastDate: DateTime.now(),
+                      locale: const Locale('zh', 'CN'),
+                      helpText: '选择日期范围',
+                      cancelText: '取消',
+                      confirmText: '确定',
+                      fieldStartHintText: '开始日期',
+                      fieldEndHintText: '结束日期',
+                      builder: (BuildContext context, Widget? child) {
+                        return Theme(
+                          data: themeData.copyWith(
+                            colorScheme: themeData.colorScheme.copyWith(
+                              primary: themeData.colorScheme.primary,
+                              onPrimary: themeData.colorScheme.onPrimary,
+                            ),
+                            textButtonTheme: TextButtonThemeData(
+                              style: TextButton.styleFrom(
+                                foregroundColor: themeData.colorScheme.primary,
+                              ),
+                            ),
+                          ),
+                          child: child!,
+                        );
+                      },
+                    );
+                    if (range != null) {
+                      setState(() {
+                        _startTime = range.start;
+                        _endTime = range.end;
+                        _searchType = 'timeRange';
+                        _searchController.clear();
+                      });
+                      _applyFilters('');
+                    }
+                  },
+                ),
+                if (_startTime != null && _endTime != null)
+                  IconButton(
+                    icon: Icon(Icons.clear,
+                        color: themeData.colorScheme.onSurfaceVariant),
+                    tooltip: '清除日期范围',
+                    onPressed: () {
+                      setState(() {
+                        _startTime = null;
+                        _endTime = null;
+                        _searchType = 'logType';
+                        _searchController.clear();
+                      });
+                      _applyFilters('');
+                    },
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLogCard(SystemLogs log, ThemeData themeData) {
+    return Card(
+      elevation: 4,
+      color: themeData.colorScheme.surfaceContainerLowest,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+      margin: const EdgeInsets.symmetric(vertical: 8.0),
+      child: ListTile(
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+        title: Text(
+          '日志ID: ${log.logId ?? "未知"}',
+          style: themeData.textTheme.titleMedium?.copyWith(
+            color: themeData.colorScheme.onSurface,
+            fontWeight: FontWeight.bold,
           ),
-        ],
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 4.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '类型: ${log.logType ?? "未知"}',
+                style: themeData.textTheme.bodyMedium?.copyWith(
+                  color: themeData.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              Text(
+                '内容: ${log.logContent ?? "无"}',
+                style: themeData.textTheme.bodyMedium?.copyWith(
+                  color: themeData.colorScheme.onSurfaceVariant,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              Text(
+                '时间: ${formatDateTime(log.operationTime)}',
+                style: themeData.textTheme.bodyMedium?.copyWith(
+                  color: themeData.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              Text(
+                '用户: ${log.operationUser ?? "未知"}',
+                style: themeData.textTheme.bodyMedium?.copyWith(
+                  color: themeData.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              Text(
+                '备注: ${log.remarks ?? "无"}',
+                style: themeData.textTheme.bodyMedium?.copyWith(
+                  color: themeData.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+        trailing: _isAdmin
+            ? Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon:
+                        Icon(Icons.edit, color: themeData.colorScheme.primary),
+                    onPressed: () => _showEditLogDialog(log),
+                    tooltip: '编辑日志',
+                  ),
+                  IconButton(
+                    icon:
+                        Icon(Icons.delete, color: themeData.colorScheme.error),
+                    onPressed: () => _deleteLog(log.logId.toString()),
+                    tooltip: '删除日志',
+                  ),
+                ],
+              )
+            : null,
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final themeData = controller.currentBodyTheme.value;
+    return Obx(() {
+      final themeData = controller.currentBodyTheme.value;
 
-    return ScaffoldMessenger(
-      child: Scaffold(
-        backgroundColor: themeData.colorScheme.surface,
-        appBar: AppBar(
-          title: Text(
-            '系统日志',
-            style: themeData.textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: themeData.colorScheme.onPrimaryContainer,
+      return Theme(
+        data: themeData,
+        child: CupertinoPageScaffold(
+          backgroundColor: themeData.colorScheme.surface,
+          navigationBar: CupertinoNavigationBar(
+            middle: Text(
+              '系统日志',
+              style: themeData.textTheme.headlineSmall?.copyWith(
+                color: themeData.colorScheme.onPrimaryContainer,
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
+              ),
             ),
-          ),
-          backgroundColor: themeData.colorScheme.primaryContainer,
-          foregroundColor: themeData.colorScheme.onPrimaryContainer,
-          elevation: 2,
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.date_range),
-              onPressed: _selectDateRange,
-              tooltip: '选择时间范围',
+            leading: GestureDetector(
+              onTap: () => Get.back(),
+              child: Icon(
+                CupertinoIcons.back,
+                color: themeData.colorScheme.onPrimaryContainer,
+                size: 24,
+              ),
             ),
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: _refreshLogs,
-              tooltip: '刷新日志列表',
+            backgroundColor: themeData.colorScheme.primaryContainer,
+            border: Border(
+              bottom: BorderSide(
+                color: themeData.colorScheme.outline.withOpacity(0.2),
+                width: 1.0,
+              ),
             ),
-            IconButton(
-              icon: Icon(themeData.brightness == Brightness.light
-                  ? Icons.dark_mode
-                  : Icons.light_mode),
-              onPressed: controller.toggleBodyTheme,
-              tooltip: '切换主题',
-            ),
-          ],
-        ),
-        floatingActionButton: _isAdmin
-            ? FloatingActionButton(
-                onPressed: _showCreateLogDialog,
-                backgroundColor: themeData.colorScheme.primary,
-                tooltip: '创建新日志',
-                child: Icon(Icons.add, color: themeData.colorScheme.onPrimary),
-              )
-            : null,
-        body: RefreshIndicator(
-          onRefresh: _refreshLogs,
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                if (_isAdmin) _buildSearchField(themeData),
-                const SizedBox(height: 12),
-                if (_selectedDateRange != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8.0),
-                    child: Row(
-                      children: [
-                        Text(
-                          '时间范围: ${DateFormat('yyyy-MM-dd').format(_selectedDateRange!.start)} 至 ${DateFormat('yyyy-MM-dd').format(_selectedDateRange!.end)}',
-                          style: themeData.textTheme.bodyMedium?.copyWith(
-                            color: themeData.colorScheme.onSurface,
-                          ),
-                        ),
-                        const Spacer(),
-                        IconButton(
-                          icon: Icon(Icons.clear,
-                              color: themeData.colorScheme.error),
-                          onPressed: () {
-                            setState(() => _selectedDateRange = null);
-                            _fetchLogs(reset: true);
-                          },
-                          tooltip: '清除时间范围',
-                        ),
-                      ],
-                    ),
+                GestureDetector(
+                  onTap: () => _refreshLogs(),
+                  child: Icon(
+                    CupertinoIcons.refresh,
+                    color: themeData.colorScheme.onPrimaryContainer,
+                    size: 24,
                   ),
-                Expanded(
-                  child: _isLoading
-                      ? Center(
-                          child: CircularProgressIndicator(
-                              valueColor: AlwaysStoppedAnimation(
-                                  themeData.colorScheme.primary)))
-                      : _errorMessage.isNotEmpty && _logList.isEmpty
-                          ? Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    _errorMessage,
-                                    style: themeData.textTheme.titleMedium
-                                        ?.copyWith(
-                                      color: themeData.colorScheme.error,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                  if (_errorMessage.contains('未授权') ||
-                                      _errorMessage.contains('仅管理员'))
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 16.0),
-                                      child: ElevatedButton(
-                                        onPressed: () =>
-                                            Navigator.pushReplacementNamed(
-                                                context, '/login'),
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor:
-                                              themeData.colorScheme.primary,
-                                          foregroundColor:
-                                              themeData.colorScheme.onPrimary,
-                                        ),
-                                        child: const Text('重新登录'),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            )
-                          : ListView.builder(
-                              itemCount: _logList.length,
-                              itemBuilder: (context, index) {
-                                final log = _logList[index];
-                                return Card(
-                                  margin:
-                                      const EdgeInsets.symmetric(vertical: 8.0),
-                                  elevation: 3,
-                                  color: themeData.colorScheme.surfaceContainer,
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius:
-                                          BorderRadius.circular(16.0)),
-                                  child: ListTile(
-                                    contentPadding: const EdgeInsets.symmetric(
-                                        horizontal: 16.0, vertical: 12.0),
-                                    title: Text(
-                                      '日志ID: ${log.logId ?? '未知ID'}',
-                                      style: themeData.textTheme.titleMedium
-                                          ?.copyWith(
-                                        color: themeData.colorScheme.onSurface,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    subtitle: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          '日志类型: ${log.logType ?? '未知类型'}',
-                                          style: themeData.textTheme.bodyMedium
-                                              ?.copyWith(
-                                            color: themeData
-                                                .colorScheme.onSurfaceVariant,
-                                          ),
-                                        ),
-                                        Text(
-                                          '内容: ${log.logContent ?? '无内容'}',
-                                          style: themeData.textTheme.bodyMedium
-                                              ?.copyWith(
-                                            color: themeData
-                                                .colorScheme.onSurfaceVariant,
-                                          ),
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        Text(
-                                          '操作时间: ${log.operationTime != null ? DateFormat('yyyy-MM-dd HH:mm:ss').format(log.operationTime!) : '无'}',
-                                          style: themeData.textTheme.bodyMedium
-                                              ?.copyWith(
-                                            color: themeData
-                                                .colorScheme.onSurfaceVariant,
-                                          ),
-                                        ),
-                                        Text(
-                                          '操作用户: ${log.operationUser ?? '未知用户'}',
-                                          style: themeData.textTheme.bodyMedium
-                                              ?.copyWith(
-                                            color: themeData
-                                                .colorScheme.onSurfaceVariant,
-                                          ),
-                                        ),
-                                        Text(
-                                          '备注: ${log.remarks ?? '无'}',
-                                          style: themeData.textTheme.bodyMedium
-                                              ?.copyWith(
-                                            color: themeData
-                                                .colorScheme.onSurfaceVariant,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    trailing: _isAdmin
-                                        ? Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              IconButton(
-                                                icon: Icon(Icons.edit,
-                                                    color: themeData
-                                                        .colorScheme.primary),
-                                                onPressed: () =>
-                                                    _showEditLogDialog(log),
-                                                tooltip: '编辑日志',
-                                              ),
-                                              IconButton(
-                                                icon: Icon(Icons.delete,
-                                                    color: themeData
-                                                        .colorScheme.error),
-                                                onPressed: () => _deleteLog(
-                                                    log.logId.toString()),
-                                                tooltip: '删除日志',
-                                              ),
-                                            ],
-                                          )
-                                        : null,
-                                  ),
-                                );
-                              },
-                            ),
+                ),
+                const SizedBox(width: 16),
+                GestureDetector(
+                  onTap: controller.toggleBodyTheme,
+                  child: Icon(
+                    themeData.brightness == Brightness.light
+                        ? CupertinoIcons.moon
+                        : CupertinoIcons.sun_max,
+                    color: themeData.colorScheme.onPrimaryContainer,
+                    size: 24,
+                  ),
                 ),
               ],
             ),
           ),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (_isAdmin) _buildSearchBar(themeData),
+                  const SizedBox(height: 20),
+                  Expanded(
+                    child: _isLoading && _currentPage == 1
+                        ? Center(
+                            child: CupertinoActivityIndicator(
+                              color: themeData.colorScheme.primary,
+                              radius: 16.0,
+                            ),
+                          )
+                        : _errorMessage.isNotEmpty && !_isLoading
+                            ? Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      CupertinoIcons.exclamationmark_triangle,
+                                      color: themeData.colorScheme.error,
+                                      size: 48,
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      _errorMessage,
+                                      style: themeData.textTheme.titleMedium
+                                          ?.copyWith(
+                                        color: themeData.colorScheme.error,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                    if (_errorMessage.contains('未授权') ||
+                                        _errorMessage.contains('登录') ||
+                                        _errorMessage.contains('权限不足'))
+                                      Padding(
+                                        padding:
+                                            const EdgeInsets.only(top: 20.0),
+                                        child: ElevatedButton(
+                                          onPressed: () =>
+                                              Get.offAllNamed(AppPages.login),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor:
+                                                themeData.colorScheme.primary,
+                                            foregroundColor:
+                                                themeData.colorScheme.onPrimary,
+                                            shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(
+                                                        12.0)),
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 24.0,
+                                                vertical: 12.0),
+                                          ),
+                                          child: const Text('重新登录'),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              )
+                            : _filteredLogs.isEmpty
+                                ? Center(
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          CupertinoIcons.doc,
+                                          color: themeData
+                                              .colorScheme.onSurfaceVariant,
+                                          size: 48,
+                                        ),
+                                        const SizedBox(height: 16),
+                                        Text(
+                                          _errorMessage.isNotEmpty
+                                              ? _errorMessage
+                                              : '暂无日志记录',
+                                          style: themeData.textTheme.titleMedium
+                                              ?.copyWith(
+                                            color: themeData
+                                                .colorScheme.onSurfaceVariant,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ],
+                                    ),
+                                  )
+                                : CupertinoScrollbar(
+                                    controller: _scrollController,
+                                    thumbVisibility: true,
+                                    thickness: 6.0,
+                                    thicknessWhileDragging: 10.0,
+                                    child: RefreshIndicator(
+                                      onRefresh: () => _refreshLogs(),
+                                      color: themeData.colorScheme.primary,
+                                      backgroundColor: themeData
+                                          .colorScheme.surfaceContainer,
+                                      child: ListView.builder(
+                                        controller: _scrollController,
+                                        itemCount: _filteredLogs.length +
+                                            (_hasMore ? 1 : 0),
+                                        itemBuilder: (context, index) {
+                                          if (index == _filteredLogs.length &&
+                                              _hasMore) {
+                                            return const Padding(
+                                              padding: EdgeInsets.all(8.0),
+                                              child: Center(
+                                                  child:
+                                                      CupertinoActivityIndicator()),
+                                            );
+                                          }
+                                          final log = _filteredLogs[index];
+                                          return _buildLogCard(log, themeData);
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
-      ),
-    );
+      );
+    });
   }
 }

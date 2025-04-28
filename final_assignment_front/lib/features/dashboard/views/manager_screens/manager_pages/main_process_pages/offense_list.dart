@@ -7,15 +7,20 @@ import 'package:final_assignment_front/features/api/offense_information_controll
 import 'package:final_assignment_front/features/model/offense_information.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
 
-/// 唯一标识生成工具
+// Utility methods for validation
+bool isValidLicensePlate(String value) {
+  final regex = RegExp(r'^[\u4e00-\u9fa5][A-Za-z0-9]{5,7}$');
+  return regex.hasMatch(value);
+}
+
 String generateIdempotencyKey() {
   return DateTime.now().millisecondsSinceEpoch.toString();
 }
 
-/// 格式化日期的全局方法
 String formatDate(DateTime? date) {
-  if (date == null) return '无';
+  if (date == null) return '未设置';
   return "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
 }
 
@@ -31,45 +36,25 @@ class _OffenseListPageState extends State<OffenseList> {
       OffenseInformationControllerApi();
   final TextEditingController _searchController = TextEditingController();
   final List<OffenseInformation> _offenseList = [];
-  bool _isLoading = true;
-  String _errorMessage = '';
-  int _currentPage = 1;
-  final int _pageSize = 10;
-  bool _hasMore = true;
-  String? _currentUsername;
+  List<OffenseInformation> _filteredOffenseList = [];
   String _searchType = 'driverName';
+  int _currentPage = 1;
+  final int _pageSize = 20;
+  bool _hasMore = true;
+  bool _isLoading = false;
+  String _errorMessage = '';
+  bool _isAdmin = false;
   DateTime? _startDate;
   DateTime? _endDate;
-
   final DashboardController controller = Get.find<DashboardController>();
 
   @override
   void initState() {
     super.initState();
     _initialize();
-  }
-
-  Future<void> _initialize() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = '';
+    _searchController.addListener(() {
+      _applyFilters(_searchController.text);
     });
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      _currentUsername = prefs.getString('userName');
-      final jwtToken = prefs.getString('jwtToken');
-      if (_currentUsername == null || jwtToken == null) {
-        throw Exception('请先登录以查看违法信息');
-      }
-      await offenseApi.initializeWithJwt();
-      await _fetchOffenses(reset: true);
-    } catch (e) {
-      setState(() {
-        _errorMessage = '初始化失败: $e';
-      });
-    } finally {
-      setState(() => _isLoading = false);
-    }
   }
 
   @override
@@ -78,46 +63,104 @@ class _OffenseListPageState extends State<OffenseList> {
     super.dispose();
   }
 
-  Future<List<String>> _fetchAutocompleteSuggestions(String prefix) async {
+  Future<bool> _validateJwtToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    String? jwtToken = prefs.getString('jwtToken');
+    if (jwtToken == null || jwtToken.isEmpty) {
+      setState(() => _errorMessage = '未授权，请重新登录');
+      return false;
+    }
     try {
-      List<OffenseInformation> offenses;
-      switch (_searchType) {
-        case 'driverName':
-          offenses = await offenseApi.apiOffensesByDriverNameGet(
-              query: prefix.trim(), page: 1, size: 10);
-          return offenses
-              .map((offense) => offense.driverName ?? '')
-              .where((name) =>
-                  name.isNotEmpty &&
-                  name.toLowerCase().contains(prefix.toLowerCase()))
-              .take(5)
-              .toList();
-        case 'licensePlate':
-          offenses = await offenseApi.apiOffensesByLicensePlateGet(
-              query: prefix.trim(), page: 1, size: 10);
-          return offenses
-              .map((offense) => offense.licensePlate ?? '')
-              .where((plate) =>
-                  plate.isNotEmpty &&
-                  plate.toLowerCase().contains(prefix.toLowerCase()))
-              .take(5)
-              .toList();
-        case 'offenseType':
-          offenses = await offenseApi.apiOffensesByOffenseTypeGet(
-              query: prefix.trim(), page: 1, size: 10);
-          return offenses
-              .map((offense) => offense.offenseType ?? '')
-              .where((type) =>
-                  type.isNotEmpty &&
-                  type.toLowerCase().contains(prefix.toLowerCase()))
-              .take(5)
-              .toList();
-        default:
-          return [];
+      final decodedToken = JwtDecoder.decode(jwtToken);
+      if (JwtDecoder.isExpired(jwtToken)) {
+        jwtToken = await _refreshJwtToken();
+        if (jwtToken == null) {
+          setState(() => _errorMessage = '登录已过期，请重新登录');
+          return false;
+        }
+        await prefs.setString('jwtToken', jwtToken);
+        if (JwtDecoder.isExpired(jwtToken)) {
+          setState(() => _errorMessage = '新登录信息已过期，请重新登录');
+          return false;
+        }
+        await offenseApi.initializeWithJwt();
+      }
+      return true;
+    } catch (e) {
+      setState(() => _errorMessage = '无效的登录信息，请重新登录');
+      return false;
+    }
+  }
+
+  Future<String?> _refreshJwtToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    final refreshToken = prefs.getString('refreshToken');
+    if (refreshToken == null) return null;
+    try {
+      final response = await http.post(
+        Uri.parse('http://localhost:8081/api/auth/refresh'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'refreshToken': refreshToken}),
+      );
+      if (response.statusCode == 200) {
+        final newJwt = jsonDecode(response.body)['jwtToken'];
+        await prefs.setString('jwtToken', newJwt);
+        return newJwt;
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Future<void> _initialize() async {
+    setState(() => _isLoading = true);
+    try {
+      if (!await _validateJwtToken()) {
+        Navigator.pushReplacementNamed(context, AppPages.login);
+        return;
+      }
+      await offenseApi.initializeWithJwt();
+      final prefs = await SharedPreferences.getInstance();
+      final jwtToken = prefs.getString('jwtToken')!;
+      final decodedToken = JwtDecoder.decode(jwtToken);
+      _isAdmin = decodedToken['roles'] == 'ADMIN';
+      await _checkUserRole();
+      await _fetchOffenses(reset: true);
+    } catch (e) {
+      setState(() => _errorMessage = '初始化失败: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _checkUserRole() async {
+    try {
+      if (!await _validateJwtToken()) {
+        Navigator.pushReplacementNamed(context, AppPages.login);
+        return;
+      }
+      final prefs = await SharedPreferences.getInstance();
+      final jwtToken = prefs.getString('jwtToken')!;
+      final response = await http.get(
+        Uri.parse('http://localhost:8081/api/users/me'),
+        headers: {
+          'Authorization': 'Bearer $jwtToken',
+          'Content-Type': 'application/json'
+        },
+      );
+      if (response.statusCode == 200) {
+        final userData = jsonDecode(utf8.decode(response.bodyBytes));
+        final roles = (userData['roles'] as List<dynamic>?)
+                ?.map((r) => r.toString())
+                .toList() ??
+            [];
+        setState(() => _isAdmin = roles.contains('ADMIN'));
+      } else {
+        throw Exception('验证失败：${response.statusCode}');
       }
     } catch (e) {
-      debugPrint('Failed to fetch autocomplete suggestions: $e');
-      return [];
+      setState(() => _errorMessage = '验证角色失败: $e');
     }
   }
 
@@ -126,6 +169,7 @@ class _OffenseListPageState extends State<OffenseList> {
       _currentPage = 1;
       _hasMore = true;
       _offenseList.clear();
+      _filteredOffenseList.clear();
     }
     if (!_hasMore) return;
 
@@ -134,58 +178,37 @@ class _OffenseListPageState extends State<OffenseList> {
       _errorMessage = '';
     });
 
-    final searchQuery = query?.trim() ?? '';
     try {
-      List<OffenseInformation> offenses = [];
-      if (searchQuery.isEmpty && _startDate == null && _endDate == null) {
-        offenses = await offenseApi.apiOffensesGet();
-      } else if (_searchType == 'driverName' && searchQuery.isNotEmpty) {
-        offenses = await offenseApi.apiOffensesByDriverNameGet(
-          query: searchQuery,
-          page: _currentPage,
-          size: _pageSize,
-        );
-      } else if (_searchType == 'licensePlate' && searchQuery.isNotEmpty) {
-        offenses = await offenseApi.apiOffensesByLicensePlateGet(
-          query: searchQuery,
-          page: _currentPage,
-          size: _pageSize,
-        );
-      } else if (_searchType == 'offenseType' && searchQuery.isNotEmpty) {
-        offenses = await offenseApi.apiOffensesByOffenseTypeGet(
-          query: searchQuery,
-          page: _currentPage,
-          size: _pageSize,
-        );
-      } else if (_searchType == 'timeRange' &&
-          _startDate != null &&
-          _endDate != null) {
-        offenses = await offenseApi.apiOffensesTimeRangeGet(
-          startTime: formatDate(_startDate),
-          endTime: formatDate(_endDate),
-        );
+      if (!await _validateJwtToken()) {
+        Navigator.pushReplacementNamed(context, AppPages.login);
+        return;
       }
+      List<OffenseInformation> offenses = await offenseApi.apiOffensesGet();
 
       setState(() {
         _offenseList.addAll(offenses);
-        if (offenses.length < _pageSize) _hasMore = false;
-        if (_offenseList.isEmpty && _currentPage == 1) {
-          _errorMessage =
-              searchQuery.isNotEmpty || (_startDate != null && _endDate != null)
-                  ? '未找到符合条件的违法信息'
-                  : '当前没有违法记录';
+        _hasMore = false;
+        _applyFilters(query ?? _searchController.text);
+        if (_filteredOffenseList.isEmpty) {
+          _errorMessage = query?.isNotEmpty ??
+                  false || (_startDate != null && _endDate != null)
+              ? '未找到符合条件的违法信息'
+              : '当前没有违法记录';
         }
+        _currentPage++;
       });
     } catch (e) {
       setState(() {
-        if (e.toString().contains('404')) {
+        if (e.toString().contains('403')) {
+          _errorMessage = '未授权，请重新登录';
+          Navigator.pushReplacementNamed(context, AppPages.login);
+        } else if (e.toString().contains('404')) {
           _offenseList.clear();
-          _errorMessage =
-              '未找到符合条件的违法信息，可能 ${_searchType == 'driverName' ? '司机姓名' : _searchType == 'licensePlate' ? '车牌号' : _searchType == 'offenseType' ? '违法类型' : '时间范围'} "$searchQuery" 不存在';
+          _filteredOffenseList.clear();
+          _errorMessage = '未找到违法记录';
           _hasMore = false;
         } else {
-          _errorMessage =
-              e.toString().contains('403') ? '未授权，请重新登录' : '获取违法信息失败: $e';
+          _errorMessage = '获取违法信息失败: $e';
         }
       });
     } finally {
@@ -193,25 +216,116 @@ class _OffenseListPageState extends State<OffenseList> {
     }
   }
 
-  Future<void> _loadMoreOffenses() async {
-    if (!_hasMore || _isLoading) return;
-    _currentPage++;
-    await _fetchOffenses(query: _searchController.text);
+  Future<List<String>> _fetchAutocompleteSuggestions(String prefix) async {
+    try {
+      if (!await _validateJwtToken()) {
+        Navigator.pushReplacementNamed(context, AppPages.login);
+        return [];
+      }
+      switch (_searchType) {
+        case 'driverName':
+          final offenses = await offenseApi.apiOffensesByDriverNameGet(
+              query: prefix.trim(), page: 1, size: 10);
+          return offenses
+              .map((o) => o.driverName ?? '')
+              .where(
+                  (name) => name.toLowerCase().contains(prefix.toLowerCase()))
+              .toList();
+        case 'licensePlate':
+          final offenses = await offenseApi.apiOffensesByLicensePlateGet(
+              query: prefix.trim(), page: 1, size: 10);
+          return offenses
+              .map((o) => o.licensePlate ?? '')
+              .where(
+                  (plate) => plate.toLowerCase().contains(prefix.toLowerCase()))
+              .toList();
+        case 'offenseType':
+          final offenses = await offenseApi.apiOffensesByOffenseTypeGet(
+              query: prefix.trim(), page: 1, size: 10);
+          return offenses
+              .map((o) => o.offenseType ?? '')
+              .where(
+                  (type) => type.toLowerCase().contains(prefix.toLowerCase()))
+              .toList();
+        default:
+          return [];
+      }
+    } catch (e) {
+      setState(() => _errorMessage = '获取建议失败: $e');
+      return [];
+    }
   }
 
-  Future<void> _refreshOffenses() async {
-    _searchController.clear();
+  void _applyFilters(String query) {
+    final searchQuery = query.trim().toLowerCase();
     setState(() {
-      _startDate = null;
-      _endDate = null;
-      _searchType = 'driverName';
+      _filteredOffenseList.clear();
+      _filteredOffenseList = _offenseList.where((offense) {
+        final driverName = (offense.driverName ?? '').toLowerCase();
+        final licensePlate = (offense.licensePlate ?? '').toLowerCase();
+        final offenseType = (offense.offenseType ?? '').toLowerCase();
+        final offenseTime = offense.offenseTime;
+
+        bool matchesQuery = true;
+        if (searchQuery.isNotEmpty) {
+          if (_searchType == 'driverName') {
+            matchesQuery = driverName.contains(searchQuery);
+          } else if (_searchType == 'licensePlate') {
+            matchesQuery = licensePlate.contains(searchQuery);
+          } else if (_searchType == 'offenseType') {
+            matchesQuery = offenseType.contains(searchQuery);
+          }
+        }
+
+        bool matchesDateRange = true;
+        if (_startDate != null && _endDate != null && offenseTime != null) {
+          matchesDateRange = offenseTime.isAfter(_startDate!) &&
+              offenseTime.isBefore(_endDate!.add(const Duration(days: 1)));
+        } else if (_startDate != null &&
+            _endDate != null &&
+            offenseTime == null) {
+          matchesDateRange = false;
+        }
+
+        return matchesQuery && matchesDateRange;
+      }).toList();
+
+      if (_filteredOffenseList.isEmpty && _offenseList.isNotEmpty) {
+        _errorMessage = '未找到符合条件的违法信息';
+      } else {
+        _errorMessage = _filteredOffenseList.isEmpty && _offenseList.isEmpty
+            ? '当前没有违法记录'
+            : '';
+      }
     });
-    await _fetchOffenses(reset: true);
   }
 
   Future<void> _searchOffenses() async {
     final query = _searchController.text.trim();
+    _applyFilters(query);
+  }
+
+  Future<void> _refreshOffenses({String? query}) async {
+    setState(() {
+      _offenseList.clear();
+      _filteredOffenseList.clear();
+      _currentPage = 1;
+      _hasMore = true;
+      _isLoading = true;
+      if (query == null) {
+        _searchController.clear();
+        _startDate = null;
+        _endDate = null;
+        _searchType = 'driverName';
+      }
+    });
     await _fetchOffenses(reset: true, query: query);
+  }
+
+  Future<void> _loadMoreOffenses() async {
+    if (!_isLoading && _hasMore) {
+      await _fetchOffenses();
+    }
   }
 
   void _createOffense() {
@@ -219,7 +333,22 @@ class _OffenseListPageState extends State<OffenseList> {
       context,
       MaterialPageRoute(builder: (context) => const AddOffensePage()),
     ).then((value) {
-      if (value == true && mounted) _fetchOffenses(reset: true);
+      if (value == true) {
+        _refreshOffenses();
+      }
+    });
+  }
+
+  void _editOffense(OffenseInformation offense) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EditOffensePage(offense: offense),
+      ),
+    ).then((value) {
+      if (value == true) {
+        _refreshOffenses();
+      }
     });
   }
 
@@ -227,309 +356,223 @@ class _OffenseListPageState extends State<OffenseList> {
     Navigator.push(
       context,
       MaterialPageRoute(
-          builder: (context) => OffenseDetailPage(offense: offense)),
-    ).then((value) {
-      if (value == true && mounted) _fetchOffenses(reset: true);
-    });
-  }
-
-  Future<void> _deleteOffense(int offenseId) async {
-    _showDeleteConfirmationDialog('删除', () async {
-      setState(() => _isLoading = true);
-      try {
-        await offenseApi.apiOffensesOffenseIdDelete(offenseId: offenseId);
-        _showSnackBar('删除违法信息成功！');
-        _fetchOffenses(reset: true);
-      } catch (e) {
-        _showSnackBar('删除失败: $e', isError: true);
-      } finally {
-        setState(() => _isLoading = false);
-      }
-    });
-  }
-
-  void _showSnackBar(String message, {bool isError = false}) {
-    if (!mounted) return;
-    final themeData = controller.currentBodyTheme.value;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          style: TextStyle(
-            color: isError
-                ? themeData.colorScheme.onError
-                : themeData.colorScheme.onPrimary,
-          ),
-        ),
-        backgroundColor: isError
-            ? themeData.colorScheme.error
-            : themeData.colorScheme.primary,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
-        margin: const EdgeInsets.all(10.0),
+        builder: (context) => OffenseDetailPage(offense: offense),
       ),
     );
   }
 
-  void _showDeleteConfirmationDialog(String action, VoidCallback onConfirm) {
-    showDialog(
+  Future<void> _deleteOffense(int offenseId) async {
+    bool? confirm = await showDialog<bool>(
       context: context,
-      builder: (ctx) {
-        final themeData = controller.currentBodyTheme.value;
-        return AlertDialog(
-          backgroundColor: themeData.colorScheme.surfaceContainerHighest,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text(
-            '确认删除',
-            style: themeData.textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: themeData.colorScheme.onSurface,
-            ),
+      builder: (context) => AlertDialog(
+        title: const Text('确认删除'),
+        content: const Text('确定要删除此违法信息吗？此操作不可撤销。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
           ),
-          content: Text(
-            '您确定要$action此违法信息吗？此操作不可撤销。',
-            style: themeData.textTheme.bodyMedium?.copyWith(
-              color: themeData.colorScheme.onSurfaceVariant,
-            ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('删除', style: TextStyle(color: Colors.red)),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(
-                '取消',
-                style: themeData.textTheme.labelLarge?.copyWith(
-                  color: themeData.colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                onConfirm();
-                Navigator.pop(ctx);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: themeData.colorScheme.error,
-                foregroundColor: themeData.colorScheme.onError,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              ),
-              child: const Text('删除'),
-            ),
-          ],
-        );
-      },
+        ],
+      ),
     );
+
+    if (confirm == true) {
+      setState(() => _isLoading = true);
+      try {
+        if (!await _validateJwtToken()) {
+          Navigator.pushReplacementNamed(context, AppPages.login);
+          return;
+        }
+        await offenseApi.apiOffensesOffenseIdDelete(offenseId: offenseId);
+        await _refreshOffenses();
+      } catch (e) {
+        setState(() => _errorMessage = '删除违法信息失败: $e');
+      } finally {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   Widget _buildSearchField(ThemeData themeData) {
-    return Card(
-      elevation: 2,
-      color: themeData.colorScheme.surfaceContainer,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
-      child: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Autocomplete<String>(
-                    optionsBuilder: (TextEditingValue textEditingValue) async {
-                      if (textEditingValue.text.isEmpty ||
-                          _searchType == 'timeRange') {
-                        return const Iterable<String>.empty();
-                      }
-                      return await _fetchAutocompleteSuggestions(
-                          textEditingValue.text);
-                    },
-                    onSelected: (String selection) {
-                      _searchController.text = selection;
-                      _searchOffenses();
-                    },
-                    fieldViewBuilder:
-                        (context, controller, focusNode, onFieldSubmitted) {
-                      _searchController.text = controller.text;
-                      return TextField(
-                        controller: controller,
-                        focusNode: focusNode,
-                        style:
-                            TextStyle(color: themeData.colorScheme.onSurface),
-                        decoration: InputDecoration(
-                          hintText: _searchType == 'driverName'
-                              ? '搜索司机姓名'
-                              : _searchType == 'licensePlate'
-                                  ? '搜索车牌号'
-                                  : _searchType == 'offenseType'
-                                      ? '搜索违法类型'
-                                      : '搜索时间范围（已选择）',
-                          hintStyle: TextStyle(
-                              color: themeData.colorScheme.onSurface
-                                  .withOpacity(0.6)),
-                          prefixIcon: Icon(Icons.search,
-                              color: themeData.colorScheme.primary),
-                          suffixIcon: controller.text.isNotEmpty ||
-                                  (_startDate != null && _endDate != null)
-                              ? IconButton(
-                                  icon: Icon(Icons.clear,
-                                      color: themeData
-                                          .colorScheme.onSurfaceVariant),
-                                  onPressed: () {
-                                    controller.clear();
-                                    _searchController.clear();
-                                    setState(() {
-                                      _startDate = null;
-                                      _endDate = null;
-                                      _searchType = 'driverName';
-                                    });
-                                    _fetchOffenses(reset: true);
-                                  },
-                                )
-                              : null,
-                          border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8.0)),
-                          enabledBorder: OutlineInputBorder(
-                            borderSide: BorderSide(
-                                color: themeData.colorScheme.outline
-                                    .withOpacity(0.3)),
-                            borderRadius: BorderRadius.circular(8.0),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderSide: BorderSide(
-                                color: themeData.colorScheme.primary,
-                                width: 1.5),
-                            borderRadius: BorderRadius.circular(8.0),
-                          ),
-                          filled: true,
-                          fillColor:
-                              themeData.colorScheme.surfaceContainerLowest,
-                          contentPadding: const EdgeInsets.symmetric(
-                              vertical: 12.0, horizontal: 16.0),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Autocomplete<String>(
+                  optionsBuilder: (TextEditingValue textEditingValue) async {
+                    if (textEditingValue.text.isEmpty) {
+                      return const Iterable<String>.empty();
+                    }
+                    return await _fetchAutocompleteSuggestions(
+                        textEditingValue.text);
+                  },
+                  onSelected: (String selection) {
+                    _searchController.text = selection;
+                    _applyFilters(selection);
+                  },
+                  fieldViewBuilder:
+                      (context, controller, focusNode, onFieldSubmitted) {
+                    _searchController.text = controller.text;
+                    return TextField(
+                      controller: controller,
+                      focusNode: focusNode,
+                      style: TextStyle(color: themeData.colorScheme.onSurface),
+                      decoration: InputDecoration(
+                        hintText: _searchType == 'driverName'
+                            ? '搜索司机姓名'
+                            : _searchType == 'licensePlate'
+                                ? '搜索车牌号'
+                                : '搜索违法类型',
+                        hintStyle: TextStyle(
+                            color: themeData.colorScheme.onSurface
+                                .withOpacity(0.6)),
+                        prefixIcon: Icon(Icons.search,
+                            color: themeData.colorScheme.primary),
+                        suffixIcon: controller.text.isNotEmpty
+                            ? IconButton(
+                                icon: Icon(Icons.clear,
+                                    color:
+                                        themeData.colorScheme.onSurfaceVariant),
+                                onPressed: () {
+                                  controller.clear();
+                                  _searchController.clear();
+                                  _applyFilters('');
+                                },
+                              )
+                            : null,
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12.0)),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                              color: themeData.colorScheme.outline
+                                  .withOpacity(0.3)),
                         ),
-                        onChanged: (value) {
-                          if (value.isEmpty) {
-                            setState(() {
-                              _startDate = null;
-                              _endDate = null;
-                              _searchType = 'driverName';
-                            });
-                            _fetchOffenses(reset: true);
-                          }
-                        },
-                        onSubmitted: (value) => _searchOffenses(),
-                        enabled: _searchType != 'timeRange',
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                              color: themeData.colorScheme.primary, width: 1.5),
+                        ),
+                        filled: true,
+                        fillColor: themeData.colorScheme.surfaceContainerLowest,
+                        contentPadding: const EdgeInsets.symmetric(
+                            vertical: 12.0, horizontal: 16.0),
+                      ),
+                      onChanged: (value) => _applyFilters(value),
+                      onSubmitted: (value) => _applyFilters(value),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              DropdownButton<String>(
+                value: _searchType,
+                onChanged: (String? newValue) {
+                  setState(() {
+                    _searchType = newValue!;
+                    _searchController.clear();
+                    _startDate = null;
+                    _endDate = null;
+                    _applyFilters('');
+                  });
+                },
+                items: <String>['driverName', 'licensePlate', 'offenseType']
+                    .map<DropdownMenuItem<String>>((String value) {
+                  return DropdownMenuItem<String>(
+                    value: value,
+                    child: Text(
+                      value == 'driverName'
+                          ? '按司机姓名'
+                          : value == 'licensePlate'
+                              ? '按车牌号'
+                              : '按违法类型',
+                      style: TextStyle(color: themeData.colorScheme.onSurface),
+                    ),
+                  );
+                }).toList(),
+                dropdownColor: themeData.colorScheme.surfaceContainer,
+                icon: Icon(Icons.arrow_drop_down,
+                    color: themeData.colorScheme.primary),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  _startDate != null && _endDate != null
+                      ? '违法时间范围: ${formatDate(_startDate)} 至 ${formatDate(_endDate)}'
+                      : '选择违法时间范围',
+                  style: themeData.textTheme.bodyMedium?.copyWith(
+                    color: _startDate != null && _endDate != null
+                        ? themeData.colorScheme.onSurface
+                        : themeData.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: Icon(Icons.date_range,
+                    color: themeData.colorScheme.primary),
+                tooltip: '按违法时间范围搜索',
+                onPressed: () async {
+                  final range = await showDateRangePicker(
+                    context: context,
+                    firstDate: DateTime(1900),
+                    lastDate: DateTime.now(),
+                    locale: const Locale('zh', 'CN'),
+                    helpText: '选择违法时间范围',
+                    cancelText: '取消',
+                    confirmText: '确定',
+                    fieldStartHintText: '开始日期',
+                    fieldEndHintText: '结束日期',
+                    builder: (BuildContext context, Widget? child) {
+                      return Theme(
+                        data: themeData.copyWith(
+                          colorScheme: themeData.colorScheme.copyWith(
+                            primary: themeData.colorScheme.primary,
+                            onPrimary: themeData.colorScheme.onPrimary,
+                          ),
+                          textButtonTheme: TextButtonThemeData(
+                            style: TextButton.styleFrom(
+                              foregroundColor: themeData.colorScheme.primary,
+                            ),
+                          ),
+                        ),
+                        child: child!,
                       );
                     },
-                  ),
-                ),
-                const SizedBox(width: 8),
-                DropdownButton<String>(
-                  value: _searchType,
-                  onChanged: (String? newValue) {
+                  );
+                  if (range != null) {
                     setState(() {
-                      _searchType = newValue!;
-                      _searchController.clear();
+                      _startDate = range.start;
+                      _endDate = range.end;
+                    });
+                    _applyFilters(_searchController.text);
+                  }
+                },
+              ),
+              if (_startDate != null && _endDate != null)
+                IconButton(
+                  icon: Icon(Icons.clear,
+                      color: themeData.colorScheme.onSurfaceVariant),
+                  tooltip: '清除日期范围',
+                  onPressed: () {
+                    setState(() {
                       _startDate = null;
                       _endDate = null;
-                      _fetchOffenses(reset: true);
                     });
-                  },
-                  items: <String>[
-                    'driverName',
-                    'licensePlate',
-                    'offenseType',
-                    'timeRange'
-                  ].map<DropdownMenuItem<String>>((String value) {
-                    return DropdownMenuItem<String>(
-                      value: value,
-                      child: Text(
-                        value == 'driverName'
-                            ? '按司机姓名'
-                            : value == 'licensePlate'
-                                ? '按车牌号'
-                                : value == 'offenseType'
-                                    ? '按违法类型'
-                                    : '按时间范围',
-                        style:
-                            TextStyle(color: themeData.colorScheme.onSurface),
-                      ),
-                    );
-                  }).toList(),
-                  dropdownColor: themeData.colorScheme.surfaceContainer,
-                  icon: Icon(Icons.arrow_drop_down,
-                      color: themeData.colorScheme.primary),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    _startDate != null && _endDate != null
-                        ? '违法时间范围: ${formatDate(_startDate)} 至 ${formatDate(_endDate)}'
-                        : '选择违法时间范围',
-                    style: TextStyle(
-                      color: _startDate != null && _endDate != null
-                          ? themeData.colorScheme.onSurface
-                          : themeData.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-                IconButton(
-                  icon: Icon(Icons.date_range,
-                      color: themeData.colorScheme.primary),
-                  tooltip: '按违法时间范围搜索',
-                  onPressed: () async {
-                    final range = await showDateRangePicker(
-                      context: context,
-                      firstDate: DateTime(1900),
-                      lastDate: DateTime.now(),
-                      locale: const Locale('zh', 'CN'),
-                      helpText: '选择违法时间范围',
-                      cancelText: '取消',
-                      confirmText: '确定',
-                      fieldStartHintText: '开始日期',
-                      fieldEndHintText: '结束日期',
-                      builder: (BuildContext context, Widget? child) {
-                        return Theme(
-                            data: controller.currentBodyTheme.value,
-                            child: child!);
-                      },
-                    );
-                    if (range != null) {
-                      setState(() {
-                        _startDate = range.start;
-                        _endDate = range.end;
-                        _searchType = 'timeRange';
-                        _searchController.clear();
-                      });
-                      _searchOffenses();
-                    }
+                    _applyFilters(_searchController.text);
                   },
                 ),
-                if (_startDate != null && _endDate != null)
-                  IconButton(
-                    icon: Icon(Icons.clear,
-                        color: themeData.colorScheme.onSurfaceVariant),
-                    tooltip: '清除日期范围',
-                    onPressed: () {
-                      setState(() {
-                        _startDate = null;
-                        _endDate = null;
-                        _searchType = 'driverName';
-                        _searchController.clear();
-                      });
-                      _searchOffenses();
-                    },
-                  ),
-              ],
-            ),
-          ],
-        ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -541,37 +584,56 @@ class _OffenseListPageState extends State<OffenseList> {
       return Scaffold(
         backgroundColor: themeData.colorScheme.surface,
         appBar: AppBar(
-          title: Text('违法行为管理',
-              style: themeData.textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: themeData.colorScheme.onPrimaryContainer)),
+          title: Text(
+            '违法行为管理',
+            style: themeData.textTheme.headlineMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: themeData.colorScheme.onPrimaryContainer,
+            ),
+          ),
           backgroundColor: themeData.colorScheme.primaryContainer,
           foregroundColor: themeData.colorScheme.onPrimaryContainer,
           elevation: 2,
           actions: [
-            IconButton(
-                icon: const Icon(Icons.refresh),
-                onPressed: _refreshOffenses,
-                tooltip: '刷新列表'),
-            IconButton(
-                icon: const Icon(Icons.add),
+            if (_isAdmin) ...[
+              IconButton(
+                icon: Icon(Icons.add,
+                    color: themeData.colorScheme.onPrimaryContainer, size: 24),
                 onPressed: _createOffense,
-                tooltip: '添加新违法信息'),
+                tooltip: '添加违法信息',
+                padding: const EdgeInsets.symmetric(horizontal: 12.0),
+              ),
+              IconButton(
+                icon: Icon(Icons.refresh,
+                    color: themeData.colorScheme.onPrimaryContainer, size: 24),
+                onPressed: () => _refreshOffenses(),
+                tooltip: '刷新列表',
+                padding: const EdgeInsets.symmetric(horizontal: 12.0),
+              ),
+            ],
             IconButton(
-              icon: Icon(themeData.brightness == Brightness.light
-                  ? Icons.dark_mode
-                  : Icons.light_mode),
+              icon: Icon(
+                themeData.brightness == Brightness.light
+                    ? Icons.dark_mode
+                    : Icons.light_mode,
+                color: themeData.colorScheme.onPrimaryContainer,
+                size: 24,
+              ),
               onPressed: controller.toggleBodyTheme,
               tooltip: '切换主题',
+              padding: const EdgeInsets.symmetric(horizontal: 12.0),
             ),
           ],
         ),
         body: RefreshIndicator(
-          onRefresh: _refreshOffenses,
+          onRefresh: () => _refreshOffenses(),
+          color: themeData.colorScheme.primary,
+          backgroundColor: themeData.colorScheme.surfaceContainer,
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
+                const SizedBox(height: 12),
                 _buildSearchField(themeData),
                 const SizedBox(height: 12),
                 Expanded(
@@ -587,9 +649,12 @@ class _OffenseListPageState extends State<OffenseList> {
                     child: _isLoading && _currentPage == 1
                         ? Center(
                             child: CircularProgressIndicator(
-                                valueColor: AlwaysStoppedAnimation(
-                                    themeData.colorScheme.primary)))
-                        : _errorMessage.isNotEmpty && _offenseList.isEmpty
+                              valueColor: AlwaysStoppedAnimation(
+                                  themeData.colorScheme.primary),
+                            ),
+                          )
+                        : _errorMessage.isNotEmpty &&
+                                _filteredOffenseList.isEmpty
                             ? Center(
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
@@ -598,12 +663,13 @@ class _OffenseListPageState extends State<OffenseList> {
                                       _errorMessage,
                                       style: themeData.textTheme.titleMedium
                                           ?.copyWith(
-                                              color:
-                                                  themeData.colorScheme.error,
-                                              fontWeight: FontWeight.w500),
+                                        color: themeData.colorScheme.error,
+                                        fontWeight: FontWeight.w500,
+                                      ),
                                       textAlign: TextAlign.center,
                                     ),
-                                    if (_errorMessage.contains('未授权'))
+                                    if (_errorMessage.contains('未授权') ||
+                                        _errorMessage.contains('登录'))
                                       Padding(
                                         padding:
                                             const EdgeInsets.only(top: 16.0),
@@ -624,18 +690,18 @@ class _OffenseListPageState extends State<OffenseList> {
                                 ),
                               )
                             : ListView.builder(
-                                itemCount:
-                                    _offenseList.length + (_hasMore ? 1 : 0),
+                                itemCount: _filteredOffenseList.length +
+                                    (_hasMore ? 1 : 0),
                                 itemBuilder: (context, index) {
-                                  if (index == _offenseList.length &&
+                                  if (index == _filteredOffenseList.length &&
                                       _hasMore) {
                                     return const Padding(
-                                        padding: EdgeInsets.all(8.0),
-                                        child: Center(
-                                            child:
-                                                CircularProgressIndicator()));
+                                      padding: EdgeInsets.all(8.0),
+                                      child: Center(
+                                          child: CircularProgressIndicator()),
+                                    );
                                   }
-                                  final offense = _offenseList[index];
+                                  final offense = _filteredOffenseList[index];
                                   return Card(
                                     margin: const EdgeInsets.symmetric(
                                         vertical: 8.0),
@@ -653,9 +719,10 @@ class _OffenseListPageState extends State<OffenseList> {
                                         '违法类型: ${offense.offenseType ?? '未知类型'}',
                                         style: themeData.textTheme.titleMedium
                                             ?.copyWith(
-                                                color: themeData
-                                                    .colorScheme.onSurface,
-                                                fontWeight: FontWeight.w600),
+                                          color:
+                                              themeData.colorScheme.onSurface,
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
                                       subtitle: Column(
                                         crossAxisAlignment:
@@ -663,49 +730,72 @@ class _OffenseListPageState extends State<OffenseList> {
                                         children: [
                                           const SizedBox(height: 4),
                                           Text(
-                                              '车牌号: ${offense.licensePlate ?? '未知车牌'}',
-                                              style: themeData
-                                                  .textTheme.bodyMedium
-                                                  ?.copyWith(
-                                                      color: themeData
-                                                          .colorScheme
-                                                          .onSurfaceVariant)),
-                                          Text(
-                                              '司机姓名: ${offense.driverName ?? '未知司机'}',
-                                              style: themeData
-                                                  .textTheme.bodyMedium
-                                                  ?.copyWith(
-                                                      color: themeData
-                                                          .colorScheme
-                                                          .onSurfaceVariant)),
-                                          Text(
-                                              '状态: ${offense.processStatus ?? '无'}',
-                                              style: themeData
-                                                  .textTheme.bodyMedium
-                                                  ?.copyWith(
-                                                      color: themeData
-                                                          .colorScheme
-                                                          .onSurfaceVariant)),
-                                        ],
-                                      ),
-                                      trailing: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          IconButton(
-                                            icon: Icon(Icons.delete,
-                                                size: 18,
-                                                color: themeData
-                                                    .colorScheme.error),
-                                            onPressed: () => _deleteOffense(
-                                                offense.offenseId ?? 0),
-                                            tooltip: '删除违法信息',
-                                          ),
-                                          Icon(Icons.arrow_forward_ios,
+                                            '车牌号: ${offense.licensePlate ?? '未知车牌'}',
+                                            style: themeData
+                                                .textTheme.bodyMedium
+                                                ?.copyWith(
                                               color: themeData
                                                   .colorScheme.onSurfaceVariant,
-                                              size: 18),
+                                            ),
+                                          ),
+                                          Text(
+                                            '司机姓名: ${offense.driverName ?? '未知司机'}',
+                                            style: themeData
+                                                .textTheme.bodyMedium
+                                                ?.copyWith(
+                                              color: themeData
+                                                  .colorScheme.onSurfaceVariant,
+                                            ),
+                                          ),
+                                          Text(
+                                            '状态: ${offense.processStatus ?? '无'}',
+                                            style: themeData
+                                                .textTheme.bodyMedium
+                                                ?.copyWith(
+                                              color: themeData
+                                                  .colorScheme.onSurfaceVariant,
+                                            ),
+                                          ),
                                         ],
                                       ),
+                                      trailing: _isAdmin
+                                          ? Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                IconButton(
+                                                  icon: const Icon(Icons.edit,
+                                                      size: 18),
+                                                  color: themeData
+                                                      .colorScheme.primary,
+                                                  onPressed: () =>
+                                                      _editOffense(offense),
+                                                  tooltip: '编辑违法信息',
+                                                ),
+                                                IconButton(
+                                                  icon: Icon(Icons.delete,
+                                                      size: 18,
+                                                      color: themeData
+                                                          .colorScheme.error),
+                                                  onPressed: () =>
+                                                      _deleteOffense(
+                                                          offense.offenseId ??
+                                                              0),
+                                                  tooltip: '删除违法信息',
+                                                ),
+                                                Icon(
+                                                  Icons.arrow_forward_ios,
+                                                  color: themeData.colorScheme
+                                                      .onSurfaceVariant,
+                                                  size: 18,
+                                                ),
+                                              ],
+                                            )
+                                          : Icon(
+                                              Icons.arrow_forward_ios,
+                                              color: themeData
+                                                  .colorScheme.onSurfaceVariant,
+                                              size: 18,
+                                            ),
                                       onTap: () => _goToDetailPage(offense),
                                     ),
                                   );
@@ -716,13 +806,6 @@ class _OffenseListPageState extends State<OffenseList> {
               ],
             ),
           ),
-        ),
-        floatingActionButton: FloatingActionButton(
-          onPressed: _createOffense,
-          backgroundColor: themeData.colorScheme.primary,
-          foregroundColor: themeData.colorScheme.onPrimary,
-          tooltip: '添加新违法信息',
-          child: const Icon(Icons.add),
         ),
       );
     });
@@ -751,8 +834,27 @@ class _AddOffensePageState extends State<AddOffensePage> {
   final _processStatusController = TextEditingController();
   final _processResultController = TextEditingController();
   bool _isLoading = false;
-
   final DashboardController controller = Get.find<DashboardController>();
+
+  Future<bool> _validateJwtToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    final jwtToken = prefs.getString('jwtToken');
+    if (jwtToken == null || jwtToken.isEmpty) {
+      _showSnackBar('未授权，请重新登录', isError: true);
+      return false;
+    }
+    try {
+      final decodedToken = JwtDecoder.decode(jwtToken);
+      if (JwtDecoder.isExpired(jwtToken)) {
+        _showSnackBar('登录已过期，请重新登录', isError: true);
+        return false;
+      }
+      return true;
+    } catch (e) {
+      _showSnackBar('无效的登录信息，请重新登录', isError: true);
+      return false;
+    }
+  }
 
   @override
   void initState() {
@@ -763,6 +865,10 @@ class _AddOffensePageState extends State<AddOffensePage> {
   Future<void> _initialize() async {
     setState(() => _isLoading = true);
     try {
+      if (!await _validateJwtToken()) {
+        Navigator.pushReplacementNamed(context, AppPages.login);
+        return;
+      }
       await offenseApi.initializeWithJwt();
     } catch (e) {
       _showSnackBar('初始化失败: $e', isError: true);
@@ -788,12 +894,14 @@ class _AddOffensePageState extends State<AddOffensePage> {
 
   Future<void> _submitOffense() async {
     if (!_formKey.currentState!.validate()) return;
-
+    if (!await _validateJwtToken()) {
+      Navigator.pushReplacementNamed(context, AppPages.login);
+      return;
+    }
     setState(() => _isLoading = true);
     try {
       final offenseTime =
           DateTime.parse("${_offenseTimeController.text.trim()}T00:00:00.000");
-
       final offensePayload = {
         'offenseId': null,
         'driverName': _driverNameController.text.trim(),
@@ -809,13 +917,12 @@ class _AddOffensePageState extends State<AddOffensePage> {
             ? null
             : num.parse(_fineAmountController.text.trim()),
         'processStatus': _processStatusController.text.trim().isEmpty
-            ? null
+            ? 'Pending'
             : _processStatusController.text.trim(),
         'processResult': _processResultController.text.trim().isEmpty
             ? null
             : _processResultController.text.trim(),
       };
-
       final idempotencyKey = generateIdempotencyKey();
       final prefs = await SharedPreferences.getInstance();
       final jwtToken = prefs.getString('jwtToken');
@@ -828,12 +935,10 @@ class _AddOffensePageState extends State<AddOffensePage> {
         },
         body: jsonEncode(offensePayload),
       );
-
       if (response.statusCode != 201) {
         throw Exception(
             'Failed to create offense: ${response.statusCode} - ${response.body}');
       }
-
       _showSnackBar('创建违法行为记录成功！');
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
@@ -872,8 +977,15 @@ class _AddOffensePageState extends State<AddOffensePage> {
       initialDate: DateTime.now(),
       firstDate: DateTime(1900),
       lastDate: DateTime.now(),
-      builder: (context, child) =>
-          Theme(data: controller.currentBodyTheme.value, child: child!),
+      builder: (context, child) => Theme(
+        data: controller.currentBodyTheme.value.copyWith(
+          colorScheme: controller.currentBodyTheme.value.colorScheme.copyWith(
+            primary: controller.currentBodyTheme.value.colorScheme.primary,
+            onPrimary: controller.currentBodyTheme.value.colorScheme.onPrimary,
+          ),
+        ),
+        child: child!,
+      ),
     );
     if (pickedDate != null && mounted) {
       setState(() => _offenseTimeController.text = formatDate(pickedDate));
@@ -911,7 +1023,9 @@ class _AddOffensePageState extends State<AddOffensePage> {
               borderSide:
                   BorderSide(color: themeData.colorScheme.primary, width: 1.5)),
           filled: true,
-          fillColor: themeData.colorScheme.surfaceContainerLowest,
+          fillColor: readOnly
+              ? themeData.colorScheme.surfaceContainerHighest.withOpacity(0.5)
+              : themeData.colorScheme.surfaceContainerLowest,
           suffixIcon: readOnly
               ? Icon(Icons.calendar_today,
                   size: 18, color: themeData.colorScheme.primary)
@@ -922,10 +1036,58 @@ class _AddOffensePageState extends State<AddOffensePage> {
         onTap: onTap,
         maxLength: maxLength,
         validator: validator ??
-            (required
-                ? (value) =>
-                    value == null || value.trim().isEmpty ? '$label不能为空' : null
-                : null),
+            (value) {
+              final trimmedValue = value?.trim() ?? '';
+              if (required && trimmedValue.isEmpty) return '$label不能为空';
+              if (label == '司机姓名' && trimmedValue.length > 100) {
+                return '司机姓名不能超过100个字符';
+              }
+              if (label == '车牌号') {
+                if (trimmedValue.isEmpty) return '车牌号不能为空';
+                if (trimmedValue.length > 20) return '车牌号不能超过20个字符';
+                if (!isValidLicensePlate(trimmedValue)) {
+                  return '请输入有效车牌号，例如：黑AWS34';
+                }
+              }
+              if (label == '违法类型' && trimmedValue.length > 100) {
+                return '违法类型不能超过100个字符';
+              }
+              if (label == '违法代码' && trimmedValue.length > 50) {
+                return '违法代码不能超过50个字符';
+              }
+              if (label == '违法地点' && trimmedValue.length > 100) {
+                return '违法地点不能超过100个字符';
+              }
+              if (label == '违法时间' && trimmedValue.isNotEmpty) {
+                final date = DateTime.tryParse('$trimmedValue 00:00:00.000');
+                if (date == null) return '无效的日期格式';
+                if (date.isAfter(DateTime.now())) {
+                  return '违法时间不能晚于当前日期';
+                }
+              }
+              if (label == '扣分' && trimmedValue.isNotEmpty) {
+                final points = int.tryParse(trimmedValue);
+                if (points == null) return '扣分必须是整数';
+                if (points < 0) return '扣分不能为负数';
+                if (points > 12) return '扣分不能超过12分';
+              }
+              if (label == '罚款金额' && trimmedValue.isNotEmpty) {
+                final amount = num.tryParse(trimmedValue);
+                if (amount == null) return '罚款金额必须是数字';
+                if (amount < 0) return '罚款金额不能为负数';
+                if (amount > 99999999.99) return '罚款金额不能超过99999999.99';
+                if (!RegExp(r'^\d+(\.\d{1,2})?$').hasMatch(trimmedValue)) {
+                  return '罚款金额最多保留两位小数';
+                }
+              }
+              if (label == '处理状态' && trimmedValue.length > 50) {
+                return '处理状态不能超过50个字符';
+              }
+              if (label == '处理结果' && trimmedValue.length > 255) {
+                return '处理结果不能超过255个字符';
+              }
+              return null;
+            },
       ),
     );
   }
@@ -964,192 +1126,39 @@ class _AddOffensePageState extends State<AddOffensePage> {
                             child: Column(
                               children: [
                                 _buildTextField(
-                                  '司机姓名',
-                                  _driverNameController,
-                                  themeData,
-                                  required: true,
-                                  maxLength: 100,
-                                  validator: (value) {
-                                    if (value == null || value.trim().isEmpty) {
-                                      return '司机姓名不能为空';
-                                    }
-                                    if (value.trim().length > 100) {
-                                      return '司机姓名不能超过100个字符';
-                                    }
-                                    return null;
-                                  },
-                                ),
+                                    '司机姓名', _driverNameController, themeData,
+                                    required: true, maxLength: 100),
                                 _buildTextField(
-                                  '车牌号',
-                                  _licensePlateController,
-                                  themeData,
-                                  required: true,
-                                  maxLength: 20,
-                                  validator: (value) {
-                                    if (value == null || value.trim().isEmpty) {
-                                      return '车牌号不能为空';
-                                    }
-                                    if (value.trim().length > 20) {
-                                      return '车牌号不能超过20个字符';
-                                    }
-                                    if (!RegExp(
-                                            r'^[\u4e00-\u9fa5][A-Za-z0-9]{5,7}$')
-                                        .hasMatch(value.trim())) {
-                                      return '请输入有效车牌号，例如：黑AWS34';
-                                    }
-                                    return null;
-                                  },
-                                ),
+                                    '车牌号', _licensePlateController, themeData,
+                                    required: true, maxLength: 20),
                                 _buildTextField(
-                                  '违法类型',
-                                  _offenseTypeController,
-                                  themeData,
-                                  required: true,
-                                  maxLength: 100,
-                                  validator: (value) {
-                                    if (value == null || value.trim().isEmpty) {
-                                      return '违法类型不能为空';
-                                    }
-                                    if (value.trim().length > 100) {
-                                      return '违法类型不能超过100个字符';
-                                    }
-                                    return null;
-                                  },
-                                ),
+                                    '违法类型', _offenseTypeController, themeData,
+                                    required: true, maxLength: 100),
                                 _buildTextField(
-                                  '违法代码',
-                                  _offenseCodeController,
-                                  themeData,
-                                  required: true,
-                                  maxLength: 50,
-                                  validator: (value) {
-                                    if (value == null || value.trim().isEmpty) {
-                                      return '违法代码不能为空';
-                                    }
-                                    if (value.trim().length > 50) {
-                                      return '违法代码不能超过50个字符';
-                                    }
-                                    return null;
-                                  },
-                                ),
+                                    '违法代码', _offenseCodeController, themeData,
+                                    required: true, maxLength: 50),
+                                _buildTextField('违法地点',
+                                    _offenseLocationController, themeData,
+                                    required: true, maxLength: 100),
                                 _buildTextField(
-                                  '违法地点',
-                                  _offenseLocationController,
-                                  themeData,
-                                  required: true,
-                                  maxLength: 100,
-                                  validator: (value) {
-                                    if (value == null || value.trim().isEmpty) {
-                                      return '违法地点不能为空';
-                                    }
-                                    if (value.trim().length > 100) {
-                                      return '违法地点不能超过100个字符';
-                                    }
-                                    return null;
-                                  },
-                                ),
+                                    '违法时间', _offenseTimeController, themeData,
+                                    required: true,
+                                    readOnly: true,
+                                    onTap: _pickDate),
                                 _buildTextField(
-                                  '违法时间',
-                                  _offenseTimeController,
-                                  themeData,
-                                  required: true,
-                                  readOnly: true,
-                                  onTap: _pickDate,
-                                  validator: (value) {
-                                    if (value == null || value.trim().isEmpty) {
-                                      return '违法时间不能为空';
-                                    }
-                                    final date = DateTime.tryParse(
-                                        "${value.trim()}T00:00:00.000");
-                                    if (date == null) {
-                                      return '无效的日期格式';
-                                    }
-                                    if (date.isAfter(DateTime.now())) {
-                                      return '违法时间不能晚于当前日期';
-                                    }
-                                    return null;
-                                  },
-                                ),
+                                    '扣分', _deductedPointsController, themeData,
+                                    keyboardType: TextInputType.number),
                                 _buildTextField(
-                                  '扣分',
-                                  _deductedPointsController,
-                                  themeData,
-                                  keyboardType: TextInputType.number,
-                                  validator: (value) {
-                                    if (value == null || value.trim().isEmpty) {
-                                      return null;
-                                    }
-                                    final points = int.tryParse(value.trim());
-                                    if (points == null) {
-                                      return '扣分必须是整数';
-                                    }
-                                    if (points < 0) {
-                                      return '扣分不能为负数';
-                                    }
-                                    if (points > 12) {
-                                      return '扣分不能超过12分';
-                                    }
-                                    return null;
-                                  },
-                                ),
+                                    '罚款金额', _fineAmountController, themeData,
+                                    keyboardType:
+                                        const TextInputType.numberWithOptions(
+                                            decimal: true)),
                                 _buildTextField(
-                                  '罚款金额',
-                                  _fineAmountController,
-                                  themeData,
-                                  keyboardType:
-                                      const TextInputType.numberWithOptions(
-                                          decimal: true),
-                                  validator: (value) {
-                                    if (value == null || value.trim().isEmpty) {
-                                      return null;
-                                    }
-                                    final amount = num.tryParse(value.trim());
-                                    if (amount == null) {
-                                      return '罚款金额必须是数字';
-                                    }
-                                    if (amount < 0) {
-                                      return '罚款金额不能为负数';
-                                    }
-                                    if (amount > 99999999.99) {
-                                      return '罚款金额不能超过99999999.99';
-                                    }
-                                    if (!RegExp(r'^\d+(\.\d{1,2})?$')
-                                        .hasMatch(value.trim())) {
-                                      return '罚款金额最多保留两位小数';
-                                    }
-                                    return null;
-                                  },
-                                ),
+                                    '处理状态', _processStatusController, themeData,
+                                    maxLength: 50),
                                 _buildTextField(
-                                  '处理状态',
-                                  _processStatusController,
-                                  themeData,
-                                  maxLength: 50,
-                                  validator: (value) {
-                                    if (value == null || value.trim().isEmpty) {
-                                      return null;
-                                    }
-                                    if (value.trim().length > 50) {
-                                      return '处理状态不能超过50个字符';
-                                    }
-                                    return null;
-                                  },
-                                ),
-                                _buildTextField(
-                                  '处理结果',
-                                  _processResultController,
-                                  themeData,
-                                  maxLength: 255,
-                                  validator: (value) {
-                                    if (value == null || value.trim().isEmpty) {
-                                      return null;
-                                    }
-                                    if (value.trim().length > 255) {
-                                      return '处理结果不能超过255个字符';
-                                    }
-                                    return null;
-                                  },
-                                ),
+                                    '处理结果', _processResultController, themeData,
+                                    maxLength: 255),
                               ],
                             ),
                           ),
@@ -1194,8 +1203,27 @@ class _OffenseDetailPageState extends State<OffenseDetailPage> {
   bool _isLoading = false;
   bool _isEditable = false;
   String _errorMessage = '';
-
   final DashboardController controller = Get.find<DashboardController>();
+
+  Future<bool> _validateJwtToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    final jwtToken = prefs.getString('jwtToken');
+    if (jwtToken == null || jwtToken.isEmpty) {
+      setState(() => _errorMessage = '未授权，请重新登录');
+      return false;
+    }
+    try {
+      final decodedToken = JwtDecoder.decode(jwtToken);
+      if (JwtDecoder.isExpired(jwtToken)) {
+        setState(() => _errorMessage = '登录已过期，请重新登录');
+        return false;
+      }
+      return true;
+    } catch (e) {
+      setState(() => _errorMessage = '无效的登录信息，请重新登录');
+      return false;
+    }
+  }
 
   @override
   void initState() {
@@ -1206,6 +1234,10 @@ class _OffenseDetailPageState extends State<OffenseDetailPage> {
   Future<void> _initialize() async {
     setState(() => _isLoading = true);
     try {
+      if (!await _validateJwtToken()) {
+        Navigator.pushReplacementNamed(context, AppPages.login);
+        return;
+      }
       await offenseApi.initializeWithJwt();
       await _checkUserRole();
     } catch (e) {
@@ -1217,14 +1249,18 @@ class _OffenseDetailPageState extends State<OffenseDetailPage> {
 
   Future<void> _checkUserRole() async {
     try {
+      if (!await _validateJwtToken()) {
+        Navigator.pushReplacementNamed(context, AppPages.login);
+        return;
+      }
       final prefs = await SharedPreferences.getInstance();
       final jwtToken = prefs.getString('jwtToken');
-      if (jwtToken == null) throw Exception('未登录，请重新登录');
+      if (jwtToken == null) throw Exception('未找到 JWT，请重新登录');
       final response = await http.get(
         Uri.parse('http://localhost:8081/api/users/me'),
         headers: {
           'Authorization': 'Bearer $jwtToken',
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json'
         },
       );
       if (response.statusCode == 200) {
@@ -1233,7 +1269,7 @@ class _OffenseDetailPageState extends State<OffenseDetailPage> {
                 ?.map((r) => r.toString())
                 .toList() ??
             [];
-        setState(() => _isEditable = roles.contains('ROLE_ADMIN'));
+        setState(() => _isEditable = roles.contains('ADMIN'));
       } else {
         throw Exception('验证失败：${response.statusCode}');
       }
@@ -1243,15 +1279,39 @@ class _OffenseDetailPageState extends State<OffenseDetailPage> {
   }
 
   Future<void> _deleteOffense(int offenseId) async {
-    setState(() => _isLoading = true);
-    try {
-      await offenseApi.apiOffensesOffenseIdDelete(offenseId: offenseId);
-      _showSnackBar('删除违法信息成功！');
-      if (mounted) Navigator.pop(context, true);
-    } catch (e) {
-      _showSnackBar('删除失败: $e', isError: true);
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+    bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('确认删除'),
+        content: const Text('确定要删除此违法信息吗？此操作不可撤销。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('删除', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      setState(() => _isLoading = true);
+      try {
+        if (!await _validateJwtToken()) {
+          Navigator.pushReplacementNamed(context, AppPages.login);
+          return;
+        }
+        await offenseApi.apiOffensesOffenseIdDelete(offenseId: offenseId);
+        _showSnackBar('删除违法信息成功！');
+        if (mounted) Navigator.pop(context, true);
+      } catch (e) {
+        _showSnackBar('删除失败: $e', isError: true);
+      } finally {
+        if (mounted) setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -1295,51 +1355,6 @@ class _OffenseDetailPageState extends State<OffenseDetailPage> {
           ),
         ],
       ),
-    );
-  }
-
-  void _showDeleteConfirmationDialog(String action, VoidCallback onConfirm) {
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        final themeData = controller.currentBodyTheme.value;
-        return AlertDialog(
-          backgroundColor: themeData.colorScheme.surfaceContainerHighest,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text('确认删除',
-              style: themeData.textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: themeData.colorScheme.onSurface)),
-          content: Text('您确定要$action此违法信息吗？此操作不可撤销。',
-              style: themeData.textTheme.bodyMedium
-                  ?.copyWith(color: themeData.colorScheme.onSurfaceVariant)),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text('取消',
-                  style: themeData.textTheme.labelLarge?.copyWith(
-                      color: themeData.colorScheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w600)),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                onConfirm();
-                Navigator.pop(ctx);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: themeData.colorScheme.error,
-                foregroundColor: themeData.colorScheme.onError,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              ),
-              child: const Text('删除'),
-            ),
-          ],
-        );
-      },
     );
   }
 
@@ -1408,8 +1423,8 @@ class _OffenseDetailPageState extends State<OffenseDetailPage> {
                   IconButton(
                     icon:
                         Icon(Icons.delete, color: themeData.colorScheme.error),
-                    onPressed: () => _showDeleteConfirmationDialog('删除',
-                        () => _deleteOffense(widget.offense.offenseId ?? 0)),
+                    onPressed: () =>
+                        _deleteOffense(widget.offense.offenseId ?? 0),
                     tooltip: '删除违法信息',
                   ),
                 ]
@@ -1494,8 +1509,27 @@ class _EditOffensePageState extends State<EditOffensePage> {
   final _processStatusController = TextEditingController();
   final _processResultController = TextEditingController();
   bool _isLoading = false;
-
   final DashboardController controller = Get.find<DashboardController>();
+
+  Future<bool> _validateJwtToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    final jwtToken = prefs.getString('jwtToken');
+    if (jwtToken == null || jwtToken.isEmpty) {
+      _showSnackBar('未授权，请重新登录', isError: true);
+      return false;
+    }
+    try {
+      final decodedToken = JwtDecoder.decode(jwtToken);
+      if (JwtDecoder.isExpired(jwtToken)) {
+        _showSnackBar('登录已过期，请重新登录', isError: true);
+        return false;
+      }
+      return true;
+    } catch (e) {
+      _showSnackBar('无效的登录信息，请重新登录', isError: true);
+      return false;
+    }
+  }
 
   @override
   void initState() {
@@ -1506,6 +1540,10 @@ class _EditOffensePageState extends State<EditOffensePage> {
   Future<void> _initialize() async {
     setState(() => _isLoading = true);
     try {
+      if (!await _validateJwtToken()) {
+        Navigator.pushReplacementNamed(context, AppPages.login);
+        return;
+      }
       await offenseApi.initializeWithJwt();
       _initializeFields();
     } catch (e) {
@@ -1516,17 +1554,19 @@ class _EditOffensePageState extends State<EditOffensePage> {
   }
 
   void _initializeFields() {
-    _driverNameController.text = widget.offense.driverName ?? '';
-    _licensePlateController.text = widget.offense.licensePlate ?? '';
-    _offenseTypeController.text = widget.offense.offenseType ?? '';
-    _offenseCodeController.text = widget.offense.offenseCode ?? '';
-    _offenseLocationController.text = widget.offense.offenseLocation ?? '';
-    _offenseTimeController.text = formatDate(widget.offense.offenseTime);
-    _deductedPointsController.text =
-        widget.offense.deductedPoints?.toString() ?? '';
-    _fineAmountController.text = widget.offense.fineAmount?.toString() ?? '';
-    _processStatusController.text = widget.offense.processStatus ?? '';
-    _processResultController.text = widget.offense.processResult ?? '';
+    setState(() {
+      _driverNameController.text = widget.offense.driverName ?? '';
+      _licensePlateController.text = widget.offense.licensePlate ?? '';
+      _offenseTypeController.text = widget.offense.offenseType ?? '';
+      _offenseCodeController.text = widget.offense.offenseCode ?? '';
+      _offenseLocationController.text = widget.offense.offenseLocation ?? '';
+      _offenseTimeController.text = formatDate(widget.offense.offenseTime);
+      _deductedPointsController.text =
+          widget.offense.deductedPoints?.toString() ?? '';
+      _fineAmountController.text = widget.offense.fineAmount?.toString() ?? '';
+      _processStatusController.text = widget.offense.processStatus ?? '';
+      _processResultController.text = widget.offense.processResult ?? '';
+    });
   }
 
   @override
@@ -1546,12 +1586,14 @@ class _EditOffensePageState extends State<EditOffensePage> {
 
   Future<void> _updateOffense() async {
     if (!_formKey.currentState!.validate()) return;
-
+    if (!await _validateJwtToken()) {
+      Navigator.pushReplacementNamed(context, AppPages.login);
+      return;
+    }
     setState(() => _isLoading = true);
     try {
       final offenseTime =
           DateTime.parse("${_offenseTimeController.text.trim()}T00:00:00.000");
-
       final offensePayload = {
         'offenseId': widget.offense.offenseId,
         'driverName': _driverNameController.text.trim(),
@@ -1567,13 +1609,12 @@ class _EditOffensePageState extends State<EditOffensePage> {
             ? null
             : num.parse(_fineAmountController.text.trim()),
         'processStatus': _processStatusController.text.trim().isEmpty
-            ? null
+            ? 'Pending'
             : _processStatusController.text.trim(),
         'processResult': _processResultController.text.trim().isEmpty
             ? null
             : _processResultController.text.trim(),
       };
-
       final idempotencyKey = generateIdempotencyKey();
       final prefs = await SharedPreferences.getInstance();
       final jwtToken = prefs.getString('jwtToken');
@@ -1586,12 +1627,10 @@ class _EditOffensePageState extends State<EditOffensePage> {
         },
         body: jsonEncode(offensePayload),
       );
-
       if (response.statusCode != 200) {
         throw Exception(
             'Failed to update offense: ${response.statusCode} - ${response.body}');
       }
-
       _showSnackBar('更新违法行为记录成功！');
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
@@ -1630,8 +1669,15 @@ class _EditOffensePageState extends State<EditOffensePage> {
       initialDate: widget.offense.offenseTime ?? DateTime.now(),
       firstDate: DateTime(1900),
       lastDate: DateTime.now(),
-      builder: (context, child) =>
-          Theme(data: controller.currentBodyTheme.value, child: child!),
+      builder: (context, child) => Theme(
+        data: controller.currentBodyTheme.value.copyWith(
+          colorScheme: controller.currentBodyTheme.value.colorScheme.copyWith(
+            primary: controller.currentBodyTheme.value.colorScheme.primary,
+            onPrimary: controller.currentBodyTheme.value.colorScheme.onPrimary,
+          ),
+        ),
+        child: child!,
+      ),
     );
     if (pickedDate != null && mounted) {
       setState(() => _offenseTimeController.text = formatDate(pickedDate));
@@ -1669,7 +1715,9 @@ class _EditOffensePageState extends State<EditOffensePage> {
               borderSide:
                   BorderSide(color: themeData.colorScheme.primary, width: 1.5)),
           filled: true,
-          fillColor: themeData.colorScheme.surfaceContainerLowest,
+          fillColor: readOnly
+              ? themeData.colorScheme.surfaceContainerHighest.withOpacity(0.5)
+              : themeData.colorScheme.surfaceContainerLowest,
           suffixIcon: readOnly
               ? Icon(Icons.calendar_today,
                   size: 18, color: themeData.colorScheme.primary)
@@ -1680,10 +1728,58 @@ class _EditOffensePageState extends State<EditOffensePage> {
         onTap: onTap,
         maxLength: maxLength,
         validator: validator ??
-            (required
-                ? (value) =>
-                    value == null || value.trim().isEmpty ? '$label不能为空' : null
-                : null),
+            (value) {
+              final trimmedValue = value?.trim() ?? '';
+              if (required && trimmedValue.isEmpty) return '$label不能为空';
+              if (label == '司机姓名' && trimmedValue.length > 100) {
+                return '司机姓名不能超过100个字符';
+              }
+              if (label == '车牌号') {
+                if (trimmedValue.isEmpty) return '车牌号不能为空';
+                if (trimmedValue.length > 20) return '车牌号不能超过20个字符';
+                if (!isValidLicensePlate(trimmedValue)) {
+                  return '请输入有效车牌号，例如：黑AWS34';
+                }
+              }
+              if (label == '违法类型' && trimmedValue.length > 100) {
+                return '违法类型不能超过100个字符';
+              }
+              if (label == '违法代码' && trimmedValue.length > 50) {
+                return '违法代码不能超过50个字符';
+              }
+              if (label == '违法地点' && trimmedValue.length > 100) {
+                return '违法地点不能超过100个字符';
+              }
+              if (label == '违法时间' && trimmedValue.isNotEmpty) {
+                final date = DateTime.tryParse('$trimmedValue 00:00:00.000');
+                if (date == null) return '无效的日期格式';
+                if (date.isAfter(DateTime.now())) {
+                  return '违法时间不能晚于当前日期';
+                }
+              }
+              if (label == '扣分' && trimmedValue.isNotEmpty) {
+                final points = int.tryParse(trimmedValue);
+                if (points == null) return '扣分必须是整数';
+                if (points < 0) return '扣分不能为负数';
+                if (points > 12) return '扣分不能超过12分';
+              }
+              if (label == '罚款金额' && trimmedValue.isNotEmpty) {
+                final amount = num.tryParse(trimmedValue);
+                if (amount == null) return '罚款金额必须是数字';
+                if (amount < 0) return '罚款金额不能为负数';
+                if (amount > 99999999.99) return '罚款金额不能超过99999999.99';
+                if (!RegExp(r'^\d+(\.\d{1,2})?$').hasMatch(trimmedValue)) {
+                  return '罚款金额最多保留两位小数';
+                }
+              }
+              if (label == '处理状态' && trimmedValue.length > 50) {
+                return '处理状态不能超过50个字符';
+              }
+              if (label == '处理结果' && trimmedValue.length > 255) {
+                return '处理结果不能超过255个字符';
+              }
+              return null;
+            },
       ),
     );
   }
@@ -1722,192 +1818,39 @@ class _EditOffensePageState extends State<EditOffensePage> {
                             child: Column(
                               children: [
                                 _buildTextField(
-                                  '司机姓名',
-                                  _driverNameController,
-                                  themeData,
-                                  required: true,
-                                  maxLength: 100,
-                                  validator: (value) {
-                                    if (value == null || value.trim().isEmpty) {
-                                      return '司机姓名不能为空';
-                                    }
-                                    if (value.trim().length > 100) {
-                                      return '司机姓名不能超过100个字符';
-                                    }
-                                    return null;
-                                  },
-                                ),
+                                    '司机姓名', _driverNameController, themeData,
+                                    required: true, maxLength: 100),
                                 _buildTextField(
-                                  '车牌号',
-                                  _licensePlateController,
-                                  themeData,
-                                  required: true,
-                                  maxLength: 20,
-                                  validator: (value) {
-                                    if (value == null || value.trim().isEmpty) {
-                                      return '车牌号不能为空';
-                                    }
-                                    if (value.trim().length > 20) {
-                                      return '车牌号不能超过20个字符';
-                                    }
-                                    if (!RegExp(
-                                            r'^[\u4e00-\u9fa5][A-Za-z0-9]{5,7}$')
-                                        .hasMatch(value.trim())) {
-                                      return '请输入有效车牌号，例如：黑AWS34';
-                                    }
-                                    return null;
-                                  },
-                                ),
+                                    '车牌号', _licensePlateController, themeData,
+                                    required: true, maxLength: 20),
                                 _buildTextField(
-                                  '违法类型',
-                                  _offenseTypeController,
-                                  themeData,
-                                  required: true,
-                                  maxLength: 100,
-                                  validator: (value) {
-                                    if (value == null || value.trim().isEmpty) {
-                                      return '违法类型不能为空';
-                                    }
-                                    if (value.trim().length > 100) {
-                                      return '违法类型不能超过100个字符';
-                                    }
-                                    return null;
-                                  },
-                                ),
+                                    '违法类型', _offenseTypeController, themeData,
+                                    required: true, maxLength: 100),
                                 _buildTextField(
-                                  '违法代码',
-                                  _offenseCodeController,
-                                  themeData,
-                                  required: true,
-                                  maxLength: 50,
-                                  validator: (value) {
-                                    if (value == null || value.trim().isEmpty) {
-                                      return '违法代码不能为空';
-                                    }
-                                    if (value.trim().length > 50) {
-                                      return '违法代码不能超过50个字符';
-                                    }
-                                    return null;
-                                  },
-                                ),
+                                    '违法代码', _offenseCodeController, themeData,
+                                    required: true, maxLength: 50),
+                                _buildTextField('违法地点',
+                                    _offenseLocationController, themeData,
+                                    required: true, maxLength: 100),
                                 _buildTextField(
-                                  '违法地点',
-                                  _offenseLocationController,
-                                  themeData,
-                                  required: true,
-                                  maxLength: 100,
-                                  validator: (value) {
-                                    if (value == null || value.trim().isEmpty) {
-                                      return '违法地点不能为空';
-                                    }
-                                    if (value.trim().length > 100) {
-                                      return '违法地点不能超过100个字符';
-                                    }
-                                    return null;
-                                  },
-                                ),
+                                    '违法时间', _offenseTimeController, themeData,
+                                    required: true,
+                                    readOnly: true,
+                                    onTap: _pickDate),
                                 _buildTextField(
-                                  '违法时间',
-                                  _offenseTimeController,
-                                  themeData,
-                                  required: true,
-                                  readOnly: true,
-                                  onTap: _pickDate,
-                                  validator: (value) {
-                                    if (value == null || value.trim().isEmpty) {
-                                      return '违法时间不能为空';
-                                    }
-                                    final date = DateTime.tryParse(
-                                        "${value.trim()}T00:00:00.000");
-                                    if (date == null) {
-                                      return '无效的日期格式';
-                                    }
-                                    if (date.isAfter(DateTime.now())) {
-                                      return '违法时间不能晚于当前日期';
-                                    }
-                                    return null;
-                                  },
-                                ),
+                                    '扣分', _deductedPointsController, themeData,
+                                    keyboardType: TextInputType.number),
                                 _buildTextField(
-                                  '扣分',
-                                  _deductedPointsController,
-                                  themeData,
-                                  keyboardType: TextInputType.number,
-                                  validator: (value) {
-                                    if (value == null || value.trim().isEmpty) {
-                                      return null;
-                                    }
-                                    final points = int.tryParse(value.trim());
-                                    if (points == null) {
-                                      return '扣分必须是整数';
-                                    }
-                                    if (points < 0) {
-                                      return '扣分不能为负数';
-                                    }
-                                    if (points > 12) {
-                                      return '扣分不能超过12分';
-                                    }
-                                    return null;
-                                  },
-                                ),
+                                    '罚款金额', _fineAmountController, themeData,
+                                    keyboardType:
+                                        const TextInputType.numberWithOptions(
+                                            decimal: true)),
                                 _buildTextField(
-                                  '罚款金额',
-                                  _fineAmountController,
-                                  themeData,
-                                  keyboardType:
-                                      const TextInputType.numberWithOptions(
-                                          decimal: true),
-                                  validator: (value) {
-                                    if (value == null || value.trim().isEmpty) {
-                                      return null;
-                                    }
-                                    final amount = num.tryParse(value.trim());
-                                    if (amount == null) {
-                                      return '罚款金额必须是数字';
-                                    }
-                                    if (amount < 0) {
-                                      return '罚款金额不能为负数';
-                                    }
-                                    if (amount > 99999999.99) {
-                                      return '罚款金额不能超过99999999.99';
-                                    }
-                                    if (!RegExp(r'^\d+(\.\d{1,2})?$')
-                                        .hasMatch(value.trim())) {
-                                      return '罚款金额最多保留两位小数';
-                                    }
-                                    return null;
-                                  },
-                                ),
+                                    '处理状态', _processStatusController, themeData,
+                                    maxLength: 50),
                                 _buildTextField(
-                                  '处理状态',
-                                  _processStatusController,
-                                  themeData,
-                                  maxLength: 50,
-                                  validator: (value) {
-                                    if (value == null || value.trim().isEmpty) {
-                                      return null;
-                                    }
-                                    if (value.trim().length > 50) {
-                                      return '处理状态不能超过50个字符';
-                                    }
-                                    return null;
-                                  },
-                                ),
-                                _buildTextField(
-                                  '处理结果',
-                                  _processResultController,
-                                  themeData,
-                                  maxLength: 255,
-                                  validator: (value) {
-                                    if (value == null || value.trim().isEmpty) {
-                                      return null;
-                                    }
-                                    if (value.trim().length > 255) {
-                                      return '处理结果不能超过255个字符';
-                                    }
-                                    return null;
-                                  },
-                                ),
+                                    '处理结果', _processResultController, themeData,
+                                    maxLength: 255),
                               ],
                             ),
                           ),
