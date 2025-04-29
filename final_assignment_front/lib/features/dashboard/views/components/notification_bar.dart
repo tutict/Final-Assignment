@@ -1,21 +1,50 @@
+import 'dart:developer' as developer;
 import 'package:eva_icons_flutter/eva_icons_flutter.dart';
-import 'package:flutter/material.dart';
+import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+
+// 数据模型，包含通知栏的配置信息，支持 const 构造函数
+class NotificationBarData {
+  final String message;
+  final IconData icon;
+  final String actionText;
+  final String routeName;
+
+  const NotificationBarData({
+    required this.message,
+    required this.icon,
+    required this.actionText,
+    required this.routeName,
+  });
+}
+
+// 导航函数，处理页面跳转
+void navigateToPage(String routeName) {
+  developer.log('Navigating to route: $routeName');
+  try {
+    Get.toNamed(routeName);
+  } catch (e) {
+    developer.log('Navigation error: $e', stackTrace: StackTrace.current);
+    Get.snackbar('错误', '无法导航到目标页面，请重试');
+  }
+}
 
 class NotificationBar extends StatelessWidget {
   const NotificationBar({
     super.key,
-    this.message = "请输入身份证号和驾驶证号以继续",
-    this.icon = EvaIcons.alertCircleOutline,
+    this.data = const NotificationBarData(
+      message: "请输入身份证号和驾驶证号以继续",
+      icon: EvaIcons.alertCircleOutline,
+      actionText: "去输入",
+      routeName: Routes.personalMain,
+    ),
     this.onPressedAction,
-    this.actionText = "去输入",
   });
 
-  final String message;
-  final IconData icon;
+  final NotificationBarData data;
   final VoidCallback? onPressedAction;
-  final String actionText;
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +66,7 @@ class NotificationBar extends StatelessWidget {
       duration: const Duration(milliseconds: 300),
       margin: const EdgeInsets.symmetric(vertical: 6.0, horizontal: 12.0),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(kBorderRadius ?? 16),
+        borderRadius: BorderRadius.circular(kBorderRadius ?? 16.0),
         border: Border.all(
             color: theme.colorScheme.outline.withOpacity(0.2), width: 1),
         gradient: LinearGradient(
@@ -60,30 +89,25 @@ class NotificationBar extends StatelessWidget {
         ],
       ),
       child: InkWell(
-        onTap: onPressedAction ??
-            () {
-              Get.toNamed('/input-credentials');
-            },
-        borderRadius: BorderRadius.circular(kBorderRadius ?? 16),
+        onTap: onPressedAction ?? () => navigateToPage(data.routeName),
+        borderRadius: BorderRadius.circular(kBorderRadius ?? 16.0),
         splashColor: theme.colorScheme.primary.withOpacity(0.2),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
-          // Reduced vertical padding
           child: Row(
             children: [
               Icon(
-                icon,
+                data.icon,
                 size: 24,
                 color: iconColor,
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  message,
+                  data.message,
                   style: theme.textTheme.bodyLarge!.copyWith(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    // Bolder for clarity
                     color: textColor,
                     letterSpacing: 0.2,
                     fontFamily: 'SimsunExtG',
@@ -97,10 +121,8 @@ class NotificationBar extends StatelessWidget {
                 scale: 1.0,
                 duration: const Duration(milliseconds: 200),
                 child: IconButton(
-                  onPressed: onPressedAction ??
-                      () {
-                        Get.toNamed('/input-credentials');
-                      },
+                  onPressed:
+                      onPressedAction ?? () => navigateToPage(data.routeName),
                   icon: Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
@@ -109,11 +131,11 @@ class NotificationBar extends StatelessWidget {
                     ),
                     child: Icon(
                       EvaIcons.arrowForwardOutline,
-                      size: 24, // Match leading icon size
+                      size: 24,
                       color: arrowColor,
                     ),
                   ),
-                  tooltip: actionText,
+                  tooltip: data.actionText,
                   splashRadius: 24,
                   splashColor: arrowColor.withOpacity(0.3),
                   highlightColor: Colors.transparent,

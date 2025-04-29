@@ -1,6 +1,6 @@
 package com.tutict.finalassignmentbackend.service;
 
-import com.tutict.finalassignmentbackend.config.chat.GraalPyContext;
+import com.tutict.finalassignmentbackend.config.ai.chat.GraalPyContext;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

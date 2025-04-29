@@ -52,7 +52,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<String> handleMethodArgumentNotValidException(MethodArgumentNotValidException ex) {
         if (ex.getBindingResult() != null) {
             logger.log(Level.WARNING, "Invalid request parameter", ex);
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("请求参数验证失败: " + ex.getBindingResult().toString());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("请求参数验证失败: " + ex.getBindingResult());
         }
         return null;
     }

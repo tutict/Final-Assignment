@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_dashboard_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -137,30 +138,77 @@ class _OffenseListPageState extends State<OffenseList> {
   Future<void> _checkUserRole() async {
     try {
       if (!await _validateJwtToken()) {
-        Navigator.pushReplacementNamed(context, AppPages.login);
+        Get.offAllNamed(AppPages.login);
         return;
       }
       final prefs = await SharedPreferences.getInstance();
       final jwtToken = prefs.getString('jwtToken')!;
-      final response = await http.get(
-        Uri.parse('http://localhost:8081/api/users/me'),
-        headers: {
-          'Authorization': 'Bearer $jwtToken',
-          'Content-Type': 'application/json'
-        },
-      );
-      if (response.statusCode == 200) {
-        final userData = jsonDecode(utf8.decode(response.bodyBytes));
-        final roles = (userData['roles'] as List<dynamic>?)
-                ?.map((r) => r.toString())
-                .toList() ??
-            [];
-        setState(() => _isAdmin = roles.contains('ADMIN'));
-      } else {
-        throw Exception('验证失败：${response.statusCode}');
+
+      // Try backend API first
+      try {
+        final response = await http.get(
+          Uri.parse('http://localhost:8081/api/users/me'),
+          headers: {
+            'Authorization': 'Bearer $jwtToken',
+            'Content-Type': 'application/json',
+          },
+        );
+        if (response.statusCode == 200) {
+          final userData = jsonDecode(utf8.decode(response.bodyBytes));
+          developer.log('User data from /api/users/me: $userData');
+          final roles = (userData['roles'] as List<dynamic>?)
+              ?.map((r) => r.toString().toUpperCase())
+              .toList();
+          if (roles != null && roles.contains('ADMIN')) {
+            setState(() => _isAdmin = true);
+            return;
+          }
+          // If roles are missing or don't contain ADMIN, fall back to JWT
+          developer.log(
+              'No valid roles in /api/users/me response, falling back to JWT');
+        } else {
+          developer.log(
+              'Failed to fetch user roles: ${response.statusCode} - ${response.body}');
+        }
+      } catch (e) {
+        developer.log('Error fetching user roles from API: $e');
       }
+
+      // Fallback to JWT token roles
+      await _checkRolesFromJwt();
     } catch (e) {
       setState(() => _errorMessage = '验证角色失败: $e');
+      developer.log('Role check failed: $e', stackTrace: StackTrace.current);
+    }
+  }
+
+  Future<void> _checkRolesFromJwt() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jwtToken = prefs.getString('jwtToken')!;
+      final decodedToken = JwtDecoder.decode(jwtToken);
+      developer.log('JWT decoded: $decodedToken');
+      final rawRoles = decodedToken['roles'];
+      List<String> roles;
+      if (rawRoles is String) {
+        roles = rawRoles
+            .split(',')
+            .map((role) => role.trim().toUpperCase())
+            .toList();
+      } else if (rawRoles is List<dynamic>) {
+        roles = rawRoles.map((role) => role.toString().toUpperCase()).toList();
+      } else {
+        roles = [];
+      }
+      setState(() => _isAdmin = roles.contains('ADMIN'));
+      if (!_isAdmin) {
+        setState(() => _errorMessage = '权限不足：JWT角色为 $roles，非管理员');
+      }
+      developer.log('Roles from JWT: $roles, isAdmin: $_isAdmin');
+    } catch (e) {
+      setState(() => _errorMessage = '从JWT验证角色失败: $e');
+      developer.log('JWT role check failed: $e',
+          stackTrace: StackTrace.current);
     }
   }
 

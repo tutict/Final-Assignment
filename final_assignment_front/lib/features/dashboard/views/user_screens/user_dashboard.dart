@@ -1,6 +1,7 @@
 library user_dashboard;
 
 import 'dart:developer';
+import 'dart:developer' as developer;
 import 'dart:ui';
 
 import 'package:chinese_font_library/chinese_font_library.dart';
@@ -10,7 +11,6 @@ import 'package:final_assignment_front/config/themes/app_theme.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
 import 'package:final_assignment_front/features/dashboard/models/profile.dart';
 import 'package:final_assignment_front/features/dashboard/views/components/ai_chat.dart';
-import 'package:final_assignment_front/features/dashboard/views/components/notification_bar.dart';
 import 'package:final_assignment_front/features/dashboard/views/components/profile_tile.dart';
 import 'package:final_assignment_front/shared_components/case_card.dart';
 import 'package:final_assignment_front/shared_components/floating_window.dart';
@@ -28,6 +28,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../components/notification_bar.dart';
 
 part '../../bindings/user_dashboard_binding.dart';
 
@@ -165,13 +167,21 @@ class UserDashboard extends GetView<UserDashboardController>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SizedBox(height: kSpacing * (kIsWeb || isDesktop ? 0.5 : 0.75)),
-            NotificationBar(
-              message: "请及时完善身份证号和驾驶证号",
-              onPressedAction: () {
-                Get.toNamed('/input-credentials');
-              },
-              actionText: "去输入",
-            ),
+            Obx(() {
+              if (controller.driverLicenseNumber.value.isEmpty ||
+                  controller.idCardNumber.value.isEmpty) {
+                return NotificationBar(
+                  data: const NotificationBarData(
+                    message: "请及时完善身份证号和驾驶证号",
+                    icon: EvaIcons.alertCircleOutline,
+                    actionText: "去输入",
+                    routeName: '/personalInfo',
+                  ),
+                  onPressedAction: navigateToPersonalInfo,
+                );
+              }
+              return const SizedBox.shrink();
+            }),
             const SizedBox(height: kSpacing),
             const Divider(),
             Obx(() {
@@ -395,5 +405,10 @@ class UserDashboard extends GetView<UserDashboardController>
         ),
       ),
     );
+  }
+
+  void navigateToPersonalInfo() {
+    developer.log('NotificationBar tapped, navigating to /personalInfo');
+    controller.navigateToPage(Routes.personalMain);
   }
 }

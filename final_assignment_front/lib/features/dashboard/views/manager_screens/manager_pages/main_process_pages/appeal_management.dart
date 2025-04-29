@@ -10,6 +10,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
@@ -20,7 +21,7 @@ String generateIdempotencyKey() {
 
 String formatDateTime(DateTime? dateTime) {
   if (dateTime == null) return '未提供';
-  return '${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')} ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+  return DateFormat('yyyy-MM-dd HH:mm').format(dateTime);
 }
 
 class AppealManagementAdmin extends StatefulWidget {
@@ -166,7 +167,7 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
       final prefs = await SharedPreferences.getInstance();
       final jwtToken = prefs.getString('jwtToken')!;
 
-// Try backend API first
+      // Try backend API first
       try {
         final response = await http.get(
           Uri.parse('http://localhost:8081/api/users/me'),
@@ -196,7 +197,7 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
         developer.log('Error fetching user roles from API: $e');
       }
 
-// Fallback to JWT token roles
+      // Fallback to JWT token roles
       await _checkRolesFromJwt();
     } catch (e) {
       setState(() => _errorMessage = '验证角色失败: $e');
@@ -303,8 +304,7 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
           reason: searchQuery,
         );
       } else if (_searchType == 'appellantName' && searchQuery.isNotEmpty) {
-        appeals =
-            await appealApi.apiAppealsGet();
+        appeals = await appealApi.apiAppealsGet();
         appeals = appeals
             .where((appeal) =>
                 appeal.appellantName
@@ -313,8 +313,7 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
                 false)
             .toList();
       } else if (_searchType == 'processStatus' && searchQuery.isNotEmpty) {
-        appeals =
-            await appealApi.apiAppealsGet();
+        appeals = await appealApi.apiAppealsGet();
         appeals = appeals
             .where((appeal) =>
                 appeal.processStatus
@@ -330,8 +329,7 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
           endTime: _endTime!.add(const Duration(days: 1)).toIso8601String(),
         );
       } else {
-        appeals =
-            await appealApi.apiAppealsGet();
+        appeals = await appealApi.apiAppealsGet();
       }
 
       setState(() {
@@ -508,9 +506,8 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
                     },
                     fieldViewBuilder:
                         (context, controller, focusNode, onFieldSubmitted) {
-                      _searchController.text = controller.text;
                       return TextField(
-                        controller: controller,
+                        controller: _searchController,
                         focusNode: focusNode,
                         style: themeData.textTheme.bodyMedium
                             ?.copyWith(color: themeData.colorScheme.onSurface),
@@ -528,14 +525,13 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
                           ),
                           prefixIcon: Icon(Icons.search,
                               color: themeData.colorScheme.primary),
-                          suffixIcon: controller.text.isNotEmpty ||
+                          suffixIcon: _searchController.text.isNotEmpty ||
                                   (_startTime != null && _endTime != null)
                               ? IconButton(
                                   icon: Icon(Icons.clear,
                                       color: themeData
                                           .colorScheme.onSurfaceVariant),
                                   onPressed: () {
-                                    controller.clear();
                                     _searchController.clear();
                                     setState(() {
                                       _startTime = null;
@@ -743,54 +739,6 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
     return Obx(() {
       final themeData = controller.currentBodyTheme.value;
 
-      if (_errorMessage.isNotEmpty && !_isLoading) {
-        return Theme(
-          data: themeData,
-          child: CupertinoPageScaffold(
-            backgroundColor: themeData.colorScheme.surface,
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    CupertinoIcons.exclamationmark_triangle,
-                    color: themeData.colorScheme.error,
-                    size: 48,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    _errorMessage,
-                    style: themeData.textTheme.titleMedium?.copyWith(
-                      color: themeData.colorScheme.error,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  if (_errorMessage.contains('未授权') ||
-                      _errorMessage.contains('登录') ||
-                      _errorMessage.contains('权限不足'))
-                    Padding(
-                      padding: const EdgeInsets.only(top: 20.0),
-                      child: ElevatedButton(
-                        onPressed: () => Get.offAllNamed(AppPages.login),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: themeData.colorScheme.primary,
-                          foregroundColor: themeData.colorScheme.onPrimary,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12.0)),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 24.0, vertical: 12.0),
-                        ),
-                        child: const Text('重新登录'),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-        );
-      }
-
       return Theme(
         data: themeData,
         child: CupertinoPageScaffold(
@@ -860,64 +808,115 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
                               radius: 16.0,
                             ),
                           )
-                        : _filteredAppeals.isEmpty
+                        : _errorMessage.isNotEmpty && !_isLoading
                             ? Center(
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     Icon(
-                                      CupertinoIcons.doc,
-                                      color: themeData
-                                          .colorScheme.onSurfaceVariant,
+                                      CupertinoIcons.exclamationmark_triangle,
+                                      color: themeData.colorScheme.error,
                                       size: 48,
                                     ),
                                     const SizedBox(height: 16),
                                     Text(
-                                      _errorMessage.isNotEmpty
-                                          ? _errorMessage
-                                          : '暂无申诉记录',
+                                      _errorMessage,
                                       style: themeData.textTheme.titleMedium
                                           ?.copyWith(
-                                        color: themeData
-                                            .colorScheme.onSurfaceVariant,
+                                        color: themeData.colorScheme.error,
                                         fontWeight: FontWeight.w500,
                                       ),
                                       textAlign: TextAlign.center,
                                     ),
+                                    if (_errorMessage.contains('未授权') ||
+                                        _errorMessage.contains('登录') ||
+                                        _errorMessage.contains('权限不足'))
+                                      Padding(
+                                        padding:
+                                            const EdgeInsets.only(top: 20.0),
+                                        child: ElevatedButton(
+                                          onPressed: () =>
+                                              Get.offAllNamed(AppPages.login),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor:
+                                                themeData.colorScheme.primary,
+                                            foregroundColor:
+                                                themeData.colorScheme.onPrimary,
+                                            shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(
+                                                        12.0)),
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 24.0,
+                                                vertical: 12.0),
+                                          ),
+                                          child: const Text('重新登录'),
+                                        ),
+                                      ),
                                   ],
                                 ),
                               )
-                            : CupertinoScrollbar(
-                                controller: _scrollController,
-                                thumbVisibility: true,
-                                thickness: 6.0,
-                                thicknessWhileDragging: 10.0,
-                                child: RefreshIndicator(
-                                  onRefresh: () => _refreshAppeals(),
-                                  color: themeData.colorScheme.primary,
-                                  backgroundColor:
-                                      themeData.colorScheme.surfaceContainer,
-                                  child: ListView.builder(
+                            : _filteredAppeals.isEmpty
+                                ? Center(
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          CupertinoIcons.doc,
+                                          color: themeData
+                                              .colorScheme.onSurfaceVariant,
+                                          size: 48,
+                                        ),
+                                        const SizedBox(height: 16),
+                                        Text(
+                                          _errorMessage.isNotEmpty
+                                              ? _errorMessage
+                                              : '暂无申诉记录',
+                                          style: themeData.textTheme.titleMedium
+                                              ?.copyWith(
+                                            color: themeData
+                                                .colorScheme.onSurfaceVariant,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ],
+                                    ),
+                                  )
+                                : CupertinoScrollbar(
                                     controller: _scrollController,
-                                    itemCount: _filteredAppeals.length +
-                                        (_hasMore ? 1 : 0),
-                                    itemBuilder: (context, index) {
-                                      if (index == _filteredAppeals.length &&
-                                          _hasMore) {
-                                        return const Padding(
-                                          padding: EdgeInsets.all(8.0),
-                                          child: Center(
-                                              child:
-                                                  CupertinoActivityIndicator()),
-                                        );
-                                      }
-                                      final appeal = _filteredAppeals[index];
-                                      return _buildAppealCard(
-                                          appeal, themeData);
-                                    },
+                                    thumbVisibility: true,
+                                    thickness: 6.0,
+                                    thicknessWhileDragging: 10.0,
+                                    child: RefreshIndicator(
+                                      onRefresh: () => _refreshAppeals(),
+                                      color: themeData.colorScheme.primary,
+                                      backgroundColor: themeData
+                                          .colorScheme.surfaceContainer,
+                                      child: ListView.builder(
+                                        controller: _scrollController,
+                                        itemCount: _filteredAppeals.length +
+                                            (_hasMore ? 1 : 0),
+                                        itemBuilder: (context, index) {
+                                          if (index ==
+                                                  _filteredAppeals.length &&
+                                              _hasMore) {
+                                            return const Padding(
+                                              padding: EdgeInsets.all(8.0),
+                                              child: Center(
+                                                  child:
+                                                      CupertinoActivityIndicator()),
+                                            );
+                                          }
+                                          final appeal =
+                                              _filteredAppeals[index];
+                                          return _buildAppealCard(
+                                              appeal, themeData);
+                                        },
+                                      ),
+                                    ),
                                   ),
-                                ),
-                              ),
                   ),
                 ],
               ),
@@ -1043,7 +1042,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
       final prefs = await SharedPreferences.getInstance();
       final jwtToken = prefs.getString('jwtToken')!;
 
-// Try backend API first
+      // Try backend API first
       try {
         final response = await http.get(
           Uri.parse('http://localhost:8081/api/users/me'),
@@ -1062,7 +1061,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
             setState(() => _isAdmin = true);
             return;
           }
-// If roles are missing or don't contain ADMIN, fall back to JWT
+          // If roles are missing or don't contain ADMIN, fall back to JWT
           developer.log(
               'No valid roles in /api/users/me response, falling back to JWT');
         } else {
@@ -1073,7 +1072,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
         developer.log('Error fetching user roles from API: $e');
       }
 
-// Fallback to JWT token roles
+      // Fallback to JWT token roles
       await _checkRolesFromJwt();
     } catch (e) {
       setState(() => _errorMessage = '验证角色失败: $e');
@@ -1377,54 +1376,6 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
       final status = widget.appeal.processStatus ?? '未提供';
       final result = widget.appeal.processResult ?? '未提供';
 
-      if (_errorMessage.isNotEmpty && !_isLoading) {
-        return Theme(
-          data: themeData,
-          child: CupertinoPageScaffold(
-            backgroundColor: themeData.colorScheme.surface,
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    CupertinoIcons.exclamationmark_triangle,
-                    color: themeData.colorScheme.error,
-                    size: 48,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    _errorMessage,
-                    style: themeData.textTheme.titleMedium?.copyWith(
-                      color: themeData.colorScheme.error,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  if (_errorMessage.contains('未授权') ||
-                      _errorMessage.contains('登录') ||
-                      _errorMessage.contains('权限不足'))
-                    Padding(
-                      padding: const EdgeInsets.only(top: 20.0),
-                      child: ElevatedButton(
-                        onPressed: () => Get.offAllNamed(AppPages.login),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: themeData.colorScheme.primary,
-                          foregroundColor: themeData.colorScheme.onPrimary,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12.0)),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 24.0, vertical: 12.0),
-                        ),
-                        child: const Text('重新登录'),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-        );
-      }
-
       return Theme(
         data: themeData,
         child: CupertinoPageScaffold(
@@ -1464,118 +1415,171 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
                         radius: 16.0,
                       ),
                     )
-                  : CupertinoScrollbar(
-                      controller: ScrollController(),
-                      thumbVisibility: true,
-                      thickness: 6.0,
-                      thicknessWhileDragging: 10.0,
-                      child: SingleChildScrollView(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                  : _errorMessage.isNotEmpty
+                      ? Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Card(
-                              elevation: 4,
-                              color:
-                                  themeData.colorScheme.surfaceContainerLowest,
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16.0)),
-                              child: Padding(
-                                padding: const EdgeInsets.all(20.0),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    _buildDetailRow(
-                                        '申诉ID', appealId, themeData),
-                                    _buildDetailRow(
-                                        '违法记录ID', offenseId, themeData),
-                                    _buildDetailRow('上诉人姓名', name, themeData),
-                                    _buildDetailRow('身份证号码', idCard, themeData),
-                                    _buildDetailRow('联系电话', contact, themeData),
-                                    _buildDetailRow('上诉原因', reason, themeData),
-                                    _buildDetailRow('上诉时间', time, themeData),
-                                    _buildDetailRow('处理状态', status, themeData,
-                                        valueColor: status == 'Approved'
-                                            ? Colors.green
-                                            : status == 'Rejected'
-                                                ? Colors.red
-                                                : themeData.colorScheme
-                                                    .onSurfaceVariant),
-                                    _buildDetailRow('处理结果', result, themeData),
-                                  ],
-                                ),
-                              ),
+                            Icon(
+                              CupertinoIcons.exclamationmark_triangle,
+                              color: themeData.colorScheme.error,
+                              size: 48,
                             ),
-                            const SizedBox(height: 24),
-                            if (_isAdmin && status == 'Pending') ...[
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceEvenly,
-                                children: [
-                                  ElevatedButton.icon(
-                                    onPressed: () => _approveAppeal(
-                                        widget.appeal.appealId ?? 0),
-                                    icon: const Icon(CupertinoIcons.checkmark,
-                                        size: 20),
-                                    label: const Text('通过'),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.green,
-                                      foregroundColor: Colors.white,
-                                      shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(12.0)),
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 20.0, vertical: 12.0),
-                                      elevation: 2,
-                                    ),
-                                  ),
-                                  ElevatedButton.icon(
-                                    onPressed: () => _rejectAppeal(
-                                        widget.appeal.appealId ?? 0),
-                                    icon: const Icon(CupertinoIcons.xmark,
-                                        size: 20),
-                                    label: const Text('驳回'),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor:
-                                          themeData.colorScheme.error,
-                                      foregroundColor:
-                                          themeData.colorScheme.onError,
-                                      shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(12.0)),
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 20.0, vertical: 12.0),
-                                      elevation: 2,
-                                    ),
-                                  ),
-                                ],
+                            const SizedBox(height: 16),
+                            Text(
+                              _errorMessage,
+                              style: themeData.textTheme.titleMedium?.copyWith(
+                                color: themeData.colorScheme.error,
+                                fontWeight: FontWeight.w500,
                               ),
-                            ] else
-                              Center(
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      vertical: 12.0, horizontal: 20.0),
-                                  decoration: BoxDecoration(
-                                    color:
-                                        themeData.colorScheme.surfaceContainer,
-                                    borderRadius: BorderRadius.circular(12.0),
+                              textAlign: TextAlign.center,
+                            ),
+                            if (_errorMessage.contains('未授权') ||
+                                _errorMessage.contains('登录') ||
+                                _errorMessage.contains('权限不足'))
+                              Padding(
+                                padding: const EdgeInsets.only(top: 20.0),
+                                child: ElevatedButton(
+                                  onPressed: () =>
+                                      Get.offAllNamed(AppPages.login),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor:
+                                        themeData.colorScheme.primary,
+                                    foregroundColor:
+                                        themeData.colorScheme.onPrimary,
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(12.0)),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 24.0, vertical: 12.0),
                                   ),
-                                  child: Text(
-                                    _isAdmin
-                                        ? '此申诉已处理，无法再次审批'
-                                        : '权限不足，仅管理员可审批申诉',
-                                    style:
-                                        themeData.textTheme.bodyLarge?.copyWith(
-                                      color: themeData
-                                          .colorScheme.onSurfaceVariant,
-                                      fontStyle: FontStyle.italic,
-                                    ),
-                                  ),
+                                  child: const Text('重新登录'),
                                 ),
                               ),
                           ],
+                        )
+                      : CupertinoScrollbar(
+                          controller: ScrollController(),
+                          thumbVisibility: true,
+                          thickness: 6.0,
+                          thicknessWhileDragging: 10.0,
+                          child: SingleChildScrollView(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Card(
+                                  elevation: 4,
+                                  color: themeData
+                                      .colorScheme.surfaceContainerLowest,
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius:
+                                          BorderRadius.circular(16.0)),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(20.0),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        _buildDetailRow(
+                                            '申诉ID', appealId, themeData),
+                                        _buildDetailRow(
+                                            '违法记录ID', offenseId, themeData),
+                                        _buildDetailRow(
+                                            '上诉人姓名', name, themeData),
+                                        _buildDetailRow(
+                                            '身份证号码', idCard, themeData),
+                                        _buildDetailRow(
+                                            '联系电话', contact, themeData),
+                                        _buildDetailRow(
+                                            '上诉原因', reason, themeData),
+                                        _buildDetailRow(
+                                            '上诉时间', time, themeData),
+                                        _buildDetailRow(
+                                            '处理状态', status, themeData,
+                                            valueColor: status == 'Approved'
+                                                ? Colors.green
+                                                : status == 'Rejected'
+                                                    ? Colors.red
+                                                    : themeData.colorScheme
+                                                        .onSurfaceVariant),
+                                        _buildDetailRow(
+                                            '处理结果', result, themeData),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 24),
+                                if (_isAdmin && status == 'Pending') ...[
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceEvenly,
+                                    children: [
+                                      ElevatedButton.icon(
+                                        onPressed: () => _approveAppeal(
+                                            widget.appeal.appealId ?? 0),
+                                        icon: const Icon(
+                                            CupertinoIcons.checkmark,
+                                            size: 20),
+                                        label: const Text('通过'),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.green,
+                                          foregroundColor: Colors.white,
+                                          shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(12.0)),
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 20.0, vertical: 12.0),
+                                          elevation: 2,
+                                        ),
+                                      ),
+                                      ElevatedButton.icon(
+                                        onPressed: () => _rejectAppeal(
+                                            widget.appeal.appealId ?? 0),
+                                        icon: const Icon(CupertinoIcons.xmark,
+                                            size: 20),
+                                        label: const Text('驳回'),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor:
+                                              themeData.colorScheme.error,
+                                          foregroundColor:
+                                              themeData.colorScheme.onError,
+                                          shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(12.0)),
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 20.0, vertical: 12.0),
+                                          elevation: 2,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ] else
+                                  Center(
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 12.0, horizontal: 20.0),
+                                      decoration: BoxDecoration(
+                                        color: themeData
+                                            .colorScheme.surfaceContainer,
+                                        borderRadius:
+                                            BorderRadius.circular(12.0),
+                                      ),
+                                      child: Text(
+                                        _isAdmin
+                                            ? '此申诉已处理，无法再次审批'
+                                            : '权限不足，仅管理员可审批申诉',
+                                        style: themeData.textTheme.bodyLarge
+                                            ?.copyWith(
+                                          color: themeData
+                                              .colorScheme.onSurfaceVariant,
+                                          fontStyle: FontStyle.italic,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
             ),
           ),
         ),

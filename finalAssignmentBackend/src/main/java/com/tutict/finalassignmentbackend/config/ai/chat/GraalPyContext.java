@@ -1,4 +1,4 @@
-package com.tutict.finalassignmentbackend.config.chat;
+package com.tutict.finalassignmentbackend.config.ai.chat;
 
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Value;

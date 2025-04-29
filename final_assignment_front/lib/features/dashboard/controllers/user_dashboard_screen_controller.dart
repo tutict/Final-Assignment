@@ -16,14 +16,25 @@ class UserDashboardController extends GetxController with NavigationMixin {
   final isChatExpanded = false.obs;
   final Rx<Profile?> currentUser = Rx<Profile?>(null);
   final RxBool _refreshPersonalPage = false.obs;
+
 // Add reactive variables for driver name and email
   final RxString currentDriverName = ''.obs;
   final RxString currentEmail = ''.obs;
+  var driverLicenseNumber = RxString('');
+  var idCardNumber = RxString('');
 
   @override
   void onInit() {
     super.onInit();
     _initializeCaseCardData();
+  }
+
+  Future<void> loadCredentials() async {
+    final prefs = await SharedPreferences.getInstance();
+    driverLicenseNumber.value = prefs.getString('driverLicenseNumber') ?? '';
+    idCardNumber.value = prefs.getString('idCardNumber') ?? '';
+    developer.log(
+        'Loaded credentials: driverLicense=${driverLicenseNumber.value}, idCard=${idCardNumber.value}');
   }
 
   void updateCurrentUser(String name, String email) {
