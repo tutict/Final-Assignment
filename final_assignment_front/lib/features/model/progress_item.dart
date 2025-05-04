@@ -58,13 +58,21 @@ class ProgressItem {
   }
 
   factory ProgressItem.fromJson(Map<String, dynamic> json) {
+    String status = json['status']?.toString() ?? 'Pending';
+    // Validate status
+    const validStatuses = ['Pending', 'Processing', 'Completed', 'Archived'];
+    if (!validStatuses.contains(status)) {
+      status = 'Pending'; // Default to Pending if invalid
+    }
     return ProgressItem(
       id: json['id'] as int?,
-      title: json['title'] as String,
-      status: json['status'] as String,
-      submitTime: DateTime.parse(json['submitTime'] as String),
+      title: json['title'] as String? ?? '',
+      status: status,
+      submitTime: json['submitTime'] != null
+          ? DateTime.parse(json['submitTime'] as String)
+          : DateTime.now(),
       details: json['details'] as String?,
-      username: json['username'] as String,
+      username: json['username'] as String? ?? '',
       appealId: json['appealId'] as int?,
       deductionId: json['deductionId'] as int?,
       driverId: json['driverId'] as int?,

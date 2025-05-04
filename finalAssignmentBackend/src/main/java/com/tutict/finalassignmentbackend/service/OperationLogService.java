@@ -3,19 +3,27 @@ package com.tutict.finalassignmentbackend.service;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.RequestHistory;
+import com.tutict.finalassignmentbackend.entity.elastic.OperationLogDocument;
 import com.tutict.finalassignmentbackend.mapper.OperationLogMapper;
 import com.tutict.finalassignmentbackend.entity.OperationLog;
 import com.tutict.finalassignmentbackend.mapper.RequestHistoryMapper;
+import com.tutict.finalassignmentbackend.repository.OperationLogSearchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.elasticsearch.core.SearchHit;
+import org.springframework.data.elasticsearch.core.SearchHits;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
+import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 @Service
 public class OperationLogService {
@@ -24,14 +32,17 @@ public class OperationLogService {
 
     private final OperationLogMapper operationLogMapper;
     private final RequestHistoryMapper requestHistoryMapper;
+    private final OperationLogSearchRepository operationLogSearchRepository;
     private final KafkaTemplate<String, OperationLog> kafkaTemplate;
 
     @Autowired
     public OperationLogService(OperationLogMapper operationLogMapper,
                                RequestHistoryMapper requestHistoryMapper,
+                               OperationLogSearchRepository operationLogSearchRepository,
                                KafkaTemplate<String, OperationLog> kafkaTemplate) {
         this.operationLogMapper = operationLogMapper;
         this.requestHistoryMapper = requestHistoryMapper;
+        this.operationLogSearchRepository = operationLogSearchRepository;
         this.kafkaTemplate = kafkaTemplate;
     }
 
@@ -149,6 +160,74 @@ public class OperationLogService {
         QueryWrapper<OperationLog> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("operation_result", operationResult);
         return operationLogMapper.selectList(queryWrapper);
+    }
+
+    @Cacheable(cacheNames = "operationLogCache", unless = "#result.isEmpty()")
+    public List<String> getUserIdsByPrefixGlobally(String prefix) {
+        validateInput(prefix, "Invalid user ID prefix");
+        log.log(Level.INFO, "Fetching user ID suggestions for prefix: {0}", new Object[]{prefix});
+
+        try {
+            // Convert prefix to Integer for userId search
+            int userId;
+            try {
+                userId = Integer.parseInt(prefix);
+            } catch (NumberFormatException e) {
+                log.log(Level.WARNING, "Invalid user ID format for prefix {0}: {1}", new Object[]{prefix, e.getMessage()});
+                return Collections.emptyList();
+            }
+
+            SearchHits<OperationLogDocument> searchHits = operationLogSearchRepository
+                    .searchByUserIdGlobally(userId);
+            List<String> suggestions = searchHits.getSearchHits().stream()
+                    .map(SearchHit::getContent)
+                    .map(OperationLogDocument::getUserId)
+                    .filter(Objects::nonNull)
+                    .map(String::valueOf) // Convert Integer to String
+                    .distinct()
+                    .limit(10)
+                    .collect(Collectors.toList());
+
+            log.log(Level.INFO, "Found {0} user ID suggestions for prefix: {1}",
+                    new Object[]{suggestions.size(), prefix});
+            return suggestions.isEmpty() ? Collections.emptyList() : suggestions;
+        } catch (Exception e) {
+            log.log(Level.WARNING, "Error fetching user ID suggestions for prefix {0}: {1}",
+                    new Object[]{prefix, e.getMessage()});
+            return Collections.emptyList();
+        }
+    }
+
+    @Cacheable(cacheNames = "operationLogCache", unless = "#result.isEmpty()")
+    public List<String> getOperationResultsByPrefixGlobally(String prefix) {
+        validateInput(prefix, "Invalid operation result prefix");
+        log.log(Level.INFO, "Fetching operation result suggestions for prefix: {0}", new Object[]{prefix});
+
+        try {
+            SearchHits<OperationLogDocument> searchHits = operationLogSearchRepository
+                    .searchByOperationResultFuzzyGlobally(prefix);
+            List<String> suggestions = searchHits.getSearchHits().stream()
+                    .map(SearchHit::getContent)
+                    .map(OperationLogDocument::getOperationResult)
+                    .filter(Objects::nonNull)
+                    .distinct()
+                    .limit(10)
+                    .collect(Collectors.toList());
+
+            log.log(Level.INFO, "Found {0} operation result suggestions for prefix: {1}",
+                    new Object[]{suggestions.size(), prefix});
+            return suggestions.isEmpty() ? Collections.emptyList() : suggestions;
+        } catch (Exception e) {
+            log.log(Level.WARNING, "Error fetching operation result suggestions for prefix {0}: {1}",
+                    new Object[]{prefix, e.getMessage()});
+            return Collections.emptyList();
+        }
+    }
+
+    private void validateInput(String input, String errorMessage) {
+        if (input == null || input.trim().isEmpty()) {
+            throw new IllegalArgumentException(errorMessage);
+        }
     }
 
     private void sendKafkaMessage(String topic, OperationLog operationLog) {

@@ -11,8 +11,12 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.security.Principal;
+import java.util.Collections;
 import java.util.List;
+import java.util.logging.Level;
 
 @RestController
 @RequestMapping("/api/users")
@@ -81,7 +85,7 @@ public class UserManagementController {
     @PutMapping("/me/password")
     @Transactional
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
-    public ResponseEntity<Void> updatePassword( @RequestBody String password, @RequestParam String idempotencyKey, Principal principal) {
+    public ResponseEntity<Void> updatePassword(@RequestBody String password, @RequestParam String idempotencyKey, Principal principal) {
         if (principal == null) {
             logger.warn("Principal is null, no authenticated user");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
@@ -210,5 +214,68 @@ public class UserManagementController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/autocomplete/usernames/me")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<String>> getUsernameAutocompleteSuggestionsGlobally(
+            @RequestParam String prefix) {
+        String decodedPrefix = URLDecoder.decode(prefix, StandardCharsets.UTF_8);
+        logger.info("Fetching username suggestions for prefix: {}, decoded: {}", prefix, decodedPrefix);
+
+        List<String> suggestions = userManagementService.getUsernamesByPrefixGlobally(decodedPrefix);
+        if (suggestions == null) {
+            suggestions = Collections.emptyList();
+        }
+
+        if (suggestions.isEmpty()) {
+            logger.info("No username suggestions found for prefix: {}", decodedPrefix);
+        } else {
+            logger.info("Found {} username suggestions for prefix: {}", suggestions.size(), decodedPrefix);
+        }
+
+        return ResponseEntity.ok(suggestions);
+    }
+
+    @GetMapping("/autocomplete/statuses/me")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<String>> getStatusAutocompleteSuggestionsGlobally(
+            @RequestParam String prefix) {
+        String decodedPrefix = URLDecoder.decode(prefix, StandardCharsets.UTF_8);
+        logger.info("Fetching status suggestions for prefix: {}, decoded: {}", prefix, decodedPrefix);
+
+        List<String> suggestions = userManagementService.getStatusesByPrefixGlobally(decodedPrefix);
+        if (suggestions == null) {
+            suggestions = Collections.emptyList();
+        }
+
+        if (suggestions.isEmpty()) {
+            logger.info("No status suggestions found for prefix: {}", decodedPrefix);
+        } else {
+            logger.info("Found {} status suggestions for prefix: {}", suggestions.size(), decodedPrefix);
+        }
+
+        return ResponseEntity.ok(suggestions);
+    }
+
+    @GetMapping("/autocomplete/phone-numbers/me")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<String>> getPhoneNumberAutocompleteSuggestionsGlobally(
+            @RequestParam String prefix) {
+        String decodedPrefix = URLDecoder.decode(prefix, StandardCharsets.UTF_8);
+        logger.info("Fetching phone number suggestions for prefix: {}, decoded: {}", prefix, decodedPrefix);
+
+        List<String> suggestions = userManagementService.getPhoneNumbersByPrefixGlobally(decodedPrefix);
+        if (suggestions == null) {
+            suggestions = Collections.emptyList();
+        }
+
+        if (suggestions.isEmpty()) {
+            logger.info("No phone number suggestions found for prefix: {}", decodedPrefix);
+        } else {
+            logger.info("Found {} phone number suggestions for prefix: {}", suggestions.size(), decodedPrefix);
+        }
+
+        return ResponseEntity.ok(suggestions);
     }
 }

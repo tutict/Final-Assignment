@@ -3,19 +3,27 @@ package com.tutict.finalassignmentbackend.service;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.RequestHistory;
+import com.tutict.finalassignmentbackend.entity.elastic.LoginLogDocument;
 import com.tutict.finalassignmentbackend.mapper.LoginLogMapper;
 import com.tutict.finalassignmentbackend.entity.LoginLog;
 import com.tutict.finalassignmentbackend.mapper.RequestHistoryMapper;
+import com.tutict.finalassignmentbackend.repository.LoginLogSearchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.elasticsearch.core.SearchHit;
+import org.springframework.data.elasticsearch.core.SearchHits;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
+import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 @Service
 public class LoginLogService {
@@ -24,12 +32,17 @@ public class LoginLogService {
 
     private final LoginLogMapper loginLogMapper;
     private final RequestHistoryMapper requestHistoryMapper;
+    private final LoginLogSearchRepository loginLogSearchRepository;
     private final KafkaTemplate<String, LoginLog> kafkaTemplate;
 
     @Autowired
-    public LoginLogService(LoginLogMapper loginLogMapper, RequestHistoryMapper requestHistoryMapper, KafkaTemplate<String, LoginLog> kafkaTemplate) {
+    public LoginLogService(LoginLogMapper loginLogMapper,
+                           RequestHistoryMapper requestHistoryMapper,
+                           LoginLogSearchRepository loginLogSearchRepository,
+                           KafkaTemplate<String, LoginLog> kafkaTemplate) {
         this.loginLogMapper = loginLogMapper;
         this.requestHistoryMapper = requestHistoryMapper;
+        this.loginLogSearchRepository = loginLogSearchRepository;
         this.kafkaTemplate = kafkaTemplate;
     }
 
@@ -147,6 +160,64 @@ public class LoginLogService {
         QueryWrapper<LoginLog> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("login_result", loginResult);
         return loginLogMapper.selectList(queryWrapper);
+    }
+
+    @Cacheable(cacheNames = "loginLogCache", unless = "#result.isEmpty()")
+    public List<String> getUsernamesByPrefixGlobally(String prefix) {
+        validateInput(prefix, "Invalid username prefix");
+        log.log(Level.INFO, "Fetching username suggestions for prefix: {0}", new Object[]{prefix});
+
+        try {
+            SearchHits<LoginLogDocument> searchHits = loginLogSearchRepository
+                    .searchByUsernameGlobally(prefix);
+            List<String> suggestions = searchHits.getSearchHits().stream()
+                    .map(SearchHit::getContent)
+                    .map(LoginLogDocument::getUsername)
+                    .filter(Objects::nonNull)
+                    .distinct()
+                    .limit(10)
+                    .collect(Collectors.toList());
+
+            log.log(Level.INFO, "Found {0} username suggestions for prefix: {1}",
+                    new Object[]{suggestions.size(), prefix});
+            return suggestions.isEmpty() ? Collections.emptyList() : suggestions;
+        } catch (Exception e) {
+            log.log(Level.WARNING, "Error fetching username suggestions for prefix {0}: {1}",
+                    new Object[]{prefix, e.getMessage()});
+            return Collections.emptyList();
+        }
+    }
+
+    @Cacheable(cacheNames = "loginLogCache", unless = "#result.isEmpty()")
+    public List<String> getLoginResultsByPrefixGlobally(String prefix) {
+        validateInput(prefix, "Invalid login result prefix");
+        log.log(Level.INFO, "Fetching login result suggestions for prefix: {0}", new Object[]{prefix});
+
+        try {
+            SearchHits<LoginLogDocument> searchHits = loginLogSearchRepository
+                    .searchByLoginResultFuzzyGlobally(prefix);
+            List<String> suggestions = searchHits.getSearchHits().stream()
+                    .map(SearchHit::getContent)
+                    .map(LoginLogDocument::getLoginResult)
+                    .filter(Objects::nonNull)
+                    .distinct()
+                    .limit(10)
+                    .collect(Collectors.toList());
+
+            log.log(Level.INFO, "Found {0} login result suggestions for prefix: {1}",
+                    new Object[]{suggestions.size(), prefix});
+            return suggestions.isEmpty() ? Collections.emptyList() : suggestions;
+        } catch (Exception e) {
+            log.log(Level.WARNING, "Error fetching login result suggestions for prefix {0}: {1}",
+                    new Object[]{prefix, e.getMessage()});
+            return Collections.emptyList();
+        }
+    }
+
+    private void validateInput(String input, String errorMessage) {
+        if (input == null || input.trim().isEmpty()) {
+            throw new IllegalArgumentException(errorMessage);
+        }
     }
 
     private void sendKafkaMessage(String topic, LoginLog loginLog) {

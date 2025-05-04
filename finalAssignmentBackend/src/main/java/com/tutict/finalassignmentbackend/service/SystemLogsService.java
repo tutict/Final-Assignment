@@ -3,19 +3,27 @@ package com.tutict.finalassignmentbackend.service;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.RequestHistory;
+import com.tutict.finalassignmentbackend.entity.elastic.SystemLogsDocument;
 import com.tutict.finalassignmentbackend.mapper.RequestHistoryMapper;
 import com.tutict.finalassignmentbackend.mapper.SystemLogsMapper;
 import com.tutict.finalassignmentbackend.entity.SystemLogs;
+import com.tutict.finalassignmentbackend.repository.SystemLogsSearchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.elasticsearch.core.SearchHit;
+import org.springframework.data.elasticsearch.core.SearchHits;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
+import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 @Service
 public class SystemLogsService {
@@ -25,13 +33,17 @@ public class SystemLogsService {
     private final SystemLogsMapper systemLogsMapper;
     private final RequestHistoryMapper requestHistoryMapper;
     private final KafkaTemplate<String, SystemLogs> kafkaTemplate;
+    private final SystemLogsSearchRepository systemLogsSearchRepository;
+
 
     @Autowired
     public SystemLogsService(SystemLogsMapper systemLogsMapper,
                              RequestHistoryMapper requestHistoryMapper,
+                             SystemLogsSearchRepository systemLogsSearchRepository,
                              KafkaTemplate<String, SystemLogs> kafkaTemplate) {
         this.systemLogsMapper = systemLogsMapper;
         this.requestHistoryMapper = requestHistoryMapper;
+        this.systemLogsSearchRepository = systemLogsSearchRepository;
         this.kafkaTemplate = kafkaTemplate;
     }
 
@@ -143,6 +155,64 @@ public class SystemLogsService {
         QueryWrapper<SystemLogs> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("operation_user", operationUser);
         return systemLogsMapper.selectList(queryWrapper);
+    }
+
+    @Cacheable(cacheNames = "systemLogsCache", unless = "#result.isEmpty()")
+    public List<String> getLogTypesByPrefixGlobally(String prefix) {
+        validateInput(prefix, "Invalid log type prefix");
+        log.log(Level.INFO, "Fetching log type suggestions for prefix: {0}", new Object[]{prefix});
+
+        try {
+            SearchHits<SystemLogsDocument> searchHits = systemLogsSearchRepository
+                    .searchByLogTypeFuzzyGlobally(prefix);
+            List<String> suggestions = searchHits.getSearchHits().stream()
+                    .map(SearchHit::getContent)
+                    .map(SystemLogsDocument::getLogType)
+                    .filter(Objects::nonNull)
+                    .distinct()
+                    .limit(10)
+                    .collect(Collectors.toList());
+
+            log.log(Level.INFO, "Found {0} log type suggestions for prefix: {1}",
+                    new Object[]{suggestions.size(), prefix});
+            return suggestions.isEmpty() ? Collections.emptyList() : suggestions;
+        } catch (Exception e) {
+            log.log(Level.WARNING, "Error fetching log type suggestions for prefix {0}: {1}",
+                    new Object[]{prefix, e.getMessage()});
+            return Collections.emptyList();
+        }
+    }
+
+    @Cacheable(cacheNames = "systemLogsCache", unless = "#result.isEmpty()")
+    public List<String> getOperationUsersByPrefixGlobally(String prefix) {
+        validateInput(prefix, "Invalid operation user prefix");
+        log.log(Level.INFO, "Fetching operation user suggestions for prefix: {0}", new Object[]{prefix});
+
+        try {
+            SearchHits<SystemLogsDocument> searchHits = systemLogsSearchRepository
+                    .searchByOperationUserGlobally(prefix);
+            List<String> suggestions = searchHits.getSearchHits().stream()
+                    .map(SearchHit::getContent)
+                    .map(SystemLogsDocument::getOperationUser)
+                    .filter(Objects::nonNull)
+                    .distinct()
+                    .limit(10)
+                    .collect(Collectors.toList());
+
+            log.log(Level.INFO, "Found {0} operation user suggestions for prefix: {1}",
+                    new Object[]{suggestions.size(), prefix});
+            return suggestions.isEmpty() ? Collections.emptyList() : suggestions;
+        } catch (Exception e) {
+            log.log(Level.WARNING, "Error fetching operation user suggestions for prefix {0}: {1}",
+                    new Object[]{prefix, e.getMessage()});
+            return Collections.emptyList();
+        }
+    }
+
+    private void validateInput(String input, String errorMessage) {
+        if (input == null || input.trim().isEmpty()) {
+            throw new IllegalArgumentException(errorMessage);
+        }
     }
 
     private void sendKafkaMessage(String topic, SystemLogs systemLog) {

@@ -32,6 +32,7 @@ public class ElasticSearchConfig {
     @Value("${spring-elasticsearch-uris}")
     private String springElasticsearchUris;
 
+    // Mappers
     private final VehicleInformationMapper vehicleInformationMapper;
     private final DriverInformationMapper driverInformationMapper;
     private final OffenseInformationMapper offenseInformationMapper;
@@ -39,7 +40,12 @@ public class ElasticSearchConfig {
     private final FineInformationMapper fineInformationMapper;
     private final DeductionInformationMapper deductionInformationMapper;
     private final OffenseDetailsMapper offenseDetailsMapper;
+    private final UserManagementMapper userManagementMapper;
+    private final LoginLogMapper loginLogMapper;
+    private final OperationLogMapper operationLogMapper;
+    private final SystemLogsMapper systemLogsMapper;
 
+    // Repositories (Lazy-loaded to avoid circular dependencies)
     private final @Lazy VehicleInformationSearchRepository vehicleInformationSearchRepository;
     private final @Lazy DriverInformationSearchRepository driverInformationSearchRepository;
     private final @Lazy OffenseInformationSearchRepository offenseInformationSearchRepository;
@@ -47,6 +53,10 @@ public class ElasticSearchConfig {
     private final @Lazy FineInformationSearchRepository fineInformationSearchRepository;
     private final @Lazy DeductionInformationSearchRepository deductionInformationSearchRepository;
     private final @Lazy OffenseDetailsSearchRepository offenseDetailsSearchRepository;
+    private final @Lazy UserManagementSearchRepository userManagementSearchRepository;
+    private final @Lazy LoginLogSearchRepository loginLogSearchRepository;
+    private final @Lazy OperationLogSearchRepository operationLogSearchRepository;
+    private final @Lazy SystemLogsSearchRepository systemLogsSearchRepository;
 
     public ElasticSearchConfig(
             VehicleInformationMapper vehicleInformationMapper,
@@ -56,20 +66,32 @@ public class ElasticSearchConfig {
             FineInformationMapper fineInformationMapper,
             DeductionInformationMapper deductionInformationMapper,
             OffenseDetailsMapper offenseDetailsMapper,
+            UserManagementMapper userManagementMapper,
+            LoginLogMapper loginLogMapper,
+            OperationLogMapper operationLogMapper,
+            SystemLogsMapper systemLogsMapper,
             @Lazy VehicleInformationSearchRepository vehicleInformationSearchRepository,
             @Lazy DriverInformationSearchRepository driverInformationSearchRepository,
             @Lazy OffenseInformationSearchRepository offenseInformationSearchRepository,
             @Lazy AppealManagementSearchRepository appealManagementSearchRepository,
             @Lazy FineInformationSearchRepository fineInformationSearchRepository,
             @Lazy DeductionInformationSearchRepository deductionInformationSearchRepository,
-            @Lazy OffenseDetailsSearchRepository offenseDetailsSearchRepository) {
+            @Lazy OffenseDetailsSearchRepository offenseDetailsSearchRepository,
+            @Lazy UserManagementSearchRepository userManagementSearchRepository,
+            @Lazy LoginLogSearchRepository loginLogSearchRepository,
+            @Lazy OperationLogSearchRepository operationLogSearchRepository,
+            @Lazy SystemLogsSearchRepository systemLogsSearchRepository) {
         this.vehicleInformationMapper = vehicleInformationMapper;
         this.driverInformationMapper = driverInformationMapper;
         this.offenseInformationMapper = offenseInformationMapper;
         this.appealManagementMapper = appealManagementMapper;
         this.fineInformationMapper = fineInformationMapper;
-        this.offenseDetailsMapper = offenseDetailsMapper;
         this.deductionInformationMapper = deductionInformationMapper;
+        this.offenseDetailsMapper = offenseDetailsMapper;
+        this.userManagementMapper = userManagementMapper;
+        this.loginLogMapper = loginLogMapper;
+        this.operationLogMapper = operationLogMapper;
+        this.systemLogsMapper = systemLogsMapper;
         this.vehicleInformationSearchRepository = vehicleInformationSearchRepository;
         this.driverInformationSearchRepository = driverInformationSearchRepository;
         this.offenseInformationSearchRepository = offenseInformationSearchRepository;
@@ -77,6 +99,10 @@ public class ElasticSearchConfig {
         this.fineInformationSearchRepository = fineInformationSearchRepository;
         this.deductionInformationSearchRepository = deductionInformationSearchRepository;
         this.offenseDetailsSearchRepository = offenseDetailsSearchRepository;
+        this.userManagementSearchRepository = userManagementSearchRepository;
+        this.loginLogSearchRepository = loginLogSearchRepository;
+        this.operationLogSearchRepository = operationLogSearchRepository;
+        this.systemLogsSearchRepository = systemLogsSearchRepository;
     }
 
     @Bean
@@ -124,21 +150,37 @@ public class ElasticSearchConfig {
         syncEntities("offense_details", offenseDetailsMapper.selectList(null),
                 offenseDetailsSearchRepository, OffenseDetailsDocument::fromEntity);
 
+        syncEntities("users", userManagementMapper.selectList(null),
+                userManagementSearchRepository, UserManagementDocument::fromEntity);
+
+        syncEntities("login_logs", loginLogMapper.selectList(null),
+                loginLogSearchRepository, LoginLogDocument::fromEntity);
+
+        syncEntities("operation_logs", operationLogMapper.selectList(null),
+                operationLogSearchRepository, OperationLogDocument::fromEntity);
+
+        syncEntities("system_logs", systemLogsMapper.selectList(null),
+                systemLogsSearchRepository, SystemLogsDocument::fromEntity);
+
         log.log(Level.INFO, "Completed synchronization of database to Elasticsearch");
     }
 
     private <T, D> void syncEntities(String entityType, List<T> entities,
                                      org.springframework.data.elasticsearch.repository.ElasticsearchRepository<D, Integer> repository,
                                      java.util.function.Function<T, D> converter) {
-        if (entities.isEmpty()) {
+        if (entities == null || entities.isEmpty()) {
             log.log(Level.INFO, "No {0} found in database to sync", entityType);
             return;
         }
         for (T entity : entities) {
             try {
                 D document = converter.apply(entity);
-                repository.save(document);
-                log.log(Level.INFO, "Synced {0} with ID={1} to Elasticsearch", new Object[]{entityType, getId(entity)});
+                if (document != null) {
+                    repository.save(document);
+                    log.log(Level.INFO, "Synced {0} with ID={1} to Elasticsearch", new Object[]{entityType, getId(entity)});
+                } else {
+                    log.log(Level.WARNING, "Failed to convert {0} with ID={1} to document", new Object[]{entityType, getId(entity)});
+                }
             } catch (Exception e) {
                 log.log(Level.SEVERE, "Failed to sync {0} with ID={1}: {2}",
                         new Object[]{entityType, getId(entity), e.getMessage()});
@@ -162,6 +204,14 @@ public class ElasticSearchConfig {
             return ((FineInformation) entity).getFineId();
         } else if (entity instanceof OffenseDetails) {
             return ((OffenseDetails) entity).getOffenseId();
+        } else if (entity instanceof UserManagement) {
+            return ((UserManagement) entity).getUserId();
+        } else if (entity instanceof LoginLog) {
+            return ((LoginLog) entity).getLogId();
+        } else if (entity instanceof OperationLog) {
+            return ((OperationLog) entity).getLogId();
+        } else if (entity instanceof SystemLogs) {
+            return ((SystemLogs) entity).getLogId();
         }
         return null;
     }

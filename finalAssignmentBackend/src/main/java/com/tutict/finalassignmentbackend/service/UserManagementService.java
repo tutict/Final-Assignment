@@ -3,19 +3,27 @@ package com.tutict.finalassignmentbackend.service;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.RequestHistory;
+import com.tutict.finalassignmentbackend.entity.elastic.UserManagementDocument;
 import com.tutict.finalassignmentbackend.mapper.RequestHistoryMapper;
 import com.tutict.finalassignmentbackend.mapper.UserManagementMapper;
 import com.tutict.finalassignmentbackend.entity.UserManagement;
+import com.tutict.finalassignmentbackend.repository.UserManagementSearchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.elasticsearch.core.SearchHit;
+import org.springframework.data.elasticsearch.core.SearchHits;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
+import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 @Service
 public class UserManagementService {
@@ -24,14 +32,17 @@ public class UserManagementService {
 
     private final UserManagementMapper userManagementMapper;
     private final RequestHistoryMapper requestHistoryMapper;
+    private final UserManagementSearchRepository userManagementSearchRepository;
     private final KafkaTemplate<String, UserManagement> kafkaTemplate;
 
     @Autowired
     public UserManagementService(UserManagementMapper userManagementMapper,
                                  RequestHistoryMapper requestHistoryMapper,
+                                 UserManagementSearchRepository userManagementSearchRepository,
                                  KafkaTemplate<String, UserManagement> kafkaTemplate) {
         this.userManagementMapper = userManagementMapper;
         this.requestHistoryMapper = requestHistoryMapper;
+        this.userManagementSearchRepository = userManagementSearchRepository;
         this.kafkaTemplate = kafkaTemplate;
     }
 
@@ -193,6 +204,84 @@ public class UserManagementService {
         QueryWrapper<UserManagement> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("username", username);
         return userManagementMapper.selectCount(queryWrapper) > 0;
+    }
+
+    @Cacheable(cacheNames = "userCache", unless = "#result.isEmpty()")
+    public List<String> getUsernamesByPrefixGlobally(String prefix) {
+        validateInput(prefix, "Invalid username prefix");
+        log.log(Level.INFO, "Fetching username suggestions for prefix: {0}", new Object[]{prefix});
+
+        try {
+            SearchHits<UserManagementDocument> searchHits = userManagementSearchRepository
+                    .searchByUsernameGlobally(prefix);
+            List<String> suggestions = searchHits.getSearchHits().stream()
+                    .map(SearchHit::getContent)
+                    .map(UserManagementDocument::getUsername)
+                    .filter(Objects::nonNull)
+                    .distinct()
+                    .limit(10)
+                    .collect(Collectors.toList());
+
+            log.log(Level.INFO, "Found {0} username suggestions for prefix: {1}",
+                    new Object[]{suggestions.size(), prefix});
+            return suggestions.isEmpty() ? Collections.emptyList() : suggestions;
+        } catch (Exception e) {
+            log.log(Level.WARNING, "Error fetching username suggestions for prefix {0}: {1}",
+                    new Object[]{prefix, e.getMessage()});
+            return Collections.emptyList();
+        }
+    }
+
+    @Cacheable(cacheNames = "userCache", unless = "#result.isEmpty()")
+    public List<String> getStatusesByPrefixGlobally(String prefix) {
+        validateInput(prefix, "Invalid status prefix");
+        log.log(Level.INFO, "Fetching status suggestions for prefix: {0}", new Object[]{prefix});
+
+        try {
+            SearchHits<UserManagementDocument> searchHits = userManagementSearchRepository
+                    .searchByStatusGlobally(prefix);
+            List<String> suggestions = searchHits.getSearchHits().stream()
+                    .map(SearchHit::getContent)
+                    .map(UserManagementDocument::getStatus)
+                    .filter(Objects::nonNull)
+                    .distinct()
+                    .limit(10)
+                    .collect(Collectors.toList());
+
+            log.log(Level.INFO, "Found {0} status suggestions for prefix: {1}",
+                    new Object[]{suggestions.size(), prefix});
+            return suggestions.isEmpty() ? Collections.emptyList() : suggestions;
+        } catch (Exception e) {
+            log.log(Level.WARNING, "Error fetching status suggestions for prefix {0}: {1}",
+                    new Object[]{prefix, e.getMessage()});
+            return Collections.emptyList();
+        }
+    }
+
+    @Cacheable(cacheNames = "userCache", unless = "#result.isEmpty()")
+    public List<String> getPhoneNumbersByPrefixGlobally(String prefix) {
+        validateInput(prefix, "Invalid phone number prefix");
+        log.log(Level.INFO, "Fetching phone number suggestions for prefix: {0}", new Object[]{prefix});
+
+        try {
+            SearchHits<UserManagementDocument> searchHits = userManagementSearchRepository
+                    .searchByPhoneNumberGlobally(prefix);
+            List<String> suggestions = searchHits.getSearchHits().stream()
+                    .map(SearchHit::getContent)
+                    .map(UserManagementDocument::getContactNumber)
+                    .filter(Objects::nonNull)
+                    .distinct()
+                    .limit(10)
+                    .collect(Collectors.toList());
+
+            log.log(Level.INFO, "Found {0} phone number suggestions for prefix: {1}",
+                    new Object[]{suggestions.size(), prefix});
+            return suggestions.isEmpty() ? Collections.emptyList() : suggestions;
+        } catch (Exception e) {
+            log.log(Level.WARNING, "Error fetching phone number suggestions for prefix {0}: {1}",
+                    new Object[]{prefix, e.getMessage()});
+            return Collections.emptyList();
+        }
     }
 
     private void sendKafkaMessage(UserManagement user, String action) {
