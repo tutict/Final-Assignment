@@ -282,6 +282,77 @@ class SystemLogsControllerApi {
         'Failed to fetch system logs by log type: ${response.body}');
   }
 
+  Future<List<String>> apiSystemLogsAutocompleteLogTypesGet({
+    required String prefix,
+  }) async {
+    if (prefix.isEmpty) {
+      throw ApiException(400, 'Missing required param: prefix');
+    }
+    final uri = Uri.parse(
+        'http://localhost:8081/api/system-logs/autocomplete/log-types/me?prefix=$prefix');
+    final prefs = await SharedPreferences.getInstance();
+    final jwtToken = prefs.getString('jwtToken');
+    if (jwtToken == null) {
+      throw Exception('JWT token not found in SharedPreferences');
+    }
+    debugPrint('Request URL: $uri');
+    final response = await http.get(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $jwtToken',
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Accept': 'application/json; charset=UTF-8',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final decodedBody = utf8.decode(response.bodyBytes);
+      debugPrint('Raw response body (autocomplete log types): $decodedBody');
+      final List<dynamic> data = jsonDecode(decodedBody);
+      return data.cast<String>();
+    } else if (response.statusCode == 404) {
+      return [];
+    }
+    throw ApiException(response.statusCode,
+        'Failed to fetch log type autocomplete suggestions: ${response.body}');
+  }
+
+  Future<List<String>> apiSystemLogsAutocompleteOperationUsersGet({
+    required String prefix,
+  }) async {
+    if (prefix.isEmpty) {
+      throw ApiException(400, 'Missing required param: prefix');
+    }
+    final uri = Uri.parse(
+        'http://localhost:8081/api/system-logs/autocomplete/operation-users/me?prefix=$prefix');
+    final prefs = await SharedPreferences.getInstance();
+    final jwtToken = prefs.getString('jwtToken');
+    if (jwtToken == null) {
+      throw Exception('JWT token not found in SharedPreferences');
+    }
+    debugPrint('Request URL: $uri');
+    final response = await http.get(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $jwtToken',
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Accept': 'application/json; charset=UTF-8',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final decodedBody = utf8.decode(response.bodyBytes);
+      debugPrint(
+          'Raw response body (autocomplete operation users): $decodedBody');
+      final List<dynamic> data = jsonDecode(decodedBody);
+      return data.cast<String>();
+    } else if (response.statusCode == 404) {
+      return [];
+    }
+    throw ApiException(response.statusCode,
+        'Failed to fetch operation user autocomplete suggestions: ${response.body}');
+  }
+
   Future<List<SystemLogs>> eventbusSystemLogsGet() async {
     final msg = {
       'service': 'SystemLogsService',
@@ -430,5 +501,45 @@ class SystemLogsControllerApi {
     final result = respMap['result'] as List<dynamic>?;
     if (result == null) return [];
     return SystemLogs.listFromJson(result);
+  }
+
+  Future<List<String>> eventbusSystemLogsAutocompleteLogTypesGet({
+    required String prefix,
+  }) async {
+    if (prefix.isEmpty) {
+      throw ApiException(400, 'Missing required param: prefix');
+    }
+    final msg = {
+      'service': 'SystemLogsService',
+      'action': 'getLogTypeAutocompleteSuggestionsGlobally',
+      'args': [prefix],
+    };
+    final respMap = await _apiClient.sendWsMessage(msg);
+    if (respMap.containsKey('error')) {
+      throw ApiException(400, respMap['error']);
+    }
+    final result = respMap['result'] as List<dynamic>?;
+    if (result == null) return [];
+    return result.cast<String>();
+  }
+
+  Future<List<String>> eventbusSystemLogsAutocompleteOperationUsersGet({
+    required String prefix,
+  }) async {
+    if (prefix.isEmpty) {
+      throw ApiException(400, 'Missing required param: prefix');
+    }
+    final msg = {
+      'service': 'SystemLogsService',
+      'action': 'getOperationUserAutocompleteSuggestionsGlobally',
+      'args': [prefix],
+    };
+    final respMap = await _apiClient.sendWsMessage(msg);
+    if (respMap.containsKey('error')) {
+      throw ApiException(400, respMap['error']);
+    }
+    final result = respMap['result'] as List<dynamic>?;
+    if (result == null) return [];
+    return result.cast<String>();
   }
 }

@@ -194,13 +194,23 @@ class _LoginLogPageState extends State<LoginLogPage> {
       List<LoginLog> logs = [];
       final searchQuery = query?.trim() ?? '';
       if (_searchType == 'username' && searchQuery.isNotEmpty) {
-        logs = await logApi.apiLoginLogsUsernameUsernameGet(
-          username: searchQuery,
-        );
+        logs = await logApi.apiLoginLogsGet();
+        logs = logs
+            .where((log) =>
+                log.username
+                    ?.toLowerCase()
+                    .contains(searchQuery.toLowerCase()) ??
+                false)
+            .toList();
       } else if (_searchType == 'loginResult' && searchQuery.isNotEmpty) {
-        logs = await logApi.apiLoginLogsLoginResultLoginResultGet(
-          loginResult: searchQuery,
-        );
+        logs = await logApi.apiLoginLogsGet();
+        logs = logs
+            .where((log) =>
+                log.loginResult
+                    ?.toLowerCase()
+                    .contains(searchQuery.toLowerCase()) ??
+                false)
+            .toList();
       } else if (_startTime != null && _endTime != null) {
         logs = await logApi.apiLoginLogsTimeRangeGet(
           startTime: _startTime!.toIso8601String(),
@@ -287,24 +297,15 @@ class _LoginLogPageState extends State<LoginLogPage> {
         Get.offAllNamed(AppPages.login);
         return [];
       }
-      List<LoginLog> logs;
+      List<String> suggestions;
       if (_searchType == 'username') {
-        logs = await logApi.apiLoginLogsGet();
-        return logs
-            .map((log) => log.username ?? '')
-            .where((username) =>
-                username.toLowerCase().contains(prefix.toLowerCase()))
-            .take(5)
-            .toList();
+        suggestions =
+            await logApi.apiLoginLogsAutocompleteUsernamesGet(username: prefix);
       } else {
-        logs = await logApi.apiLoginLogsGet();
-        return logs
-            .map((log) => log.loginResult ?? '')
-            .where(
-                (result) => result.toLowerCase().contains(prefix.toLowerCase()))
-            .take(5)
-            .toList();
+        suggestions = await logApi.apiLoginLogsAutocompleteLoginResultsGet(
+            loginResult: prefix);
       }
+      return suggestions.take(5).toList();
     } catch (e) {
       developer.log('Failed to fetch autocomplete suggestions: $e',
           stackTrace: StackTrace.current);
@@ -833,7 +834,7 @@ class _LoginLogPageState extends State<LoginLogPage> {
                       _applyFilters('');
                     });
                   },
-                  items: <String>['username', 'loginResult', 'timeRange']
+                  items: <String>['username', 'loginResult']
                       .map<DropdownMenuItem<String>>((String value) {
                     return DropdownMenuItem<String>(
                       value: value,
@@ -842,7 +843,7 @@ class _LoginLogPageState extends State<LoginLogPage> {
                             ? '按用户名'
                             : value == 'loginResult'
                                 ? '按登录结果'
-                                : '按时间范围',
+                                : '',
                         style:
                             TextStyle(color: themeData.colorScheme.onSurface),
                       ),

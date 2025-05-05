@@ -151,14 +151,11 @@ class _UserManagementPageState extends State<UserManagementPage> {
         users = users
             .where((u) => u.contactNumber?.contains(searchQuery) ?? false)
             .toList();
-      } else if (_searchType == 'email') {
-        users = await userApi.apiUsersGet();
-        users = users
-            .where((u) => u.email?.contains(searchQuery) ?? false)
-            .toList();
       }
 
+      // Filter out the current user
       users = users.where((u) => u.username != _currentUsername).toList();
+
       setState(() {
         _userList.addAll(users);
         if (users.length < _pageSize) _hasMore = false;
@@ -184,15 +181,22 @@ class _UserManagementPageState extends State<UserManagementPage> {
 
   Future<List<String>> _fetchAutocompleteSuggestions(String prefix) async {
     try {
+      List<String> suggestions;
       if (_searchType == 'username') {
-        return ['admin', 'user', 'test'];
+        suggestions =
+            await userApi.apiUsersAutocompleteUsernamesGet(prefix: prefix);
       } else if (_searchType == 'status') {
-        return ['Active', 'Inactive'];
-      } else if (_searchType == 'contactNumber') {
-        return ['1234567890', '0987654321'];
+        suggestions =
+            await userApi.apiUsersAutocompleteStatusesGet(prefix: prefix);
       } else {
-        return ['user@example.com', 'admin@example.com'];
+        suggestions =
+            await userApi.apiUsersAutocompletePhoneNumbersGet(prefix: prefix);
       }
+      return suggestions
+          .where((suggestion) =>
+              suggestion.toLowerCase().contains(prefix.toLowerCase()))
+          .take(5)
+          .toList();
     } catch (e) {
       debugPrint('Failed to fetch autocomplete suggestions: $e');
       return [];

@@ -194,13 +194,23 @@ class _SystemLogPageState extends State<SystemLogPage> {
       List<SystemLogs> logs = [];
       final searchQuery = query?.trim() ?? '';
       if (_searchType == 'logType' && searchQuery.isNotEmpty) {
-        logs = await logApi.apiSystemLogsTypeLogTypeGet(
-          logType: searchQuery,
-        );
+        logs = await logApi.apiSystemLogsGet();
+        logs = logs
+            .where((log) =>
+                log.logType
+                    ?.toLowerCase()
+                    .contains(searchQuery.toLowerCase()) ??
+                false)
+            .toList();
       } else if (_searchType == 'operationUser' && searchQuery.isNotEmpty) {
-        logs = await logApi.apiSystemLogsOperationUserGet(
-          operationUser: searchQuery,
-        );
+        logs = await logApi.apiSystemLogsGet();
+        logs = logs
+            .where((log) =>
+                log.operationUser
+                    ?.toLowerCase()
+                    .contains(searchQuery.toLowerCase()) ??
+                false)
+            .toList();
       } else if (_startTime != null && _endTime != null) {
         logs = await logApi.apiSystemLogsTimeRangeGet(
           startTime: _startTime!.toIso8601String(),
@@ -287,22 +297,19 @@ class _SystemLogPageState extends State<SystemLogPage> {
         Get.offAllNamed(AppPages.login);
         return [];
       }
-      List<SystemLogs> logs;
+      List<String> suggestions;
       if (_searchType == 'logType') {
-        logs = await logApi.apiSystemLogsGet();
-        return logs
-            .map((log) => log.logType ?? '')
-            .where((type) => type.toLowerCase().contains(prefix.toLowerCase()))
-            .take(5)
-            .toList();
+        suggestions =
+            await logApi.apiSystemLogsAutocompleteLogTypesGet(prefix: prefix);
       } else {
-        logs = await logApi.apiSystemLogsGet();
-        return logs
-            .map((log) => log.operationUser ?? '')
-            .where((user) => user.toLowerCase().contains(prefix.toLowerCase()))
-            .take(5)
-            .toList();
+        suggestions = await logApi.apiSystemLogsAutocompleteOperationUsersGet(
+            prefix: prefix);
       }
+      return suggestions
+          .where((suggestion) =>
+              suggestion.toLowerCase().contains(prefix.toLowerCase()))
+          .take(5)
+          .toList();
     } catch (e) {
       developer.log('Failed to fetch autocomplete suggestions: $e',
           stackTrace: StackTrace.current);

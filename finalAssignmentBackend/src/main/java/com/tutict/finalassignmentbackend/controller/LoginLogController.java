@@ -8,12 +8,19 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.access.prepost.PreAuthorize;
 
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 @RestController
 @RequestMapping("/api/loginLogs")
 public class LoginLogController {
+
+    private static final Logger log = Logger.getLogger(LoginLogController.class.getName());
 
     private final LoginLogService loginLogService;
 
@@ -96,5 +103,51 @@ public class LoginLogController {
     public ResponseEntity<List<LoginLog>> getLoginLogsByLoginResult(@PathVariable String loginResult) {
         List<LoginLog> loginLogs = loginLogService.getLoginLogsByLoginResult(loginResult);
         return ResponseEntity.ok(loginLogs);
+    }
+
+    @GetMapping("/autocomplete/usernames/me")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<String>> getUsernameAutocompleteSuggestionsGlobally(
+            @RequestParam String prefix) {
+        String decodedPrefix = URLDecoder.decode(prefix, StandardCharsets.UTF_8);
+        log.log(Level.INFO, "Fetching username suggestions for prefix: {0}, decoded: {1}",
+                new Object[]{prefix, decodedPrefix});
+
+        List<String> suggestions = loginLogService.getUsernamesByPrefixGlobally(decodedPrefix);
+        if (suggestions == null) {
+            suggestions = Collections.emptyList();
+        }
+
+        if (suggestions.isEmpty()) {
+            log.log(Level.INFO, "No username suggestions found for prefix: {0}", new Object[]{decodedPrefix});
+        } else {
+            log.log(Level.INFO, "Found {0} username suggestions for prefix: {1}",
+                    new Object[]{suggestions.size(), decodedPrefix});
+        }
+
+        return ResponseEntity.ok(suggestions);
+    }
+
+    @GetMapping("/autocomplete/login-results/me")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<String>> getLoginResultAutocompleteSuggestionsGlobally(
+            @RequestParam String prefix) {
+        String decodedPrefix = URLDecoder.decode(prefix, StandardCharsets.UTF_8);
+        log.log(Level.INFO, "Fetching login result suggestions for prefix: {0}, decoded: {1}",
+                new Object[]{prefix, decodedPrefix});
+
+        List<String> suggestions = loginLogService.getLoginResultsByPrefixGlobally(decodedPrefix);
+        if (suggestions == null) {
+            suggestions = Collections.emptyList();
+        }
+
+        if (suggestions.isEmpty()) {
+            log.log(Level.INFO, "No login result suggestions found for prefix: {0}", new Object[]{decodedPrefix});
+        } else {
+            log.log(Level.INFO, "Found {0} login result suggestions for prefix: {1}",
+                    new Object[]{suggestions.size(), decodedPrefix});
+        }
+
+        return ResponseEntity.ok(suggestions);
     }
 }

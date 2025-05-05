@@ -402,6 +402,120 @@ class UserManagementControllerApi {
     return null;
   }
 
+  // --- GET /api/users/autocomplete/usernames/me ---
+  Future<http.Response> apiUsersAutocompleteUsernamesGetWithHttpInfo({
+    required String prefix,
+  }) async {
+    if (prefix.isEmpty) {
+      throw ApiException(400, "Missing required param: prefix");
+    }
+
+    final path = "/api/users/autocomplete/usernames/me?prefix=$prefix";
+    final headerParams = await _getHeaders();
+
+    return await apiClient.invokeAPI(
+      path,
+      'GET',
+      [],
+      null,
+      headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
+  }
+
+  Future<List<String>> apiUsersAutocompleteUsernamesGet({
+    required String prefix,
+  }) async {
+    final response =
+        await apiUsersAutocompleteUsernamesGetWithHttpInfo(prefix: prefix);
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    } else if (response.body.isNotEmpty) {
+      final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+      return jsonList.cast<String>();
+    } else {
+      return [];
+    }
+  }
+
+  // --- GET /api/users/autocomplete/statuses/me ---
+  Future<http.Response> apiUsersAutocompleteStatusesGetWithHttpInfo({
+    required String prefix,
+  }) async {
+    if (prefix.isEmpty) {
+      throw ApiException(400, "Missing required param: prefix");
+    }
+
+    final path = "/api/users/autocomplete/statuses/me?prefix=$prefix";
+    final headerParams = await _getHeaders();
+
+    return await apiClient.invokeAPI(
+      path,
+      'GET',
+      [],
+      null,
+      headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
+  }
+
+  Future<List<String>> apiUsersAutocompleteStatusesGet({
+    required String prefix,
+  }) async {
+    final response =
+        await apiUsersAutocompleteStatusesGetWithHttpInfo(prefix: prefix);
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    } else if (response.body.isNotEmpty) {
+      final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+      return jsonList.cast<String>();
+    } else {
+      return [];
+    }
+  }
+
+  // --- GET /api/users/autocomplete/phone-numbers/me ---
+  Future<http.Response> apiUsersAutocompletePhoneNumbersGetWithHttpInfo({
+    required String prefix,
+  }) async {
+    if (prefix.isEmpty) {
+      throw ApiException(400, "Missing required param: prefix");
+    }
+
+    final path = "/api/users/autocomplete/phone-numbers/me?prefix=$prefix";
+    final headerParams = await _getHeaders();
+
+    return await apiClient.invokeAPI(
+      path,
+      'GET',
+      [],
+      null,
+      headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
+  }
+
+  Future<List<String>> apiUsersAutocompletePhoneNumbersGet({
+    required String prefix,
+  }) async {
+    final response =
+        await apiUsersAutocompletePhoneNumbersGetWithHttpInfo(prefix: prefix);
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    } else if (response.body.isNotEmpty) {
+      final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+      return jsonList.cast<String>();
+    } else {
+      return [];
+    }
+  }
+
   // --- WebSocket Methods ---
 
   // getAllUsers (WebSocket)
@@ -568,5 +682,65 @@ class UserManagementControllerApi {
       return UserManagement.fromJson(respMap["result"]);
     }
     return null;
+  }
+
+  // getUsernameAutocompleteSuggestionsGlobally (WebSocket)
+  Future<List<String>> eventbusUsersAutocompleteUsernamesGet({
+    required String prefix,
+  }) async {
+    if (prefix.isEmpty) {
+      throw ApiException(400, "Missing required param: prefix");
+    }
+    final msg = {
+      "service": "UserManagementService",
+      "action": "getUsernameAutocompleteSuggestionsGlobally",
+      "args": [prefix]
+    };
+    final respMap = await apiClient.sendWsMessage(msg);
+    if (respMap.containsKey("error")) throw ApiException(400, respMap["error"]);
+    if (respMap["result"] is List) {
+      return (respMap["result"] as List).cast<String>();
+    }
+    return [];
+  }
+
+  // getStatusAutocompleteSuggestionsGlobally (WebSocket)
+  Future<List<String>> eventbusUsersAutocompleteStatusesGet({
+    required String prefix,
+  }) async {
+    if (prefix.isEmpty) {
+      throw ApiException(400, "Missing required param: prefix");
+    }
+    final msg = {
+      "service": "UserManagementService",
+      "action": "getStatusAutocompleteSuggestionsGlobally",
+      "args": [prefix]
+    };
+    final respMap = await apiClient.sendWsMessage(msg);
+    if (respMap.containsKey("error")) throw ApiException(400, respMap["error"]);
+    if (respMap["result"] is List) {
+      return (respMap["result"] as List).cast<String>();
+    }
+    return [];
+  }
+
+  // getPhoneNumberAutocompleteSuggestionsGlobally (WebSocket)
+  Future<List<String>> eventbusUsersAutocompletePhoneNumbersGet({
+    required String prefix,
+  }) async {
+    if (prefix.isEmpty) {
+      throw ApiException(400, "Missing required param: prefix");
+    }
+    final msg = {
+      "service": "UserManagementService",
+      "action": "getPhoneNumberAutocompleteSuggestionsGlobally",
+      "args": [prefix]
+    };
+    final respMap = await apiClient.sendWsMessage(msg);
+    if (respMap.containsKey("error")) throw ApiException(400, respMap["error"]);
+    if (respMap["result"] is List) {
+      return (respMap["result"] as List).cast<String>();
+    }
+    return [];
   }
 }

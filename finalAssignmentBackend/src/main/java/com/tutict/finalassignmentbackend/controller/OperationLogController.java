@@ -8,14 +8,21 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.access.prepost.PreAuthorize;
 
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 @RestController
 @RequestMapping("/api/operationLogs")
 public class OperationLogController {
 
     private final OperationLogService operationLogService;
+    private static final Logger log = Logger.getLogger(OperationLogController.class.getName());
+
 
     public OperationLogController(OperationLogService operationLogService) {
         this.operationLogService = operationLogService;
@@ -96,5 +103,51 @@ public class OperationLogController {
     public ResponseEntity<List<OperationLog>> getOperationLogsByResult(@PathVariable String result) {
         List<OperationLog> operationLogs = operationLogService.getOperationLogsByResult(result);
         return ResponseEntity.ok(operationLogs);
+    }
+
+    @GetMapping("/autocomplete/user-ids/me")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<String>> getUserIdAutocompleteSuggestionsGlobally(
+            @RequestParam String prefix) {
+        String decodedPrefix = URLDecoder.decode(prefix, StandardCharsets.UTF_8);
+        log.log(Level.INFO, "Fetching user ID suggestions for prefix: {0}, decoded: {1}",
+                new Object[]{prefix, decodedPrefix});
+
+        List<String> suggestions = operationLogService.getUserIdsByPrefixGlobally(decodedPrefix);
+        if (suggestions == null) {
+            suggestions = Collections.emptyList();
+        }
+
+        if (suggestions.isEmpty()) {
+            log.log(Level.INFO, "No user ID suggestions found for prefix: {0}", new Object[]{decodedPrefix});
+        } else {
+            log.log(Level.INFO, "Found {0} user ID suggestions for prefix: {1}",
+                    new Object[]{suggestions.size(), decodedPrefix});
+        }
+
+        return ResponseEntity.ok(suggestions);
+    }
+
+    @GetMapping("/autocomplete/operation-results/me")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<String>> getOperationResultAutocompleteSuggestionsGlobally(
+            @RequestParam String prefix) {
+        String decodedPrefix = URLDecoder.decode(prefix, StandardCharsets.UTF_8);
+        log.log(Level.INFO, "Fetching operation result suggestions for prefix: {0}, decoded: {1}",
+                new Object[]{prefix, decodedPrefix});
+
+        List<String> suggestions = operationLogService.getOperationResultsByPrefixGlobally(decodedPrefix);
+        if (suggestions == null) {
+            suggestions = Collections.emptyList();
+        }
+
+        if (suggestions.isEmpty()) {
+            log.log(Level.INFO, "No operation result suggestions found for prefix: {0}", new Object[]{decodedPrefix});
+        } else {
+            log.log(Level.INFO, "Found {0} operation result suggestions for prefix: {1}",
+                    new Object[]{suggestions.size(), decodedPrefix});
+        }
+
+        return ResponseEntity.ok(suggestions);
     }
 }

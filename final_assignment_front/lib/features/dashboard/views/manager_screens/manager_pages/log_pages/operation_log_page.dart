@@ -194,13 +194,24 @@ class _OperationLogPageState extends State<OperationLogPage> {
       List<OperationLog> logs = [];
       final searchQuery = query?.trim() ?? '';
       if (_searchType == 'userId' && searchQuery.isNotEmpty) {
-        logs = await logApi.apiOperationLogsUserIdUserIdGet(
-          userId: searchQuery,
-        );
+        logs = await logApi.apiOperationLogsGet();
+        logs = logs
+            .where((log) =>
+                log.userId
+                    ?.toString()
+                    .toLowerCase()
+                    .contains(searchQuery.toLowerCase()) ??
+                false)
+            .toList();
       } else if (_searchType == 'operationResult' && searchQuery.isNotEmpty) {
-        logs = await logApi.apiOperationLogsResultResultGet(
-          result: searchQuery,
-        );
+        logs = await logApi.apiOperationLogsGet();
+        logs = logs
+            .where((log) =>
+                log.operationResult
+                    ?.toLowerCase()
+                    .contains(searchQuery.toLowerCase()) ??
+                false)
+            .toList();
       } else if (_startTime != null && _endTime != null) {
         logs = await logApi.apiOperationLogsTimeRangeGet(
           startTime: _startTime!.toIso8601String(),
@@ -287,24 +298,19 @@ class _OperationLogPageState extends State<OperationLogPage> {
         Get.offAllNamed(AppPages.login);
         return [];
       }
-      List<OperationLog> logs;
+      List<String> suggestions;
       if (_searchType == 'userId') {
-        logs = await logApi.apiOperationLogsGet();
-        return logs
-            .map((log) => log.userId?.toString() ?? '')
-            .where(
-                (userId) => userId.toLowerCase().contains(prefix.toLowerCase()))
-            .take(5)
-            .toList();
+        suggestions =
+            await logApi.apiOperationLogsAutocompleteUserIdsGet(prefix: prefix);
       } else {
-        logs = await logApi.apiOperationLogsGet();
-        return logs
-            .map((log) => log.operationResult ?? '')
-            .where(
-                (result) => result.toLowerCase().contains(prefix.toLowerCase()))
-            .take(5)
-            .toList();
+        suggestions = await logApi
+            .apiOperationLogsAutocompleteOperationResultsGet(prefix: prefix);
       }
+      return suggestions
+          .where((suggestion) =>
+              suggestion.toLowerCase().contains(prefix.toLowerCase()))
+          .take(5)
+          .toList();
     } catch (e) {
       developer.log('Failed to fetch autocomplete suggestions: $e',
           stackTrace: StackTrace.current);

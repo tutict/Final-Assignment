@@ -284,6 +284,77 @@ class OperationLogControllerApi {
         'Failed to fetch operation logs by user ID: ${response.body}');
   }
 
+  Future<List<String>> apiOperationLogsAutocompleteUserIdsGet({
+    required String prefix,
+  }) async {
+    if (prefix.isEmpty) {
+      throw ApiException(400, 'Missing required param: prefix');
+    }
+    final uri = Uri.parse(
+        'http://localhost:8081/api/operation-logs/autocomplete/user-ids/me?prefix=$prefix');
+    final prefs = await SharedPreferences.getInstance();
+    final jwtToken = prefs.getString('jwtToken');
+    if (jwtToken == null) {
+      throw Exception('JWT token not found in SharedPreferences');
+    }
+    debugPrint('Request URL: $uri');
+    final response = await http.get(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $jwtToken',
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Accept': 'application/json; charset=UTF-8',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final decodedBody = utf8.decode(response.bodyBytes);
+      debugPrint('Raw response body (autocomplete user IDs): $decodedBody');
+      final List<dynamic> data = jsonDecode(decodedBody);
+      return data.cast<String>();
+    } else if (response.statusCode == 404) {
+      return [];
+    }
+    throw ApiException(response.statusCode,
+        'Failed to fetch user ID autocomplete suggestions: ${response.body}');
+  }
+
+  Future<List<String>> apiOperationLogsAutocompleteOperationResultsGet({
+    required String prefix,
+  }) async {
+    if (prefix.isEmpty) {
+      throw ApiException(400, 'Missing required param: prefix');
+    }
+    final uri = Uri.parse(
+        'http://localhost:8081/api/operation-logs/autocomplete/operation-results/me?prefix=$prefix');
+    final prefs = await SharedPreferences.getInstance();
+    final jwtToken = prefs.getString('jwtToken');
+    if (jwtToken == null) {
+      throw Exception('JWT token not found in SharedPreferences');
+    }
+    debugPrint('Request URL: $uri');
+    final response = await http.get(
+      uri,
+      headers: {
+        'Authorization': 'Bearer $jwtToken',
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Accept': 'application/json; charset=UTF-8',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final decodedBody = utf8.decode(response.bodyBytes);
+      debugPrint(
+          'Raw response body (autocomplete operation results): $decodedBody');
+      final List<dynamic> data = jsonDecode(decodedBody);
+      return data.cast<String>();
+    } else if (response.statusCode == 404) {
+      return [];
+    }
+    throw ApiException(response.statusCode,
+        'Failed to fetch operation result autocomplete suggestions: ${response.body}');
+  }
+
   Future<List<OperationLog>> eventbusOperationLogsGet() async {
     final msg = {
       'service': 'OperationLogService',
@@ -433,5 +504,45 @@ class OperationLogControllerApi {
     final result = respMap['result'] as List<dynamic>?;
     if (result == null) return [];
     return OperationLog.listFromJson(result);
+  }
+
+  Future<List<String>> eventbusOperationLogsAutocompleteUserIdsGet({
+    required String prefix,
+  }) async {
+    if (prefix.isEmpty) {
+      throw ApiException(400, 'Missing required param: prefix');
+    }
+    final msg = {
+      'service': 'OperationLogService',
+      'action': 'getUserIdAutocompleteSuggestionsGlobally',
+      'args': [prefix],
+    };
+    final respMap = await _apiClient.sendWsMessage(msg);
+    if (respMap.containsKey('error')) {
+      throw ApiException(400, respMap['error']);
+    }
+    final result = respMap['result'] as List<dynamic>?;
+    if (result == null) return [];
+    return result.cast<String>();
+  }
+
+  Future<List<String>> eventbusOperationLogsAutocompleteOperationResultsGet({
+    required String prefix,
+  }) async {
+    if (prefix.isEmpty) {
+      throw ApiException(400, 'Missing required param: prefix');
+    }
+    final msg = {
+      'service': 'OperationLogService',
+      'action': 'getOperationResultAutocompleteSuggestionsGlobally',
+      'args': [prefix],
+    };
+    final respMap = await _apiClient.sendWsMessage(msg);
+    if (respMap.containsKey('error')) {
+      throw ApiException(400, respMap['error']);
+    }
+    final result = respMap['result'] as List<dynamic>?;
+    if (result == null) return [];
+    return result.cast<String>();
   }
 }
