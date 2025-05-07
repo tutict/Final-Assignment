@@ -25,12 +25,6 @@ void main() async {
     debugPrint('Failed to initialize date formatting: $e');
   }
 
-  Get.put(DashboardController());
-  Get.put(UserDashboardController());
-  Get.put(ChatController());
-  Get.put(ProgressController());
-  Get.put(LogController());
-
   runApp(const MainApp());
 }
 
@@ -64,6 +58,18 @@ class MainApp extends StatelessWidget {
         Locale('en', 'US'),
         Locale('zh', 'CN'),
       ],
+      initialBinding: AppBindings(),
     );
+  }
+}
+
+class AppBindings extends Bindings {
+  @override
+  void dependencies() {
+    Get.lazyPut<DashboardController>(() => DashboardController());
+    Get.lazyPut<UserDashboardController>(() => UserDashboardController());
+    Get.lazyPut<ChatController>(() => ChatController());
+    Get.lazyPut<ProgressController>(() => ProgressController());
+    Get.lazyPut<LogController>(() => LogController());
   }
 }

@@ -317,8 +317,6 @@
                     <execution>
                         <configuration>
                             <packages>
-<!--                                <package>lxml</package>-->
-<!--                                <package>scrapy</package>-->
                                 <package>requests</package>
                                 <package>beautifulsoup4</package>
                             </packages>

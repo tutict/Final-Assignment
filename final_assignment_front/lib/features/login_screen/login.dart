@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
 import 'package:final_assignment_front/features/api/auth_controller_api.dart';
@@ -46,7 +47,8 @@ class LoginScreen extends StatefulWidget with ValidatorMixin {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends State<LoginScreen>
+    with TickerProviderStateMixin {
   late AuthControllerApi authApi;
   late DriverInformationControllerApi driverApi;
   late ProfilTile _profilTile;
@@ -86,7 +88,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         onPressedNotification: () {},
       );
-      Get.put(_profilTile); // Register the initialized _profilTile
+      Get.put(_profilTile);
     } else {
       _profilTile = Get.find<ProfilTile>();
     }
@@ -119,6 +121,7 @@ class _LoginScreenState extends State<LoginScreen> {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('jwtToken', jwtToken);
         await prefs.setString('userRole', _userRole!);
+        await prefs.setString('userName', username);
 
         final userData = result['user'] ?? {};
         debugPrint('登录返回的用户数据: $userData');
@@ -129,14 +132,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
         String driverName = name;
 
-        // 初始化 API 客户端
         await driverApi.initializeWithJwt();
         debugPrint('Driver API 已初始化');
         final userManagementApi = UserManagementControllerApi();
         await userManagementApi.initializeWithJwt();
         debugPrint('UserManagement API 已初始化');
 
-        // 获取当前用户信息
         int? userId;
         try {
           final userInfo = await userManagementApi.apiUsersMeGet();
@@ -148,7 +149,6 @@ class _LoginScreenState extends State<LoginScreen> {
           debugPrint('获取用户信息失败: $e');
         }
 
-        // 如果没有 userId，尝试通过用户名查询
         if (userId == null) {
           try {
             final userInfo = await userManagementApi
@@ -162,7 +162,6 @@ class _LoginScreenState extends State<LoginScreen> {
           }
         }
 
-        // 使用 userId 获取 DriverInformation
         if (userId != null) {
           try {
             final driverInfo =
@@ -175,7 +174,6 @@ class _LoginScreenState extends State<LoginScreen> {
             }
           } catch (e) {
             if (e is ApiException && e.code == 404) {
-              // 如果司机信息不存在，创建新记录
               final idempotencyKey = generateIdempotencyKey();
               final newDriverInfo = DriverInformation(
                 driverId: userId,
@@ -197,7 +195,6 @@ class _LoginScreenState extends State<LoginScreen> {
           debugPrint('无法获取 userId，跳过 DriverInformation 查询');
         }
 
-        // 保存到 SharedPreferences 并更新控制器
         await prefs.setString('driverName', driverName);
         await prefs.setString('userEmail', email);
         if (userId != null) await prefs.setString('userId', userId.toString());
@@ -266,6 +263,7 @@ class _LoginScreenState extends State<LoginScreen> {
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('jwtToken', jwtToken);
           await prefs.setString('userRole', _userRole!);
+          await prefs.setString('userName', username);
 
           final userData = loginResult['user'] ?? {};
           final int? userId = userData['userId'];
@@ -506,117 +504,342 @@ class _LoginScreenState extends State<LoginScreen> {
 
       return Theme(
         data: themeData,
-        child: Stack(
-          children: [
-            FlutterLogin(
-              title: '交通违法行为处理管理系统',
-              logo: const AssetImage(ImageRasterPath.logo4),
-              onLogin: _authUser,
-              onSignup: _signupUser,
-              onRecoverPassword: _recoverPassword,
-              theme: LoginTheme(
-                primaryColor: themeData.colorScheme.primary,
-                accentColor: themeData.colorScheme.secondary,
-                errorColor: themeData.colorScheme.error,
-                pageColorLight: Colors.lightBlueAccent,
-                buttonTheme: LoginButtonTheme(
-                  splashColor: themeData.colorScheme.primaryContainer,
-                  backgroundColor: themeData.colorScheme.primary,
-                  highlightColor:
-                      themeData.colorScheme.primary.withOpacity(0.8),
-                  elevation: 9.0,
-                  highlightElevation: 6.0,
-                ),
-                cardTheme: CardTheme(
-                  color: themeData.colorScheme.surfaceContainer,
-                  elevation: 8.0,
-                  margin: const EdgeInsets.symmetric(horizontal: 20.0),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12.0)),
-                ),
-                titleStyle: themeData.textTheme.headlineMedium?.copyWith(
-                  color: themeData.colorScheme.onSurface,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 24.0,
-                ),
-                bodyStyle: themeData.textTheme.bodyMedium
-                    ?.copyWith(color: themeData.colorScheme.onSurfaceVariant),
-                textFieldStyle: themeData.textTheme.bodyMedium
-                    ?.copyWith(color: themeData.colorScheme.onSurface),
-                buttonStyle: themeData.textTheme.labelLarge?.copyWith(
-                  color: themeData.colorScheme.onPrimary,
-                  fontWeight: FontWeight.bold,
-                ),
-                inputTheme: InputDecorationTheme(
-                  filled: true,
-                  fillColor: themeData.colorScheme.surfaceContainerLowest,
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16.0, vertical: 12.0),
-                  errorStyle: themeData.textTheme.bodySmall?.copyWith(
-                    color: themeData.colorScheme.onErrorContainer,
-                    backgroundColor:
-                        themeData.colorScheme.error.withOpacity(0.9),
-                  ),
-                  labelStyle: themeData.textTheme.bodyMedium
-                      ?.copyWith(color: themeData.colorScheme.onSurfaceVariant),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8.0),
-                    borderSide: BorderSide(
-                        color: themeData.colorScheme.outline.withOpacity(0.3)),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8.0),
-                    borderSide: BorderSide(
-                        color: themeData.colorScheme.primary, width: 2.0),
+        child: Scaffold(
+          body: Stack(
+            children: [
+              // Gradient Background
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      themeData.colorScheme.primary.withOpacity(0.1),
+                      themeData.colorScheme.secondary.withOpacity(0.3),
+                      themeData.colorScheme.surface,
+                    ],
                   ),
                 ),
-                cardInitialHeight: 300.0,
-                cardTopPosition: 250.0,
               ),
-              messages: LoginMessages(
-                passwordHint: '密码',
-                userHint: '用户邮箱',
-                forgotPasswordButton: '忘记密码？',
-                confirmPasswordHint: '再次输入密码',
-                loginButton: '登录',
-                signupButton: '注册',
-                recoverPasswordButton: '重置密码',
-                recoverCodePasswordDescription: '请输入您的用户邮箱',
-                goBackButton: '返回',
-                confirmPasswordError: '密码输入不匹配',
-                confirmSignupSuccess: '注册成功',
-                confirmRecoverSuccess: '密码重置成功',
-                recoverPasswordDescription: '请输入您的用户邮箱，我们将为您重置密码',
-                recoverPasswordIntro: '重置密码',
+              // Particle Effect with Connections
+              ConnectedParticleSystem(
+                particleColor: themeData.colorScheme.primary.withOpacity(0.3),
+                lineColor: themeData.colorScheme.primary.withOpacity(0.2),
+                vsync: this,
               ),
-              onSubmitAnimationCompleted: () {
-                Get.offAllNamed(_userRole == 'ADMIN'
-                    ? AppPages.initial
-                    : AppPages.userInitial);
-              },
-            ),
-            Positioned(
-              bottom: 20.0,
-              right: 40.0,
-              child: IconButton(
-                icon: Icon(
-                  _userDashboardController.currentTheme.value == 'Light'
-                      ? Icons.dark_mode
-                      : Icons.light_mode,
-                  color: themeData.colorScheme.onSurface,
+              // Login UI
+              FlutterLogin(
+                title: '交通违法行为处理管理系统',
+                logo: const AssetImage('assets/images/raster/logo-5.png'),
+                logoTag: 'logo',
+                onLogin: _authUser,
+                onSignup: _signupUser,
+                onRecoverPassword: _recoverPassword,
+                userValidator: (value) => null,
+                // Replace with widget.validateUsername
+                passwordValidator: (value) => null,
+                // Replace with widget.validatePassword
+                theme: LoginTheme(
+                  primaryColor: themeData.colorScheme.primary,
+                  accentColor: themeData.colorScheme.secondary,
+                  errorColor: themeData.colorScheme.error,
+                  pageColorLight: Colors.transparent,
+                  pageColorDark: Colors.transparent,
+                  cardTheme: CardTheme(
+                    color: themeData.colorScheme.surfaceContainer,
+                    elevation: 12.0,
+                    margin: const EdgeInsets.symmetric(
+                        horizontal: 24.0, vertical: 80.0),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20.0),
+                    ),
+                    shadowColor: themeData.colorScheme.shadow.withOpacity(0.3),
+                  ),
+                  titleStyle: themeData.textTheme.headlineMedium?.copyWith(
+                    color: themeData.colorScheme.onSurface,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 28.0,
+                    letterSpacing: 1.2,
+                  ),
+                  bodyStyle: themeData.textTheme.bodyLarge?.copyWith(
+                    color: themeData.colorScheme.onSurfaceVariant,
+                    fontSize: 16.0,
+                  ),
+                  textFieldStyle: themeData.textTheme.bodyLarge?.copyWith(
+                    color: themeData.colorScheme.onSurface,
+                    fontSize: 16.0,
+                  ),
+                  buttonStyle: themeData.textTheme.labelLarge?.copyWith(
+                    color: themeData.colorScheme.onPrimary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16.0,
+                  ),
+                  buttonTheme: LoginButtonTheme(
+                    splashColor: themeData.colorScheme.primaryContainer,
+                    backgroundColor: themeData.colorScheme.primary,
+                    highlightColor:
+                        themeData.colorScheme.primary.withOpacity(0.9),
+                    elevation: 8.0,
+                    highlightElevation: 10.0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12.0),
+                    ),
+                  ),
+                  inputTheme: InputDecorationTheme(
+                    filled: true,
+                    fillColor: themeData.colorScheme.surfaceContainerHighest,
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 20.0, vertical: 16.0),
+                    prefixIconColor: themeData.colorScheme.onSurfaceVariant,
+                    errorStyle: themeData.textTheme.bodySmall?.copyWith(
+                      color: themeData.colorScheme.onErrorContainer,
+                      backgroundColor:
+                          themeData.colorScheme.error.withOpacity(0.9),
+                    ),
+                    labelStyle: themeData.textTheme.bodyMedium?.copyWith(
+                      color: themeData.colorScheme.onSurfaceVariant,
+                      fontSize: 14.0,
+                    ),
+                    hintStyle: themeData.textTheme.bodyMedium?.copyWith(
+                      color: themeData.colorScheme.onSurfaceVariant
+                          .withOpacity(0.6),
+                      fontSize: 14.0,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12.0),
+                      borderSide: BorderSide(
+                        color: themeData.colorScheme.outline.withOpacity(0.4),
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12.0),
+                      borderSide: BorderSide(
+                        color: themeData.colorScheme.outline.withOpacity(0.4),
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12.0),
+                      borderSide: BorderSide(
+                        color: themeData.colorScheme.primary,
+                        width: 2.0,
+                      ),
+                    ),
+                    errorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12.0),
+                      borderSide: BorderSide(
+                        color: themeData.colorScheme.error,
+                        width: 1.5,
+                      ),
+                    ),
+                  ),
+                  cardInitialHeight: 360.0,
+                  cardTopPosition: 180.0,
+                  logoWidth: 140.0,
                 ),
-                tooltip: _userDashboardController.currentTheme.value == 'Light'
-                    ? '切换到暗色模式'
-                    : '切换到亮色模式',
-                onPressed: () {
-                  _userDashboardController.toggleBodyTheme();
-                  _dashboardController.toggleBodyTheme();
+                messages: LoginMessages(
+                  passwordHint: '密码',
+                  userHint: '用户邮箱',
+                  forgotPasswordButton: '忘记密码？',
+                  confirmPasswordHint: '再次输入密码',
+                  loginButton: '登录',
+                  signupButton: '注册',
+                  recoverPasswordButton: '重置密码',
+                  recoverCodePasswordDescription: '请输入您的用户邮箱',
+                  goBackButton: '返回',
+                  confirmPasswordError: '密码输入不匹配',
+                  confirmSignupSuccess: '注册成功',
+                  confirmRecoverSuccess: '密码重置成功',
+                  recoverPasswordDescription: '请输入您的用户邮箱，我们将为您重置密码',
+                  recoverPasswordIntro: '重置密码',
+                ),
+                onSubmitAnimationCompleted: () {
+                  Get.offAllNamed(_userRole == 'ADMIN'
+                      ? AppPages.initial
+                      : AppPages.userInitial);
                 },
               ),
-            ),
-          ],
+              // Theme Toggle Button
+              Positioned(
+                bottom: 32.0,
+                right: 32.0,
+                child: FloatingActionButton(
+                  onPressed: () {
+                    _userDashboardController.toggleBodyTheme();
+                    _dashboardController.toggleBodyTheme();
+                  },
+                  backgroundColor: themeData.colorScheme.primary,
+                  foregroundColor: themeData.colorScheme.onPrimary,
+                  elevation: 6.0,
+                  shape: const CircleBorder(),
+                  tooltip:
+                      _userDashboardController.currentTheme.value == 'Light'
+                          ? '切换到暗色模式'
+                          : '切换到亮色模式',
+                  child: Icon(
+                    _userDashboardController.currentTheme.value == 'Light'
+                        ? Icons.dark_mode
+                        : Icons.light_mode,
+                    size: 24.0,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       );
     });
   }
+}
+
+// Custom Particle System with Connected Lines
+class ConnectedParticleSystem extends StatefulWidget {
+  final Color particleColor;
+  final Color lineColor;
+  final TickerProvider vsync;
+
+  const ConnectedParticleSystem({
+    super.key,
+    required this.particleColor,
+    required this.lineColor,
+    required this.vsync,
+  });
+
+  static const double maxDistance = 120.0; // Distance for connecting lines
+
+  @override
+  State<ConnectedParticleSystem> createState() =>
+      _ConnectedParticleSystemState();
+}
+
+class _ConnectedParticleSystemState extends State<ConnectedParticleSystem>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late List<Particle> _particles;
+  final Random _random = Random();
+  static const int particleCount = 50;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: widget.vsync,
+      duration: const Duration(seconds: 10),
+    )..repeat();
+    _particles = List.generate(particleCount, (_) => Particle(_random));
+    _controller.addListener(_updateParticles);
+  }
+
+  void _updateParticles() {
+    for (var particle in _particles) {
+      particle.update();
+    }
+    setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: ParticlePainter(
+        particles: _particles,
+        particleColor: widget.particleColor,
+        lineColor: widget.lineColor,
+      ),
+      size: Size.infinite,
+    );
+  }
+}
+
+class Particle {
+  Offset position;
+  Offset velocity;
+  double radius;
+  final Random random;
+  Size? canvasSize; // Store canvas size for boundary checks
+
+  Particle(this.random)
+      : position = Offset(
+          random.nextDouble() * 1000,
+          random.nextDouble() * 1000,
+        ),
+        velocity = Offset(
+          (random.nextDouble() - 0.5) * 2,
+          (random.nextDouble() - 0.5) * 2,
+        ),
+        radius = random.nextDouble() * 3 + 2;
+
+  void update() {
+    position += velocity;
+
+    // Use canvasSize if available, otherwise default to 1000x1000
+    final width = canvasSize?.width ?? 1000;
+    final height = canvasSize?.height ?? 1000;
+
+    // Rebound off borders
+    if (position.dx <= radius || position.dx >= width - radius) {
+      velocity = Offset(-velocity.dx, velocity.dy);
+      // Clamp position to prevent sticking at edges
+      position = Offset(
+        position.dx.clamp(radius, width - radius),
+        position.dy,
+      );
+    }
+    if (position.dy <= radius || position.dy >= height - radius) {
+      velocity = Offset(velocity.dx, -velocity.dy);
+      position = Offset(
+        position.dx,
+        position.dy.clamp(radius, height - radius),
+      );
+    }
+  }
+}
+
+class ParticlePainter extends CustomPainter {
+  final List<Particle> particles;
+  final Color particleColor;
+  final Color lineColor;
+
+  ParticlePainter({
+    required this.particles,
+    required this.particleColor,
+    required this.lineColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Update particle canvas size for dynamic boundary checks
+    for (var particle in particles) {
+      particle.canvasSize = size;
+    }
+
+    // Draw lines between nearby particles with dynamic opacity
+    for (int i = 0; i < particles.length; i++) {
+      for (int j = i + 1; j < particles.length; j++) {
+        final p1 = particles[i];
+        final p2 = particles[j];
+        final distance = (p1.position - p2.position).distance;
+        if (distance < ConnectedParticleSystem.maxDistance) {
+          final opacity = 1 - (distance / ConnectedParticleSystem.maxDistance);
+          final linePaint = Paint()
+            ..color = lineColor.withOpacity(opacity * lineColor.opacity)
+            ..strokeWidth = 1.0;
+          canvas.drawLine(p1.position, p2.position, linePaint);
+        }
+      }
+    }
+
+    // Draw particles
+    final particlePaint = Paint()..color = particleColor;
+    for (var particle in particles) {
+      canvas.drawCircle(particle.position, particle.radius, particlePaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }

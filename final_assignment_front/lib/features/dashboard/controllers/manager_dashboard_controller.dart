@@ -15,6 +15,7 @@ class DashboardController extends GetxController with NavigationMixin {
   final isChatExpanded = false.obs;
   final Rx<Profile?> currentUser = Rx<Profile?>(null);
   late Rx<Future<List<OffenseInformation>>> offensesFuture;
+
 // Add reactive variables for driver name and email
   final RxString currentDriverName = ''.obs;
   final RxString currentEmail = ''.obs;
@@ -57,7 +58,7 @@ class DashboardController extends GetxController with NavigationMixin {
       await offenseApi.initializeWithJwt();
       await roleApi.initializeWithJwt();
     } else {
-      _showErrorSnackBar('请先登录以访问管理功能');
+      // _showErrorSnackBar('请先登录以访问管理功能');
       _redirectToLogin();
     }
   }

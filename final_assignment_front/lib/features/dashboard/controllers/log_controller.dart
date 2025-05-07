@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:developer' as developer;
+import 'dart:math';
 import 'package:final_assignment_front/features/api/operation_log_controller_api.dart';
 import 'package:final_assignment_front/features/api/system_logs_controller_api.dart';
 import 'package:final_assignment_front/features/model/operation_log.dart';
@@ -11,6 +12,7 @@ import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import 'package:http/http.dart' as http;
+import 'dart:io';
 
 class LogController extends GetxController with WidgetsBindingObserver {
   final OperationLogControllerApi _operationLogApi =
@@ -20,29 +22,28 @@ class LogController extends GetxController with WidgetsBindingObserver {
   int? _currentUserId;
   String? _currentIpAddress;
   bool _isInitialized = false;
+  bool _isRedirecting = false;
 
   Future<void> get initialization => _initialize();
 
   @override
   void onInit() {
     super.onInit();
-    // Register as WidgetsBindingObserver to listen for app lifecycle events
     WidgetsBinding.instance.addObserver(this);
-    // Start initialization and log app startup
     _initialize().then((_) {
       _logAppStartup();
     }).catchError((e) {
       developer.log('LogController initialization failed: $e',
           stackTrace: StackTrace.current);
       _logSystemError(
-          error: 'Initialization failed: $e',
-          stackTrace: StackTrace.current.toString()); // Fixed typo here
+        error: 'Initialization failed: $e',
+        stackTrace: StackTrace.current.toString(),
+      );
     });
   }
 
   @override
   void onClose() {
-    // Remove observer when controller is disposed
     WidgetsBinding.instance.removeObserver(this);
     super.onClose();
   }
@@ -50,29 +51,58 @@ class LogController extends GetxController with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    // Log app lifecycle events (e.g., resumed, paused)
     if (_isInitialized) {
       _logAppLifecycleEvent(state);
     }
   }
 
-  /// Initializes the controller by validating JWT and fetching IP address.
   Future<void> _initialize() async {
     try {
-      await _validateJwtToken();
+      // Prioritize JWT validation
+      if (!await _validateJwtToken()) {
+        developer.log('No valid JWT token, scheduling redirect to login');
+        await _deferNavigationToLogin();
+        return;
+      }
+      // Fetch IP address after username is set
       await _fetchIpAddress();
+      // Initialize APIs
       await _operationLogApi.initializeWithJwt();
       await _systemLogApi.initializeWithJwt();
       _isInitialized = true;
-      developer
-          .log('LogController initialized with username: $_currentUsername');
+      developer.log(
+          'LogController initialized with username: $_currentUsername, IP: $_currentIpAddress');
     } catch (e) {
       _isInitialized = false;
-      rethrow; // Rethrow to handle in onInit
+      developer.log('Initialization error: $e', stackTrace: StackTrace.current);
+      _currentUsername ??= 'Unknown';
+      _currentIpAddress ??= 'Unknown';
+      await _deferNavigationToLogin();
     }
   }
 
-  /// Logs the application startup event.
+  Future<void> _deferNavigationToLogin() async {
+    if (_isRedirecting || Get.currentRoute == '/login') {
+      developer
+          .log('Already redirecting or on login route, skipping navigation');
+      return;
+    }
+    _isRedirecting = true;
+    // Wait for context up to 5 seconds
+    for (int i = 0; i < 50; i++) {
+      if (Get.context != null && Get.currentRoute != '/login') {
+        Get.offAllNamed('/login');
+        developer.log('Navigated to login route');
+        break;
+      }
+      await Future.delayed(Duration(milliseconds: 100));
+    }
+    if (Get.context == null) {
+      developer.log('Failed to navigate to login: context unavailable');
+    }
+    _isRedirecting = false;
+  }
+
   Future<void> _logAppStartup() async {
     if (!_isInitialized) {
       developer.log('Cannot log app startup: LogController not initialized');
@@ -97,10 +127,14 @@ class LogController extends GetxController with WidgetsBindingObserver {
     } catch (e) {
       developer.log('Failed to log app startup: $e',
           stackTrace: StackTrace.current);
+      if (e is ApiException && e.code == 403) {
+        developer.log(
+            'Permission denied for system log creation, attempting token refresh');
+        await _handle403Error();
+      }
     }
   }
 
-  /// Logs app lifecycle events (e.g., resumed, paused).
   Future<void> _logAppLifecycleEvent(AppLifecycleState state) async {
     final idempotencyKey = _generateIdempotencyKey();
     final logContent = 'App Lifecycle: ${state.toString().split('.').last}';
@@ -122,43 +156,103 @@ class LogController extends GetxController with WidgetsBindingObserver {
     } catch (e) {
       developer.log('Failed to log app lifecycle event: $e',
           stackTrace: StackTrace.current);
+      if (e is ApiException && e.code == 403) {
+        developer.log(
+            'Permission denied for system log creation, attempting token refresh');
+        await _handle403Error();
+      }
     }
   }
 
-  /// Validates JWT token and refreshes if expired.
+  Future<void> _logSystemError({
+    required String error,
+    String? stackTrace,
+    String? remarks,
+  }) async {
+    if (!_isInitialized) {
+      developer.log('Cannot log system error: LogController not initialized');
+      return;
+    }
+    final idempotencyKey = _generateIdempotencyKey();
+    final systemLog = SystemLogs(
+      logType: 'SYSTEM_ERROR',
+      logContent: error,
+      operationUser: _currentUsername ?? 'Unknown',
+      operationTime: DateTime.now(),
+      operationIpAddress: _currentIpAddress,
+      remarks: stackTrace ?? remarks,
+      idempotencyKey: idempotencyKey,
+    );
+    try {
+      await _systemLogApi.apiSystemLogsPost(
+        systemLogs: systemLog,
+        idempotencyKey: idempotencyKey,
+      );
+      developer.log('Logged system error: $e');
+    } catch (e) {
+      developer.log('Failed to log system error: $e',
+          stackTrace: StackTrace.current);
+      if (e is ApiException && e.code == 403) {
+        developer.log(
+            'Permission denied for system log creation, attempting token refresh');
+        await _handle403Error();
+      }
+    }
+  }
+
   Future<bool> _validateJwtToken() async {
     final prefs = await SharedPreferences.getInstance();
     String? jwtToken = prefs.getString('jwtToken');
     if (jwtToken == null || jwtToken.isEmpty) {
-      developer.log('No JWT token found');
+      developer.log('No JWT token found in SharedPreferences');
+      _currentUsername = 'Unknown';
       return false;
     }
     try {
-      final decodedToken = JwtDecoder.decode(jwtToken);
-      if (JwtDecoder.isExpired(jwtToken)) {
+      var decodedToken = JwtDecoder.decode(jwtToken);
+      final expiry =
+          DateTime.fromMillisecondsSinceEpoch(decodedToken['exp'] * 1000);
+      final now = DateTime.now();
+      // Refresh if token is expired or will expire within 5 minutes
+      if (JwtDecoder.isExpired(jwtToken) ||
+          expiry.difference(now).inMinutes < 5) {
+        developer.log('JWT token expired or near expiry, refreshing');
         jwtToken = await _refreshJwtToken();
         if (jwtToken == null) {
           developer.log('Failed to refresh JWT token');
+          _currentUsername = 'Unknown';
+          await _clearTokens(prefs);
           return false;
         }
         await prefs.setString('jwtToken', jwtToken);
         if (JwtDecoder.isExpired(jwtToken)) {
           developer.log('New JWT token is expired');
+          _currentUsername = 'Unknown';
+          await _clearTokens(prefs);
           return false;
         }
+        decodedToken = JwtDecoder.decode(jwtToken);
       }
       _currentUsername = decodedToken['sub'] ?? 'Unknown';
       _currentUserId = decodedToken['userId'] != null
           ? int.tryParse(decodedToken['userId'].toString())
           : null;
+      developer.log('JWT validated, username: $_currentUsername');
       return true;
     } catch (e) {
       developer.log('Invalid JWT token: $e', stackTrace: StackTrace.current);
+      _currentUsername = 'Unknown';
+      await _clearTokens(prefs);
       return false;
     }
   }
 
-  /// Refreshes JWT token using refresh token.
+  Future<void> _clearTokens(SharedPreferences prefs) async {
+    await prefs.remove('jwtToken');
+    await prefs.remove('refreshToken');
+    developer.log('Cleared invalid tokens');
+  }
+
   Future<String?> _refreshJwtToken() async {
     final prefs = await SharedPreferences.getInstance();
     final refreshToken = prefs.getString('refreshToken');
@@ -167,11 +261,13 @@ class LogController extends GetxController with WidgetsBindingObserver {
       return null;
     }
     try {
-      final response = await http.post(
-        Uri.parse('http://localhost:8081/api/auth/refresh'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'refreshToken': refreshToken}),
-      );
+      final response = await http
+          .post(
+            Uri.parse('http://localhost:8081/api/auth/refresh'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'refreshToken': refreshToken}),
+          )
+          .timeout(Duration(seconds: 5));
       if (response.statusCode == 200) {
         final newJwt = jsonDecode(response.body)['jwtToken'];
         await prefs.setString('jwtToken', newJwt);
@@ -187,32 +283,69 @@ class LogController extends GetxController with WidgetsBindingObserver {
     }
   }
 
-  /// Fetches the client's IP address using an external API.
   Future<void> _fetchIpAddress() async {
-    try {
-      final response =
-          await http.get(Uri.parse('https://api.ipify.org?format=json'));
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        _currentIpAddress = data['ip'];
-        developer.log('Fetched IP address: $_currentIpAddress');
-      } else {
-        developer.log('Failed to fetch IP address: ${response.statusCode}');
-        _currentIpAddress = 'Unknown';
+    const maxRetries = 5;
+    final services = [
+      'https://api.ipify.org?format=json',
+      'https://ifconfig.me/ip',
+    ];
+    for (int attempt = 0; attempt < maxRetries; attempt++) {
+      for (final service in services) {
+        try {
+          final client = HttpClient()
+            ..badCertificateCallback =
+                (X509Certificate cert, String host, int port) =>
+                    true; // For testing only
+          final request = await client.getUrl(Uri.parse(service));
+          final response = await request.close().timeout(Duration(seconds: 5));
+          final responseBody = await response.transform(utf8.decoder).join();
+          if (response.statusCode == 200) {
+            if (service.contains('ipify')) {
+              final data = jsonDecode(responseBody);
+              _currentIpAddress = data['ip'];
+            } else {
+              _currentIpAddress = responseBody.trim();
+            }
+            developer
+                .log('Fetched IP address: $_currentIpAddress from $service');
+            return;
+          } else {
+            developer.log(
+                'Failed to fetch IP from $service: ${response.statusCode}');
+          }
+        } catch (e) {
+          developer.log('Error fetching IP from $service: $e',
+              stackTrace: StackTrace.current);
+        }
       }
-    } catch (e) {
-      developer.log('Error fetching IP address: $e',
-          stackTrace: StackTrace.current);
-      _currentIpAddress = 'Unknown';
+      await Future.delayed(Duration(seconds: pow(2, attempt).toInt()));
+    }
+    _currentIpAddress = 'Unknown';
+    developer.log('Set IP address to Unknown after retries');
+  }
+
+  Future<void> _handle403Error() async {
+    if (_isRedirecting || Get.currentRoute == '/login') {
+      developer
+          .log('Already redirecting or on login route, skipping 403 handling');
+      return;
+    }
+    developer.log('Handling 403 error, attempting JWT refresh');
+    if (await _validateJwtToken()) {
+      // Retry initialization of APIs
+      await _operationLogApi.initializeWithJwt();
+      await _systemLogApi.initializeWithJwt();
+      developer.log('Reinitialized APIs after token refresh');
+    } else {
+      developer.log('Failed to refresh token, scheduling redirect to login');
+      await _deferNavigationToLogin();
     }
   }
 
-  /// Generates a unique idempotency key.
   String _generateIdempotencyKey() {
     return const Uuid().v4();
   }
 
-  /// Logs a navigation event as an OperationLog.
   Future<void> logNavigation(String pageName, {String? remarks}) async {
     if (!_isInitialized || _currentUserId == null) {
       developer.log('LogController not initialized or user ID missing');
@@ -237,10 +370,14 @@ class LogController extends GetxController with WidgetsBindingObserver {
     } catch (e) {
       developer.log('Failed to log navigation: $e',
           stackTrace: StackTrace.current);
+      if (e is ApiException && e.code == 403) {
+        developer.log(
+            'Permission denied for operation log creation, attempting token refresh');
+        await _handle403Error();
+      }
     }
   }
 
-  /// Logs a user action (e.g., button click) as an OperationLog.
   Future<void> logUserAction(String action,
       {String? result, String? remarks}) async {
     if (!_isInitialized || _currentUserId == null) {
@@ -266,10 +403,14 @@ class LogController extends GetxController with WidgetsBindingObserver {
     } catch (e) {
       developer.log('Failed to log user action: $e',
           stackTrace: StackTrace.current);
+      if (e is ApiException && e.code == 403) {
+        developer.log(
+            'Permission denied for operation log creation, attempting token refresh');
+        await _handle403Error();
+      }
     }
   }
 
-  /// Logs an API call as a SystemLog.
   Future<void> logApiCall({
     required String endpoint,
     required String method,
@@ -303,42 +444,14 @@ class LogController extends GetxController with WidgetsBindingObserver {
     } catch (e) {
       developer.log('Failed to log API call: $e',
           stackTrace: StackTrace.current);
+      if (e is ApiException && e.code == 403) {
+        developer.log(
+            'Permission denied for system log creation, attempting token refresh');
+        await _handle403Error();
+      }
     }
   }
 
-  /// Logs a system error as a SystemLog.
-  Future<void> _logSystemError({
-    required String error,
-    String? stackTrace,
-    String? remarks,
-  }) async {
-    if (!_isInitialized) {
-      developer.log('LogController not initialized');
-      return;
-    }
-    final idempotencyKey = _generateIdempotencyKey();
-    final systemLog = SystemLogs(
-      logType: 'SYSTEM_ERROR',
-      logContent: error,
-      operationUser: _currentUsername ?? 'Unknown',
-      operationTime: DateTime.now(),
-      operationIpAddress: _currentIpAddress,
-      remarks: stackTrace ?? remarks,
-      idempotencyKey: idempotencyKey,
-    );
-    try {
-      await _systemLogApi.apiSystemLogsPost(
-        systemLogs: systemLog,
-        idempotencyKey: idempotencyKey,
-      );
-      developer.log('Logged system error: $error');
-    } catch (e) {
-      developer.log('Failed to log system error: $e',
-          stackTrace: StackTrace.current);
-    }
-  }
-
-  /// Wraps an API call to automatically log success or failure.
   Future<T> logApiCallWithResult<T>({
     required Future<T> Function() apiCall,
     required String endpoint,
@@ -372,6 +485,10 @@ class LogController extends GetxController with WidgetsBindingObserver {
         error: errorMessage,
         remarks: remarks,
       );
+      if (e is ApiException && e.code == 403) {
+        developer.log('API call failed with 403, attempting token refresh');
+        await _handle403Error();
+      }
       rethrow;
     }
   }

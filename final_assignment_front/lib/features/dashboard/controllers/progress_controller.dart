@@ -16,20 +16,21 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'dart:developer' as developer;
 
 class ProgressController extends GetxController {
   final ProgressControllerApi _progressApi = ProgressControllerApi();
   final AppealManagementControllerApi _appealApi =
-  AppealManagementControllerApi();
+      AppealManagementControllerApi();
   final DeductionInformationControllerApi _deductionApi =
-  DeductionInformationControllerApi();
+      DeductionInformationControllerApi();
   final DriverInformationControllerApi _driverApi =
-  DriverInformationControllerApi();
+      DriverInformationControllerApi();
   final FineInformationControllerApi _fineApi = FineInformationControllerApi();
   final VehicleInformationControllerApi _vehicleApi =
-  VehicleInformationControllerApi();
+      VehicleInformationControllerApi();
   final OffenseInformationControllerApi _offenseApi =
-  OffenseInformationControllerApi();
+      OffenseInformationControllerApi();
 
   var progressItems = <ProgressItem>[].obs;
   var filteredItems = <ProgressItem>[].obs;
@@ -43,6 +44,7 @@ class ProgressController extends GetxController {
   var errorMessage = ''.obs;
   var currentUsername = ''.obs;
   var isAdmin = false.obs;
+  bool _isRedirecting = false;
 
   final List<String> statusCategories = [
     'Pending',
@@ -63,14 +65,16 @@ class ProgressController extends GetxController {
 
   Future<void> initialize() async {
     isLoading.value = true;
-    errorMessage.value = '';
     try {
       final prefs = await SharedPreferences.getInstance();
       final jwtToken = prefs.getString('jwtToken');
       currentUsername.value = prefs.getString('userName') ?? '';
 
       if (jwtToken == null || currentUsername.value.isEmpty) {
-        throw Exception('未登录或未找到用户信息');
+        developer.log(
+            'No JWT token or username found, scheduling redirect to login');
+        await _deferNavigationToLogin();
+        return;
       }
 
       await _progressApi.initializeWithJwt();
@@ -84,11 +88,51 @@ class ProgressController extends GetxController {
       await fetchBusinessData();
       await fetchProgress();
     } catch (e) {
-      errorMessage.value = '初始化失败: $e';
-      Get.snackbar('错误', '初始化失败: $e', backgroundColor: Colors.red);
+      developer.log('Initialization failed: $e',
+          stackTrace: StackTrace.current);
+      await _deferNavigationToLogin();
     } finally {
       isLoading.value = false;
     }
+  }
+
+  Future<void> _deferNavigationToLogin() async {
+    if (_isRedirecting || Get.currentRoute == '/login') {
+      developer
+          .log('Already redirecting or on login route, skipping navigation');
+      return;
+    }
+    _isRedirecting = true;
+    // Wait for context up to 5 seconds
+    for (int i = 0; i < 50; i++) {
+      if (Get.context != null && Get.currentRoute != '/login') {
+        Get.offAllNamed('/login');
+        developer.log('Navigated to login route');
+        break;
+      }
+      await Future.delayed(const Duration(milliseconds: 100));
+    }
+    if (Get.context == null) {
+      developer.log('Failed to navigate to login: context unavailable');
+    }
+    _isRedirecting = false;
+  }
+
+  void showSnackbar(String title, String message, {bool isError = false}) {
+    // Defer Snackbar to ensure context
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (Get.context != null) {
+        Get.snackbar(
+          title,
+          message,
+          snackPosition: SnackPosition.BOTTOM,
+          duration: const Duration(seconds: 3),
+          backgroundColor: isError ? Colors.red : Colors.green,
+        );
+      } else {
+        developer.log('Cannot show Snackbar: Get.context is null');
+      }
+    });
   }
 
   Future<void> checkUserRole(String jwtToken) async {
@@ -97,14 +141,14 @@ class ProgressController extends GetxController {
       final roles = decoded['roles'] is String
           ? [decoded['roles'].toString()]
           : (decoded['roles'] as List<dynamic>?)
-          ?.map((r) => r.toString())
-          .toList() ??
-          [];
-      debugPrint('Roles from JWT: $roles'); // 调试日志
+                  ?.map((r) => r.toString())
+                  .toList() ??
+              [];
+      developer.log('Roles from JWT: $roles');
       isAdmin.value = roles.contains('ROLE_ADMIN') || roles.contains('ADMIN');
-      debugPrint('isAdmin set to: ${isAdmin.value}');
+      developer.log('isAdmin set to: ${isAdmin.value}');
     } catch (e) {
-      debugPrint('Error decoding JWT: $e');
+      developer.log('Error decoding JWT: $e');
       isAdmin.value = false;
     }
   }
@@ -141,7 +185,7 @@ class ProgressController extends GetxController {
             .where((f) => f.payee == currentUsername.value)
             .toList());
         vehicles.assignAll(await _vehicleApi.apiVehiclesSearchGet(
-            query: currentUsername.value) ??
+                query: currentUsername.value) ??
             []);
         offenses.assignAll((await _offenseApi.apiOffensesGet() ?? [])
             .where((o) => o.driverName == currentUsername.value)
@@ -149,7 +193,8 @@ class ProgressController extends GetxController {
       }
     } catch (e) {
       errorMessage.value = '加载业务数据失败: $e';
-      Get.snackbar('错误', '加载业务数据失败: $e', backgroundColor: Colors.red);
+      developer.log('Fetch business data failed: $e');
+      showSnackbar('错误', '加载业务数据失败: $e', isError: true);
     }
   }
 
@@ -160,14 +205,14 @@ class ProgressController extends GetxController {
         progressItems.assignAll(await _progressApi.apiProgressGet() ?? []);
       } else {
         progressItems.assignAll(await _progressApi.apiProgressUsernameGet(
-            username: currentUsername.value) ??
+                username: currentUsername.value) ??
             []);
       }
       applyFilters();
     } catch (e) {
       errorMessage.value = '加载进度失败: $e';
-      progressItems.clear();
-      Get.snackbar('错误', '加载进度失败: $e', backgroundColor: Colors.red);
+      developer.log('Fetch progress failed: $e');
+      showSnackbar('错误', '加载进度失败: $e', isError: true);
     } finally {
       isLoading.value = false;
     }
@@ -190,8 +235,8 @@ class ProgressController extends GetxController {
       applyFilters();
     } catch (e) {
       errorMessage.value = '按时间范围加载进度失败: $e';
-      progressItems.clear();
-      Get.snackbar('错误', '按时间范围加载进度失败: $e', backgroundColor: Colors.red);
+      developer.log('Fetch progress by time range failed: $e');
+      showSnackbar('错误', '按时间范围加载进度失败: $e', isError: true);
     } finally {
       isLoading.value = false;
     }
@@ -219,14 +264,15 @@ class ProgressController extends GetxController {
 
   Future<void> submitProgress(String title, String? details,
       {int? appealId,
-        int? deductionId,
-        int? driverId,
-        int? fineId,
-        int? vehicleId,
-        int? offenseId}) async {
+      int? deductionId,
+      int? driverId,
+      int? fineId,
+      int? vehicleId,
+      int? offenseId}) async {
     if (title.isEmpty) {
       errorMessage.value = '进度标题不能为空';
-      Get.snackbar('错误', '进度标题不能为空', backgroundColor: Colors.red);
+      developer.log('Submit progress failed: Title is empty');
+      showSnackbar('错误', '进度标题不能为空', isError: true);
       return;
     }
     isLoading.value = true;
@@ -247,10 +293,11 @@ class ProgressController extends GetxController {
       );
       await _progressApi.apiProgressPost(progressItem: newItem);
       await fetchProgress();
-      Get.snackbar('成功', '进度提交成功', backgroundColor: Colors.green);
+      showSnackbar('成功', '进度提交成功');
     } catch (e) {
       errorMessage.value = '提交进度失败: $e';
-      Get.snackbar('错误', '提交进度失败: $e', backgroundColor: Colors.red);
+      developer.log('Submit progress failed: $e');
+      showSnackbar('错误', '提交进度失败: $e', isError: true);
     } finally {
       isLoading.value = false;
     }
@@ -258,7 +305,8 @@ class ProgressController extends GetxController {
 
   Future<void> updateProgressStatus(int progressId, String newStatus) async {
     if (!isAdmin.value) {
-      Get.snackbar('错误', '只有管理员可以更新进度状态', backgroundColor: Colors.red);
+      developer.log('Update status failed: User is not admin');
+      showSnackbar('错误', '只有管理员可以更新进度状态', isError: true);
       return;
     }
     isLoading.value = true;
@@ -268,10 +316,11 @@ class ProgressController extends GetxController {
         newStatus: newStatus,
       );
       await fetchProgress();
-      Get.snackbar('成功', '状态更新成功', backgroundColor: Colors.green);
+      showSnackbar('成功', '状态更新成功');
     } catch (e) {
       errorMessage.value = '更新状态失败: $e';
-      Get.snackbar('错误', '更新状态失败: $e', backgroundColor: Colors.red);
+      developer.log('Update status failed: $e');
+      showSnackbar('错误', '更新状态失败: $e', isError: true);
     } finally {
       isLoading.value = false;
     }
@@ -279,17 +328,19 @@ class ProgressController extends GetxController {
 
   Future<void> deleteProgress(int progressId) async {
     if (!isAdmin.value) {
-      Get.snackbar('错误', '只有管理员可以删除进度', backgroundColor: Colors.red);
+      developer.log('Delete progress failed: User is not admin');
+      showSnackbar('错误', '只有管理员可以删除进度', isError: true);
       return;
     }
     isLoading.value = true;
     try {
       await _progressApi.apiProgressProgressIdDelete(progressId: progressId);
       await fetchProgress();
-      Get.snackbar('成功', '进度删除成功', backgroundColor: Colors.green);
+      showSnackbar('成功', '进度删除成功');
     } catch (e) {
       errorMessage.value = '删除失败: $e';
-      Get.snackbar('错误', '删除失败: $e', backgroundColor: Colors.red);
+      developer.log('Delete progress failed: $e');
+      showSnackbar('错误', '删除失败: $e', isError: true);
     } finally {
       isLoading.value = false;
     }
@@ -298,26 +349,26 @@ class ProgressController extends GetxController {
   String getBusinessContext(ProgressItem item) {
     if (item.appealId != null) {
       final appeal =
-      appeals.firstWhereOrNull((a) => a.appealId == item.appealId);
+          appeals.firstWhereOrNull((a) => a.appealId == item.appealId);
       return '申诉: ${appeal?.appellantName ?? "未知"} (ID: ${item.appealId})';
     } else if (item.deductionId != null) {
       final deduction =
-      deductions.firstWhereOrNull((d) => d.deductionId == item.deductionId);
+          deductions.firstWhereOrNull((d) => d.deductionId == item.deductionId);
       return '扣分: ${deduction?.driverLicenseNumber ?? "未知"} (分数: ${deduction?.deductedPoints ?? 0})';
     } else if (item.driverId != null) {
       final driver =
-      drivers.firstWhereOrNull((d) => d.driverId == item.driverId);
+          drivers.firstWhereOrNull((d) => d.driverId == item.driverId);
       return '司机: ${driver?.name ?? "未知"} (驾照: ${driver?.driverLicenseNumber ?? "未知"})';
     } else if (item.fineId != null) {
       final fine = fines.firstWhereOrNull((f) => f.fineId == item.fineId);
       return '罚款: ${fine?.payee ?? "未知"} (金额: ${fine?.fineAmount ?? 0})';
     } else if (item.vehicleId != null) {
       final vehicle =
-      vehicles.firstWhereOrNull((v) => v.vehicleId == item.vehicleId);
+          vehicles.firstWhereOrNull((v) => v.vehicleId == item.vehicleId);
       return '车辆: ${vehicle?.licensePlate ?? "未知"} (车主: ${vehicle?.ownerName ?? "未知"})';
     } else if (item.offenseId != null) {
       final offense =
-      offenses.firstWhereOrNull((o) => o.offenseId == item.offenseId);
+          offenses.firstWhereOrNull((o) => o.offenseId == item.offenseId);
       return '违法: ${offense?.offenseType ?? "未知"} (车牌: ${offense?.licensePlate ?? "未知"})';
     }
     return '无关联业务';
