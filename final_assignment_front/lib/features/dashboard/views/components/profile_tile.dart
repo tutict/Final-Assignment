@@ -7,17 +7,17 @@ import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ProfilTile extends StatelessWidget {
-  ProfilTile({
+  final Profile data;
+  final VoidCallback onPressedNotification;
+  final dynamic
+      controller; // Can be either UserDashboardController or DashboardController
+
+  const ProfilTile({
     super.key,
     required this.data,
     required this.onPressedNotification,
+    required this.controller,
   });
-
-  final Profile data;
-  final VoidCallback onPressedNotification;
-  final UserDashboardController _userController =
-      Get.find<UserDashboardController>();
-  final DashboardController _adminController = Get.find<DashboardController>();
 
   Future<String> _getUserRole() async {
     final prefs = await SharedPreferences.getInstance();
@@ -49,22 +49,27 @@ class ProfilTile extends StatelessWidget {
           String displayEmail;
           String displayPost;
 
-          if (userRole == 'USER') {
-            displayName = _userController.currentDriverName.value.isNotEmpty
-                ? _userController.currentDriverName.value
+          if (userRole == 'USER' && controller is UserDashboardController) {
+            displayName = controller.currentDriverName.value.isNotEmpty
+                ? controller.currentDriverName.value
                 : data.name;
-            displayEmail = _userController.currentEmail.value.isNotEmpty
-                ? _userController.currentEmail.value
+            displayEmail = controller.currentEmail.value.isNotEmpty
+                ? controller.currentEmail.value
                 : data.email;
             displayPost = '欢迎使用交通违法行为处理管理系统用户端';
-          } else {
-            displayName = _adminController.currentDriverName.value.isNotEmpty
-                ? _adminController.currentDriverName.value
+          } else if (userRole == 'ADMIN' && controller is DashboardController) {
+            displayName = controller.currentDriverName.value.isNotEmpty
+                ? controller.currentDriverName.value
                 : data.name;
-            displayEmail = _adminController.currentEmail.value.isNotEmpty
-                ? _adminController.currentEmail.value
+            displayEmail = controller.currentEmail.value.isNotEmpty
+                ? controller.currentEmail.value
                 : data.email;
             displayPost = '欢迎使用交通违法行为处理管理系统管理员端';
+          } else {
+            // Fallback for unexpected cases
+            displayName = data.name;
+            displayEmail = data.email;
+            displayPost = '欢迎使用交通违法行为处理管理系统';
           }
 
           return AnimatedContainer(
@@ -115,7 +120,7 @@ class ProfilTile extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const SizedBox(width: 60), // Increased spacing
+                  const SizedBox(width: 60),
                   Expanded(
                     child: Text(
                       displayPost,

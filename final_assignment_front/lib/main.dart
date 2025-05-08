@@ -66,9 +66,11 @@ class MainApp extends StatelessWidget {
 class AppBindings extends Bindings {
   @override
   void dependencies() {
-    Get.lazyPut<DashboardController>(() => DashboardController());
+    // Use Get.put() for immediate instantiation of critical controllers
+    Get.put<DashboardController>(DashboardController());
+    Get.put<ChatController>(ChatController());
+    // Keep lazyPut for controllers that are less critical or used later
     Get.lazyPut<UserDashboardController>(() => UserDashboardController());
-    Get.lazyPut<ChatController>(() => ChatController());
     Get.lazyPut<ProgressController>(() => ProgressController());
     Get.lazyPut<LogController>(() => LogController());
   }

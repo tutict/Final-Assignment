@@ -1,16 +1,13 @@
-library manager_dashboard;
-
 import 'dart:convert';
 import 'dart:developer';
 import 'dart:ui';
-
-import 'package:final_assignment_front/features/api/role_management_controller_api.dart';
 import 'package:chinese_font_library/chinese_font_library.dart';
 import 'package:eva_icons_flutter/eva_icons_flutter.dart';
 import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/config/themes/app_theme.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
 import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
+import 'package:final_assignment_front/features/api/role_management_controller_api.dart';
 import 'package:final_assignment_front/features/api/traffic_violation_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/models/profile.dart';
 import 'package:final_assignment_front/features/dashboard/views/components/ai_chat.dart';
@@ -63,8 +60,14 @@ class DashboardScreen extends GetView<DashboardController>
 
   @override
   Widget build(BuildContext context) {
-    final double screenWidth = MediaQuery.of(context).size.width;
-    final double screenHeight = MediaQuery.of(context).size.height;
+    final double screenWidth = MediaQuery
+        .of(context)
+        .size
+        .width;
+    final double screenHeight = MediaQuery
+        .of(context)
+        .size
+        .height;
     const double kHeaderTotalHeight = 32 + 50 + 15 + 1;
 
     return Scaffold(
@@ -74,7 +77,10 @@ class DashboardScreen extends GetView<DashboardController>
         child: _buildHeaderSection(context, screenWidth),
       ),
       body: Obx(
-        () => Theme(
+            () =>
+        controller.currentBodyTheme.value == null
+            ? const Center(child: CircularProgressIndicator())
+            : Theme(
           data: controller.currentBodyTheme.value,
           child: Material(
             child: ResponsiveBuilder(
@@ -113,19 +119,37 @@ class DashboardScreen extends GetView<DashboardController>
                       width: screenWidth * 0.2,
                       height: screenHeight,
                       decoration: BoxDecoration(
-                        color: Theme.of(context).cardColor,
+                        color: Theme
+                            .of(context)
+                            .cardColor
+                            .withOpacity(0.95),
                         border: Border(
-                            right: BorderSide(color: Colors.grey.shade300)),
-                        boxShadow: kBoxShadows,
+                          right: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        borderRadius: const BorderRadius.only(
+                          topRight: Radius.circular(16),
+                          bottomRight: Radius.circular(16),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 12,
+                            offset: const Offset(2, 0),
+                          ),
+                        ],
                       ),
-                      child: _Sidebar(data: controller.getSelectedProject()),
+                      child: _Sidebar(
+                          data: controller.getSelectedProject()),
                     ),
                     Expanded(
                       child: Container(
                         decoration: BoxDecoration(
-                          color: Theme.of(context).scaffoldBackgroundColor,
+                          color: Theme
+                              .of(context)
+                              .scaffoldBackgroundColor,
                           border: Border(
-                              right: BorderSide(color: Colors.grey.shade300)),
+                            right: BorderSide(color: Colors.grey.shade300),
+                          ),
                         ),
                         child: SingleChildScrollView(
                           child: _buildLayout(context),
@@ -133,31 +157,38 @@ class DashboardScreen extends GetView<DashboardController>
                       ),
                     ),
                     Obx(
-                      () => AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeInOut,
-                        width: controller.isChatExpanded.value
-                            ? (screenWidth * 0.3 > 150
+                          () =>
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 500),
+                            curve: Curves.easeInOutCubic,
+                            width: controller.isChatExpanded.value
+                                ? (screenWidth * 0.3 > 150
                                 ? screenWidth * 0.3
                                 : 150)
-                            : 0,
-                        // AiChat 动态宽度
-                        height: screenHeight,
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).cardColor.withOpacity(0.9),
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Colors.black12,
-                              blurRadius: 8,
-                              offset: Offset(0, 2),
+                                : 0,
+                            height: screenHeight,
+                            decoration: BoxDecoration(
+                              color:
+                              Theme
+                                  .of(context)
+                                  .cardColor
+                                  .withOpacity(0.95),
+                              borderRadius: const BorderRadius.only(
+                                topLeft: Radius.circular(16),
+                                bottomLeft: Radius.circular(16),
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 12,
+                                  offset: const Offset(-2, 0),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                        child: controller.isChatExpanded.value
-                            ? _buildSideContent(context)
-                            : null,
-                      ),
+                            child: controller.isChatExpanded.value
+                                ? _buildSideContent(context)
+                                : null,
+                          ),
                     ),
                   ],
                 );
@@ -171,11 +202,38 @@ class DashboardScreen extends GetView<DashboardController>
 
   Widget _buildSideContent(BuildContext context) {
     return Container(
-      color: Theme.of(context).scaffoldBackgroundColor,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Theme
+                .of(context)
+                .colorScheme
+                .surface
+                .withOpacity(0.95),
+            Theme
+                .of(context)
+                .colorScheme
+                .surfaceVariant
+                .withOpacity(0.9),
+          ],
+        ),
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(16),
+          bottomLeft: Radius.circular(16),
+        ),
+      ),
       constraints: BoxConstraints(
-        maxWidth: MediaQuery.of(context).size.width * 0.3, // 限制最大宽度
-        minWidth: 150, // 确保最小宽度
-        maxHeight: MediaQuery.of(context).size.height, // 限制最大高度为屏幕高度
+        maxWidth: MediaQuery
+            .of(context)
+            .size
+            .width * 0.3,
+        minWidth: 150,
+        maxHeight: MediaQuery
+            .of(context)
+            .size
+            .height,
       ),
       child: const AiChat(),
     );
@@ -185,15 +243,17 @@ class DashboardScreen extends GetView<DashboardController>
     return SingleChildScrollView(
       child: Padding(
         padding: const EdgeInsets.symmetric(
-            horizontal: kSpacing, vertical: kSpacing / 2),
-        // Reduced vertical padding
+          horizontal: kSpacing,
+          vertical: kSpacing / 4,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Removed or reduced SizedBox to minimize top space
-            SizedBox(height: kSpacing * (kIsWeb || isDesktop ? 1.0 : 1.5)),
-            // Adjusted multiplier
-            const Divider(),
+            SizedBox(height: kSpacing * (kIsWeb || isDesktop ? 0.5 : 0.75)),
+            const Divider(
+              color: Colors.grey,
+              thickness: 1,
+            ),
             Obx(() {
               final pageContent = controller.selectedPage.value;
               if (pageContent != null) {
@@ -201,7 +261,13 @@ class DashboardScreen extends GetView<DashboardController>
                   width: double.infinity,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(kBorderRadius),
-                    boxShadow: kBoxShadows,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.15),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
                   child: _buildUserScreenSidebarTools(context),
                 );
@@ -231,15 +297,14 @@ class DashboardScreen extends GetView<DashboardController>
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
         child: Container(
           width: double.infinity,
-          height: MediaQuery.of(context).size.height * 0.8,
-          padding: const EdgeInsets.all(8.0),
-          decoration: BoxDecoration(
-            color: Theme.of(context).cardColor.withOpacity(0.9),
-            borderRadius: BorderRadius.circular(16),
-          ),
+          height: MediaQuery
+              .of(context)
+              .size
+              .height * 0.8,
+          padding: const EdgeInsets.all(12.0),
           child: Obx(() {
             final pageContent = controller.selectedPage.value;
             return pageContent ?? const Center(child: Text('请选择一个页面'));
@@ -264,18 +329,44 @@ class DashboardScreen extends GetView<DashboardController>
       undoneTask: 3,
     );
 
-    return const Padding(
-      padding:
-          EdgeInsets.symmetric(horizontal: kSpacing, vertical: kSpacing / 2),
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: kSpacing,
+        vertical: kSpacing / 2,
+      ),
       child: Row(
         mainAxisSize: MainAxisSize.max,
         children: [
           Expanded(
-            child: TrafficViolationCard(data: violationData),
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: const TrafficViolationCard(data: violationData),
+            ),
           ),
-          SizedBox(width: kSpacing / 2),
+          const SizedBox(width: kSpacing / 2),
           Expanded(
-            child: ProgressReportCard(data: appealData),
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: const ProgressReportCard(data: appealData),
+            ),
           ),
         ],
       ),
@@ -289,39 +380,71 @@ class DashboardScreen extends GetView<DashboardController>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _TeamMember(
-            totalMember: controller.getMember().length,
+            totalMember: controller
+                .getMember()
+                .length,
             onPressedAdd: () => log("Add member clicked"),
           ),
           const SizedBox(height: kSpacing / 2),
-          ListProfilImage(
-            maxImages: 6,
-            images: controller.getMember(),
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: ListProfilImage(
+              maxImages: 6,
+              images: controller.getMember(),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildActiveProjectSection(
-    BuildContext context, {
+  Widget _buildActiveProjectSection(BuildContext context, {
     required int crossAxisCount,
     required double childAspectRatio,
   }) {
     double gridHeight;
     if (crossAxisCount == 2) {
-      gridHeight = MediaQuery.of(context).size.height * 1.44;
+      gridHeight = MediaQuery
+          .of(context)
+          .size
+          .height * 1.44;
     } else if (crossAxisCount == 3) {
-      gridHeight = MediaQuery.of(context).size.height * 0.94;
+      gridHeight = MediaQuery
+          .of(context)
+          .size
+          .height * 0.94;
     } else {
-      gridHeight = MediaQuery.of(context).size.height * 0.78;
+      gridHeight = MediaQuery
+          .of(context)
+          .size
+          .height * 0.78;
     }
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: kSpacing),
       child: _ActiveProjectCard(
         onPressedSeeAll: () => log("查看所有项目"),
-        child: SizedBox(
+        child: Container(
           height: gridHeight,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
           child: FutureBuilder<Map<String, dynamic>>(
             future: _fetchTrafficViolationData(),
             builder: (context, snapshot) {
@@ -333,15 +456,13 @@ class DashboardScreen extends GetView<DashboardController>
                 if (snapshot.error is ApiException) {
                   final apiError = snapshot.error as ApiException;
                   errorMessage =
-                      'API Error ${apiError.code}: ${apiError.message}';
+                  'API Error ${apiError.code}: ${apiError.message}';
                   try {
                     final errorJson = jsonDecode(apiError.message);
                     if (errorJson['message'] != null) {
                       errorMessage += ' - ${errorJson['message']}';
                     }
-                  } catch (_) {
-                    // If message isn't JSON or lacks detail, use raw message
-                  }
+                  } catch (_) {}
                 }
                 return Center(
                   child: Column(
@@ -351,7 +472,7 @@ class DashboardScreen extends GetView<DashboardController>
                           style: const TextStyle(color: Colors.red)),
                       const SizedBox(height: 8),
                       ElevatedButton(
-                        onPressed: () => (() {}), // Retry fetch
+                        onPressed: () => (() {}),
                         child: const Text('Retry'),
                       ),
                     ],
@@ -362,19 +483,19 @@ class DashboardScreen extends GetView<DashboardController>
               } else {
                 final data = snapshot.data!;
                 final violationTypes =
-                    data['violationTypes'] as Map<String, int>;
+                data['violationTypes'] as Map<String, int>;
                 final timeSeries =
-                    data['timeSeries'] as List<Map<String, dynamic>>;
+                data['timeSeries'] as List<Map<String, dynamic>>;
                 final paymentStatus = data['paymentStatus'] as Map<String, int>;
                 final startTime =
-                    DateTime.now().subtract(const Duration(days: 30));
+                DateTime.now().subtract(const Duration(days: 30));
 
                 return GridView.builder(
                   itemCount: crossAxisCount >= 3
                       ? 3
                       : crossAxisCount >= 2
-                          ? 2
-                          : 1,
+                      ? 2
+                      : 1,
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -385,15 +506,51 @@ class DashboardScreen extends GetView<DashboardController>
                   ),
                   itemBuilder: (context, index) {
                     if (index == 0) {
-                      return TrafficViolationBarChart(
-                        typeCountMap: violationTypes,
-                        startTime: startTime,
+                      return Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: TrafficViolationBarChart(
+                          typeCountMap: violationTypes,
+                          startTime: startTime,
+                        ),
                       );
                     } else if (index == 1) {
-                      return _buildTimeSeriesChart(timeSeries, startTime);
+                      return Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: _buildTimeSeriesChart(timeSeries, startTime),
+                      );
                     } else {
-                      return TrafficViolationPieChart(
-                        typeCountMap: paymentStatus,
+                      return Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: TrafficViolationPieChart(
+                          typeCountMap: paymentStatus,
+                        ),
                       );
                     }
                   },
@@ -417,7 +574,7 @@ class DashboardScreen extends GetView<DashboardController>
       final violationTypes = await api.apiTrafficViolationsViolationTypesGet(
           startTime: startTimeStr);
       final timeSeries =
-          await api.apiTrafficViolationsTimeSeriesGet(startTime: startTimeStr);
+      await api.apiTrafficViolationsTimeSeriesGet(startTime: startTimeStr);
       final paymentStatus = await api.apiTrafficViolationsFinePaymentStatusGet(
           startTime: startTimeStr);
 
@@ -428,13 +585,12 @@ class DashboardScreen extends GetView<DashboardController>
       };
     } catch (e) {
       log('Error fetching traffic violation data: $e');
-      rethrow; // Let FutureBuilder handle the error
+      rethrow;
     }
   }
 
-// Time series chart implementation remains unchanged (as previously provided)
-  Widget _buildTimeSeriesChart(
-      List<Map<String, dynamic>> timeSeries, DateTime startTime) {
+  Widget _buildTimeSeriesChart(List<Map<String, dynamic>> timeSeries,
+      DateTime startTime) {
     if (timeSeries.isEmpty) {
       return const SizedBox(
         height: 200,
@@ -443,15 +599,19 @@ class DashboardScreen extends GetView<DashboardController>
     }
 
     final dataList = timeSeries
-        .map((item) => {
-              'time': DateTime.parse(item['time']),
-              'value1': item['value1'] as num,
-              'value2': item['value2'] as num,
-            })
+        .map((item) =>
+    {
+      'time': DateTime.parse(item['time']),
+      'value1': item['value1'] as num,
+      'value2': item['value2'] as num,
+    })
         .toList();
 
     final maxX = dataList
-        .map((item) => (item['time'] as DateTime).difference(startTime).inDays)
+        .map((item) =>
+    (item['time'] as DateTime)
+        .difference(startTime)
+        .inDays)
         .reduce((a, b) => a > b ? a : b)
         .toDouble();
     final maxY1 = dataList
@@ -473,7 +633,9 @@ class DashboardScreen extends GetView<DashboardController>
               minY: 0,
               barGroups: dataList.map((item) {
                 final days =
-                    (item['time'] as DateTime).difference(startTime).inDays;
+                    (item['time'] as DateTime)
+                        .difference(startTime)
+                        .inDays;
                 final value = (item['value1'] as num).toDouble();
                 return BarChartGroupData(
                   x: days,
@@ -483,7 +645,7 @@ class DashboardScreen extends GetView<DashboardController>
                       color: Colors.yellow.withOpacity(0.5),
                       width: 8,
                       borderRadius:
-                          const BorderRadius.vertical(top: Radius.circular(2)),
+                      const BorderRadius.vertical(top: Radius.circular(2)),
                     ),
                   ],
                 );
@@ -495,10 +657,12 @@ class DashboardScreen extends GetView<DashboardController>
                     showTitles: true,
                     reservedSize: 40,
                     interval: maxY / 5,
-                    getTitlesWidget: (value, meta) => Text(
-                      value.toInt().toString(),
-                      style: const TextStyle(color: Colors.black, fontSize: 12),
-                    ),
+                    getTitlesWidget: (value, meta) =>
+                        Text(
+                          value.toInt().toString(),
+                          style: const TextStyle(
+                              color: Colors.black, fontSize: 12),
+                        ),
                   ),
                 ),
                 bottomTitles: AxisTitles(
@@ -512,15 +676,15 @@ class DashboardScreen extends GetView<DashboardController>
                       return Text(
                         DateFormat('dd').format(date),
                         style:
-                            const TextStyle(color: Colors.black, fontSize: 12),
+                        const TextStyle(color: Colors.black, fontSize: 12),
                       );
                     },
                   ),
                 ),
                 topTitles:
-                    const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                 rightTitles:
-                    const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
               ),
               gridData: FlGridData(
                 show: true,
@@ -535,7 +699,8 @@ class DashboardScreen extends GetView<DashboardController>
                   getTooltipItem: (group, groupIndex, rod, rodIndex) {
                     final date = startTime.add(Duration(days: group.x));
                     return BarTooltipItem(
-                      '${DateFormat('yyyy-MM-dd').format(date)}\nFines: ${rod.toY.toInt()}',
+                      '${DateFormat('yyyy-MM-dd').format(date)}\nFines: ${rod
+                          .toY.toInt()}',
                       const TextStyle(color: Colors.white),
                     );
                   },
@@ -583,14 +748,17 @@ class DashboardScreen extends GetView<DashboardController>
               lineTouchData: LineTouchData(
                 enabled: true,
                 touchTooltipData: LineTouchTooltipData(
-                  getTooltipItems: (touchedSpots) => touchedSpots.map((spot) {
-                    final date = startTime.add(Duration(days: spot.x.toInt()));
-                    final label = spot.barIndex == 0 ? 'Fines' : 'Points';
-                    return LineTooltipItem(
-                      '${DateFormat('yyyy-MM-dd').format(date)}\n$label: ${spot.y.toInt()}',
-                      const TextStyle(color: Colors.white),
-                    );
-                  }).toList(),
+                  getTooltipItems: (touchedSpots) =>
+                      touchedSpots.map((spot) {
+                        final date = startTime.add(Duration(
+                            days: spot.x.toInt()));
+                        final label = spot.barIndex == 0 ? 'Fines' : 'Points';
+                        return LineTooltipItem(
+                          '${DateFormat('yyyy-MM-dd').format(
+                              date)}\n$label: ${spot.y.toInt()}',
+                          const TextStyle(color: Colors.white),
+                        );
+                      }).toList(),
                 ),
               ),
             ),
@@ -604,20 +772,33 @@ class DashboardScreen extends GetView<DashboardController>
     final bool isDesktop = ResponsiveBuilder.isDesktop(context);
     final bool showSidebar = isDesktop || controller.isSidebarOpen.value;
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeInOutCubic,
       width: showSidebar ? 300 : 0,
       height: double.infinity,
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        boxShadow: kBoxShadows,
+        color: Theme
+            .of(context)
+            .cardColor
+            .withOpacity(0.95),
+        borderRadius: const BorderRadius.only(
+          topRight: Radius.circular(16),
+          bottomRight: Radius.circular(16),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 12,
+            offset: const Offset(2, 0),
+          ),
+        ],
       ),
       child: showSidebar
           ? Padding(
-              padding:
-                  const EdgeInsets.fromLTRB(16.0, kSpacing * 2, 16.0, kSpacing),
-              child: _Sidebar(data: controller.getSelectedProject()),
-            )
+        padding: const EdgeInsets.fromLTRB(
+            16.0, kSpacing * 2, 16.0, kSpacing),
+        child: _Sidebar(data: controller.getSelectedProject()),
+      )
           : null,
     );
   }
@@ -626,10 +807,23 @@ class DashboardScreen extends GetView<DashboardController>
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: kSpacing),
       child: Obx(() {
-        final Profile profile = controller.currentProfile; // 使用 Profile 类型
-        return ProfilTile(
-          data: profile,
-          onPressedNotification: () => log("Notification clicked"),
+        final Profile profile = controller.currentProfile;
+        return Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: ProfilTile(
+            data: profile,
+            onPressedNotification: () => log("Notification clicked"),
+            controller: controller, // Pass DashboardController
+          ),
         );
       }),
     );
@@ -637,7 +831,16 @@ class DashboardScreen extends GetView<DashboardController>
 
   Widget _buildHeaderSection(BuildContext context, double screenWidth) {
     return Container(
-      color: Colors.blueAccent,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFF0288D1), // Deep Blue
+            Color(0xFF4FC3F7), // Light Blue
+          ],
+        ),
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -647,7 +850,11 @@ class DashboardScreen extends GetView<DashboardController>
             screenWidth: screenWidth,
           ),
           const SizedBox(height: 15),
-          const Divider(height: 1, thickness: 1),
+          const Divider(
+            height: 1,
+            thickness: 1,
+            color: Colors.white24,
+          ),
         ],
       ),
     );
@@ -670,35 +877,34 @@ class DashboardScreen extends GetView<DashboardController>
     return SizedBox(
       height: 50,
       child: Container(
-        width: availableWidth,
-        padding: const EdgeInsets.symmetric(horizontal: horizontalPadding),
-        child: Row(
-          children: [
-            if (screenWidth < mobileBreakpoint && onPressedMenu != null)
-              IconButton(
-                onPressed: () => controller.toggleSidebar(),
-                icon: const Icon(Icons.menu),
-                tooltip: "菜单",
-              ),
-            ConstrainedBox(
-              constraints:
-                  BoxConstraints(maxWidth: headerContentAvailableWidth),
-              child: const _Header(),
-            ),
+          width: availableWidth,
+          padding: const EdgeInsets.symmetric(horizontal: horizontalPadding),
+      child: Row(
+        children: [
+          if (screenWidth < mobileBreakpoint && onPressedMenu != null)
             IconButton(
-              onPressed: () => controller.toggleChat(),
-              icon: const Icon(Icons.chat_bubble_outline),
-              tooltip: "AIChat",
+              onPressed: () => controller.toggleSidebar(),
+              icon: const Icon(Icons.menu, color: Colors.white),
+              tooltip: "菜单",
             ),
-            const SizedBox(width: 4),
-            IconButton(
-              onPressed: () => controller.toggleBodyTheme(),
-              icon: const Icon(Icons.brightness_6),
-              tooltip: "切换明暗主题",
-            ),
-          ],
-        ),
+          ConstrainedBox(
+            constraints:
+            BoxConstraints(maxWidth: headerContentAvailableWidth),
+            child: const _Header(),
+          ),
+          IconButton(
+            onPressed: () => controller.toggleChat(),
+            icon: const Icon(Icons.chat_bubble_outline, color: Colors.white),
+            tooltip: "AIChat",
+          ),
+          const SizedBox(width: 4),
+          IconButton(
+            onPressed: () => controller.toggleBodyTheme(),
+            icon: const Icon(Icons.brightness_6, color: Colors.white),
+            tooltip: "切换明暗主题",
+          ),
+        ],
       ),
-    );
+    ),);
   }
 }

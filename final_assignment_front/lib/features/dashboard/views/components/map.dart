@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:ui';
+import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_dashboard_screen.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
@@ -17,7 +18,24 @@ class MapPage extends StatefulWidget {
 }
 
 class _MapPageState extends State<MapPage> {
-  final UserDashboardController controller = Get.find<UserDashboardController>();
+  // Attempt to find either DashboardController or UserDashboardController
+  DashboardController? _dashboardController;
+  UserDashboardController? _userDashboardController;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize the appropriate controller
+    try {
+      _dashboardController = Get.find<DashboardController>();
+    } catch (_) {
+      try {
+        _userDashboardController = Get.find<UserDashboardController>();
+      } catch (_) {
+        debugPrint('No DashboardController or UserDashboardController found');
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,11 +57,18 @@ class _MapPageState extends State<MapPage> {
         leading: GestureDetector(
           onTap: () {
             debugPrint('Back button tapped');
-            controller.exitSidebarContent();
+            if (_dashboardController != null) {
+              _dashboardController!.exitSidebarContent();
+            } else if (_userDashboardController != null) {
+              _userDashboardController!.exitSidebarContent();
+            } else {
+              Get.back();
+            }
           },
           child: const Icon(CupertinoIcons.back),
         ),
-        backgroundColor: isLight ? CupertinoColors.systemGrey5 : CupertinoColors.systemGrey,
+        backgroundColor:
+            isLight ? CupertinoColors.systemGrey5 : CupertinoColors.systemGrey,
         brightness: isLight ? Brightness.light : Brightness.dark,
       ),
       child: SafeArea(
@@ -59,9 +84,11 @@ class _MapPageState extends State<MapPage> {
               userAgentPackageName: '交通违法行为处理管理系统',
               tileProvider: CustomNetworkTileProvider(),
               errorTileCallback: (tile, exception, stackTrace) {
-                debugPrint("Tile failed to load: $tile, Error: $exception, StackTrace: $stackTrace");
+                debugPrint(
+                    "Tile failed to load: $tile, Error: $exception, StackTrace: $stackTrace");
               },
-              errorImage: const NetworkImage('https://via.placeholder.com/256x256.png?text=Map+Error'),
+              errorImage: const NetworkImage(
+                  'https://via.placeholder.com/256x256.png?text=Map+Error'),
             ),
             RichAttributionWidget(
               attributions: [
@@ -81,7 +108,8 @@ class _MapPageState extends State<MapPage> {
 // 自定义 NetworkTileProvider，支持重试和超时
 class CustomNetworkTileProvider extends TileProvider {
   @override
-  ImageProvider<Object> getImage(TileCoordinates coordinates, TileLayer options) {
+  ImageProvider<Object> getImage(
+      TileCoordinates coordinates, TileLayer options) {
     final url = getTileUrl(coordinates, options);
     return _RetryNetworkImage(
       url: url,
@@ -109,10 +137,11 @@ class _RetryNetworkImage extends ImageProvider<_RetryNetworkImage> {
   }
 
   @override
-  ImageStreamCompleter loadImage(_RetryNetworkImage key, ImageDecoderCallback decode) {
+  ImageStreamCompleter loadImage(
+      _RetryNetworkImage key, ImageDecoderCallback decode) {
     return MultiFrameImageStreamCompleter(
       codec: _loadAsync(key, decode),
-      scale: 1.0, // 添加必填的 scale 参数
+      scale: 1.0,
       chunkEvents: StreamController<ImageChunkEvent>().stream,
       informationCollector: () => [
         DiagnosticsProperty('URL', url),
@@ -122,7 +151,8 @@ class _RetryNetworkImage extends ImageProvider<_RetryNetworkImage> {
     );
   }
 
-  Future<Codec> _loadAsync(_RetryNetworkImage key, ImageDecoderCallback decode) async {
+  Future<Codec> _loadAsync(
+      _RetryNetworkImage key, ImageDecoderCallback decode) async {
     int attempts = 0;
     while (attempts < retryCount) {
       try {

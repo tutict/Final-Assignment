@@ -1,15 +1,10 @@
 import 'dart:convert';
 import 'dart:math';
 import 'package:final_assignment_front/config/routes/app_pages.dart';
-import 'package:final_assignment_front/constants/app_constants.dart';
 import 'package:final_assignment_front/features/api/auth_controller_api.dart';
 import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/user_management_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/chat_controller.dart';
-import 'package:final_assignment_front/features/dashboard/models/profile.dart';
-import 'package:final_assignment_front/features/dashboard/views/components/profile_tile.dart';
-import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_dashboard_screen.dart';
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 import 'package:final_assignment_front/features/model/driver_information.dart';
 import 'package:final_assignment_front/features/model/login_request.dart';
 import 'package:final_assignment_front/features/model/register_request.dart';
@@ -51,13 +46,9 @@ class _LoginScreenState extends State<LoginScreen>
     with TickerProviderStateMixin {
   late AuthControllerApi authApi;
   late DriverInformationControllerApi driverApi;
-  late ProfilTile _profilTile;
   String? _userRole;
   bool _hasSentRegisterRequest = false;
-  final UserDashboardController _userDashboardController =
-      Get.find<UserDashboardController>();
-  final DashboardController _dashboardController =
-      Get.find<DashboardController>();
+  bool _isDarkMode = false;
 
   @override
   void initState() {
@@ -72,25 +63,6 @@ class _LoginScreenState extends State<LoginScreen>
   void _initializeControllers() {
     if (!Get.isRegistered<ChatController>()) {
       Get.lazyPut(() => ChatController());
-    }
-    if (!Get.isRegistered<DashboardController>()) {
-      Get.lazyPut(() => DashboardController());
-    }
-    if (!Get.isRegistered<UserDashboardController>()) {
-      Get.lazyPut(() => UserDashboardController());
-    }
-    if (!Get.isRegistered<ProfilTile>()) {
-      _profilTile = ProfilTile(
-        data: const Profile(
-          name: 'Unknown',
-          email: 'unknown@example.com',
-          photo: AssetImage(ImageRasterPath.avatar1),
-        ),
-        onPressedNotification: () {},
-      );
-      Get.put(_profilTile);
-    } else {
-      _profilTile = Get.find<ProfilTile>();
     }
   }
 
@@ -199,16 +171,6 @@ class _LoginScreenState extends State<LoginScreen>
         await prefs.setString('userEmail', email);
         if (userId != null) await prefs.setString('userId', userId.toString());
 
-        if (_userRole == 'USER') {
-          _userDashboardController.updateCurrentUser(driverName, email);
-          debugPrint(
-              'Login 中的 UserController ID: ${_userDashboardController.hashCode}');
-        } else {
-          _dashboardController.updateCurrentUser(driverName, email);
-          debugPrint(
-              'Login 中的 AdminController ID: ${_dashboardController.hashCode}');
-        }
-
         Get.find<ChatController>().setUserRole(_userRole!);
 
         debugPrint('登录成功 - 角色: $_userRole, 姓名: $driverName, 邮箱: $email');
@@ -292,18 +254,7 @@ class _LoginScreenState extends State<LoginScreen>
             debugPrint('Driver created and fetched name: $driverName');
           }
 
-          if (_userRole == 'USER') {
-            _userDashboardController.updateCurrentUser(driverName, email);
-          } else {
-            _dashboardController.updateCurrentUser(driverName, email);
-          }
-
           Get.find<ChatController>().setUserRole(_userRole!);
-
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            _dashboardController.triggerPersonalPageRefresh();
-            _userDashboardController.triggerPersonalPageRefresh();
-          });
 
           debugPrint(
               'Signup and login successful - Role: $_userRole, Name: $driverName, Email: $email');
@@ -334,7 +285,7 @@ class _LoginScreenState extends State<LoginScreen>
     if (isCaptchaValid != true) return '密码重置已取消';
 
     final TextEditingController newPasswordController = TextEditingController();
-    final themeData = _userDashboardController.currentBodyTheme.value;
+    final themeData = ThemeData.light(); // Use default theme for password reset
 
     final bool? passwordConfirmed = await showDialog<bool>(
       context: context,
@@ -497,197 +448,191 @@ class _LoginScreenState extends State<LoginScreen>
     }
   }
 
+  void _toggleTheme() {
+    setState(() {
+      _isDarkMode = !_isDarkMode;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Obx(() {
-      final themeData = _userDashboardController.currentBodyTheme.value;
+    final themeData = _isDarkMode ? ThemeData.dark() : ThemeData.light();
 
-      return Theme(
-        data: themeData,
-        child: Scaffold(
-          body: Stack(
-            children: [
-              // Gradient Background
-              Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      themeData.colorScheme.primary.withOpacity(0.1),
-                      themeData.colorScheme.secondary.withOpacity(0.3),
-                      themeData.colorScheme.surface,
-                    ],
-                  ),
+    return Theme(
+      data: themeData,
+      child: Scaffold(
+        body: Stack(
+          children: [
+            // Gradient Background
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    themeData.colorScheme.primary.withOpacity(0.1),
+                    themeData.colorScheme.secondary.withOpacity(0.3),
+                    themeData.colorScheme.surface,
+                  ],
                 ),
               ),
-              // Particle Effect with Connections
-              ConnectedParticleSystem(
-                particleColor: themeData.colorScheme.primary.withOpacity(0.3),
-                lineColor: themeData.colorScheme.primary.withOpacity(0.2),
-                vsync: this,
-              ),
-              // Login UI
-              FlutterLogin(
-                title: '交通违法行为处理管理系统',
-                logo: const AssetImage('assets/images/raster/logo-5.png'),
-                logoTag: 'logo',
-                onLogin: _authUser,
-                onSignup: _signupUser,
-                onRecoverPassword: _recoverPassword,
-                userValidator: (value) => null,
-                // Replace with widget.validateUsername
-                passwordValidator: (value) => null,
-                // Replace with widget.validatePassword
-                theme: LoginTheme(
-                  primaryColor: themeData.colorScheme.primary,
-                  accentColor: themeData.colorScheme.secondary,
-                  errorColor: themeData.colorScheme.error,
-                  pageColorLight: Colors.transparent,
-                  pageColorDark: Colors.transparent,
-                  cardTheme: CardTheme(
-                    color: themeData.colorScheme.surfaceContainer,
-                    elevation: 12.0,
-                    margin: const EdgeInsets.symmetric(
-                        horizontal: 24.0, vertical: 80.0),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20.0),
-                    ),
-                    shadowColor: themeData.colorScheme.shadow.withOpacity(0.3),
+            ),
+            // Particle Effect with Connections
+            ConnectedParticleSystem(
+              particleColor: themeData.colorScheme.primary.withOpacity(0.3),
+              lineColor: themeData.colorScheme.primary.withOpacity(0.2),
+              vsync: this,
+            ),
+            // Login UI
+            FlutterLogin(
+              title: '交通违法行为处理管理系统',
+              logo: const AssetImage('assets/images/raster/logo-5.png'),
+              logoTag: 'logo',
+              onLogin: _authUser,
+              onSignup: _signupUser,
+              onRecoverPassword: _recoverPassword,
+              userValidator: widget.validateUsername,
+              passwordValidator: widget.validatePassword,
+              theme: LoginTheme(
+                primaryColor: themeData.colorScheme.primary,
+                accentColor: themeData.colorScheme.secondary,
+                errorColor: themeData.colorScheme.error,
+                pageColorLight: Colors.transparent,
+                pageColorDark: Colors.transparent,
+                cardTheme: CardTheme(
+                  color: themeData.colorScheme.surfaceContainer,
+                  elevation: 12.0,
+                  margin: const EdgeInsets.symmetric(
+                      horizontal: 24.0, vertical: 80.0),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20.0),
                   ),
-                  titleStyle: themeData.textTheme.headlineMedium?.copyWith(
-                    color: themeData.colorScheme.onSurface,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 28.0,
-                    letterSpacing: 1.2,
-                  ),
-                  bodyStyle: themeData.textTheme.bodyLarge?.copyWith(
-                    color: themeData.colorScheme.onSurfaceVariant,
-                    fontSize: 16.0,
-                  ),
-                  textFieldStyle: themeData.textTheme.bodyLarge?.copyWith(
-                    color: themeData.colorScheme.onSurface,
-                    fontSize: 16.0,
-                  ),
-                  buttonStyle: themeData.textTheme.labelLarge?.copyWith(
-                    color: themeData.colorScheme.onPrimary,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 16.0,
-                  ),
-                  buttonTheme: LoginButtonTheme(
-                    splashColor: themeData.colorScheme.primaryContainer,
-                    backgroundColor: themeData.colorScheme.primary,
-                    highlightColor:
-                        themeData.colorScheme.primary.withOpacity(0.9),
-                    elevation: 8.0,
-                    highlightElevation: 10.0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12.0),
-                    ),
-                  ),
-                  inputTheme: InputDecorationTheme(
-                    filled: true,
-                    fillColor: themeData.colorScheme.surfaceContainerHighest,
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 20.0, vertical: 16.0),
-                    prefixIconColor: themeData.colorScheme.onSurfaceVariant,
-                    errorStyle: themeData.textTheme.bodySmall?.copyWith(
-                      color: themeData.colorScheme.onErrorContainer,
-                      backgroundColor:
-                          themeData.colorScheme.error.withOpacity(0.9),
-                    ),
-                    labelStyle: themeData.textTheme.bodyMedium?.copyWith(
-                      color: themeData.colorScheme.onSurfaceVariant,
-                      fontSize: 14.0,
-                    ),
-                    hintStyle: themeData.textTheme.bodyMedium?.copyWith(
-                      color: themeData.colorScheme.onSurfaceVariant
-                          .withOpacity(0.6),
-                      fontSize: 14.0,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12.0),
-                      borderSide: BorderSide(
-                        color: themeData.colorScheme.outline.withOpacity(0.4),
-                      ),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12.0),
-                      borderSide: BorderSide(
-                        color: themeData.colorScheme.outline.withOpacity(0.4),
-                      ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12.0),
-                      borderSide: BorderSide(
-                        color: themeData.colorScheme.primary,
-                        width: 2.0,
-                      ),
-                    ),
-                    errorBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12.0),
-                      borderSide: BorderSide(
-                        color: themeData.colorScheme.error,
-                        width: 1.5,
-                      ),
-                    ),
-                  ),
-                  cardInitialHeight: 360.0,
-                  cardTopPosition: 180.0,
-                  logoWidth: 140.0,
+                  shadowColor: themeData.colorScheme.shadow.withOpacity(0.3),
                 ),
-                messages: LoginMessages(
-                  passwordHint: '密码',
-                  userHint: '用户邮箱',
-                  forgotPasswordButton: '忘记密码？',
-                  confirmPasswordHint: '再次输入密码',
-                  loginButton: '登录',
-                  signupButton: '注册',
-                  recoverPasswordButton: '重置密码',
-                  recoverCodePasswordDescription: '请输入您的用户邮箱',
-                  goBackButton: '返回',
-                  confirmPasswordError: '密码输入不匹配',
-                  confirmSignupSuccess: '注册成功',
-                  confirmRecoverSuccess: '密码重置成功',
-                  recoverPasswordDescription: '请输入您的用户邮箱，我们将为您重置密码',
-                  recoverPasswordIntro: '重置密码',
+                titleStyle: themeData.textTheme.headlineMedium?.copyWith(
+                  color: themeData.colorScheme.onSurface,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 28.0,
+                  letterSpacing: 1.2,
                 ),
-                onSubmitAnimationCompleted: () {
-                  Get.offAllNamed(_userRole == 'ADMIN'
-                      ? AppPages.initial
-                      : AppPages.userInitial);
-                },
-              ),
-              // Theme Toggle Button
-              Positioned(
-                bottom: 32.0,
-                right: 32.0,
-                child: FloatingActionButton(
-                  onPressed: () {
-                    _userDashboardController.toggleBodyTheme();
-                    _dashboardController.toggleBodyTheme();
-                  },
+                bodyStyle: themeData.textTheme.bodyLarge?.copyWith(
+                  color: themeData.colorScheme.onSurfaceVariant,
+                  fontSize: 16.0,
+                ),
+                textFieldStyle: themeData.textTheme.bodyLarge?.copyWith(
+                  color: themeData.colorScheme.onSurface,
+                  fontSize: 16.0,
+                ),
+                buttonStyle: themeData.textTheme.labelLarge?.copyWith(
+                  color: themeData.colorScheme.onPrimary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16.0,
+                ),
+                buttonTheme: LoginButtonTheme(
+                  splashColor: themeData.colorScheme.primaryContainer,
                   backgroundColor: themeData.colorScheme.primary,
-                  foregroundColor: themeData.colorScheme.onPrimary,
-                  elevation: 6.0,
-                  shape: const CircleBorder(),
-                  tooltip:
-                      _userDashboardController.currentTheme.value == 'Light'
-                          ? '切换到暗色模式'
-                          : '切换到亮色模式',
-                  child: Icon(
-                    _userDashboardController.currentTheme.value == 'Light'
-                        ? Icons.dark_mode
-                        : Icons.light_mode,
-                    size: 24.0,
+                  highlightColor:
+                      themeData.colorScheme.primary.withOpacity(0.9),
+                  elevation: 8.0,
+                  highlightElevation: 10.0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12.0),
                   ),
                 ),
+                inputTheme: InputDecorationTheme(
+                  filled: true,
+                  fillColor: themeData.colorScheme.surfaceContainerHighest,
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 20.0, vertical: 16.0),
+                  prefixIconColor: themeData.colorScheme.onSurfaceVariant,
+                  errorStyle: themeData.textTheme.bodySmall?.copyWith(
+                    color: themeData.colorScheme.onErrorContainer,
+                    backgroundColor:
+                        themeData.colorScheme.error.withOpacity(0.9),
+                  ),
+                  labelStyle: themeData.textTheme.bodyMedium?.copyWith(
+                    color: themeData.colorScheme.onSurfaceVariant,
+                    fontSize: 14.0,
+                  ),
+                  hintStyle: themeData.textTheme.bodyMedium?.copyWith(
+                    color:
+                        themeData.colorScheme.onSurfaceVariant.withOpacity(0.6),
+                    fontSize: 14.0,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12.0),
+                    borderSide: BorderSide(
+                      color: themeData.colorScheme.outline.withOpacity(0.4),
+                    ),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12.0),
+                    borderSide: BorderSide(
+                      color: themeData.colorScheme.outline.withOpacity(0.4),
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12.0),
+                    borderSide: BorderSide(
+                      color: themeData.colorScheme.primary,
+                      width: 2.0,
+                    ),
+                  ),
+                  errorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12.0),
+                    borderSide: BorderSide(
+                      color: themeData.colorScheme.error,
+                      width: 1.5,
+                    ),
+                  ),
+                ),
+                cardInitialHeight: 360.0,
+                cardTopPosition: 180.0,
+                logoWidth: 140.0,
               ),
-            ],
-          ),
+              messages: LoginMessages(
+                passwordHint: '密码',
+                userHint: '用户邮箱',
+                forgotPasswordButton: '忘记密码？',
+                confirmPasswordHint: '再次输入密码',
+                loginButton: '登录',
+                signupButton: '注册',
+                recoverPasswordButton: '重置密码',
+                recoverCodePasswordDescription: '请输入您的用户邮箱',
+                goBackButton: '返回',
+                confirmPasswordError: '密码输入不匹配',
+                confirmSignupSuccess: '注册成功',
+                confirmRecoverSuccess: '密码重置成功',
+                recoverPasswordDescription: '请输入您的用户邮箱，我们将为您重置密码',
+                recoverPasswordIntro: '重置密码',
+              ),
+              onSubmitAnimationCompleted: () {
+                Get.offAllNamed(_userRole == 'ADMIN'
+                    ? AppPages.initial
+                    : AppPages.userInitial);
+              },
+            ),
+            // Theme Toggle Button
+            Positioned(
+              bottom: 32.0,
+              right: 32.0,
+              child: FloatingActionButton(
+                onPressed: _toggleTheme,
+                backgroundColor: themeData.colorScheme.primary,
+                foregroundColor: themeData.colorScheme.onPrimary,
+                elevation: 6.0,
+                shape: const CircleBorder(),
+                tooltip: _isDarkMode ? '切换到亮色模式' : '切换到暗色模式',
+                child: Icon(
+                  _isDarkMode ? Icons.light_mode : Icons.dark_mode,
+                  size: 24.0,
+                ),
+              ),
+            ),
+          ],
         ),
-      );
-    });
+      ),
+    );
   }
 }
 

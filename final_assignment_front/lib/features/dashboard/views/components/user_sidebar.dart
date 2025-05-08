@@ -10,15 +10,19 @@ class UserSidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final UserDashboardController controller = Get.find<UserDashboardController>();
+    final UserDashboardController controller =
+        Get.find<UserDashboardController>();
 
     return Obx(() {
       final ThemeData currentTheme = controller.currentBodyTheme.value;
       final bool isLight = currentTheme.brightness == Brightness.light;
-      final Color backgroundColor = isLight ? Colors.white : currentTheme.cardColor;
+      final Color backgroundColor =
+          isLight ? Colors.white : currentTheme.cardColor;
       final Color dividerColor = isLight ? Colors.grey[500]! : Colors.white24;
-      final TextStyle defaultTextStyle = TextStyle(color: isLight ? Colors.black87 : Colors.white);
-      final IconThemeData defaultIconTheme = IconThemeData(color: isLight ? Colors.black87 : Colors.white);
+      final TextStyle defaultTextStyle =
+          TextStyle(color: isLight ? Colors.black87 : Colors.white);
+      final IconThemeData defaultIconTheme =
+          IconThemeData(color: isLight ? Colors.black87 : Colors.white);
 
       return Container(
         color: backgroundColor,
@@ -37,7 +41,9 @@ class UserSidebar extends StatelessWidget {
                   ),
                   Divider(thickness: 1, color: dividerColor),
                   Theme(
-                    data: isLight ? Theme.of(context) : Theme.of(context).copyWith(primaryColor: Colors.blue),
+                    data: isLight
+                        ? Theme.of(context)
+                        : Theme.of(context).copyWith(primaryColor: Colors.blue),
                     child: SelectionButton(
                       data: [
                         SelectionButtonData(
@@ -78,7 +84,8 @@ class UserSidebar extends StatelessWidget {
                         ),
                       ],
                       onSelected: (index, value) {
-                        log("index : $index | label : ${value.label} | route: ${value.routeName}");
+                        developer.log(
+                            "index: $index | label: ${value.label} | route: ${value.routeName}");
                         if (value.routeName == "homePage") {
                           controller.exitSidebarContent();
                         } else {
@@ -93,7 +100,8 @@ class UserSidebar extends StatelessWidget {
                     child: PostCard(
                       backgroundColor: isLight
                           ? Colors.grey[100]!.withAlpha((0.4 * 255).toInt())
-                          : currentTheme.canvasColor.withAlpha((0.4 * 255).toInt()),
+                          : currentTheme.canvasColor
+                              .withAlpha((0.4 * 255).toInt()),
                       onPressed: () {},
                     ),
                   ),
