@@ -32,7 +32,7 @@ class ProgressManagementPage extends StatelessWidget {
           elevation: 2,
           foregroundColor: themeData.colorScheme.onPrimaryContainer,
           actions: [
-            if (progressController.isAdmin.value)
+            if (progressController.isAdmin)
               IconButton(
                 icon: Icon(Icons.add,
                     color: themeData.colorScheme.onPrimaryContainer),
@@ -46,10 +46,10 @@ class ProgressManagementPage extends StatelessWidget {
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
-              // 筛选控件
+// 筛选控件
               _buildFilterControls(context, progressController, themeData),
               const SizedBox(height: 16),
-              // 进度列表
+// 进度列表
               Expanded(
                 child: progressController.isLoading.value
                     ? Center(
@@ -68,7 +68,7 @@ class ProgressManagementPage extends StatelessWidget {
                               ),
                             ),
                           )
-                        : !progressController.isAdmin.value
+                        : !progressController.isAdmin
                             ? Center(
                                 child: Text(
                                   '权限不足：仅管理员可访问',
@@ -175,8 +175,7 @@ class ProgressManagementPage extends StatelessWidget {
                                               ),
                                             ],
                                           ),
-                                          trailing: progressController
-                                                  .isAdmin.value
+                                          trailing: progressController.isAdmin
                                               ? PopupMenuButton<String>(
                                                   icon: Icon(
                                                     Icons.more_vert,
@@ -418,7 +417,10 @@ class ProgressManagementPage extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ).whenComplete(() {
+      titleController.dispose();
+      detailsController.dispose();
+    });
   }
 
   Widget _buildFilterControls(BuildContext context,

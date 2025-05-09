@@ -143,6 +143,9 @@ class Routes {
 
   // 用户违章列表页面路由
   static const userOffenseListPage = _Paths.userOffenseListPage;
+
+  // 违章列表页面路由
+  static const trafficViolationScreen = '/trafficViolationScreen';
 }
 
 /// 包含路由名称列表。
@@ -289,6 +292,9 @@ class _Paths {
 
   // 用户处罚列表页面路由
   static const userOffenseListPage = '/userOffenseListPage';
+
+  // 违章列表页面路由
+  static const trafficViolationScreen = '/trafficViolationScreen';
 // 示例：
 // static const index = '/';
 // static const splash = '/splash';

@@ -21,6 +21,7 @@ import 'package:final_assignment_front/features/dashboard/views/manager_screens/
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/main_process_pages/offense_list.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/progress_management.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/main_process_pages/vehicle_list.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/traffic_violation_screen.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/main_process_pages/user_offense_list_page.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/news/AccidentEvidencePage.dart';
@@ -186,6 +187,9 @@ class AppPages {
   // 用户处罚管理
   static const userOffenseListPage = Routes.userOffenseListPage;
 
+  // 违法信息图表显示页面
+  static const trafficViolationScreen = Routes.trafficViolationScreen;
+
   // 配置应用中的所有页面路由
   static final routes = [
     GetPage(
@@ -307,5 +311,8 @@ class AppPages {
     GetPage(
         name: _Paths.userOffenseListPage,
         page: () => const UserOffenseListPage()),
+    GetPage(
+        name: _Paths.trafficViolationScreen,
+        page: () => const TrafficViolationScreen()),
   ];
 }

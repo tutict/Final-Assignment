@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/progress_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
+import 'package:final_assignment_front/features/model/progress_item.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -12,8 +15,15 @@ class OnlineProcessingProgress extends StatelessWidget {
   Widget build(BuildContext context) {
     final UserDashboardController dashboardController =
         Get.find<UserDashboardController>();
-    final ProgressController progressController =
-        Get.find<ProgressController>();
+
+// Ensure ProgressController is registered (fallback, but prefer global registration)
+    ProgressController progressController;
+    try {
+      progressController = Get.find<ProgressController>();
+    } catch (e) {
+      progressController = Get.put(ProgressController());
+      debugPrint('ProgressController was not found; registered locally: $e');
+    }
 
     return Obx(() {
       final themeData = dashboardController.currentBodyTheme.value;
@@ -35,10 +45,8 @@ class OnlineProcessingProgress extends StatelessWidget {
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
-              // 筛选控件，传递 context
               _buildFilterControls(context, progressController, themeData),
               const SizedBox(height: 16),
-              // 进度列表
               Expanded(
                 child: progressController.isLoading.value
                     ? Center(
@@ -165,6 +173,18 @@ class OnlineProcessingProgress extends StatelessWidget {
                                                     .fetchProgress();
                                               }
                                             });
+                                          } else if (value == 'edit') {
+                                            _showEditProgressDialog(
+                                                context,
+                                                themeData,
+                                                progressController,
+                                                item);
+                                          } else if (value == 'delete') {
+                                            _showDeleteConfirmationDialog(
+                                                context,
+                                                themeData,
+                                                progressController,
+                                                item.id!);
                                           }
                                         },
                                         itemBuilder: (context) => [
@@ -177,6 +197,30 @@ class OnlineProcessingProgress extends StatelessWidget {
                                                   ?.copyWith(
                                                 color: themeData
                                                     .colorScheme.onSurface,
+                                              ),
+                                            ),
+                                          ),
+                                          PopupMenuItem(
+                                            value: 'edit',
+                                            child: Text(
+                                              '编辑',
+                                              style: themeData
+                                                  .textTheme.bodyMedium
+                                                  ?.copyWith(
+                                                color: themeData
+                                                    .colorScheme.onSurface,
+                                              ),
+                                            ),
+                                          ),
+                                          PopupMenuItem(
+                                            value: 'delete',
+                                            child: Text(
+                                              '删除',
+                                              style: themeData
+                                                  .textTheme.bodyMedium
+                                                  ?.copyWith(
+                                                color:
+                                                    themeData.colorScheme.error,
                                               ),
                                             ),
                                           ),
@@ -206,12 +250,11 @@ class OnlineProcessingProgress extends StatelessWidget {
       ProgressController controller, ThemeData themeData) {
     return Row(
       children: [
-        // 状态筛选
         Expanded(
           child: DropdownButtonFormField<String>(
-            value: controller.filteredItems.isNotEmpty
-                ? controller.filteredItems.first.status
-                : controller.statusCategories.first,
+            value: controller.statusCategories.isNotEmpty
+                ? controller.statusCategories.first
+                : null,
             decoration: InputDecoration(
               labelText: '状态筛选',
               labelStyle: themeData.textTheme.bodyMedium?.copyWith(
@@ -245,7 +288,6 @@ class OnlineProcessingProgress extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 16),
-        // 时间范围筛选按钮
         IconButton(
           icon: Icon(
             Icons.date_range,
@@ -254,7 +296,6 @@ class OnlineProcessingProgress extends StatelessWidget {
           onPressed: () => _showDateRangePicker(controller, themeData),
           tooltip: '按时间范围筛选',
         ),
-        // 清除筛选按钮
         IconButton(
           icon: Icon(
             Icons.clear,
@@ -267,7 +308,6 @@ class OnlineProcessingProgress extends StatelessWidget {
           tooltip: '清除筛选',
         ),
         const SizedBox(width: 16),
-        // 提交新进度按钮
         ElevatedButton(
           onPressed: () =>
               _showSubmitProgressDialog(context, themeData, controller),
@@ -413,6 +453,12 @@ class OnlineProcessingProgress extends StatelessWidget {
           ),
           ElevatedButton(
             onPressed: () async {
+              if (titleController.text.isEmpty ||
+                  detailsController.text.isEmpty) {
+                Get.snackbar('错误', '标题和详情不能为空',
+                    snackPosition: SnackPosition.TOP);
+                return;
+              }
               await progressController.submitProgress(
                 titleController.text,
                 detailsController.text,
@@ -431,6 +477,214 @@ class OnlineProcessingProgress extends StatelessWidget {
               ),
             ),
             child: const Text('提交'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditProgressDialog(BuildContext context, ThemeData themeData,
+      ProgressController progressController, ProgressItem item) {
+    final titleController = TextEditingController(text: item.title);
+    final detailsController = TextEditingController(text: item.details);
+    String selectedStatus = item.status;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: themeData.colorScheme.surfaceContainerHighest,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          '编辑进度',
+          style: themeData.textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: themeData.colorScheme.onSurface,
+          ),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: titleController,
+                decoration: InputDecoration(
+                  labelText: '进度标题',
+                  labelStyle: themeData.textTheme.bodyMedium?.copyWith(
+                    color: themeData.colorScheme.onSurfaceVariant,
+                  ),
+                  filled: true,
+                  fillColor: themeData.colorScheme.surfaceContainerLow,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: themeData.colorScheme.primary,
+                      width: 2,
+                    ),
+                  ),
+                ),
+                style: themeData.textTheme.bodyLarge?.copyWith(
+                  color: themeData.colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: detailsController,
+                decoration: InputDecoration(
+                  labelText: '详情',
+                  labelStyle: themeData.textTheme.bodyMedium?.copyWith(
+                    color: themeData.colorScheme.onSurfaceVariant,
+                  ),
+                  filled: true,
+                  fillColor: themeData.colorScheme.surfaceContainerLow,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: themeData.colorScheme.primary,
+                      width: 2,
+                    ),
+                  ),
+                ),
+                maxLines: 3,
+                style: themeData.textTheme.bodyLarge?.copyWith(
+                  color: themeData.colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                value: selectedStatus,
+                decoration: InputDecoration(
+                  labelText: '状态',
+                  labelStyle: themeData.textTheme.bodyMedium?.copyWith(
+                    color: themeData.colorScheme.onSurfaceVariant,
+                  ),
+                  filled: true,
+                  fillColor: themeData.colorScheme.surfaceContainerLow,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+                items: progressController.statusCategories.map((status) {
+                  return DropdownMenuItem<String>(
+                    value: status,
+                    child: Text(
+                      _translateStatus(status),
+                      style: themeData.textTheme.bodyMedium?.copyWith(
+                        color: themeData.colorScheme.onSurface,
+                      ),
+                    ),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  if (value != null) {
+                    selectedStatus = value;
+                  }
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              '取消',
+              style: themeData.textTheme.labelLarge?.copyWith(
+                color: themeData.colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (titleController.text.isEmpty ||
+                  detailsController.text.isEmpty) {
+                Get.snackbar('错误', '标题和详情不能为空',
+                    snackPosition: SnackPosition.TOP);
+                return;
+              }
+              await progressController.updateProgress(
+                item.id!,
+                titleController.text,
+                detailsController.text,
+                selectedStatus,
+              );
+              Navigator.pop(ctx);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: themeData.colorScheme.primary,
+              foregroundColor: themeData.colorScheme.onPrimary,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              textStyle: themeData.textTheme.labelLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            child: const Text('保存'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteConfirmationDialog(BuildContext context, ThemeData themeData,
+      ProgressController progressController, int id) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: themeData.colorScheme.surfaceContainerHighest,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          '确认删除',
+          style: themeData.textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: themeData.colorScheme.onSurface,
+          ),
+        ),
+        content: Text(
+          '确定要删除此进度记录吗？此操作不可撤销。',
+          style: themeData.textTheme.bodyMedium?.copyWith(
+            color: themeData.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              '取消',
+              style: themeData.textTheme.labelLarge?.copyWith(
+                color: themeData.colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              await progressController.deleteProgress(id);
+              Navigator.pop(ctx);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: themeData.colorScheme.error,
+              foregroundColor: themeData.colorScheme.onError,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              textStyle: themeData.textTheme.labelLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            child: const Text('删除'),
           ),
         ],
       ),

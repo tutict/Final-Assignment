@@ -847,9 +847,9 @@ class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
   bool _isLoadingProgress = false;
 
   final UserDashboardController? controller =
-      Get.isRegistered<UserDashboardController>()
-          ? Get.find<UserDashboardController>()
-          : null;
+  Get.isRegistered<UserDashboardController>()
+      ? Get.find<UserDashboardController>()
+      : null;
 
   @override
   void initState() {
@@ -928,7 +928,7 @@ class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
                     enabledBorder: OutlineInputBorder(
                       borderSide: BorderSide(
                           color:
-                              themeData.colorScheme.outline.withOpacity(0.3)),
+                          themeData.colorScheme.outline.withOpacity(0.3)),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderSide: BorderSide(
@@ -941,7 +941,7 @@ class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
                   controller: detailsController,
                   style: TextStyle(color: themeData.colorScheme.onSurface),
                   decoration: InputDecoration(
-                    labelText: '详情',
+                    labelText: '详情（可选）',
                     labelStyle: TextStyle(
                         color: themeData.colorScheme.onSurfaceVariant),
                     filled: true,
@@ -952,7 +952,7 @@ class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
                     enabledBorder: OutlineInputBorder(
                       borderSide: BorderSide(
                           color:
-                              themeData.colorScheme.outline.withOpacity(0.3)),
+                          themeData.colorScheme.outline.withOpacity(0.3)),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderSide: BorderSide(
@@ -987,7 +987,9 @@ class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
                 }
                 await progressController.submitProgress(
                   titleController.text,
-                  detailsController.text,
+                  detailsController.text.isNotEmpty
+                      ? detailsController.text
+                      : null,
                   appealId: widget.appeal.appealId,
                 );
                 Navigator.pop(ctx);
@@ -995,9 +997,9 @@ class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
               },
               style: themeData.elevatedButtonTheme.style?.copyWith(
                 backgroundColor:
-                    WidgetStateProperty.all(themeData.colorScheme.primary),
+                WidgetStateProperty.all(themeData.colorScheme.primary),
                 foregroundColor:
-                    WidgetStateProperty.all(themeData.colorScheme.onPrimary),
+                WidgetStateProperty.all(themeData.colorScheme.onPrimary),
               ),
               child: const Text('提交'),
             ),
@@ -1083,8 +1085,8 @@ class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
                             widget.appeal.processStatus == "Pending"
                                 ? "待处理"
                                 : widget.appeal.processStatus == "Approved"
-                                    ? "已通过"
-                                    : "已拒绝",
+                                ? "已通过"
+                                : "已拒绝",
                             themeData),
                         _buildDetailRow('处理结果',
                             widget.appeal.processResult ?? '无', themeData),
@@ -1114,43 +1116,43 @@ class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
                         _isLoadingProgress
                             ? const Center(child: CircularProgressIndicator())
                             : Obx(() {
-                                final relatedProgress = progressController
-                                    .progressItems
-                                    .where((p) =>
-                                        p.appealId == widget.appeal.appealId)
-                                    .toList();
-                                if (relatedProgress.isEmpty) {
-                                  return Text(
-                                    '暂无相关进度',
-                                    style: themeData.textTheme.bodyMedium
-                                        ?.copyWith(
-                                      color: themeData
-                                          .colorScheme.onSurfaceVariant,
-                                    ),
-                                  );
-                                }
-                                return Column(
-                                  children: relatedProgress
-                                      .map((item) => ListTile(
-                                            title: Text(
-                                              item.title,
-                                              style:
-                                                  themeData.textTheme.bodyLarge,
-                                            ),
-                                            subtitle: Text(
-                                              '状态: ${item.status}\n提交时间: ${formatDateTime(item.submitTime)}',
-                                              style: themeData
-                                                  .textTheme.bodyMedium,
-                                            ),
-                                            trailing: const Icon(
-                                                Icons.arrow_forward_ios),
-                                            onTap: () => Get.toNamed(
-                                                '/progressDetail',
-                                                arguments: item),
-                                          ))
-                                      .toList(),
-                                );
-                              }),
+                          final relatedProgress = progressController
+                              .progressItems
+                              .where((p) =>
+                          p.appealId == widget.appeal.appealId)
+                              .toList();
+                          if (relatedProgress.isEmpty) {
+                            return Text(
+                              '暂无相关进度',
+                              style: themeData.textTheme.bodyMedium
+                                  ?.copyWith(
+                                color: themeData
+                                    .colorScheme.onSurfaceVariant,
+                              ),
+                            );
+                          }
+                          return Column(
+                            children: relatedProgress
+                                .map((item) => ListTile(
+                              title: Text(
+                                item.title,
+                                style:
+                                themeData.textTheme.bodyLarge,
+                              ),
+                              subtitle: Text(
+                                '状态: ${item.status}\n提交时间: ${formatDateTime(item.submitTime)}',
+                                style: themeData
+                                    .textTheme.bodyMedium,
+                              ),
+                              trailing: const Icon(
+                                  Icons.arrow_forward_ios),
+                              onTap: () => Get.toNamed(
+                                  '/progressDetail',
+                                  arguments: item),
+                            ))
+                                .toList(),
+                          );
+                        }),
                       ],
                     ),
                   ),

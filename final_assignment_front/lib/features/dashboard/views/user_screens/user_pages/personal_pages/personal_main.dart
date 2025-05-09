@@ -44,7 +44,7 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
       DriverInformationControllerApi();
   bool _isLoading = true;
   final bool _isEditable = true;
-  bool _idCardNumberEdited = false;
+  bool _driverLicenseNumberEdited = false; // Renamed from _idCardNumberEdited
   String _errorMessage = '';
 
   final TextEditingController _nameController = TextEditingController();
@@ -54,6 +54,8 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
       TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _idCardNumberController = TextEditingController();
+  final TextEditingController _driverLicenseNumberController =
+      TextEditingController();
 
   late ScrollController _scrollController;
 
@@ -79,6 +81,7 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
     _contactNumberController.dispose();
     _emailController.dispose();
     _idCardNumberController.dispose();
+    _driverLicenseNumberController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -126,23 +129,25 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
         driverInfo =
             await driverApi.apiDriversDriverIdGet(driverId: user.userId);
         debugPrint('Driver info fetched: ${driverInfo?.toJson()}');
-        if (driverInfo?.idCardNumber != null &&
-            driverInfo!.idCardNumber!.isNotEmpty) {
-          _idCardNumberEdited = true;
+        if (driverInfo?.driverLicenseNumber != null &&
+            driverInfo!.driverLicenseNumber!.isNotEmpty) {
+          _driverLicenseNumberEdited = true;
         }
       } catch (e) {
         if (e is ApiException && e.code == 404) {
           final idempotencyKey = generateIdempotencyKey();
-          // Generate a 12-digit driver license number if idCardNumber is empty
+          // Generate a 12-digit driver license number
           final driverLicenseNumber = generateDriverLicenseNumber();
           driverInfo = DriverInformation(
             driverId: user.userId,
             name: user.username ?? '未知用户',
             contactNumber: user.contactNumber ?? '',
-            idCardNumber: driverLicenseNumber,
+            idCardNumber: '',
+            // ID card number can be set later
+            driverLicenseNumber: driverLicenseNumber,
           );
           debugPrint(
-              'Creating new driver with driverId: ${user.userId}, name: ${user.username}, idCardNumber: $driverLicenseNumber');
+              'Creating new driver with driverId: ${user.userId}, name: ${user.username}, driverLicenseNumber: $driverLicenseNumber');
           await driverApi.apiDriversPost(
             driverInformation: driverInfo,
             idempotencyKey: idempotencyKey,
@@ -150,7 +155,7 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
           driverInfo =
               await driverApi.apiDriversDriverIdGet(driverId: user.userId);
           debugPrint('Driver created and fetched: ${driverInfo?.toJson()}');
-          _idCardNumberEdited =
+          _driverLicenseNumberEdited =
               true; // Mark as edited to prevent further changes
         } else {
           debugPrint('Driver fetch error: $e');
@@ -170,6 +175,8 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
               driverInfo?.contactNumber ?? user.contactNumber ?? '';
           _emailController.text = user.email ?? '';
           _idCardNumberController.text = driverInfo?.idCardNumber ?? '';
+          _driverLicenseNumberController.text =
+              driverInfo?.driverLicenseNumber ?? '';
           _isLoading = false;
         });
       }
@@ -209,6 +216,7 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
             contactNumber:
                 _driverInfo?.contactNumber ?? currentUser.contactNumber ?? '',
             idCardNumber: _driverInfo?.idCardNumber ?? '',
+            driverLicenseNumber: _driverInfo?.driverLicenseNumber ?? '',
           );
           debugPrint(
               'Updating driver with driverId: ${currentUser.userId}, name: $value');
@@ -227,6 +235,7 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
             name: _driverInfo?.name ?? currentUser.username ?? '未知用户',
             contactNumber: value,
             idCardNumber: _driverInfo?.idCardNumber ?? '',
+            driverLicenseNumber: _driverInfo?.driverLicenseNumber ?? '',
           );
           debugPrint(
               'Updating driver with driverId: ${currentUser.userId}, contactNumber: $value');
@@ -239,24 +248,26 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
           debugPrint('Driver updated and fetched: ${_driverInfo?.toJson()}');
           break;
 
-        case 'idCardNumber':
-          final newDriverIdCard = DriverInformation(
+        case 'driverLicenseNumber':
+          final newDriverLicense = DriverInformation(
             driverId: currentUser.userId,
             name: _driverInfo?.name ?? currentUser.username ?? '未知用户',
             contactNumber:
                 _driverInfo?.contactNumber ?? currentUser.contactNumber ?? '',
-            idCardNumber: value.isEmpty ? generateDriverLicenseNumber() : value,
+            idCardNumber: _driverInfo?.idCardNumber ?? '',
+            driverLicenseNumber:
+                value.isEmpty ? generateDriverLicenseNumber() : value,
           );
           debugPrint(
-              'Updating driver with driverId: ${currentUser.userId}, idCardNumber: ${newDriverIdCard.idCardNumber}');
+              'Updating driver with driverId: ${currentUser.userId}, driverLicenseNumber: ${newDriverLicense.driverLicenseNumber}');
           await driverApi.apiDriversPost(
-            driverInformation: newDriverIdCard,
+            driverInformation: newDriverLicense,
             idempotencyKey: idempotencyKey,
           );
           _driverInfo = await driverApi.apiDriversDriverIdGet(
               driverId: currentUser.userId);
           debugPrint('Driver updated and fetched: ${_driverInfo?.toJson()}');
-          if (mounted) setState(() => _idCardNumberEdited = true);
+          if (mounted) setState(() => _driverLicenseNumberEdited = true);
           break;
 
         case 'password':
@@ -552,7 +563,7 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
                 ),
                 _buildListTile(
                   title: '邮箱',
-                  subtitle: userInfo.username ?? '无数据',
+                  subtitle: userInfo.email ?? '无数据',
                   themeData: themeData,
                 ),
                 _buildListTile(
@@ -588,12 +599,21 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
                   title: '身份证号码',
                   subtitle: _driverInfo?.idCardNumber ?? '无数据',
                   themeData: themeData,
-                  onTap: _isEditable && !_idCardNumberEdited
+                  // Non-editable for simplicity; add onTap if needed
+                ),
+                _buildListTile(
+                  title: '驾驶证号',
+                  subtitle: _driverInfo?.driverLicenseNumber ?? '无数据',
+                  themeData: themeData,
+                  onTap: _isEditable && !_driverLicenseNumberEdited
                       ? () {
-                          _idCardNumberController.text =
-                              _driverInfo?.idCardNumber ?? '';
-                          _showEditDialog('身份证号码', _idCardNumberController,
-                              (value) => _updateField('idCardNumber', value));
+                          _driverLicenseNumberController.text =
+                              _driverInfo?.driverLicenseNumber ?? '';
+                          _showEditDialog(
+                              '驾驶证号',
+                              _driverLicenseNumberController,
+                              (value) =>
+                                  _updateField('driverLicenseNumber', value));
                         }
                       : null,
                 ),

@@ -132,13 +132,39 @@ class _TrafficViolationScreenState extends State<TrafficViolationScreen> {
                   '申诉理由分布',
                   _appealReasons == null || _appealReasons!.isEmpty
                       ? const Center(child: Text('无申诉理由数据'))
-                      : const TrafficViolationPieChartCard(),
+                      : ActiveProjectCard(
+                          title: '申诉理由分布',
+                          onPressedSeeAll: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('查看申诉理由详情')),
+                            );
+                          },
+                          child: SizedBox(
+                            height: 250,
+                            child: TrafficViolationPieChart(
+                              data: _appealReasons!,
+                            ),
+                          ),
+                        ),
                 ),
                 _buildChartSection(
                   '罚款支付状态',
                   _paymentStatus == null || _paymentStatus!.isEmpty
                       ? const Center(child: Text('无支付状态数据'))
-                      : const TrafficViolationPieChartCard(),
+                      : ActiveProjectCard(
+                          title: '罚款支付状态',
+                          onPressedSeeAll: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('查看支付状态详情')),
+                            );
+                          },
+                          child: SizedBox(
+                            height: 250,
+                            child: TrafficViolationPieChart(
+                              data: _paymentStatus!,
+                            ),
+                          ),
+                        ),
                 ),
               ],
             ],
@@ -391,46 +417,50 @@ class _TrafficViolationScreenState extends State<TrafficViolationScreen> {
 
 // Pie chart wrapper
 class TrafficViolationPieChartCard extends StatelessWidget {
-  const TrafficViolationPieChartCard({super.key});
+  final Map<String, int> data;
+  final String title;
+
+  const TrafficViolationPieChartCard({
+    super.key,
+    required this.data,
+    required this.title,
+  });
 
   @override
   Widget build(BuildContext context) {
     return ActiveProjectCard(
-      title: "分布分析",
+      title: title,
       onPressedSeeAll: () {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("查看详情：分布数据")),
+          SnackBar(content: Text("查看详情：$title")),
         );
       },
-      child: const SizedBox(
+      child: SizedBox(
         height: 250,
-        child: TrafficViolationPieChart(),
+        child: TrafficViolationPieChart(data: data),
       ),
     );
   }
 }
 
-// Pie chart with hardcoded data
+// Pie chart with dynamic data
 class TrafficViolationPieChart extends StatelessWidget {
-  static const Map<String, int> _violationData = {
-    "超速": 150,
-    "闯红灯": 100,
-    "违停": 80,
-    "酒驾": 30,
-    "其他": 40,
-  };
+  final Map<String, int> data;
 
-  const TrafficViolationPieChart({super.key});
+  const TrafficViolationPieChart({
+    super.key,
+    required this.data,
+  });
 
   @override
   Widget build(BuildContext context) {
-    if (_violationData.isEmpty) {
-      return const Center(child: Text('无违法数据可用'));
+    if (data.isEmpty) {
+      return const Center(child: Text('无数据可用'));
     }
 
     final theme = Theme.of(context);
-    final dataList = _violationData.entries.toList();
-    final totalCount = _violationData.values.reduce((a, b) => a + b);
+    final dataList = data.entries.toList();
+    final totalCount = data.values.reduce((a, b) => a + b);
 
     final colors = List<Color>.generate(
       dataList.length,

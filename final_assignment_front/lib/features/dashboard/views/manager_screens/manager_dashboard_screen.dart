@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:developer';
 import 'dart:ui';
 import 'package:chinese_font_library/chinese_font_library.dart';
@@ -8,7 +7,6 @@ import 'package:final_assignment_front/config/themes/app_theme.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
 import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/role_management_controller_api.dart';
-import 'package:final_assignment_front/features/api/traffic_violation_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/models/profile.dart';
 import 'package:final_assignment_front/features/dashboard/views/components/active_project_card.dart'
     hide kSpacing, kBorderRadius;
@@ -26,7 +24,6 @@ import 'package:final_assignment_front/shared_components/project_card.dart';
 import 'package:final_assignment_front/shared_components/responsive_builder.dart';
 import 'package:final_assignment_front/shared_components/selection_button.dart';
 import 'package:final_assignment_front/shared_components/today_text.dart';
-import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
 import 'package:final_assignment_front/utils/mixins/app_mixins.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -56,6 +53,35 @@ part '../components/team_member.dart';
 class DashboardScreen extends GetView<DashboardController>
     with NavigationMixin {
   const DashboardScreen({super.key});
+
+// Hardcoded traffic violation data
+  static final Map<String, dynamic> hardcodedTrafficViolationData = {
+    'violationTypes': {
+      "超速": 120,
+      "闯红灯": 80,
+      "违停": 50,
+      "酒驾": 20,
+      "其他": 30,
+    },
+    'timeSeries': List.generate(7, (index) {
+      final date = DateTime.now().subtract(Duration(days: 6 - index));
+      return {
+        'time': date.toIso8601String(),
+        'value1': 50 + index * 10, // Fines
+        'value2': 30 + index * 5, // Points
+      };
+    }),
+    'appealReasons': {
+      "证据不足": 50,
+      "程序不当": 30,
+      "误判": 20,
+      "其他": 10,
+    },
+    'paymentStatus': {
+      "已支付": 100,
+      "未支付": 50,
+    },
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -254,8 +280,8 @@ class DashboardScreen extends GetView<DashboardController>
                     _buildProgressSection(Axis.horizontal, context),
                     _buildActiveProjectSection(
                       context,
-                      crossAxisCount: isDesktop ? 4 : 2,
-                      childAspectRatio: isDesktop ? 1.1 : 1.2,
+                      crossAxisCount: 1,
+                      childAspectRatio: 1.6, // Adjusted for more vertical space
                     ),
                   ],
                 );
@@ -381,19 +407,15 @@ class DashboardScreen extends GetView<DashboardController>
     required int crossAxisCount,
     required double childAspectRatio,
   }) {
-    double gridHeight;
-    if (crossAxisCount == 2) {
-      gridHeight = MediaQuery.of(context).size.height * 1.44;
-    } else if (crossAxisCount == 3) {
-      gridHeight = MediaQuery.of(context).size.height * 0.94;
-    } else {
-      gridHeight = MediaQuery.of(context).size.height * 0.78;
-    }
+// Height for two stacked charts with titles
+    final double gridHeight = MediaQuery.of(context).size.height * 1.0;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: kSpacing),
       child: ActiveProjectCard(
-        onPressedSeeAll: () => log("查看所有项目"),
+        onPressedSeeAll: () {
+          Get.toNamed(AppPages.trafficViolationScreen);
+        },
         child: Container(
           height: gridHeight,
           decoration: BoxDecoration(
@@ -406,115 +428,90 @@ class DashboardScreen extends GetView<DashboardController>
               ),
             ],
           ),
-          child: FutureBuilder<Map<String, dynamic>>(
-            future: _fetchTrafficViolationData(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              } else if (snapshot.hasError) {
-                log('Error in FutureBuilder: ${snapshot.error}');
-                String errorMessage = 'Failed to load traffic violation data';
-                if (snapshot.error is ApiException) {
-                  final apiError = snapshot.error as ApiException;
-                  errorMessage =
-                      'API Error ${apiError.code}: ${apiError.message}';
-                  try {
-                    final errorJson = jsonDecode(apiError.message);
-                    if (errorJson['message'] != null) {
-                      errorMessage += ' - ${errorJson['message']}';
-                    }
-                  } catch (_) {}
-                }
-                return Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(errorMessage,
-                          style: const TextStyle(color: Colors.red)),
-                      const SizedBox(height: 8),
-                      ElevatedButton(
-                        onPressed: () => (() {}),
-                        child: const Text('Retry'),
-                      ),
-                    ],
-                  ),
-                );
-              } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                return const Center(child: Text('No data available'));
-              } else {
-                final data = snapshot.data!;
-                final violationTypes =
-                    data['violationTypes'] as Map<String, int>;
-                final timeSeries =
-                    data['timeSeries'] as List<Map<String, dynamic>>;
-                final paymentStatus = data['paymentStatus'] as Map<String, int>;
-                final startTime =
-                    DateTime.now().subtract(const Duration(days: 30));
+          child: Builder(
+            builder: (context) {
+              final data = hardcodedTrafficViolationData;
+              final violationTypes = data['violationTypes'] as Map<String, int>;
+              final timeSeries =
+                  data['timeSeries'] as List<Map<String, dynamic>>;
+              final startTime =
+                  DateTime.now().subtract(const Duration(days: 30));
 
-                return GridView.builder(
-                  itemCount: crossAxisCount >= 3
-                      ? 3
-                      : crossAxisCount >= 2
-                          ? 2
-                          : 1,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: crossAxisCount,
-                    crossAxisSpacing: kSpacing,
-                    mainAxisSpacing: kSpacing,
-                    childAspectRatio: childAspectRatio,
-                  ),
-                  itemBuilder: (context, index) {
-                    if (index == 0) {
-                      return Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
+              return GridView.builder(
+                itemCount: 2,
+                // Only two charts
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: crossAxisCount,
+                  crossAxisSpacing: kSpacing,
+                  mainAxisSpacing: kSpacing * 1.5,
+                  childAspectRatio: childAspectRatio,
+                  mainAxisExtent: 330, // Increased for larger charts + title
+                ),
+                itemBuilder: (context, index) {
+                  Widget chart;
+                  String title;
+
+                  if (index == 0) {
+                    chart = SizedBox(
+                      height: 280, // Increased for full visibility
+                      child: TrafficViolationBarChart(
+                        typeCountMap: violationTypes,
+                        startTime: startTime,
+                      ),
+                    );
+                    title = '违法类型分布';
+                  } else {
+                    chart = SizedBox(
+                      height: 280, // Increased for full visibility
+                      child:
+                          _buildTimeSeriesChart(context, timeSeries, startTime),
+                    );
+                    title = '罚款与扣分趋势';
+                  }
+
+                  return Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Text(
+                              title,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14, // Reduced for fit
+                                  )
+                                  .useSystemChineseFont(),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                          ],
-                        ),
-                        child: TrafficViolationBarChart(
-                          typeCountMap: violationTypes,
-                          startTime: startTime,
-                        ),
-                      );
-                    } else if (index == 1) {
-                      return Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: _buildTimeSeriesChart(timeSeries, startTime),
-                      );
-                    } else {
-                      return Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: const TrafficViolationPieChart(),
-                      );
-                    }
-                  },
-                );
-              }
+                          ),
+                          Expanded(
+                            child: chart,
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              );
             },
           ),
         ),
@@ -522,41 +519,19 @@ class DashboardScreen extends GetView<DashboardController>
     );
   }
 
-  Future<Map<String, dynamic>> _fetchTrafficViolationData() async {
-    final api = TrafficViolationControllerApi();
-    await api.initializeWithJwt();
-    final startTimeStr = DateFormat('yyyy-MM-ddTHH:mm:ssZ')
-        .format(DateTime.now().subtract(const Duration(days: 30)));
-
-    try {
-      log('Fetching traffic violation data with startTime: $startTimeStr');
-      final violationTypes = await api.apiTrafficViolationsViolationTypesGet(
-          startTime: startTimeStr);
-      final timeSeries =
-          await api.apiTrafficViolationsTimeSeriesGet(startTime: startTimeStr);
-      final paymentStatus = await api.apiTrafficViolationsFinePaymentStatusGet(
-          startTime: startTimeStr);
-
-      return {
-        'violationTypes': violationTypes,
-        'timeSeries': timeSeries,
-        'paymentStatus': paymentStatus,
-      };
-    } catch (e) {
-      log('Error fetching traffic violation data: $e');
-      rethrow;
-    }
-  }
-
   Widget _buildTimeSeriesChart(
-      List<Map<String, dynamic>> timeSeries, DateTime startTime) {
+    BuildContext context,
+    List<Map<String, dynamic>> timeSeries,
+    DateTime startTime,
+  ) {
     if (timeSeries.isEmpty) {
       return const SizedBox(
-        height: 200,
-        child: Center(child: Text('No time series data available')),
+        height: 280,
+        child: Center(child: Text('无时间序列数据可用')),
       );
     }
 
+    final theme = Theme.of(context);
     final dataList = timeSeries
         .map((item) => {
               'time': DateTime.parse(item['time']),
@@ -577,140 +552,198 @@ class DashboardScreen extends GetView<DashboardController>
         .reduce((a, b) => a > b ? a : b);
     final maxY = (maxY1 > maxY2 ? maxY1 : maxY2) * 1.2;
 
+// Log chart dimensions for debugging
+    log('TimeSeriesChart: maxX=$maxX, maxY=$maxY, dataPoints=${dataList.length}');
+
     return SizedBox(
-      height: 200,
-      child: Stack(
-        children: [
-          BarChart(
-            BarChartData(
-              alignment: BarChartAlignment.spaceAround,
-              maxY: maxY > 0 ? maxY : 500,
-              minY: 0,
-              barGroups: dataList.map((item) {
-                final days =
-                    (item['time'] as DateTime).difference(startTime).inDays;
-                final value = (item['value1'] as num).toDouble();
-                return BarChartGroupData(
-                  x: days,
-                  barRods: [
-                    BarChartRodData(
-                      toY: value,
-                      color: Colors.yellow.withOpacity(0.5),
-                      width: 8,
-                      borderRadius:
-                          const BorderRadius.vertical(top: Radius.circular(2)),
+      height: 280,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8.0), // Added padding
+        child: ClipRect(
+          child: Stack(
+            children: [
+              BarChart(
+                BarChartData(
+                  alignment: BarChartAlignment.spaceAround,
+                  maxY: maxY > 0 ? maxY : 500,
+                  minY: 0,
+                  barGroups: dataList.asMap().entries.map((entry) {
+                    final item = entry.value;
+                    final days =
+                        (item['time'] as DateTime).difference(startTime).inDays;
+                    final value = (item['value1'] as num).toDouble();
+                    return BarChartGroupData(
+                      x: days,
+                      barRods: [
+                        BarChartRodData(
+                          toY: value,
+                          gradient: LinearGradient(
+                            colors: [
+                              theme.colorScheme.primary,
+                              theme.colorScheme.primaryContainer,
+                            ],
+                            begin: Alignment.bottomCenter,
+                            end: Alignment.topCenter,
+                          ),
+                          width: 12,
+                          borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(4)),
+                          borderSide: BorderSide(
+                            color: theme.colorScheme.primary.withOpacity(0.3),
+                            width: 1,
+                          ),
+                        ),
+                      ],
+                    );
+                  }).toList(),
+                  titlesData: FlTitlesData(
+                    show: true,
+                    leftTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 40, // Reduced for fit
+                        interval: maxY / 5,
+                        getTitlesWidget: (value, meta) => Text(
+                          value.toInt().toString(),
+                          style: TextStyle(
+                            color: theme.colorScheme.onSurfaceVariant,
+                            fontSize: 12, // Reduced for fit
+                          ).useSystemChineseFont(),
+                        ),
+                      ),
                     ),
-                  ],
-                );
-              }).toList(),
-              titlesData: FlTitlesData(
-                show: true,
-                leftTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    reservedSize: 40,
-                    interval: maxY / 5,
-                    getTitlesWidget: (value, meta) => Text(
-                      value.toInt().toString(),
-                      style: const TextStyle(color: Colors.black, fontSize: 12),
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 32, // Reduced for fit
+                        interval: maxX > 7 ? maxX / 7 : 1,
+                        getTitlesWidget: (value, meta) {
+                          final index = value.toInt();
+                          final date = startTime.add(Duration(days: index));
+                          return Text(
+                            DateFormat('MM-dd').format(date),
+                            style: TextStyle(
+                              color: theme.colorScheme.onSurfaceVariant,
+                              fontSize: 12, // Reduced for fit
+                            ).useSystemChineseFont(),
+                          );
+                        },
+                      ),
                     ),
+                    topTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false)),
+                    rightTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false)),
                   ),
-                ),
-                bottomTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    reservedSize: 30,
-                    interval: maxX > 7 ? maxX / 7 : 1,
-                    getTitlesWidget: (value, meta) {
-                      final index = value.toInt();
-                      final date = startTime.add(Duration(days: index));
-                      return Text(
-                        DateFormat('dd').format(date),
-                        style:
-                            const TextStyle(color: Colors.black, fontSize: 12),
+                  gridData: FlGridData(
+                    show: true,
+                    drawVerticalLine: true,
+                    horizontalInterval: maxY / 5,
+                    verticalInterval: maxX > 7 ? maxX / 7 : 1,
+                    getDrawingHorizontalLine: (value) {
+                      return FlLine(
+                        color: theme.colorScheme.onSurface.withOpacity(0.1),
+                        strokeWidth: 1,
                       );
                     },
                   ),
+                  borderData: FlBorderData(
+                    show: true,
+                    border: Border.all(
+                      color: theme.colorScheme.outline.withOpacity(0.2),
+                      width: 1,
+                    ),
+                  ),
+                  barTouchData: BarTouchData(
+                    enabled: true,
+                    touchTooltipData: BarTouchTooltipData(
+                      tooltipRoundedRadius: 8,
+                      tooltipPadding: const EdgeInsets.all(8),
+                      tooltipMargin: 8,
+                      getTooltipColor: (_) =>
+                          theme.colorScheme.primaryContainer.withOpacity(0.9),
+                      getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                        final date = startTime.add(Duration(days: group.x));
+                        return BarTooltipItem(
+                          '${DateFormat('yyyy-MM-dd').format(date)}\n罚款: ${rod.toY.toInt()}',
+                          TextStyle(
+                            color: theme.colorScheme.onPrimaryContainer,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12, // Reduced for fit
+                          ).useSystemChineseFont(),
+                        );
+                      },
+                    ),
+                  ),
                 ),
-                topTitles:
-                    const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                rightTitles:
-                    const AxisTitles(sideTitles: SideTitles(showTitles: false)),
               ),
-              gridData: FlGridData(
-                show: true,
-                drawVerticalLine: true,
-                horizontalInterval: maxY / 5,
-                verticalInterval: maxX > 7 ? maxX / 7 : 1,
-              ),
-              borderData: FlBorderData(show: false),
-              barTouchData: BarTouchData(
-                enabled: true,
-                touchTooltipData: BarTouchTooltipData(
-                  getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                    final date = startTime.add(Duration(days: group.x));
-                    return BarTooltipItem(
-                      '${DateFormat('yyyy-MM-dd').format(date)}\nFines: ${rod.toY.toInt()}',
-                      const TextStyle(color: Colors.white),
-                    );
-                  },
+              LineChart(
+                LineChartData(
+                  lineBarsData: [
+                    LineChartBarData(
+                      spots: dataList.asMap().entries.map((entry) {
+                        final item = entry.value;
+                        final days = (item['time'] as DateTime)
+                            .difference(startTime)
+                            .inDays
+                            .toDouble();
+                        return FlSpot(days, (item['value1'] as num).toDouble());
+                      }).toList(),
+                      isCurved: true,
+                      color: theme.colorScheme.primary,
+                      barWidth: 3,
+                      dotData: const FlDotData(show: false),
+                    ),
+                    LineChartBarData(
+                      spots: dataList.asMap().entries.map((entry) {
+                        final item = entry.value;
+                        final days = (item['time'] as DateTime)
+                            .difference(startTime)
+                            .inDays
+                            .toDouble();
+                        return FlSpot(days, (item['value2'] as num).toDouble());
+                      }).toList(),
+                      isCurved: true,
+                      color: theme.colorScheme.secondary,
+                      barWidth: 3,
+                      dotData: const FlDotData(show: false),
+                    ),
+                  ],
+                  minX: 0,
+                  maxX: maxX > 0 ? maxX : 20,
+                  minY: 0,
+                  maxY: maxY > 0 ? maxY : 500,
+                  titlesData: const FlTitlesData(show: false),
+                  gridData: const FlGridData(show: false),
+                  borderData: FlBorderData(show: false),
+                  lineTouchData: LineTouchData(
+                    enabled: true,
+                    touchTooltipData: LineTouchTooltipData(
+                      tooltipRoundedRadius: 8,
+                      tooltipPadding: const EdgeInsets.all(8),
+                      getTooltipColor: (_) =>
+                          theme.colorScheme.secondaryContainer.withOpacity(0.9),
+                      getTooltipItems: (touchedSpots) =>
+                          touchedSpots.map((spot) {
+                        final date =
+                            startTime.add(Duration(days: spot.x.toInt()));
+                        final label = spot.barIndex == 0 ? '罚款' : '扣分';
+                        return LineTooltipItem(
+                          '${DateFormat('yyyy-MM-dd').format(date)}\n$label: ${spot.y.toInt()}',
+                          TextStyle(
+                            color: theme.colorScheme.onSecondaryContainer,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12, // Reduced for fit
+                          ).useSystemChineseFont(),
+                        );
+                      }).toList(),
+                    ),
+                  ),
                 ),
               ),
-            ),
+            ],
           ),
-          LineChart(
-            LineChartData(
-              lineBarsData: [
-                LineChartBarData(
-                  spots: dataList.map((item) {
-                    final days = (item['time'] as DateTime)
-                        .difference(startTime)
-                        .inDays
-                        .toDouble();
-                    return FlSpot(days, (item['value1'] as num).toDouble());
-                  }).toList(),
-                  isCurved: false,
-                  color: Colors.yellow,
-                  barWidth: 2,
-                  dotData: const FlDotData(show: false),
-                ),
-                LineChartBarData(
-                  spots: dataList.map((item) {
-                    final days = (item['time'] as DateTime)
-                        .difference(startTime)
-                        .inDays
-                        .toDouble();
-                    return FlSpot(days, (item['value2'] as num).toDouble());
-                  }).toList(),
-                  isCurved: false,
-                  color: Colors.green,
-                  barWidth: 2,
-                  dotData: const FlDotData(show: false),
-                ),
-              ],
-              minX: 0,
-              maxX: maxX > 0 ? maxX : 20,
-              minY: 0,
-              maxY: maxY > 0 ? maxY : 500,
-              titlesData: const FlTitlesData(show: false),
-              gridData: const FlGridData(show: false),
-              borderData: FlBorderData(show: false),
-              lineTouchData: LineTouchData(
-                enabled: true,
-                touchTooltipData: LineTouchTooltipData(
-                  getTooltipItems: (touchedSpots) => touchedSpots.map((spot) {
-                    final date = startTime.add(Duration(days: spot.x.toInt()));
-                    final label = spot.barIndex == 0 ? 'Fines' : 'Points';
-                    return LineTooltipItem(
-                      '${DateFormat('yyyy-MM-dd').format(date)}\n$label: ${spot.y.toInt()}',
-                      const TextStyle(color: Colors.white),
-                    );
-                  }).toList(),
-                ),
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -766,7 +799,7 @@ class DashboardScreen extends GetView<DashboardController>
           child: ProfilTile(
             data: profile,
             onPressedNotification: () => log("Notification clicked"),
-            controller: controller, // Pass DashboardController
+            controller: controller,
           ),
         );
       }),
@@ -780,8 +813,8 @@ class DashboardScreen extends GetView<DashboardController>
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Color(0xFF0288D1), // Deep Blue
-            Color(0xFF4FC3F7), // Light Blue
+            Color(0xFF0288D1),
+            Color(0xFF4FC3F7),
           ],
         ),
       ),

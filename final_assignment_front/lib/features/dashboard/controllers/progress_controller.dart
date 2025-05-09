@@ -1,399 +1,342 @@
-import 'package:final_assignment_front/features/api/progress_item_controller_api.dart';
+import 'dart:convert';
 import 'package:final_assignment_front/features/api/appeal_management_controller_api.dart';
-import 'package:final_assignment_front/features/api/deduction_information_controller_api.dart';
-import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
-import 'package:final_assignment_front/features/api/fine_information_controller_api.dart';
-import 'package:final_assignment_front/features/api/vehicle_information_controller_api.dart';
-import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
-import 'package:final_assignment_front/features/model/progress_item.dart';
-import 'package:final_assignment_front/features/model/appeal_management.dart';
-import 'package:final_assignment_front/features/model/deduction_information.dart';
-import 'package:final_assignment_front/features/model/driver_information.dart';
-import 'package:final_assignment_front/features/model/fine_information.dart';
-import 'package:final_assignment_front/features/model/vehicle_information.dart';
-import 'package:final_assignment_front/features/model/offense_information.dart';
+import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
-import 'package:flutter/material.dart';
+import 'package:final_assignment_front/features/model/appeal_management.dart';
+import 'package:final_assignment_front/features/model/progress_item.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
-import 'dart:developer' as developer;
 
 class ProgressController extends GetxController {
-  final ProgressControllerApi _progressApi = ProgressControllerApi();
-  final AppealManagementControllerApi _appealApi =
+  final ApiClient apiClient = ApiClient();
+  final AppealManagementControllerApi appealApi =
       AppealManagementControllerApi();
-  final DeductionInformationControllerApi _deductionApi =
-      DeductionInformationControllerApi();
-  final DriverInformationControllerApi _driverApi =
-      DriverInformationControllerApi();
-  final FineInformationControllerApi _fineApi = FineInformationControllerApi();
-  final VehicleInformationControllerApi _vehicleApi =
-      VehicleInformationControllerApi();
-  final OffenseInformationControllerApi _offenseApi =
-      OffenseInformationControllerApi();
-
-  // Public getter for ApiClient
-  ApiClient get apiClient => _progressApi.apiClient;
-
-  var progressItems = <ProgressItem>[].obs;
-  var filteredItems = <ProgressItem>[].obs;
-  var appeals = <AppealManagement>[].obs;
-  var deductions = <DeductionInformation>[].obs;
-  var drivers = <DriverInformation>[].obs;
-  var fines = <FineInformation>[].obs;
-  var vehicles = <VehicleInformation>[].obs;
-  var offenses = <OffenseInformation>[].obs;
-  var isLoading = false.obs;
-  var errorMessage = ''.obs;
-  var currentUsername = ''.obs;
-  var isAdmin = false.obs;
-  bool _isRedirecting = false;
-
-  final List<String> statusCategories = [
-    'Pending',
-    'Processing',
-    'Completed',
-    'Archived'
-  ];
-  var startTime = Rxn<DateTime>();
-  var endTime = Rxn<DateTime>();
+  final RxList<ProgressItem> progressItems = <ProgressItem>[].obs;
+  final RxList<ProgressItem> filteredItems = <ProgressItem>[].obs;
+  final RxList<AppealManagement> appeals = <AppealManagement>[].obs;
+  final RxList<String> statusCategories =
+      ['Pending', 'Processing', 'Completed', 'Archived'].obs;
+  final RxBool isLoading = false.obs;
+  final RxString errorMessage = ''.obs;
+  final RxBool _isAdmin = false.obs;
 
   @override
   void onInit() {
     super.onInit();
-    initialize();
+    _loadUserRole();
+    fetchProgress();
+    fetchAppeals();
   }
 
-  Future<void> initialize() async {
-    isLoading.value = true;
+  bool get isAdmin => _isAdmin.value;
+
+  Future<void> _loadUserRole() async {
+    final prefs = await SharedPreferences.getInstance();
+    final role = prefs.getString('userRole');
+    _isAdmin.value = role == 'admin';
+  }
+
+  Future<void> fetchAppeals() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final jwtToken = prefs.getString('jwtToken');
-      currentUsername.value = prefs.getString('userName') ?? '';
-
-      if (jwtToken == null || currentUsername.value.isEmpty) {
-        developer.log(
-            'No JWT token or username found, scheduling redirect to login');
-        await _deferNavigationToLogin();
-        return;
+      if (jwtToken == null) {
+        throw Exception('JWT Token not found');
       }
+      appealApi.apiClient.setJwtToken(jwtToken);
 
-      await _progressApi.initializeWithJwt();
-      await _appealApi.initializeWithJwt();
-      await _deductionApi.initializeWithJwt();
-      await _driverApi.initializeWithJwt();
-      await _fineApi.initializeWithJwt();
-      await _vehicleApi.initializeWithJwt();
-      await _offenseApi.initializeWithJwt();
-
-      await checkUserRole(jwtToken);
-      await fetchBusinessData();
-      await fetchProgress();
+      final fetchedAppeals = await appealApi.apiAppealsGet();
+      appeals.value = fetchedAppeals;
     } catch (e) {
-      developer.log('Initialization failed: $e',
-          stackTrace: StackTrace.current);
-      await _deferNavigationToLogin();
-    } finally {
-      isLoading.value = false;
-    }
-  }
-
-  Future<void> _deferNavigationToLogin() async {
-    if (_isRedirecting || Get.currentRoute == '/login') {
-      developer
-          .log('Already redirecting or on login route, skipping navigation');
-      return;
-    }
-    _isRedirecting = true;
-    for (int i = 0; i < 50; i++) {
-      if (Get.context != null && Get.currentRoute != '/login') {
-        Get.offAllNamed('/login');
-        developer.log('Navigated to login route');
-        break;
-      }
-      await Future.delayed(const Duration(milliseconds: 100));
-    }
-    if (Get.context == null) {
-      developer.log('Failed to navigate to login: context unavailable');
-    }
-    _isRedirecting = false;
-  }
-
-  void showSnackbar(String title, String message, {bool isError = false}) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (Get.context != null) {
-        Get.snackbar(
-          title,
-          message,
-          snackPosition: SnackPosition.BOTTOM,
-          duration: const Duration(seconds: 3),
-          backgroundColor: isError ? Colors.red : Colors.green,
-          colorText: Colors.white,
-        );
-      } else {
-        developer.log('Cannot show Snackbar: Get.context is null');
-      }
-    });
-  }
-
-  Future<void> checkUserRole(String jwtToken) async {
-    try {
-      final decoded = _decodeJwt(jwtToken);
-      final roles = decoded['roles'] is String
-          ? [decoded['roles'].toString()]
-          : (decoded['roles'] as List<dynamic>?)
-                  ?.map((r) => r.toString())
-                  .toList() ??
-              [];
-      developer.log('Roles from JWT: $roles');
-      isAdmin.value = roles.contains('ROLE_ADMIN') || roles.contains('ADMIN');
-      developer.log('isAdmin set to: ${isAdmin.value}');
-    } catch (e) {
-      developer.log('Error decoding JWT: $e');
-      isAdmin.value = false;
-    }
-  }
-
-  Map<String, dynamic> _decodeJwt(String token) {
-    try {
-      final parts = token.split('.');
-      if (parts.length != 3) throw Exception('Invalid JWT');
-      final payload = base64Url.decode(base64Url.normalize(parts[1]));
-      return jsonDecode(utf8.decode(payload)) as Map<String, dynamic>;
-    } catch (e) {
-      return {};
-    }
-  }
-
-  Future<void> fetchBusinessData() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final cachedAppeals = prefs.getString('cached_appeals');
-      if (cachedAppeals != null) {
-        appeals.assignAll((jsonDecode(cachedAppeals) as List)
-            .map((e) => AppealManagement.fromJson(e))
-            .toList());
-      } else {
-        appeals.assignAll(await _appealApi.apiAppealsGet() ?? []);
-        prefs.setString('cached_appeals',
-            jsonEncode(appeals.map((e) => e.toJson()).toList()));
-      }
-
-      if (isAdmin.value) {
-        deductions.assignAll(await _deductionApi.apiDeductionsGet() ?? []);
-        drivers.assignAll(await _driverApi.apiDriversGet() ?? []);
-        fines.assignAll(await _fineApi.apiFinesGet() ?? []);
-        vehicles.assignAll(await _vehicleApi.apiVehiclesGet() ?? []);
-        offenses.assignAll(await _offenseApi.apiOffensesGet() ?? []);
-      } else {
-        deductions.assignAll((await _deductionApi.apiDeductionsGet() ?? [])
-            .where((d) => d.handler == currentUsername.value)
-            .toList());
-        drivers.assignAll((await _driverApi.apiDriversGet() ?? [])
-            .where((d) => d.name == currentUsername.value)
-            .toList());
-        fines.assignAll((await _fineApi.apiFinesGet() ?? [])
-            .where((f) => f.payee == currentUsername.value)
-            .toList());
-        vehicles.assignAll(await _vehicleApi.apiVehiclesSearchGet(
-                query: currentUsername.value) ??
-            []);
-        offenses.assignAll((await _offenseApi.apiOffensesGet() ?? [])
-            .where((o) => o.driverName == currentUsername.value)
-            .toList());
-      }
-    } catch (e) {
-      errorMessage.value = '加载业务数据失败: $e';
-      developer.log('Fetch business data failed: $e');
-      showSnackbar('错误', '加载业务数据失败: $e', isError: true);
+      errorMessage.value = _formatErrorMessage(e);
+      Get.snackbar('错误', '加载申诉失败: $e', snackPosition: SnackPosition.TOP);
     }
   }
 
   Future<void> fetchProgress() async {
-    await handleApiCall(
-      () async {
-        if (isAdmin.value) {
-          progressItems.assignAll(await _progressApi.apiProgressGet() ?? []);
-        } else {
-          progressItems.assignAll(await _progressApi.apiProgressUsernameGet(
-                  username: currentUsername.value) ??
-              []);
-        }
-        applyFilters();
-      },
-      '进度加载成功',
-    );
-  }
-
-  void filterByStatus(String status) {
-    applyFilters(status: status);
-  }
-
-  Future<void> fetchProgressByTimeRange(DateTime start, DateTime end) async {
-    await handleApiCall(
-      () async {
-        startTime.value = start;
-        endTime.value = end;
-        final progressList = await _progressApi.apiProgressTimeRangeGet(
-          startTime: start.toIso8601String(),
-          endTime: end.toIso8601String(),
-        );
-        progressItems.assignAll(progressList ?? []);
-        applyFilters();
-      },
-      '按时间范围加载进度成功',
-    );
-  }
-
-  void applyFilters({String? status}) {
-    var items = progressItems.toList();
-
-    if (startTime.value != null && endTime.value != null) {
-      items = items.where((item) {
-        final submitTime = item.submitTime;
-        return submitTime.isAfter(startTime.value!) &&
-            submitTime.isBefore(endTime.value!);
-      }).toList();
-    }
-
-    if (status != null) {
-      items = items.where((item) => item.status == status).toList();
-    }
-
-    filteredItems.assignAll(items);
-  }
-
-  Future<void> submitProgress(
-    String title,
-    String? details, {
-    int? appealId,
-    int? deductionId,
-    int? driverId,
-    int? fineId,
-    int? vehicleId,
-    int? offenseId,
-  }) async {
-    if (title.isEmpty) {
-      errorMessage.value = '进度标题不能为空';
-      developer.log('Submit progress failed: Title is empty');
-      showSnackbar('错误', '进度标题不能为空', isError: true);
-      return;
-    }
-    await handleApiCall(
-      () async {
-        final newItem = ProgressItem(
-          id: 0,
-          title: title,
-          status: 'Pending',
-          submitTime: DateTime.now(),
-          details: details?.isNotEmpty == true ? details : null,
-          username: currentUsername.value,
-          appealId: appealId,
-          deductionId: deductionId,
-          driverId: driverId,
-          fineId: fineId,
-          vehicleId: vehicleId,
-          offenseId: offenseId,
-        );
-        await _progressApi.apiProgressPost(progressItem: newItem);
-        await fetchProgress();
-      },
-      '进度提交成功',
-    );
-  }
-
-  Future<void> updateProgressStatus(int progressId, String newStatus) async {
-    if (!isAdmin.value) {
-      developer.log('Update status failed: User is not admin');
-      showSnackbar('错误', '只有管理员可以更新进度状态', isError: true);
-      return;
-    }
-    await handleApiCall(
-      () async {
-        await _progressApi.apiProgressProgressIdStatusPut(
-            progressId: progressId, newStatus: newStatus);
-        await fetchProgress();
-      },
-      '状态更新成功',
-    );
-  }
-
-  Future<void> deleteProgress(int progressId) async {
-    if (!isAdmin.value) {
-      developer.log('Delete progress failed: User is not admin');
-      showSnackbar('错误', '只有管理员可以删除进度', isError: true);
-      return;
-    }
-    await handleApiCall(
-      () async {
-        await _progressApi.apiProgressProgressIdDelete(progressId: progressId);
-        await fetchProgress();
-      },
-      '进度删除成功',
-    );
-  }
-
-  String getBusinessContext(ProgressItem item) {
-    if (item.appealId != null) {
-      final appeal =
-          appeals.firstWhereOrNull((a) => a.appealId == item.appealId);
-      return '申诉: ${appeal?.appellantName ?? "未知"} (ID: ${item.appealId})';
-    } else if (item.deductionId != null) {
-      final deduction =
-          deductions.firstWhereOrNull((d) => d.deductionId == item.deductionId);
-      return '扣分: ${deduction?.driverLicenseNumber ?? "未知"} (分数: ${deduction?.deductedPoints ?? 0})';
-    } else if (item.driverId != null) {
-      final driver =
-          drivers.firstWhereOrNull((d) => d.driverId == item.driverId);
-      return '司机: ${driver?.name ?? "未知"} (驾照: ${driver?.driverLicenseNumber ?? "未知"})';
-    } else if (item.fineId != null) {
-      final fine = fines.firstWhereOrNull((f) => f.fineId == item.fineId);
-      return '罚款: ${fine?.payee ?? "未知"} (金额: ${fine?.fineAmount ?? 0})';
-    } else if (item.vehicleId != null) {
-      final vehicle =
-          vehicles.firstWhereOrNull((v) => v.vehicleId == item.vehicleId);
-      return '车辆: ${vehicle?.licensePlate ?? "未知"} (车主: ${vehicle?.ownerName ?? "未知"})';
-    } else if (item.offenseId != null) {
-      final offense =
-          offenses.firstWhereOrNull((o) => o.offenseId == item.offenseId);
-      return '违法: ${offense?.offenseType ?? "未知"} (车牌: ${offense?.licensePlate ?? "未知"})';
-    }
-    return '无关联业务';
-  }
-
-  void clearTimeRangeFilter() {
-    startTime.value = null;
-    endTime.value = null;
-    applyFilters();
-  }
-
-  Future<void> handleApiCall(
-      Future<dynamic> Function() apiCall, String successMessage) async {
     isLoading.value = true;
+    errorMessage.value = '';
     try {
-      await apiCall();
-      showSnackbar('成功', successMessage);
+      final prefs = await SharedPreferences.getInstance();
+      final jwtToken = prefs.getString('jwtToken');
+      if (jwtToken == null) {
+        throw Exception('JWT Token not found');
+      }
+
+      final response = await apiClient.invokeAPI(
+        '/api/progress',
+        'GET',
+        [],
+        null,
+        {'Authorization': 'Bearer $jwtToken'},
+        {},
+        'application/json',
+        ['bearerAuth'],
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        progressItems.value =
+            data.map((json) => ProgressItem.fromJson(json)).toList();
+        filteredItems.value = progressItems;
+      } else {
+        throw ApiException(response.statusCode, 'Failed to fetch progress');
+      }
     } catch (e) {
-      errorMessage.value = e.toString();
-      showSnackbar('错误', '操作失败: $e', isError: true);
+      errorMessage.value = _formatErrorMessage(e);
     } finally {
       isLoading.value = false;
     }
   }
 
-  String _translateStatus(String? status) {
-    switch (status) {
-      case 'Pending':
-        return '待处理';
-      case 'Processing':
-        return '处理中';
-      case 'Completed':
-        return '已完成';
-      case 'Archived':
-        return '已归档';
-      default:
-        return '未知';
+  Future<void> submitProgress(String title, String? details,
+      {int? appealId}) async {
+    isLoading.value = true;
+    errorMessage.value = '';
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jwtToken = prefs.getString('jwtToken');
+      final username = prefs.getString('username');
+      if (jwtToken == null || username == null) {
+        throw Exception('JWT Token or username not found');
+      }
+
+      final progressItem = ProgressItem(
+        title: title,
+        details: details,
+        status: 'Pending',
+        submitTime: DateTime.now(),
+        username: username,
+        appealId: appealId,
+      );
+
+      final response = await apiClient.invokeAPI(
+        '/api/progress',
+        'POST',
+        [],
+        progressItem.toJson(),
+        {
+          'Authorization': 'Bearer $jwtToken',
+          'Content-Type': 'application/json',
+        },
+        {},
+        'application/json',
+        ['bearerAuth'],
+      );
+
+      if (response.statusCode == 201) {
+        await fetchProgress();
+        Get.snackbar('成功', '进度提交成功', snackPosition: SnackPosition.TOP);
+      } else {
+        throw ApiException(response.statusCode, 'Failed to submit progress');
+      }
+    } catch (e) {
+      errorMessage.value = _formatErrorMessage(e);
+      Get.snackbar('错误', errorMessage.value, snackPosition: SnackPosition.TOP);
+    } finally {
+      isLoading.value = false;
     }
+  }
+
+  Future<void> updateProgress(
+      int id, String title, String? details, String status,
+      {int? appealId}) async {
+    isLoading.value = true;
+    errorMessage.value = '';
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jwtToken = prefs.getString('jwtToken');
+      final username = prefs.getString('username');
+      if (jwtToken == null || username == null) {
+        throw Exception('JWT Token or username not found');
+      }
+
+      final progressItem = progressItems.firstWhere((item) => item.id == id);
+      final updatedItem = progressItem.copyWith(
+        title: title,
+        details: details,
+        status: status,
+        submitTime: DateTime.now(),
+        username: username,
+        appealId: appealId ?? progressItem.appealId,
+      );
+
+      final response = await apiClient.invokeAPI(
+        '/api/progress/$id',
+        'PUT',
+        [],
+        updatedItem.toJson(),
+        {
+          'Authorization': 'Bearer $jwtToken',
+          'Content-Type': 'application/json',
+        },
+        {},
+        'application/json',
+        ['bearerAuth'],
+      );
+
+      if (response.statusCode == 200) {
+        await fetchProgress();
+        Get.snackbar('成功', '进度更新成功', snackPosition: SnackPosition.TOP);
+      } else {
+        throw ApiException(response.statusCode, 'Failed to update progress');
+      }
+    } catch (e) {
+      errorMessage.value = _formatErrorMessage(e);
+      Get.snackbar('错误', errorMessage.value, snackPosition: SnackPosition.TOP);
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  Future<void> updateProgressStatus(int id, String newStatus) async {
+    isLoading.value = true;
+    errorMessage.value = '';
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jwtToken = prefs.getString('jwtToken');
+      if (jwtToken == null) {
+        throw Exception('JWT Token not found');
+      }
+
+      final progressItem = progressItems.firstWhere((item) => item.id == id);
+      final updatedItem = progressItem.copyWith(
+        status: newStatus,
+        submitTime: DateTime.now(),
+      );
+
+      final response = await apiClient.invokeAPI(
+        '/api/progress/$id',
+        'PUT',
+        [],
+        updatedItem.toJson(),
+        {
+          'Authorization': 'Bearer $jwtToken',
+          'Content-Type': 'application/json',
+        },
+        {},
+        'application/json',
+        ['bearerAuth'],
+      );
+
+      if (response.statusCode == 200) {
+        await fetchProgress();
+        Get.snackbar('成功', '状态更新成功', snackPosition: SnackPosition.TOP);
+      } else {
+        throw ApiException(response.statusCode, 'Failed to update status');
+      }
+    } catch (e) {
+      errorMessage.value = _formatErrorMessage(e);
+      Get.snackbar('错误', errorMessage.value, snackPosition: SnackPosition.TOP);
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  Future<void> deleteProgress(int id) async {
+    isLoading.value = true;
+    errorMessage.value = '';
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jwtToken = prefs.getString('jwtToken');
+      if (jwtToken == null) {
+        throw Exception('JWT Token not found');
+      }
+
+      final response = await apiClient.invokeAPI(
+        '/api/progress/$id',
+        'DELETE',
+        [],
+        null,
+        {'Authorization': 'Bearer $jwtToken'},
+        {},
+        'application/json',
+        ['bearerAuth'],
+      );
+
+      if (response.statusCode == 204) {
+        await fetchProgress();
+        Get.snackbar('成功', '进度删除成功', snackPosition: SnackPosition.TOP);
+      } else {
+        throw ApiException(response.statusCode, 'Failed to delete progress');
+      }
+    } catch (e) {
+      errorMessage.value = _formatErrorMessage(e);
+      Get.snackbar('错误', errorMessage.value, snackPosition: SnackPosition.TOP);
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  void filterByStatus(String status) {
+    filteredItems.value =
+        progressItems.where((item) => item.status == status).toList();
+  }
+
+  Future<void> fetchProgressByTimeRange(DateTime start, DateTime end) async {
+    isLoading.value = true;
+    errorMessage.value = '';
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jwtToken = prefs.getString('jwtToken');
+      if (jwtToken == null) {
+        throw Exception('JWT Token not found');
+      }
+
+      final response = await apiClient.invokeAPI(
+        '/api/progress?start=${start.toIso8601String()}&end=${end.toIso8601String()}',
+        'GET',
+        [],
+        null,
+        {'Authorization': 'Bearer $jwtToken'},
+        {},
+        'application/json',
+        ['bearerAuth'],
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        filteredItems.value =
+            data.map((json) => ProgressItem.fromJson(json)).toList();
+      } else {
+        throw ApiException(
+            response.statusCode, 'Failed to fetch progress by time range');
+      }
+    } catch (e) {
+      errorMessage.value = _formatErrorMessage(e);
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  void clearTimeRangeFilter() {
+    filteredItems.value = progressItems;
+  }
+
+  String getBusinessContext(ProgressItem item) {
+    final contexts = <String>[];
+    if (item.appealId != null) contexts.add('申诉ID: ${item.appealId}');
+    if (item.deductionId != null) contexts.add('扣分ID: ${item.deductionId}');
+    if (item.driverId != null) contexts.add('司机ID: ${item.driverId}');
+    if (item.fineId != null) contexts.add('罚款ID: ${item.fineId}');
+    if (item.vehicleId != null) contexts.add('车辆ID: ${item.vehicleId}');
+    if (item.offenseId != null) contexts.add('违章ID: ${item.offenseId}');
+    return contexts.isNotEmpty ? contexts.join(', ') : '无关联业务';
+  }
+
+  String _formatErrorMessage(dynamic error) {
+    if (error is ApiException) {
+      switch (error.code) {
+        case 400:
+          return '请求错误: ${error.message}';
+        case 403:
+          return '无权限: ${error.message}';
+        case 404:
+          return '未找到: ${error.message}';
+        default:
+          return '服务器错误: ${error.message}';
+      }
+    }
+    return '操作失败: $error';
   }
 }
