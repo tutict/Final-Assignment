@@ -140,6 +140,9 @@ class Routes {
 
   // 系统日志页面路由
   static const systemLogPage = _Paths.systemLogPage;
+
+  // 用户违章列表页面路由
+  static const userOffenseListPage = _Paths.userOffenseListPage;
 }
 
 /// 包含路由名称列表。
@@ -283,6 +286,9 @@ class _Paths {
 
   // 系统日志页面
   static const systemLogPage = '/systemLogPage';
+
+  // 用户处罚列表页面路由
+  static const userOffenseListPage = '/userOffenseListPage';
 // 示例：
 // static const index = '/';
 // static const splash = '/splash';

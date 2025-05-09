@@ -22,6 +22,7 @@ import 'package:final_assignment_front/features/dashboard/views/manager_screens/
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/progress_management.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/main_process_pages/vehicle_list.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/main_process_pages/user_offense_list_page.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/news/AccidentEvidencePage.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/news/AccidentProgressPage.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/news/AccidentQuickGuidePage.dart';
@@ -182,6 +183,9 @@ class AppPages {
   // 系统日志管理
   static const systemLogPage = Routes.systemLogPage;
 
+  // 用户处罚管理
+  static const userOffenseListPage = Routes.userOffenseListPage;
+
   // 配置应用中的所有页面路由
   static final routes = [
     GetPage(
@@ -300,5 +304,8 @@ class AppPages {
       name: _Paths.systemLogPage,
       page: () => const SystemLogPage(),
     ),
+    GetPage(
+        name: _Paths.userOffenseListPage,
+        page: () => const UserOffenseListPage()),
   ];
 }

@@ -47,6 +47,8 @@ mixin NavigationMixin {
         return const LogManagement();
       case AppPages.userManagementPage:
         return const UserManagementPage();
+      case AppPages.userOffenseListPage:
+        return const UserOffenseListPage();
       default:
         debugPrint('Unknown route: $routeName');
         return const Center(child: Text('页面未找到'));

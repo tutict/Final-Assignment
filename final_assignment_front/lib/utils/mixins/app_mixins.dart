@@ -12,6 +12,7 @@ import 'package:final_assignment_front/features/dashboard/views/manager_screens/
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/manager_setting.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/progress_management.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/sidebar_management_pages/user_management_page.dart' show UserManagementPage;
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/main_process_pages/user_offense_list_page.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/news/AccidentEvidencePage.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/news/AccidentProgressPage.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/news/AccidentQuickGuidePage.dart';

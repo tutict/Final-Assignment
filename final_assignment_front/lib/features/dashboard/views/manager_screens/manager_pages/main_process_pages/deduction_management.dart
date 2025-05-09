@@ -961,13 +961,18 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
     }
   }
 
-  Future<String?> _fetchDriverLicenseNumber(String driverName) async {
+  Future<String?> _fetchDriverLicenseNumber(String? driverName) async {
+    if (driverName == null || driverName.trim().isEmpty) {
+      _showSnackBar('未提供驾驶员姓名，请手动输入驾驶证号', isError: true);
+      return null;
+    }
     try {
       final drivers = await driverApi.apiDriversByNameGet(
-          query: driverName, page: 1, size: 1);
+          query: driverName.trim(), page: 1, size: 1);
       if (drivers.isNotEmpty) {
         return drivers.first.driverLicenseNumber;
       }
+      _showSnackBar('未找到与驾驶员姓名匹配的驾驶证号，请手动输入', isError: true);
       return null;
     } catch (e) {
       _showSnackBar('获取驾驶证号失败: $e', isError: true);
@@ -989,7 +994,7 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
       if (offenses.isNotEmpty) {
         final latestOffense = offenses.first;
         final driverLicenseNumber =
-            await _fetchDriverLicenseNumber(latestOffense.driverName ?? '');
+            await _fetchDriverLicenseNumber(latestOffense.driverName);
         setState(() {
           _selectedOffenseId = latestOffense.offenseId;
           _driverLicenseNumberController.text = driverLicenseNumber ?? '';
@@ -1202,7 +1207,7 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
           labelText: label,
           labelStyle: TextStyle(color: themeData.colorScheme.onSurfaceVariant),
           helperText: label == '驾驶证号'
-              ? '自动填充，与违法记录关联'
+              ? '自动填充或手动输入，与违法记录关联'
               : label == '处理人' || label == '审批人'
                   ? '请输入${label}姓名（选填）'
                   : null,
@@ -1219,9 +1224,16 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
           fillColor: readOnly
               ? themeData.colorScheme.surfaceContainerHighest.withOpacity(0.5)
               : themeData.colorScheme.surfaceContainerLowest,
-          suffixIcon: readOnly
-              ? Icon(Icons.lock, size: 18, color: themeData.colorScheme.primary)
-              : null,
+          suffixIcon: controller.text.isNotEmpty && !readOnly
+              ? IconButton(
+                  icon: Icon(Icons.clear,
+                      color: themeData.colorScheme.onSurfaceVariant),
+                  onPressed: () => controller.clear(),
+                )
+              : readOnly
+                  ? Icon(Icons.lock,
+                      size: 18, color: themeData.colorScheme.primary)
+                  : null,
         ),
         keyboardType: keyboardType,
         readOnly: readOnly,
@@ -1312,7 +1324,7 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
                                   themeData,
                                   required: true,
                                   maxLength: 50,
-                                  readOnly: true,
+                                  readOnly: false,
                                 ),
                                 _buildTextField(
                                   '扣分分数 *',
