@@ -9,9 +9,22 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:math';
 
 String generateIdempotencyKey() {
   return DateTime.now().millisecondsSinceEpoch.toString();
+}
+
+// Generate a unique 12-digit driver license number
+String generateDriverLicenseNumber() {
+  final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+  // Take last 8 digits of timestamp
+  final timestampPart = timestamp.substring(timestamp.length - 8);
+  // Generate 4 random digits
+  final random = Random();
+  final randomPart =
+      (1000 + random.nextInt(9000)).toString(); // Ensures 4 digits
+  return timestampPart + randomPart; // 8 + 4 = 12 digits
 }
 
 class PersonalMainPage extends StatefulWidget {
@@ -120,14 +133,16 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
       } catch (e) {
         if (e is ApiException && e.code == 404) {
           final idempotencyKey = generateIdempotencyKey();
+          // Generate a 12-digit driver license number if idCardNumber is empty
+          final driverLicenseNumber = generateDriverLicenseNumber();
           driverInfo = DriverInformation(
             driverId: user.userId,
             name: user.username ?? '未知用户',
             contactNumber: user.contactNumber ?? '',
-            idCardNumber: '',
+            idCardNumber: driverLicenseNumber,
           );
           debugPrint(
-              'Creating new driver with driverId: ${user.userId}, name: ${user.username}');
+              'Creating new driver with driverId: ${user.userId}, name: ${user.username}, idCardNumber: $driverLicenseNumber');
           await driverApi.apiDriversPost(
             driverInformation: driverInfo,
             idempotencyKey: idempotencyKey,
@@ -135,6 +150,8 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
           driverInfo =
               await driverApi.apiDriversDriverIdGet(driverId: user.userId);
           debugPrint('Driver created and fetched: ${driverInfo?.toJson()}');
+          _idCardNumberEdited =
+              true; // Mark as edited to prevent further changes
         } else {
           debugPrint('Driver fetch error: $e');
           if (mounted) setState(() => _errorMessage = _formatErrorMessage(e));
@@ -142,7 +159,7 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
         }
       }
       _driverInfo = driverInfo;
-    
+
       if (mounted) {
         setState(() {
           _userFuture = Future.value(user);
@@ -228,10 +245,10 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
             name: _driverInfo?.name ?? currentUser.username ?? '未知用户',
             contactNumber:
                 _driverInfo?.contactNumber ?? currentUser.contactNumber ?? '',
-            idCardNumber: value,
+            idCardNumber: value.isEmpty ? generateDriverLicenseNumber() : value,
           );
           debugPrint(
-              'Updating driver with driverId: ${currentUser.userId}, idCardNumber: $value');
+              'Updating driver with driverId: ${currentUser.userId}, idCardNumber: ${newDriverIdCard.idCardNumber}');
           await driverApi.apiDriversPost(
             driverInformation: newDriverIdCard,
             idempotencyKey: idempotencyKey,

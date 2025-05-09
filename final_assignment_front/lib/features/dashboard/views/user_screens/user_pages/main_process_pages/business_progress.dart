@@ -1,3 +1,4 @@
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/main_process_pages/user_offense_list_page.dart';
 import 'package:flutter/material.dart';
 import 'package:get/Get.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
@@ -18,6 +19,11 @@ class _BusinessProgressPageState extends State<BusinessProgressPage> {
 
   // 业务选项数据
   final List<Map<String, dynamic>> businessOptions = [
+    {
+      'title': '违法详情',
+      'icon': Icons.info,
+      'route': const UserOffenseListPage(),
+    },
     {
       'title': '罚款缴纳',
       'icon': Icons.payment,

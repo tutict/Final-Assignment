@@ -12,6 +12,7 @@ import 'package:final_assignment_front/features/model/driver_information.dart';
 import 'package:final_assignment_front/features/model/fine_information.dart';
 import 'package:final_assignment_front/features/model/vehicle_information.dart';
 import 'package:final_assignment_front/features/model/offense_information.dart';
+import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -31,6 +32,9 @@ class ProgressController extends GetxController {
       VehicleInformationControllerApi();
   final OffenseInformationControllerApi _offenseApi =
       OffenseInformationControllerApi();
+
+  // Public getter for ApiClient
+  ApiClient get apiClient => _progressApi.apiClient;
 
   var progressItems = <ProgressItem>[].obs;
   var filteredItems = <ProgressItem>[].obs;
@@ -52,8 +56,6 @@ class ProgressController extends GetxController {
     'Completed',
     'Archived'
   ];
-
-  // 用于时间范围筛选
   var startTime = Rxn<DateTime>();
   var endTime = Rxn<DateTime>();
 
@@ -84,6 +86,7 @@ class ProgressController extends GetxController {
       await _fineApi.initializeWithJwt();
       await _vehicleApi.initializeWithJwt();
       await _offenseApi.initializeWithJwt();
+
       await checkUserRole(jwtToken);
       await fetchBusinessData();
       await fetchProgress();
@@ -103,7 +106,6 @@ class ProgressController extends GetxController {
       return;
     }
     _isRedirecting = true;
-    // Wait for context up to 5 seconds
     for (int i = 0; i < 50; i++) {
       if (Get.context != null && Get.currentRoute != '/login') {
         Get.offAllNamed('/login');
@@ -119,7 +121,6 @@ class ProgressController extends GetxController {
   }
 
   void showSnackbar(String title, String message, {bool isError = false}) {
-    // Defer Snackbar to ensure context
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (Get.context != null) {
         Get.snackbar(
@@ -128,6 +129,7 @@ class ProgressController extends GetxController {
           snackPosition: SnackPosition.BOTTOM,
           duration: const Duration(seconds: 3),
           backgroundColor: isError ? Colors.red : Colors.green,
+          colorText: Colors.white,
         );
       } else {
         developer.log('Cannot show Snackbar: Get.context is null');
@@ -166,15 +168,25 @@ class ProgressController extends GetxController {
 
   Future<void> fetchBusinessData() async {
     try {
-      if (isAdmin.value) {
+      final prefs = await SharedPreferences.getInstance();
+      final cachedAppeals = prefs.getString('cached_appeals');
+      if (cachedAppeals != null) {
+        appeals.assignAll((jsonDecode(cachedAppeals) as List)
+            .map((e) => AppealManagement.fromJson(e))
+            .toList());
+      } else {
         appeals.assignAll(await _appealApi.apiAppealsGet() ?? []);
+        prefs.setString('cached_appeals',
+            jsonEncode(appeals.map((e) => e.toJson()).toList()));
+      }
+
+      if (isAdmin.value) {
         deductions.assignAll(await _deductionApi.apiDeductionsGet() ?? []);
         drivers.assignAll(await _driverApi.apiDriversGet() ?? []);
         fines.assignAll(await _fineApi.apiFinesGet() ?? []);
         vehicles.assignAll(await _vehicleApi.apiVehiclesGet() ?? []);
         offenses.assignAll(await _offenseApi.apiOffensesGet() ?? []);
       } else {
-        appeals.assignAll(await _appealApi.apiAppealsGet() ?? []);
         deductions.assignAll((await _deductionApi.apiDeductionsGet() ?? [])
             .where((d) => d.handler == currentUsername.value)
             .toList());
@@ -199,23 +211,19 @@ class ProgressController extends GetxController {
   }
 
   Future<void> fetchProgress() async {
-    isLoading.value = true;
-    try {
-      if (isAdmin.value) {
-        progressItems.assignAll(await _progressApi.apiProgressGet() ?? []);
-      } else {
-        progressItems.assignAll(await _progressApi.apiProgressUsernameGet(
-                username: currentUsername.value) ??
-            []);
-      }
-      applyFilters();
-    } catch (e) {
-      errorMessage.value = '加载进度失败: $e';
-      developer.log('Fetch progress failed: $e');
-      showSnackbar('错误', '加载进度失败: $e', isError: true);
-    } finally {
-      isLoading.value = false;
-    }
+    await handleApiCall(
+      () async {
+        if (isAdmin.value) {
+          progressItems.assignAll(await _progressApi.apiProgressGet() ?? []);
+        } else {
+          progressItems.assignAll(await _progressApi.apiProgressUsernameGet(
+                  username: currentUsername.value) ??
+              []);
+        }
+        applyFilters();
+      },
+      '进度加载成功',
+    );
   }
 
   void filterByStatus(String status) {
@@ -223,29 +231,24 @@ class ProgressController extends GetxController {
   }
 
   Future<void> fetchProgressByTimeRange(DateTime start, DateTime end) async {
-    isLoading.value = true;
-    try {
-      startTime.value = start;
-      endTime.value = end;
-      final progressList = await _progressApi.apiProgressTimeRangeGet(
-        startTime: start.toIso8601String(),
-        endTime: end.toIso8601String(),
-      );
-      progressItems.assignAll(progressList ?? []);
-      applyFilters();
-    } catch (e) {
-      errorMessage.value = '按时间范围加载进度失败: $e';
-      developer.log('Fetch progress by time range failed: $e');
-      showSnackbar('错误', '按时间范围加载进度失败: $e', isError: true);
-    } finally {
-      isLoading.value = false;
-    }
+    await handleApiCall(
+      () async {
+        startTime.value = start;
+        endTime.value = end;
+        final progressList = await _progressApi.apiProgressTimeRangeGet(
+          startTime: start.toIso8601String(),
+          endTime: end.toIso8601String(),
+        );
+        progressItems.assignAll(progressList ?? []);
+        applyFilters();
+      },
+      '按时间范围加载进度成功',
+    );
   }
 
   void applyFilters({String? status}) {
     var items = progressItems.toList();
 
-    // 按时间范围过滤
     if (startTime.value != null && endTime.value != null) {
       items = items.where((item) {
         final submitTime = item.submitTime;
@@ -254,7 +257,6 @@ class ProgressController extends GetxController {
       }).toList();
     }
 
-    // 按状态过滤
     if (status != null) {
       items = items.where((item) => item.status == status).toList();
     }
@@ -262,45 +264,43 @@ class ProgressController extends GetxController {
     filteredItems.assignAll(items);
   }
 
-  Future<void> submitProgress(String title, String? details,
-      {int? appealId,
-      int? deductionId,
-      int? driverId,
-      int? fineId,
-      int? vehicleId,
-      int? offenseId}) async {
+  Future<void> submitProgress(
+    String title,
+    String? details, {
+    int? appealId,
+    int? deductionId,
+    int? driverId,
+    int? fineId,
+    int? vehicleId,
+    int? offenseId,
+  }) async {
     if (title.isEmpty) {
       errorMessage.value = '进度标题不能为空';
       developer.log('Submit progress failed: Title is empty');
       showSnackbar('错误', '进度标题不能为空', isError: true);
       return;
     }
-    isLoading.value = true;
-    try {
-      final newItem = ProgressItem(
-        id: 0,
-        title: title,
-        status: 'Pending',
-        submitTime: DateTime.now(),
-        details: details?.isNotEmpty == true ? details : null,
-        username: currentUsername.value,
-        appealId: appealId,
-        deductionId: deductionId,
-        driverId: driverId,
-        fineId: fineId,
-        vehicleId: vehicleId,
-        offenseId: offenseId,
-      );
-      await _progressApi.apiProgressPost(progressItem: newItem);
-      await fetchProgress();
-      showSnackbar('成功', '进度提交成功');
-    } catch (e) {
-      errorMessage.value = '提交进度失败: $e';
-      developer.log('Submit progress failed: $e');
-      showSnackbar('错误', '提交进度失败: $e', isError: true);
-    } finally {
-      isLoading.value = false;
-    }
+    await handleApiCall(
+      () async {
+        final newItem = ProgressItem(
+          id: 0,
+          title: title,
+          status: 'Pending',
+          submitTime: DateTime.now(),
+          details: details?.isNotEmpty == true ? details : null,
+          username: currentUsername.value,
+          appealId: appealId,
+          deductionId: deductionId,
+          driverId: driverId,
+          fineId: fineId,
+          vehicleId: vehicleId,
+          offenseId: offenseId,
+        );
+        await _progressApi.apiProgressPost(progressItem: newItem);
+        await fetchProgress();
+      },
+      '进度提交成功',
+    );
   }
 
   Future<void> updateProgressStatus(int progressId, String newStatus) async {
@@ -309,21 +309,14 @@ class ProgressController extends GetxController {
       showSnackbar('错误', '只有管理员可以更新进度状态', isError: true);
       return;
     }
-    isLoading.value = true;
-    try {
-      await _progressApi.apiProgressProgressIdStatusPut(
-        progressId: progressId,
-        newStatus: newStatus,
-      );
-      await fetchProgress();
-      showSnackbar('成功', '状态更新成功');
-    } catch (e) {
-      errorMessage.value = '更新状态失败: $e';
-      developer.log('Update status failed: $e');
-      showSnackbar('错误', '更新状态失败: $e', isError: true);
-    } finally {
-      isLoading.value = false;
-    }
+    await handleApiCall(
+      () async {
+        await _progressApi.apiProgressProgressIdStatusPut(
+            progressId: progressId, newStatus: newStatus);
+        await fetchProgress();
+      },
+      '状态更新成功',
+    );
   }
 
   Future<void> deleteProgress(int progressId) async {
@@ -332,18 +325,13 @@ class ProgressController extends GetxController {
       showSnackbar('错误', '只有管理员可以删除进度', isError: true);
       return;
     }
-    isLoading.value = true;
-    try {
-      await _progressApi.apiProgressProgressIdDelete(progressId: progressId);
-      await fetchProgress();
-      showSnackbar('成功', '进度删除成功');
-    } catch (e) {
-      errorMessage.value = '删除失败: $e';
-      developer.log('Delete progress failed: $e');
-      showSnackbar('错误', '删除失败: $e', isError: true);
-    } finally {
-      isLoading.value = false;
-    }
+    await handleApiCall(
+      () async {
+        await _progressApi.apiProgressProgressIdDelete(progressId: progressId);
+        await fetchProgress();
+      },
+      '进度删除成功',
+    );
   }
 
   String getBusinessContext(ProgressItem item) {
@@ -378,5 +366,34 @@ class ProgressController extends GetxController {
     startTime.value = null;
     endTime.value = null;
     applyFilters();
+  }
+
+  Future<void> handleApiCall(
+      Future<dynamic> Function() apiCall, String successMessage) async {
+    isLoading.value = true;
+    try {
+      await apiCall();
+      showSnackbar('成功', successMessage);
+    } catch (e) {
+      errorMessage.value = e.toString();
+      showSnackbar('错误', '操作失败: $e', isError: true);
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  String _translateStatus(String? status) {
+    switch (status) {
+      case 'Pending':
+        return '待处理';
+      case 'Processing':
+        return '处理中';
+      case 'Completed':
+        return '已完成';
+      case 'Archived':
+        return '已归档';
+      default:
+        return '未知';
+    }
   }
 }
