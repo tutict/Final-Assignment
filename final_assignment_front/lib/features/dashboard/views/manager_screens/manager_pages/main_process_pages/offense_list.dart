@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:developer' as developer;
+import 'package:final_assignment_front/features/api/vehicle_information_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_dashboard_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -870,6 +871,8 @@ class AddOffensePage extends StatefulWidget {
 class _AddOffensePageState extends State<AddOffensePage> {
   final OffenseInformationControllerApi offenseApi =
       OffenseInformationControllerApi();
+  final VehicleInformationControllerApi vehicleApi =
+      VehicleInformationControllerApi(); // Add vehicle API
   final _formKey = GlobalKey<FormState>();
   final _driverNameController = TextEditingController();
   final _licensePlateController = TextEditingController();
@@ -918,6 +921,7 @@ class _AddOffensePageState extends State<AddOffensePage> {
         return;
       }
       await offenseApi.initializeWithJwt();
+      await vehicleApi.initializeWithJwt(); // Initialize vehicle API
     } catch (e) {
       _showSnackBar('初始化失败: $e', isError: true);
     } finally {
@@ -938,6 +942,39 @@ class _AddOffensePageState extends State<AddOffensePage> {
     _processStatusController.dispose();
     _processResultController.dispose();
     super.dispose();
+  }
+
+  Future<List<String>> _fetchDriverNameSuggestions(String prefix) async {
+    try {
+      if (!await _validateJwtToken()) {
+        Navigator.pushReplacementNamed(context, AppPages.login);
+        return [];
+      }
+      final vehicles = await vehicleApi.apiVehiclesSearchGet(
+          query: prefix, page: 1, size: 10);
+      return vehicles
+          .map((v) => v.ownerName ?? '')
+          .where((name) => name.toLowerCase().contains(prefix.toLowerCase()))
+          .toSet()
+          .toList();
+    } catch (e) {
+      _showSnackBar('获取司机姓名建议失败: $e', isError: true);
+      return [];
+    }
+  }
+
+  Future<List<String>> _fetchLicensePlateSuggestions(String prefix) async {
+    try {
+      if (!await _validateJwtToken()) {
+        Navigator.pushReplacementNamed(context, AppPages.login);
+        return [];
+      }
+      return await vehicleApi.apiVehiclesLicensePlateGloballyGet(
+          licensePlate: prefix);
+    } catch (e) {
+      _showSnackBar('获取车牌号建议失败: $e', isError: true);
+      return [];
+    }
   }
 
   Future<void> _submitOffense() async {
@@ -1048,6 +1085,83 @@ class _AddOffensePageState extends State<AddOffensePage> {
       bool required = false,
       int? maxLength,
       String? Function(String?)? validator}) {
+    if (label == '司机姓名' || label == '车牌号') {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6.0),
+        child: Autocomplete<String>(
+          optionsBuilder: (TextEditingValue textEditingValue) async {
+            if (textEditingValue.text.isEmpty) {
+              return const Iterable<String>.empty();
+            }
+            return label == '司机姓名'
+                ? await _fetchDriverNameSuggestions(textEditingValue.text)
+                : await _fetchLicensePlateSuggestions(textEditingValue.text);
+          },
+          onSelected: (String selection) {
+            controller.text = selection;
+          },
+          fieldViewBuilder:
+              (context, textEditingController, focusNode, onFieldSubmitted) {
+            textEditingController.text = controller.text;
+            return TextFormField(
+              controller: textEditingController,
+              focusNode: focusNode,
+              style: TextStyle(color: themeData.colorScheme.onSurface),
+              decoration: InputDecoration(
+                labelText: label,
+                labelStyle:
+                    TextStyle(color: themeData.colorScheme.onSurfaceVariant),
+                helperText: label == '车牌号' ? '请输入车牌号，例如：黑AWS34' : null,
+                helperStyle: TextStyle(
+                    color: themeData.colorScheme.onSurfaceVariant
+                        .withOpacity(0.6)),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12.0)),
+                enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(
+                        color: themeData.colorScheme.outline.withOpacity(0.3))),
+                focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(
+                        color: themeData.colorScheme.primary, width: 1.5)),
+                filled: true,
+                fillColor: themeData.colorScheme.surfaceContainerLowest,
+                suffixIcon: textEditingController.text.isNotEmpty
+                    ? IconButton(
+                        icon: Icon(Icons.clear,
+                            color: themeData.colorScheme.onSurfaceVariant),
+                        onPressed: () {
+                          textEditingController.clear();
+                          controller.clear();
+                        },
+                      )
+                    : null,
+              ),
+              keyboardType: keyboardType,
+              maxLength: maxLength,
+              validator: validator ??
+                  (value) {
+                    final trimmedValue = value?.trim() ?? '';
+                    if (required && trimmedValue.isEmpty) return '$label不能为空';
+                    if (label == '司机姓名' && trimmedValue.length > 100) {
+                      return '司机姓名不能超过100个字符';
+                    }
+                    if (label == '车牌号') {
+                      if (trimmedValue.isEmpty) return '车牌号不能为空';
+                      if (trimmedValue.length > 20) return '车牌号不能超过20个字符';
+                      if (!isValidLicensePlate(trimmedValue)) {
+                        return '请输入有效车牌号，例如：黑AWS34';
+                      }
+                    }
+                    return null;
+                  },
+              onChanged: (value) {
+                controller.text = value;
+              },
+            );
+          },
+        ),
+      );
+    }
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: TextFormField(
@@ -1087,16 +1201,6 @@ class _AddOffensePageState extends State<AddOffensePage> {
             (value) {
               final trimmedValue = value?.trim() ?? '';
               if (required && trimmedValue.isEmpty) return '$label不能为空';
-              if (label == '司机姓名' && trimmedValue.length > 100) {
-                return '司机姓名不能超过100个字符';
-              }
-              if (label == '车牌号') {
-                if (trimmedValue.isEmpty) return '车牌号不能为空';
-                if (trimmedValue.length > 20) return '车牌号不能超过20个字符';
-                if (!isValidLicensePlate(trimmedValue)) {
-                  return '请输入有效车牌号，例如：黑AWS34';
-                }
-              }
               if (label == '违法类型' && trimmedValue.length > 100) {
                 return '违法类型不能超过100个字符';
               }
@@ -1545,6 +1649,8 @@ class EditOffensePage extends StatefulWidget {
 class _EditOffensePageState extends State<EditOffensePage> {
   final OffenseInformationControllerApi offenseApi =
       OffenseInformationControllerApi();
+  final VehicleInformationControllerApi vehicleApi =
+      VehicleInformationControllerApi(); // Add vehicle API
   final _formKey = GlobalKey<FormState>();
   final _driverNameController = TextEditingController();
   final _licensePlateController = TextEditingController();
@@ -1593,6 +1699,7 @@ class _EditOffensePageState extends State<EditOffensePage> {
         return;
       }
       await offenseApi.initializeWithJwt();
+      await vehicleApi.initializeWithJwt(); // Initialize vehicle API
       _initializeFields();
     } catch (e) {
       _showSnackBar('初始化失败: $e', isError: true);
@@ -1630,6 +1737,39 @@ class _EditOffensePageState extends State<EditOffensePage> {
     _processStatusController.dispose();
     _processResultController.dispose();
     super.dispose();
+  }
+
+  Future<List<String>> _fetchDriverNameSuggestions(String prefix) async {
+    try {
+      if (!await _validateJwtToken()) {
+        Navigator.pushReplacementNamed(context, AppPages.login);
+        return [];
+      }
+      final vehicles = await vehicleApi.apiVehiclesSearchGet(
+          query: prefix, page: 1, size: 10);
+      return vehicles
+          .map((v) => v.ownerName ?? '')
+          .where((name) => name.toLowerCase().contains(prefix.toLowerCase()))
+          .toSet()
+          .toList();
+    } catch (e) {
+      _showSnackBar('获取司机姓名建议失败: $e', isError: true);
+      return [];
+    }
+  }
+
+  Future<List<String>> _fetchLicensePlateSuggestions(String prefix) async {
+    try {
+      if (!await _validateJwtToken()) {
+        Navigator.pushReplacementNamed(context, AppPages.login);
+        return [];
+      }
+      return await vehicleApi.apiVehiclesLicensePlateGloballyGet(
+          licensePlate: prefix);
+    } catch (e) {
+      _showSnackBar('获取车牌号建议失败: $e', isError: true);
+      return [];
+    }
   }
 
   Future<void> _updateOffense() async {
@@ -1740,6 +1880,83 @@ class _EditOffensePageState extends State<EditOffensePage> {
       bool required = false,
       int? maxLength,
       String? Function(String?)? validator}) {
+    if (label == '司机姓名' || label == '车牌号') {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6.0),
+        child: Autocomplete<String>(
+          optionsBuilder: (TextEditingValue textEditingValue) async {
+            if (textEditingValue.text.isEmpty) {
+              return const Iterable<String>.empty();
+            }
+            return label == '司机姓名'
+                ? await _fetchDriverNameSuggestions(textEditingValue.text)
+                : await _fetchLicensePlateSuggestions(textEditingValue.text);
+          },
+          onSelected: (String selection) {
+            controller.text = selection;
+          },
+          fieldViewBuilder:
+              (context, textEditingController, focusNode, onFieldSubmitted) {
+            textEditingController.text = controller.text;
+            return TextFormField(
+              controller: textEditingController,
+              focusNode: focusNode,
+              style: TextStyle(color: themeData.colorScheme.onSurface),
+              decoration: InputDecoration(
+                labelText: label,
+                labelStyle:
+                    TextStyle(color: themeData.colorScheme.onSurfaceVariant),
+                helperText: label == '车牌号' ? '请输入车牌号，例如：黑AWS34' : null,
+                helperStyle: TextStyle(
+                    color: themeData.colorScheme.onSurfaceVariant
+                        .withOpacity(0.6)),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12.0)),
+                enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(
+                        color: themeData.colorScheme.outline.withOpacity(0.3))),
+                focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(
+                        color: themeData.colorScheme.primary, width: 1.5)),
+                filled: true,
+                fillColor: themeData.colorScheme.surfaceContainerLowest,
+                suffixIcon: textEditingController.text.isNotEmpty
+                    ? IconButton(
+                        icon: Icon(Icons.clear,
+                            color: themeData.colorScheme.onSurfaceVariant),
+                        onPressed: () {
+                          textEditingController.clear();
+                          controller.clear();
+                        },
+                      )
+                    : null,
+              ),
+              keyboardType: keyboardType,
+              maxLength: maxLength,
+              validator: validator ??
+                  (value) {
+                    final trimmedValue = value?.trim() ?? '';
+                    if (required && trimmedValue.isEmpty) return '$label不能为空';
+                    if (label == '司机姓名' && trimmedValue.length > 100) {
+                      return '司机姓名不能超过100个字符';
+                    }
+                    if (label == '车牌号') {
+                      if (trimmedValue.isEmpty) return '车牌号不能为空';
+                      if (trimmedValue.length > 20) return '车牌号不能超过20个字符';
+                      if (!isValidLicensePlate(trimmedValue)) {
+                        return '请输入有效车牌号，例如：黑AWS34';
+                      }
+                    }
+                    return null;
+                  },
+              onChanged: (value) {
+                controller.text = value;
+              },
+            );
+          },
+        ),
+      );
+    }
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: TextFormField(
@@ -1779,16 +1996,6 @@ class _EditOffensePageState extends State<EditOffensePage> {
             (value) {
               final trimmedValue = value?.trim() ?? '';
               if (required && trimmedValue.isEmpty) return '$label不能为空';
-              if (label == '司机姓名' && trimmedValue.length > 100) {
-                return '司机姓名不能超过100个字符';
-              }
-              if (label == '车牌号') {
-                if (trimmedValue.isEmpty) return '车牌号不能为空';
-                if (trimmedValue.length > 20) return '车牌号不能超过20个字符';
-                if (!isValidLicensePlate(trimmedValue)) {
-                  return '请输入有效车牌号，例如：黑AWS34';
-                }
-              }
               if (label == '违法类型' && trimmedValue.length > 100) {
                 return '违法类型不能超过100个字符';
               }

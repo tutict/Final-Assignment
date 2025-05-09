@@ -1,10 +1,16 @@
-part of '../manager_screens/manager_dashboard_screen.dart';
+import 'package:chinese_font_library/chinese_font_library.dart';
+import 'package:flutter/material.dart';
 
-class _ActiveProjectCard extends StatelessWidget {
-  const _ActiveProjectCard({
+// Define constants
+const double kSpacing = 16.0;
+const double kBorderRadius = 12.0;
+
+class ActiveProjectCard extends StatelessWidget {
+  const ActiveProjectCard({
+    super.key,
     required this.child,
     required this.onPressedSeeAll,
-    this.title = "图表呈现", // Default title, customizable
+    this.title = "图表呈现",
   });
 
   final Widget child;
@@ -16,13 +22,11 @@ class _ActiveProjectCard extends StatelessWidget {
     final theme = Theme.of(context);
     return Card(
       elevation: 4,
-      // Subtle shadow for depth
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(kBorderRadius),
       ),
       margin: const EdgeInsets.symmetric(vertical: kSpacing / 2),
       color: theme.cardColor,
-      // Theme-aware card background
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(kBorderRadius),
@@ -50,11 +54,9 @@ class _ActiveProjectCard extends StatelessWidget {
               Divider(
                 thickness: 1,
                 height: kSpacing * 1.5,
-                color: theme.colorScheme.onSurface.withOpacity(
-                    0.2), // Theme-aware divider
+                color: theme.colorScheme.onSurface.withOpacity(0.2),
               ),
               const SizedBox(height: kSpacing / 2),
-              // Child widget (e.g., chart)
               child,
             ],
           ),
@@ -67,10 +69,13 @@ class _ActiveProjectCard extends StatelessWidget {
     final theme = Theme.of(context);
     return Text(
       title,
-      style: theme.textTheme.titleLarge?.copyWith(
-        fontWeight: FontWeight.bold,
-        color: theme.colorScheme.onSurface, // Theme-aware text color
-      )?.useSystemChineseFont(),
+      style: theme.textTheme.titleLarge
+          ?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: theme.colorScheme.onSurface,
+            fontSize: 18, // Increased for better visibility
+          )
+          .useSystemChineseFont(),
     );
   }
 
@@ -83,7 +88,6 @@ class _ActiveProjectCard extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
           color: theme.colorScheme.primary.withOpacity(0.1),
-          // Theme-aware button background
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
@@ -92,7 +96,7 @@ class _ActiveProjectCard extends StatelessWidget {
             Text(
               "详情",
               style: TextStyle(
-                color: theme.colorScheme.primary, // Theme-aware text color
+                color: theme.colorScheme.primary,
                 fontWeight: FontWeight.w600,
                 fontSize: 14,
               ).useSystemChineseFont(),
@@ -101,7 +105,7 @@ class _ActiveProjectCard extends StatelessWidget {
             Icon(
               Icons.arrow_forward_ios,
               size: 14,
-              color: theme.colorScheme.primary, // Theme-aware icon color
+              color: theme.colorScheme.primary,
             ),
           ],
         ),

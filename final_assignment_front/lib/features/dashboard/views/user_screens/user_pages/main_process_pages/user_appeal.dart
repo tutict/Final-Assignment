@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:final_assignment_front/features/dashboard/controllers/progress_controller.dart' hide UserManagement;
+import 'package:final_assignment_front/features/dashboard/controllers/progress_controller.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -266,10 +266,13 @@ class _UserAppealPageState extends State<UserAppealPage> {
       return;
     }
 
+    // Fetch user and driver information
     final user = await _fetchUserManagement();
-    final driverInfo =
-        user != null ? await _fetchDriverInformation(user.userId) : null;
+    final driverInfo = user?.userId != null
+        ? await _fetchDriverInformation(user!.userId)
+        : null;
 
+    // Initialize controllers with fetched data
     final TextEditingController nameController =
         TextEditingController(text: driverInfo?.name ?? user?.username ?? '');
     final TextEditingController idCardController =
@@ -278,6 +281,11 @@ class _UserAppealPageState extends State<UserAppealPage> {
         text: driverInfo?.contactNumber ?? user?.contactNumber ?? '');
     final TextEditingController reasonController = TextEditingController();
     int? selectedOffenseId;
+
+    // Determine if fields should be read-only
+    final bool isNameReadOnly = nameController.text.isNotEmpty;
+    final bool isIdCardReadOnly = idCardController.text.isNotEmpty;
+    final bool isContactReadOnly = contactController.text.isNotEmpty;
 
     showDialog(
       context: context,
@@ -309,7 +317,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
                     const SizedBox(height: 12.0),
                     DropdownButtonFormField<int>(
                       decoration: InputDecoration(
-                        labelText: '选择违法记录',
+                        labelText: '选择违法记录 *',
                         labelStyle: TextStyle(
                             color: themeData.colorScheme.onSurfaceVariant),
                         filled: true,
@@ -329,40 +337,57 @@ class _UserAppealPageState extends State<UserAppealPage> {
                         );
                       }).toList(),
                       onChanged: (value) => selectedOffenseId = value,
+                      validator: (value) => value == null ? '请选择一个违法记录' : null,
                     ),
                     const SizedBox(height: 12.0),
                     TextField(
                       controller: nameController,
+                      readOnly: isNameReadOnly,
                       decoration: InputDecoration(
-                        labelText: '申诉人姓名',
+                        labelText: '申诉人姓名 *',
                         labelStyle: TextStyle(
                             color: themeData.colorScheme.onSurfaceVariant),
                         filled: true,
-                        fillColor: themeData.colorScheme.surfaceContainerLowest,
+                        fillColor: isNameReadOnly
+                            ? themeData.colorScheme.surfaceContainerHighest
+                                .withOpacity(0.5)
+                            : themeData.colorScheme.surfaceContainerLowest,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8.0),
                           borderSide: BorderSide(
                               color: themeData.colorScheme.outline
                                   .withOpacity(0.3)),
                         ),
+                        suffixIcon: isNameReadOnly
+                            ? Icon(Icons.lock,
+                                size: 18, color: themeData.colorScheme.primary)
+                            : null,
                       ),
                       style: TextStyle(color: themeData.colorScheme.onSurface),
                     ),
                     const SizedBox(height: 12.0),
                     TextField(
                       controller: idCardController,
+                      readOnly: isIdCardReadOnly,
                       decoration: InputDecoration(
-                        labelText: '身份证号码',
+                        labelText: '身份证号码 *',
                         labelStyle: TextStyle(
                             color: themeData.colorScheme.onSurfaceVariant),
                         filled: true,
-                        fillColor: themeData.colorScheme.surfaceContainerLowest,
+                        fillColor: isIdCardReadOnly
+                            ? themeData.colorScheme.surfaceContainerHighest
+                                .withOpacity(0.5)
+                            : themeData.colorScheme.surfaceContainerLowest,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8.0),
                           borderSide: BorderSide(
                               color: themeData.colorScheme.outline
                                   .withOpacity(0.3)),
                         ),
+                        suffixIcon: isIdCardReadOnly
+                            ? Icon(Icons.lock,
+                                size: 18, color: themeData.colorScheme.primary)
+                            : null,
                       ),
                       keyboardType: TextInputType.number,
                       style: TextStyle(color: themeData.colorScheme.onSurface),
@@ -370,18 +395,26 @@ class _UserAppealPageState extends State<UserAppealPage> {
                     const SizedBox(height: 12.0),
                     TextField(
                       controller: contactController,
+                      readOnly: isContactReadOnly,
                       decoration: InputDecoration(
-                        labelText: '联系电话',
+                        labelText: '联系电话 *',
                         labelStyle: TextStyle(
                             color: themeData.colorScheme.onSurfaceVariant),
                         filled: true,
-                        fillColor: themeData.colorScheme.surfaceContainerLowest,
+                        fillColor: isContactReadOnly
+                            ? themeData.colorScheme.surfaceContainerHighest
+                                .withOpacity(0.5)
+                            : themeData.colorScheme.surfaceContainerLowest,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8.0),
                           borderSide: BorderSide(
                               color: themeData.colorScheme.outline
                                   .withOpacity(0.3)),
                         ),
+                        suffixIcon: isContactReadOnly
+                            ? Icon(Icons.lock,
+                                size: 18, color: themeData.colorScheme.primary)
+                            : null,
                       ),
                       keyboardType: TextInputType.phone,
                       style: TextStyle(color: themeData.colorScheme.onSurface),
@@ -390,7 +423,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
                     TextField(
                       controller: reasonController,
                       decoration: InputDecoration(
-                        labelText: '申诉原因',
+                        labelText: '申诉原因 *',
                         labelStyle: TextStyle(
                             color: themeData.colorScheme.onSurfaceVariant),
                         filled: true,
@@ -435,7 +468,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
                               return;
                             }
                             final RegExp idCardRegExp =
-                                RegExp(r'^\d{15}|\d{18}$');
+                                RegExp(r'^\d{15}$|^\d{17}[\dXx]$');
                             final RegExp contactRegExp = RegExp(r'^\d{10,15}$');
 
                             if (!idCardRegExp.hasMatch(idCard)) {
@@ -478,7 +511,13 @@ class _UserAppealPageState extends State<UserAppealPage> {
           ),
         );
       }),
-    );
+    ).whenComplete(() {
+      // Dispose controllers to prevent memory leaks
+      nameController.dispose();
+      idCardController.dispose();
+      contactController.dispose();
+      reasonController.dispose();
+    });
   }
 
   void _showSnackBar(String message, {bool isError = false}) {
@@ -864,10 +903,12 @@ class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
             controller?.currentBodyTheme.value ?? Theme.of(context);
         return AlertDialog(
           backgroundColor: themeData.colorScheme.surfaceContainer,
-          title: Text('提交进度',
-              style: themeData.textTheme.titleLarge?.copyWith(
-                color: themeData.colorScheme.onSurface,
-              )),
+          title: Text(
+            '提交进度',
+            style: themeData.textTheme.titleLarge?.copyWith(
+              color: themeData.colorScheme.onSurface,
+            ),
+          ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -882,7 +923,8 @@ class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
                     filled: true,
                     fillColor: themeData.colorScheme.surfaceContainerLowest,
                     border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8)),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                     enabledBorder: OutlineInputBorder(
                       borderSide: BorderSide(
                           color:
@@ -905,7 +947,8 @@ class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
                     filled: true,
                     fillColor: themeData.colorScheme.surfaceContainerLowest,
                     border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8)),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                     enabledBorder: OutlineInputBorder(
                       borderSide: BorderSide(
                           color:
@@ -961,7 +1004,10 @@ class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
           ],
         );
       }),
-    );
+    ).whenComplete(() {
+      titleController.dispose();
+      detailsController.dispose();
+    });
   }
 
   @override
@@ -1086,9 +1132,11 @@ class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
                                 return Column(
                                   children: relatedProgress
                                       .map((item) => ListTile(
-                                            title: Text(item.title,
-                                                style: themeData
-                                                    .textTheme.bodyLarge),
+                                            title: Text(
+                                              item.title,
+                                              style:
+                                                  themeData.textTheme.bodyLarge,
+                                            ),
                                             subtitle: Text(
                                               '状态: ${item.status}\n提交时间: ${formatDateTime(item.submitTime)}',
                                               style: themeData

@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
+import 'package:final_assignment_front/features/api/vehicle_information_controller_api.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_dashboard_screen.dart';
@@ -801,7 +803,6 @@ class _FineListState extends State<FineList> {
   }
 }
 
-/// 添加罚款页面
 class AddFinePage extends StatefulWidget {
   const AddFinePage({super.key});
 
@@ -811,6 +812,10 @@ class AddFinePage extends StatefulWidget {
 
 class _AddFinePageState extends State<AddFinePage> {
   final FineInformationControllerApi fineApi = FineInformationControllerApi();
+  final OffenseInformationControllerApi offenseApi =
+      OffenseInformationControllerApi();
+  final VehicleInformationControllerApi vehicleApi =
+      VehicleInformationControllerApi();
   final _formKey = GlobalKey<FormState>();
   final _plateNumberController = TextEditingController();
   final _fineAmountController = TextEditingController();
@@ -822,6 +827,7 @@ class _AddFinePageState extends State<AddFinePage> {
   final _dateController = TextEditingController();
   bool _isLoading = false;
   final DashboardController controller = Get.find<DashboardController>();
+  int? _selectedOffenseId;
 
   Future<bool> _validateJwtToken() async {
     final prefs = await SharedPreferences.getInstance();
@@ -857,6 +863,8 @@ class _AddFinePageState extends State<AddFinePage> {
         return;
       }
       await fineApi.initializeWithJwt();
+      await offenseApi.initializeWithJwt();
+      await vehicleApi.initializeWithJwt();
     } catch (e) {
       _showSnackBar('初始化失败: $e', isError: true);
     } finally {
@@ -877,6 +885,83 @@ class _AddFinePageState extends State<AddFinePage> {
     super.dispose();
   }
 
+  Future<List<String>> _fetchLicensePlateSuggestions(String prefix) async {
+    try {
+      if (!await _validateJwtToken()) {
+        Navigator.pushReplacementNamed(context, AppPages.login);
+        return [];
+      }
+      return await vehicleApi.apiVehiclesLicensePlateGloballyGet(
+          licensePlate: prefix);
+    } catch (e) {
+      _showSnackBar('获取车牌号建议失败: $e', isError: true);
+      return [];
+    }
+  }
+
+  Future<List<String>> _fetchPayeeSuggestions(String prefix) async {
+    try {
+      if (!await _validateJwtToken()) {
+        Navigator.pushReplacementNamed(context, AppPages.login);
+        return [];
+      }
+      final offenses = await offenseApi.apiOffensesByLicensePlateGet(
+        query: _plateNumberController.text.trim(),
+        page: 1,
+        size: 10,
+      );
+      if (offenses.isNotEmpty) {
+        return offenses
+            .map((o) => o.driverName ?? '')
+            .where((name) => name.toLowerCase().contains(prefix.toLowerCase()))
+            .toSet()
+            .toList();
+      }
+      final vehicles = await vehicleApi.apiVehiclesSearchGet(
+          query: prefix, page: 1, size: 10);
+      return vehicles
+          .map((v) => v.ownerName ?? '')
+          .where((name) => name.toLowerCase().contains(prefix.toLowerCase()))
+          .toSet()
+          .toList();
+    } catch (e) {
+      _showSnackBar('获取缴款人建议失败: $e', isError: true);
+      return [];
+    }
+  }
+
+  Future<void> _onLicensePlateSelected(String licensePlate) async {
+    try {
+      if (!await _validateJwtToken()) {
+        Navigator.pushReplacementNamed(context, AppPages.login);
+        return;
+      }
+      final offenses = await offenseApi.apiOffensesByLicensePlateGet(
+        query: licensePlate,
+        page: 1,
+        size: 10,
+      );
+      if (offenses.isNotEmpty) {
+        final latestOffense = offenses.first;
+        setState(() {
+          _selectedOffenseId = latestOffense.offenseId;
+          _payeeController.text = latestOffense.driverName ?? '';
+          _fineAmountController.text =
+              latestOffense.fineAmount?.toString() ?? '';
+        });
+      } else {
+        _showSnackBar('未找到与此车牌相关的违法记录', isError: true);
+        setState(() {
+          _selectedOffenseId = null;
+          _payeeController.clear();
+          _fineAmountController.clear();
+        });
+      }
+    } catch (e) {
+      _showSnackBar('获取违法信息失败: $e', isError: true);
+    }
+  }
+
   Future<void> _submitFine() async {
     if (!_formKey.currentState!.validate()) return;
     if (!await _validateJwtToken()) {
@@ -886,44 +971,33 @@ class _AddFinePageState extends State<AddFinePage> {
     setState(() => _isLoading = true);
     try {
       final idempotencyKey = generateIdempotencyKey();
-      final finePayload = {
-        'fineId': null,
-        'offenseId': 0,
-        'fineAmount': double.tryParse(_fineAmountController.text.trim()) ?? 0.0,
-        'payee': _payeeController.text.trim(),
-        'accountNumber': _accountNumberController.text.trim().isEmpty
+      final finePayload = FineInformation(
+        offenseId: _selectedOffenseId ?? 0,
+        fineAmount: double.tryParse(_fineAmountController.text.trim()) ?? 0.0,
+        payee: _payeeController.text.trim(),
+        accountNumber: _accountNumberController.text.trim().isEmpty
             ? null
             : _accountNumberController.text.trim(),
-        'bank': _bankController.text.trim().isEmpty
+        bank: _bankController.text.trim().isEmpty
             ? null
             : _bankController.text.trim(),
-        'receiptNumber': _receiptNumberController.text.trim().isEmpty
+        receiptNumber: _receiptNumberController.text.trim().isEmpty
             ? null
             : _receiptNumberController.text.trim(),
-        'remarks': _remarksController.text.trim().isEmpty
+        remarks: _remarksController.text.trim().isEmpty
             ? null
             : _remarksController.text.trim(),
-        'fineTime': _dateController.text.isNotEmpty
+        fineTime: _dateController.text.isNotEmpty
             ? DateTime.parse("${_dateController.text.trim()}T00:00:00.000")
                 .toIso8601String()
             : null,
-        'status': 'Pending',
-      };
-      final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken');
-      final response = await http.post(
-        Uri.parse(
-            'http://localhost:8081/api/fines?idempotencyKey=$idempotencyKey'),
-        headers: {
-          'Authorization': 'Bearer $jwtToken',
-          'Content-Type': 'application/json; charset=UTF-8',
-        },
-        body: jsonEncode(finePayload),
+        status: 'Pending',
+        idempotencyKey: idempotencyKey,
       );
-      if (response.statusCode != 201) {
-        throw Exception(
-            'Failed to create fine: ${response.statusCode} - ${response.body}');
-      }
+      await fineApi.apiFinesPost(
+        fineInformation: finePayload,
+        idempotencyKey: idempotencyKey,
+      );
       _showSnackBar('创建罚款成功！');
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
@@ -985,6 +1059,94 @@ class _AddFinePageState extends State<AddFinePage> {
       bool required = false,
       int? maxLength,
       String? Function(String?)? validator}) {
+    if (label == '车牌号' || label == '缴款人') {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6.0),
+        child: Autocomplete<String>(
+          optionsBuilder: (TextEditingValue textEditingValue) async {
+            if (textEditingValue.text.isEmpty) {
+              return const Iterable<String>.empty();
+            }
+            return label == '车牌号'
+                ? await _fetchLicensePlateSuggestions(textEditingValue.text)
+                : await _fetchPayeeSuggestions(textEditingValue.text);
+          },
+          onSelected: (String selection) async {
+            controller.text = selection;
+            if (label == '车牌号') {
+              await _onLicensePlateSelected(selection);
+            }
+          },
+          fieldViewBuilder:
+              (context, textEditingController, focusNode, onFieldSubmitted) {
+            textEditingController.text = controller.text;
+            return TextFormField(
+              controller: textEditingController,
+              focusNode: focusNode,
+              style: TextStyle(color: themeData.colorScheme.onSurface),
+              decoration: InputDecoration(
+                labelText: label,
+                labelStyle:
+                    TextStyle(color: themeData.colorScheme.onSurfaceVariant),
+                helperText: label == '车牌号' ? '请输入车牌号，例如：黑AWS34' : null,
+                helperStyle: TextStyle(
+                    color: themeData.colorScheme.onSurfaceVariant
+                        .withOpacity(0.6)),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12.0)),
+                enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(
+                        color: themeData.colorScheme.outline.withOpacity(0.3))),
+                focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(
+                        color: themeData.colorScheme.primary, width: 1.5)),
+                filled: true,
+                fillColor: themeData.colorScheme.surfaceContainerLowest,
+                suffixIcon: textEditingController.text.isNotEmpty
+                    ? IconButton(
+                        icon: Icon(Icons.clear,
+                            color: themeData.colorScheme.onSurfaceVariant),
+                        onPressed: () {
+                          textEditingController.clear();
+                          controller.clear();
+                          if (label == '车牌号') {
+                            setState(() {
+                              _selectedOffenseId = null;
+                              _payeeController.clear();
+                              _fineAmountController.clear();
+                            });
+                          }
+                        },
+                      )
+                    : null,
+              ),
+              keyboardType: keyboardType,
+              maxLength: maxLength,
+              validator: validator ??
+                  (value) {
+                    final trimmedValue = value?.trim() ?? '';
+                    if (required && trimmedValue.isEmpty) return '$label不能为空';
+                    if (label == '车牌号') {
+                      if (trimmedValue.isEmpty) return '车牌号不能为空';
+                      if (trimmedValue.length > 20) return '车牌号不能超过20个字符';
+                      if (!RegExp(r'^[\u4e00-\u9fa5][A-Za-z0-9]{5,7}$')
+                          .hasMatch(trimmedValue)) {
+                        return '请输入有效车牌号，例如：黑AWS34';
+                      }
+                    }
+                    if (label == '缴款人' && trimmedValue.length > 100) {
+                      return '缴款人姓名不能超过100个字符';
+                    }
+                    return null;
+                  },
+              onChanged: (value) {
+                controller.text = value;
+              },
+            );
+          },
+        ),
+      );
+    }
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: TextFormField(
@@ -993,11 +1155,7 @@ class _AddFinePageState extends State<AddFinePage> {
         decoration: InputDecoration(
           labelText: label,
           labelStyle: TextStyle(color: themeData.colorScheme.onSurfaceVariant),
-          helperText: label == '车牌号'
-              ? '请输入车牌号，例如：黑AWS34'
-              : label == '银行账号'
-                  ? '请输入银行账号（选填）'
-                  : null,
+          helperText: label == '银行账号' ? '请输入银行账号（选填）' : null,
           helperStyle: TextStyle(
               color: themeData.colorScheme.onSurfaceVariant.withOpacity(0.6)),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
@@ -1032,9 +1190,6 @@ class _AddFinePageState extends State<AddFinePage> {
                 if (!RegExp(r'^\d+(\.\d{1,2})?$').hasMatch(trimmedValue)) {
                   return '罚款金额最多保留两位小数';
                 }
-              }
-              if (label == '缴款人' && trimmedValue.length > 100) {
-                return '缴款人姓名不能超过100个字符';
               }
               if (label == '银行账号' && trimmedValue.length > 50) {
                 return '银行账号不能超过50个字符';
@@ -1096,7 +1251,7 @@ class _AddFinePageState extends State<AddFinePage> {
                               children: [
                                 _buildTextField(
                                     '车牌号', _plateNumberController, themeData,
-                                    maxLength: 20),
+                                    required: true, maxLength: 20),
                                 _buildTextField(
                                     '罚款金额', _fineAmountController, themeData,
                                     keyboardType:
@@ -1457,8 +1612,6 @@ class _FineDetailPageState extends State<FineDetailPage> {
                                   ? DateTime.parse(widget.fine.fineTime!)
                                   : null),
                               themeData),
-                          _buildDetailRow(
-                              '车牌号', '未知', themeData), // Placeholder
                           _buildDetailRow('银行账号',
                               widget.fine.accountNumber ?? '无', themeData),
                           _buildDetailRow(

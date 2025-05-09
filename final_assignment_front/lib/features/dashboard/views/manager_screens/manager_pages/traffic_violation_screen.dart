@@ -1,9 +1,8 @@
-import 'package:final_assignment_front/features/api/traffic_violation_controller_api.dart';
-import 'package:final_assignment_front/shared_components/bar_charts.dart';
-import 'package:final_assignment_front/shared_components/pie_chart.dart';
+import 'package:chinese_font_library/chinese_font_library.dart';
+import 'package:final_assignment_front/features/dashboard/views/components/active_project_card.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart'; // For date formatting
+import 'package:intl/intl.dart';
 
 class TrafficViolationScreen extends StatefulWidget {
   const TrafficViolationScreen({super.key});
@@ -13,119 +12,133 @@ class TrafficViolationScreen extends StatefulWidget {
 }
 
 class _TrafficViolationScreenState extends State<TrafficViolationScreen> {
-  final TrafficViolationControllerApi _api = TrafficViolationControllerApi();
   Map<String, int>? _violationTypes;
   List<Map<String, dynamic>>? _timeSeries;
   Map<String, int>? _appealReasons;
   Map<String, int>? _paymentStatus;
-  String? _error;
   bool _isLoading = false;
   final DateTime _startTime = DateTime.now().subtract(const Duration(days: 30));
 
   @override
   void initState() {
     super.initState();
-    _fetchData();
+    _setHardcodedData();
   }
 
-  Future<void> _fetchData() async {
+  void _setHardcodedData() {
     setState(() {
       _isLoading = true;
-      _error = null;
     });
 
-    try {
-      await _api.initializeWithJwt();
-      final startTimeStr =
-          DateFormat('yyyy-MM-dd\'T\'HH:mm:ss\'Z\'').format(_startTime);
+    _violationTypes = {
+      "超速": 120,
+      "闯红灯": 80,
+      "违停": 50,
+      "酒驾": 20,
+      "其他": 30,
+    };
 
-      final violationTypes = await _api.apiTrafficViolationsViolationTypesGet(
-          startTime: startTimeStr);
-      final timeSeries =
-          await _api.apiTrafficViolationsTimeSeriesGet(startTime: startTimeStr);
-      final appealReasons = await _api.apiTrafficViolationsAppealReasonsGet(
-          startTime: startTimeStr);
-      final paymentStatus = await _api.apiTrafficViolationsFinePaymentStatusGet(
-          startTime: startTimeStr);
+    _timeSeries = List.generate(7, (index) {
+      final date = _startTime.add(Duration(days: index));
+      return {
+        'time': date.toIso8601String(),
+        'value1': 50 + index * 10, // Fines
+        'value2': 30 + index * 5, // Points
+      };
+    });
 
-      setState(() {
-        _violationTypes = violationTypes;
-        _timeSeries = timeSeries;
-        _appealReasons = appealReasons;
-        _paymentStatus = paymentStatus;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _error = e.toString();
-        _isLoading = false;
-      });
-    }
+    _appealReasons = {
+      "证据不足": 50,
+      "程序不当": 30,
+      "误判": 20,
+      "其他": 10,
+    };
+
+    _paymentStatus = {
+      "已支付": 100,
+      "未支付": 50,
+    };
+
+    setState(() {
+      _isLoading = false;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Traffic Violation Dashboard'),
+        title: const Text('交通违法仪表板'),
         centerTitle: true,
+        elevation: 4,
+        backgroundColor: theme.colorScheme.primaryContainer,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _isLoading ? null : _fetchData,
-            tooltip: 'Refresh Data',
+            onPressed: _isLoading ? null : _setHardcodedData,
+            tooltip: '刷新数据',
           ),
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: _fetchData,
+        onRefresh: () async => _setHardcodedData(),
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (_error != null) ...[
-                Card(
-                  color: Colors.red[100],
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Text(
-                      'Error: $_error',
-                      style: const TextStyle(color: Colors.red, fontSize: 16),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-              ],
               if (_isLoading)
-                const Center(
-                  child: CircularProgressIndicator(),
-                )
+                const Center(child: CircularProgressIndicator())
               else ...[
                 _buildChartSection(
-                  'Violation Types',
+                  '违法类型分布',
                   _violationTypes == null || _violationTypes!.isEmpty
-                      ? const Center(child: Text('No violation types data'))
-                      : TrafficViolationBarChart(
-                          typeCountMap: _violationTypes!,
-                          startTime: _startTime,
+                      ? const Center(child: Text('无违法类型数据'))
+                      : ActiveProjectCard(
+                          title: '违法类型分布',
+                          onPressedSeeAll: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('查看违法类型详情')),
+                            );
+                          },
+                          child: SizedBox(
+                            height: 250,
+                            child: TrafficViolationBarChart(
+                              typeCountMap: _violationTypes!,
+                              startTime: _startTime,
+                            ),
+                          ),
                         ),
                 ),
                 _buildChartSection(
-                  'Time Series (Fines & Points)',
-                  _buildLineChart(),
+                  '罚款与扣分趋势',
+                  _timeSeries == null || _timeSeries!.isEmpty
+                      ? const Center(child: Text('无时间序列数据'))
+                      : ActiveProjectCard(
+                          title: '罚款与扣分趋势',
+                          onPressedSeeAll: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('查看时间序列详情')),
+                            );
+                          },
+                          child: SizedBox(
+                            height: 200,
+                            child: _buildLineChart(),
+                          ),
+                        ),
                 ),
                 _buildChartSection(
-                  'Appeal Reasons',
+                  '申诉理由分布',
                   _appealReasons == null || _appealReasons!.isEmpty
-                      ? const Center(child: Text('No appeal reasons data'))
-                      : TrafficViolationPieChart(typeCountMap: _appealReasons!),
+                      ? const Center(child: Text('无申诉理由数据'))
+                      : const TrafficViolationPieChartCard(),
                 ),
                 _buildChartSection(
-                  'Payment Status',
+                  '罚款支付状态',
                   _paymentStatus == null || _paymentStatus!.isEmpty
-                      ? const Center(child: Text('No payment status data'))
-                      : TrafficViolationPieChart(typeCountMap: _paymentStatus!),
+                      ? const Center(child: Text('无支付状态数据'))
+                      : const TrafficViolationPieChartCard(),
                 ),
               ],
             ],
@@ -141,13 +154,25 @@ class _TrafficViolationScreenState extends State<TrafficViolationScreen> {
       children: [
         Text(
           title,
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          style: Theme.of(context)
+              .textTheme
+              .titleLarge
+              ?.copyWith(
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
+              )
+              .useSystemChineseFont(),
         ),
-        const SizedBox(height: 8),
-        SizedBox(
-          height: 450, // Increased chart height for larger display
-          width: double.infinity, // Ensure charts take full width
-          child: chart,
+        const SizedBox(height: 12),
+        Card(
+          elevation: 6,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: chart,
+          ),
         ),
         const SizedBox(height: 24),
       ],
@@ -156,10 +181,10 @@ class _TrafficViolationScreenState extends State<TrafficViolationScreen> {
 
   Widget _buildLineChart() {
     if (_timeSeries == null || _timeSeries!.isEmpty) {
-      return const Center(child: Text('No time series data available'));
+      return const Center(child: Text('无时间序列数据可用'));
     }
 
-    // Convert _timeSeries to match LineChart expectations
+    final theme = Theme.of(context);
     final dataList = _timeSeries!
         .map((item) => {
               'time': DateTime.parse(item['time'] as String),
@@ -168,7 +193,6 @@ class _TrafficViolationScreenState extends State<TrafficViolationScreen> {
             })
         .toList();
 
-    // Calculate max values for scaling
     final maxX = dataList
         .map((item) => (item['time'] as DateTime).difference(_startTime).inDays)
         .reduce((a, b) => a > b ? a : b)
@@ -183,27 +207,36 @@ class _TrafficViolationScreenState extends State<TrafficViolationScreen> {
 
     return Stack(
       children: [
-        // Bar chart for fines
         BarChart(
           BarChartData(
             alignment: BarChartAlignment.spaceAround,
             maxY: maxY > 0 ? maxY : 500,
             minY: 0,
             barGroups: dataList.asMap().entries.map((entry) {
-              final index = entry.key;
               final item = entry.value;
               final days =
                   (item['time'] as DateTime).difference(_startTime).inDays;
               final value = item['value1'] as double;
               return BarChartGroupData(
-                x: index,
+                x: days,
                 barRods: [
                   BarChartRodData(
                     toY: value,
-                    color: Colors.yellow.withOpacity(0.5),
-                    width: 12, // Increased width for larger chart
+                    gradient: LinearGradient(
+                      colors: [
+                        theme.colorScheme.primary,
+                        theme.colorScheme.primaryContainer,
+                      ],
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                    ),
+                    width: 12,
                     borderRadius:
                         const BorderRadius.vertical(top: Radius.circular(4)),
+                    borderSide: BorderSide(
+                      color: theme.colorScheme.primary.withOpacity(0.3),
+                      width: 1,
+                    ),
                   ),
                 ],
               );
@@ -213,26 +246,31 @@ class _TrafficViolationScreenState extends State<TrafficViolationScreen> {
               leftTitles: AxisTitles(
                 sideTitles: SideTitles(
                   showTitles: true,
-                  reservedSize: 48, // Increased for larger font
+                  reservedSize: 48,
                   interval: maxY / 5,
                   getTitlesWidget: (value, meta) => Text(
                     value.toInt().toString(),
-                    style: const TextStyle(color: Colors.black, fontSize: 14),
+                    style: TextStyle(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      fontSize: 14,
+                    ).useSystemChineseFont(),
                   ),
                 ),
               ),
               bottomTitles: AxisTitles(
                 sideTitles: SideTitles(
                   showTitles: true,
-                  reservedSize: 36, // Increased for larger font
+                  reservedSize: 36,
                   interval: maxX > 7 ? maxX / 7 : 1,
                   getTitlesWidget: (value, meta) {
                     final index = value.toInt();
-                    if (index >= dataList.length) return const Text('');
-                    final date = dataList[index]['time'] as DateTime;
+                    final date = _startTime.add(Duration(days: index));
                     return Text(
                       DateFormat('MM-dd').format(date),
-                      style: const TextStyle(color: Colors.black, fontSize: 14),
+                      style: TextStyle(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontSize: 14,
+                      ).useSystemChineseFont(),
                     );
                   },
                 ),
@@ -247,54 +285,77 @@ class _TrafficViolationScreenState extends State<TrafficViolationScreen> {
               drawVerticalLine: true,
               horizontalInterval: maxY / 5,
               verticalInterval: maxX > 7 ? maxX / 7 : 1,
+              getDrawingHorizontalLine: (value) {
+                return FlLine(
+                  color: theme.colorScheme.onSurface.withOpacity(0.1),
+                  strokeWidth: 1,
+                );
+              },
             ),
-            borderData: FlBorderData(show: false),
+            borderData: FlBorderData(
+              show: true,
+              border: Border.all(
+                color: theme.colorScheme.outline.withOpacity(0.2),
+                width: 1,
+              ),
+            ),
             barTouchData: BarTouchData(
               enabled: true,
               touchTooltipData: BarTouchTooltipData(
+                tooltipRoundedRadius: 8,
+                tooltipPadding: const EdgeInsets.all(8),
+                tooltipMargin: 8,
+                getTooltipColor: (_) =>
+                    theme.colorScheme.primaryContainer.withOpacity(0.9),
                 getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                  if (groupIndex >= dataList.length) return null;
-                  final date = dataList[groupIndex]['time'] as DateTime;
+                  final date = _startTime.add(Duration(days: group.x));
                   return BarTooltipItem(
-                    '${DateFormat('yyyy-MM-dd').format(date)}\nFines: ${rod.toY.toInt()}',
-                    const TextStyle(color: Colors.white, fontSize: 14),
+                    '${DateFormat('yyyy-MM-dd').format(date)}\n罚款: ${rod.toY.toInt()}',
+                    TextStyle(
+                      color: theme.colorScheme.onPrimaryContainer,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ).useSystemChineseFont(),
                   );
                 },
               ),
             ),
           ),
         ),
-        // Line chart for fines and points
         LineChart(
           LineChartData(
             lineBarsData: [
               LineChartBarData(
                 spots: dataList.asMap().entries.map((entry) {
-                  final index = entry.key;
                   final item = entry.value;
-                  return FlSpot(index.toDouble(), item['value1'] as double);
+                  final days = (item['time'] as DateTime)
+                      .difference(_startTime)
+                      .inDays
+                      .toDouble();
+                  return FlSpot(days, item['value1'] as double);
                 }).toList(),
-                isCurved: false,
-                color: Colors.yellow,
+                isCurved: true,
+                color: theme.colorScheme.primary,
                 barWidth: 3,
-                // Increased width for larger chart
                 dotData: const FlDotData(show: false),
               ),
               LineChartBarData(
                 spots: dataList.asMap().entries.map((entry) {
-                  final index = entry.key;
                   final item = entry.value;
-                  return FlSpot(index.toDouble(), item['value2'] as double);
+                  final days = (item['time'] as DateTime)
+                      .difference(_startTime)
+                      .inDays
+                      .toDouble();
+                  return FlSpot(days, item['value2'] as double);
                 }).toList(),
-                isCurved: false,
-                color: Colors.green,
+                isCurved: true,
+                color: theme.colorScheme.secondary,
                 barWidth: 3,
-                // Increased width for larger chart
                 dotData: const FlDotData(show: false),
               ),
             ],
             minX: 0,
-            maxX: dataList.length - 1.0,
+            maxX: maxX > 0 ? maxX : 30,
             minY: 0,
             maxY: maxY > 0 ? maxY : 500,
             titlesData: const FlTitlesData(show: false),
@@ -303,24 +364,328 @@ class _TrafficViolationScreenState extends State<TrafficViolationScreen> {
             lineTouchData: LineTouchData(
               enabled: true,
               touchTooltipData: LineTouchTooltipData(
-                getTooltipItems: (touchedSpots) => touchedSpots
-                    .map((spot) {
-                      final index = spot.x.toInt();
-                      if (index >= dataList.length) return null;
-                      final date = dataList[index]['time'] as DateTime;
-                      final label = spot.barIndex == 0 ? 'Fines' : 'Points';
-                      return LineTooltipItem(
-                        '${DateFormat('yyyy-MM-dd').format(date)}\n$label: ${spot.y.toInt()}',
-                        const TextStyle(color: Colors.white, fontSize: 14),
-                      );
-                    })
-                    .whereType<LineTooltipItem>()
-                    .toList(),
+                tooltipRoundedRadius: 8,
+                tooltipPadding: const EdgeInsets.all(8),
+                getTooltipColor: (_) =>
+                    theme.colorScheme.secondaryContainer.withOpacity(0.9),
+                getTooltipItems: (touchedSpots) => touchedSpots.map((spot) {
+                  final date = _startTime.add(Duration(days: spot.x.toInt()));
+                  final label = spot.barIndex == 0 ? '罚款' : '扣分';
+                  return LineTooltipItem(
+                    '${DateFormat('yyyy-MM-dd').format(date)}\n$label: ${spot.y.toInt()}',
+                    TextStyle(
+                      color: theme.colorScheme.onSecondaryContainer,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ).useSystemChineseFont(),
+                  );
+                }).toList(),
               ),
             ),
           ),
         ),
       ],
+    );
+  }
+}
+
+// Pie chart wrapper
+class TrafficViolationPieChartCard extends StatelessWidget {
+  const TrafficViolationPieChartCard({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ActiveProjectCard(
+      title: "分布分析",
+      onPressedSeeAll: () {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("查看详情：分布数据")),
+        );
+      },
+      child: const SizedBox(
+        height: 250,
+        child: TrafficViolationPieChart(),
+      ),
+    );
+  }
+}
+
+// Pie chart with hardcoded data
+class TrafficViolationPieChart extends StatelessWidget {
+  static const Map<String, int> _violationData = {
+    "超速": 150,
+    "闯红灯": 100,
+    "违停": 80,
+    "酒驾": 30,
+    "其他": 40,
+  };
+
+  const TrafficViolationPieChart({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    if (_violationData.isEmpty) {
+      return const Center(child: Text('无违法数据可用'));
+    }
+
+    final theme = Theme.of(context);
+    final dataList = _violationData.entries.toList();
+    final totalCount = _violationData.values.reduce((a, b) => a + b);
+
+    final colors = List<Color>.generate(
+      dataList.length,
+      (index) => [
+        theme.colorScheme.primary,
+        theme.colorScheme.secondary,
+        theme.colorScheme.tertiary,
+        theme.colorScheme.error,
+        theme.colorScheme.primaryContainer,
+      ][index % 5],
+    );
+
+    return SizedBox(
+      height: 250,
+      child: Stack(
+        children: [
+          PieChart(
+            PieChartData(
+              sections:
+                  _buildPieChartSections(dataList, colors, totalCount, theme),
+              sectionsSpace: 2,
+              centerSpaceRadius: 40,
+              borderData: FlBorderData(show: false),
+            ),
+          ),
+          Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '总数',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurface,
+                  ).useSystemChineseFont(),
+                ),
+                Text(
+                  totalCount.toString(),
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurface,
+                  ).useSystemChineseFont(),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<PieChartSectionData> _buildPieChartSections(
+    List<MapEntry<String, int>> dataList,
+    List<Color> colors,
+    int totalCount,
+    ThemeData theme,
+  ) {
+    return List.generate(dataList.length, (index) {
+      final entry = dataList[index];
+      final value = entry.value.toDouble();
+      final percentage = (value / totalCount * 100).toStringAsFixed(1);
+
+      return PieChartSectionData(
+        value: value,
+        color: colors[index],
+        radius: 100,
+        title: '$percentage%',
+        titleStyle: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.bold,
+          color: theme.colorScheme.onPrimary,
+        ).useSystemChineseFont(),
+        badgeWidget: _buildBadgeWidget(entry.key, colors[index], theme),
+        badgePositionPercentageOffset: 1.2,
+      );
+    });
+  }
+
+  Widget _buildBadgeWidget(String type, Color color, ThemeData theme) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: theme.colorScheme.shadow.withOpacity(0.3),
+            blurRadius: 4,
+            offset: const Offset(2, 2),
+          ),
+        ],
+      ),
+      child: Text(
+        type,
+        style: TextStyle(
+          fontSize: 12,
+          color: theme.colorScheme.onPrimary,
+          fontWeight: FontWeight.bold,
+        ).useSystemChineseFont(),
+      ),
+    );
+  }
+}
+
+// Bar chart with dynamic data
+class TrafficViolationBarChart extends StatelessWidget {
+  final Map<String, int> typeCountMap;
+  final DateTime startTime;
+
+  const TrafficViolationBarChart({
+    super.key,
+    required this.typeCountMap,
+    required this.startTime,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (typeCountMap.isEmpty) {
+      return const Center(child: Text('无违法数据可用'));
+    }
+
+    final theme = Theme.of(context);
+    final dataList = typeCountMap.entries.toList();
+    final maxY = dataList
+            .map((entry) => entry.value.toDouble())
+            .reduce((a, b) => a > b ? a : b) *
+        1.2;
+
+    return SizedBox(
+      height: 250,
+      child: BarChart(
+        BarChartData(
+          alignment: BarChartAlignment.spaceAround,
+          maxY: maxY > 0 ? maxY : 100,
+          barTouchData: BarTouchData(
+            enabled: true,
+            touchTooltipData: BarTouchTooltipData(
+              tooltipRoundedRadius: 8,
+              tooltipPadding: const EdgeInsets.all(8),
+              tooltipMargin: 8,
+              getTooltipColor: (_) =>
+                  theme.colorScheme.primaryContainer.withOpacity(0.9),
+              getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                return BarTooltipItem(
+                  '${dataList[groupIndex].key}\n${rod.toY.toInt()} 次',
+                  TextStyle(
+                    color: theme.colorScheme.onPrimaryContainer,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ).useSystemChineseFont(),
+                );
+              },
+            ),
+          ),
+          titlesData: FlTitlesData(
+            show: true,
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 36,
+                getTitlesWidget: (value, meta) {
+                  final index = value.toInt();
+                  if (index >= 0 && index < dataList.length) {
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        dataList[index].key,
+                        style: TextStyle(
+                          color: theme.colorScheme.onSurfaceVariant,
+                          fontSize: 14,
+                        ).useSystemChineseFont(),
+                      ),
+                    );
+                  }
+                  return const SizedBox.shrink();
+                },
+              ),
+            ),
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 48,
+                interval: maxY / 5,
+                getTitlesWidget: (value, meta) {
+                  if (value == 0) return const SizedBox.shrink();
+                  return Text(
+                    value.toInt().toString(),
+                    style: TextStyle(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      fontSize: 14,
+                    ).useSystemChineseFont(),
+                  );
+                },
+              ),
+            ),
+            topTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          ),
+          gridData: FlGridData(
+            show: true,
+            drawVerticalLine: false,
+            horizontalInterval: maxY / 5,
+            getDrawingHorizontalLine: (value) {
+              return FlLine(
+                color: theme.colorScheme.onSurface.withOpacity(0.1),
+                strokeWidth: 1,
+              );
+            },
+          ),
+          borderData: FlBorderData(
+            show: true,
+            border: Border.all(
+              color: theme.colorScheme.outline.withOpacity(0.2),
+              width: 1,
+            ),
+          ),
+          barGroups: dataList.asMap().entries.map((entry) {
+            final index = entry.key;
+            final value = entry.value.value.toDouble();
+            return BarChartGroupData(
+              x: index,
+              barRods: [
+                BarChartRodData(
+                  toY: value,
+                  width: 16,
+                  borderRadius: BorderRadius.circular(6),
+                  gradient: LinearGradient(
+                    colors: [
+                      theme.colorScheme.primary,
+                      theme.colorScheme.secondary,
+                    ],
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                  ),
+                  backDrawRodData: BackgroundBarChartRodData(
+                    show: true,
+                    toY: maxY,
+                    color: theme.colorScheme.surfaceVariant.withOpacity(0.2),
+                  ),
+                  borderSide: BorderSide(
+                    color: theme.colorScheme.primary.withOpacity(0.3),
+                    width: 1,
+                  ),
+                ),
+              ],
+            );
+          }).toList(),
+        ),
+        swapAnimationDuration: const Duration(milliseconds: 500),
+        swapAnimationCurve: Curves.easeInOut,
+      ),
     );
   }
 }

@@ -16,8 +16,6 @@ class UserDashboardController extends GetxController with NavigationMixin {
   final isChatExpanded = false.obs;
   final Rx<Profile?> currentUser = Rx<Profile?>(null);
   final RxBool _refreshPersonalPage = false.obs;
-
-// Add reactive variables for driver name and email
   final RxString currentDriverName = ''.obs;
   final RxString currentEmail = ''.obs;
   var driverLicenseNumber = RxString('');
@@ -27,6 +25,29 @@ class UserDashboardController extends GetxController with NavigationMixin {
   void onInit() {
     super.onInit();
     _initializeCaseCardData();
+    _loadUserFromPrefs();
+    loadCredentials();
+    _loadTheme(); // Load theme from SharedPreferences
+  }
+
+  Future<void> _loadTheme() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isDarkMode = prefs.getBool('isDarkMode') ?? false;
+    currentTheme.value = isDarkMode ? 'Dark' : 'Light';
+    _applyTheme();
+  }
+
+  Future<void> _loadUserFromPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userName = prefs.getString('userName') ?? 'Guest';
+    final userEmail = prefs.getString('userEmail') ?? 'guest@example.com';
+    currentDriverName.value = userName;
+    currentEmail.value = userEmail;
+    currentUser.value = Profile(
+      photo: const AssetImage(ImageRasterPath.avatar1),
+      name: userName,
+      email: userEmail,
+    );
   }
 
   Future<void> loadCredentials() async {
@@ -40,6 +61,11 @@ class UserDashboardController extends GetxController with NavigationMixin {
   void updateCurrentUser(String name, String email) {
     currentDriverName.value = name;
     currentEmail.value = email;
+    currentUser.value = Profile(
+      photo: currentUser.value?.photo ?? const AssetImage(ImageRasterPath.avatar1),
+      name: name,
+      email: email,
+    );
     debugPrint('UserDashboardController updated - Name: $name, Email: $email');
     _saveUserToPrefs(name, email);
   }
@@ -52,11 +78,11 @@ class UserDashboardController extends GetxController with NavigationMixin {
 
   Profile get currentProfile =>
       currentUser.value ??
-      const Profile(
-        photo: AssetImage(ImageRasterPath.avatar1),
-        name: "Guest",
-        email: "guest@example.com",
-      );
+          const Profile(
+            photo: AssetImage(ImageRasterPath.avatar1),
+            name: "Guest",
+            email: "guest@example.com",
+          );
 
   void toggleSidebar() {
     isSidebarOpen.value = !isSidebarOpen.value;
@@ -65,6 +91,10 @@ class UserDashboardController extends GetxController with NavigationMixin {
   void toggleBodyTheme() {
     currentTheme.value = currentTheme.value == 'Light' ? 'Dark' : 'Light';
     _applyTheme();
+    // Save to SharedPreferences to sync with LoginScreen
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.setBool('isDarkMode', currentTheme.value == 'Dark');
+    });
   }
 
   void toggleChat() {
@@ -73,6 +103,11 @@ class UserDashboardController extends GetxController with NavigationMixin {
 
   void _applyTheme() {
     String theme = selectedStyle.value;
+    // Check SharedPreferences for isDarkMode to sync with LoginScreen
+    SharedPreferences.getInstance().then((prefs) {
+      final isDarkMode = prefs.getBool('isDarkMode') ?? false;
+      currentTheme.value = isDarkMode ? 'Dark' : 'Light';
+    });
 
     ThemeData baseTheme;
     if (theme == 'Material') {
@@ -94,7 +129,6 @@ class UserDashboardController extends GetxController with NavigationMixin {
     currentBodyTheme.value = baseTheme.copyWith(
       textTheme: baseTheme.textTheme.copyWith(
         labelLarge: baseTheme.textTheme.labelLarge?.copyWith(
-          inherit: true,
           fontFamily: fontFamily,
           fontSize: 16.0,
           fontWeight: FontWeight.normal,
@@ -110,7 +144,6 @@ class UserDashboardController extends GetxController with NavigationMixin {
             borderRadius: BorderRadius.circular(16.0),
           ),
           textStyle: TextStyle(
-            inherit: true,
             fontFamily: fontFamily,
             fontSize: 16.0,
             fontWeight: FontWeight.normal,
@@ -159,22 +192,22 @@ class UserDashboardController extends GetxController with NavigationMixin {
   }
 
   ProjectCardData getSelectedProject() => ProjectCardData(
-        percent: .3,
-        projectImage: const AssetImage(ImageRasterPath.logo4),
-        projectName: "交通违法行为处理管理系统",
-        releaseTime: DateTime.now(),
-      );
+    percent: .3,
+    projectImage: const AssetImage(ImageRasterPath.logo4),
+    projectName: "交通违法行为处理管理系统",
+    releaseTime: DateTime.now(),
+  );
 
   List<ProjectCardData> getActiveProject() => [];
 
   List<ImageProvider> getMember() => const [
-        AssetImage(ImageRasterPath.avatar1),
-        AssetImage(ImageRasterPath.avatar2),
-        AssetImage(ImageRasterPath.avatar3),
-        AssetImage(ImageRasterPath.avatar4),
-        AssetImage(ImageRasterPath.avatar5),
-        AssetImage(ImageRasterPath.avatar6),
-      ];
+    AssetImage(ImageRasterPath.avatar1),
+    AssetImage(ImageRasterPath.avatar2),
+    AssetImage(ImageRasterPath.avatar3),
+    AssetImage(ImageRasterPath.avatar4),
+    AssetImage(ImageRasterPath.avatar5),
+    AssetImage(ImageRasterPath.avatar6),
+  ];
 
   void updateScrollDirection(ScrollController scrollController) {
     scrollController.addListener(() {

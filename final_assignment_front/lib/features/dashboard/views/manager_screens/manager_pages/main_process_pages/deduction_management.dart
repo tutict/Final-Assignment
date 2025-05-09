@@ -1,15 +1,19 @@
 import 'dart:convert';
-import 'dart:developer' as developer;
+import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/features/api/deduction_information_controller_api.dart';
+import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_dashboard_screen.dart';
 import 'package:final_assignment_front/features/model/deduction_information.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
-import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:http/http.dart' as http;
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:developer' as developer;
+
+import 'package:uuid/uuid.dart';
 
 String generateIdempotencyKey() {
   return DateTime.now().millisecondsSinceEpoch.toString();
@@ -185,6 +189,15 @@ class _DeductionManagementState extends State<DeductionManagement> {
                 .take(5)
                 .toList() ??
             [];
+      } else if (_searchType == 'driverLicenseNumber') {
+        final deductions = await deductionApi.apiDeductionsGet();
+        return deductions
+                ?.map((deduction) => deduction.driverLicenseNumber ?? '')
+                .where((license) =>
+                    license.toLowerCase().contains(prefix.toLowerCase()))
+                .take(5)
+                .toList() ??
+            [];
       }
       return [];
     } catch (e) {
@@ -222,6 +235,14 @@ class _DeductionManagementState extends State<DeductionManagement> {
         deductions = await deductionApi.apiDeductionsByHandlerGet(
                 handler: searchQuery) ??
             [];
+      } else if (_searchType == 'driverLicenseNumber' &&
+          searchQuery.isNotEmpty) {
+        deductions = await deductionApi.apiDeductionsGet() ?? [];
+        deductions = deductions
+            .where((d) => (d.driverLicenseNumber ?? '')
+                .toLowerCase()
+                .contains(searchQuery.toLowerCase()))
+            .toList();
       } else if (_searchType == 'timeRange' &&
           _startTime != null &&
           _endTime != null) {
@@ -290,11 +311,17 @@ class _DeductionManagementState extends State<DeductionManagement> {
       _filteredDeductions.clear();
       _filteredDeductions = _deductions.where((deduction) {
         final handler = (deduction.handler ?? '').toLowerCase();
+        final driverLicenseNumber =
+            (deduction.driverLicenseNumber ?? '').toLowerCase();
         final deductionTime = deduction.deductionTime;
 
         bool matchesQuery = true;
-        if (searchQuery.isNotEmpty && _searchType == 'handler') {
-          matchesQuery = handler.contains(searchQuery);
+        if (searchQuery.isNotEmpty) {
+          if (_searchType == 'handler') {
+            matchesQuery = handler.contains(searchQuery);
+          } else if (_searchType == 'driverLicenseNumber') {
+            matchesQuery = driverLicenseNumber.contains(searchQuery);
+          }
         }
 
         bool matchesDateRange = true;
@@ -431,7 +458,8 @@ class _DeductionManagementState extends State<DeductionManagement> {
                 child: Autocomplete<String>(
                   optionsBuilder: (TextEditingValue textEditingValue) async {
                     if (textEditingValue.text.isEmpty ||
-                        _searchType != 'handler') {
+                        (_searchType != 'handler' &&
+                            _searchType != 'driverLicenseNumber')) {
                       return const Iterable<String>.empty();
                     }
                     return await _fetchAutocompleteSuggestions(
@@ -449,8 +477,11 @@ class _DeductionManagementState extends State<DeductionManagement> {
                       focusNode: focusNode,
                       style: TextStyle(color: themeData.colorScheme.onSurface),
                       decoration: InputDecoration(
-                        hintText:
-                            _searchType == 'handler' ? '搜索处理人' : '搜索时间范围（已选择）',
+                        hintText: _searchType == 'handler'
+                            ? '搜索处理人'
+                            : _searchType == 'driverLicenseNumber'
+                                ? '搜索驾驶证号'
+                                : '搜索时间范围（已选择）',
                         hintStyle: TextStyle(
                             color: themeData.colorScheme.onSurface
                                 .withOpacity(0.6)),
@@ -492,7 +523,8 @@ class _DeductionManagementState extends State<DeductionManagement> {
                       ),
                       onChanged: (value) => _applyFilters(value),
                       onSubmitted: (value) => _applyFilters(value),
-                      enabled: _searchType == 'handler',
+                      enabled: _searchType == 'handler' ||
+                          _searchType == 'driverLicenseNumber',
                     );
                   },
                 ),
@@ -509,12 +541,16 @@ class _DeductionManagementState extends State<DeductionManagement> {
                     _applyFilters('');
                   });
                 },
-                items: <String>['handler', 'timeRange']
+                items: <String>['handler', 'driverLicenseNumber', 'timeRange']
                     .map<DropdownMenuItem<String>>((String value) {
                   return DropdownMenuItem<String>(
                     value: value,
                     child: Text(
-                      value == 'handler' ? '按处理人' : '按时间范围',
+                      value == 'handler'
+                          ? '按处理人'
+                          : value == 'driverLicenseNumber'
+                              ? '按驾驶证号'
+                              : '按时间范围',
                       style: TextStyle(color: themeData.colorScheme.onSurface),
                     ),
                   );
@@ -829,16 +865,25 @@ class AddDeductionPage extends StatefulWidget {
 class _AddDeductionPageState extends State<AddDeductionPage> {
   final DeductionInformationControllerApi deductionApi =
       DeductionInformationControllerApi();
+  final OffenseInformationControllerApi offenseApi =
+      OffenseInformationControllerApi();
+  final DriverInformationControllerApi driverApi =
+      DriverInformationControllerApi();
   final _formKey = GlobalKey<FormState>();
+  final TextEditingController _licensePlateController = TextEditingController();
   final TextEditingController _driverLicenseNumberController =
       TextEditingController();
   final TextEditingController _deductedPointsController =
       TextEditingController();
   final TextEditingController _handlerController = TextEditingController();
+  final TextEditingController _approverController = TextEditingController();
   final TextEditingController _remarksController = TextEditingController();
   final TextEditingController _dateController = TextEditingController();
   bool _isLoading = false;
+  int? _selectedOffenseId;
   final DashboardController controller = Get.find<DashboardController>();
+
+  String generateIdempotencyKey() => const Uuid().v4();
 
   Future<bool> _validateJwtToken() async {
     final prefs = await SharedPreferences.getInstance();
@@ -848,7 +893,6 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
       return false;
     }
     try {
-      final decodedToken = JwtDecoder.decode(jwtToken);
       if (JwtDecoder.isExpired(jwtToken)) {
         _showSnackBar('登录已过期，请重新登录', isError: true);
         return false;
@@ -866,24 +910,6 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
     _initialize();
   }
 
-  String _formatErrorMessage(dynamic error) {
-    if (error is ApiException) {
-      switch (error.code) {
-        case 400:
-          return '请求错误: ${error.message}';
-        case 403:
-          return '无权限: ${error.message}';
-        case 404:
-          return '未找到: ${error.message}';
-        case 409:
-          return '重复请求: ${error.message}';
-        default:
-          return '服务器错误: ${error.message}';
-      }
-    }
-    return '操作失败: $error';
-  }
-
   Future<void> _initialize() async {
     setState(() => _isLoading = true);
     try {
@@ -892,6 +918,8 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
         return;
       }
       await deductionApi.initializeWithJwt();
+      await offenseApi.initializeWithJwt();
+      await driverApi.initializeWithJwt();
     } catch (e) {
       _showSnackBar('初始化失败: $e', isError: true);
     } finally {
@@ -901,52 +929,121 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
 
   @override
   void dispose() {
+    _licensePlateController.dispose();
     _driverLicenseNumberController.dispose();
     _deductedPointsController.dispose();
     _handlerController.dispose();
+    _approverController.dispose();
     _remarksController.dispose();
     _dateController.dispose();
     super.dispose();
   }
 
+  Future<List<String>> _fetchLicensePlateSuggestions(String prefix) async {
+    try {
+      if (!await _validateJwtToken()) {
+        Get.offAllNamed(AppPages.login);
+        return [];
+      }
+      final offenses = await offenseApi.apiOffensesByLicensePlateGet(
+        query: prefix.trim(),
+        page: 1,
+        size: 10,
+      );
+      return offenses
+          .map((o) => o.licensePlate ?? '')
+          .where((plate) => plate.toLowerCase().contains(prefix.toLowerCase()))
+          .toSet()
+          .toList();
+    } catch (e) {
+      _showSnackBar('获取车牌号建议失败: $e', isError: true);
+      return [];
+    }
+  }
+
+  Future<String?> _fetchDriverLicenseNumber(String driverName) async {
+    try {
+      final drivers = await driverApi.apiDriversByNameGet(
+          query: driverName, page: 1, size: 1);
+      if (drivers.isNotEmpty) {
+        return drivers.first.driverLicenseNumber;
+      }
+      return null;
+    } catch (e) {
+      _showSnackBar('获取驾驶证号失败: $e', isError: true);
+      return null;
+    }
+  }
+
+  Future<void> _onLicensePlateSelected(String licensePlate) async {
+    try {
+      if (!await _validateJwtToken()) {
+        Get.offAllNamed(AppPages.login);
+        return;
+      }
+      final offenses = await offenseApi.apiOffensesByLicensePlateGet(
+        query: licensePlate,
+        page: 1,
+        size: 10,
+      );
+      if (offenses.isNotEmpty) {
+        final latestOffense = offenses.first;
+        final driverLicenseNumber =
+            await _fetchDriverLicenseNumber(latestOffense.driverName ?? '');
+        setState(() {
+          _selectedOffenseId = latestOffense.offenseId;
+          _driverLicenseNumberController.text = driverLicenseNumber ?? '';
+          _deductedPointsController.text =
+              (latestOffense.deductedPoints ?? 0).toString();
+          _dateController.text = formatDateTime(latestOffense.offenseTime);
+        });
+      } else {
+        _showSnackBar('未找到与此车牌相关的违法记录', isError: true);
+        setState(() {
+          _selectedOffenseId = null;
+          _driverLicenseNumberController.clear();
+          _deductedPointsController.clear();
+          _dateController.clear();
+        });
+      }
+    } catch (e) {
+      _showSnackBar('获取违法信息失败: $e', isError: true);
+    }
+  }
+
   Future<void> _submitDeduction() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_selectedOffenseId == null) {
+      _showSnackBar('请先选择一个违法记录', isError: true);
+      return;
+    }
     if (!await _validateJwtToken()) {
       Get.offAllNamed(AppPages.login);
       return;
     }
     setState(() => _isLoading = true);
     try {
-      final date = _dateController.text.trim();
-      final points = int.tryParse(_deductedPointsController.text.trim()) ?? 0;
-      final deductionPayload = {
-        'driverLicenseNumber': _driverLicenseNumberController.text.trim(),
-        'deductedPoints': points,
-        'deductionTime':
-            DateTime.parse('${date}T00:00:00.000').toIso8601String(),
-        'handler': _handlerController.text.trim().isEmpty
+      final idempotencyKey = generateIdempotencyKey();
+      final deduction = DeductionInformation(
+        driverLicenseNumber: _driverLicenseNumberController.text.trim(),
+        deductedPoints:
+            int.tryParse(_deductedPointsController.text.trim()) ?? 0,
+        deductionTime: DateTime.parse('${_dateController.text}T00:00:00.000'),
+        handler: _handlerController.text.trim().isEmpty
             ? null
             : _handlerController.text.trim(),
-        'remarks': _remarksController.text.trim().isEmpty
+        approver: _approverController.text.trim().isEmpty
+            ? null
+            : _approverController.text.trim(),
+        remarks: _remarksController.text.trim().isEmpty
             ? null
             : _remarksController.text.trim(),
-      };
-      final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken');
-      final idempotencyKey = generateIdempotencyKey();
-      final response = await http.post(
-        Uri.parse(
-            'http://localhost:8081/api/deductions?idempotencyKey=$idempotencyKey'),
-        headers: {
-          'Authorization': 'Bearer $jwtToken',
-          'Content-Type': 'application/json; charset=UTF-8',
-        },
-        body: jsonEncode(deductionPayload),
+        idempotencyKey: idempotencyKey,
       );
-      if (response.statusCode != 201) {
-        throw Exception(
-            'Failed to create deduction: ${response.statusCode} - ${response.body}');
-      }
+      await deductionApi.apiDeductionsPost(
+        deductionInformation: deduction,
+        idempotencyKey: idempotencyKey,
+      );
       _showSnackBar('创建扣分记录成功！');
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
@@ -979,26 +1076,31 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
     );
   }
 
-  Future<void> _pickDate() async {
-    final pickedDate = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime(2000),
-      lastDate: DateTime.now(),
-      locale: const Locale('zh', 'CN'),
-      builder: (context, child) => Theme(
-        data: controller.currentBodyTheme.value.copyWith(
-          colorScheme: controller.currentBodyTheme.value.colorScheme.copyWith(
-            primary: controller.currentBodyTheme.value.colorScheme.primary,
-            onPrimary: controller.currentBodyTheme.value.colorScheme.onPrimary,
-          ),
-        ),
-        child: child!,
-      ),
-    );
-    if (pickedDate != null && mounted) {
-      setState(() => _dateController.text = formatDateTime(pickedDate));
+  String _formatErrorMessage(dynamic error) {
+    if (error is ApiException) {
+      switch (error.code) {
+        case 400:
+          return '请求错误: ${error.message}';
+        case 403:
+          return '无权限: ${error.message}';
+        case 404:
+          return '未找到: ${error.message}';
+        case 409:
+          return '重复请求: ${error.message}';
+        default:
+          return '服务器错误: ${error.message}';
+      }
     }
+    return '操作失败: $error';
+  }
+
+  Future<void> _pickDate() async {
+    _showSnackBar('扣分时间不可编辑，必须与违法时间一致', isError: true);
+  }
+
+  String formatDateTime(DateTime? dateTime) {
+    if (dateTime == null) return '';
+    return '${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')}';
   }
 
   Widget _buildTextField(
@@ -1008,7 +1110,89 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
       VoidCallback? onTap,
       bool required = false,
       int? maxLength,
-      String? Function(String?)? validator}) {
+      String? Function(String?)? validator,
+      bool isAutocomplete = false,
+      Future<List<String>> Function(String)? fetchSuggestions,
+      void Function(String)? onSelected}) {
+    if (isAutocomplete) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6.0),
+        child: Autocomplete<String>(
+          optionsBuilder: (TextEditingValue textEditingValue) async {
+            if (textEditingValue.text.isEmpty || fetchSuggestions == null) {
+              return const Iterable<String>.empty();
+            }
+            return await fetchSuggestions(textEditingValue.text);
+          },
+          onSelected: onSelected,
+          fieldViewBuilder:
+              (context, textEditingController, focusNode, onFieldSubmitted) {
+            textEditingController.text = controller.text;
+            return TextFormField(
+              controller: textEditingController,
+              focusNode: focusNode,
+              style: TextStyle(color: themeData.colorScheme.onSurface),
+              decoration: InputDecoration(
+                labelText: label,
+                labelStyle:
+                    TextStyle(color: themeData.colorScheme.onSurfaceVariant),
+                helperText: label == '车牌号' ? '请输入车牌号，例如：黑AWS34' : null,
+                helperStyle: TextStyle(
+                    color: themeData.colorScheme.onSurfaceVariant
+                        .withOpacity(0.6)),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12.0)),
+                enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(
+                        color: themeData.colorScheme.outline.withOpacity(0.3))),
+                focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(
+                        color: themeData.colorScheme.primary, width: 1.5)),
+                filled: true,
+                fillColor: themeData.colorScheme.surfaceContainerLowest,
+                suffixIcon: textEditingController.text.isNotEmpty
+                    ? IconButton(
+                        icon: Icon(Icons.clear,
+                            color: themeData.colorScheme.onSurfaceVariant),
+                        onPressed: () {
+                          textEditingController.clear();
+                          controller.clear();
+                          if (label == '车牌号') {
+                            setState(() {
+                              _selectedOffenseId = null;
+                              _driverLicenseNumberController.clear();
+                              _deductedPointsController.clear();
+                              _dateController.clear();
+                            });
+                          }
+                        },
+                      )
+                    : null,
+              ),
+              keyboardType: keyboardType,
+              maxLength: maxLength,
+              validator: validator ??
+                  (value) {
+                    final trimmedValue = value?.trim() ?? '';
+                    if (required && trimmedValue.isEmpty) return '$label不能为空';
+                    if (label == '车牌号') {
+                      if (trimmedValue.isEmpty) return '车牌号不能为空';
+                      if (trimmedValue.length > 20) return '车牌号不能超过20个字符';
+                      if (!RegExp(r'^[\u4e00-\u9fa5][A-Za-z0-9]{5,7}$')
+                          .hasMatch(trimmedValue)) {
+                        return '请输入有效车牌号，例如：黑AWS34';
+                      }
+                    }
+                    return null;
+                  },
+              onChanged: (value) {
+                controller.text = value;
+              },
+            );
+          },
+        ),
+      );
+    }
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: TextFormField(
@@ -1018,9 +1202,9 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
           labelText: label,
           labelStyle: TextStyle(color: themeData.colorScheme.onSurfaceVariant),
           helperText: label == '驾驶证号'
-              ? '请输入驾驶证号，例如：123456789012'
-              : label == '处理人'
-                  ? '请输入处理人姓名（选填）'
+              ? '自动填充，与违法记录关联'
+              : label == '处理人' || label == '审批人'
+                  ? '请输入${label}姓名（选填）'
                   : null,
           helperStyle: TextStyle(
               color: themeData.colorScheme.onSurfaceVariant.withOpacity(0.6)),
@@ -1036,8 +1220,7 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
               ? themeData.colorScheme.surfaceContainerHighest.withOpacity(0.5)
               : themeData.colorScheme.surfaceContainerLowest,
           suffixIcon: readOnly
-              ? Icon(Icons.calendar_today,
-                  size: 18, color: themeData.colorScheme.primary)
+              ? Icon(Icons.lock, size: 18, color: themeData.colorScheme.primary)
               : null,
         ),
         keyboardType: keyboardType,
@@ -1056,8 +1239,9 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
               if (label == '驾驶证号' && trimmedValue.length > 50) {
                 return '驾驶证号不能超过50个字符';
               }
-              if (label == '处理人' && trimmedValue.length > 100) {
-                return '处理人姓名不能超过100个字符';
+              if ((label == '处理人' || label == '审批人') &&
+                  trimmedValue.length > 100) {
+                return '$label姓名不能超过100个字符';
               }
               if (label == '备注' && trimmedValue.length > 255) {
                 return '备注不能超过255个字符';
@@ -1111,24 +1295,59 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
                             padding: const EdgeInsets.all(16.0),
                             child: Column(
                               children: [
-                                _buildTextField('驾驶证号 *',
-                                    _driverLicenseNumberController, themeData,
-                                    required: true, maxLength: 50),
-                                _buildTextField('扣分分数 *',
-                                    _deductedPointsController, themeData,
-                                    keyboardType: TextInputType.number,
-                                    required: true),
                                 _buildTextField(
-                                    '处理人', _handlerController, themeData,
-                                    maxLength: 100),
+                                  '车牌号 *',
+                                  _licensePlateController,
+                                  themeData,
+                                  required: true,
+                                  maxLength: 20,
+                                  isAutocomplete: true,
+                                  fetchSuggestions:
+                                      _fetchLicensePlateSuggestions,
+                                  onSelected: _onLicensePlateSelected,
+                                ),
                                 _buildTextField(
-                                    '备注', _remarksController, themeData,
-                                    maxLength: 255),
+                                  '驾驶证号 *',
+                                  _driverLicenseNumberController,
+                                  themeData,
+                                  required: true,
+                                  maxLength: 50,
+                                  readOnly: true,
+                                ),
                                 _buildTextField(
-                                    '扣分时间 *', _dateController, themeData,
-                                    readOnly: true,
-                                    onTap: _pickDate,
-                                    required: true),
+                                  '扣分分数 *',
+                                  _deductedPointsController,
+                                  themeData,
+                                  keyboardType: TextInputType.number,
+                                  required: true,
+                                  readOnly: true,
+                                ),
+                                _buildTextField(
+                                  '处理人',
+                                  _handlerController,
+                                  themeData,
+                                  maxLength: 100,
+                                ),
+                                _buildTextField(
+                                  '审批人',
+                                  _approverController,
+                                  themeData,
+                                  maxLength: 100,
+                                ),
+                                _buildTextField(
+                                  '备注',
+                                  _remarksController,
+                                  themeData,
+                                  maxLength: 255,
+                                ),
+                                _buildTextField(
+                                  '扣分时间 *',
+                                  _dateController,
+                                  themeData,
+                                  readOnly: true,
+                                  onTap: _pickDate,
+                                  required: true,
+                                ),
                               ],
                             ),
                           ),
@@ -1273,37 +1492,24 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
     }
     setState(() => _isLoading = true);
     try {
-      final date = _dateController.text.trim();
-      final points = int.tryParse(_deductedPointsController.text.trim()) ?? 0;
-      final deductionPayload = {
-        'deductionId': widget.deduction.deductionId,
-        'driverLicenseNumber': _driverLicenseNumberController.text.trim(),
-        'deductedPoints': points,
-        'deductionTime':
-            DateTime.parse('${date}T00:00:00.000').toIso8601String(),
-        'handler': _handlerController.text.trim().isEmpty
+      final deduction = DeductionInformation(
+        deductionId: widget.deduction.deductionId,
+        driverLicenseNumber: widget.deduction.driverLicenseNumber,
+        deductedPoints: widget.deduction.deductedPoints,
+        deductionTime: widget.deduction.deductionTime,
+        handler: _handlerController.text.trim().isEmpty
             ? null
             : _handlerController.text.trim(),
-        'remarks': _remarksController.text.trim().isEmpty
+        remarks: _remarksController.text.trim().isEmpty
             ? null
             : _remarksController.text.trim(),
-      };
-      final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken');
-      final idempotencyKey = generateIdempotencyKey();
-      final response = await http.put(
-        Uri.parse(
-            'http://localhost:8081/api/deductions/${widget.deduction.deductionId}?idempotencyKey=$idempotencyKey'),
-        headers: {
-          'Authorization': 'Bearer $jwtToken',
-          'Content-Type': 'application/json; charset=UTF-8',
-        },
-        body: jsonEncode(deductionPayload),
       );
-      if (response.statusCode != 200) {
-        throw Exception(
-            'Failed to update deduction: ${response.statusCode} - ${response.body}');
-      }
+      final idempotencyKey = generateIdempotencyKey();
+      await deductionApi.apiDeductionsDeductionIdPut(
+        deductionId: widget.deduction.deductionId!,
+        deductionInformation: deduction,
+        idempotencyKey: idempotencyKey,
+      );
       _showSnackBar('更新扣分记录成功！');
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
@@ -1337,25 +1543,7 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
   }
 
   Future<void> _pickDate() async {
-    final pickedDate = await showDatePicker(
-      context: context,
-      initialDate: DateTime.tryParse(_dateController.text) ?? DateTime.now(),
-      firstDate: DateTime(2000),
-      lastDate: DateTime.now(),
-      locale: const Locale('zh', 'CN'),
-      builder: (context, child) => Theme(
-        data: controller.currentBodyTheme.value.copyWith(
-          colorScheme: controller.currentBodyTheme.value.colorScheme.copyWith(
-            primary: controller.currentBodyTheme.value.colorScheme.primary,
-            onPrimary: controller.currentBodyTheme.value.colorScheme.onPrimary,
-          ),
-        ),
-        child: child!,
-      ),
-    );
-    if (pickedDate != null && mounted) {
-      setState(() => _dateController.text = formatDateTime(pickedDate));
-    }
+    _showSnackBar('扣分时间不可编辑，必须与违法时间一致', isError: true);
   }
 
   Widget _buildTextField(
@@ -1375,7 +1563,7 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
           labelText: label,
           labelStyle: TextStyle(color: themeData.colorScheme.onSurfaceVariant),
           helperText: label == '驾驶证号'
-              ? '请输入驾驶证号，例如：123456789012'
+              ? '不可编辑，与违法记录关联'
               : label == '处理人'
                   ? '请输入处理人姓名（选填）'
                   : null,
@@ -1393,8 +1581,7 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
               ? themeData.colorScheme.surfaceContainerHighest.withOpacity(0.5)
               : themeData.colorScheme.surfaceContainerLowest,
           suffixIcon: readOnly
-              ? Icon(Icons.calendar_today,
-                  size: 18, color: themeData.colorScheme.primary)
+              ? Icon(Icons.lock, size: 18, color: themeData.colorScheme.primary)
               : null,
         ),
         keyboardType: keyboardType,
@@ -1468,24 +1655,42 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
                             padding: const EdgeInsets.all(16.0),
                             child: Column(
                               children: [
-                                _buildTextField('驾驶证号 *',
-                                    _driverLicenseNumberController, themeData,
-                                    required: true, maxLength: 50),
-                                _buildTextField('扣分分数 *',
-                                    _deductedPointsController, themeData,
-                                    keyboardType: TextInputType.number,
-                                    required: true),
                                 _buildTextField(
-                                    '处理人', _handlerController, themeData,
-                                    maxLength: 100),
+                                  '驾驶证号 *',
+                                  _driverLicenseNumberController,
+                                  themeData,
+                                  required: true,
+                                  maxLength: 50,
+                                  readOnly: true,
+                                ),
                                 _buildTextField(
-                                    '备注', _remarksController, themeData,
-                                    maxLength: 255),
+                                  '扣分分数 *',
+                                  _deductedPointsController,
+                                  themeData,
+                                  keyboardType: TextInputType.number,
+                                  required: true,
+                                  readOnly: true,
+                                ),
                                 _buildTextField(
-                                    '扣分时间 *', _dateController, themeData,
-                                    readOnly: true,
-                                    onTap: _pickDate,
-                                    required: true),
+                                  '处理人',
+                                  _handlerController,
+                                  themeData,
+                                  maxLength: 100,
+                                ),
+                                _buildTextField(
+                                  '备注',
+                                  _remarksController,
+                                  themeData,
+                                  maxLength: 255,
+                                ),
+                                _buildTextField(
+                                  '扣分时间 *',
+                                  _dateController,
+                                  themeData,
+                                  readOnly: true,
+                                  onTap: _pickDate,
+                                  required: true,
+                                ),
                               ],
                             ),
                           ),
@@ -1541,7 +1746,6 @@ class _DeductionDetailPageState extends State<DeductionDetailPage> {
       return false;
     }
     try {
-      final decodedToken = JwtDecoder.decode(jwtToken);
       if (JwtDecoder.isExpired(jwtToken)) {
         setState(() => _errorMessage = '登录已过期，请重新登录');
         return false;
@@ -1689,6 +1893,11 @@ class _DeductionDetailPageState extends State<DeductionDetailPage> {
     return '操作失败: $error';
   }
 
+  String formatDateTime(DateTime? dateTime) {
+    if (dateTime == null) return '未提供';
+    return '${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')}';
+  }
+
   Widget _buildDetailRow(String label, String value, ThemeData themeData) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -1821,6 +2030,8 @@ class _DeductionDetailPageState extends State<DeductionDetailPage> {
                               themeData),
                           _buildDetailRow(
                               '处理人', _deduction.handler ?? '无', themeData),
+                          _buildDetailRow(
+                              '审批人', _deduction.approver ?? '无', themeData),
                           _buildDetailRow(
                               '备注', _deduction.remarks ?? '无', themeData),
                         ],

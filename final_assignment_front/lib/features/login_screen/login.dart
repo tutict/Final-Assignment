@@ -23,7 +23,7 @@ mixin ValidatorMixin {
   String? validateUsername(String? val) {
     if (val == null || val.isEmpty) return '用户邮箱不能为空';
     final emailRegex =
-        RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+    RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
     if (!emailRegex.hasMatch(val)) return '请输入有效的邮箱地址';
     return null;
   }
@@ -58,6 +58,22 @@ class _LoginScreenState extends State<LoginScreen>
     _userRole = null;
     _hasSentRegisterRequest = false;
     _initializeControllers();
+    _loadTheme();
+  }
+
+  Future<void> _loadTheme() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _isDarkMode = prefs.getBool('isDarkMode') ?? false;
+    });
+  }
+
+  Future<void> _toggleTheme() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _isDarkMode = !_isDarkMode;
+    });
+    await prefs.setBool('isDarkMode', _isDarkMode);
   }
 
   void _initializeControllers() {
@@ -137,7 +153,7 @@ class _LoginScreenState extends State<LoginScreen>
         if (userId != null) {
           try {
             final driverInfo =
-                await driverApi.apiDriversDriverIdGet(driverId: userId);
+            await driverApi.apiDriversDriverIdGet(driverId: userId);
             if (driverInfo != null && driverInfo.name != null) {
               driverName = driverInfo.name!;
               debugPrint('从数据库获取的 driverName: $driverName');
@@ -246,7 +262,7 @@ class _LoginScreenState extends State<LoginScreen>
               idempotencyKey: generateIdempotencyKey(),
             );
             final fetchedDriver =
-                await driverApi.apiDriversDriverIdGet(driverId: userId);
+            await driverApi.apiDriversDriverIdGet(driverId: userId);
             driverName = fetchedDriver?.name ?? name;
             await prefs.setString('driverName', driverName);
             await prefs.setString('userEmail', email);
@@ -273,7 +289,7 @@ class _LoginScreenState extends State<LoginScreen>
 
   Future<String?> _recoverPassword(String name) async {
     final emailRegex =
-        RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+    RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
     if (!emailRegex.hasMatch(name)) return '请输入有效的邮箱地址';
 
     final bool? isCaptchaValid = await showDialog<bool>(
@@ -285,7 +301,7 @@ class _LoginScreenState extends State<LoginScreen>
     if (isCaptchaValid != true) return '密码重置已取消';
 
     final TextEditingController newPasswordController = TextEditingController();
-    final themeData = ThemeData.light(); // Use default theme for password reset
+    final themeData = _isDarkMode ? ThemeData.dark() : ThemeData.light();
 
     final bool? passwordConfirmed = await showDialog<bool>(
       context: context,
@@ -294,7 +310,7 @@ class _LoginScreenState extends State<LoginScreen>
         child: AlertDialog(
           backgroundColor: themeData.colorScheme.surfaceContainer,
           shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
           title: Text(
             '重置密码',
             style: themeData.textTheme.titleLarge?.copyWith(
@@ -353,7 +369,7 @@ class _LoginScreenState extends State<LoginScreen>
                         content: Text('新密码不能为空',
                             style: TextStyle(
                                 color:
-                                    themeData.colorScheme.onErrorContainer))),
+                                themeData.colorScheme.onErrorContainer))),
                   );
                 } else if (newPasswordController.text.length < 3) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -361,7 +377,7 @@ class _LoginScreenState extends State<LoginScreen>
                         content: Text('密码太短',
                             style: TextStyle(
                                 color:
-                                    themeData.colorScheme.onErrorContainer))),
+                                themeData.colorScheme.onErrorContainer))),
                   );
                 } else {
                   Navigator.pop(context, true);
@@ -415,7 +431,7 @@ class _LoginScreenState extends State<LoginScreen>
           SnackBar(
             content: Text('密码重置成功，请使用新密码登录',
                 style:
-                    TextStyle(color: themeData.colorScheme.onPrimaryContainer)),
+                TextStyle(color: themeData.colorScheme.onPrimaryContainer)),
             backgroundColor: themeData.colorScheme.primary,
           ),
         );
@@ -446,12 +462,6 @@ class _LoginScreenState extends State<LoginScreen>
       default:
         return '$defaultMessage: 服务器错误 - ${e.message}';
     }
-  }
-
-  void _toggleTheme() {
-    setState(() {
-      _isDarkMode = !_isDarkMode;
-    });
   }
 
   @override
@@ -531,8 +541,7 @@ class _LoginScreenState extends State<LoginScreen>
                 buttonTheme: LoginButtonTheme(
                   splashColor: themeData.colorScheme.primaryContainer,
                   backgroundColor: themeData.colorScheme.primary,
-                  highlightColor:
-                      themeData.colorScheme.primary.withOpacity(0.9),
+                  highlightColor: themeData.colorScheme.primary.withOpacity(0.9),
                   elevation: 8.0,
                   highlightElevation: 10.0,
                   shape: RoundedRectangleBorder(
@@ -547,8 +556,7 @@ class _LoginScreenState extends State<LoginScreen>
                   prefixIconColor: themeData.colorScheme.onSurfaceVariant,
                   errorStyle: themeData.textTheme.bodySmall?.copyWith(
                     color: themeData.colorScheme.onErrorContainer,
-                    backgroundColor:
-                        themeData.colorScheme.error.withOpacity(0.9),
+                    backgroundColor: themeData.colorScheme.error.withOpacity(0.9),
                   ),
                   labelStyle: themeData.textTheme.bodyMedium?.copyWith(
                     color: themeData.colorScheme.onSurfaceVariant,
@@ -556,7 +564,7 @@ class _LoginScreenState extends State<LoginScreen>
                   ),
                   hintStyle: themeData.textTheme.bodyMedium?.copyWith(
                     color:
-                        themeData.colorScheme.onSurfaceVariant.withOpacity(0.6),
+                    themeData.colorScheme.onSurfaceVariant.withOpacity(0.6),
                     fontSize: 14.0,
                   ),
                   border: OutlineInputBorder(
@@ -706,15 +714,16 @@ class Particle {
   double radius;
   final Random random;
   Size? canvasSize; // Store canvas size for boundary checks
+  static const double fixedSpeed = 0.5; // Fixed speed for all particles
 
   Particle(this.random)
       : position = Offset(
-          random.nextDouble() * 1000,
-          random.nextDouble() * 1000,
-        ),
+    random.nextDouble() * 1000,
+    random.nextDouble() * 1000,
+  ),
         velocity = Offset(
-          (random.nextDouble() - 0.5) * 2,
-          (random.nextDouble() - 0.5) * 2,
+          cos(random.nextDouble() * 2 * pi) * fixedSpeed,
+          sin(random.nextDouble() * 2 * pi) * fixedSpeed,
         ),
         radius = random.nextDouble() * 3 + 2;
 
@@ -725,9 +734,17 @@ class Particle {
     final width = canvasSize?.width ?? 1000;
     final height = canvasSize?.height ?? 1000;
 
-    // Rebound off borders
+    // Rebound off borders while preserving speed
     if (position.dx <= radius || position.dx >= width - radius) {
       velocity = Offset(-velocity.dx, velocity.dy);
+      // Ensure velocity magnitude remains fixedSpeed
+      double currentSpeed = sqrt(velocity.dx * velocity.dx + velocity.dy * velocity.dy);
+      if (currentSpeed != 0) {
+        velocity = Offset(
+          velocity.dx * fixedSpeed / currentSpeed,
+          velocity.dy * fixedSpeed / currentSpeed,
+        );
+      }
       // Clamp position to prevent sticking at edges
       position = Offset(
         position.dx.clamp(radius, width - radius),
@@ -736,6 +753,14 @@ class Particle {
     }
     if (position.dy <= radius || position.dy >= height - radius) {
       velocity = Offset(velocity.dx, -velocity.dy);
+      // Ensure velocity magnitude remains fixedSpeed
+      double currentSpeed = sqrt(velocity.dx * velocity.dx + velocity.dy * velocity.dy);
+      if (currentSpeed != 0) {
+        velocity = Offset(
+          velocity.dx * fixedSpeed / currentSpeed,
+          velocity.dy * fixedSpeed / currentSpeed,
+        );
+      }
       position = Offset(
         position.dx,
         position.dy.clamp(radius, height - radius),
