@@ -145,7 +145,9 @@ class Routes {
   static const userOffenseListPage = _Paths.userOffenseListPage;
 
   // 违章列表页面路由
-  static const trafficViolationScreen = '/trafficViolationScreen';
+  static const trafficViolationScreen = _Paths.trafficViolationScreen;
+
+  static const progressManagementPage  = _Paths.progressManagementPage;
 }
 
 /// 包含路由名称列表。
@@ -295,6 +297,8 @@ class _Paths {
 
   // 违章列表页面路由
   static const trafficViolationScreen = '/trafficViolationScreen';
+
+  static const progressManagementPage = '/progressManagementPage';
 // 示例：
 // static const index = '/';
 // static const splash = '/splash';

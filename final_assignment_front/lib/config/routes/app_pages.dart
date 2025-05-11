@@ -190,6 +190,8 @@ class AppPages {
   // 违法信息图表显示页面
   static const trafficViolationScreen = Routes.trafficViolationScreen;
 
+  static const progressManagementPage = Routes.progressManagementPage;
+
   // 配置应用中的所有页面路由
   static final routes = [
     GetPage(
@@ -314,5 +316,8 @@ class AppPages {
     GetPage(
         name: _Paths.trafficViolationScreen,
         page: () => const TrafficViolationScreen()),
+    GetPage(
+        name: _Paths.progressManagementPage,
+        page: () => const ProgressManagementPage()),
   ];
 }

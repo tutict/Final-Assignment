@@ -33,7 +33,7 @@ class ProgressController extends GetxController {
   Future<void> _loadUserRole() async {
     final prefs = await SharedPreferences.getInstance();
     final role = prefs.getString('userRole');
-    _isAdmin.value = role == 'admin';
+    _isAdmin.value = role == 'ADMIN';
   }
 
   Future<void> fetchAppeals() async {

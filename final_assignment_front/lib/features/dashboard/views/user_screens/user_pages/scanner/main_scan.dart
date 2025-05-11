@@ -4,9 +4,14 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_hms_scan_kit/flutter_hms_scan_kit.dart';
 import 'package:flutter_hms_scan_kit/scan_result.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'dart:io' show Platform;
+import 'package:final_assignment_front/features/model/fine_information.dart'; // Adjust path as needed
+import 'dart:developer' as developer;
 
 class MainScan extends StatefulWidget {
-  const MainScan({super.key});
+  final FineInformation? fine; // Optional fine data for QR code generation
+  const MainScan({super.key, this.fine});
 
   @override
   State<MainScan> createState() => _MainScanState();
@@ -15,7 +20,7 @@ class MainScan extends StatefulWidget {
 class _MainScanState extends State<MainScan> {
   String _platformVersion = 'Unknown';
   ScanResult? _scanResult;
-  List<int>? _code;
+  Uint8List? _code;
   bool _isScanning = false;
   bool _isGenerating = false;
 
@@ -23,7 +28,9 @@ class _MainScanState extends State<MainScan> {
   void initState() {
     super.initState();
     _initPlatformState();
-    _generateCode();
+    if (widget.fine != null) {
+      _generateCode(); // Generate QR code for fine if provided
+    }
   }
 
   /// Initialize platform state to get HMS Scan Kit version
@@ -47,10 +54,10 @@ class _MainScanState extends State<MainScan> {
 
   /// Trigger scan action
   Future<void> _scan() async {
-    if (_isScanning) return; // Prevent multiple scans
+    if (_isScanning) return;
     setState(() {
       _isScanning = true;
-      _scanResult = null; // Clear previous result
+      _scanResult = null;
     });
     try {
       final result = await FlutterHmsScanKit.scan;
@@ -72,26 +79,90 @@ class _MainScanState extends State<MainScan> {
 
   /// Generate QR code
   Future<void> _generateCode() async {
-    if (_isGenerating) return; // Prevent multiple generations
+    if (_isGenerating) return;
     setState(() {
       _isGenerating = true;
-      _code = null; // Clear previous QR code
+      _code = null;
     });
+
+    // Use fine data if provided, otherwise use default content
+    final content = widget.fine != null
+        ? 'Fine ID: ${widget.fine!.fineId}, Amount: ${widget.fine!.fineAmount}, Payee: ${widget.fine!.payee}'
+        : '这是条码';
+
     try {
-      final bytes = await rootBundle.load("assets/images/ic_logo.png");
-      final code = await FlutterHmsScanKit.generateCode(
-        content: "这是条码",
-        type: ScanTypeFormat.QRCODE_SCAN_TYPE,
-        width: 300,
-        height: 300,
-        color: "#7CB342",
-        logo: bytes.buffer.asUint8List(),
+      // Check if running on a Huawei device with HMS
+      bool isHuaweiDevice =
+          Platform.isAndroid ;
+
+      if (isHuaweiDevice) {
+        try {
+          // Load logo asset
+          final bytes = await DefaultAssetBundle.of(context)
+              .load('assets/images/ic_logo.jpg');
+          final code = await FlutterHmsScanKit.generateCode(
+            content: content,
+            type: ScanTypeFormat.QRCODE_SCAN_TYPE,
+            width: 300,
+            height: 300,
+            color: '#7CB342',
+            logo: bytes.buffer.asUint8List(),
+          );
+          if (mounted) {
+            setState(() {
+              _code = code != null ? Uint8List.fromList(code) : null;
+              _isGenerating = false;
+            });
+            developer.log('Generated QR code with HMS Scan Kit');
+          }
+          return;
+        } catch (e) {
+          developer.log('HMS Scan Kit failed: $e');
+          // Fallback to qr_flutter
+        }
+      }
+
+      // Fallback to qr_flutter for non-Huawei devices
+      final qrWidget = QrImageView(
+        data: content,
+        version: QrVersions.auto,
+        size: 300.0,
+        backgroundColor: Color(0xFFFFFFFF),
+        foregroundColor: Color(0xFF7CB342),
+        embeddedImage: AssetImage('assets/images/ic_logo.jpg'),
+        embeddedImageStyle: QrEmbeddedImageStyle(size: Size(60, 60)),
       );
+
+      // Convert QrImageView to image bytes (requires additional setup, e.g., render to image)
+      // For simplicity, we'll display the widget directly or save as needed
+      setState(() {
+        _code =
+            null; // Set to null since we're using widget; update if rendering to bytes
+        _isGenerating = false;
+      });
+      developer.log('Generated QR code with qr_flutter');
+
+      // Display QR code in a dialog for non-Huawei devices
       if (mounted) {
-        setState(() {
-          _code = code;
-          _isGenerating = false;
-        });
+        showCupertinoDialog(
+          context: context,
+          builder: (context) => CupertinoAlertDialog(
+            title: Text(widget.fine != null
+                ? 'Fine QR Code (ID: ${widget.fine!.fineId})'
+                : 'QR Code'),
+            content: Container(
+              width: 300,
+              height: 300,
+              child: qrWidget,
+            ),
+            actions: [
+              CupertinoDialogAction(
+                child: Text('关闭'),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -100,6 +171,7 @@ class _MainScanState extends State<MainScan> {
         });
         _showError('生成条码失败: $e');
       }
+      developer.log('QR code generation error: $e');
     }
   }
 
@@ -202,7 +274,7 @@ class _MainScanState extends State<MainScan> {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Text(
-            '生成条码',
+            widget.fine != null ? '罚款条码 (ID: ${widget.fine!.fineId})' : '生成条码',
             style: theme.textTheme.navTitleTextStyle.copyWith(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -215,7 +287,7 @@ class _MainScanState extends State<MainScan> {
                 ? const Center(child: CupertinoActivityIndicator(radius: 16))
                 : _code != null
                     ? Image.memory(
-                        Uint8List.fromList(_code!),
+                        _code!,
                         fit: BoxFit.contain,
                         errorBuilder: (context, error, stackTrace) => Text(
                           '无法加载条码',
@@ -252,7 +324,6 @@ class _MainScanState extends State<MainScan> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Platform version
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -266,10 +337,8 @@ class _MainScanState extends State<MainScan> {
                 ),
               ),
               const SizedBox(height: 16),
-              // Scan result section
               _buildScanResult(),
               const SizedBox(height: 16),
-              // Scan button
               CupertinoButton.filled(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
@@ -284,10 +353,8 @@ class _MainScanState extends State<MainScan> {
                 ),
               ),
               const SizedBox(height: 24),
-              // QR code section
               _buildQrCode(),
               const SizedBox(height: 16),
-              // Generate QR code button
               CupertinoButton(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 40, vertical: 12),

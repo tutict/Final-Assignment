@@ -1,3 +1,4 @@
+// user_appeal_page.dart
 import 'dart:convert';
 import 'package:final_assignment_front/features/dashboard/controllers/progress_controller.dart';
 import 'package:flutter/cupertino.dart';
@@ -11,6 +12,7 @@ import 'package:final_assignment_front/features/model/user_management.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:get/get.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
+import 'dart:developer' as developer;
 
 String generateIdempotencyKey() {
   return DateTime.now().millisecondsSinceEpoch.toString();
@@ -40,6 +42,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
   late ScrollController _scrollController;
   bool _hasOffenses = false;
   List<dynamic> _userOffenses = [];
+  String? _currentDriverName;
 
   DateTime? _startTime;
   DateTime? _endTime;
@@ -86,6 +89,18 @@ class _UserAppealPageState extends State<UserAppealPage> {
       appealApi.apiClient.setJwtToken(jwtToken);
       driverApi.apiClient.setJwtToken(jwtToken);
 
+      // 获取 driverName
+      _currentDriverName = prefs.getString('driverName');
+      if (_currentDriverName == null) {
+        _currentDriverName = await _fetchDriverName(jwtToken);
+        if (_currentDriverName == null) {
+          throw Exception('无法获取驾驶员姓名，请重新登录');
+        }
+        await prefs.setString('driverName', _currentDriverName!);
+        developer.log('Fetched and stored driver name: $_currentDriverName');
+      }
+      developer.log('Current Driver Name: $_currentDriverName');
+
       final decodedJwt = _decodeJwt(jwtToken);
       final roles = decodedJwt['roles']?.toString().split(',') ?? [];
       _isUser = roles.contains('USER');
@@ -110,15 +125,71 @@ class _UserAppealPageState extends State<UserAppealPage> {
       final payload = base64Url.decode(base64Url.normalize(parts[1]));
       return jsonDecode(utf8.decode(payload)) as Map<String, dynamic>;
     } catch (e) {
-      debugPrint('JWT解码错误: $e');
+      developer.log('JWT解码错误: $e');
       return {};
+    }
+  }
+
+  Future<String?> _fetchDriverName(String jwtToken) async {
+    try {
+      final userResponse = await apiClient.invokeAPI(
+        '/api/users/me',
+        'GET',
+        [],
+        null,
+        {'Authorization': 'Bearer $jwtToken'},
+        {},
+        'application/json',
+        ['bearerAuth'],
+      );
+      if (userResponse.statusCode == 200) {
+        final userData = jsonDecode(utf8.decode(userResponse.bodyBytes));
+        developer.log('User data: $userData');
+        final userId = userData['userId'] as int?;
+        if (userId == null) {
+          throw Exception('User data does not contain userId');
+        }
+
+        await driverApi.initializeWithJwt();
+        var driverInfo =
+            await driverApi.apiDriversDriverIdGet(driverId: userId);
+        if (driverInfo == null) {
+          // 创建新的 DriverInformation
+          final user = UserManagement.fromJson(userData);
+          driverInfo = DriverInformation(
+            driverId: userId,
+            name: user.username ?? '未知用户',
+            contactNumber: user.contactNumber ?? '',
+            idCardNumber: '',
+            driverLicenseNumber:
+                '${DateTime.now().millisecondsSinceEpoch.toString().substring(6)}${(1000 + (DateTime.now().millisecondsSinceEpoch % 9000)).toString()}',
+          );
+          await driverApi.apiDriversPost(
+            driverInformation: driverInfo,
+            idempotencyKey: generateIdempotencyKey(),
+          );
+          driverInfo = await driverApi.apiDriversDriverIdGet(driverId: userId);
+        }
+        final driverName = driverInfo?.name ?? '未知用户';
+        developer.log('Driver name from API: $driverName');
+        return driverName;
+      } else {
+        throw Exception(
+            'Failed to fetch user data: ${userResponse.statusCode}');
+      }
+    } catch (e) {
+      developer.log('Error fetching driver name: $e');
+      return null;
     }
   }
 
   Future<void> _checkUserOffenses() async {
     try {
+      if (_currentDriverName == null) {
+        throw Exception('未找到驾驶员姓名');
+      }
       final response = await apiClient.invokeAPI(
-        '/api/offenses/user/me',
+        '/api/offenses/by-driver-name?query=$_currentDriverName&page=1&size=20',
         'GET',
         [],
         null,
@@ -130,6 +201,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
       if (response.statusCode == 200) {
         final List<dynamic> offenses =
             jsonDecode(utf8.decode(response.bodyBytes));
+        developer.log('Fetched offenses: $offenses');
         setState(() {
           _userOffenses = offenses;
           _hasOffenses = offenses.isNotEmpty;
@@ -138,9 +210,39 @@ class _UserAppealPageState extends State<UserAppealPage> {
         throw Exception('检查违法信息失败: ${response.statusCode}');
       }
     } catch (e) {
+      developer.log('Error checking user offenses: $e');
       setState(() {
         _errorMessage = '无法检查违法信息: $e';
       });
+    }
+  }
+
+  Future<List<dynamic>> _fetchUserOffenses() async {
+    try {
+      if (_currentDriverName == null) {
+        throw Exception('未找到驾驶员姓名');
+      }
+      final response = await apiClient.invokeAPI(
+        '/api/offenses/by-driver-name?query=$_currentDriverName&page=1&size=20',
+        'GET',
+        [],
+        null,
+        await _getHeaders(),
+        {},
+        'application/json',
+        ['bearerAuth'],
+      );
+      if (response.statusCode == 200) {
+        final List<dynamic> offenses =
+            jsonDecode(utf8.decode(response.bodyBytes));
+        developer.log('Fetched offenses for dialog: $offenses');
+        return offenses;
+      } else {
+        throw Exception('获取违法信息失败: ${response.statusCode}');
+      }
+    } catch (e) {
+      developer.log('Error fetching user offenses: $e');
+      return [];
     }
   }
 
@@ -162,7 +264,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
       }
       return null;
     } catch (e) {
-      debugPrint('获取用户信息失败: $e');
+      developer.log('获取用户信息失败: $e');
       return null;
     }
   }
@@ -171,7 +273,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
     try {
       return await driverApi.apiDriversDriverIdGet(driverId: userId);
     } catch (e) {
-      debugPrint('获取驾驶员信息失败: $e');
+      developer.log('获取驾驶员信息失败: $e');
       return null;
     }
   }
@@ -182,11 +284,9 @@ class _UserAppealPageState extends State<UserAppealPage> {
       _errorMessage = '';
     });
     try {
-      final user = await _fetchUserManagement();
-      final driverInfo = user?.userId != null
-          ? await _fetchDriverInformation(user!.userId)
-          : null;
-      final currentAppellantName = driverInfo?.name ?? user?.username ?? '';
+      if (_currentDriverName == null) {
+        throw Exception('未找到驾驶员姓名');
+      }
 
       List<AppealManagement> appeals;
       if (resetFilters) {
@@ -201,17 +301,17 @@ class _UserAppealPageState extends State<UserAppealPage> {
           endTime: _endTime!.toIso8601String().substring(0, 10),
         );
         appeals = appeals
-            .where((appeal) => appeal.appellantName == currentAppellantName)
+            .where((appeal) => appeal.appellantName == _currentDriverName)
             .toList();
       } else if (_searchController.text.isNotEmpty) {
         appeals = await appealApi.apiAppealsReasonReasonGet(
             reason: _searchController.text.trim());
         appeals = appeals
-            .where((appeal) => appeal.appellantName == currentAppellantName)
+            .where((appeal) => appeal.appellantName == _currentDriverName)
             .toList();
       } else {
         appeals = await appealApi.apiAppealsNameAppellantNameGet(
-            appellantName: currentAppellantName);
+            appellantName: _currentDriverName!);
       }
 
       setState(() {
@@ -243,7 +343,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
               (reason) => reason.toLowerCase().contains(prefix.toLowerCase()))
           .toList();
     } catch (e) {
-      debugPrint('Failed to fetch autocomplete suggestions: $e');
+      developer.log('Failed to fetch autocomplete suggestions: $e');
       return [];
     }
   }
@@ -261,20 +361,12 @@ class _UserAppealPageState extends State<UserAppealPage> {
   }
 
   void _showSubmitAppealDialog() async {
-    if (!_hasOffenses) {
-      _showSnackBar('您当前没有违法记录，无法提交申诉', isError: true);
-      return;
-    }
-
-    // Fetch user and driver information
+    final TextEditingController nameController =
+        TextEditingController(text: _currentDriverName ?? '');
     final user = await _fetchUserManagement();
     final driverInfo = user?.userId != null
         ? await _fetchDriverInformation(user!.userId)
         : null;
-
-    // Initialize controllers with fetched data
-    final TextEditingController nameController =
-        TextEditingController(text: driverInfo?.name ?? user?.username ?? '');
     final TextEditingController idCardController =
         TextEditingController(text: driverInfo?.idCardNumber ?? '');
     final TextEditingController contactController = TextEditingController(
@@ -282,10 +374,16 @@ class _UserAppealPageState extends State<UserAppealPage> {
     final TextEditingController reasonController = TextEditingController();
     int? selectedOffenseId;
 
-    // Determine if fields should be read-only
     final bool isNameReadOnly = nameController.text.isNotEmpty;
     final bool isIdCardReadOnly = idCardController.text.isNotEmpty;
     final bool isContactReadOnly = contactController.text.isNotEmpty;
+
+    // Fetch offenses dynamically
+    final offenses = await _fetchUserOffenses();
+    if (offenses.isEmpty) {
+      _showSnackBar('您当前没有违法记录，无法提交申诉', isError: true);
+      return;
+    }
 
     showDialog(
       context: context,
@@ -329,11 +427,11 @@ class _UserAppealPageState extends State<UserAppealPage> {
                                   .withOpacity(0.3)),
                         ),
                       ),
-                      items: _userOffenses.map((offense) {
+                      items: offenses.map((offense) {
                         return DropdownMenuItem<int>(
                           value: offense['offenseId'],
                           child: Text(
-                              'ID: ${offense['offenseId']} - ${offense['description'] ?? '无描述'}'),
+                              'ID: ${offense['offenseId']} - ${offense['offenseType'] ?? '无描述'}'),
                         );
                       }).toList(),
                       onChanged: (value) => selectedOffenseId = value,
@@ -471,14 +569,14 @@ class _UserAppealPageState extends State<UserAppealPage> {
                                 RegExp(r'^\d{15}$|^\d{17}[\dXx]$');
                             final RegExp contactRegExp = RegExp(r'^\d{10,15}$');
 
-                            if (!idCardRegExp.hasMatch(idCard)) {
-                              _showSnackBar('身份证号码格式不正确', isError: true);
-                              return;
-                            }
-                            if (!contactRegExp.hasMatch(contact)) {
-                              _showSnackBar('联系电话格式不正确', isError: true);
-                              return;
-                            }
+                            // if (!idCardRegExp.hasMatch(idCard)) {
+                            //   _showSnackBar('身份证号码格式不正确', isError: true);
+                            //   return;
+                            // }
+                            // if (!contactRegExp.hasMatch(contact)) {
+                            //   _showSnackBar('联系电话格式不正确', isError: true);
+                            //   return;
+                            // }
 
                             final newAppeal = AppealManagement(
                               appealId: null,
@@ -512,7 +610,6 @@ class _UserAppealPageState extends State<UserAppealPage> {
         );
       }),
     ).whenComplete(() {
-      // Dispose controllers to prevent memory leaks
       nameController.dispose();
       idCardController.dispose();
       contactController.dispose();
@@ -750,7 +847,9 @@ class _UserAppealPageState extends State<UserAppealPage> {
                         : _appeals.isEmpty
                             ? Center(
                                 child: Text(
-                                  '暂无申诉记录',
+                                  _currentDriverName != null
+                                      ? '暂无与申诉人 $_currentDriverName 匹配的申诉记录'
+                                      : '未找到驾驶员信息，请重新登录',
                                   style:
                                       themeData.textTheme.bodyLarge?.copyWith(
                                     color:
@@ -819,13 +918,9 @@ class _UserAppealPageState extends State<UserAppealPage> {
         ),
         floatingActionButton: FloatingActionButton(
           onPressed: _showSubmitAppealDialog,
-          backgroundColor: _hasOffenses
-              ? themeData.colorScheme.primary
-              : themeData.colorScheme.onSurface.withOpacity(0.3),
-          foregroundColor: _hasOffenses
-              ? themeData.colorScheme.onPrimary
-              : themeData.colorScheme.onSurface.withOpacity(0.5),
-          tooltip: _hasOffenses ? '提交申诉' : '无违法记录，无法申诉',
+          backgroundColor: themeData.colorScheme.primary,
+          foregroundColor: themeData.colorScheme.onPrimary,
+          tooltip: '提交申诉',
           child: const Icon(Icons.add),
         ),
       );
@@ -847,9 +942,9 @@ class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
   bool _isLoadingProgress = false;
 
   final UserDashboardController? controller =
-  Get.isRegistered<UserDashboardController>()
-      ? Get.find<UserDashboardController>()
-      : null;
+      Get.isRegistered<UserDashboardController>()
+          ? Get.find<UserDashboardController>()
+          : null;
 
   @override
   void initState() {
@@ -928,7 +1023,7 @@ class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
                     enabledBorder: OutlineInputBorder(
                       borderSide: BorderSide(
                           color:
-                          themeData.colorScheme.outline.withOpacity(0.3)),
+                              themeData.colorScheme.outline.withOpacity(0.3)),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderSide: BorderSide(
@@ -952,7 +1047,7 @@ class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
                     enabledBorder: OutlineInputBorder(
                       borderSide: BorderSide(
                           color:
-                          themeData.colorScheme.outline.withOpacity(0.3)),
+                              themeData.colorScheme.outline.withOpacity(0.3)),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderSide: BorderSide(
@@ -997,9 +1092,9 @@ class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
               },
               style: themeData.elevatedButtonTheme.style?.copyWith(
                 backgroundColor:
-                WidgetStateProperty.all(themeData.colorScheme.primary),
+                    WidgetStateProperty.all(themeData.colorScheme.primary),
                 foregroundColor:
-                WidgetStateProperty.all(themeData.colorScheme.onPrimary),
+                    WidgetStateProperty.all(themeData.colorScheme.onPrimary),
               ),
               child: const Text('提交'),
             ),
@@ -1085,8 +1180,8 @@ class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
                             widget.appeal.processStatus == "Pending"
                                 ? "待处理"
                                 : widget.appeal.processStatus == "Approved"
-                                ? "已通过"
-                                : "已拒绝",
+                                    ? "已通过"
+                                    : "已拒绝",
                             themeData),
                         _buildDetailRow('处理结果',
                             widget.appeal.processResult ?? '无', themeData),
@@ -1116,43 +1211,43 @@ class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
                         _isLoadingProgress
                             ? const Center(child: CircularProgressIndicator())
                             : Obx(() {
-                          final relatedProgress = progressController
-                              .progressItems
-                              .where((p) =>
-                          p.appealId == widget.appeal.appealId)
-                              .toList();
-                          if (relatedProgress.isEmpty) {
-                            return Text(
-                              '暂无相关进度',
-                              style: themeData.textTheme.bodyMedium
-                                  ?.copyWith(
-                                color: themeData
-                                    .colorScheme.onSurfaceVariant,
-                              ),
-                            );
-                          }
-                          return Column(
-                            children: relatedProgress
-                                .map((item) => ListTile(
-                              title: Text(
-                                item.title,
-                                style:
-                                themeData.textTheme.bodyLarge,
-                              ),
-                              subtitle: Text(
-                                '状态: ${item.status}\n提交时间: ${formatDateTime(item.submitTime)}',
-                                style: themeData
-                                    .textTheme.bodyMedium,
-                              ),
-                              trailing: const Icon(
-                                  Icons.arrow_forward_ios),
-                              onTap: () => Get.toNamed(
-                                  '/progressDetail',
-                                  arguments: item),
-                            ))
-                                .toList(),
-                          );
-                        }),
+                                final relatedProgress = progressController
+                                    .progressItems
+                                    .where((p) =>
+                                        p.appealId == widget.appeal.appealId)
+                                    .toList();
+                                if (relatedProgress.isEmpty) {
+                                  return Text(
+                                    '暂无相关进度',
+                                    style: themeData.textTheme.bodyMedium
+                                        ?.copyWith(
+                                      color: themeData
+                                          .colorScheme.onSurfaceVariant,
+                                    ),
+                                  );
+                                }
+                                return Column(
+                                  children: relatedProgress
+                                      .map((item) => ListTile(
+                                            title: Text(
+                                              item.title,
+                                              style:
+                                                  themeData.textTheme.bodyLarge,
+                                            ),
+                                            subtitle: Text(
+                                              '状态: ${item.status}\n提交时间: ${formatDateTime(item.submitTime)}',
+                                              style: themeData
+                                                  .textTheme.bodyMedium,
+                                            ),
+                                            trailing: const Icon(
+                                                Icons.arrow_forward_ios),
+                                            onTap: () => Get.toNamed(
+                                                '/progressDetail',
+                                                arguments: item),
+                                          ))
+                                      .toList(),
+                                );
+                              }),
                       ],
                     ),
                   ),

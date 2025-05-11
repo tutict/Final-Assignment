@@ -1,28 +1,19 @@
-import 'dart:convert';
-import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/features/api/deduction_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
-import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_dashboard_screen.dart';
+import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
+import 'package:final_assignment_front/features/api/vehicle_information_controller_api.dart';
 import 'package:final_assignment_front/features/model/deduction_information.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:get/get.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_dashboard_screen.dart';
+import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'dart:developer' as developer;
 
-import 'package:uuid/uuid.dart';
-
-String generateIdempotencyKey() {
-  return DateTime.now().millisecondsSinceEpoch.toString();
-}
-
-String formatDateTime(DateTime? dateTime) {
-  if (dateTime == null) return '无';
-  return '${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')}';
-}
+import '../log_pages/operation_log_page.dart';
 
 class DeductionManagement extends StatefulWidget {
   const DeductionManagement({super.key});
@@ -47,6 +38,7 @@ class _DeductionManagementState extends State<DeductionManagement> {
   DateTime? _startTime;
   DateTime? _endTime;
   final DashboardController controller = Get.find<DashboardController>();
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -55,61 +47,39 @@ class _DeductionManagementState extends State<DeductionManagement> {
     _searchController.addListener(() {
       _applyFilters(_searchController.text);
     });
+    _scrollController.addListener(() {
+      if (_scrollController.position.pixels >=
+              _scrollController.position.maxScrollExtent - 200 &&
+          !_isLoading &&
+          _hasMore) {
+        _loadDeductions();
+      }
+    });
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
   Future<bool> _validateJwtToken() async {
     final prefs = await SharedPreferences.getInstance();
-    String? jwtToken = prefs.getString('jwtToken');
+    final jwtToken = prefs.getString('jwtToken');
     if (jwtToken == null || jwtToken.isEmpty) {
       setState(() => _errorMessage = '未授权，请重新登录');
       return false;
     }
     try {
-      final decodedToken = JwtDecoder.decode(jwtToken);
       if (JwtDecoder.isExpired(jwtToken)) {
-        jwtToken = await _refreshJwtToken();
-        if (jwtToken == null) {
-          setState(() => _errorMessage = '登录已过期，请重新登录');
-          return false;
-        }
-        await prefs.setString('jwtToken', jwtToken);
-        if (JwtDecoder.isExpired(jwtToken)) {
-          setState(() => _errorMessage = '新登录信息已过期，请重新登录');
-          return false;
-        }
-        await deductionApi.initializeWithJwt();
+        setState(() => _errorMessage = '登录已过期，请重新登录');
+        return false;
       }
       return true;
     } catch (e) {
       setState(() => _errorMessage = '无效的登录信息，请重新登录');
       return false;
-    }
-  }
-
-  Future<String?> _refreshJwtToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    final refreshToken = prefs.getString('refreshToken');
-    if (refreshToken == null) return null;
-    try {
-      final response = await http.post(
-        Uri.parse('http://localhost:8081/api/auth/refresh'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'refreshToken': refreshToken}),
-      );
-      if (response.statusCode == 200) {
-        final newJwt = jsonDecode(response.body)['jwtToken'];
-        await prefs.setString('jwtToken', newJwt);
-        return newJwt;
-      }
-      return null;
-    } catch (e) {
-      return null;
     }
   }
 
@@ -139,74 +109,6 @@ class _DeductionManagementState extends State<DeductionManagement> {
     }
   }
 
-  Future<void> _checkUserRole() async {
-    try {
-      if (!await _validateJwtToken()) {
-        Get.offAllNamed(AppPages.login);
-        return;
-      }
-      final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken')!;
-      final response = await http.get(
-        Uri.parse('http://localhost:8081/api/users/me'),
-        headers: {
-          'Authorization': 'Bearer $jwtToken',
-          'Content-Type': 'application/json',
-        },
-      );
-      if (response.statusCode == 200) {
-        final userData = jsonDecode(utf8.decode(response.bodyBytes));
-        final roles = (userData['roles'] as List<dynamic>?)
-                ?.map((r) => r.toString())
-                .toList() ??
-            [];
-        setState(() => _isAdmin = roles.contains('ADMIN'));
-        if (!_isAdmin) {
-          setState(() => _errorMessage = '权限不足：仅管理员可访问此页面');
-        }
-      } else {
-        throw Exception('验证失败：${response.statusCode}');
-      }
-    } catch (e) {
-      setState(() => _errorMessage = '验证角色失败: $e');
-    }
-  }
-
-  Future<List<String>> _fetchAutocompleteSuggestions(String prefix) async {
-    try {
-      if (!await _validateJwtToken()) {
-        Get.offAllNamed(AppPages.login);
-        return [];
-      }
-      if (_searchType == 'handler') {
-        final deductions = await deductionApi.apiDeductionsByHandlerGet(
-          handler: prefix.trim(),
-        );
-        return deductions
-                ?.map((deduction) => deduction.handler ?? '')
-                .where((handler) =>
-                    handler.toLowerCase().contains(prefix.toLowerCase()))
-                .take(5)
-                .toList() ??
-            [];
-      } else if (_searchType == 'driverLicenseNumber') {
-        final deductions = await deductionApi.apiDeductionsGet();
-        return deductions
-                ?.map((deduction) => deduction.driverLicenseNumber ?? '')
-                .where((license) =>
-                    license.toLowerCase().contains(prefix.toLowerCase()))
-                .take(5)
-                .toList() ??
-            [];
-      }
-      return [];
-    } catch (e) {
-      developer.log('Failed to fetch autocomplete suggestions: $e',
-          stackTrace: StackTrace.current);
-      return [];
-    }
-  }
-
   Future<void> _loadDeductions({bool reset = false, String? query}) async {
     if (!_isAdmin || !_hasMore) return;
 
@@ -231,6 +133,11 @@ class _DeductionManagementState extends State<DeductionManagement> {
       final searchQuery = query?.trim() ?? '';
       if (searchQuery.isEmpty && _startTime == null && _endTime == null) {
         deductions = await deductionApi.apiDeductionsGet() ?? [];
+        deductions.sort((a, b) {
+          final aTime = a.deductionTime ?? DateTime(1970);
+          final bTime = b.deductionTime ?? DateTime(1970);
+          return bTime.compareTo(aTime);
+        });
       } else if (_searchType == 'handler' && searchQuery.isNotEmpty) {
         deductions = await deductionApi.apiDeductionsByHandlerGet(
                 handler: searchQuery) ??
@@ -287,24 +194,6 @@ class _DeductionManagementState extends State<DeductionManagement> {
     }
   }
 
-  String _formatErrorMessage(dynamic error) {
-    if (error is ApiException) {
-      switch (error.code) {
-        case 400:
-          return '请求错误: ${error.message}';
-        case 403:
-          return '无权限: ${error.message}';
-        case 404:
-          return '未找到: ${error.message}';
-        case 409:
-          return '重复请求: ${error.message}';
-        default:
-          return '服务器错误: ${error.message}';
-      }
-    }
-    return '操作失败: $error';
-  }
-
   void _applyFilters(String query) {
     final searchQuery = query.trim().toLowerCase();
     setState(() {
@@ -346,82 +235,15 @@ class _DeductionManagementState extends State<DeductionManagement> {
     });
   }
 
-  Future<void> _loadMoreDeductions() async {
-    if (!_isLoading && _hasMore) {
-      await _loadDeductions();
-    }
-  }
-
-  Future<void> _refreshDeductions({String? query}) async {
-    setState(() {
-      _deductions.clear();
-      _filteredDeductions.clear();
-      _currentPage = 1;
-      _hasMore = true;
-      _isLoading = true;
-      if (query == null) {
-        _searchController.clear();
-        _startTime = null;
-        _endTime = null;
-        _searchType = 'handler';
-      }
-    });
-    await _loadDeductions(reset: true, query: query);
-  }
-
-  Future<void> _searchDeductions() async {
-    final query = _searchController.text.trim();
-    _applyFilters(query);
-  }
-
   void _createDeduction() {
-    Get.to(() => const AddDeductionPage())?.then((value) {
-      if (value == true && mounted) _refreshDeductions();
-    });
-  }
-
-  void _goToDetailPage(DeductionInformation deduction) {
-    Get.to(() => DeductionDetailPage(deduction: deduction))?.then((value) {
-      if (value == true && mounted) _refreshDeductions();
-    });
-  }
-
-  Future<void> _deleteDeduction(int deductionId) async {
-    bool? confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('确认删除'),
-        content: const Text('确定要删除此扣分记录吗？此操作不可撤销。'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('删除', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true) {
-      setState(() => _isLoading = true);
-      try {
-        if (!await _validateJwtToken()) {
-          Get.offAllNamed(AppPages.login);
-          return;
-        }
-        await deductionApi.apiDeductionsDeductionIdDelete(
-            deductionId: deductionId);
-        _showSnackBar('删除扣分记录成功！');
-        await _refreshDeductions();
-      } catch (e) {
-        _showSnackBar(_formatErrorMessage(e), isError: true);
-      } finally {
-        setState(() => _isLoading = false);
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const AddDeductionPage()),
+    ).then((value) {
+      if (value == true) {
+        _loadDeductions(reset: true);
       }
-    }
+    });
   }
 
   void _showSnackBar(String message, {bool isError = false}) {
@@ -432,9 +254,7 @@ class _DeductionManagementState extends State<DeductionManagement> {
         content: Text(
           message,
           style: TextStyle(
-            color: isError
-                ? themeData.colorScheme.onError
-                : themeData.colorScheme.onPrimary,
+            color: isError ? Colors.redAccent : themeData.colorScheme.onPrimary,
           ),
         ),
         backgroundColor: isError
@@ -447,192 +267,33 @@ class _DeductionManagementState extends State<DeductionManagement> {
     );
   }
 
-  Widget _buildSearchField(ThemeData themeData) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Autocomplete<String>(
-                  optionsBuilder: (TextEditingValue textEditingValue) async {
-                    if (textEditingValue.text.isEmpty ||
-                        (_searchType != 'handler' &&
-                            _searchType != 'driverLicenseNumber')) {
-                      return const Iterable<String>.empty();
-                    }
-                    return await _fetchAutocompleteSuggestions(
-                        textEditingValue.text);
-                  },
-                  onSelected: (String selection) {
-                    _searchController.text = selection;
-                    _applyFilters(selection);
-                  },
-                  fieldViewBuilder:
-                      (context, controller, focusNode, onFieldSubmitted) {
-                    _searchController.text = controller.text;
-                    return TextField(
-                      controller: controller,
-                      focusNode: focusNode,
-                      style: TextStyle(color: themeData.colorScheme.onSurface),
-                      decoration: InputDecoration(
-                        hintText: _searchType == 'handler'
-                            ? '搜索处理人'
-                            : _searchType == 'driverLicenseNumber'
-                                ? '搜索驾驶证号'
-                                : '搜索时间范围（已选择）',
-                        hintStyle: TextStyle(
-                            color: themeData.colorScheme.onSurface
-                                .withOpacity(0.6)),
-                        prefixIcon: Icon(Icons.search,
-                            color: themeData.colorScheme.primary),
-                        suffixIcon: controller.text.isNotEmpty ||
-                                (_startTime != null && _endTime != null)
-                            ? IconButton(
-                                icon: Icon(Icons.clear,
-                                    color:
-                                        themeData.colorScheme.onSurfaceVariant),
-                                onPressed: () {
-                                  controller.clear();
-                                  _searchController.clear();
-                                  setState(() {
-                                    _startTime = null;
-                                    _endTime = null;
-                                    _searchType = 'handler';
-                                  });
-                                  _applyFilters('');
-                                },
-                              )
-                            : null,
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12.0)),
-                        enabledBorder: OutlineInputBorder(
-                          borderSide: BorderSide(
-                              color: themeData.colorScheme.outline
-                                  .withOpacity(0.3)),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide: BorderSide(
-                              color: themeData.colorScheme.primary, width: 1.5),
-                        ),
-                        filled: true,
-                        fillColor: themeData.colorScheme.surfaceContainerLowest,
-                        contentPadding: const EdgeInsets.symmetric(
-                            vertical: 12.0, horizontal: 16.0),
-                      ),
-                      onChanged: (value) => _applyFilters(value),
-                      onSubmitted: (value) => _applyFilters(value),
-                      enabled: _searchType == 'handler' ||
-                          _searchType == 'driverLicenseNumber',
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(width: 8),
-              DropdownButton<String>(
-                value: _searchType,
-                onChanged: (String? newValue) {
-                  setState(() {
-                    _searchType = newValue!;
-                    _searchController.clear();
-                    _startTime = null;
-                    _endTime = null;
-                    _applyFilters('');
-                  });
-                },
-                items: <String>['handler', 'driverLicenseNumber', 'timeRange']
-                    .map<DropdownMenuItem<String>>((String value) {
-                  return DropdownMenuItem<String>(
-                    value: value,
-                    child: Text(
-                      value == 'handler'
-                          ? '按处理人'
-                          : value == 'driverLicenseNumber'
-                              ? '按驾驶证号'
-                              : '按时间范围',
-                      style: TextStyle(color: themeData.colorScheme.onSurface),
-                    ),
-                  );
-                }).toList(),
-                dropdownColor: themeData.colorScheme.surfaceContainer,
-                icon: Icon(Icons.arrow_drop_down,
-                    color: themeData.colorScheme.primary),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  _startTime != null && _endTime != null
-                      ? '时间范围: ${formatDateTime(_startTime)} 至 ${formatDateTime(_endTime)}'
-                      : '选择时间范围',
-                  style: themeData.textTheme.bodyMedium?.copyWith(
-                    color: _startTime != null && _endTime != null
-                        ? themeData.colorScheme.onSurface
-                        : themeData.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-              IconButton(
-                icon: Icon(Icons.date_range,
-                    color: themeData.colorScheme.primary),
-                tooltip: '按时间范围搜索',
-                onPressed: () async {
-                  final range = await showDateRangePicker(
-                    context: context,
-                    firstDate: DateTime(2000),
-                    lastDate: DateTime.now(),
-                    locale: const Locale('zh', 'CN'),
-                    helpText: '选择时间范围',
-                    cancelText: '取消',
-                    confirmText: '确定',
-                    fieldStartHintText: '开始日期',
-                    fieldEndHintText: '结束日期',
-                    builder: (context, child) => Theme(
-                      data: themeData.copyWith(
-                        colorScheme: themeData.colorScheme.copyWith(
-                          primary: themeData.colorScheme.primary,
-                          onPrimary: themeData.colorScheme.onPrimary,
-                        ),
-                        textButtonTheme: TextButtonThemeData(
-                          style: TextButton.styleFrom(
-                            foregroundColor: themeData.colorScheme.primary,
-                          ),
-                        ),
-                      ),
-                      child: child!,
-                    ),
-                  );
-                  if (range != null) {
-                    setState(() {
-                      _startTime = range.start;
-                      _endTime = range.end;
-                      _searchType = 'timeRange';
-                    });
-                    _applyFilters(_searchController.text);
-                  }
-                },
-              ),
-              if (_startTime != null && _endTime != null)
-                IconButton(
-                  icon: Icon(Icons.clear,
-                      color: themeData.colorScheme.onSurfaceVariant),
-                  tooltip: '清除日期范围',
-                  onPressed: () {
-                    setState(() {
-                      _startTime = null;
-                      _endTime = null;
-                      _searchType = 'handler';
-                    });
-                    _applyFilters(_searchController.text);
-                  },
-                ),
-            ],
-          ),
-        ],
+  String _formatErrorMessage(dynamic error) {
+    if (error is ApiException) {
+      switch (error.code) {
+        case 400:
+          return '请求错误: ${error.message}';
+        case 403:
+          return '无权限: ${error.message}';
+        case 404:
+          return '未找到: ${error.message}';
+        case 409:
+          return '重复请求: ${error.message}';
+        default:
+          return '服务器错误: ${error.message}';
+      }
+    }
+    return '操作失败: $error';
+  }
+
+// 新增：显式构建无数据提示
+  Widget _buildNoDataWidget(ThemeData themeData) {
+    return Center(
+      child: Text(
+        _errorMessage.isNotEmpty ? _errorMessage : '暂无扣分记录',
+        style: themeData.textTheme.bodyLarge?.copyWith(
+          color: themeData.colorScheme.onSurface, // 优化：使用 onSurface 确保暗色模式可见
+          fontWeight: FontWeight.w500,
+        ),
       ),
     );
   }
@@ -645,206 +306,99 @@ class _DeductionManagementState extends State<DeductionManagement> {
         backgroundColor: themeData.colorScheme.surface,
         appBar: AppBar(
           title: Text(
-            '扣分信息管理',
+            '扣分管理',
             style: themeData.textTheme.headlineMedium?.copyWith(
               fontWeight: FontWeight.bold,
-              color: themeData.colorScheme.onPrimaryContainer,
+              color: themeData.colorScheme.onPrimary,
             ),
           ),
           backgroundColor: themeData.colorScheme.primaryContainer,
           foregroundColor: themeData.colorScheme.onPrimaryContainer,
           elevation: 2,
           actions: [
-            if (_isAdmin) ...[
+            if (_isAdmin)
               IconButton(
                 icon: Icon(Icons.add,
-                    color: themeData.colorScheme.onPrimaryContainer, size: 24),
+                    color: themeData.colorScheme.onPrimaryContainer),
                 onPressed: _createDeduction,
                 tooltip: '添加扣分记录',
-                padding: const EdgeInsets.symmetric(horizontal: 12.0),
               ),
-              IconButton(
-                icon: Icon(Icons.refresh,
-                    color: themeData.colorScheme.onPrimaryContainer, size: 24),
-                onPressed: () => _refreshDeductions(),
-                tooltip: '刷新列表',
-                padding: const EdgeInsets.symmetric(horizontal: 12.0),
-              ),
-            ],
+            IconButton(
+              icon: Icon(Icons.refresh,
+                  color: themeData.colorScheme.onPrimaryContainer),
+              onPressed: () => _loadDeductions(reset: true),
+              tooltip: '刷新列表',
+            ),
             IconButton(
               icon: Icon(
                 themeData.brightness == Brightness.light
                     ? Icons.dark_mode
                     : Icons.light_mode,
                 color: themeData.colorScheme.onPrimaryContainer,
-                size: 24,
               ),
               onPressed: controller.toggleBodyTheme,
               tooltip: '切换主题',
-              padding: const EdgeInsets.symmetric(horizontal: 12.0),
             ),
           ],
         ),
         body: RefreshIndicator(
-          onRefresh: () => _refreshDeductions(),
+          onRefresh: () => _loadDeductions(reset: true),
           color: themeData.colorScheme.primary,
           backgroundColor: themeData.colorScheme.surfaceContainer,
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
-                const SizedBox(height: 12),
-                _buildSearchField(themeData),
-                const SizedBox(height: 12),
                 Expanded(
-                  child: NotificationListener<ScrollNotification>(
-                    onNotification: (scrollInfo) {
-                      if (scrollInfo.metrics.pixels ==
-                              scrollInfo.metrics.maxScrollExtent &&
-                          _hasMore) {
-                        _loadMoreDeductions();
-                      }
-                      return false;
-                    },
-                    child: _isLoading && _currentPage == 1
-                        ? Center(
-                            child: CircularProgressIndicator(
-                              valueColor: AlwaysStoppedAnimation(
-                                  themeData.colorScheme.primary),
+                  child: _isLoading && _currentPage == 1
+                      ? const Center(child: CircularProgressIndicator())
+                      : _filteredDeductions.isEmpty
+                          ? _buildNoDataWidget(themeData) // 优化：使用显式无数据组件
+                          : ListView.builder(
+                              controller: _scrollController,
+                              itemCount: _filteredDeductions.length +
+                                  (_hasMore ? 1 : 0),
+                              itemBuilder: (context, index) {
+                                if (index == _filteredDeductions.length &&
+                                    _hasMore) {
+                                  return const Center(
+                                      child: CircularProgressIndicator());
+                                }
+                                final deduction = _filteredDeductions[index];
+                                return Card(
+                                  child: ListTile(
+                                    title: Text(
+                                      '驾驶证号: ${deduction.driverLicenseNumber ?? '未知'}',
+                                      style: TextStyle(
+                                        color: themeData.colorScheme.primary,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    subtitle: Text(
+                                      '扣分: ${deduction.deductedPoints ?? 0}',
+                                      style: TextStyle(
+                                        color: themeData
+                                            .colorScheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              EditDeductionPage(
+                                                  deduction: deduction),
+                                        ),
+                                      ).then((value) {
+                                        if (value == true) {
+                                          _loadDeductions(reset: true);
+                                        }
+                                      });
+                                    },
+                                  ),
+                                );
+                              },
                             ),
-                          )
-                        : _errorMessage.isNotEmpty &&
-                                _filteredDeductions.isEmpty
-                            ? Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      _errorMessage,
-                                      style: themeData.textTheme.titleMedium
-                                          ?.copyWith(
-                                        color: themeData.colorScheme.error,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                    if (_errorMessage.contains('未授权') ||
-                                        _errorMessage.contains('登录'))
-                                      Padding(
-                                        padding:
-                                            const EdgeInsets.only(top: 16.0),
-                                        child: ElevatedButton(
-                                          onPressed: () =>
-                                              Get.offAllNamed(AppPages.login),
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor:
-                                                themeData.colorScheme.primary,
-                                            foregroundColor:
-                                                themeData.colorScheme.onPrimary,
-                                          ),
-                                          child: const Text('重新登录'),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              )
-                            : ListView.builder(
-                                itemCount: _filteredDeductions.length +
-                                    (_hasMore ? 1 : 0),
-                                itemBuilder: (context, index) {
-                                  if (index == _filteredDeductions.length &&
-                                      _hasMore) {
-                                    return const Padding(
-                                      padding: EdgeInsets.all(8.0),
-                                      child: Center(
-                                          child: CircularProgressIndicator()),
-                                    );
-                                  }
-                                  final deduction = _filteredDeductions[index];
-                                  return Card(
-                                    margin: const EdgeInsets.symmetric(
-                                        vertical: 8.0),
-                                    elevation: 3,
-                                    color:
-                                        themeData.colorScheme.surfaceContainer,
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(16.0)),
-                                    child: ListTile(
-                                      contentPadding:
-                                          const EdgeInsets.symmetric(
-                                              horizontal: 16.0, vertical: 12.0),
-                                      title: Text(
-                                        '扣分: ${deduction.deductedPoints ?? 0} 分',
-                                        style: themeData.textTheme.titleMedium
-                                            ?.copyWith(
-                                          color:
-                                              themeData.colorScheme.onSurface,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                      subtitle: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            '驾驶证号: ${deduction.driverLicenseNumber ?? '无'}',
-                                            style: themeData
-                                                .textTheme.bodyMedium
-                                                ?.copyWith(
-                                              color: themeData
-                                                  .colorScheme.onSurfaceVariant,
-                                            ),
-                                          ),
-                                          Text(
-                                            '时间: ${formatDateTime(deduction.deductionTime)}',
-                                            style: themeData
-                                                .textTheme.bodyMedium
-                                                ?.copyWith(
-                                              color: themeData
-                                                  .colorScheme.onSurfaceVariant,
-                                            ),
-                                          ),
-                                          Text(
-                                            '处理人: ${deduction.handler ?? '未记录'}',
-                                            style: themeData
-                                                .textTheme.bodyMedium
-                                                ?.copyWith(
-                                              color: themeData
-                                                  .colorScheme.onSurfaceVariant,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      trailing: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          IconButton(
-                                            icon: Icon(
-                                              Icons.delete,
-                                              size: 18,
-                                              color:
-                                                  themeData.colorScheme.error,
-                                            ),
-                                            onPressed: () => _deleteDeduction(
-                                                deduction.deductionId ?? 0),
-                                            tooltip: '删除扣分记录',
-                                          ),
-                                          Icon(
-                                            Icons.arrow_forward_ios,
-                                            color: themeData
-                                                .colorScheme.onSurfaceVariant,
-                                            size: 18,
-                                          ),
-                                        ],
-                                      ),
-                                      onTap: () => _goToDetailPage(deduction),
-                                    ),
-                                  );
-                                },
-                              ),
-                  ),
                 ),
               ],
             ),
@@ -869,6 +423,8 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
       OffenseInformationControllerApi();
   final DriverInformationControllerApi driverApi =
       DriverInformationControllerApi();
+  final VehicleInformationControllerApi vehicleApi =
+      VehicleInformationControllerApi();
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _licensePlateController = TextEditingController();
   final TextEditingController _driverLicenseNumberController =
@@ -920,6 +476,7 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
       await deductionApi.initializeWithJwt();
       await offenseApi.initializeWithJwt();
       await driverApi.initializeWithJwt();
+      await vehicleApi.initializeWithJwt();
     } catch (e) {
       _showSnackBar('初始化失败: $e', isError: true);
     } finally {
@@ -939,53 +496,109 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
     super.dispose();
   }
 
-  Future<List<String>> _fetchLicensePlateSuggestions(String prefix) async {
+  Future<List<Map<String, dynamic>>> _fetchLicensePlateSuggestions(
+      String prefix) async {
     try {
       if (!await _validateJwtToken()) {
         Get.offAllNamed(AppPages.login);
         return [];
       }
-      final offenses = await offenseApi.apiOffensesByLicensePlateGet(
-        query: prefix.trim(),
-        page: 1,
-        size: 10,
-      );
-      return offenses
-          .map((o) => o.licensePlate ?? '')
-          .where((plate) => plate.toLowerCase().contains(prefix.toLowerCase()))
-          .toSet()
+      final plates = await vehicleApi.apiVehiclesLicensePlateGloballyGet(
+          licensePlate: prefix.trim());
+      developer.log('Raw license plate response: $plates');
+      final suggestions = plates
+          .where((plate) => plate != null && plate.trim().isNotEmpty)
+          .map((plate) => {'licensePlate': plate})
           .toList();
+      developer.log('Filtered license plate suggestions: $suggestions');
+      return suggestions;
     } catch (e) {
+      developer.log('Error fetching license plate suggestions: $e',
+          stackTrace: StackTrace.current);
       _showSnackBar('获取车牌号建议失败: $e', isError: true);
       return [];
     }
   }
 
-  Future<String?> _fetchDriverLicenseNumber(String? driverName) async {
-    if (driverName == null || driverName.trim().isEmpty) {
-      _showSnackBar('未提供驾驶员姓名，请手动输入驾驶证号', isError: true);
-      return null;
-    }
+  Future<List<Map<String, dynamic>>> _fetchDriverLicenseSuggestions(
+      String prefix) async {
     try {
-      final drivers = await driverApi.apiDriversByNameGet(
-          query: driverName.trim(), page: 1, size: 1);
-      if (drivers.isNotEmpty) {
-        return drivers.first.driverLicenseNumber;
+      if (!await _validateJwtToken()) {
+        Get.offAllNamed(AppPages.login);
+        return [];
       }
-      _showSnackBar('未找到与驾驶员姓名匹配的驾驶证号，请手动输入', isError: true);
+      if (prefix.trim().isEmpty) return [];
+      final drivers = await driverApi.apiDriversByNameGet(
+        query: prefix.trim(),
+        page: 1,
+        size: 10,
+      );
+      final suggestions = drivers
+          .where((d) =>
+              d.driverLicenseNumber != null &&
+              d.driverLicenseNumber!.trim().isNotEmpty)
+          .map((d) => {
+                'driverLicenseNumber': d.driverLicenseNumber!,
+                'name': d.name ?? '',
+                'idCardNumber': d.idCardNumber ?? '',
+              })
+          .where((item) =>
+              item['driverLicenseNumber']
+                  .toString()
+                  .toLowerCase()
+                  .contains(prefix.toLowerCase()) ||
+              item['name']
+                  .toString()
+                  .toLowerCase()
+                  .contains(prefix.toLowerCase()))
+          .toList();
+      developer.log('Driver license suggestions: $suggestions');
+      return suggestions;
+    } catch (e) {
+      if (e is ApiException && e.code == 400 && prefix.trim().isEmpty) {
+        return [];
+      }
+      developer.log('Error fetching driver license suggestions: $e',
+          stackTrace: StackTrace.current);
+      _showSnackBar('获取驾驶证号建议失败: $e', isError: true);
+      return [];
+    }
+  }
+
+  Future<String?> _fetchDriverLicenseNumberFromOffense(
+      String licensePlate) async {
+    try {
+      final offenses = await offenseApi.apiOffensesByLicensePlateGet(
+        query: licensePlate,
+        page: 1,
+        size: 1,
+      );
+      if (offenses.isNotEmpty && offenses.first.licensePlate != null) {
+        return offenses.first.licensePlate;
+      }
+      _showSnackBar('未找到与车牌号关联的驾驶证号，请手动输入', isError: true);
       return null;
     } catch (e) {
+      developer.log('Error fetching driver license from offense: $e',
+          stackTrace: StackTrace.current);
       _showSnackBar('获取驾驶证号失败: $e', isError: true);
       return null;
     }
   }
 
-  Future<void> _onLicensePlateSelected(String licensePlate) async {
+  Future<void> _onLicensePlateSelected(Map<String, dynamic> selection) async {
     try {
       if (!await _validateJwtToken()) {
         Get.offAllNamed(AppPages.login);
         return;
       }
+      final licensePlate = selection['licensePlate'] as String?;
+      if (licensePlate == null || licensePlate.trim().isEmpty) {
+        _showSnackBar('无效的车牌号选择', isError: true);
+        return;
+      }
+      _licensePlateController.text = licensePlate;
+
       final offenses = await offenseApi.apiOffensesByLicensePlateGet(
         query: licensePlate,
         page: 1,
@@ -994,7 +607,7 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
       if (offenses.isNotEmpty) {
         final latestOffense = offenses.first;
         final driverLicenseNumber =
-            await _fetchDriverLicenseNumber(latestOffense.driverName);
+            await _fetchDriverLicenseNumberFromOffense(licensePlate);
         setState(() {
           _selectedOffenseId = latestOffense.offenseId;
           _driverLicenseNumberController.text = driverLicenseNumber ?? '';
@@ -1012,7 +625,36 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
         });
       }
     } catch (e) {
-      _showSnackBar('获取违法信息失败: $e', isError: true);
+      developer.log('Error processing license plate selection: $e',
+          stackTrace: StackTrace.current);
+      _showSnackBar('处理车牌号失败: $e', isError: true);
+      setState(() {
+        _selectedOffenseId = null;
+        _driverLicenseNumberController.clear();
+        _deductedPointsController.clear();
+        _dateController.clear();
+      });
+    }
+  }
+
+  Future<void> _onDriverLicenseSelected(Map<String, dynamic> selection) async {
+    try {
+      if (!await _validateJwtToken()) {
+        Get.offAllNamed(AppPages.login);
+        return;
+      }
+      final driverLicenseNumber = selection['driverLicenseNumber'] as String?;
+      if (driverLicenseNumber == null || driverLicenseNumber.trim().isEmpty) {
+        _showSnackBar('无效的驾驶证号选择', isError: true);
+        return;
+      }
+      setState(() {
+        _driverLicenseNumberController.text = driverLicenseNumber;
+      });
+    } catch (e) {
+      developer.log('Error processing driver license selection: $e',
+          stackTrace: StackTrace.current);
+      _showSnackBar('加载驾驶证号信息失败: $e', isError: true);
     }
   }
 
@@ -1052,6 +694,8 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
       _showSnackBar('创建扣分记录成功！');
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
+      developer.log('Error submitting deduction: $e',
+          stackTrace: StackTrace.current);
       _showSnackBar(_formatErrorMessage(e), isError: true);
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -1066,9 +710,7 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
         content: Text(
           message,
           style: TextStyle(
-            color: isError
-                ? themeData.colorScheme.onError
-                : themeData.colorScheme.onPrimary,
+            color: isError ? Colors.redAccent : themeData.colorScheme.onPrimary,
           ),
         ),
         backgroundColor: isError
@@ -1099,13 +741,13 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
     return '操作失败: $error';
   }
 
-  Future<void> _pickDate() async {
-    _showSnackBar('扣分时间不可编辑，必须与违法时间一致', isError: true);
-  }
-
   String formatDateTime(DateTime? dateTime) {
     if (dateTime == null) return '';
     return '${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _pickDate() async {
+    _showSnackBar('扣分时间不可编辑，必须与违法时间一致', isError: true);
   }
 
   Widget _buildTextField(
@@ -1117,19 +759,84 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
       int? maxLength,
       String? Function(String?)? validator,
       bool isAutocomplete = false,
-      Future<List<String>> Function(String)? fetchSuggestions,
-      void Function(String)? onSelected}) {
+      Future<List<Map<String, dynamic>>> Function(String)? fetchSuggestions,
+      void Function(Map<String, dynamic>)? onSelected}) {
     if (isAutocomplete) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 6.0),
-        child: Autocomplete<String>(
+        child: Autocomplete<Map<String, dynamic>>(
           optionsBuilder: (TextEditingValue textEditingValue) async {
             if (textEditingValue.text.isEmpty || fetchSuggestions == null) {
-              return const Iterable<String>.empty();
+              return const Iterable<Map<String, dynamic>>.empty();
             }
             return await fetchSuggestions(textEditingValue.text);
           },
+          displayStringForOption: (Map<String, dynamic> option) {
+            if (label == '车牌号') {
+              return option['licensePlate']?.toString() ?? '';
+            } else {
+              return option['driverLicenseNumber']?.toString() ?? '';
+            }
+          },
           onSelected: onSelected,
+          optionsViewBuilder: (context, onSelected, options) {
+            return Align(
+              alignment: Alignment.topLeft,
+              child: Material(
+                elevation: 6.0,
+                // 优化：增加阴影
+                color: themeData.colorScheme.surfaceContainerHighest
+                    .withOpacity(0.95),
+                // 优化：高对比度背景
+                borderRadius: BorderRadius.circular(12.0),
+                borderOnForeground: true,
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: themeData.colorScheme.outline.withOpacity(0.5),
+                      // 优化：添加边框
+                      width: 1.0,
+                    ),
+                    borderRadius: BorderRadius.circular(12.0),
+                  ),
+                  constraints: BoxConstraints(
+                    maxHeight: 200.0,
+                    maxWidth: MediaQuery.of(context).size.width - 32.0,
+                  ),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: options.length,
+                    separatorBuilder: (context, index) => Divider(
+                      height: 1,
+                      color: themeData.colorScheme.outline
+                          .withOpacity(0.3), // 优化：添加分隔线
+                    ),
+                    itemBuilder: (context, index) {
+                      final option = options.elementAt(index);
+                      return InkWell(
+                        onTap: () => onSelected(option),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 12.0, horizontal: 16.0),
+                          child: Text(
+                            label == '车牌号'
+                                ? option['licensePlate']?.toString() ?? ''
+                                : option['driverLicenseNumber']?.toString() ??
+                                    '',
+                            style: themeData.textTheme.bodyMedium?.copyWith(
+                              color: themeData.colorScheme.onSurface,
+                              // 优化：高对比度文字
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            );
+          },
           fieldViewBuilder:
               (context, textEditingController, focusNode, onFieldSubmitted) {
             textEditingController.text = controller.text;
@@ -1139,9 +846,12 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
               style: TextStyle(color: themeData.colorScheme.onSurface),
               decoration: InputDecoration(
                 labelText: label,
-                labelStyle:
-                    TextStyle(color: themeData.colorScheme.onSurfaceVariant),
-                helperText: label == '车牌号' ? '请输入车牌号，例如：黑AWS34' : null,
+                labelStyle: TextStyle(color: themeData.colorScheme.primary),
+                helperText: label == '车牌号'
+                    ? '请输入车牌号，例如：黑AWS34'
+                    : label == '驾驶证号'
+                        ? '自动填充或手动输入，与违法记录关联'
+                        : null,
                 helperStyle: TextStyle(
                     color: themeData.colorScheme.onSurfaceVariant
                         .withOpacity(0.6)),
@@ -1188,6 +898,9 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
                         return '请输入有效车牌号，例如：黑AWS34';
                       }
                     }
+                    if (label == '驾驶证号' && trimmedValue.length > 50) {
+                      return '驾驶证号不能超过50个字符';
+                    }
                     return null;
                   },
               onChanged: (value) {
@@ -1205,11 +918,11 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
         style: TextStyle(color: themeData.colorScheme.onSurface),
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: TextStyle(color: themeData.colorScheme.onSurfaceVariant),
-          helperText: label == '驾驶证号'
-              ? '自动填充或手动输入，与违法记录关联'
-              : label == '处理人' || label == '审批人'
-                  ? '请输入${label}姓名（选填）'
+          labelStyle: TextStyle(color: themeData.colorScheme.primary),
+          helperText: label == '处理人' || label == '审批人'
+              ? '请输入${label}姓名（选填）'
+              : label == '扣分分数'
+                  ? '自动填充，与违法记录关联'
                   : null,
           helperStyle: TextStyle(
               color: themeData.colorScheme.onSurfaceVariant.withOpacity(0.6)),
@@ -1248,12 +961,8 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
                 if (points == null) return '扣分分数必须是整数';
                 if (points <= 0 || points > 12) return '扣分分数必须在1到12之间';
               }
-              if (label == '驾驶证号' && trimmedValue.length > 50) {
-                return '驾驶证号不能超过50个字符';
-              }
-              if ((label == '处理人' || label == '审批人') &&
-                  trimmedValue.length > 100) {
-                return '$label姓名不能超过100个字符';
+              if (label == '处理人' || label == '审批人') {
+                if (trimmedValue.length > 100) return '$label姓名不能超过100个字符';
               }
               if (label == '备注' && trimmedValue.length > 255) {
                 return '备注不能超过255个字符';
@@ -1282,7 +991,7 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
             '添加扣分信息',
             style: themeData.textTheme.headlineMedium?.copyWith(
               fontWeight: FontWeight.bold,
-              color: themeData.colorScheme.onPrimaryContainer,
+              color: themeData.colorScheme.onPrimary,
             ),
           ),
           backgroundColor: themeData.colorScheme.primaryContainer,
@@ -1324,7 +1033,10 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
                                   themeData,
                                   required: true,
                                   maxLength: 50,
-                                  readOnly: false,
+                                  isAutocomplete: true,
+                                  fetchSuggestions:
+                                      _fetchDriverLicenseSuggestions,
+                                  onSelected: _onDriverLicenseSelected,
                                 ),
                                 _buildTextField(
                                   '扣分分数 *',
@@ -1401,16 +1113,27 @@ class EditDeductionPage extends StatefulWidget {
 class _EditDeductionPageState extends State<EditDeductionPage> {
   final DeductionInformationControllerApi deductionApi =
       DeductionInformationControllerApi();
+  final OffenseInformationControllerApi offenseApi =
+      OffenseInformationControllerApi();
+  final DriverInformationControllerApi driverApi =
+      DriverInformationControllerApi();
+  final VehicleInformationControllerApi vehicleApi =
+      VehicleInformationControllerApi();
   final _formKey = GlobalKey<FormState>();
+  final TextEditingController _licensePlateController = TextEditingController();
   final TextEditingController _driverLicenseNumberController =
       TextEditingController();
   final TextEditingController _deductedPointsController =
       TextEditingController();
   final TextEditingController _handlerController = TextEditingController();
+  final TextEditingController _approverController = TextEditingController();
   final TextEditingController _remarksController = TextEditingController();
   final TextEditingController _dateController = TextEditingController();
   bool _isLoading = false;
+  int? _selectedOffenseId;
   final DashboardController controller = Get.find<DashboardController>();
+
+  String generateIdempotencyKey() => const Uuid().v4();
 
   Future<bool> _validateJwtToken() async {
     final prefs = await SharedPreferences.getInstance();
@@ -1420,7 +1143,6 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
       return false;
     }
     try {
-      final decodedToken = JwtDecoder.decode(jwtToken);
       if (JwtDecoder.isExpired(jwtToken)) {
         _showSnackBar('登录已过期，请重新登录', isError: true);
         return false;
@@ -1436,6 +1158,7 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
   void initState() {
     super.initState();
     _initialize();
+    _populateFields();
   }
 
   Future<void> _initialize() async {
@@ -1446,7 +1169,9 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
         return;
       }
       await deductionApi.initializeWithJwt();
-      _initializeFields();
+      await offenseApi.initializeWithJwt();
+      await driverApi.initializeWithJwt();
+      await vehicleApi.initializeWithJwt();
     } catch (e) {
       _showSnackBar('初始化失败: $e', isError: true);
     } finally {
@@ -1454,48 +1179,188 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
     }
   }
 
-  void _initializeFields() {
+  void _populateFields() {
+    _licensePlateController.text = '';
     _driverLicenseNumberController.text =
         widget.deduction.driverLicenseNumber ?? '';
     _deductedPointsController.text =
-        (widget.deduction.deductedPoints ?? 0).toString();
+        widget.deduction.deductedPoints?.toString() ?? '';
     _handlerController.text = widget.deduction.handler ?? '';
+    _approverController.text = widget.deduction.approver ?? '';
     _remarksController.text = widget.deduction.remarks ?? '';
     _dateController.text = formatDateTime(widget.deduction.deductionTime);
+    _fetchOffenseForDeduction();
   }
 
-  String _formatErrorMessage(dynamic error) {
-    if (error is ApiException) {
-      switch (error.code) {
-        case 400:
-          return '请求错误: ${error.message}';
-        case 403:
-          return '无权限: ${error.message}';
-        case 404:
-          return '未找到: ${error.message}';
-        case 409:
-          return '重复请求: ${error.message}';
-        default:
-          return '服务器错误: ${error.message}';
+  Future<void> _fetchOffenseForDeduction() async {
+    try {
+      final offenses = await offenseApi.apiOffensesByLicensePlateGet(
+        query: widget.deduction.driverLicenseNumber ?? '',
+        page: 1,
+        size: 10,
+      );
+      if (offenses.isNotEmpty) {
+        setState(() {
+          _selectedOffenseId = offenses.first.offenseId;
+          _licensePlateController.text = offenses.first.licensePlate ?? '';
+        });
       }
+    } catch (e) {
+      _showSnackBar('无法加载违法记录: $e', isError: true);
     }
-    return '操作失败: $error';
   }
 
   @override
   void dispose() {
+    _licensePlateController.dispose();
     _driverLicenseNumberController.dispose();
     _deductedPointsController.dispose();
     _handlerController.dispose();
+    _approverController.dispose();
     _remarksController.dispose();
     _dateController.dispose();
     super.dispose();
   }
 
+  Future<List<Map<String, dynamic>>> _fetchLicensePlateSuggestions(
+      String prefix) async {
+    try {
+      if (!await _validateJwtToken()) {
+        Get.offAllNamed(AppPages.login);
+        return [];
+      }
+      final plates = await vehicleApi.apiVehiclesLicensePlateGloballyGet(
+          licensePlate: prefix.trim());
+      return plates.map((plate) => {'licensePlate': plate}).toList();
+    } catch (e) {
+      _showSnackBar('获取车牌号建议失败: $e', isError: true);
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchDriverLicenseSuggestions(
+      String prefix) async {
+    try {
+      if (!await _validateJwtToken()) {
+        Get.offAllNamed(AppPages.login);
+        return [];
+      }
+      if (prefix.trim().isEmpty) return [];
+      final drivers = await driverApi.apiDriversByNameGet(
+        query: prefix.trim(),
+        page: 1,
+        size: 10,
+      );
+      return drivers
+          .where((d) =>
+              d.driverLicenseNumber != null &&
+              d.driverLicenseNumber!.isNotEmpty)
+          .map((d) => {
+                'driverLicenseNumber': d.driverLicenseNumber!,
+                'name': d.name ?? '',
+                'idCardNumber': d.idCardNumber ?? '',
+              })
+          .where((item) =>
+              item['driverLicenseNumber']
+                  .toString()
+                  .toLowerCase()
+                  .contains(prefix.toLowerCase()) ||
+              item['name']
+                  .toString()
+                  .toLowerCase()
+                  .contains(prefix.toLowerCase()))
+          .toList();
+    } catch (e) {
+      if (e is ApiException && e.code == 400 && prefix.trim().isEmpty) {
+        return [];
+      }
+      _showSnackBar('获取驾驶证号建议失败: $e', isError: true);
+      return [];
+    }
+  }
+
+  Future<String?> _fetchDriverLicenseNumberFromOffense(
+      String licensePlate) async {
+    try {
+      final offenses = await offenseApi.apiOffensesByLicensePlateGet(
+        query: licensePlate,
+        page: 1,
+        size: 1,
+      );
+      if (offenses.isNotEmpty && offenses.first.licensePlate != null) {
+        return offenses.first.licensePlate;
+      }
+      _showSnackBar('未找到与车牌号关联的驾驶证号，请手动输入', isError: true);
+      return null;
+    } catch (e) {
+      _showSnackBar('获取驾驶证号失败: $e', isError: true);
+      return null;
+    }
+  }
+
+  Future<void> _onLicensePlateSelected(Map<String, dynamic> selection) async {
+    try {
+      if (!await _validateJwtToken()) {
+        Get.offAllNamed(AppPages.login);
+        return;
+      }
+      final licensePlate = selection['licensePlate'] as String;
+      _licensePlateController.text = licensePlate;
+
+      final offenses = await offenseApi.apiOffensesByLicensePlateGet(
+        query: licensePlate,
+        page: 1,
+        size: 10,
+      );
+      if (offenses.isNotEmpty) {
+        final latestOffense = offenses.first;
+        final driverLicenseNumber =
+            await _fetchDriverLicenseNumberFromOffense(licensePlate);
+        setState(() {
+          _selectedOffenseId = latestOffense.offenseId;
+          _driverLicenseNumberController.text = driverLicenseNumber ?? '';
+          _deductedPointsController.text =
+              (latestOffense.deductedPoints ?? 0).toString();
+          _dateController.text = formatDateTime(latestOffense.offenseTime);
+        });
+      } else {
+        _showSnackBar('未找到与此车牌相关的违法记录', isError: true);
+        setState(() {
+          _selectedOffenseId = null;
+          _driverLicenseNumberController.clear();
+          _deductedPointsController.clear();
+          _dateController.clear();
+        });
+      }
+    } catch (e) {
+      _showSnackBar('处理车牌号失败: $e', isError: true);
+      setState(() {
+        _selectedOffenseId = null;
+        _driverLicenseNumberController.clear();
+        _deductedPointsController.clear();
+        _dateController.clear();
+      });
+    }
+  }
+
+  Future<void> _onDriverLicenseSelected(Map<String, dynamic> selection) async {
+    try {
+      if (!await _validateJwtToken()) {
+        Get.offAllNamed(AppPages.login);
+        return;
+      }
+      setState(() {
+        _driverLicenseNumberController.text = selection['driverLicenseNumber'];
+      });
+    } catch (e) {
+      _showSnackBar('加载驾驶证号信息失败: $e', isError: true);
+    }
+  }
+
   Future<void> _submitDeduction() async {
     if (!_formKey.currentState!.validate()) return;
-    if (widget.deduction.deductionId == null) {
-      _showSnackBar('扣分记录ID无效，无法更新', isError: true);
+    if (_selectedOffenseId == null) {
+      _showSnackBar('请先选择一个违法记录', isError: true);
       return;
     }
     if (!await _validateJwtToken()) {
@@ -1504,19 +1369,24 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
     }
     setState(() => _isLoading = true);
     try {
+      final idempotencyKey = generateIdempotencyKey();
       final deduction = DeductionInformation(
         deductionId: widget.deduction.deductionId,
-        driverLicenseNumber: widget.deduction.driverLicenseNumber,
-        deductedPoints: widget.deduction.deductedPoints,
-        deductionTime: widget.deduction.deductionTime,
+        driverLicenseNumber: _driverLicenseNumberController.text.trim(),
+        deductedPoints:
+            int.tryParse(_deductedPointsController.text.trim()) ?? 0,
+        deductionTime: DateTime.parse('${_dateController.text}T00:00:00.000'),
         handler: _handlerController.text.trim().isEmpty
             ? null
             : _handlerController.text.trim(),
+        approver: _approverController.text.trim().isEmpty
+            ? null
+            : _approverController.text.trim(),
         remarks: _remarksController.text.trim().isEmpty
             ? null
             : _remarksController.text.trim(),
+        idempotencyKey: idempotencyKey,
       );
-      final idempotencyKey = generateIdempotencyKey();
       await deductionApi.apiDeductionsDeductionIdPut(
         deductionId: widget.deduction.deductionId!,
         deductionInformation: deduction,
@@ -1539,9 +1409,7 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
         content: Text(
           message,
           style: TextStyle(
-            color: isError
-                ? themeData.colorScheme.onError
-                : themeData.colorScheme.onPrimary,
+            color: isError ? Colors.redAccent : themeData.colorScheme.onPrimary,
           ),
         ),
         backgroundColor: isError
@@ -1552,6 +1420,24 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
         margin: const EdgeInsets.all(10.0),
       ),
     );
+  }
+
+  String _formatErrorMessage(dynamic error) {
+    if (error is ApiException) {
+      switch (error.code) {
+        case 400:
+          return '请求错误: ${error.message}';
+        case 403:
+          return '无权限: ${error.message}';
+        case 404:
+          return '未找到: ${error.message}';
+        case 409:
+          return '重复请求: ${error.message}';
+        default:
+          return '服务器错误: ${error.message}';
+      }
+    }
+    return '操作失败: $error';
   }
 
   Future<void> _pickDate() async {
@@ -1565,7 +1451,157 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
       VoidCallback? onTap,
       bool required = false,
       int? maxLength,
-      String? Function(String?)? validator}) {
+      String? Function(String?)? validator,
+      bool isAutocomplete = false,
+      Future<List<Map<String, dynamic>>> Function(String)? fetchSuggestions,
+      void Function(Map<String, dynamic>)? onSelected}) {
+    if (isAutocomplete) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6.0),
+        child: Autocomplete<Map<String, dynamic>>(
+          optionsBuilder: (TextEditingValue textEditingValue) async {
+            if (textEditingValue.text.isEmpty || fetchSuggestions == null) {
+              return const Iterable<Map<String, dynamic>>.empty();
+            }
+            return await fetchSuggestions(textEditingValue.text);
+          },
+          displayStringForOption: (Map<String, dynamic> option) =>
+              label == '车牌号'
+                  ? option['licensePlate']
+                  : option['driverLicenseNumber'],
+          onSelected: onSelected,
+          optionsViewBuilder: (context, onSelected, options) {
+            return Align(
+              alignment: Alignment.topLeft,
+              child: Material(
+                elevation: 6.0,
+                // 优化：增加阴影
+                color: themeData.colorScheme.surfaceContainerHighest
+                    .withOpacity(0.95),
+                // 优化：高对比度背景
+                borderRadius: BorderRadius.circular(12.0),
+                borderOnForeground: true,
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: themeData.colorScheme.outline.withOpacity(0.5),
+                      // 优化：添加边框
+                      width: 1.0,
+                    ),
+                    borderRadius: BorderRadius.circular(12.0),
+                  ),
+                  constraints: BoxConstraints(
+                    maxHeight: 200.0,
+                    maxWidth: MediaQuery.of(context).size.width - 32.0,
+                  ),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: options.length,
+                    separatorBuilder: (context, index) => Divider(
+                      height: 1,
+                      color: themeData.colorScheme.outline
+                          .withOpacity(0.3), // 优化：添加分隔线
+                    ),
+                    itemBuilder: (context, index) {
+                      final option = options.elementAt(index);
+                      return InkWell(
+                        onTap: () => onSelected(option),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 12.0, horizontal: 16.0),
+                          child: Text(
+                            label == '车牌号'
+                                ? option['licensePlate']?.toString() ?? ''
+                                : option['driverLicenseNumber']?.toString() ??
+                                    '',
+                            style: themeData.textTheme.bodyMedium?.copyWith(
+                              color: themeData.colorScheme.onSurface,
+                              // 优化：高对比度文字
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            );
+          },
+          fieldViewBuilder:
+              (context, textEditingController, focusNode, onFieldSubmitted) {
+            textEditingController.text = controller.text;
+            return TextFormField(
+              controller: textEditingController,
+              focusNode: focusNode,
+              style: TextStyle(color: themeData.colorScheme.onSurface),
+              decoration: InputDecoration(
+                labelText: label,
+                labelStyle: TextStyle(color: themeData.colorScheme.primary),
+                helperText: label == '车牌号'
+                    ? '请输入车牌号，例如：黑AWS34'
+                    : label == '驾驶证号'
+                        ? '自动填充或手动输入，与违法记录关联'
+                        : null,
+                helperStyle: TextStyle(
+                    color: themeData.colorScheme.onSurfaceVariant
+                        .withOpacity(0.6)),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12.0)),
+                enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(
+                        color: themeData.colorScheme.outline.withOpacity(0.3))),
+                focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(
+                        color: themeData.colorScheme.primary, width: 1.5)),
+                filled: true,
+                fillColor: themeData.colorScheme.surfaceContainerLowest,
+                suffixIcon: textEditingController.text.isNotEmpty
+                    ? IconButton(
+                        icon: Icon(Icons.clear,
+                            color: themeData.colorScheme.onSurfaceVariant),
+                        onPressed: () {
+                          textEditingController.clear();
+                          controller.clear();
+                          if (label == '车牌号') {
+                            setState(() {
+                              _selectedOffenseId = null;
+                              _driverLicenseNumberController.clear();
+                              _deductedPointsController.clear();
+                              _dateController.clear();
+                            });
+                          }
+                        },
+                      )
+                    : null,
+              ),
+              keyboardType: keyboardType,
+              maxLength: maxLength,
+              validator: validator ??
+                  (value) {
+                    final trimmedValue = value?.trim() ?? '';
+                    if (required && trimmedValue.isEmpty) return '$label不能为空';
+                    if (label == '车牌号') {
+                      if (trimmedValue.isEmpty) return '车牌号不能为空';
+                      if (trimmedValue.length > 20) return '车牌号不能超过20个字符';
+                      if (!RegExp(r'^[\u4e00-\u9fa5][A-Za-z0-9]{5,7}$')
+                          .hasMatch(trimmedValue)) {
+                        return '请输入有效车牌号，例如：黑AWS34';
+                      }
+                    }
+                    if (label == '驾驶证号' && trimmedValue.length > 50) {
+                      return '驾驶证号不能超过50个字符';
+                    }
+                    return null;
+                  },
+              onChanged: (value) {
+                controller.text = value;
+              },
+            );
+          },
+        ),
+      );
+    }
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: TextFormField(
@@ -1573,11 +1609,11 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
         style: TextStyle(color: themeData.colorScheme.onSurface),
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: TextStyle(color: themeData.colorScheme.onSurfaceVariant),
-          helperText: label == '驾驶证号'
-              ? '不可编辑，与违法记录关联'
-              : label == '处理人'
-                  ? '请输入处理人姓名（选填）'
+          labelStyle: TextStyle(color: themeData.colorScheme.primary),
+          helperText: label == '处理人' || label == '审批人'
+              ? '请输入${label}姓名（选填）'
+              : label == '扣分分数'
+                  ? '自动填充，与违法记录关联'
                   : null,
           helperStyle: TextStyle(
               color: themeData.colorScheme.onSurfaceVariant.withOpacity(0.6)),
@@ -1592,9 +1628,16 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
           fillColor: readOnly
               ? themeData.colorScheme.surfaceContainerHighest.withOpacity(0.5)
               : themeData.colorScheme.surfaceContainerLowest,
-          suffixIcon: readOnly
-              ? Icon(Icons.lock, size: 18, color: themeData.colorScheme.primary)
-              : null,
+          suffixIcon: controller.text.isNotEmpty && !readOnly
+              ? IconButton(
+                  icon: Icon(Icons.clear,
+                      color: themeData.colorScheme.onSurfaceVariant),
+                  onPressed: () => controller.clear(),
+                )
+              : readOnly
+                  ? Icon(Icons.lock,
+                      size: 18, color: themeData.colorScheme.primary)
+                  : null,
         ),
         keyboardType: keyboardType,
         readOnly: readOnly,
@@ -1609,11 +1652,8 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
                 if (points == null) return '扣分分数必须是整数';
                 if (points <= 0 || points > 12) return '扣分分数必须在1到12之间';
               }
-              if (label == '驾驶证号' && trimmedValue.length > 50) {
-                return '驾驶证号不能超过50个字符';
-              }
-              if (label == '处理人' && trimmedValue.length > 100) {
-                return '处理人姓名不能超过100个字符';
+              if (label == '处理人' || label == '审批人') {
+                if (trimmedValue.length > 100) return '$label姓名不能超过100个字符';
               }
               if (label == '备注' && trimmedValue.length > 255) {
                 return '备注不能超过255个字符';
@@ -1642,7 +1682,7 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
             '编辑扣分信息',
             style: themeData.textTheme.headlineMedium?.copyWith(
               fontWeight: FontWeight.bold,
-              color: themeData.colorScheme.onPrimaryContainer,
+              color: themeData.colorScheme.onPrimary,
             ),
           ),
           backgroundColor: themeData.colorScheme.primaryContainer,
@@ -1668,12 +1708,26 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
                             child: Column(
                               children: [
                                 _buildTextField(
+                                  '车牌号 *',
+                                  _licensePlateController,
+                                  themeData,
+                                  required: true,
+                                  maxLength: 20,
+                                  isAutocomplete: true,
+                                  fetchSuggestions:
+                                      _fetchLicensePlateSuggestions,
+                                  onSelected: _onLicensePlateSelected,
+                                ),
+                                _buildTextField(
                                   '驾驶证号 *',
                                   _driverLicenseNumberController,
                                   themeData,
                                   required: true,
                                   maxLength: 50,
-                                  readOnly: true,
+                                  isAutocomplete: true,
+                                  fetchSuggestions:
+                                      _fetchDriverLicenseSuggestions,
+                                  onSelected: _onDriverLicenseSelected,
                                 ),
                                 _buildTextField(
                                   '扣分分数 *',
@@ -1686,6 +1740,12 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
                                 _buildTextField(
                                   '处理人',
                                   _handlerController,
+                                  themeData,
+                                  maxLength: 100,
+                                ),
+                                _buildTextField(
+                                  '审批人',
+                                  _approverController,
                                   themeData,
                                   maxLength: 100,
                                 ),
@@ -1727,331 +1787,6 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
                   ),
                 ),
         ),
-      );
-    });
-  }
-}
-
-class DeductionDetailPage extends StatefulWidget {
-  final DeductionInformation deduction;
-
-  const DeductionDetailPage({super.key, required this.deduction});
-
-  @override
-  State<DeductionDetailPage> createState() => _DeductionDetailPageState();
-}
-
-class _DeductionDetailPageState extends State<DeductionDetailPage> {
-  final DeductionInformationControllerApi deductionApi =
-      DeductionInformationControllerApi();
-  late DeductionInformation _deduction;
-  bool _isLoading = false;
-  bool _isAdmin = false;
-  String _errorMessage = '';
-  final DashboardController controller = Get.find<DashboardController>();
-
-  Future<bool> _validateJwtToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    final jwtToken = prefs.getString('jwtToken');
-    if (jwtToken == null || jwtToken.isEmpty) {
-      setState(() => _errorMessage = '未授权，请重新登录');
-      return false;
-    }
-    try {
-      if (JwtDecoder.isExpired(jwtToken)) {
-        setState(() => _errorMessage = '登录已过期，请重新登录');
-        return false;
-      }
-      return true;
-    } catch (e) {
-      setState(() => _errorMessage = '无效的登录信息，请重新登录');
-      return false;
-    }
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _deduction = widget.deduction;
-    _initialize();
-  }
-
-  Future<void> _initialize() async {
-    setState(() => _isLoading = true);
-    try {
-      if (!await _validateJwtToken()) {
-        Get.offAllNamed(AppPages.login);
-        return;
-      }
-      await deductionApi.initializeWithJwt();
-      await _checkUserRole();
-    } catch (e) {
-      setState(() => _errorMessage = '初始化失败: $e');
-    } finally {
-      setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _checkUserRole() async {
-    try {
-      if (!await _validateJwtToken()) {
-        Get.offAllNamed(AppPages.login);
-        return;
-      }
-      final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken')!;
-      final response = await http.get(
-        Uri.parse('http://localhost:8081/api/users/me'),
-        headers: {
-          'Authorization': 'Bearer $jwtToken',
-          'Content-Type': 'application/json',
-        },
-      );
-      if (response.statusCode == 200) {
-        final userData = jsonDecode(utf8.decode(response.bodyBytes));
-        final roles = (userData['roles'] as List<dynamic>?)
-                ?.map((r) => r.toString())
-                .toList() ??
-            [];
-        setState(() => _isAdmin = roles.contains('ADMIN'));
-      } else {
-        throw Exception('验证失败：${response.statusCode}');
-      }
-    } catch (e) {
-      setState(() => _errorMessage = '加载权限失败: $e');
-    }
-  }
-
-  Future<void> _deleteDeduction() async {
-    if (_deduction.deductionId == null) {
-      _showSnackBar('扣分记录ID无效，无法删除', isError: true);
-      return;
-    }
-    bool? confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('确认删除'),
-        content: const Text('确定要删除此扣分记录吗？此操作不可撤销。'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('删除', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true) {
-      setState(() => _isLoading = true);
-      try {
-        if (!await _validateJwtToken()) {
-          Get.offAllNamed(AppPages.login);
-          return;
-        }
-        await deductionApi.apiDeductionsDeductionIdDelete(
-            deductionId: _deduction.deductionId!);
-        _showSnackBar('扣分记录删除成功！');
-        if (mounted) Navigator.pop(context, true);
-      } catch (e) {
-        _showSnackBar(_formatErrorMessage(e), isError: true);
-      } finally {
-        if (mounted) setState(() => _isLoading = false);
-      }
-    }
-  }
-
-  void _showSnackBar(String message, {bool isError = false}) {
-    if (!mounted) return;
-    final themeData = controller.currentBodyTheme.value;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          style: TextStyle(
-            color: isError
-                ? themeData.colorScheme.onError
-                : themeData.colorScheme.onPrimary,
-          ),
-        ),
-        backgroundColor: isError
-            ? themeData.colorScheme.error
-            : themeData.colorScheme.primary,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
-        margin: const EdgeInsets.all(10.0),
-      ),
-    );
-  }
-
-  String _formatErrorMessage(dynamic error) {
-    if (error is ApiException) {
-      switch (error.code) {
-        case 400:
-          return '请求错误: ${error.message}';
-        case 403:
-          return '无权限: ${error.message}';
-        case 404:
-          return '未找到: ${error.message}';
-        case 409:
-          return '重复请求: ${error.message}';
-        default:
-          return '服务器错误: ${error.message}';
-      }
-    }
-    return '操作失败: $error';
-  }
-
-  String formatDateTime(DateTime? dateTime) {
-    if (dateTime == null) return '未提供';
-    return '${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')}';
-  }
-
-  Widget _buildDetailRow(String label, String value, ThemeData themeData) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '$label: ',
-            style: themeData.textTheme.bodyLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: themeData.colorScheme.onSurface,
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: themeData.textTheme.bodyMedium?.copyWith(
-                color: themeData.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Obx(() {
-      final themeData = controller.currentBodyTheme.value;
-      if (_errorMessage.isNotEmpty) {
-        return Scaffold(
-          backgroundColor: themeData.colorScheme.surface,
-          body: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  _errorMessage,
-                  style: themeData.textTheme.titleMedium?.copyWith(
-                    color: themeData.colorScheme.error,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                if (_errorMessage.contains('未授权') ||
-                    _errorMessage.contains('登录'))
-                  Padding(
-                    padding: const EdgeInsets.only(top: 16.0),
-                    child: ElevatedButton(
-                      onPressed: () => Get.offAllNamed(AppPages.login),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: themeData.colorScheme.primary,
-                        foregroundColor: themeData.colorScheme.onPrimary,
-                      ),
-                      child: const Text('重新登录'),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        );
-      }
-
-      return Scaffold(
-        backgroundColor: themeData.colorScheme.surface,
-        appBar: AppBar(
-          title: Text(
-            '扣分详情',
-            style: themeData.textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: themeData.colorScheme.onPrimaryContainer,
-            ),
-          ),
-          backgroundColor: themeData.colorScheme.primaryContainer,
-          foregroundColor: themeData.colorScheme.onPrimaryContainer,
-          elevation: 2,
-          actions: _isAdmin
-              ? [
-                  IconButton(
-                    icon: const Icon(Icons.edit),
-                    onPressed: () {
-                      Get.to(() => EditDeductionPage(deduction: _deduction))
-                          ?.then((value) {
-                        if (value == true && mounted) {
-                          Navigator.pop(context, true);
-                        }
-                      });
-                    },
-                    tooltip: '编辑扣分记录',
-                  ),
-                  IconButton(
-                    icon:
-                        Icon(Icons.delete, color: themeData.colorScheme.error),
-                    onPressed: _deleteDeduction,
-                    tooltip: '删除扣分记录',
-                  ),
-                ]
-              : [],
-        ),
-        body: _isLoading
-            ? Center(
-                child: CircularProgressIndicator(
-                    valueColor:
-                        AlwaysStoppedAnimation(themeData.colorScheme.primary)))
-            : Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Card(
-                  elevation: 3,
-                  color: themeData.colorScheme.surfaceContainer,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16.0)),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: SingleChildScrollView(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildDetailRow(
-                              '扣分ID',
-                              _deduction.deductionId?.toString() ?? '未提供',
-                              themeData),
-                          _buildDetailRow('驾驶证号',
-                              _deduction.driverLicenseNumber ?? '无', themeData),
-                          _buildDetailRow('扣分分数',
-                              '${_deduction.deductedPoints ?? 0} 分', themeData),
-                          _buildDetailRow(
-                              '扣分时间',
-                              formatDateTime(_deduction.deductionTime),
-                              themeData),
-                          _buildDetailRow(
-                              '处理人', _deduction.handler ?? '无', themeData),
-                          _buildDetailRow(
-                              '审批人', _deduction.approver ?? '无', themeData),
-                          _buildDetailRow(
-                              '备注', _deduction.remarks ?? '无', themeData),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
       );
     });
   }

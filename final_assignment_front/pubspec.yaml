@@ -39,6 +39,8 @@ dependencies:
 
   uuid: ^4.5.1
 
+  qr_flutter: ^4.1.0
+
   latlong2: ^0.9.1
 
   jwt_decoder: ^2.0.1
@@ -151,6 +153,7 @@ flutter:
   assets:
     - assets/images/raster/
     - assets/images/vector/
+    - assets/images/ic_logo.jpg
 
 
 

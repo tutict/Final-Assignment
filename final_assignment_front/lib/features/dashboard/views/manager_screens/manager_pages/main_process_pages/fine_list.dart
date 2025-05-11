@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/vehicle_information_controller_api.dart';
+import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_dashboard_screen.dart';
@@ -34,6 +35,7 @@ class _FineListState extends State<FineList> {
   final FineInformationControllerApi fineApi = FineInformationControllerApi();
   final TextEditingController _searchController = TextEditingController();
   final List<FineInformation> _fineList = [];
+  List<FineInformation> _cachedFineList = []; // Added for caching
   List<FineInformation> _filteredFineList = [];
   String _searchType = 'payee';
   int _currentPage = 1;
@@ -45,6 +47,7 @@ class _FineListState extends State<FineList> {
   DateTime? _startDate;
   DateTime? _endDate;
   final DashboardController controller = Get.find<DashboardController>();
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -58,6 +61,7 @@ class _FineListState extends State<FineList> {
   @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -170,7 +174,8 @@ class _FineListState extends State<FineList> {
     }
   }
 
-  Future<void> _fetchFines({bool reset = false, String? query}) async {
+  Future<void> _fetchFines(
+      {bool reset = false, String? query, int retries = 5}) async {
     if (!_isAdmin || !_hasMore) return;
 
     if (reset) {
@@ -192,22 +197,45 @@ class _FineListState extends State<FineList> {
       }
       List<FineInformation> fines = [];
       final searchQuery = query?.trim() ?? '';
-      if (searchQuery.isEmpty && _startDate == null && _endDate == null) {
-        fines = await fineApi.apiFinesGet() ?? [];
-      } else if (_searchType == 'payee' && searchQuery.isNotEmpty) {
-        fines = await fineApi.apiFinesPayeePayeeGet(payee: searchQuery) ?? [];
-      } else if (_searchType == 'timeRange' &&
-          _startDate != null &&
-          _endDate != null) {
-        fines = await fineApi.apiFinesTimeRangeGet(
-              startTime: _startDate!.toIso8601String(),
-              endTime: _endDate!.add(const Duration(days: 1)).toIso8601String(),
-            ) ??
-            [];
+      for (int attempt = 1; attempt <= retries; attempt++) {
+        try {
+          if (searchQuery.isEmpty && _startDate == null && _endDate == null) {
+            fines = await fineApi.apiFinesGet() ?? [];
+            // Sort client-side by fineTime in descending order
+            fines.sort((a, b) {
+              final aTime = a.fineTime != null
+                  ? DateTime.parse(a.fineTime!)
+                  : DateTime(1970);
+              final bTime = b.fineTime != null
+                  ? DateTime.parse(b.fineTime!)
+                  : DateTime(1970);
+              return bTime.compareTo(aTime); // Descending order
+            });
+          } else if (_searchType == 'payee' && searchQuery.isNotEmpty) {
+            fines =
+                await fineApi.apiFinesPayeePayeeGet(payee: searchQuery) ?? [];
+          } else if (_searchType == 'timeRange' &&
+              _startDate != null &&
+              _endDate != null) {
+            fines = await fineApi.apiFinesTimeRangeGet(
+                  startTime: _startDate!.toIso8601String(),
+                  endTime:
+                      _endDate!.add(const Duration(days: 1)).toIso8601String(),
+                ) ??
+                [];
+          }
+          break;
+        } catch (e) {
+          if (attempt == retries) {
+            throw e;
+          }
+          await Future.delayed(Duration(milliseconds: 1000 * attempt));
+        }
       }
 
       setState(() {
         _fineList.addAll(fines);
+        _cachedFineList = List.from(fines); // Cache successful fetch
         _hasMore = fines.length == _pageSize;
         _applyFilters(query ?? _searchController.text);
         if (_filteredFineList.isEmpty) {
@@ -217,6 +245,13 @@ class _FineListState extends State<FineList> {
                   : '当前没有罚款记录';
         }
         _currentPage++;
+        if (reset && _scrollController.hasClients) {
+          _scrollController.animateTo(
+            0,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
+        }
       });
     } catch (e) {
       setState(() {
@@ -224,12 +259,15 @@ class _FineListState extends State<FineList> {
           _errorMessage = '未授权，请重新登录';
           Navigator.pushReplacementNamed(context, AppPages.login);
         } else if (e.toString().contains('404')) {
-          _fineList.clear();
-          _filteredFineList.clear();
           _errorMessage = '未找到罚款记录';
           _hasMore = false;
         } else {
           _errorMessage = '获取罚款信息失败: $e';
+        }
+        if (_cachedFineList.isNotEmpty) {
+          _fineList.addAll(_cachedFineList);
+          _applyFilters(query ?? _searchController.text);
+          _errorMessage = '获取最新罚款失败，显示缓存数据';
         }
       });
     } finally {
@@ -314,6 +352,9 @@ class _FineListState extends State<FineList> {
       }
     });
     await _fetchFines(reset: true, query: query);
+    if (_errorMessage.isEmpty && _fineList.isNotEmpty) {
+      _showSnackBar('罚款列表已刷新');
+    }
   }
 
   Future<void> _loadMoreFines() async {
@@ -677,6 +718,45 @@ class _FineListState extends State<FineList> {
                                       ),
                                       textAlign: TextAlign.center,
                                     ),
+                                    if (_errorMessage.contains('获取罚款信息失败'))
+                                      Padding(
+                                        padding:
+                                            const EdgeInsets.only(top: 16.0),
+                                        child: ElevatedButton(
+                                          onPressed: () => _refreshFines(),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor:
+                                                themeData.colorScheme.primary,
+                                            foregroundColor:
+                                                themeData.colorScheme.onPrimary,
+                                          ),
+                                          child: const Text('重试'),
+                                        ),
+                                      ),
+                                    if (_errorMessage.contains('获取罚款信息失败') &&
+                                        _cachedFineList.isNotEmpty)
+                                      Padding(
+                                        padding:
+                                            const EdgeInsets.only(top: 16.0),
+                                        child: ElevatedButton(
+                                          onPressed: () {
+                                            setState(() {
+                                              _fineList.clear();
+                                              _fineList.addAll(_cachedFineList);
+                                              _applyFilters(
+                                                  _searchController.text);
+                                              _errorMessage = '';
+                                            });
+                                          },
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor:
+                                                themeData.colorScheme.secondary,
+                                            foregroundColor: themeData
+                                                .colorScheme.onSecondary,
+                                          ),
+                                          child: const Text('恢复缓存数据'),
+                                        ),
+                                      ),
                                     if (_errorMessage.contains('未授权') ||
                                         _errorMessage.contains('登录'))
                                       Padding(
@@ -699,6 +779,7 @@ class _FineListState extends State<FineList> {
                                 ),
                               )
                             : ListView.builder(
+                                controller: _scrollController,
                                 itemCount: _filteredFineList.length +
                                     (_hasMore ? 1 : 0),
                                 itemBuilder: (context, index) {
@@ -899,32 +980,34 @@ class _AddFinePageState extends State<AddFinePage> {
     }
   }
 
-  Future<List<String>> _fetchPayeeSuggestions(String prefix) async {
+  Future<List<Map<String, dynamic>>> _fetchPayeeSuggestions(
+      String prefix) async {
     try {
       if (!await _validateJwtToken()) {
         Navigator.pushReplacementNamed(context, AppPages.login);
         return [];
       }
-      final offenses = await offenseApi.apiOffensesByLicensePlateGet(
-        query: _plateNumberController.text.trim(),
+      if (prefix.trim().isEmpty) return [];
+      final offenses = await offenseApi.apiOffensesByDriverNameGet(
+        query: prefix.trim(),
         page: 1,
         size: 10,
       );
-      if (offenses.isNotEmpty) {
-        return offenses
-            .map((o) => o.driverName ?? '')
-            .where((name) => name.toLowerCase().contains(prefix.toLowerCase()))
-            .toSet()
-            .toList();
-      }
-      final vehicles = await vehicleApi.apiVehiclesSearchGet(
-          query: prefix, page: 1, size: 10);
-      return vehicles
-          .map((v) => v.ownerName ?? '')
-          .where((name) => name.toLowerCase().contains(prefix.toLowerCase()))
-          .toSet()
+      return offenses
+          .where((o) => o.driverName != null && o.driverName!.isNotEmpty)
+          .map((o) => {
+                'payee': o.driverName!,
+                'offenseId': o.offenseId ?? 0,
+                'fineAmount': o.fineAmount ?? 0.0,
+                'licensePlate': o.licensePlate ?? '',
+              })
+          .where(
+              (item) => item['payee'].toString().contains(prefix.toLowerCase()))
           .toList();
     } catch (e) {
+      if (e is ApiException && e.code == 400 && prefix.trim().isEmpty) {
+        return [];
+      }
       _showSnackBar('获取缴款人建议失败: $e', isError: true);
       return [];
     }
@@ -962,8 +1045,35 @@ class _AddFinePageState extends State<AddFinePage> {
     }
   }
 
+  Future<void> _onPayeeSelected(Map<String, dynamic> payeeData) async {
+    try {
+      if (!await _validateJwtToken()) {
+        Navigator.pushReplacementNamed(context, AppPages.login);
+        return;
+      }
+      if (payeeData['offenseId'] == 0) {
+        _showSnackBar('无效的违法记录', isError: true);
+        return;
+      }
+      setState(() {
+        _payeeController.text = payeeData['payee'];
+        _selectedOffenseId = payeeData['offenseId'];
+        _fineAmountController.text = payeeData['fineAmount']?.toString() ?? '';
+        _plateNumberController.text = payeeData['licensePlate'].isNotEmpty
+            ? payeeData['licensePlate']
+            : _plateNumberController.text;
+      });
+    } catch (e) {
+      _showSnackBar('加载缴款人信息失败: $e', isError: true);
+    }
+  }
+
   Future<void> _submitFine() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_selectedOffenseId == null) {
+      _showSnackBar('请先选择有效的违法记录', isError: true);
+      return;
+    }
     if (!await _validateJwtToken()) {
       Navigator.pushReplacementNamed(context, AppPages.login);
       return;
@@ -972,7 +1082,7 @@ class _AddFinePageState extends State<AddFinePage> {
     try {
       final idempotencyKey = generateIdempotencyKey();
       final finePayload = FineInformation(
-        offenseId: _selectedOffenseId ?? 0,
+        offenseId: _selectedOffenseId!,
         fineAmount: double.tryParse(_fineAmountController.text.trim()) ?? 0.0,
         payee: _payeeController.text.trim(),
         accountNumber: _accountNumberController.text.trim().isEmpty
@@ -1062,19 +1172,26 @@ class _AddFinePageState extends State<AddFinePage> {
     if (label == '车牌号' || label == '缴款人') {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 6.0),
-        child: Autocomplete<String>(
+        child: Autocomplete<Map<String, dynamic>>(
           optionsBuilder: (TextEditingValue textEditingValue) async {
             if (textEditingValue.text.isEmpty) {
-              return const Iterable<String>.empty();
+              return const Iterable<Map<String, dynamic>>.empty();
             }
-            return label == '车牌号'
-                ? await _fetchLicensePlateSuggestions(textEditingValue.text)
+            final suggestions = label == '车牌号'
+                ? (await _fetchLicensePlateSuggestions(textEditingValue.text))
+                    .map((s) => {'value': s})
+                    .toList()
                 : await _fetchPayeeSuggestions(textEditingValue.text);
+            return suggestions;
           },
-          onSelected: (String selection) async {
-            controller.text = selection;
+          displayStringForOption: (Map<String, dynamic> option) =>
+              label == '车牌号' ? option['value'] : option['payee'],
+          onSelected: (Map<String, dynamic> selection) async {
             if (label == '车牌号') {
-              await _onLicensePlateSelected(selection);
+              controller.text = selection['value'];
+              await _onLicensePlateSelected(selection['value']);
+            } else {
+              await _onPayeeSelected(selection);
             }
           },
           fieldViewBuilder:
@@ -1109,11 +1226,13 @@ class _AddFinePageState extends State<AddFinePage> {
                         onPressed: () {
                           textEditingController.clear();
                           controller.clear();
-                          if (label == '车牌号') {
+                          if (label == '车牌号' || label == '缴款人') {
                             setState(() {
                               _selectedOffenseId = null;
-                              _payeeController.clear();
-                              _fineAmountController.clear();
+                              if (label == '车牌号') {
+                                _payeeController.clear();
+                                _fineAmountController.clear();
+                              }
                             });
                           }
                         },
@@ -1307,7 +1426,7 @@ class _AddFinePageState extends State<AddFinePage> {
   }
 }
 
-/// 罚款详情页面
+/// 罚款详情页面 (Unchanged)
 class FineDetailPage extends StatefulWidget {
   final FineInformation fine;
 

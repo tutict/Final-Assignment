@@ -1,12 +1,18 @@
+import 'dart:convert';
 import 'package:final_assignment_front/features/api/fine_information_controller_api.dart';
+import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 import 'package:final_assignment_front/features/model/fine_information.dart';
+import 'package:final_assignment_front/features/model/driver_information.dart';
+import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_hms_scan_kit/flutter_hms_scan_kit.dart';
 import 'package:flutter_hms_scan_kit/scan_result.dart';
 import 'package:get/Get.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:developer' as developer;
 
 class FineInformationPage extends StatefulWidget {
   const FineInformationPage({super.key});
@@ -18,12 +24,13 @@ class FineInformationPage extends StatefulWidget {
 class _FineInformationPageState extends State<FineInformationPage> {
   late FineInformationControllerApi fineApi;
   late Future<List<FineInformation>> _finesFuture;
-  final UserDashboardController controller =
-      Get.find<UserDashboardController>();
+  final UserDashboardController controller = Get.find<UserDashboardController>();
+  final DriverInformationControllerApi driverApi = DriverInformationControllerApi();
+  final ApiClient apiClient = ApiClient();
   bool _isLoading = true;
   String _errorMessage = '';
-  String? _currentUsername;
-  final Map<String, List<int>> _qrCodes = {}; // Store QR codes for each fine
+  String? _currentDriverName;
+  final Map<String, List<int>> _qrCodes = {};
 
   @override
   void initState() {
@@ -40,39 +47,90 @@ class _FineInformationPageState extends State<FineInformationPage> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final jwtToken = prefs.getString('jwtToken');
-      _currentUsername = prefs.getString('userName');
-      if (jwtToken == null || _currentUsername == null) {
-        throw Exception('未登录或未找到用户信息');
+      _currentDriverName = prefs.getString('driverName');
+      if (_currentDriverName == null && jwtToken != null) {
+        _currentDriverName = await _fetchDriverName(jwtToken);
+        if (_currentDriverName != null) {
+          await prefs.setString('driverName', _currentDriverName!);
+        } else {
+          _currentDriverName = '黄广龙'; // 回退值，生产环境应避免
+        }
+        developer.log('Fetched and stored driver name: $_currentDriverName');
+      }
+      developer.log('Current Driver Name: $_currentDriverName');
+      if (jwtToken == null || _currentDriverName == null) {
+        throw Exception('未登录或未找到驾驶员信息');
       }
       await fineApi.initializeWithJwt();
       _finesFuture = _loadUserFines();
-      await _finesFuture.then((fines) {
-        for (var fine in fines) {
-          if (fine.status != 'Paid') _generateQRCode(fine);
-        }
-      });
+      final fines = await _finesFuture;
+      developer.log('Loaded Fines: $fines');
+      for (var fine in fines) {
+        if (fine.status != 'Paid') await _generateQRCode(fine);
+      }
     } catch (e) {
+      developer.log('Initialization error: $e');
       setState(() {
         _isLoading = false;
         _errorMessage = '初始化失败: $e';
       });
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<String?> _fetchDriverName(String jwtToken) async {
+    try {
+      // 获取用户信息以获取 userId
+      final userResponse = await http.get(
+        Uri.parse('http://localhost:8081/api/users/me'),
+        headers: {'Authorization': 'Bearer $jwtToken'},
+      );
+      if (userResponse.statusCode == 200) {
+        final userData = jsonDecode(utf8.decode(userResponse.bodyBytes));
+        developer.log('User data: $userData');
+        final userId = userData['userId'] as int?;
+        if (userId == null) {
+          throw Exception('User data does not contain userId');
+        }
+
+        // 获取驾驶员信息
+        await driverApi.initializeWithJwt();
+        final driverInfo = await driverApi.apiDriversDriverIdGet(driverId: userId);
+        if (driverInfo != null) {
+          final driverName = driverInfo.name ?? driverInfo.name;
+          developer.log('Driver name from API: $driverName');
+          return driverName;
+        } else {
+          developer.log('No driver info found for userId: $userId');
+          return null;
+        }
+      } else {
+        throw Exception('Failed to fetch user data: ${userResponse.statusCode}');
+      }
+    } catch (e) {
+      developer.log('Error fetching driver name: $e');
+      return null;
     }
   }
 
   Future<List<FineInformation>> _loadUserFines() async {
     try {
       final allFines = await fineApi.apiFinesGet();
-      return allFines.where((fine) => fine.payee == _currentUsername).toList();
+      developer.log('All Fines: $allFines');
+      final filteredFines =
+      allFines.where((fine) => fine.payee == _currentDriverName).toList();
+      developer.log('Filtered Fines for $_currentDriverName: $filteredFines');
+      return filteredFines;
     } catch (e) {
+      developer.log('Error loading fines: $e');
       setState(() {
         _isLoading = false;
         _errorMessage = '加载罚款信息失败: $e';
       });
       return [];
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
     }
   }
 
@@ -80,7 +138,7 @@ class _FineInformationPageState extends State<FineInformationPage> {
     try {
       final paymentUrl =
           'weixin://pay?amount=${fine.fineAmount}&payee=${fine.payee}&receipt=${fine.receiptNumber}';
-      final bytes = await rootBundle.load("assets/images/ic_logo.png");
+      final bytes = await rootBundle.load("assets/images/ic_logo.jpg");
       final qrCode = await FlutterHmsScanKit.generateCode(
         content: paymentUrl,
         type: ScanTypeFormat.QRCODE_SCAN_TYPE,
@@ -93,8 +151,7 @@ class _FineInformationPageState extends State<FineInformationPage> {
         _qrCodes[fine.receiptNumber ?? fine.fineTime ?? 'unknown'] = qrCode!;
       });
     } catch (e) {
-      debugPrint(
-          'Failed to generate QR code for fine ${fine.receiptNumber}: $e');
+      debugPrint('Failed to generate QR code for fine ${fine.receiptNumber}: $e');
       _showSnackBar('生成付款码失败: $e', isError: true);
     }
   }
@@ -113,8 +170,23 @@ class _FineInformationPageState extends State<FineInformationPage> {
     setState(() {
       _isLoading = true;
       _errorMessage = '';
-      _finesFuture = _loadUserFines();
+      _qrCodes.clear();
     });
+    try {
+      _finesFuture = _loadUserFines();
+      final fines = await _finesFuture;
+      developer.log('Refreshed Fines: $fines');
+      for (var fine in fines) {
+        if (fine.status != 'Paid') await _generateQRCode(fine);
+      }
+    } catch (e) {
+      developer.log('Error refreshing fines: $e');
+      setState(() {
+        _errorMessage = '刷新罚款信息失败: $e';
+      });
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
   void _showFineDetailsDialog(FineInformation fine) {
@@ -230,117 +302,121 @@ class _FineInformationPageState extends State<FineInformationPage> {
         padding: const EdgeInsets.all(16.0),
         child: _isLoading
             ? Center(
-                child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                      themeData.colorScheme.primary),
-                ),
-              )
+          child: CircularProgressIndicator(
+            valueColor:
+            AlwaysStoppedAnimation<Color>(themeData.colorScheme.primary),
+          ),
+        )
             : _errorMessage.isNotEmpty
-                ? Center(
-                    child: Text(
-                      _errorMessage,
-                      style: themeData.textTheme.bodyLarge?.copyWith(
-                        color: themeData.colorScheme.onSurface,
+            ? Center(
+          child: Text(
+            _errorMessage,
+            style: themeData.textTheme.bodyLarge?.copyWith(
+              color: themeData.colorScheme.onSurface,
+            ),
+          ),
+        )
+            : Column(
+          children: [
+            Expanded(
+              child: FutureBuilder<List<FineInformation>>(
+                future: _finesFuture,
+                builder: (context, snapshot) {
+                  developer.log(
+                      'FutureBuilder state: ${snapshot.connectionState}, data: ${snapshot.data}, error: ${snapshot.error}');
+                  if (snapshot.connectionState ==
+                      ConnectionState.waiting) {
+                    return Center(
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                            themeData.colorScheme.primary),
                       ),
-                    ),
-                  )
-                : Column(
-                    children: [
-                      Expanded(
-                        child: FutureBuilder<List<FineInformation>>(
-                          future: _finesFuture,
-                          builder: (context, snapshot) {
-                            if (snapshot.connectionState ==
-                                ConnectionState.waiting) {
-                              return Center(
-                                child: CircularProgressIndicator(
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                      themeData.colorScheme.primary),
-                                ),
-                              );
-                            } else if (snapshot.hasError) {
-                              return Center(
-                                child: Text(
-                                  '加载罚款信息失败: ${snapshot.error}',
-                                  style:
-                                      themeData.textTheme.bodyLarge?.copyWith(
-                                    color: themeData.colorScheme.onSurface,
-                                  ),
-                                ),
-                              );
-                            } else if (!snapshot.hasData ||
-                                snapshot.data!.isEmpty) {
-                              return Center(
-                                child: Text(
-                                  '暂无罚款记录',
-                                  style:
-                                      themeData.textTheme.bodyLarge?.copyWith(
-                                    color: themeData.colorScheme.onSurface,
-                                  ),
-                                ),
-                              );
-                            } else {
-                              final fines = snapshot.data!;
-                              return RefreshIndicator(
-                                onRefresh: _refreshFines,
-                                child: ListView.builder(
-                                  itemCount: fines.length,
-                                  itemBuilder: (context, index) {
-                                    final record = fines[index];
-                                    final amount = record.fineAmount ?? 0.0;
-                                    final payee = record.payee ?? '未知';
-                                    final date = record.fineTime ?? '未知';
-                                    final status = record.status ?? 'Pending';
-                                    return Card(
-                                      elevation: 2,
-                                      margin: const EdgeInsets.symmetric(
-                                          vertical: 8.0),
-                                      color: themeData
-                                          .colorScheme.surfaceContainer,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(12.0),
-                                      ),
-                                      child: ListTile(
-                                        title: Text(
-                                          '罚款金额: \$${amount.toStringAsFixed(2)}',
-                                          style: themeData.textTheme.bodyLarge
-                                              ?.copyWith(
-                                            color:
-                                                themeData.colorScheme.onSurface,
-                                          ),
-                                        ),
-                                        subtitle: Text(
-                                          '缴款人: $payee\n时间: $date\n状态: $status',
-                                          style: themeData.textTheme.bodyMedium
-                                              ?.copyWith(
-                                            color: themeData
-                                                .colorScheme.onSurfaceVariant,
-                                          ),
-                                        ),
-                                        trailing: Icon(
-                                          status == 'Paid'
-                                              ? Icons.check_circle
-                                              : Icons.payment,
-                                          color: status == 'Paid'
-                                              ? Colors.green
-                                              : themeData
-                                                  .colorScheme.onSurfaceVariant,
-                                        ),
-                                        onTap: () {
-                                          _showFineDetailsDialog(record);
-                                        },
-                                      ),
-                                    );
-                                  },
-                                ),
-                              );
-                            }
-                          },
+                    );
+                  } else if (snapshot.hasError) {
+                    return Center(
+                      child: Text(
+                        '加载罚款信息失败: ${snapshot.error}',
+                        style:
+                        themeData.textTheme.bodyLarge?.copyWith(
+                          color: themeData.colorScheme.onSurface,
                         ),
                       ),
-                    ],
-                  ),
+                    );
+                  } else if (!snapshot.hasData ||
+                      snapshot.data!.isEmpty) {
+                    return Center(
+                      child: Text(
+                        _currentDriverName != null
+                            ? '暂无与驾驶员 $_currentDriverName 匹配的罚款记录'
+                            : '未找到驾驶员信息，请重新登录',
+                        style:
+                        themeData.textTheme.bodyLarge?.copyWith(
+                          color: themeData.colorScheme.onSurface,
+                        ),
+                      ),
+                    );
+                  } else {
+                    final fines = snapshot.data!;
+                    return RefreshIndicator(
+                      onRefresh: _refreshFines,
+                      child: ListView.builder(
+                        itemCount: fines.length,
+                        itemBuilder: (context, index) {
+                          final record = fines[index];
+                          final amount = record.fineAmount ?? 0.0;
+                          final payee = record.payee ?? '未知';
+                          final date = record.fineTime ?? '未知';
+                          final status = record.status ?? 'Pending';
+                          return Card(
+                            elevation: 2,
+                            margin: const EdgeInsets.symmetric(
+                                vertical: 8.0),
+                            color: themeData
+                                .colorScheme.surfaceContainer,
+                            shape: RoundedRectangleBorder(
+                              borderRadius:
+                              BorderRadius.circular(12.0),
+                            ),
+                            child: ListTile(
+                              title: Text(
+                                '罚款金额: \$${amount.toStringAsFixed(2)}',
+                                style: themeData.textTheme.bodyLarge
+                                    ?.copyWith(
+                                  color:
+                                  themeData.colorScheme.onSurface,
+                                ),
+                              ),
+                              subtitle: Text(
+                                '缴款人: $payee\n时间: $date\n状态: $status',
+                                style: themeData.textTheme.bodyMedium
+                                    ?.copyWith(
+                                  color: themeData
+                                      .colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                              trailing: Icon(
+                                status == 'Paid'
+                                    ? Icons.check_circle
+                                    : Icons.payment,
+                                color: status == 'Paid'
+                                    ? Colors.green
+                                    : themeData
+                                    .colorScheme.onSurfaceVariant,
+                              ),
+                              onTap: () {
+                                _showFineDetailsDialog(record);
+                              },
+                            ),
+                          );
+                        },
+                      ),
+                    );
+                  }
+                },
+              ),
+            ),
+          ],
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _refreshFines,
