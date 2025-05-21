@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -79,28 +80,60 @@ public class AuthWsService {
     }
 
     @Transactional
-    @CacheEvict(cacheNames = "AuthCache", allEntries = true)
+    @CacheEvict(cacheNames = {"AuthCache", "usernameExistsCache"}, allEntries = true)
     @WsAction(service = "AuthWsService", action = "registerUser")
     public String registerUser(RegisterRequest registerRequest) {
-        logger.info(String.format("[WS] Attempting to register user: %s", registerRequest.getUsername()));
-        if (userManagementService.isUsernameExists(registerRequest.getUsername())) {
-            logger.warning(String.format("Username already exists: %s", registerRequest.getUsername()));
-            throw new RuntimeException("Username already exists.");
+        logger.info(String.format("尝试注册用户: %s", registerRequest.getUsername()));
+        if (registerRequest.getUsername() == null || registerRequest.getUsername().isEmpty()) {
+            logger.severe("用户名为空");
+            throw new IllegalArgumentException("用户名不能为空");
+        }
+        if (registerRequest.getPassword() == null || registerRequest.getPassword().isEmpty()) {
+            logger.severe("密码为空");
+            throw new IllegalArgumentException("密码不能为空");
         }
 
+        // 检查用户名是否存在
+        boolean usernameExists = userManagementService.isUsernameExists(registerRequest.getUsername());
+        logger.log(Level.SEVERE, "用户名检查: {0}，存在: {1}", new Object[]{registerRequest.getUsername(), usernameExists});
+        if (usernameExists) {
+            logger.log(Level.SEVERE, "用户名已存在: {}", registerRequest.getUsername());
+            throw new RuntimeException("用户名已存在: " + registerRequest.getUsername());
+        }
+
+        // 检查幂等性
+        String idempotencyKey = registerRequest.getIdempotencyKey();
+        if (idempotencyKey != null && !idempotencyKey.isEmpty()) {
+            try {
+                userManagementService.checkAndInsertIdempotency(idempotencyKey, new UserManagement(), "create");
+            } catch (RuntimeException e) {
+                logger.log(Level.WARNING, "幂等性检查失败: {0}, 错误: {1}", new Object[]{idempotencyKey, e.getMessage()});
+                throw new RuntimeException("注册失败: 重复请求", e);
+            }
+        }
+
+        // 创建用户
         UserManagement newUser = new UserManagement();
         newUser.setUsername(registerRequest.getUsername());
-        newUser.setPassword(registerRequest.getPassword());
+        newUser.setPassword(registerRequest.getPassword()); // 生产环境应加密
         newUser.setCreatedTime(LocalDateTime.now());
+        newUser.setModifiedTime(LocalDateTime.now());
+        newUser.setStatus("Active");
 
-        // TODO: 有空可以在这里结合idempotencyKey，搞一个分布式锁玩玩
-        // String idempotencyKey = registerRequest.getIdempotencyKey();
+        try {
+            userManagementService.createUser(newUser);
+            logger.log(Level.INFO, "用户创建成功: {}", registerRequest.getUsername());
+        } catch (Exception e) {
+            logger.log(Level.WARNING, "用户创建失败: {0}, 错误: {1}", new Object[]{registerRequest.getUsername(), e.getMessage()});
+            throw new RuntimeException("用户创建失败: " + e.getMessage());
+        }
 
-        userManagementService.createUser(newUser);
-
+        // 分配角色
         String roleName = registerRequest.getRole();
+        logger.log(Level.INFO, "为用户 {0} 分配角色: {1}", new Object[]{registerRequest.getUsername(), roleName});
         RoleManagement role = roleManagementService.getRoleByName(roleName);
         if (role == null) {
+            logger.log(Level.SEVERE, "角色 {} 不存在，创建新角色", roleName);
             role = new RoleManagement();
             role.setRoleName(roleName);
             role.setRoleDescription(roleName.equals("ADMIN") ? "管理员角色" : "普通用户角色");
@@ -112,13 +145,14 @@ public class AuthWsService {
         userQuery.eq("username", newUser.getUsername());
         UserManagement savedUser = userManagementService.getUserByUsername(newUser.getUsername());
         if (savedUser != null) {
+            logger.log(Level.INFO, "为用户 {0} 分配角色 {1}", new Object[]{savedUser.getUsername(), role.getRoleName()});
             userRoleService.assignRole(savedUser.getUserId(), role.getRoleId());
         } else {
-            logger.severe("Failed to retrieve newly created user: " + newUser.getUsername());
-            throw new RuntimeException("User creation failed.");
+            logger.log(Level.WARNING, "无法获取新建用户: {}", newUser.getUsername());
+            throw new RuntimeException("用户创建失败，无法获取用户");
         }
 
-        logger.info(String.format("[WS] User registered successfully: %s", registerRequest.getUsername()));
+        logger.log(Level.INFO, "用户注册成功: {}", registerRequest.getUsername());
         return "CREATED";
     }
 

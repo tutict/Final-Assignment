@@ -47,13 +47,14 @@ public class UserManagementService {
     }
 
     @Transactional
-    @CacheEvict(cacheNames = "userCache", allEntries = true)
+    @CacheEvict(cacheNames = {"userCache", "usernameExistsCache"}, allEntries = true)
     @WsAction(service = "UserManagementService", action = "checkAndInsertIdempotency")
     public void checkAndInsertIdempotency(String idempotencyKey, UserManagement user, String action) {
+        log.info(String.format("检查幂等性密钥: %s，操作: %s", idempotencyKey, action));
         RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
         if (existingRequest != null) {
-            log.warning(String.format("Duplicate request detected (idempotencyKey=%s)", idempotencyKey));
-            throw new RuntimeException("Duplicate request detected");
+            log.warning(String.format("检测到重复请求 (idempotencyKey=%s)", idempotencyKey));
+            throw new RuntimeException("检测到重复请求");
         }
 
         RequestHistory newRequest = new RequestHistory();
@@ -62,29 +63,35 @@ public class UserManagementService {
 
         try {
             requestHistoryMapper.insert(newRequest);
+            sendKafkaMessage(user, action);
+            Integer userId = user.getUserId();
+            newRequest.setBusinessStatus("SUCCESS");
+            newRequest.setBusinessId(userId != null ? userId.longValue() : null);
+            requestHistoryMapper.updateById(newRequest);
+            log.info(String.format("幂等性记录插入成功: %s", idempotencyKey));
         } catch (Exception e) {
-            log.severe("Failed to insert requestHistory for idempotencyKey=" + idempotencyKey + ", " + e.getMessage());
-            throw new RuntimeException("Duplicate request or DB insert error", e);
+            log.severe("插入幂等性记录失败: idempotencyKey=" + idempotencyKey + ", " + e.getMessage());
+            throw new RuntimeException("重复请求或数据库插入错误", e);
         }
-
-        sendKafkaMessage(user, action);
-
-        Integer userId = user.getUserId();
-        newRequest.setBusinessStatus("SUCCESS");
-        newRequest.setBusinessId(userId != null ? userId.longValue() : null);
-        requestHistoryMapper.updateById(newRequest);
     }
 
     @Transactional
-    @CacheEvict(cacheNames = "userCache", allEntries = true)
+    @CacheEvict(cacheNames = {"userCache", "usernameExistsCache"}, allEntries = true)
+    @WsAction(service = "UserManagementService", action = "checkAndInsertIdempotency")
     public void createUser(UserManagement user) {
         try {
             userManagementMapper.insert(user);
             Integer userId = user.getUserId();
-            log.info(String.format("User created successfully, userId=%d", userId));
+            log.info(String.format("用户创建成功，userId=%d", userId));
+            // 同步到 Elasticsearch
+            UserManagementDocument doc = new UserManagementDocument();
+            doc.setUsername(user.getUsername());
+            doc.setStatus(user.getStatus());
+            doc.setContactNumber(user.getContactNumber());
+            userManagementSearchRepository.save(doc);
         } catch (Exception e) {
-            log.warning("Exception occurred while creating user: " + e.getMessage());
-            throw new RuntimeException("Failed to create user", e);
+            log.warning("创建用户时发生异常: " + e.getMessage());
+            throw new RuntimeException("创建用户失败", e);
         }
     }
 
@@ -92,11 +99,11 @@ public class UserManagementService {
     @WsAction(service = "UserManagementService", action = "getUserById")
     public UserManagement getUserById(Integer userId) {
         if (userId == null || userId <= 0 || userId >= Integer.MAX_VALUE) {
-            throw new RuntimeException("Invalid userId: " + userId);
+            throw new RuntimeException("无效的 userId: " + userId);
         }
         UserManagement user = userManagementMapper.selectById(userId);
         if (user == null) {
-            log.warning(String.format("User not found for ID: %d", userId));
+            log.warning(String.format("未找到用户，ID: %d", userId));
         }
         return user;
     }
@@ -104,12 +111,12 @@ public class UserManagementService {
     @Cacheable(cacheNames = "userCache", unless = "#result == null")
     @WsAction(service = "UserManagementService", action = "getUserByUsername")
     public UserManagement getUserByUsername(String username) {
-        validateInput(username, "Invalid username");
+        validateInput(username, "无效的用户名");
         QueryWrapper<UserManagement> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("username", username);
         UserManagement user = userManagementMapper.selectOne(queryWrapper);
         if (user == null) {
-            log.warning(String.format("User not found for username: %s", username));
+            log.warning(String.format("未找到用户，用户名: %s", username));
         }
         return user;
     }
@@ -119,7 +126,7 @@ public class UserManagementService {
     public List<UserManagement> getAllUsers() {
         List<UserManagement> users = userManagementMapper.selectList(null);
         if (users.isEmpty()) {
-            log.warning("No users found in the system");
+            log.warning("系统中未找到用户");
         }
         return users;
     }
@@ -127,14 +134,14 @@ public class UserManagementService {
     @Cacheable(cacheNames = "userCache", unless = "#result == null || #result.isEmpty()")
     @WsAction(service = "UserManagementService", action = "getUsersByRole")
     public List<UserManagement> getUsersByRole(String roleName) {
-        validateInput(roleName, "Invalid role name");
+        validateInput(roleName, "无效的角色名称");
         QueryWrapper<UserManagement> queryWrapper = new QueryWrapper<>();
         queryWrapper.inSql("user_id",
                 "SELECT user_id FROM user_role WHERE role_id IN " +
                         "(SELECT role_id FROM role_management WHERE role_name = '" + roleName + "')");
         List<UserManagement> users = userManagementMapper.selectList(queryWrapper);
         if (users.isEmpty()) {
-            log.warning(String.format("No users found for role: %s", roleName));
+            log.warning(String.format("未找到角色为 %s 的用户", roleName));
         }
         return users;
     }
@@ -142,31 +149,36 @@ public class UserManagementService {
     @Cacheable(cacheNames = "userCache", unless = "#result == null || #result.isEmpty()")
     @WsAction(service = "UserManagementService", action = "getUsersByStatus")
     public List<UserManagement> getUsersByStatus(String status) {
-        validateInput(status, "Invalid status");
+        validateInput(status, "无效的状态");
         QueryWrapper<UserManagement> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("status", status);
         List<UserManagement> users = userManagementMapper.selectList(queryWrapper);
         if (users.isEmpty()) {
-            log.warning(String.format("No users found with status: %s", status));
+            log.warning(String.format("未找到状态为 %s 的用户", status));
         }
         return users;
     }
 
     @Transactional
-    @CacheEvict(cacheNames = "userCache", allEntries = true)
+    @CacheEvict(cacheNames = {"userCache", "usernameExistsCache"}, allEntries = true)
     public void updateUser(UserManagement user) {
         try {
             userManagementMapper.updateById(user);
             user.setModifiedTime(LocalDateTime.now());
+            // 同步到 Elasticsearch
+            UserManagementDocument doc = new UserManagementDocument();
+            doc.setUsername(user.getUsername());
+            doc.setStatus(user.getStatus());
+            doc.setContactNumber(user.getContactNumber());
+            userManagementSearchRepository.save(doc);
         } catch (Exception e) {
-            log.warning("Exception occurred while updating user: " + e.getMessage());
-            throw new RuntimeException("Failed to update user", e);
+            log.warning("更新用户时发生异常: " + e.getMessage());
+            throw new RuntimeException("更新用户失败", e);
         }
     }
 
     @Transactional
-    @CacheEvict(cacheNames = "userCache", allEntries = true)
-    @WsAction(service = "UserManagementService", action = "deleteUser")
+    @CacheEvict(cacheNames = {"userCache", "usernameExistsCache"}, allEntries = true)
     public void deleteUser(int userId) {
         try {
             UserManagement userToDelete = userManagementMapper.selectById(userId);
@@ -174,16 +186,16 @@ public class UserManagementService {
                 userManagementMapper.deleteById(userId);
             }
         } catch (Exception e) {
-            log.warning("Exception occurred while deleting user: " + e.getMessage());
-            throw new RuntimeException("Failed to delete user", e);
+            log.warning("删除用户时发生异常: " + e.getMessage());
+            throw new RuntimeException("删除用户失败", e);
         }
     }
 
     @Transactional
-    @CacheEvict(cacheNames = "userCache", allEntries = true)
+    @CacheEvict(cacheNames = {"userCache", "usernameExistsCache"}, allEntries = true)
     @WsAction(service = "UserManagementService", action = "deleteUserByUsername")
     public void deleteUserByUsername(String username) {
-        validateInput(username, "Invalid username");
+        validateInput(username, "无效的用户名");
         try {
             QueryWrapper<UserManagement> queryWrapper = new QueryWrapper<>();
             queryWrapper.eq("username", username);
@@ -192,24 +204,27 @@ public class UserManagementService {
                 userManagementMapper.delete(queryWrapper);
             }
         } catch (Exception e) {
-            log.warning("Exception occurred while deleting user: " + e.getMessage());
-            throw new RuntimeException("Failed to delete user", e);
+            log.warning("删除用户时发生异常: " + e.getMessage());
+            throw new RuntimeException("删除用户失败", e);
         }
     }
 
     @Cacheable(cacheNames = "usernameExistsCache", unless = "#result == null")
     @WsAction(service = "UserManagementService", action = "isUsernameExists")
     public boolean isUsernameExists(String username) {
-        validateInput(username, "Invalid username");
+        validateInput(username, "无效的用户名");
+        log.log(Level.WARNING, "检查用户名是否存在: {}", username);
         QueryWrapper<UserManagement> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("username", username);
-        return userManagementMapper.selectCount(queryWrapper) > 0;
+        Long count = userManagementMapper.selectCount(queryWrapper);
+        log.log(Level.WARNING, "用户名 {0} 存在: {1}", new Object[]{username, count > 0});
+        return count > 0;
     }
 
     @Cacheable(cacheNames = "userCache", unless = "#result.isEmpty()")
     public List<String> getUsernamesByPrefixGlobally(String prefix) {
-        validateInput(prefix, "Invalid username prefix");
-        log.log(Level.INFO, "Fetching username suggestions for prefix: {0}", new Object[]{prefix});
+        validateInput(prefix, "无效的用户名前缀");
+        log.log(Level.INFO, "获取用户名建议，前缀: {0}", new Object[]{prefix});
 
         try {
             SearchHits<UserManagementDocument> searchHits = userManagementSearchRepository
@@ -222,12 +237,10 @@ public class UserManagementService {
                     .limit(10)
                     .collect(Collectors.toList());
 
-            log.log(Level.INFO, "Found {0} username suggestions for prefix: {1}",
-                    new Object[]{suggestions.size(), prefix});
+            log.log(Level.INFO, "找到 {0} 个用户名建议，前缀: {1}", new Object[]{suggestions.size(), prefix});
             return suggestions.isEmpty() ? Collections.emptyList() : suggestions;
         } catch (Exception e) {
-            log.log(Level.WARNING, "Error fetching username suggestions for prefix {0}: {1}",
-                    new Object[]{prefix, e.getMessage()});
+            log.log(Level.WARNING, "获取用户名建议失败，前缀 {0}: {1}", new Object[]{prefix, e.getMessage()});
             return Collections.emptyList();
         }
     }
@@ -287,7 +300,7 @@ public class UserManagementService {
     private void sendKafkaMessage(UserManagement user, String action) {
         String topic = action.equals("create") ? "user_create" : "user_update";
         kafkaTemplate.send(topic, user);
-        log.info(String.format("Message sent to Kafka topic %s successfully", topic));
+        log.info(String.format("消息成功发送到 Kafka 主题 %s", topic));
     }
 
     private void validateInput(String input, String errorMessage) {
