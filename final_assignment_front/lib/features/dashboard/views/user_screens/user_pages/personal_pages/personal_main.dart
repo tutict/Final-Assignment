@@ -270,6 +270,26 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
           if (mounted) setState(() => _driverLicenseNumberEdited = true);
           break;
 
+        case 'idCardNumber': // Add this case
+          final newDriverIdCard = DriverInformation(
+            driverId: currentUser.userId,
+            name: _driverInfo?.name ?? currentUser.username ?? '未知用户',
+            contactNumber:
+            _driverInfo?.contactNumber ?? currentUser.contactNumber ?? '',
+            idCardNumber: value,
+            driverLicenseNumber: _driverInfo?.driverLicenseNumber ?? '',
+          );
+          debugPrint(
+              'Updating driver with driverId: ${currentUser.userId}, idCardNumber: $value');
+          await driverApi.apiDriversPost(
+            driverInformation: newDriverIdCard,
+            idempotencyKey: idempotencyKey,
+          );
+          _driverInfo = await driverApi.apiDriversDriverIdGet(
+              driverId: currentUser.userId);
+          debugPrint('Driver updated and fetched: ${_driverInfo?.toJson()}');
+          break;
+
         case 'password':
           await apiClient.invokeAPI(
             '/api/users/me/password?idempotencyKey=$idempotencyKey',
@@ -599,7 +619,14 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
                   title: '身份证号码',
                   subtitle: _driverInfo?.idCardNumber ?? '无数据',
                   themeData: themeData,
-                  // Non-editable for simplicity; add onTap if needed
+                  onTap: _isEditable
+                      ? () {
+                          _idCardNumberController.text =
+                              _driverInfo?.idCardNumber ?? '';
+                          _showEditDialog('身份证号码', _idCardNumberController,
+                              (value) => _updateField('idCardNumber', value));
+                        }
+                      : null,
                 ),
                 _buildListTile(
                   title: '驾驶证号',

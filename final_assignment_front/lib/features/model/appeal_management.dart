@@ -42,6 +42,33 @@ class AppealManagement {
     this.idempotencyKey,
   });
 
+  // Add copyWith method
+  AppealManagement copyWith({
+    int? appealId,
+    int? offenseId,
+    String? appellantName,
+    String? idCardNumber,
+    String? contactNumber,
+    String? appealReason,
+    DateTime? appealTime,
+    String? processStatus,
+    String? processResult,
+    String? idempotencyKey,
+  }) {
+    return AppealManagement(
+      appealId: appealId ?? this.appealId,
+      offenseId: offenseId ?? this.offenseId,
+      appellantName: appellantName ?? this.appellantName,
+      idCardNumber: idCardNumber ?? this.idCardNumber,
+      contactNumber: contactNumber ?? this.contactNumber,
+      appealReason: appealReason ?? this.appealReason,
+      appealTime: appealTime ?? this.appealTime,
+      processStatus: processStatus ?? this.processStatus,
+      processResult: processResult ?? this.processResult,
+      idempotencyKey: idempotencyKey ?? this.idempotencyKey,
+    );
+  }
+
   @override
   String toString() {
     return 'AppealManagement[appealId=$appealId, offenseId=$offenseId, appellantName=$appellantName, idCardNumber=$idCardNumber, contactNumber=$contactNumber, appealReason=$appealReason, appealTime=$appealTime, processStatus=$processStatus, processResult=$processResult, idempotencyKey=$idempotencyKey]';

@@ -70,7 +70,7 @@ class AppBindings extends Bindings {
     Get.put<DashboardController>(DashboardController());
     Get.put<ChatController>(ChatController());
     Get.put<UserDashboardController>(UserDashboardController());
-    Get.lazyPut<ProgressController>(() => ProgressController());
+    Get.put<ProgressController>(ProgressController());
     Get.lazyPut<LogController>(() => LogController());
   }
 }

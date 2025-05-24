@@ -590,6 +590,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
   Future<void> _showEditUserDialog(UserManagement user) async {
     final usernameController = TextEditingController(text: user.username);
     final contactNumberController = TextEditingController(text: user.contactNumber);
+    final passwordController = TextEditingController(text: user.password);
     final emailController = TextEditingController(text: user.email);
     final remarksController = TextEditingController(text: user.remarks);
     String? selectedStatus = user.status ?? 'Active';
@@ -642,6 +643,24 @@ class _UserManagementPageState extends State<UserManagementPage> {
                         if (value != null && value.isNotEmpty && value.length > 20) {
                           return '联系电话不能超过20个字符';
                         }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: passwordController,
+                      decoration: InputDecoration(
+                        labelText: '密码',
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12.0)),
+                        filled: true,
+                        fillColor: themeData.colorScheme.surfaceContainer,
+                      ),
+                      obscureText: true,
+                      maxLength: 255,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) return '密码不能为空';
+                        if (value.length > 255) return '密码不能超过255个字符';
                         return null;
                       },
                     ),
