@@ -78,12 +78,6 @@ public class DriverInformationService {
 
         sendKafkaMessage("driver_" + action, driverInformation);
 
-        if ("create".equals(action)) {
-            createDriver(driverInformation);
-        } else if ("update".equals(action)) {
-            updateDriver(driverInformation);
-        }
-
         Integer driverId = driverInformation.getDriverId();
         newRequest.setBusinessStatus("SUCCESS");
         newRequest.setBusinessId(driverId != null ? driverId.longValue() : null);

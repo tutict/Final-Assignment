@@ -59,18 +59,18 @@ class _DriverListPageState extends State<DriverList> {
   Future<void> _loadDrivers() async {
     setState(() => _isLoading = true);
     try {
-      developer.log('Loading driver list', name: 'DriverListPage');
+      developer.log('Loading driver list', name: 'DriverList');
       final drivers = await driverApi.apiDriversGet();
       if (mounted) {
         setState(() {
           _drivers = drivers ?? [];
           _filterDrivers();
           developer.log('Loaded ${_drivers.length} drivers',
-              name: 'DriverListPage');
+              name: 'DriverList');
         });
       }
     } catch (e) {
-      developer.log('Error loading drivers: $e', name: 'DriverListPage');
+      developer.log('Error loading drivers: $e', name: 'DriverList');
       if (mounted) {
         AppUtils.showSnackBar(context, AppUtils.formatErrorMessage(e),
             isError: true);
@@ -98,7 +98,7 @@ class _DriverListPageState extends State<DriverList> {
     });
     developer.log(
         'Filtered ${_filteredDrivers.length} drivers for query: $query',
-        name: 'DriverListPage');
+        name: 'DriverList');
   }
 
   String _mapGenderToDisplay(String? gender) {
@@ -111,7 +111,7 @@ class _DriverListPageState extends State<DriverList> {
     Get.to(() => const AddDriverPage())?.then((value) {
       if (value == true && mounted) {
         developer.log('AddDriverPage returned true, refreshing list',
-            name: 'DriverListPage');
+            name: 'DriverList');
         _loadDrivers();
       }
     });
@@ -121,7 +121,7 @@ class _DriverListPageState extends State<DriverList> {
     Get.to(() => DriverDetailPage(driver: driver))?.then((value) {
       if (value == true && mounted) {
         developer.log('DriverDetailPage returned true, refreshing list',
-            name: 'DriverListPage');
+            name: 'DriverList');
         _loadDrivers();
       }
     });
@@ -348,14 +348,17 @@ class _AddDriverPageState extends State<AddDriverPage> {
     try {
       await driverApi.initializeWithJwt();
     } catch (e) {
-      AppUtils.showSnackBar(context, AppUtils.formatErrorMessage(e),
-          isError: true);
+      if (mounted) {
+        AppUtils.showSnackBar(context, AppUtils.formatErrorMessage(e),
+            isError: true);
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
-  // Map UI gender to backend value
   String? _mapGenderToBackend(String gender) {
     if (gender.isEmpty) return null;
     if (gender == '男') return 'Male';
@@ -383,6 +386,8 @@ class _AddDriverPageState extends State<AddDriverPage> {
       AppUtils.showSnackBar(context, '请修正表单中的错误', isError: true);
       return;
     }
+
+    if (_isLoading) return; // Prevent double submission
 
     setState(() => _isLoading = true);
     try {
@@ -424,38 +429,33 @@ class _AddDriverPageState extends State<AddDriverPage> {
             driverInformation: driver,
             idempotencyKey: idempotencyKey,
           );
-          AppUtils.showSnackBar(context, '添加司机成功！');
           if (mounted) {
-            developer.log('Navigating back with success',
-                name: 'AddDriverPage');
+            AppUtils.showSnackBar(context, '添加司机成功！');
+            // 延迟 1 秒后返回，确保 Elasticsearch 索引完成
+            await Future.delayed(const Duration(seconds: 1));
             Navigator.pop(context, true);
           }
           return;
         } catch (e) {
           developer.log('Attempt $attempt failed: $e', name: 'AddDriverPage');
           if (attempt == maxRetries) {
-            AppUtils.showSnackBar(
-              context,
-              '添加失败：${AppUtils.formatErrorMessage(e)}. 请确保性别为“男”或“女”，或联系管理员。',
-              isError: true,
-            );
+            rethrow;
           }
+          await Future.delayed(
+              const Duration(milliseconds: 500)); // Delay before retry
         }
       }
-    } catch (e, stackTrace) {
-      developer.log(
-          'Unexpected error in _submitDriver: $e\nStackTrace: $stackTrace',
-          name: 'AddDriverPage');
-      AppUtils.showSnackBar(
-        context,
-        '添加失败：${AppUtils.formatErrorMessage(e)}. 请稍后重试或联系管理员。',
-        isError: true,
-      );
+    } catch (e) {
+      if (mounted) {
+        AppUtils.showSnackBar(
+          context,
+          '添加失败：${AppUtils.formatErrorMessage(e)}. 请确保性别为“男”或“女”，或联系管理员。',
+          isError: true,
+        );
+      }
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
-        developer.log('Submission completed, isLoading: false',
-            name: 'AddDriverPage');
       }
     }
   }
@@ -468,18 +468,7 @@ class _AddDriverPageState extends State<AddDriverPage> {
       lastDate: DateTime(2100),
       locale: const Locale('zh', 'CN'),
       builder: (context, child) => Theme(
-        data: controller.currentBodyTheme.value.copyWith(
-          colorScheme: controller.currentBodyTheme.value.colorScheme.copyWith(
-            primary: controller.currentBodyTheme.value.colorScheme.primary,
-            onPrimary: controller.currentBodyTheme.value.colorScheme.onPrimary,
-          ),
-          textButtonTheme: TextButtonThemeData(
-            style: TextButton.styleFrom(
-              foregroundColor:
-                  controller.currentBodyTheme.value.colorScheme.primary,
-            ),
-          ),
-        ),
+        data: controller.currentBodyTheme.value,
         child: child!,
       ),
     );
@@ -494,6 +483,7 @@ class _AddDriverPageState extends State<AddDriverPage> {
   Widget build(BuildContext context) {
     return Obx(() {
       final themeData = controller.currentBodyTheme.value;
+      final isDarkMode = controller.currentTheme.value == 'Dark';
 
       return Theme(
         data: themeData,
@@ -512,6 +502,16 @@ class _AddDriverPageState extends State<AddDriverPage> {
               onTap: () => Get.back(),
               child: Icon(
                 CupertinoIcons.back,
+                color: themeData.colorScheme.onPrimaryContainer,
+                size: 24,
+              ),
+            ),
+            trailing: GestureDetector(
+              onTap: controller.toggleBodyTheme,
+              child: Icon(
+                isDarkMode
+                    ? CupertinoIcons.sun_max_fill
+                    : CupertinoIcons.moon_fill,
                 color: themeData.colorScheme.onPrimaryContainer,
                 size: 24,
               ),
@@ -554,8 +554,9 @@ class _AddDriverPageState extends State<AddDriverPage> {
                                   _nameController,
                                   required: true,
                                   validator: (value) {
-                                    if (value == null || value.isEmpty)
+                                    if (value == null || value.isEmpty) {
                                       return '姓名不能为空';
+                                    }
                                     if (value.length < 2 || value.length > 50) {
                                       return '姓名长度必须在2到50个字符之间';
                                     }
@@ -571,8 +572,9 @@ class _AddDriverPageState extends State<AddDriverPage> {
                                   keyboardType: TextInputType.number,
                                   required: true,
                                   validator: (value) {
-                                    if (value == null || value.isEmpty)
+                                    if (value == null || value.isEmpty) {
                                       return '身份证号码不能为空';
+                                    }
                                     if (!RegExp(r'^(\d{17}[\dX]|\d{15})$')
                                         .hasMatch(value)) {
                                       return '请输入有效的身份证号码（15或18位）';
@@ -589,8 +591,9 @@ class _AddDriverPageState extends State<AddDriverPage> {
                                   keyboardType: TextInputType.phone,
                                   required: true,
                                   validator: (value) {
-                                    if (value == null || value.isEmpty)
+                                    if (value == null || value.isEmpty) {
                                       return '联系电话不能为空';
+                                    }
                                     if (!RegExp(r'^1[3-9]\d{9}$')
                                         .hasMatch(value)) {
                                       return '请输入有效的11位手机号码';
@@ -606,8 +609,9 @@ class _AddDriverPageState extends State<AddDriverPage> {
                                   _driverLicenseNumberController,
                                   required: true,
                                   validator: (value) {
-                                    if (value == null || value.isEmpty)
+                                    if (value == null || value.isEmpty) {
                                       return '驾驶证号不能为空';
+                                    }
                                     if (!RegExp(r'^\d{12}$').hasMatch(value)) {
                                       return '请输入有效的12位驾驶证号';
                                     }
@@ -621,8 +625,9 @@ class _AddDriverPageState extends State<AddDriverPage> {
                                   Icons.person_outline,
                                   _genderController,
                                   validator: (value) {
-                                    if (value == null || value.isEmpty)
+                                    if (value == null || value.isEmpty) {
                                       return null;
+                                    }
                                     if (!['男', '女'].contains(value)) {
                                       return '性别必须为“男”或“女”';
                                     }
@@ -638,7 +643,6 @@ class _AddDriverPageState extends State<AddDriverPage> {
                                   readOnly: true,
                                   onTap: () =>
                                       _selectDate(_birthdateController),
-                                  validator: null,
                                 ),
                                 const SizedBox(height: 16),
                                 AppUtils.buildTextField(
@@ -649,7 +653,6 @@ class _AddDriverPageState extends State<AddDriverPage> {
                                   readOnly: true,
                                   onTap: () =>
                                       _selectDate(_firstLicenseDateController),
-                                  validator: null,
                                 ),
                                 const SizedBox(height: 16),
                                 AppUtils.buildTextField(
@@ -657,7 +660,6 @@ class _AddDriverPageState extends State<AddDriverPage> {
                                   '允许驾驶车辆类型',
                                   Icons.directions_car,
                                   _allowedVehicleTypeController,
-                                  validator: null,
                                 ),
                                 const SizedBox(height: 16),
                                 AppUtils.buildTextField(
@@ -668,7 +670,6 @@ class _AddDriverPageState extends State<AddDriverPage> {
                                   readOnly: true,
                                   onTap: () =>
                                       _selectDate(_issueDateController),
-                                  validator: null,
                                 ),
                                 const SizedBox(height: 16),
                                 AppUtils.buildTextField(
@@ -679,11 +680,11 @@ class _AddDriverPageState extends State<AddDriverPage> {
                                   readOnly: true,
                                   onTap: () =>
                                       _selectDate(_expiryDateController),
-                                  validator: null,
                                 ),
                                 const SizedBox(height: 24),
                                 ElevatedButton(
-                                  onPressed: _submitDriver,
+                                  onPressed: _isLoading ? null : _submitDriver,
+                                  // Disable button when loading
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor:
                                         themeData.colorScheme.primary,
@@ -693,17 +694,24 @@ class _AddDriverPageState extends State<AddDriverPage> {
                                         borderRadius:
                                             BorderRadius.circular(12.0)),
                                     padding: const EdgeInsets.symmetric(
-                                        vertical: 14.0, horizontal: 24.0),
+                                        vertical: 16.0, horizontal: 24.0),
                                     elevation: 2,
                                   ),
-                                  child: Text(
-                                    '添加',
-                                    style: themeData.textTheme.labelLarge
-                                        ?.copyWith(
-                                      color: themeData.colorScheme.onPrimary,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
+                                  child: _isLoading
+                                      ? CupertinoActivityIndicator(
+                                          color:
+                                              themeData.colorScheme.onPrimary,
+                                          radius: 12.0,
+                                        )
+                                      : Text(
+                                          '添加',
+                                          style: themeData.textTheme.labelLarge
+                                              ?.copyWith(
+                                            color:
+                                                themeData.colorScheme.onPrimary,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
                                 ),
                               ],
                             ),
@@ -761,10 +769,14 @@ class _EditDriverPageState extends State<EditDriverPage> {
     try {
       await driverApi.initializeWithJwt();
     } catch (e) {
-      AppUtils.showSnackBar(context, AppUtils.formatErrorMessage(e),
-          isError: true);
+      if (mounted) {
+        AppUtils.showSnackBar(context, AppUtils.formatErrorMessage(e),
+            isError: true);
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -774,7 +786,6 @@ class _EditDriverPageState extends State<EditDriverPage> {
     _contactNumberController.text = widget.driver.contactNumber ?? '';
     _driverLicenseNumberController.text =
         widget.driver.driverLicenseNumber ?? '';
-    // Map backend gender to UI-friendly value
     _genderController.text = _mapGenderToDisplay(widget.driver.gender);
     _birthdateController.text = formatDateTime(widget.driver.birthdate);
     _firstLicenseDateController.text =
@@ -784,19 +795,17 @@ class _EditDriverPageState extends State<EditDriverPage> {
     _expiryDateController.text = formatDateTime(widget.driver.expiryDate);
   }
 
-  // Map backend gender values (Male/Female/Other) to UI values (男/女/empty)
   String _mapGenderToDisplay(String? gender) {
     if (gender == 'Male') return '男';
     if (gender == 'Female') return '女';
-    return ''; // 'Other' or null maps to empty for UI
+    return '';
   }
 
-  // Map UI gender values (男/女) to backend values (Male/Female)
   String? _mapGenderToBackend(String gender) {
-    if (gender.isEmpty) return null; // Allow NULL for optional gender
+    if (gender.isEmpty) return null;
     if (gender == '男') return 'Male';
     if (gender == '女') return 'Female';
-    return null; // Invalid or empty gender maps to NULL
+    return null;
   }
 
   @override
@@ -870,38 +879,29 @@ class _EditDriverPageState extends State<EditDriverPage> {
             driverInformation: driver,
             idempotencyKey: idempotencyKey,
           );
-          AppUtils.showSnackBar(context, '更新司机成功！');
           if (mounted) {
-            developer.log('Navigating back with success',
-                name: 'EditDriverPage');
+            AppUtils.showSnackBar(context, '更新司机成功！');
             Navigator.pop(context, true);
           }
           return;
         } catch (e) {
           developer.log('Attempt $attempt failed: $e', name: 'EditDriverPage');
           if (attempt == maxRetries) {
-            AppUtils.showSnackBar(
-              context,
-              '更新失败：${AppUtils.formatErrorMessage(e)}. 请确保性别为“男”或“女”，或联系管理员。',
-              isError: true,
-            );
+            rethrow;
           }
         }
       }
-    } catch (e, stackTrace) {
-      developer.log(
-          'Unexpected error in _submitDriver: $e\nStackTrace: $stackTrace',
-          name: 'EditDriverPage');
-      AppUtils.showSnackBar(
-        context,
-        '更新失败：${AppUtils.formatErrorMessage(e)}. 请稍后重试或联系管理员。',
-        isError: true,
-      );
+    } catch (e) {
+      if (mounted) {
+        AppUtils.showSnackBar(
+          context,
+          '更新失败：${AppUtils.formatErrorMessage(e)}. 请确保性别为“男”或“女”，或联系管理员。',
+          isError: true,
+        );
+      }
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
-        developer.log('Submission completed, isLoading: false',
-            name: 'EditDriverPage');
       }
     }
   }
@@ -914,17 +914,7 @@ class _EditDriverPageState extends State<EditDriverPage> {
       lastDate: DateTime(2100),
       locale: const Locale('zh', 'CN'),
       builder: (context, child) => Theme(
-        data: controller.currentBodyTheme.value.copyWith(
-          colorScheme: controller.currentBodyTheme.value.colorScheme.copyWith(
-            primary: controller.currentBodyTheme.value.colorScheme.primary,
-            onPrimary: controller.currentBodyTheme.value.colorScheme.onPrimary,
-          ),
-          textButtonTheme: TextButtonThemeData(
-            style: TextButton.styleFrom(
-                foregroundColor:
-                    controller.currentBodyTheme.value.colorScheme.primary),
-          ),
-        ),
+        data: controller.currentBodyTheme.value,
         child: child!,
       ),
     );
@@ -939,6 +929,7 @@ class _EditDriverPageState extends State<EditDriverPage> {
   Widget build(BuildContext context) {
     return Obx(() {
       final themeData = controller.currentBodyTheme.value;
+      final isDarkMode = controller.currentTheme.value == 'Dark';
 
       return Theme(
         data: themeData,
@@ -957,6 +948,16 @@ class _EditDriverPageState extends State<EditDriverPage> {
               onTap: () => Get.back(),
               child: Icon(
                 CupertinoIcons.back,
+                color: themeData.colorScheme.onPrimaryContainer,
+                size: 24,
+              ),
+            ),
+            trailing: GestureDetector(
+              onTap: controller.toggleBodyTheme,
+              child: Icon(
+                isDarkMode
+                    ? CupertinoIcons.sun_max_fill
+                    : CupertinoIcons.moon_fill,
                 color: themeData.colorScheme.onPrimaryContainer,
                 size: 24,
               ),
@@ -999,8 +1000,9 @@ class _EditDriverPageState extends State<EditDriverPage> {
                                   _nameController,
                                   required: true,
                                   validator: (value) {
-                                    if (value == null || value.isEmpty)
+                                    if (value == null || value.isEmpty) {
                                       return '姓名不能为空';
+                                    }
                                     if (value.length < 2 || value.length > 50) {
                                       return '姓名长度必须在2到50个字符之间';
                                     }
@@ -1016,8 +1018,9 @@ class _EditDriverPageState extends State<EditDriverPage> {
                                   keyboardType: TextInputType.number,
                                   required: true,
                                   validator: (value) {
-                                    if (value == null || value.isEmpty)
+                                    if (value == null || value.isEmpty) {
                                       return '身份证号码不能为空';
+                                    }
                                     if (!RegExp(r'^(\d{17}[\dX]|\d{15})$')
                                         .hasMatch(value)) {
                                       return '请输入有效的身份证号码（15或18位）';
@@ -1034,8 +1037,9 @@ class _EditDriverPageState extends State<EditDriverPage> {
                                   keyboardType: TextInputType.phone,
                                   required: true,
                                   validator: (value) {
-                                    if (value == null || value.isEmpty)
+                                    if (value == null || value.isEmpty) {
                                       return '联系电话不能为空';
+                                    }
                                     if (!RegExp(r'^1[3-9]\d{9}$')
                                         .hasMatch(value)) {
                                       return '请输入有效的11位手机号码';
@@ -1051,8 +1055,9 @@ class _EditDriverPageState extends State<EditDriverPage> {
                                   _driverLicenseNumberController,
                                   required: true,
                                   validator: (value) {
-                                    if (value == null || value.isEmpty)
+                                    if (value == null || value.isEmpty) {
                                       return '驾驶证号不能为空';
+                                    }
                                     if (!RegExp(r'^\d{12}$').hasMatch(value)) {
                                       return '请输入有效的12位驾驶证号';
                                     }
@@ -1066,8 +1071,9 @@ class _EditDriverPageState extends State<EditDriverPage> {
                                   Icons.person_outline,
                                   _genderController,
                                   validator: (value) {
-                                    if (value == null || value.isEmpty)
+                                    if (value == null || value.isEmpty) {
                                       return null;
+                                    }
                                     if (!['男', '女'].contains(value)) {
                                       return '性别必须为“男”或“女”';
                                     }
@@ -1083,7 +1089,6 @@ class _EditDriverPageState extends State<EditDriverPage> {
                                   readOnly: true,
                                   onTap: () =>
                                       _selectDate(_birthdateController),
-                                  validator: null,
                                 ),
                                 const SizedBox(height: 16),
                                 AppUtils.buildTextField(
@@ -1094,7 +1099,6 @@ class _EditDriverPageState extends State<EditDriverPage> {
                                   readOnly: true,
                                   onTap: () =>
                                       _selectDate(_firstLicenseDateController),
-                                  validator: null,
                                 ),
                                 const SizedBox(height: 16),
                                 AppUtils.buildTextField(
@@ -1102,7 +1106,6 @@ class _EditDriverPageState extends State<EditDriverPage> {
                                   '允许驾驶车辆类型',
                                   Icons.directions_car,
                                   _allowedVehicleTypeController,
-                                  validator: null,
                                 ),
                                 const SizedBox(height: 16),
                                 AppUtils.buildTextField(
@@ -1113,7 +1116,6 @@ class _EditDriverPageState extends State<EditDriverPage> {
                                   readOnly: true,
                                   onTap: () =>
                                       _selectDate(_issueDateController),
-                                  validator: null,
                                 ),
                                 const SizedBox(height: 16),
                                 AppUtils.buildTextField(
@@ -1124,7 +1126,6 @@ class _EditDriverPageState extends State<EditDriverPage> {
                                   readOnly: true,
                                   onTap: () =>
                                       _selectDate(_expiryDateController),
-                                  validator: null,
                                 ),
                                 const SizedBox(height: 24),
                                 ElevatedButton(
@@ -1177,6 +1178,7 @@ class _DriverDetailPageState extends State<DriverDetailPage> {
   final driverApi = DriverInformationControllerApi();
   late DriverInformation _driver;
   bool _isLoading = false;
+  final ScrollController _scrollController = ScrollController();
 
   final DashboardController controller = Get.find<DashboardController>();
 
@@ -1192,10 +1194,14 @@ class _DriverDetailPageState extends State<DriverDetailPage> {
     try {
       await driverApi.initializeWithJwt();
     } catch (e) {
-      AppUtils.showSnackBar(context, AppUtils.formatErrorMessage(e),
-          isError: true);
+      if (mounted) {
+        AppUtils.showSnackBar(context, AppUtils.formatErrorMessage(e),
+            isError: true);
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -1216,10 +1222,8 @@ class _DriverDetailPageState extends State<DriverDetailPage> {
           developer.log('Attempt $attempt to delete driver ID: $driverId',
               name: 'DriverDetailPage');
           await driverApi.apiDriversDriverIdDelete(driverId: driverId);
-          AppUtils.showSnackBar(context, '删除司机成功！');
           if (mounted) {
-            developer.log('Navigating back after deletion',
-                name: 'DriverDetailPage');
+            AppUtils.showSnackBar(context, '删除司机成功！');
             Navigator.pop(context, true);
           }
           return;
@@ -1227,18 +1231,19 @@ class _DriverDetailPageState extends State<DriverDetailPage> {
           developer.log('Delete attempt $attempt failed: $e',
               name: 'DriverDetailPage');
           if (attempt == maxRetries) {
-            AppUtils.showSnackBar(context, AppUtils.formatErrorMessage(e),
-                isError: true);
+            rethrow;
           }
         }
       }
     } catch (e) {
-      developer.log('Unexpected error in _deleteDriver: $e',
-          name: 'DriverDetailPage');
-      AppUtils.showSnackBar(context, AppUtils.formatErrorMessage(e),
-          isError: true);
+      if (mounted) {
+        AppUtils.showSnackBar(context, AppUtils.formatErrorMessage(e),
+            isError: true);
+      }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -1265,24 +1270,34 @@ class _DriverDetailPageState extends State<DriverDetailPage> {
     } catch (e) {
       developer.log('Error loading driver details: $e',
           name: 'DriverDetailPage');
-      AppUtils.showSnackBar(context, AppUtils.formatErrorMessage(e),
-          isError: true);
+      if (mounted) {
+        AppUtils.showSnackBar(context, AppUtils.formatErrorMessage(e),
+            isError: true);
+      }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
-  // Map backend gender to UI-friendly value
   String _mapGenderToDisplay(String? gender) {
     if (gender == 'Male') return '男';
     if (gender == 'Female') return '女';
-    return gender ?? '未知'; // 'Other' or null
+    return gender ?? '未知';
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Obx(() {
       final themeData = controller.currentBodyTheme.value;
+      final isDarkMode = controller.currentTheme.value == 'Dark';
       final driverId = _driver.driverId?.toString() ?? '未提供';
       final name = _driver.name ?? '未知';
       final idCard = _driver.idCardNumber ?? '无';
@@ -1319,6 +1334,17 @@ class _DriverDetailPageState extends State<DriverDetailPage> {
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
+                GestureDetector(
+                  onTap: controller.toggleBodyTheme,
+                  child: Icon(
+                    isDarkMode
+                        ? CupertinoIcons.sun_max_fill
+                        : CupertinoIcons.moon_fill,
+                    color: themeData.colorScheme.onPrimaryContainer,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 16),
                 GestureDetector(
                   onTap: () => Get.to(() => EditDriverPage(driver: _driver))
                       ?.then((value) {
@@ -1365,11 +1391,12 @@ class _DriverDetailPageState extends State<DriverDetailPage> {
                       ),
                     )
                   : CupertinoScrollbar(
-                      controller: ScrollController(),
+                      controller: _scrollController,
                       thumbVisibility: true,
                       thickness: 6.0,
                       thicknessWhileDragging: 10.0,
                       child: SingleChildScrollView(
+                        controller: _scrollController,
                         child: Card(
                           elevation: 4,
                           color: themeData.colorScheme.surfaceContainerLowest,
