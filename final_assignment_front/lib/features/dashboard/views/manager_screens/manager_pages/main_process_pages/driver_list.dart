@@ -1,133 +1,144 @@
-import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
-import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_dashboard_screen.dart';
-import 'package:final_assignment_front/features/model/driver_information.dart';
+import 'dart:developer' as developer;
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
-import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:intl/intl.dart';
-import 'dart:convert';
+import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_dashboard_screen.dart';
+import 'package:final_assignment_front/features/model/driver_information.dart';
 
-
-// Utility function to format DateTime
-String formatDateTime(DateTime? dateTime) {
-  if (dateTime == null) return '';
-  return DateFormat('yyyy-MM-dd').format(dateTime);
-}
-
-// Utility function to generate idempotency key (not used in API calls but kept for model compatibility)
 String generateIdempotencyKey() {
   return DateTime.now().millisecondsSinceEpoch.toString();
+}
+
+String formatDateTime(DateTime? dateTime) {
+  if (dateTime == null) return '无';
+  return '${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')}';
 }
 
 class DriverList extends StatefulWidget {
   const DriverList({super.key});
 
   @override
-  State<DriverList> createState() => _DriverListState();
+  State<DriverList> createState() => _DriverListPageState();
 }
 
-class _DriverListState extends State<DriverList> {
+class _DriverListPageState extends State<DriverList> {
   final driverApi = DriverInformationControllerApi();
-  final List<DriverInformation> _drivers = [];
-  bool _isLoading = true;
-  String? _errorMessage;
-
   final DashboardController controller = Get.find<DashboardController>();
+  List<DriverInformation> _drivers = [];
+  List<DriverInformation> _filteredDrivers = [];
+  final TextEditingController _searchController = TextEditingController();
+  bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _fetchDrivers();
+    _searchController.text = '';
+    _initialize();
+    _loadDrivers();
+    _searchController.addListener(_filterDrivers);
   }
 
-  Future<void> _fetchDrivers() async {
-    if (_isLoading) return;
+  Future<void> _initialize() async {
     setState(() => _isLoading = true);
     try {
-      debugPrint('Fetching drivers');
       await driverApi.initializeWithJwt();
-      final newDrivers = await driverApi.apiDriversGet().timeout(const Duration(seconds: 10));
-      debugPrint('Received ${newDrivers.length} drivers');
-      setState(() {
-        _drivers.addAll(newDrivers);
-        _isLoading = false;
-        _errorMessage = null;
-      });
     } catch (e) {
-      debugPrint('Error fetching drivers: $e');
-      setState(() {
-        _isLoading = false;
-        _errorMessage = '获取司机列表失败: ${_formatErrorMessage(e)}';
-      });
-      _showSnackBar(_errorMessage!, isError: true);
-    }
-  }
-
-  Future<void> _deleteDriver(int driverId) async {
-    try {
-      await driverApi.apiDriversDriverIdDelete(driverId: driverId).timeout(const Duration(seconds: 5));
-      setState(() {
-        _drivers.removeWhere((driver) => driver.driverId == driverId);
-      });
-      _showSnackBar('删除司机成功！');
-    } catch (e) {
-      debugPrint('Error deleting driver: $e');
-      _showSnackBar('删除司机失败: ${_formatErrorMessage(e)}', isError: true);
-    }
-  }
-
-  void _showSnackBar(String message, {bool isError = false}) {
-    if (!mounted) return;
-    final themeData = controller.currentBodyTheme.value;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          style: TextStyle(color: isError ? themeData.colorScheme.onError : themeData.colorScheme.onPrimary),
-        ),
-        backgroundColor: isError ? themeData.colorScheme.error : themeData.colorScheme.primary,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
-        margin: const EdgeInsets.all(10.0),
-      ),
-    );
-  }
-
-  Future<void> _refreshDrivers() async {
-    setState(() {
-      _drivers.clear();
-      _isLoading = true;
-      _errorMessage = null;
-    });
-    await _fetchDrivers();
-  }
-
-  String _formatErrorMessage(dynamic error) {
-    if (error is ApiException) {
-      switch (error.code) {
-        case 400:
-          return error.message.isNotEmpty ? error.message : '无效的请求数据';
-        case 401:
-          return '未授权: 请检查登录状态';
-        case 403:
-          return '无权限: ${error.message}';
-        case 404:
-          return '资源未找到';
-        case 500:
-          return '服务器错误';
-        default:
-          return error.message.isNotEmpty ? error.message : '未知错误';
+      if (mounted) {
+        AppUtils.showSnackBar(context, AppUtils.formatErrorMessage(e),
+            isError: true);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
       }
     }
-    return error.toString();
+  }
+
+  Future<void> _loadDrivers() async {
+    setState(() => _isLoading = true);
+    try {
+      developer.log('Loading driver list', name: 'DriverListPage');
+      final drivers = await driverApi.apiDriversGet();
+      if (mounted) {
+        setState(() {
+          _drivers = drivers ?? [];
+          _filterDrivers();
+          developer.log('Loaded ${_drivers.length} drivers',
+              name: 'DriverListPage');
+        });
+      }
+    } catch (e) {
+      developer.log('Error loading drivers: $e', name: 'DriverListPage');
+      if (mounted) {
+        AppUtils.showSnackBar(context, AppUtils.formatErrorMessage(e),
+            isError: true);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  void _filterDrivers() {
+    final query = _searchController.text.toLowerCase().trim();
+    setState(() {
+      _filteredDrivers = _drivers.where((driver) {
+        final name = driver.name?.toLowerCase() ?? '';
+        final id = driver.driverId?.toString() ?? '';
+        final contact = driver.contactNumber?.toLowerCase() ?? '';
+        final idCard = driver.idCardNumber?.toLowerCase() ?? '';
+        return name.contains(query) ||
+            id.contains(query) ||
+            contact.contains(query) ||
+            idCard.contains(query);
+      }).toList();
+    });
+    developer.log(
+        'Filtered ${_filteredDrivers.length} drivers for query: $query',
+        name: 'DriverListPage');
+  }
+
+  String _mapGenderToDisplay(String? gender) {
+    if (gender == 'Male') return '男';
+    if (gender == 'Female') return '女';
+    return gender ?? '未知';
+  }
+
+  void _navigateToAddDriver() {
+    Get.to(() => const AddDriverPage())?.then((value) {
+      if (value == true && mounted) {
+        developer.log('AddDriverPage returned true, refreshing list',
+            name: 'DriverListPage');
+        _loadDrivers();
+      }
+    });
+  }
+
+  void _navigateToDriverDetail(DriverInformation driver) {
+    Get.to(() => DriverDetailPage(driver: driver))?.then((value) {
+      if (value == true && mounted) {
+        developer.log('DriverDetailPage returned true, refreshing list',
+            name: 'DriverListPage');
+        _loadDrivers();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.removeListener(_filterDrivers);
+    _searchController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Obx(() {
       final themeData = controller.currentBodyTheme.value;
+      final isDarkMode = controller.currentTheme.value == 'Dark';
 
       return Theme(
         data: themeData,
@@ -142,17 +153,29 @@ class _DriverListState extends State<DriverList> {
                 fontSize: 20,
               ),
             ),
-            trailing: GestureDetector(
-              onTap: () => Get.to(() => const AddDriverPage())?.then((result) {
-                if (result == true) {
-                  _refreshDrivers();
-                }
-              }),
-              child: Icon(
-                CupertinoIcons.add,
-                color: themeData.colorScheme.onPrimaryContainer,
-                size: 24,
-              ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                GestureDetector(
+                  onTap: controller.toggleBodyTheme,
+                  child: Icon(
+                    isDarkMode
+                        ? CupertinoIcons.sun_max_fill
+                        : CupertinoIcons.moon_fill,
+                    color: themeData.colorScheme.onPrimaryContainer,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                GestureDetector(
+                  onTap: _navigateToAddDriver,
+                  child: Icon(
+                    CupertinoIcons.add,
+                    color: themeData.colorScheme.onPrimaryContainer,
+                    size: 24,
+                  ),
+                ),
+              ],
             ),
             backgroundColor: themeData.colorScheme.primaryContainer,
             border: Border(
@@ -163,133 +186,121 @@ class _DriverListState extends State<DriverList> {
             ),
           ),
           child: SafeArea(
-            child: RefreshIndicator(
-              onRefresh: _refreshDrivers,
-              color: themeData.colorScheme.primary,
-              child: _isLoading && _drivers.isEmpty && _errorMessage == null
-                  ? Center(
-                child: CupertinoActivityIndicator(
-                  color: themeData.colorScheme.primary,
-                  radius: 16.0,
-                ),
-              )
-                  : _drivers.isEmpty
-                  ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      _errorMessage ?? '暂无司机信息',
-                      style: themeData.textTheme.bodyLarge?.copyWith(
-                        color: themeData.colorScheme.onSurfaceVariant,
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: TextField(
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        labelText: '搜索司机（姓名、ID、电话、身份证号）',
+                        prefixIcon: Icon(Icons.search,
+                            color: themeData.colorScheme.primary),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8.0),
+                        ),
+                        filled: true,
+                        fillColor: themeData.colorScheme.surfaceContainer,
                       ),
+                      onChanged: (value) => _filterDrivers(),
                     ),
-                    if (_errorMessage != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 16.0),
-                        child: ElevatedButton(
-                          onPressed: _refreshDrivers,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: themeData.colorScheme.primary,
-                            foregroundColor: themeData.colorScheme.onPrimary,
-                          ),
-                          child: const Text('重试'),
-                        ),
-                      ),
-                  ],
+                  ),
                 ),
-              )
-                  : ListView.builder(
-                padding: const EdgeInsets.all(16.0),
-                itemCount: _drivers.length,
-                itemBuilder: (context, index) {
-                  final driver = _drivers[index];
-                  return Card(
-                    elevation: 2,
-                    margin: const EdgeInsets.symmetric(vertical: 8.0),
-                    color: themeData.colorScheme.surfaceContainerLowest,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.all(16.0),
-                      title: Text(
-                        driver.name ?? '未知姓名',
-                        style: themeData.textTheme.titleMedium?.copyWith(
-                          color: themeData.colorScheme.onSurface,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SizedBox(height: 4.0),
-                          Text(
-                            '身份证: ${driver.idCardNumber ?? '未提供'}',
-                            style: themeData.textTheme.bodyMedium?.copyWith(
-                              color: themeData.colorScheme.onSurfaceVariant,
-                            ),
+                Expanded(
+                  child: _isLoading
+                      ? Center(
+                          child: CupertinoActivityIndicator(
+                            color: themeData.colorScheme.primary,
+                            radius: 16.0,
                           ),
-                          Text(
-                            '电话: ${driver.contactNumber ?? '未提供'}',
-                            style: themeData.textTheme.bodyMedium?.copyWith(
-                              color: themeData.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: Icon(
-                              CupertinoIcons.pencil,
-                              color: themeData.colorScheme.primary,
-                            ),
-                            onPressed: () {
-                              Get.to(() => EditDriverPage(driver: driver))?.then((result) {
-                                if (result == true) {
-                                  _refreshDrivers();
-                                }
-                              });
-                            },
-                          ),
-                          IconButton(
-                            icon: Icon(
-                              CupertinoIcons.delete,
-                              color: themeData.colorScheme.error,
-                            ),
-                            onPressed: () async {
-                              final confirm = await showCupertinoDialog<bool>(
-                                context: context,
-                                builder: (context) => CupertinoAlertDialog(
-                                  title: const Text('确认删除'),
-                                  content: Text('确定要删除司机 ${driver.name} 吗？'),
-                                  actions: [
-                                    CupertinoDialogAction(
-                                      child: const Text('取消'),
-                                      onPressed: () => Navigator.pop(context, false),
+                        )
+                      : RefreshIndicator(
+                          onRefresh: _loadDrivers,
+                          color: themeData.colorScheme.primary,
+                          child: _filteredDrivers.isEmpty
+                              ? Center(
+                                  child: Text(
+                                    _searchController.text.isEmpty
+                                        ? '暂无司机信息'
+                                        : '无匹配的司机记录',
+                                    style:
+                                        themeData.textTheme.bodyLarge?.copyWith(
+                                      color: themeData
+                                          .colorScheme.onSurfaceVariant,
                                     ),
-                                    CupertinoDialogAction(
-                                      isDestructiveAction: true,
-                                      child: const Text('删除'),
-                                      onPressed: () => Navigator.pop(context, true),
-                                    ),
-                                  ],
+                                  ),
+                                )
+                              : ListView.builder(
+                                  physics:
+                                      const AlwaysScrollableScrollPhysics(),
+                                  itemCount: _filteredDrivers.length,
+                                  itemBuilder: (context, index) {
+                                    final driver = _filteredDrivers[index];
+                                    final name = driver.name ?? '未知';
+                                    final id =
+                                        driver.driverId?.toString() ?? '无';
+                                    final gender =
+                                        _mapGenderToDisplay(driver.gender);
+                                    final contact = driver.contactNumber ?? '无';
+
+                                    return Card(
+                                      elevation: 2,
+                                      color: themeData
+                                          .colorScheme.surfaceContainerLowest,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(12.0),
+                                      ),
+                                      margin: const EdgeInsets.symmetric(
+                                          vertical: 8.0, horizontal: 16.0),
+                                      child: ListTile(
+                                        contentPadding:
+                                            const EdgeInsets.all(16.0),
+                                        leading: CircleAvatar(
+                                          backgroundColor: themeData
+                                              .colorScheme.primaryContainer,
+                                          child: Text(
+                                            name.isNotEmpty ? name[0] : '?',
+                                            style: TextStyle(
+                                              color: themeData.colorScheme
+                                                  .onPrimaryContainer,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                        title: Text(
+                                          name,
+                                          style: themeData.textTheme.titleMedium
+                                              ?.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                            color:
+                                                themeData.colorScheme.onSurface,
+                                          ),
+                                        ),
+                                        subtitle: Text(
+                                          'ID: $id | 性别: $gender | 电话: $contact',
+                                          style: themeData.textTheme.bodyMedium
+                                              ?.copyWith(
+                                            color: themeData
+                                                .colorScheme.onSurfaceVariant,
+                                          ),
+                                        ),
+                                        trailing: Icon(
+                                          CupertinoIcons.right_chevron,
+                                          color: themeData
+                                              .colorScheme.onSurfaceVariant,
+                                        ),
+                                        onTap: () =>
+                                            _navigateToDriverDetail(driver),
+                                      ),
+                                    );
+                                  },
                                 ),
-                              );
-                              if (confirm == true && driver.driverId != null) {
-                                await _deleteDriver(driver.driverId!);
-                              }
-                            },
-                          ),
-                        ],
-                      ),
-                      onTap: () {
-                        Get.to(() => DriverDetailPage(driver: driver));
-                      },
-                    ),
-                  );
-                },
-              ),
+                        ),
+                ),
+              ],
             ),
           ),
         ),
@@ -310,12 +321,16 @@ class _AddDriverPageState extends State<AddDriverPage> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _idCardNumberController = TextEditingController();
-  final TextEditingController _contactNumberController = TextEditingController();
-  final TextEditingController _driverLicenseNumberController = TextEditingController();
+  final TextEditingController _contactNumberController =
+      TextEditingController();
+  final TextEditingController _driverLicenseNumberController =
+      TextEditingController();
   final TextEditingController _genderController = TextEditingController();
   final TextEditingController _birthdateController = TextEditingController();
-  final TextEditingController _firstLicenseDateController = TextEditingController();
-  final TextEditingController _allowedVehicleTypeController = TextEditingController();
+  final TextEditingController _firstLicenseDateController =
+      TextEditingController();
+  final TextEditingController _allowedVehicleTypeController =
+      TextEditingController();
   final TextEditingController _issueDateController = TextEditingController();
   final TextEditingController _expiryDateController = TextEditingController();
   bool _isLoading = false;
@@ -331,14 +346,21 @@ class _AddDriverPageState extends State<AddDriverPage> {
   Future<void> _initialize() async {
     setState(() => _isLoading = true);
     try {
-      await driverApi.initializeWithJwt().timeout(const Duration(seconds: 5));
-      debugPrint('JWT initialization successful');
+      await driverApi.initializeWithJwt();
     } catch (e) {
-      debugPrint('Initialization error: $e');
-      _showSnackBar(_formatErrorMessage(e), isError: true);
+      AppUtils.showSnackBar(context, AppUtils.formatErrorMessage(e),
+          isError: true);
     } finally {
       setState(() => _isLoading = false);
     }
+  }
+
+  // Map UI gender to backend value
+  String? _mapGenderToBackend(String gender) {
+    if (gender.isEmpty) return null;
+    if (gender == '男') return 'Male';
+    if (gender == '女') return 'Female';
+    return null;
   }
 
   @override
@@ -358,56 +380,84 @@ class _AddDriverPageState extends State<AddDriverPage> {
 
   Future<void> _submitDriver() async {
     if (!_formKey.currentState!.validate()) {
-      debugPrint('Form validation failed');
-      _showSnackBar('请填写所有必填字段', isError: true);
+      AppUtils.showSnackBar(context, '请修正表单中的错误', isError: true);
       return;
     }
 
     setState(() => _isLoading = true);
     try {
-      String normalizedContactNumber = _contactNumberController.text.trim();
-      if (!normalizedContactNumber.startsWith('+')) {
-        normalizedContactNumber = '+86$normalizedContactNumber';
-      }
       final driver = DriverInformation(
         name: _nameController.text.trim(),
         idCardNumber: _idCardNumberController.text.trim(),
-        contactNumber: normalizedContactNumber,
+        contactNumber: _contactNumberController.text.trim(),
         driverLicenseNumber: _driverLicenseNumberController.text.trim(),
-        gender: _genderController.text.trim().isEmpty ? null : _genderController.text.trim(),
-        birthdate: _birthdateController.text.trim().isEmpty ? null : DateTime.parse('${_birthdateController.text.trim()}T00:00:00'),
-        firstLicenseDate: _firstLicenseDateController.text.trim().isEmpty ? null : DateTime.parse('${_firstLicenseDateController.text.trim()}T00:00:00'),
-        allowedVehicleType: _allowedVehicleTypeController.text.trim().isEmpty ? null : _allowedVehicleTypeController.text.trim(),
-        issueDate: _issueDateController.text.trim().isEmpty ? null : DateTime.parse('${_issueDateController.text.trim()}T00:00:00'),
-        expiryDate: _expiryDateController.text.trim().isEmpty ? null : DateTime.parse('${_expiryDateController.text.trim()}T00:00:00'),
+        gender: _mapGenderToBackend(_genderController.text.trim()),
+        birthdate: _birthdateController.text.trim().isEmpty
+            ? null
+            : DateTime.tryParse('${_birthdateController.text.trim()}T00:00:00'),
+        firstLicenseDate: _firstLicenseDateController.text.trim().isEmpty
+            ? null
+            : DateTime.tryParse(
+                '${_firstLicenseDateController.text.trim()}T00:00:00'),
+        allowedVehicleType: _allowedVehicleTypeController.text.trim().isEmpty
+            ? null
+            : _allowedVehicleTypeController.text.trim(),
+        issueDate: _issueDateController.text.trim().isEmpty
+            ? null
+            : DateTime.tryParse('${_issueDateController.text.trim()}T00:00:00'),
+        expiryDate: _expiryDateController.text.trim().isEmpty
+            ? null
+            : DateTime.tryParse(
+                '${_expiryDateController.text.trim()}T00:00:00'),
       );
-      debugPrint('Creating driver: ${driver.toJson()}');
-      await driverApi.apiDriversPost(driverInformation: driver, idempotencyKey: generateIdempotencyKey()).timeout(const Duration(seconds: 5));
-      _showSnackBar('添加司机成功！');
-      if (mounted) Navigator.pop(context, true);
-    } catch (e) {
-      debugPrint('Driver creation error: $e');
-      _showSnackBar(_formatErrorMessage(e), isError: true);
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
 
-  void _showSnackBar(String message, {bool isError = false}) {
-    if (!mounted) return;
-    final themeData = controller.currentBodyTheme.value;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          style: TextStyle(color: isError ? themeData.colorScheme.onError : themeData.colorScheme.onPrimary),
-        ),
-        backgroundColor: isError ? themeData.colorScheme.error : themeData.colorScheme.primary,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
-        margin: const EdgeInsets.all(10.0),
-      ),
-    );
+      developer.log('Submitting new driver: ${driver.toJson()}',
+          name: 'AddDriverPage');
+
+      const maxRetries = 3;
+      for (int attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          final idempotencyKey = generateIdempotencyKey();
+          developer.log('Attempt $attempt with idempotencyKey: $idempotencyKey',
+              name: 'AddDriverPage');
+          await driverApi.apiDriversPost(
+            driverInformation: driver,
+            idempotencyKey: idempotencyKey,
+          );
+          AppUtils.showSnackBar(context, '添加司机成功！');
+          if (mounted) {
+            developer.log('Navigating back with success',
+                name: 'AddDriverPage');
+            Navigator.pop(context, true);
+          }
+          return;
+        } catch (e) {
+          developer.log('Attempt $attempt failed: $e', name: 'AddDriverPage');
+          if (attempt == maxRetries) {
+            AppUtils.showSnackBar(
+              context,
+              '添加失败：${AppUtils.formatErrorMessage(e)}. 请确保性别为“男”或“女”，或联系管理员。',
+              isError: true,
+            );
+          }
+        }
+      }
+    } catch (e, stackTrace) {
+      developer.log(
+          'Unexpected error in _submitDriver: $e\nStackTrace: $stackTrace',
+          name: 'AddDriverPage');
+      AppUtils.showSnackBar(
+        context,
+        '添加失败：${AppUtils.formatErrorMessage(e)}. 请稍后重试或联系管理员。',
+        isError: true,
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        developer.log('Submission completed, isLoading: false',
+            name: 'AddDriverPage');
+      }
+    }
   }
 
   Future<void> _selectDate(TextEditingController textController) async {
@@ -424,7 +474,10 @@ class _AddDriverPageState extends State<AddDriverPage> {
             onPrimary: controller.currentBodyTheme.value.colorScheme.onPrimary,
           ),
           textButtonTheme: TextButtonThemeData(
-            style: TextButton.styleFrom(foregroundColor: controller.currentBodyTheme.value.colorScheme.primary),
+            style: TextButton.styleFrom(
+              foregroundColor:
+                  controller.currentBodyTheme.value.colorScheme.primary,
+            ),
           ),
         ),
         child: child!,
@@ -435,24 +488,6 @@ class _AddDriverPageState extends State<AddDriverPage> {
         textController.text = formatDateTime(pickedDate);
       });
     }
-  }
-
-  String _formatErrorMessage(dynamic error) {
-    if (error is ApiException) {
-      switch (error.code) {
-        case 400:
-          return '请求错误: ${error.message.isNotEmpty ? error.message : "无效的请求数据"}';
-        case 401:
-          return '未授权: 请检查登录状态';
-        case 403:
-          return '无权限: ${error.message}';
-        case 409:
-          return '重复请求: ${error.message}';
-        default:
-          return '服务器错误: ${error.message}';
-      }
-    }
-    return '操作失败: $error';
   }
 
   @override
@@ -494,112 +529,193 @@ class _AddDriverPageState extends State<AddDriverPage> {
               padding: const EdgeInsets.all(16.0),
               child: _isLoading
                   ? Center(
-                child: CupertinoActivityIndicator(
-                  color: themeData.colorScheme.primary,
-                  radius: 16.0,
-                ),
-              )
+                      child: CupertinoActivityIndicator(
+                        color: themeData.colorScheme.primary,
+                        radius: 16.0,
+                      ),
+                    )
                   : Form(
-                key: _formKey,
-                child: SingleChildScrollView(
-                  child: Card(
-                    elevation: 4,
-                    color: themeData.colorScheme.surfaceContainerLowest,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
-                    child: Padding(
-                      padding: const EdgeInsets.all(20.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _buildTextField(themeData, '姓名 *', Icons.person, _nameController, required: true),
-                          const SizedBox(height: 16),
-                          _buildTextField(themeData, '身份证号码 *', Icons.card_membership, _idCardNumberController,
-                              keyboardType: TextInputType.number, required: true),
-                          const SizedBox(height: 16),
-                          _buildTextField(themeData, '联系电话 *', Icons.phone, _contactNumberController,
-                              keyboardType: TextInputType.phone,
-                              required: true,
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return '联系电话不能为空';
-                                }
-                                if (!RegExp(r'^\+?\d{10,15}$').hasMatch(value)) {
-                                  return '请输入有效的电话号码（例如 +8613812345678 或 13812345678）';
-                                }
-                                return null;
-                              }),
-                          const SizedBox(height: 16),
-                          _buildTextField(themeData, '驾驶证号 *', Icons.drive_eta, _driverLicenseNumberController, required: true),
-                          const SizedBox(height: 16),
-                          _buildTextField(themeData, '性别', Icons.person_outline, _genderController),
-                          const SizedBox(height: 16),
-                          _buildTextField(themeData, '出生日期', Icons.calendar_today, _birthdateController,
-                              readOnly: true, onTap: () => _selectDate(_birthdateController)),
-                          const SizedBox(height: 16),
-                          _buildTextField(themeData, '首次领证日期', Icons.calendar_today, _firstLicenseDateController,
-                              readOnly: true, onTap: () => _selectDate(_firstLicenseDateController)),
-                          const SizedBox(height: 16),
-                          _buildTextField(themeData, '允许驾驶车辆类型', Icons.directions_car, _allowedVehicleTypeController),
-                          const SizedBox(height: 16),
-                          _buildTextField(themeData, '发证日期', Icons.calendar_today, _issueDateController,
-                              readOnly: true, onTap: () => _selectDate(_issueDateController)),
-                          const SizedBox(height: 16),
-                          _buildTextField(themeData, '有效期截止日期', Icons.calendar_today, _expiryDateController,
-                              readOnly: true, onTap: () => _selectDate(_expiryDateController)),
-                          const SizedBox(height: 24),
-                          ElevatedButton(
-                            onPressed: _submitDriver,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: themeData.colorScheme.primary,
-                              foregroundColor: themeData.colorScheme.onPrimary,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
-                              padding: const EdgeInsets.symmetric(vertical: 14.0, horizontal: 24.0),
-                              elevation: 2,
-                            ),
-                            child: Text(
-                              '保存',
-                              style: themeData.textTheme.labelLarge?.copyWith(
-                                color: themeData.colorScheme.onPrimary,
-                                fontWeight: FontWeight.bold,
-                              ),
+                      key: _formKey,
+                      child: SingleChildScrollView(
+                        child: Card(
+                          elevation: 4,
+                          color: themeData.colorScheme.surfaceContainerLowest,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16.0)),
+                          child: Padding(
+                            padding: const EdgeInsets.all(20.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                AppUtils.buildTextField(
+                                  themeData,
+                                  '姓名 *',
+                                  Icons.person,
+                                  _nameController,
+                                  required: true,
+                                  validator: (value) {
+                                    if (value == null || value.isEmpty)
+                                      return '姓名不能为空';
+                                    if (value.length < 2 || value.length > 50) {
+                                      return '姓名长度必须在2到50个字符之间';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                                const SizedBox(height: 16),
+                                AppUtils.buildTextField(
+                                  themeData,
+                                  '身份证号码 *',
+                                  Icons.card_membership,
+                                  _idCardNumberController,
+                                  keyboardType: TextInputType.number,
+                                  required: true,
+                                  validator: (value) {
+                                    if (value == null || value.isEmpty)
+                                      return '身份证号码不能为空';
+                                    if (!RegExp(r'^(\d{17}[\dX]|\d{15})$')
+                                        .hasMatch(value)) {
+                                      return '请输入有效的身份证号码（15或18位）';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                                const SizedBox(height: 16),
+                                AppUtils.buildTextField(
+                                  themeData,
+                                  '联系电话 *',
+                                  Icons.phone,
+                                  _contactNumberController,
+                                  keyboardType: TextInputType.phone,
+                                  required: true,
+                                  validator: (value) {
+                                    if (value == null || value.isEmpty)
+                                      return '联系电话不能为空';
+                                    if (!RegExp(r'^1[3-9]\d{9}$')
+                                        .hasMatch(value)) {
+                                      return '请输入有效的11位手机号码';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                                const SizedBox(height: 16),
+                                AppUtils.buildTextField(
+                                  themeData,
+                                  '驾驶证号 *',
+                                  Icons.drive_eta,
+                                  _driverLicenseNumberController,
+                                  required: true,
+                                  validator: (value) {
+                                    if (value == null || value.isEmpty)
+                                      return '驾驶证号不能为空';
+                                    if (!RegExp(r'^\d{12}$').hasMatch(value)) {
+                                      return '请输入有效的12位驾驶证号';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                                const SizedBox(height: 16),
+                                AppUtils.buildTextField(
+                                  themeData,
+                                  '性别',
+                                  Icons.person_outline,
+                                  _genderController,
+                                  validator: (value) {
+                                    if (value == null || value.isEmpty)
+                                      return null;
+                                    if (!['男', '女'].contains(value)) {
+                                      return '性别必须为“男”或“女”';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                                const SizedBox(height: 16),
+                                AppUtils.buildTextField(
+                                  themeData,
+                                  '出生日期',
+                                  Icons.calendar_today,
+                                  _birthdateController,
+                                  readOnly: true,
+                                  onTap: () =>
+                                      _selectDate(_birthdateController),
+                                  validator: null,
+                                ),
+                                const SizedBox(height: 16),
+                                AppUtils.buildTextField(
+                                  themeData,
+                                  '首次领证日期',
+                                  Icons.calendar_today,
+                                  _firstLicenseDateController,
+                                  readOnly: true,
+                                  onTap: () =>
+                                      _selectDate(_firstLicenseDateController),
+                                  validator: null,
+                                ),
+                                const SizedBox(height: 16),
+                                AppUtils.buildTextField(
+                                  themeData,
+                                  '允许驾驶车辆类型',
+                                  Icons.directions_car,
+                                  _allowedVehicleTypeController,
+                                  validator: null,
+                                ),
+                                const SizedBox(height: 16),
+                                AppUtils.buildTextField(
+                                  themeData,
+                                  '发证日期',
+                                  Icons.calendar_today,
+                                  _issueDateController,
+                                  readOnly: true,
+                                  onTap: () =>
+                                      _selectDate(_issueDateController),
+                                  validator: null,
+                                ),
+                                const SizedBox(height: 16),
+                                AppUtils.buildTextField(
+                                  themeData,
+                                  '有效期截止日期',
+                                  Icons.calendar_today,
+                                  _expiryDateController,
+                                  readOnly: true,
+                                  onTap: () =>
+                                      _selectDate(_expiryDateController),
+                                  validator: null,
+                                ),
+                                const SizedBox(height: 24),
+                                ElevatedButton(
+                                  onPressed: _submitDriver,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor:
+                                        themeData.colorScheme.primary,
+                                    foregroundColor:
+                                        themeData.colorScheme.onPrimary,
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(12.0)),
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 14.0, horizontal: 24.0),
+                                    elevation: 2,
+                                  ),
+                                  child: Text(
+                                    '添加',
+                                    style: themeData.textTheme.labelLarge
+                                        ?.copyWith(
+                                      color: themeData.colorScheme.onPrimary,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        ],
+                        ),
                       ),
                     ),
-                  ),
-                ),
-              ),
             ),
           ),
         ),
       );
     });
-  }
-
-  Widget _buildTextField(ThemeData themeData, String label, IconData icon, TextEditingController controller,
-      {TextInputType? keyboardType, bool readOnly = false, VoidCallback? onTap, bool required = false, String? Function(String?)? validator}) {
-    return TextFormField(
-      controller: controller,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon, color: themeData.colorScheme.primary),
-        suffixIcon: readOnly ? Icon(Icons.calendar_today, color: themeData.colorScheme.primary) : null,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0), borderSide: BorderSide.none),
-        filled: true,
-        fillColor: themeData.colorScheme.surfaceContainer,
-        labelStyle: themeData.textTheme.bodyMedium?.copyWith(color: themeData.colorScheme.onSurfaceVariant),
-        contentPadding: const EdgeInsets.symmetric(vertical: 14.0, horizontal: 16.0),
-      ),
-      style: themeData.textTheme.bodyMedium?.copyWith(color: themeData.colorScheme.onSurface),
-      keyboardType: keyboardType,
-      readOnly: readOnly,
-      onTap: onTap,
-      validator: validator ??
-          (required
-              ? (value) => value!.isEmpty ? '$label不能为空' : null
-              : null),
-    );
   }
 }
 
@@ -617,12 +733,16 @@ class _EditDriverPageState extends State<EditDriverPage> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _idCardNumberController = TextEditingController();
-  final TextEditingController _contactNumberController = TextEditingController();
-  final TextEditingController _driverLicenseNumberController = TextEditingController();
+  final TextEditingController _contactNumberController =
+      TextEditingController();
+  final TextEditingController _driverLicenseNumberController =
+      TextEditingController();
   final TextEditingController _genderController = TextEditingController();
   final TextEditingController _birthdateController = TextEditingController();
-  final TextEditingController _firstLicenseDateController = TextEditingController();
-  final TextEditingController _allowedVehicleTypeController = TextEditingController();
+  final TextEditingController _firstLicenseDateController =
+      TextEditingController();
+  final TextEditingController _allowedVehicleTypeController =
+      TextEditingController();
   final TextEditingController _issueDateController = TextEditingController();
   final TextEditingController _expiryDateController = TextEditingController();
   bool _isLoading = false;
@@ -639,11 +759,10 @@ class _EditDriverPageState extends State<EditDriverPage> {
   Future<void> _initialize() async {
     setState(() => _isLoading = true);
     try {
-      await driverApi.initializeWithJwt().timeout(const Duration(seconds: 5));
-      debugPrint('JWT initialization successful');
+      await driverApi.initializeWithJwt();
     } catch (e) {
-      debugPrint('Initialization error: $e');
-      _showSnackBar(_formatErrorMessage(e), isError: true);
+      AppUtils.showSnackBar(context, AppUtils.formatErrorMessage(e),
+          isError: true);
     } finally {
       setState(() => _isLoading = false);
     }
@@ -653,13 +772,31 @@ class _EditDriverPageState extends State<EditDriverPage> {
     _nameController.text = widget.driver.name ?? '';
     _idCardNumberController.text = widget.driver.idCardNumber ?? '';
     _contactNumberController.text = widget.driver.contactNumber ?? '';
-    _driverLicenseNumberController.text = widget.driver.driverLicenseNumber ?? '';
-    _genderController.text = widget.driver.gender ?? '';
+    _driverLicenseNumberController.text =
+        widget.driver.driverLicenseNumber ?? '';
+    // Map backend gender to UI-friendly value
+    _genderController.text = _mapGenderToDisplay(widget.driver.gender);
     _birthdateController.text = formatDateTime(widget.driver.birthdate);
-    _firstLicenseDateController.text = formatDateTime(widget.driver.firstLicenseDate);
+    _firstLicenseDateController.text =
+        formatDateTime(widget.driver.firstLicenseDate);
     _allowedVehicleTypeController.text = widget.driver.allowedVehicleType ?? '';
     _issueDateController.text = formatDateTime(widget.driver.issueDate);
     _expiryDateController.text = formatDateTime(widget.driver.expiryDate);
+  }
+
+  // Map backend gender values (Male/Female/Other) to UI values (男/女/empty)
+  String _mapGenderToDisplay(String? gender) {
+    if (gender == 'Male') return '男';
+    if (gender == 'Female') return '女';
+    return ''; // 'Other' or null maps to empty for UI
+  }
+
+  // Map UI gender values (男/女) to backend values (Male/Female)
+  String? _mapGenderToBackend(String gender) {
+    if (gender.isEmpty) return null; // Allow NULL for optional gender
+    if (gender == '男') return 'Male';
+    if (gender == '女') return 'Female';
+    return null; // Invalid or empty gender maps to NULL
   }
 
   @override
@@ -679,149 +816,94 @@ class _EditDriverPageState extends State<EditDriverPage> {
 
   Future<void> _submitDriver() async {
     if (!_formKey.currentState!.validate()) {
-      debugPrint('Form validation failed');
-      _showSnackBar('请填写所有必填字段', isError: true);
+      AppUtils.showSnackBar(context, '请修正表单中的错误', isError: true);
       return;
     }
     if (widget.driver.driverId == null) {
-      debugPrint('Invalid driver ID');
-      _showSnackBar('司机ID无效，无法更新', isError: true);
+      AppUtils.showSnackBar(context, '司机ID无效，无法更新', isError: true);
       return;
     }
 
     setState(() => _isLoading = true);
     try {
-      final driverId = widget.driver.driverId!;
-      debugPrint('Updating driver ID: $driverId');
+      final driver = DriverInformation(
+        driverId: widget.driver.driverId,
+        name: _nameController.text.trim(),
+        idCardNumber: _idCardNumberController.text.trim(),
+        contactNumber: _contactNumberController.text.trim(),
+        driverLicenseNumber: _driverLicenseNumberController.text.trim(),
+        gender: _mapGenderToBackend(_genderController.text.trim()),
+        birthdate: _birthdateController.text.trim().isEmpty ||
+                _birthdateController.text == '无'
+            ? null
+            : DateTime.tryParse('${_birthdateController.text.trim()}T00:00:00'),
+        firstLicenseDate: _firstLicenseDateController.text.trim().isEmpty ||
+                _firstLicenseDateController.text == '无'
+            ? null
+            : DateTime.tryParse(
+                '${_firstLicenseDateController.text.trim()}T00:00:00'),
+        allowedVehicleType: _allowedVehicleTypeController.text.trim().isEmpty
+            ? null
+            : _allowedVehicleTypeController.text.trim(),
+        issueDate: _issueDateController.text.trim().isEmpty ||
+                _issueDateController.text == '无'
+            ? null
+            : DateTime.tryParse('${_issueDateController.text.trim()}T00:00:00'),
+        expiryDate: _expiryDateController.text.trim().isEmpty ||
+                _expiryDateController.text == '无'
+            ? null
+            : DateTime.tryParse(
+                '${_expiryDateController.text.trim()}T00:00:00'),
+      );
 
-      final headers = {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJoZ2xAYWRtaW4uY29tIiwicm9sZXMiOiJBRE1JTiIsImlhdCI6MTc0Nzg3MTYzNiwiZXhwIjoxNzQ3OTU4MDM2fQ.P90bMsE82pHNNyLJ4yUMRGhG2xmjbTFvs-Y3ViyuCf4',
-      };
+      developer.log('Submitting driver update: ${driver.toJson()}',
+          name: 'EditDriverPage');
 
-      // Update name
-      if (_nameController.text.trim() != widget.driver.name) {
-        debugPrint('Updating name: ${_nameController.text.trim()}');
-        final body = jsonEncode({'name': _nameController.text.trim()});
-        debugPrint('Name request body: $body');
-        final response = await driverApi.apiClient.invokeAPI(
-          '/api/drivers/$driverId/name',
-          'PUT',
-          [QueryParam('idempotencyKey', generateIdempotencyKey())],
-          body,
-          headers,
-          {},
-          'application/json',
-          ['bearerAuth'],
-        ).timeout(const Duration(seconds: 5));
-        if (response.statusCode >= 400) {
-          debugPrint('Name update failed: ${response.statusCode} - ${response.body}');
-          throw ApiException(response.statusCode, response.body.isNotEmpty ? response.body : 'Failed to update name');
+      const maxRetries = 3;
+      for (int attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          final idempotencyKey = generateIdempotencyKey();
+          developer.log('Attempt $attempt with idempotencyKey: $idempotencyKey',
+              name: 'EditDriverPage');
+          await driverApi.apiDriversDriverIdPut(
+            driverId: widget.driver.driverId!,
+            driverInformation: driver,
+            idempotencyKey: idempotencyKey,
+          );
+          AppUtils.showSnackBar(context, '更新司机成功！');
+          if (mounted) {
+            developer.log('Navigating back with success',
+                name: 'EditDriverPage');
+            Navigator.pop(context, true);
+          }
+          return;
+        } catch (e) {
+          developer.log('Attempt $attempt failed: $e', name: 'EditDriverPage');
+          if (attempt == maxRetries) {
+            AppUtils.showSnackBar(
+              context,
+              '更新失败：${AppUtils.formatErrorMessage(e)}. 请确保性别为“男”或“女”，或联系管理员。',
+              isError: true,
+            );
+          }
         }
       }
-
-      // Update ID card number
-      if (_idCardNumberController.text.trim() != widget.driver.idCardNumber) {
-        debugPrint('Updating idCardNumber: ${_idCardNumberController.text.trim()}');
-        final body = jsonEncode({'idCardNumber': _idCardNumberController.text.trim()});
-        debugPrint('ID card request body: $body');
-        final response = await driverApi.apiClient.invokeAPI(
-          '/api/drivers/$driverId/idCardNumber',
-          'PUT',
-          [QueryParam('idempotencyKey', generateIdempotencyKey())],
-          body,
-          headers,
-          {},
-          'application/json',
-          ['bearerAuth'],
-        ).timeout(const Duration(seconds: 5));
-        if (response.statusCode >= 400) {
-          debugPrint('ID card update failed: ${response.statusCode} - ${response.body}');
-          throw ApiException(response.statusCode, response.body.isNotEmpty ? response.body : 'Failed to update ID card number');
-        }
-      }
-
-      // Update contact number
-      if (_contactNumberController.text.trim() != widget.driver.contactNumber) {
-        String normalizedContactNumber = _contactNumberController.text.trim();
-        if (!normalizedContactNumber.startsWith('+')) {
-          normalizedContactNumber = '+86$normalizedContactNumber';
-        }
-        debugPrint('Updating contactNumber: $normalizedContactNumber');
-        final body = jsonEncode({'contactNumber': normalizedContactNumber});
-        debugPrint('Contact number request body: $body');
-        final response = await driverApi.apiClient.invokeAPI(
-          '/api/drivers/$driverId/contactNumber',
-          'PUT',
-          [QueryParam('idempotencyKey', generateIdempotencyKey())],
-          body,
-          headers,
-          {},
-          'application/json',
-          ['bearerAuth'],
-        ).timeout(const Duration(seconds: 5));
-        if (response.statusCode >= 400) {
-          debugPrint('Contact number update failed: ${response.statusCode} - ${response.body}');
-          throw ApiException(response.statusCode, response.body.isNotEmpty ? response.body : 'Failed to update contact number');
-        }
-      }
-
-      // Update other fields using the full update endpoint
-      final otherFieldsChanged = _driverLicenseNumberController.text.trim() != widget.driver.driverLicenseNumber ||
-          _genderController.text.trim() != (widget.driver.gender ?? '') ||
-          _birthdateController.text.trim() != formatDateTime(widget.driver.birthdate) ||
-          _firstLicenseDateController.text.trim() != formatDateTime(widget.driver.firstLicenseDate) ||
-          _allowedVehicleTypeController.text.trim() != (widget.driver.allowedVehicleType ?? '') ||
-          _issueDateController.text.trim() != formatDateTime(widget.driver.issueDate) ||
-          _expiryDateController.text.trim() != formatDateTime(widget.driver.expiryDate);
-
-      if (otherFieldsChanged) {
-        final driver = DriverInformation(
-          driverId: driverId,
-          name: _nameController.text.trim(),
-          idCardNumber: _idCardNumberController.text.trim(),
-          contactNumber: _contactNumberController.text.trim(),
-          driverLicenseNumber: _driverLicenseNumberController.text.trim(),
-          gender: _genderController.text.trim().isEmpty ? null : _genderController.text.trim(),
-          birthdate: _birthdateController.text.trim().isEmpty ? null : DateTime.parse('${_birthdateController.text.trim()}T00:00:00'),
-          firstLicenseDate: _firstLicenseDateController.text.trim().isEmpty ? null : DateTime.parse('${_firstLicenseDateController.text.trim()}T00:00:00'),
-          allowedVehicleType: _allowedVehicleTypeController.text.trim().isEmpty ? null : _allowedVehicleTypeController.text.trim(),
-          issueDate: _issueDateController.text.trim().isEmpty ? null : DateTime.parse('${_issueDateController.text.trim()}T00:00:00'),
-          expiryDate: _expiryDateController.text.trim().isEmpty ? null : DateTime.parse('${_expiryDateController.text.trim()}T00:00:00'),
-        );
-        debugPrint('Updating full driver info: ${driver.toJson()}');
-        await driverApi.apiDriversDriverIdPut(
-          driverId: driverId,
-          driverInformation: driver, idempotencyKey: generateIdempotencyKey(),
-        ).timeout(const Duration(seconds: 5));
-      }
-
-      debugPrint('Driver update successful');
-      _showSnackBar('更新司机成功！');
-      if (mounted) Navigator.pop(context, true);
-    } catch (e) {
-      debugPrint('Driver update error: $e');
-      _showSnackBar(_formatErrorMessage(e), isError: true);
+    } catch (e, stackTrace) {
+      developer.log(
+          'Unexpected error in _submitDriver: $e\nStackTrace: $stackTrace',
+          name: 'EditDriverPage');
+      AppUtils.showSnackBar(
+        context,
+        '更新失败：${AppUtils.formatErrorMessage(e)}. 请稍后重试或联系管理员。',
+        isError: true,
+      );
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+        developer.log('Submission completed, isLoading: false',
+            name: 'EditDriverPage');
+      }
     }
-  }
-
-  void _showSnackBar(String message, {bool isError = false}) {
-    if (!mounted) return;
-    final themeData = controller.currentBodyTheme.value;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          style: TextStyle(color: isError ? themeData.colorScheme.onError : themeData.colorScheme.onPrimary),
-        ),
-        backgroundColor: isError ? themeData.colorScheme.error : themeData.colorScheme.primary,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
-        margin: const EdgeInsets.all(10.0),
-      ),
-    );
   }
 
   Future<void> _selectDate(TextEditingController textController) async {
@@ -838,7 +920,9 @@ class _EditDriverPageState extends State<EditDriverPage> {
             onPrimary: controller.currentBodyTheme.value.colorScheme.onPrimary,
           ),
           textButtonTheme: TextButtonThemeData(
-            style: TextButton.styleFrom(foregroundColor: controller.currentBodyTheme.value.colorScheme.primary),
+            style: TextButton.styleFrom(
+                foregroundColor:
+                    controller.currentBodyTheme.value.colorScheme.primary),
           ),
         ),
         child: child!,
@@ -849,26 +933,6 @@ class _EditDriverPageState extends State<EditDriverPage> {
         textController.text = formatDateTime(pickedDate);
       });
     }
-  }
-
-  String _formatErrorMessage(dynamic error) {
-    if (error is ApiException) {
-      switch (error.code) {
-        case 400:
-          return '请求错误: ${error.message.isNotEmpty ? error.message : "无效的请求数据"}';
-        case 401:
-          return '未授权: 请检查登录状态';
-        case 403:
-          return '无权限: ${error.message}';
-        case 404:
-          return '未找到: ${error.message}';
-        case 409:
-          return '重复请求: ${error.message}';
-        default:
-          return '服务器错误: ${error.message}';
-      }
-    }
-    return '操作失败: $error';
   }
 
   @override
@@ -910,132 +974,334 @@ class _EditDriverPageState extends State<EditDriverPage> {
               padding: const EdgeInsets.all(16.0),
               child: _isLoading
                   ? Center(
-                child: CupertinoActivityIndicator(
-                  color: themeData.colorScheme.primary,
-                  radius: 16.0,
-                ),
-              )
+                      child: CupertinoActivityIndicator(
+                        color: themeData.colorScheme.primary,
+                        radius: 16.0,
+                      ),
+                    )
                   : Form(
-                key: _formKey,
-                child: SingleChildScrollView(
-                  child: Card(
-                    elevation: 4,
-                    color: themeData.colorScheme.surfaceContainerLowest,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
-                    child: Padding(
-                      padding: const EdgeInsets.all(20.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _buildTextField(themeData, '姓名 *', Icons.person, _nameController, required: true),
-                          const SizedBox(height: 16),
-                          _buildTextField(themeData, '身份证号码 *', Icons.card_membership, _idCardNumberController,
-                              keyboardType: TextInputType.number, required: true),
-                          const SizedBox(height: 16),
-                          _buildTextField(themeData, '联系电话 *', Icons.phone, _contactNumberController,
-                              keyboardType: TextInputType.phone,
-                              required: true,
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return '联系电话不能为空';
-                                }
-                                if (!RegExp(r'^\+?\d{10,15}$').hasMatch(value)) {
-                                  return '请输入有效的电话号码（例如 +8613812345678 或 13812345678）';
-                                }
-                                return null;
-                              }),
-                          const SizedBox(height: 16),
-                          _buildTextField(themeData, '驾驶证号 *', Icons.drive_eta, _driverLicenseNumberController, required: true),
-                          const SizedBox(height: 16),
-                          _buildTextField(themeData, '性别', Icons.person_outline, _genderController),
-                          const SizedBox(height: 16),
-                          _buildTextField(themeData, '出生日期', Icons.calendar_today, _birthdateController,
-                              readOnly: true, onTap: () => _selectDate(_birthdateController)),
-                          const SizedBox(height: 16),
-                          _buildTextField(themeData, '首次领证日期', Icons.calendar_today, _firstLicenseDateController,
-                              readOnly: true, onTap: () => _selectDate(_firstLicenseDateController)),
-                          const SizedBox(height: 16),
-                          _buildTextField(themeData, '允许驾驶车辆类型', Icons.directions_car, _allowedVehicleTypeController),
-                          const SizedBox(height: 16),
-                          _buildTextField(themeData, '发证日期', Icons.calendar_today, _issueDateController,
-                              readOnly: true, onTap: () => _selectDate(_issueDateController)),
-                          const SizedBox(height: 16),
-                          _buildTextField(themeData, '有效期截止日期', Icons.calendar_today, _expiryDateController,
-                              readOnly: true, onTap: () => _selectDate(_expiryDateController)),
-                          const SizedBox(height: 24),
-                          ElevatedButton(
-                            onPressed: _submitDriver,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: themeData.colorScheme.primary,
-                              foregroundColor: themeData.colorScheme.onPrimary,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
-                              padding: const EdgeInsets.symmetric(vertical: 14.0, horizontal: 24.0),
-                              elevation: 2,
-                            ),
-                            child: Text(
-                              '保存',
-                              style: themeData.textTheme.labelLarge?.copyWith(
-                                color: themeData.colorScheme.onPrimary,
-                                fontWeight: FontWeight.bold,
-                              ),
+                      key: _formKey,
+                      child: SingleChildScrollView(
+                        child: Card(
+                          elevation: 4,
+                          color: themeData.colorScheme.surfaceContainerLowest,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16.0)),
+                          child: Padding(
+                            padding: const EdgeInsets.all(20.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                AppUtils.buildTextField(
+                                  themeData,
+                                  '姓名 *',
+                                  Icons.person,
+                                  _nameController,
+                                  required: true,
+                                  validator: (value) {
+                                    if (value == null || value.isEmpty)
+                                      return '姓名不能为空';
+                                    if (value.length < 2 || value.length > 50) {
+                                      return '姓名长度必须在2到50个字符之间';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                                const SizedBox(height: 16),
+                                AppUtils.buildTextField(
+                                  themeData,
+                                  '身份证号码 *',
+                                  Icons.card_membership,
+                                  _idCardNumberController,
+                                  keyboardType: TextInputType.number,
+                                  required: true,
+                                  validator: (value) {
+                                    if (value == null || value.isEmpty)
+                                      return '身份证号码不能为空';
+                                    if (!RegExp(r'^(\d{17}[\dX]|\d{15})$')
+                                        .hasMatch(value)) {
+                                      return '请输入有效的身份证号码（15或18位）';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                                const SizedBox(height: 16),
+                                AppUtils.buildTextField(
+                                  themeData,
+                                  '联系电话 *',
+                                  Icons.phone,
+                                  _contactNumberController,
+                                  keyboardType: TextInputType.phone,
+                                  required: true,
+                                  validator: (value) {
+                                    if (value == null || value.isEmpty)
+                                      return '联系电话不能为空';
+                                    if (!RegExp(r'^1[3-9]\d{9}$')
+                                        .hasMatch(value)) {
+                                      return '请输入有效的11位手机号码';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                                const SizedBox(height: 16),
+                                AppUtils.buildTextField(
+                                  themeData,
+                                  '驾驶证号 *',
+                                  Icons.drive_eta,
+                                  _driverLicenseNumberController,
+                                  required: true,
+                                  validator: (value) {
+                                    if (value == null || value.isEmpty)
+                                      return '驾驶证号不能为空';
+                                    if (!RegExp(r'^\d{12}$').hasMatch(value)) {
+                                      return '请输入有效的12位驾驶证号';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                                const SizedBox(height: 16),
+                                AppUtils.buildTextField(
+                                  themeData,
+                                  '性别',
+                                  Icons.person_outline,
+                                  _genderController,
+                                  validator: (value) {
+                                    if (value == null || value.isEmpty)
+                                      return null;
+                                    if (!['男', '女'].contains(value)) {
+                                      return '性别必须为“男”或“女”';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                                const SizedBox(height: 16),
+                                AppUtils.buildTextField(
+                                  themeData,
+                                  '出生日期',
+                                  Icons.calendar_today,
+                                  _birthdateController,
+                                  readOnly: true,
+                                  onTap: () =>
+                                      _selectDate(_birthdateController),
+                                  validator: null,
+                                ),
+                                const SizedBox(height: 16),
+                                AppUtils.buildTextField(
+                                  themeData,
+                                  '首次领证日期',
+                                  Icons.calendar_today,
+                                  _firstLicenseDateController,
+                                  readOnly: true,
+                                  onTap: () =>
+                                      _selectDate(_firstLicenseDateController),
+                                  validator: null,
+                                ),
+                                const SizedBox(height: 16),
+                                AppUtils.buildTextField(
+                                  themeData,
+                                  '允许驾驶车辆类型',
+                                  Icons.directions_car,
+                                  _allowedVehicleTypeController,
+                                  validator: null,
+                                ),
+                                const SizedBox(height: 16),
+                                AppUtils.buildTextField(
+                                  themeData,
+                                  '发证日期',
+                                  Icons.calendar_today,
+                                  _issueDateController,
+                                  readOnly: true,
+                                  onTap: () =>
+                                      _selectDate(_issueDateController),
+                                  validator: null,
+                                ),
+                                const SizedBox(height: 16),
+                                AppUtils.buildTextField(
+                                  themeData,
+                                  '有效期截止日期',
+                                  Icons.calendar_today,
+                                  _expiryDateController,
+                                  readOnly: true,
+                                  onTap: () =>
+                                      _selectDate(_expiryDateController),
+                                  validator: null,
+                                ),
+                                const SizedBox(height: 24),
+                                ElevatedButton(
+                                  onPressed: _submitDriver,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor:
+                                        themeData.colorScheme.primary,
+                                    foregroundColor:
+                                        themeData.colorScheme.onPrimary,
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(12.0)),
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 14.0, horizontal: 24.0),
+                                    elevation: 2,
+                                  ),
+                                  child: Text(
+                                    '保存',
+                                    style: themeData.textTheme.labelLarge
+                                        ?.copyWith(
+                                      color: themeData.colorScheme.onPrimary,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        ],
+                        ),
                       ),
                     ),
-                  ),
-                ),
-              ),
             ),
           ),
         ),
       );
     });
   }
-
-  Widget _buildTextField(ThemeData themeData, String label, IconData icon, TextEditingController controller,
-      {TextInputType? keyboardType, bool readOnly = false, VoidCallback? onTap, bool required = false, String? Function(String?)? validator}) {
-    return TextFormField(
-      controller: controller,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon, color: themeData.colorScheme.primary),
-        suffixIcon: readOnly ? Icon(Icons.calendar_today, color: themeData.colorScheme.primary) : null,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0), borderSide: BorderSide.none),
-        filled: true,
-        fillColor: themeData.colorScheme.surfaceContainer,
-        labelStyle: themeData.textTheme.bodyMedium?.copyWith(color: themeData.colorScheme.onSurfaceVariant),
-        contentPadding: const EdgeInsets.symmetric(vertical: 14.0, horizontal: 16.0),
-      ),
-      style: themeData.textTheme.bodyMedium?.copyWith(color: themeData.colorScheme.onSurface),
-      keyboardType: keyboardType,
-      readOnly: readOnly,
-      onTap: onTap,
-      validator: validator ??
-          (required
-              ? (value) => value!.isEmpty ? '$label不能为空' : null
-              : null),
-    );
-  }
 }
 
-class DriverDetailPage extends StatelessWidget {
+class DriverDetailPage extends StatefulWidget {
   final DriverInformation driver;
 
   const DriverDetailPage({super.key, required this.driver});
 
   @override
+  State<DriverDetailPage> createState() => _DriverDetailPageState();
+}
+
+class _DriverDetailPageState extends State<DriverDetailPage> {
+  final driverApi = DriverInformationControllerApi();
+  late DriverInformation _driver;
+  bool _isLoading = false;
+
+  final DashboardController controller = Get.find<DashboardController>();
+
+  @override
+  void initState() {
+    super.initState();
+    _driver = widget.driver;
+    _initialize();
+  }
+
+  Future<void> _initialize() async {
+    setState(() => _isLoading = true);
+    try {
+      await driverApi.initializeWithJwt();
+    } catch (e) {
+      AppUtils.showSnackBar(context, AppUtils.formatErrorMessage(e),
+          isError: true);
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _deleteDriver(int? driverId) async {
+    if (driverId == null) {
+      AppUtils.showSnackBar(context, '司机ID无效，无法删除', isError: true);
+      return;
+    }
+    final confirmed =
+        await AppUtils.showConfirmationDialog(context, '确认删除', '您确定要删除此司机信息吗？');
+    if (!confirmed) return;
+
+    setState(() => _isLoading = true);
+    try {
+      const maxRetries = 3;
+      for (int attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          developer.log('Attempt $attempt to delete driver ID: $driverId',
+              name: 'DriverDetailPage');
+          await driverApi.apiDriversDriverIdDelete(driverId: driverId);
+          AppUtils.showSnackBar(context, '删除司机成功！');
+          if (mounted) {
+            developer.log('Navigating back after deletion',
+                name: 'DriverDetailPage');
+            Navigator.pop(context, true);
+          }
+          return;
+        } catch (e) {
+          developer.log('Delete attempt $attempt failed: $e',
+              name: 'DriverDetailPage');
+          if (attempt == maxRetries) {
+            AppUtils.showSnackBar(context, AppUtils.formatErrorMessage(e),
+                isError: true);
+          }
+        }
+      }
+    } catch (e) {
+      developer.log('Unexpected error in _deleteDriver: $e',
+          name: 'DriverDetailPage');
+      AppUtils.showSnackBar(context, AppUtils.formatErrorMessage(e),
+          isError: true);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _loadDriverDetails() async {
+    if (_driver.driverId == null) {
+      AppUtils.showSnackBar(context, '司机ID无效，无法加载详情', isError: true);
+      return;
+    }
+    setState(() => _isLoading = true);
+    try {
+      developer.log('Loading driver details for ID: ${_driver.driverId}',
+          name: 'DriverDetailPage');
+      final updatedDriver =
+          await driverApi.apiDriversDriverIdGet(driverId: _driver.driverId!);
+      if (updatedDriver != null && mounted) {
+        setState(() {
+          _driver = updatedDriver;
+          developer.log('Driver details updated: ${updatedDriver.toJson()}',
+              name: 'DriverDetailPage');
+        });
+      } else {
+        AppUtils.showSnackBar(context, '无法加载司机信息', isError: true);
+      }
+    } catch (e) {
+      developer.log('Error loading driver details: $e',
+          name: 'DriverDetailPage');
+      AppUtils.showSnackBar(context, AppUtils.formatErrorMessage(e),
+          isError: true);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  // Map backend gender to UI-friendly value
+  String _mapGenderToDisplay(String? gender) {
+    if (gender == 'Male') return '男';
+    if (gender == 'Female') return '女';
+    return gender ?? '未知'; // 'Other' or null
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final DashboardController controller = Get.find<DashboardController>();
     return Obx(() {
       final themeData = controller.currentBodyTheme.value;
+      final driverId = _driver.driverId?.toString() ?? '未提供';
+      final name = _driver.name ?? '未知';
+      final idCard = _driver.idCardNumber ?? '无';
+      final contact = _driver.contactNumber ?? '无';
+      final license = _driver.driverLicenseNumber ?? '无';
+      final gender = _mapGenderToDisplay(_driver.gender);
+      final birthdate = formatDateTime(_driver.birthdate);
+      final firstLicenseDate = formatDateTime(_driver.firstLicenseDate);
+      final allowedVehicleType = _driver.allowedVehicleType ?? '无';
+      final issueDate = formatDateTime(_driver.issueDate);
+      final expiryDate = formatDateTime(_driver.expiryDate);
 
       return Theme(
         data: themeData,
         child: CupertinoPageScaffold(
+          backgroundColor: themeData.colorScheme.surface,
           navigationBar: CupertinoNavigationBar(
             middle: Text(
-              '司机详情',
+              '司机详细信息',
               style: themeData.textTheme.headlineSmall?.copyWith(
                 color: themeData.colorScheme.onPrimaryContainer,
                 fontWeight: FontWeight.bold,
@@ -1050,17 +1316,35 @@ class DriverDetailPage extends StatelessWidget {
                 size: 24,
               ),
             ),
-            trailing: GestureDetector(
-              onTap: () => Get.to(() => EditDriverPage(driver: driver))?.then((result) {
-                if (result == true) {
-                  Get.back(result: true);
-                }
-              }),
-              child: Icon(
-                CupertinoIcons.pencil,
-                color: themeData.colorScheme.onPrimaryContainer,
-                size: 24,
-              ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                GestureDetector(
+                  onTap: () => Get.to(() => EditDriverPage(driver: _driver))
+                      ?.then((value) {
+                    if (value == true && mounted) {
+                      developer.log(
+                          'EditDriverPage returned true, refreshing details',
+                          name: 'DriverDetailPage');
+                      _loadDriverDetails();
+                    }
+                  }),
+                  child: Icon(
+                    CupertinoIcons.pencil,
+                    color: themeData.colorScheme.onPrimaryContainer,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                GestureDetector(
+                  onTap: () => _deleteDriver(_driver.driverId),
+                  child: Icon(
+                    CupertinoIcons.trash,
+                    color: themeData.colorScheme.error,
+                    size: 24,
+                  ),
+                ),
+              ],
             ),
             backgroundColor: themeData.colorScheme.primaryContainer,
             border: Border(
@@ -1071,42 +1355,51 @@ class DriverDetailPage extends StatelessWidget {
             ),
           ),
           child: SafeArea(
-            child: SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Card(
-                  elevation: 4,
-                  color: themeData.colorScheme.surfaceContainerLowest,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
-                  child: Padding(
-                    padding: const EdgeInsets.all(20.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildDetailRow(themeData, '姓名', driver.name ?? '未知', Icons.person),
-                        const SizedBox(height: 16),
-                        _buildDetailRow(themeData, '身份证号码', driver.idCardNumber ?? '未提供', Icons.card_membership),
-                        const SizedBox(height: 16),
-                        _buildDetailRow(themeData, '联系电话', driver.contactNumber ?? '未提供', Icons.phone),
-                        const SizedBox(height: 16),
-                        _buildDetailRow(themeData, '驾驶证号', driver.driverLicenseNumber ?? '未提供', Icons.drive_eta),
-                        const SizedBox(height: 16),
-                        _buildDetailRow(themeData, '性别', driver.gender ?? '未提供', Icons.person_outline),
-                        const SizedBox(height: 16),
-                        _buildDetailRow(themeData, '出生日期', formatDateTime(driver.birthdate), Icons.calendar_today),
-                        const SizedBox(height: 16),
-                        _buildDetailRow(themeData, '首次领证日期', formatDateTime(driver.firstLicenseDate), Icons.calendar_today),
-                        const SizedBox(height: 16),
-                        _buildDetailRow(themeData, '允许驾驶车辆类型', driver.allowedVehicleType ?? '未提供', Icons.directions_car),
-                        const SizedBox(height: 16),
-                        _buildDetailRow(themeData, '发证日期', formatDateTime(driver.issueDate), Icons.calendar_today),
-                        const SizedBox(height: 16),
-                        _buildDetailRow(themeData, '有效期截止日期', formatDateTime(driver.expiryDate), Icons.calendar_today),
-                      ],
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: _isLoading
+                  ? Center(
+                      child: CupertinoActivityIndicator(
+                        color: themeData.colorScheme.primary,
+                        radius: 16.0,
+                      ),
+                    )
+                  : CupertinoScrollbar(
+                      controller: ScrollController(),
+                      thumbVisibility: true,
+                      thickness: 6.0,
+                      thicknessWhileDragging: 10.0,
+                      child: SingleChildScrollView(
+                        child: Card(
+                          elevation: 4,
+                          color: themeData.colorScheme.surfaceContainerLowest,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16.0)),
+                          child: Padding(
+                            padding: const EdgeInsets.all(20.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildDetailRow('司机 ID', driverId, themeData),
+                                _buildDetailRow('姓名', name, themeData),
+                                _buildDetailRow('身份证号', idCard, themeData),
+                                _buildDetailRow('联系电话', contact, themeData),
+                                _buildDetailRow('驾驶证号', license, themeData),
+                                _buildDetailRow('性别', gender, themeData),
+                                _buildDetailRow('出生日期', birthdate, themeData),
+                                _buildDetailRow(
+                                    '首次领证日期', firstLicenseDate, themeData),
+                                _buildDetailRow(
+                                    '允许驾驶车辆类型', allowedVehicleType, themeData),
+                                _buildDetailRow('发证日期', issueDate, themeData),
+                                _buildDetailRow(
+                                    '有效期截止日期', expiryDate, themeData),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-              ),
             ),
           ),
         ),
@@ -1114,34 +1407,173 @@ class DriverDetailPage extends StatelessWidget {
     });
   }
 
-  Widget _buildDetailRow(ThemeData themeData, String label, String value, IconData icon) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, color: themeData.colorScheme.primary, size: 24),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: themeData.textTheme.bodyMedium?.copyWith(
-                  color: themeData.colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.bold,
-                ),
+  Widget _buildDetailRow(String label, String value, ThemeData themeData) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '$label: ',
+            style: themeData.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: themeData.colorScheme.onSurface,
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: themeData.textTheme.bodyLarge?.copyWith(
+                color: themeData.colorScheme.onSurfaceVariant,
               ),
-              const SizedBox(height: 4),
-              Text(
-                value,
-                style: themeData.textTheme.bodyLarge?.copyWith(
-                  color: themeData.colorScheme.onSurface,
-                ),
-              ),
-            ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class AppUtils {
+  static String formatErrorMessage(dynamic error) {
+    if (error is ApiException) {
+      switch (error.code) {
+        case 400:
+          return '请求错误: ${error.message}';
+        case 401:
+          return '未授权: 请重新登录';
+        case 403:
+          return '无权限: ${error.message}';
+        case 404:
+          return '未找到: ${error.message}';
+        case 409:
+          return '重复请求: ${error.message}';
+        case 500:
+          return '服务器错误: 请稍后重试';
+        default:
+          return '未知错误: ${error.message}';
+      }
+    }
+    return '操作失败: $error';
+  }
+
+  static void showSnackBar(BuildContext context, String message,
+      {bool isError = false}) {
+    final themeData = Get.find<DashboardController>().currentBodyTheme.value;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          style: TextStyle(
+            color: isError
+                ? themeData.colorScheme.onError
+                : themeData.colorScheme.onPrimary,
           ),
         ),
-      ],
+        backgroundColor: isError
+            ? themeData.colorScheme.error
+            : themeData.colorScheme.primary,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
+        margin: const EdgeInsets.all(10.0),
+      ),
     );
+  }
+
+  static Widget buildTextField(
+    ThemeData themeData,
+    String label,
+    IconData icon,
+    TextEditingController controller, {
+    TextInputType? keyboardType,
+    bool readOnly = false,
+    VoidCallback? onTap,
+    bool required = false,
+    String? Function(String?)? validator,
+    VoidCallback? onClear,
+  }) {
+    return TextFormField(
+      controller: controller,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, color: themeData.colorScheme.primary),
+        suffixIcon: readOnly
+            ? Icon(Icons.calendar_today, color: themeData.colorScheme.primary)
+            : controller.text.isNotEmpty
+                ? IconButton(
+                    icon: Icon(Icons.clear,
+                        color: themeData.colorScheme.onSurfaceVariant),
+                    onPressed: onClear ?? () => controller.clear(),
+                  )
+                : null,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12.0),
+          borderSide: BorderSide.none,
+        ),
+        filled: true,
+        fillColor: themeData.colorScheme.surfaceContainer,
+        labelStyle: themeData.textTheme.bodyMedium
+            ?.copyWith(color: themeData.colorScheme.onSurfaceVariant),
+        contentPadding:
+            const EdgeInsets.symmetric(vertical: 14.0, horizontal: 16.0),
+      ),
+      style: themeData.textTheme.bodyMedium
+          ?.copyWith(color: themeData.colorScheme.onSurface),
+      keyboardType: keyboardType,
+      readOnly: readOnly,
+      onTap: onTap,
+      validator: validator ??
+          (required ? (value) => value!.isEmpty ? '$label不能为空' : null : null),
+    );
+  }
+
+  static Future<bool> showConfirmationDialog(
+      BuildContext context, String title, String content) async {
+    final themeData = Get.find<DashboardController>().currentBodyTheme.value;
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => Theme(
+            data: themeData,
+            child: AlertDialog(
+              backgroundColor: themeData.colorScheme.surfaceContainerLowest,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16.0)),
+              title: Text(
+                title,
+                style: themeData.textTheme.titleLarge?.copyWith(
+                    color: themeData.colorScheme.onSurface,
+                    fontWeight: FontWeight.bold),
+              ),
+              content: Text(
+                content,
+                style: themeData.textTheme.bodyMedium
+                    ?.copyWith(color: themeData.colorScheme.onSurfaceVariant),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: Text(
+                    '取消',
+                    style: themeData.textTheme.labelLarge?.copyWith(
+                      color: themeData.colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: Text(
+                    '确定',
+                    style: themeData.textTheme.labelLarge?.copyWith(
+                      color: themeData.colorScheme.error,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ) ??
+        false;
   }
 }

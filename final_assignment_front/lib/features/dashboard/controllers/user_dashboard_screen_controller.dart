@@ -27,7 +27,7 @@ class UserDashboardController extends GetxController with NavigationMixin {
     _initializeCaseCardData();
     _loadUserFromPrefs();
     loadCredentials();
-    _loadTheme(); // Load theme from SharedPreferences
+    _loadTheme();
   }
 
   Future<void> _loadTheme() async {
@@ -91,7 +91,6 @@ class UserDashboardController extends GetxController with NavigationMixin {
   void toggleBodyTheme() {
     currentTheme.value = currentTheme.value == 'Light' ? 'Dark' : 'Light';
     _applyTheme();
-    // Save to SharedPreferences to sync with LoginScreen
     SharedPreferences.getInstance().then((prefs) {
       prefs.setBool('isDarkMode', currentTheme.value == 'Dark');
     });
@@ -103,12 +102,6 @@ class UserDashboardController extends GetxController with NavigationMixin {
 
   void _applyTheme() {
     String theme = selectedStyle.value;
-    // Check SharedPreferences for isDarkMode to sync with LoginScreen
-    SharedPreferences.getInstance().then((prefs) {
-      final isDarkMode = prefs.getBool('isDarkMode') ?? false;
-      currentTheme.value = isDarkMode ? 'Dark' : 'Light';
-    });
-
     ThemeData baseTheme;
     if (theme == 'Material') {
       baseTheme = currentTheme.value == 'Light'
@@ -132,7 +125,17 @@ class UserDashboardController extends GetxController with NavigationMixin {
           fontFamily: fontFamily,
           fontSize: 16.0,
           fontWeight: FontWeight.normal,
-          color: currentTheme.value == 'Light' ? Colors.black : Colors.white,
+          color: baseTheme.colorScheme.onPrimary,
+        ),
+        bodyLarge: baseTheme.textTheme.bodyLarge?.copyWith(
+          fontFamily: fontFamily,
+          fontSize: 16.0,
+          color: baseTheme.colorScheme.onSurface,
+        ),
+        bodyMedium: baseTheme.textTheme.bodyMedium?.copyWith(
+          fontFamily: fontFamily,
+          fontSize: 14.0,
+          color: baseTheme.colorScheme.onSurface.withOpacity(0.7),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(

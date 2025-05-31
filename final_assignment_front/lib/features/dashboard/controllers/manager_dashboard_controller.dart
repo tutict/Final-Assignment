@@ -27,7 +27,7 @@ class DashboardController extends GetxController with NavigationMixin {
     _initializeCaseCardData();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadUserFromPrefs();
-      _loadTheme(); // Load theme from SharedPreferences
+      _loadTheme();
     });
   }
 
@@ -85,7 +85,8 @@ class DashboardController extends GetxController with NavigationMixin {
     currentDriverName.value = name;
     currentEmail.value = email;
     currentUser.value = Profile(
-      photo: currentUser.value?.photo ?? const AssetImage(ImageRasterPath.avatar1),
+      photo:
+          currentUser.value?.photo ?? const AssetImage(ImageRasterPath.avatar1),
       name: name,
       email: email,
     );
@@ -102,18 +103,18 @@ class DashboardController extends GetxController with NavigationMixin {
 
   Profile get currentProfile =>
       currentUser.value ??
-          const Profile(
-            photo: AssetImage(ImageRasterPath.avatar1),
-            name: "Guest",
-            email: "guest@example.com",
-          );
+      const Profile(
+        photo: AssetImage(ImageRasterPath.avatar1),
+        name: "Guest",
+        email: "guest@example.com",
+      );
 
   void toggleSidebar() => isSidebarOpen.value = !isSidebarOpen.value;
 
   void toggleBodyTheme() {
     currentTheme.value = currentTheme.value == 'Light' ? 'Dark' : 'Light';
     _applyTheme();
-    // Save to SharedPreferences to sync with LoginScreen
+    // Save to SharedPreferences
     SharedPreferences.getInstance().then((prefs) {
       prefs.setBool('isDarkMode', currentTheme.value == 'Dark');
     });
@@ -123,23 +124,17 @@ class DashboardController extends GetxController with NavigationMixin {
 
   void _applyTheme() {
     String theme = selectedStyle.value;
-    // Check SharedPreferences for isDarkMode to sync with LoginScreen
-    SharedPreferences.getInstance().then((prefs) {
-      final isDarkMode = prefs.getBool('isDarkMode') ?? false;
-      currentTheme.value = isDarkMode ? 'Dark' : 'Light';
-    });
-
     ThemeData baseTheme = theme == 'Material'
         ? (currentTheme.value == 'Light'
-        ? AppTheme.materialLightTheme
-        : AppTheme.materialDarkTheme)
+            ? AppTheme.materialLightTheme
+            : AppTheme.materialDarkTheme)
         : (theme == 'Ionic'
-        ? (currentTheme.value == 'Light'
-        ? AppTheme.ionicLightTheme
-        : AppTheme.ionicDarkTheme)
-        : (currentTheme.value == 'Light'
-        ? AppTheme.basicLight
-        : AppTheme.basicDark));
+            ? (currentTheme.value == 'Light'
+                ? AppTheme.ionicLightTheme
+                : AppTheme.ionicDarkTheme)
+            : (currentTheme.value == 'Light'
+                ? AppTheme.basicLight
+                : AppTheme.basicDark));
 
     String fontFamily = theme == 'Basic' ? Font.poppins : 'Helvetica';
 
@@ -168,7 +163,7 @@ class DashboardController extends GetxController with NavigationMixin {
           foregroundColor: baseTheme.colorScheme.onPrimary,
           elevation: 2,
           shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
           textStyle: TextStyle(
             fontFamily: fontFamily,
             fontSize: 16.0,
@@ -214,22 +209,22 @@ class DashboardController extends GetxController with NavigationMixin {
       Obx(() => selectedPage.value ?? const SizedBox.shrink());
 
   ProjectCardData getSelectedProject() => ProjectCardData(
-    percent: .3,
-    projectImage: const AssetImage(ImageRasterPath.logo4),
-    projectName: "交通违法行为处理管理系统",
-    releaseTime: DateTime.now(),
-  );
+        percent: .3,
+        projectImage: const AssetImage(ImageRasterPath.logo4),
+        projectName: "交通违法行为处理管理系统",
+        releaseTime: DateTime.now(),
+      );
 
   List<ProjectCardData> getActiveProject() => [];
 
   List<ImageProvider<Object>> getMember() => const [
-    AssetImage(ImageRasterPath.avatar1),
-    AssetImage(ImageRasterPath.avatar2),
-    AssetImage(ImageRasterPath.avatar3),
-    AssetImage(ImageRasterPath.avatar4),
-    AssetImage(ImageRasterPath.avatar5),
-    AssetImage(ImageRasterPath.avatar6),
-  ];
+        AssetImage(ImageRasterPath.avatar1),
+        AssetImage(ImageRasterPath.avatar2),
+        AssetImage(ImageRasterPath.avatar3),
+        AssetImage(ImageRasterPath.avatar4),
+        AssetImage(ImageRasterPath.avatar5),
+        AssetImage(ImageRasterPath.avatar6),
+      ];
 
   Future<Map<String, int>> getOffenseTypeDistribution() async {
     try {
