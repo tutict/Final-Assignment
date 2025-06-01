@@ -33,8 +33,7 @@ public class AppealManagementController {
             @RequestBody AppealManagement appeal,
             @RequestParam String idempotencyKey) {
         try {
-            appealManagementService.checkAndInsertIdempotency(idempotencyKey, appeal, "create");
-            AppealManagement createdAppeal = appealManagementService.createAppeal(appeal);
+            AppealManagement createdAppeal = appealManagementService.checkAndInsertIdempotency(idempotencyKey, appeal, "create");
             return ResponseEntity.status(HttpStatus.CREATED).body(createdAppeal);
         } catch (IllegalArgumentException e) {
             logger.warning("Invalid input for creating appeal: " + e.getMessage());
@@ -84,8 +83,7 @@ public class AppealManagementController {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
             }
             updatedAppeal.setAppealId(appealId); // Ensure ID consistency
-            appealManagementService.checkAndInsertIdempotency(idempotencyKey, updatedAppeal, "update");
-            AppealManagement updated = appealManagementService.updateAppeal(updatedAppeal);
+            AppealManagement updated = appealManagementService.checkAndInsertIdempotency(idempotencyKey, updatedAppeal, "update");
             return ResponseEntity.ok(updated);
         } catch (IllegalArgumentException e) {
             logger.warning("Invalid input for updating appeal: " + e.getMessage());

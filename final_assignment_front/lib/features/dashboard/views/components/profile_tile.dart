@@ -56,7 +56,7 @@ class ProfilTile extends StatelessWidget {
             displayEmail = controller.currentEmail.value.isNotEmpty
                 ? controller.currentEmail.value
                 : data.email;
-            displayPost = '欢迎使用交通违法行为处理管理系统用户端';
+            displayPost = '欢迎使用交通违法行为处理管理系统驾驶员端';
           } else if (userRole == 'ADMIN' && controller is DashboardController) {
             displayName = controller.currentDriverName.value.isNotEmpty
                 ? controller.currentDriverName.value
@@ -64,7 +64,7 @@ class ProfilTile extends StatelessWidget {
             displayEmail = controller.currentEmail.value.isNotEmpty
                 ? controller.currentEmail.value
                 : data.email;
-            displayPost = '欢迎使用交通违法行为处理管理系统管理员端';
+            displayPost = '欢迎使用交通违法行为处理管理系统交通管理员端';
           } else {
             // Fallback for unexpected cases
             displayName = data.name;

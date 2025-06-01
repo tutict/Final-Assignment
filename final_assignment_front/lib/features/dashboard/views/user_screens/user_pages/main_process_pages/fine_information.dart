@@ -3,12 +3,9 @@ import 'package:final_assignment_front/features/api/fine_information_controller_
 import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 import 'package:final_assignment_front/features/model/fine_information.dart';
-import 'package:final_assignment_front/features/model/driver_information.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_hms_scan_kit/flutter_hms_scan_kit.dart';
-import 'package:flutter_hms_scan_kit/scan_result.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:get/Get.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -24,13 +21,15 @@ class FineInformationPage extends StatefulWidget {
 class _FineInformationPageState extends State<FineInformationPage> {
   late FineInformationControllerApi fineApi;
   late Future<List<FineInformation>> _finesFuture;
-  final UserDashboardController controller = Get.find<UserDashboardController>();
-  final DriverInformationControllerApi driverApi = DriverInformationControllerApi();
+  final UserDashboardController controller =
+      Get.find<UserDashboardController>();
+  final DriverInformationControllerApi driverApi =
+      DriverInformationControllerApi();
   final ApiClient apiClient = ApiClient();
   bool _isLoading = true;
   String _errorMessage = '';
   String? _currentDriverName;
-  final Map<String, List<int>> _qrCodes = {};
+  final Map<String, Widget> _qrCodes = {};
 
   @override
   void initState() {
@@ -53,7 +52,7 @@ class _FineInformationPageState extends State<FineInformationPage> {
         if (_currentDriverName != null) {
           await prefs.setString('driverName', _currentDriverName!);
         } else {
-          _currentDriverName = '黄广龙'; // 回退值，生产环境应避免
+          _currentDriverName = '黄广龙'; // Fallback, avoid in production
         }
         developer.log('Fetched and stored driver name: $_currentDriverName');
       }
@@ -81,7 +80,6 @@ class _FineInformationPageState extends State<FineInformationPage> {
 
   Future<String?> _fetchDriverName(String jwtToken) async {
     try {
-      // 获取用户信息以获取 userId
       final userResponse = await http.get(
         Uri.parse('http://localhost:8081/api/users/me'),
         headers: {'Authorization': 'Bearer $jwtToken'},
@@ -94,9 +92,9 @@ class _FineInformationPageState extends State<FineInformationPage> {
           throw Exception('User data does not contain userId');
         }
 
-        // 获取驾驶员信息
         await driverApi.initializeWithJwt();
-        final driverInfo = await driverApi.apiDriversDriverIdGet(driverId: userId);
+        final driverInfo =
+            await driverApi.apiDriversDriverIdGet(driverId: userId);
         if (driverInfo != null) {
           final driverName = driverInfo.name ?? driverInfo.name;
           developer.log('Driver name from API: $driverName');
@@ -106,7 +104,8 @@ class _FineInformationPageState extends State<FineInformationPage> {
           return null;
         }
       } else {
-        throw Exception('Failed to fetch user data: ${userResponse.statusCode}');
+        throw Exception(
+            'Failed to fetch user data: ${userResponse.statusCode}');
       }
     } catch (e) {
       developer.log('Error fetching driver name: $e');
@@ -119,7 +118,7 @@ class _FineInformationPageState extends State<FineInformationPage> {
       final allFines = await fineApi.apiFinesGet();
       developer.log('All Fines: $allFines');
       final filteredFines =
-      allFines.where((fine) => fine.payee == _currentDriverName).toList();
+          allFines.where((fine) => fine.payee == _currentDriverName).toList();
       developer.log('Filtered Fines for $_currentDriverName: $filteredFines');
       return filteredFines;
     } catch (e) {
@@ -136,22 +135,30 @@ class _FineInformationPageState extends State<FineInformationPage> {
 
   Future<void> _generateQRCode(FineInformation fine) async {
     try {
+      // 使用支付宝支付链接（如果需要调整为支付宝格式，请提供具体 URL 模板）
       final paymentUrl =
           'weixin://pay?amount=${fine.fineAmount}&payee=${fine.payee}&receipt=${fine.receiptNumber}';
-      final bytes = await rootBundle.load("assets/images/ic_logo.jpg");
-      final qrCode = await FlutterHmsScanKit.generateCode(
-        content: paymentUrl,
-        type: ScanTypeFormat.QRCODE_SCAN_TYPE,
-        width: 200,
-        height: 200,
-        color: "#7CB342",
-        logo: bytes.buffer.asUint8List(),
+      // 示例支付宝支付链接（待确认）：'alipays://platformapi/startapp?appId=xxx&amount=${fine.fineAmount}&payee=${fine.payee}&receipt=${fine.receiptNumber}';
+
+      final qrWidget = QrImageView(
+        data: paymentUrl,
+        version: QrVersions.auto,
+        size: 200.0,
+        backgroundColor: const Color(0xFFFFFFFF),
+        foregroundColor: const Color(0xFF7CB342),
+        // 绿色，与支付宝主题相近
+        // embeddedImage: const AssetImage('assets/images/ic_logo.jpg'),
+        // 支付宝 logo
+        embeddedImageStyle: const QrEmbeddedImageStyle(size: Size(60, 60)),
       );
+      final qrKey = fine.receiptNumber ?? fine.fineTime ?? 'unknown';
       setState(() {
-        _qrCodes[fine.receiptNumber ?? fine.fineTime ?? 'unknown'] = qrCode!;
+        _qrCodes[qrKey] = qrWidget;
       });
+      developer.log('Generated QR code for fine ${fine.receiptNumber}');
     } catch (e) {
-      debugPrint('Failed to generate QR code for fine ${fine.receiptNumber}: $e');
+      debugPrint(
+          'Failed to generate QR code for fine ${fine.receiptNumber}: $e');
       _showSnackBar('生成付款码失败: $e', isError: true);
     }
   }
@@ -223,7 +230,7 @@ class _FineInformationPageState extends State<FineInformationPage> {
                 const SizedBox(height: 16),
                 Center(
                   child: Text(
-                    '请使用微信扫描以下二维码支付',
+                    '请使用支付宝扫描以下二维码支付', // 更新为支付宝提示
                     style: themeData.textTheme.bodyMedium?.copyWith(
                       color: themeData.colorScheme.onSurface,
                       fontWeight: FontWeight.bold,
@@ -232,9 +239,11 @@ class _FineInformationPageState extends State<FineInformationPage> {
                 ),
                 const SizedBox(height: 8),
                 Center(
-                  child: _qrCodes[qrKey] != null
-                      ? Image.memory(Uint8List.fromList(_qrCodes[qrKey]!))
-                      : const CircularProgressIndicator(),
+                  child: SizedBox(
+                    width: 200,
+                    height: 200,
+                    child: _qrCodes[qrKey] ?? const CircularProgressIndicator(),
+                  ),
                 ),
               ],
             ],
@@ -302,121 +311,121 @@ class _FineInformationPageState extends State<FineInformationPage> {
         padding: const EdgeInsets.all(16.0),
         child: _isLoading
             ? Center(
-          child: CircularProgressIndicator(
-            valueColor:
-            AlwaysStoppedAnimation<Color>(themeData.colorScheme.primary),
-          ),
-        )
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                      themeData.colorScheme.primary),
+                ),
+              )
             : _errorMessage.isNotEmpty
-            ? Center(
-          child: Text(
-            _errorMessage,
-            style: themeData.textTheme.bodyLarge?.copyWith(
-              color: themeData.colorScheme.onSurface,
-            ),
-          ),
-        )
-            : Column(
-          children: [
-            Expanded(
-              child: FutureBuilder<List<FineInformation>>(
-                future: _finesFuture,
-                builder: (context, snapshot) {
-                  developer.log(
-                      'FutureBuilder state: ${snapshot.connectionState}, data: ${snapshot.data}, error: ${snapshot.error}');
-                  if (snapshot.connectionState ==
-                      ConnectionState.waiting) {
-                    return Center(
-                      child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                            themeData.colorScheme.primary),
+                ? Center(
+                    child: Text(
+                      _errorMessage,
+                      style: themeData.textTheme.bodyLarge?.copyWith(
+                        color: themeData.colorScheme.onSurface,
                       ),
-                    );
-                  } else if (snapshot.hasError) {
-                    return Center(
-                      child: Text(
-                        '加载罚款信息失败: ${snapshot.error}',
-                        style:
-                        themeData.textTheme.bodyLarge?.copyWith(
-                          color: themeData.colorScheme.onSurface,
+                    ),
+                  )
+                : Column(
+                    children: [
+                      Expanded(
+                        child: FutureBuilder<List<FineInformation>>(
+                          future: _finesFuture,
+                          builder: (context, snapshot) {
+                            developer.log(
+                                'FutureBuilder state: ${snapshot.connectionState}, data: ${snapshot.data}, error: ${snapshot.error}');
+                            if (snapshot.connectionState ==
+                                ConnectionState.waiting) {
+                              return Center(
+                                child: CircularProgressIndicator(
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                      themeData.colorScheme.primary),
+                                ),
+                              );
+                            } else if (snapshot.hasError) {
+                              return Center(
+                                child: Text(
+                                  '加载罚款信息失败: ${snapshot.error}',
+                                  style:
+                                      themeData.textTheme.bodyLarge?.copyWith(
+                                    color: themeData.colorScheme.onSurface,
+                                  ),
+                                ),
+                              );
+                            } else if (!snapshot.hasData ||
+                                snapshot.data!.isEmpty) {
+                              return Center(
+                                child: Text(
+                                  _currentDriverName != null
+                                      ? '暂无与驾驶员 $_currentDriverName 匹配的罚款记录'
+                                      : '未找到驾驶员信息，请重新登录',
+                                  style:
+                                      themeData.textTheme.bodyLarge?.copyWith(
+                                    color: themeData.colorScheme.onSurface,
+                                  ),
+                                ),
+                              );
+                            } else {
+                              final fines = snapshot.data!;
+                              return RefreshIndicator(
+                                onRefresh: _refreshFines,
+                                child: ListView.builder(
+                                  itemCount: fines.length,
+                                  itemBuilder: (context, index) {
+                                    final record = fines[index];
+                                    final amount = record.fineAmount ?? 0.0;
+                                    final payee = record.payee ?? '未知';
+                                    final date = record.fineTime ?? '未知';
+                                    final status = record.status ?? 'Pending';
+                                    return Card(
+                                      elevation: 2,
+                                      margin: const EdgeInsets.symmetric(
+                                          vertical: 8.0),
+                                      color: themeData
+                                          .colorScheme.surfaceContainer,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(12.0),
+                                      ),
+                                      child: ListTile(
+                                        title: Text(
+                                          '罚款金额: \$${amount.toStringAsFixed(2)}',
+                                          style: themeData.textTheme.bodyLarge
+                                              ?.copyWith(
+                                            color:
+                                                themeData.colorScheme.onSurface,
+                                          ),
+                                        ),
+                                        subtitle: Text(
+                                          '缴款人: $payee\n时间: $date\n状态: $status',
+                                          style: themeData.textTheme.bodyMedium
+                                              ?.copyWith(
+                                            color: themeData
+                                                .colorScheme.onSurfaceVariant,
+                                          ),
+                                        ),
+                                        trailing: Icon(
+                                          status == 'Paid'
+                                              ? Icons.check_circle
+                                              : Icons.payment,
+                                          color: status == 'Paid'
+                                              ? Colors.green
+                                              : themeData
+                                                  .colorScheme.onSurfaceVariant,
+                                        ),
+                                        onTap: () {
+                                          _showFineDetailsDialog(record);
+                                        },
+                                      ),
+                                    );
+                                  },
+                                ),
+                              );
+                            }
+                          },
                         ),
                       ),
-                    );
-                  } else if (!snapshot.hasData ||
-                      snapshot.data!.isEmpty) {
-                    return Center(
-                      child: Text(
-                        _currentDriverName != null
-                            ? '暂无与驾驶员 $_currentDriverName 匹配的罚款记录'
-                            : '未找到驾驶员信息，请重新登录',
-                        style:
-                        themeData.textTheme.bodyLarge?.copyWith(
-                          color: themeData.colorScheme.onSurface,
-                        ),
-                      ),
-                    );
-                  } else {
-                    final fines = snapshot.data!;
-                    return RefreshIndicator(
-                      onRefresh: _refreshFines,
-                      child: ListView.builder(
-                        itemCount: fines.length,
-                        itemBuilder: (context, index) {
-                          final record = fines[index];
-                          final amount = record.fineAmount ?? 0.0;
-                          final payee = record.payee ?? '未知';
-                          final date = record.fineTime ?? '未知';
-                          final status = record.status ?? 'Pending';
-                          return Card(
-                            elevation: 2,
-                            margin: const EdgeInsets.symmetric(
-                                vertical: 8.0),
-                            color: themeData
-                                .colorScheme.surfaceContainer,
-                            shape: RoundedRectangleBorder(
-                              borderRadius:
-                              BorderRadius.circular(12.0),
-                            ),
-                            child: ListTile(
-                              title: Text(
-                                '罚款金额: \$${amount.toStringAsFixed(2)}',
-                                style: themeData.textTheme.bodyLarge
-                                    ?.copyWith(
-                                  color:
-                                  themeData.colorScheme.onSurface,
-                                ),
-                              ),
-                              subtitle: Text(
-                                '缴款人: $payee\n时间: $date\n状态: $status',
-                                style: themeData.textTheme.bodyMedium
-                                    ?.copyWith(
-                                  color: themeData
-                                      .colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                              trailing: Icon(
-                                status == 'Paid'
-                                    ? Icons.check_circle
-                                    : Icons.payment,
-                                color: status == 'Paid'
-                                    ? Colors.green
-                                    : themeData
-                                    .colorScheme.onSurfaceVariant,
-                              ),
-                              onTap: () {
-                                _showFineDetailsDialog(record);
-                              },
-                            ),
-                          );
-                        },
-                      ),
-                    );
-                  }
-                },
-              ),
-            ),
-          ],
-        ),
+                    ],
+                  ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _refreshFines,

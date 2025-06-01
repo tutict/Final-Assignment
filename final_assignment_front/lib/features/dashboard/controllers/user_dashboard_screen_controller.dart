@@ -1,6 +1,7 @@
 part of '../views/user_screens/user_dashboard.dart';
 
-/// UserDashboardController 管理用户主页的主控制器，包含主要的进入流程、数据处理和界面的控制。
+/// UserDashboardController 管理用户主页的主线控制器，包含主要的进入流程、数据处理和界面的控制。
+
 class UserDashboardController extends GetxController with NavigationMixin {
   final scaffoldKey = GlobalKey<ScaffoldState>();
   final caseCardDataList = <CaseCardData>[].obs;
@@ -20,6 +21,9 @@ class UserDashboardController extends GetxController with NavigationMixin {
   final RxString currentEmail = ''.obs;
   var driverLicenseNumber = RxString('');
   var idCardNumber = RxString('');
+  final isLoadingUser = true.obs; // Loading state for user data
+  final offenseApi = OffenseInformationControllerApi();
+  final roleApi = RoleManagementControllerApi();
 
   @override
   void onInit() {
@@ -30,6 +34,12 @@ class UserDashboardController extends GetxController with NavigationMixin {
     _loadTheme();
   }
 
+  @override
+  void onReady() {
+    super.onReady();
+    refreshUserData();
+  }
+
   Future<void> _loadTheme() async {
     final prefs = await SharedPreferences.getInstance();
     final isDarkMode = prefs.getBool('isDarkMode') ?? false;
@@ -38,15 +48,92 @@ class UserDashboardController extends GetxController with NavigationMixin {
   }
 
   Future<void> _loadUserFromPrefs() async {
-    final prefs = await SharedPreferences.getInstance();
-    final userName = prefs.getString('userName') ?? 'Guest';
-    final userEmail = prefs.getString('userEmail') ?? 'guest@example.com';
-    currentDriverName.value = userName;
-    currentEmail.value = userEmail;
-    currentUser.value = Profile(
-      photo: const AssetImage(ImageRasterPath.avatar1),
-      name: userName,
-      email: userEmail,
+    isLoadingUser.value = true;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jwtToken = prefs.getString('jwtToken');
+      final userName = prefs.getString('userName');
+      final userEmail = prefs.getString('userEmail');
+      final userRole = prefs.getString('userRole');
+
+      developer.log(
+          'Loading user from prefs: jwtToken=$jwtToken, userName=$userName, userEmail=$userEmail, userRole=$userRole');
+
+      if (jwtToken != null && userName != null && userEmail != null) {
+        currentUser.value = Profile(
+          photo: const AssetImage(ImageRasterPath.avatar1),
+          name: userName,
+          email: userEmail,
+        );
+        currentDriverName.value = userName;
+        currentEmail.value = userEmail;
+        await offenseApi.initializeWithJwt();
+        await roleApi.initializeWithJwt();
+        // Fetch driver data to ensure correct name
+        await _fetchDriverData();
+      } else {
+        _showErrorSnackBar('请先登录以访问管理功能');
+        _redirectToLogin();
+      }
+    } catch (e) {
+      developer.log('Error loading user from prefs: $e');
+      _showErrorSnackBar('加载用户信息失败: $e');
+      _redirectToLogin();
+    } finally {
+      isLoadingUser.value = false;
+    }
+  }
+
+  Future<void> _fetchDriverData() async {
+    try {
+      final userApi = UserManagementControllerApi();
+      await userApi.initializeWithJwt();
+      final user = await userApi.apiUsersMeGet();
+      if (user == null || user.userId == null) {
+        throw Exception('User or user ID not found');
+      }
+      final userId = user.userId!;
+
+      final driverApi = DriverInformationControllerApi();
+      await driverApi.initializeWithJwt();
+      final driver = await driverApi.apiDriversDriverIdGet(driverId: userId);
+      if (driver == null || driver.name == null) {
+        throw Exception('Driver or driver name not found');
+      }
+
+      updateCurrentUser(
+        driver.name!,
+        currentEmail.value, // Keep existing email
+      );
+      driverLicenseNumber.value = driver.driverLicenseNumber ?? '';
+      idCardNumber.value = driver.idCardNumber ?? '';
+      // Save correct name to SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('userName', driver.name!);
+      developer.log('Updated userName in prefs: ${driver.name}');
+    } catch (e) {
+      developer.log('Failed to fetch driver data: $e');
+      _showErrorSnackBar('无法获取司机信息: $e');
+    }
+  }
+
+  Future<void> refreshUserData() async {
+    developer.log('Refreshing user data');
+    await _loadUserFromPrefs();
+  }
+
+  void _redirectToLogin() {
+    Get.offAllNamed(Routes.login);
+  }
+
+  void _showErrorSnackBar(String message) {
+    Get.snackbar(
+      '错误',
+      message,
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: Colors.red.withOpacity(0.9),
+      colorText: Colors.white,
+      duration: const Duration(seconds: 3),
     );
   }
 
@@ -62,27 +149,29 @@ class UserDashboardController extends GetxController with NavigationMixin {
     currentDriverName.value = name;
     currentEmail.value = email;
     currentUser.value = Profile(
-      photo: currentUser.value?.photo ?? const AssetImage(ImageRasterPath.avatar1),
+      photo:
+          currentUser.value?.photo ?? const AssetImage(ImageRasterPath.avatar1),
       name: name,
       email: email,
     );
-    debugPrint('UserDashboardController updated - Name: $name, Email: $email');
+    developer
+        .log('UserDashboardController updated - Name: $name, Email: $email');
     _saveUserToPrefs(name, email);
   }
 
   Future<void> _saveUserToPrefs(String name, String email) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('driverName', name);
+    await prefs.setString('userName', name);
     await prefs.setString('userEmail', email);
   }
 
   Profile get currentProfile =>
       currentUser.value ??
-          const Profile(
-            photo: AssetImage(ImageRasterPath.avatar1),
-            name: "Guest",
-            email: "guest@example.com",
-          );
+      const Profile(
+        photo: AssetImage(ImageRasterPath.avatar1),
+        name: "Guest",
+        email: "guest@example.com",
+      );
 
   void toggleSidebar() {
     isSidebarOpen.value = !isSidebarOpen.value;
@@ -176,13 +265,13 @@ class UserDashboardController extends GetxController with NavigationMixin {
       caseCardDataList.where((task) => task.type == type).toList();
 
   void navigateToPage(String routeName) {
-    debugPrint('Navigating to: $routeName');
+    developer.log('Navigating to: $routeName');
     selectedPage.value = getPageForRoute(routeName);
     isShowingSidebarContent.value = true;
   }
 
   void exitSidebarContent() {
-    debugPrint('Exiting sidebar content');
+    developer.log('Exiting sidebar content');
     isShowingSidebarContent.value = false;
     selectedPage.value = null;
   }
@@ -195,22 +284,22 @@ class UserDashboardController extends GetxController with NavigationMixin {
   }
 
   ProjectCardData getSelectedProject() => ProjectCardData(
-    percent: .3,
-    projectImage: const AssetImage(ImageRasterPath.logo4),
-    projectName: "交通违法行为处理管理系统",
-    releaseTime: DateTime.now(),
-  );
+        percent: .3,
+        projectImage: const AssetImage(ImageRasterPath.logo4),
+        projectName: "交通违法行为处理管理系统",
+        releaseTime: DateTime.now(),
+      );
 
   List<ProjectCardData> getActiveProject() => [];
 
   List<ImageProvider> getMember() => const [
-    AssetImage(ImageRasterPath.avatar1),
-    AssetImage(ImageRasterPath.avatar2),
-    AssetImage(ImageRasterPath.avatar3),
-    AssetImage(ImageRasterPath.avatar4),
-    AssetImage(ImageRasterPath.avatar5),
-    AssetImage(ImageRasterPath.avatar6),
-  ];
+        AssetImage(ImageRasterPath.avatar1),
+        AssetImage(ImageRasterPath.avatar2),
+        AssetImage(ImageRasterPath.avatar3),
+        AssetImage(ImageRasterPath.avatar4),
+        AssetImage(ImageRasterPath.avatar5),
+        AssetImage(ImageRasterPath.avatar6),
+      ];
 
   void updateScrollDirection(ScrollController scrollController) {
     scrollController.addListener(() {

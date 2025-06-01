@@ -56,7 +56,7 @@ public class AppealManagementService {
     @Transactional
     @CacheEvict(cacheNames = "appealCache", allEntries = true)
     @WsAction(service = "AppealManagementService", action = "checkAndInsertIdempotency")
-    public void checkAndInsertIdempotency(String idempotencyKey, AppealManagement appealManagement, String action) {
+    public AppealManagement checkAndInsertIdempotency(String idempotencyKey, AppealManagement appealManagement, String action) {
         validateInput(idempotencyKey, "Idempotency key cannot be null or empty");
         if (appealManagement == null) {
             throw new IllegalArgumentException("AppealManagement cannot be null");
@@ -85,6 +85,7 @@ public class AppealManagementService {
         newRequest.setBusinessStatus("SUCCESS");
         newRequest.setBusinessId(appealId != null ? appealId.longValue() : null);
         requestHistoryMapper.updateById(newRequest);
+        return appealManagement;
     }
 
     @Transactional
