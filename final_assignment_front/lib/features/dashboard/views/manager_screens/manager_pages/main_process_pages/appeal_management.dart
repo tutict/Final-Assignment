@@ -24,6 +24,20 @@ String formatDateTime(DateTime? dateTime) {
   return DateFormat('yyyy-MM-dd HH:mm').format(dateTime);
 }
 
+// New function to map English processStatus to Chinese for display
+String getDisplayStatus(String? status) {
+  switch (status) {
+    case 'Pending':
+      return '待处理';
+    case 'Approved':
+      return '已通过';
+    case 'Rejected':
+      return '已驳回';
+    default:
+      return status ?? '未知';
+  }
+}
+
 class AppealManagementAdmin extends StatefulWidget {
   const AppealManagementAdmin({super.key});
 
@@ -173,7 +187,7 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
         developer.log('Error fetching user roles from API: $e');
       }
 
-      // Fallback to JWT token roles
+      // Fallback to JWTSwe token roles
       await _checkRolesFromJwt();
     } catch (e) {
       setState(() => _errorMessage = '验证角色失败: $e');
@@ -229,7 +243,7 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
               .toList();
         case 'processStatus':
           return appeals
-              .map((appeal) => appeal.processStatus ?? '')
+              .map((appeal) => getDisplayStatus(appeal.processStatus)) // Use Chinese status for autocomplete
               .where((status) => status.toLowerCase().contains(prefix.toLowerCase()))
               .take(5)
               .toList();
@@ -272,7 +286,7 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
       } else if (_searchType == 'processStatus' && searchQuery.isNotEmpty) {
         appeals = await appealApi.apiAppealsGet();
         appeals = appeals
-            .where((appeal) => appeal.processStatus?.toLowerCase().contains(searchQuery.toLowerCase()) ?? false)
+            .where((appeal) => getDisplayStatus(appeal.processStatus).toLowerCase().contains(searchQuery.toLowerCase()) ?? false) // Use Chinese status for filtering
             .toList();
       } else if (_searchType == 'timeRange' && _startTime != null && _endTime != null) {
         appeals = await appealApi.apiAppealsTimeRangeGet(
@@ -318,7 +332,7 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
       _filteredAppeals = _appeals.where((appeal) {
         final reason = (appeal.appealReason ?? '').toLowerCase();
         final name = (appeal.appellantName ?? '').toLowerCase();
-        final status = (appeal.processStatus ?? '').toLowerCase();
+        final status = getDisplayStatus(appeal.processStatus).toLowerCase(); // Use Chinese status for filtering
         final appealTime = appeal.appealTime;
 
         bool matchesQuery = true;
@@ -455,7 +469,7 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
                               : _searchType == 'appellantName'
                               ? '搜索申诉人姓名'
                               : _searchType == 'processStatus'
-                              ? '搜索处理状态'
+                              ? '搜索处理状态' // Updated to Chinese
                               : '搜索时间范围（已选择）',
                           hintStyle: themeData.textTheme.bodyMedium?.copyWith(
                             color: themeData.colorScheme.onSurface.withOpacity(0.6),
@@ -512,7 +526,7 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
                             : value == 'appellantName'
                             ? '按申诉人姓名'
                             : value == 'processStatus'
-                            ? '按处理状态'
+                            ? '按处理状态' // Updated to Chinese
                             : '按时间范围',
                         style: TextStyle(color: themeData.colorScheme.onSurface),
                       ),
@@ -629,7 +643,7 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
                 ),
               ),
               Text(
-                '状态: ${appeal.processStatus ?? "Pending"}',
+                '状态: ${getDisplayStatus(appeal.processStatus)}', // Use Chinese status
                 style: themeData.textTheme.bodyMedium?.copyWith(
                   color: appeal.processStatus == 'Approved'
                       ? Colors.green
@@ -992,7 +1006,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
     setState(() => _isLoading = true);
     try {
       final updatedAppeal = widget.appeal.copyWith(
-        processStatus: 'Approved',
+        processStatus: 'Approved', // Keep English for backend
         processResult: '申诉已通过',
       );
       developer.log('Approving appeal ID: $appealId, Payload: ${updatedAppeal.toJson()}');
@@ -1091,7 +1105,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
                         setState(() => _isLoading = true);
                         try {
                           final updatedAppeal = widget.appeal.copyWith(
-                            processStatus: 'Rejected',
+                            processStatus: 'Rejected', // Keep English for backend
                             processResult: reason,
                           );
                           developer.log('Rejecting appeal ID: $appealId, Payload: ${updatedAppeal.toJson()}');
@@ -1187,7 +1201,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
           ),
           Expanded(
             child: Text(
-              value,
+              label == '处理状态' ? getDisplayStatus(value) : value, // Use Chinese status for display
               style: themeData.textTheme.bodyLarge?.copyWith(
                 color: valueColor ?? themeData.colorScheme.onSurfaceVariant,
               ),
@@ -1341,7 +1355,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
                               ),
                             ),
                             ElevatedButton.icon(
-                              onPressed: () => _rejectAppeal(widget.appeal.appealId ?? 0),
+                              onPressed: () => _rejectAppeal(widget.appeal.appealId?? 0),
                               icon: const Icon(CupertinoIcons.xmark, size: 20),
                               label: const Text('驳回'),
                               style: ElevatedButton.styleFrom(

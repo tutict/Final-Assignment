@@ -297,10 +297,19 @@ public class UserManagementService {
         }
     }
 
-    private void sendKafkaMessage(UserManagement user, String action) {
-        String topic = action.equals("create") ? "user_create" : "user_update";
-        kafkaTemplate.send(topic, user);
-        log.info(String.format("消息成功发送到 Kafka 主题 %s", topic));
+    public void sendKafkaMessage(UserManagement user, String action) {
+        if (user == null || action == null) {
+            log.warning("Cannot send Kafka message with null userManagement or action");
+            return;
+        }
+        String topic = "user" + action.toLowerCase();
+        try {
+            kafkaTemplate.send(topic, user);
+            log.info(String.format("Message sent to Kafka topic %s successfully with user=%d",
+                    topic, user.getUserId()));
+        } catch (Exception e) {
+            log.log(Level.SEVERE, "Failed to send Kafka message to topic " + topic + ": " + e.getMessage(), e);
+        }
     }
 
     private void validateInput(String input, String errorMessage) {

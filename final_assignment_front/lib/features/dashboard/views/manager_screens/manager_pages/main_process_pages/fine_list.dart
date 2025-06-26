@@ -850,7 +850,7 @@ class _FineListState extends State<FineList> {
                                   ),
                                 ),
                                 Text(
-                                  '状态: ${fijne.status ?? 'Pending'}',
+                                  '状态: ${fijne.status ?? '正在处理'}',
                                   style: themeData
                                       .textTheme.bodyMedium
                                       ?.copyWith(
@@ -1142,7 +1142,7 @@ class _AddFinePageState extends State<AddFinePage> {
             ? DateTime.parse("${_dateController.text.trim()}T00:00:00.000")
             .toIso8601String()
             : null,
-        status: widget.isEditMode ? widget.fine?.status : 'Pending',
+        status: widget.isEditMode ? widget.fine?.status : '正在处理',
         idempotencyKey: idempotencyKey,
       );
       if (widget.isEditMode) {
@@ -1783,17 +1783,17 @@ class _FineDetailPageState extends State<FineDetailPage> {
               onPressed: _editFine,
               tooltip: '编辑罚款',
             ),
-            if (_currentFine.status == 'Pending') ...[
+            if (_currentFine.status == '正在处理') ...[
               IconButton(
                 icon: const Icon(Icons.check),
                 onPressed: () => _updateFineStatus(
-                    _currentFine.fineId ?? 0, 'Approved'),
+                    _currentFine.fineId ?? 0, '批准'),
                 tooltip: '批准罚款',
               ),
               IconButton(
                 icon: const Icon(Icons.close),
                 onPressed: () => _updateFineStatus(
-                    _currentFine.fineId ?? 0, 'Rejected'),
+                    _currentFine.fineId ?? 0, '打回'),
                 tooltip: '拒绝罚款',
               ),
             ],
@@ -1848,7 +1848,7 @@ class _FineDetailPageState extends State<FineDetailPage> {
                     ),
                     _buildDetailRow(
                       '状态',
-                      _currentFine.status ?? 'Pending',
+                      _currentFine.status ?? '正在处理',
                       themeData,
                     ),
                     _buildDetailRow(
