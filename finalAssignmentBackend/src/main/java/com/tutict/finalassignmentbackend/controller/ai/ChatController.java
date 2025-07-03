@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentbackend.controller.ai;
 
 import com.tutict.finalassignmentbackend.service.AIChatSearchService;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
@@ -54,18 +55,7 @@ public class ChatController {
 
         if (webSearch) {
             List<Map<String, String>> results = aiChatSearchService.search(userMessage);
-            StringBuilder sb = new StringBuilder();
-            if (results.isEmpty()) {
-                sb.append("没找到任何相关消息");
-            } else {
-                for (int i = 0; i < results.size(); i++) {
-                    Map<String, String> item = results.get(i);
-                    sb.append(String.format("%d. %s\n   %s\n",
-                            i + 1,
-                            item.getOrDefault("title", "<无标题>"),
-                            item.getOrDefault("abstract", "<无摘要>")));
-                }
-            }
+            StringBuilder sb = getStringBuilder(results);
             promptBuilder.append("以下是搜索结果：\n")
                     .append(sb)
                     .append("\n");
@@ -76,5 +66,21 @@ public class ChatController {
 
         Prompt prompt = new Prompt(new UserMessage(finalPrompt));
         return chatModel.stream(prompt);
+    }
+
+    private static @NotNull StringBuilder getStringBuilder(List<Map<String, String>> results) {
+        StringBuilder sb = new StringBuilder();
+        if (results.isEmpty()) {
+            sb.append("没找到任何相关消息");
+        } else {
+            for (int i = 0; i < results.size(); i++) {
+                Map<String, String> item = results.get(i);
+                sb.append(String.format("%d. %s\n   %s\n",
+                        i + 1,
+                        item.getOrDefault("title", "<无标题>"),
+                        item.getOrDefault("abstract", "<无摘要>")));
+            }
+        }
+        return sb;
     }
 }
