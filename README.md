@@ -178,9 +178,19 @@ spring.data.elasticsearch.repositories.enabled=true
 backend.url=http://localhost
 backend.port=8080
 # DeepSeek Configuration
-spring.ai.ollama.chat.enabled=true
-spring.ai.ollama.chat.model=deepseek-r1:7b
+spring.ai.ollama.chat.options.temperature=0.6
 spring.ai.ollama.base-url=http://localhost:11434
+spring.ai.ollama.chat.options.mirostat=1
+spring.ai.ollama.chat.options.seed=42
+spring.ai.ollama.chat.options.model=hf.co/4513P/deepseek-for-my-bishe
+spring.ai.ollama.init.pull-model-strategy=when_missing
+spring.ai.ollama.init.chat.include=true
+spring.ai.ollama.chat.options.num-ctx=2048
+spring.ai.ollama.chat.options.num-gpu=1
+spring.ai.ollama.chat.options.low-vram=false
+spring.ai.ollama.chat.options.top-p=0.9
+spring.ai.ollama.chat.options.tfs-z=1.0
+spring.ai.ollama.chat.options.keep-alive=5m
 
 ```
 * 注1: ES的端口由RunDocker类里的TestContainers自动配置,然后在ES配置类里直接调用,所以没有在application.properties里配置
