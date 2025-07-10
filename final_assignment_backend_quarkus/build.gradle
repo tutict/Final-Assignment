@@ -1,13 +1,13 @@
 plugins {
     id 'java'
-    id 'io.quarkus' version '3.19.0'
+    id 'io.quarkus' version '3.24.2'
     id 'org.graalvm.buildtools.native' version '0.10.4'
     id 'me.champeau.jmh' version '0.7.2'
 }
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(24)
+        languageVersion = JavaLanguageVersion.of(23)
     }
 }
 
@@ -18,57 +18,54 @@ repositories {
 }
 
 dependencies {
-    implementation 'io.quarkus:quarkus-arc:3.19.0'
-    implementation 'io.vertx:vertx-kafka-client:4.5.12'
-    implementation 'io.vertx:vertx-web:4.5.12'
-    implementation 'io.vertx:vertx-web-client:4.5.12'
-    implementation 'io.quarkus:quarkus-vertx:3.19.0'
-    implementation 'io.quarkus:quarkus-kafka-client:3.19.0'
-    implementation 'io.quarkiverse.mybatis:quarkus-mybatis-plus:2.2.4'
+    implementation 'io.quarkus:quarkus-arc:3.24.2'
+    implementation 'io.vertx:vertx-kafka-client:5.0.1'
+    implementation 'io.vertx:vertx-web:5.0.1'
+    implementation 'io.vertx:vertx-web-client:5.0.1'
+    implementation 'io.quarkus:quarkus-vertx:3.24.2'
+    implementation 'io.quarkus:quarkus-kafka-client:3.24.2'
+    implementation 'io.quarkiverse.mybatis:quarkus-mybatis-plus:2.2.4' // 确认是否为自定义版本
     implementation 'org.mindrot:jbcrypt:0.4'
-    implementation 'io.quarkus:quarkus-jdbc-mysql:3.19.0'
-    implementation 'io.quarkus:quarkus-cache:3.19.0'
-    implementation 'io.quarkus:quarkus-redis-cache:3.19.0'
-    implementation 'io.quarkus:quarkus-redis-client:3.19.0'
-    implementation 'io.quarkus:quarkus-smallrye-openapi:3.19.0'
-    implementation 'io.quarkus:quarkus-smallrye-jwt:3.19.0'
-    implementation 'io.quarkus:quarkus-smallrye-jwt-build:3.19.0'
-    implementation 'io.quarkus:quarkus-messaging-kafka:3.19.0'
+    implementation 'io.quarkus:quarkus-jdbc-mysql:3.24.2'
+    implementation 'io.quarkus:quarkus-cache:3.24.2'
+    implementation 'io.quarkus:quarkus-redis-cache:3.24.2'
+    implementation 'io.quarkus:quarkus-redis-client:3.24.2'
+    implementation 'io.quarkus:quarkus-smallrye-openapi:3.24.2'
+    implementation 'io.quarkus:quarkus-smallrye-jwt:3.24.2'
+    implementation 'io.quarkus:quarkus-smallrye-jwt-build:3.24.2'
+    implementation 'io.quarkus:quarkus-messaging-kafka:3.24.2'
     implementation 'io.smallrye.reactive:smallrye-reactive-messaging-api:4.27.0'
     implementation 'org.openjdk.jmh:jmh-core:1.37'
-    implementation 'io.quarkus:quarkus-qute:3.19.0'
+    implementation 'io.quarkus:quarkus-qute:3.24.2'
     implementation 'io.quarkiverse.langchain4j:quarkus-langchain4j-ollama:0.24.0'
-    implementation 'io.quarkus:quarkus-rest:3.19.0'
-    implementation 'io.quarkus:quarkus-rest-client:3.19.0'
-    implementation 'io.quarkus:quarkus-rest-jsonb:3.19.0'
+    implementation 'io.quarkus:quarkus-rest:3.24.2'
+    implementation 'io.quarkus:quarkus-rest-client:3.24.2'
+    implementation 'io.quarkus:quarkus-rest-jsonb:3.24.2'
     implementation 'com.manticoresearch:manticoresearch:7.0.0'
     implementation 'org.graalvm.polyglot:polyglot:24.1.2'
-    implementation 'org.testcontainers:testcontainers:1.20.5'
-    compileOnly 'org.projectlombok:lombok:1.18.36'
+    implementation 'org.testcontainers:testcontainers:1.21.3'
+    compileOnly 'org.projectlombok:lombok:1.18.38'
     runtimeOnly 'org.graalvm.polyglot:python:24.1.2'
-    annotationProcessor 'org.projectlombok:lombok:1.18.36'
+    annotationProcessor 'org.projectlombok:lombok:1.18.38'
     annotationProcessor 'org.openjdk.jmh:jmh-generator-annprocess:1.37'
-    testImplementation 'io.quarkus:quarkus-bom:3.19.0'
-    testImplementation 'io.smallrye.config:smallrye-config:3.12.2'
-    testImplementation 'io.quarkus:quarkus-junit5:3.19.0'
+    testImplementation 'io.quarkus:quarkus-bom:3.24.2'
+    testImplementation 'io.smallrye.config:smallrye-config:3.13.2'
+    testImplementation 'io.quarkus:quarkus-junit5:3.24.2'
 }
 
-group 'my-groupId'
-version '1.0.0-SNAPSHOT'
-
 java {
-    sourceCompatibility = JavaVersion.VERSION_24
-    targetCompatibility = JavaVersion.VERSION_24
+    sourceCompatibility = JavaVersion.VERSION_23
+    targetCompatibility = JavaVersion.VERSION_23
 }
 
 compileJava {
     options.encoding = 'UTF-8'
-    options.compilerArgs.addAll(['-parameters', '--release', '24'])
+    options.compilerArgs.addAll(['-parameters', '--release', '23'])
 }
 
 compileTestJava {
     options.encoding = 'UTF-8'
-    options.compilerArgs.addAll(['--release', '24'])
+    options.compilerArgs.addAll(['--release', '23'])
 }
 
 configurations.configureEach {
