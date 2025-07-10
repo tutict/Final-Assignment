@@ -1,7 +1,7 @@
 # Final-Assignment 
 
 这是一个交通违法行为处理管理系统项目，曾用于大学毕业设计，此项目主要采用Flutter前端与Java后端架构（Quarkus/Spring Boot
-3）实现，未来考虑结合Flutter，将此项目开发成鸿蒙应用以支持多端适配。【目前趁着毕业找不到工作，正在扩展Go与React。 *~~项目搞完就转行吧,反正这个项目也叫Final_Assignment~~* 】
+3）实现，未来考虑结合Flutter，将此项目开发成鸿蒙应用以支持多端适配。【目前趁着毕业找不到工作，正在扩展Go与React。 *~~项目搞完就转行吧,反正这个项目也叫Final_Assignment,小红书也说非92就转行~~* 】
 
 <font size=2>`四百提交了，多少有点感悟。感觉写代码按照心法来分的话，可以分成just for money 和 just for fun（林纳斯自传名），不同心法练出不同“内功”，just for fun 心法练的就类似于小无相功。`</font>
 
@@ -103,6 +103,37 @@ quarkus.langchain4j.ollama.base-url=http://localhost:11434
 quarkus.langchain4j.ollama.chat-model.model-id=deepseek-r1:7b
 ```
 
+*********************************************
+
+## Go
+
+现在正在开发中
+
+#### 主要特性
+
+- **Web 框架**  
+  使用 Gin 提供高性能 HTTP 路由。
+- **数据库集成**  
+  通过 GORM 实现 ORM，并使用 MySQL（go-sql-driver/mysql）进行数据库操作。
+- **实时通信**  
+  通过 Gorilla WebSocket 支持 WebSocket 连接。
+- **认证与安全**  
+  实现 JWT（golang-jwt/jwt）、CSRF 保护（gorilla/csrf）和安全会话（gorilla/sessions）。
+- **缓存与性能**  
+  使用 Ristretto 进行内存缓存，Redis 进行分布式缓存。
+- **消息队列**  
+  集成 Confluent Kafka 支持事件驱动架构。
+- **搜索功能**  
+  通过 Elasticsearch 实现高效搜索。
+- **API 测试与开发**  
+  使用 Testcontainers 进行容器化测试，Req 进行 HTTP 客户端请求。
+- **监控** 
+  集成 Prometheus 用于指标和监控。
+- **其他工具** 
+  支持 SOAP API（gosoap）、UUID 生成（google/uuid）和 JSON 处理（bytedance/sonic, goccy/go-json）。
+
+*********************************************
+
 ## Spring Boot
 
 #### 技术架构
@@ -111,7 +142,7 @@ quarkus.langchain4j.ollama.chat-model.model-id=deepseek-r1:7b
   Spring Boot 3.4.4 + Graalvm 24 
 - 🛠 **数据层**  
   MyBatis Plus 3.5.10.1 + MySQL 8.0.41 + Redis 多级缓存
-- **docker**
+- **docker**  
   基于testcontainers, 使用 Redis + Redpanda(Kafka) + ElasticSearch 8
 - **AI**
      - 使用本地 DeepSeek AI 服务（ollama），并利用Graalpy，实现本地模型通过Python爬虫脚本爬取数据来进行联网
@@ -190,9 +221,11 @@ spring.ai.ollama.chat.options.tfs-z=1.0
 spring.ai.ollama.chat.options.keep-alive=5m
 ```
 
-* 注1: ES的端口由RunDocker类里的TestContainers自动配置,然后在ES配置类里直接调用,所以没有在application.properties里配置
-* 注2: 在maven同步下载完依赖包后,需要手动再mvn install一下,Graalpy会在项目里的target文件夹里build一个虚拟环境
-* 注3: 可以使用finalAssignmentTools/generate_secret_key文件夹下的脚本生成jwt的secret key
+* **注1**: ES的端口由RunDocker类里的TestContainers自动配置,然后在ES配置类里直接调用,所以没有在application.properties里配置
+* **注2**: 在maven同步下载完依赖包后,需要手动再mvn install一下,Graalpy会在项目里的target文件夹里build一个虚拟环境
+* **注3**: 可以使用finalAssignmentTools/generate_secret_key文件夹下的脚本生成jwt的secret key
+
+********************************
  
 ## 八股选猿
 
