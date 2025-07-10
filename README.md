@@ -1,7 +1,7 @@
-# Final-Assignment （一个开发中的毕设）
+# Final-Assignment 
 
-这是一个交通违法行为处理管理系统项目，此项目采用Flutter前端与Java后端架构（Quarkus/Spring Boot
-3）实现，未来考虑结合Flutter，将此项目开发成鸿蒙应用以支持多端适配。
+这是一个交通违法行为处理管理系统项目，曾用于大学毕业设计，此项目主要采用Flutter前端与Java后端架构（Quarkus/Spring Boot
+3）实现，未来考虑结合Flutter，将此项目开发成鸿蒙应用以支持多端适配。【目前趁着毕业找不到工作，正在扩展Go与React。 *~~项目搞完就转行吧,反正这个项目也叫Final_Assignment~~* 】
 
 <font size=2>`四百提交了，多少有点感悟。感觉写代码按照心法来分的话，可以分成just for money 和 just for fun（林纳斯自传名），不同心法练出不同“内功”，just for fun 心法练的就类似于小无相功。`</font>
 
@@ -10,6 +10,8 @@
 *********************************************
 
 ## Quarkus
+
+现在正在开发中
 
 基于Quarkus框架的交通管理系统后端实现，关键依赖特性：
 
@@ -32,7 +34,6 @@
 #### application.properties参考：
 
 ``` properties
-
 # Suppress inspection "SpringBootApplicationProperties" for whole file
 %dev.quarkus.http.port=8080
 # Database settings
@@ -100,12 +101,9 @@ quarkus.http.cors.access-control-allow-credentials=true
 # deepseek settings
 quarkus.langchain4j.ollama.base-url=http://localhost:11434
 quarkus.langchain4j.ollama.chat-model.model-id=deepseek-r1:7b
-
 ```
 
 ## Spring Boot
-
-**<span style="color:#e74c3c">我先集中精力开发SpringBoot代码，因为毕设有DDL了....</span>**
 
 #### 技术架构
 
@@ -136,12 +134,11 @@ quarkus.langchain4j.ollama.chat-model.model-id=deepseek-r1:7b
 - 📘 OpenAPI 3 规范接口
 - 🔌 混合通信模式（HTTP/REST + WebSocket）
 - WebSocket 实时推送
-- 提升 Python 爬虫脚本性能 (目前发现Graalpy对CPython的兼容不太好, 装lxml或scrapy的时候总是提示缺少头文件)
+- 提升 Python 爬虫脚本性能 【目前发现Graalpy对Windows的CPython的兼容不太好, 装lxml或scrapy的时候总是提示缺少头文件, Linux下可以build成功】
 
 #### application.properties参考：
 
 ``` properties
-
 spring.application.name=finalAssignmentBackend
 server.port=8080
 spring.main.allow-circular-references=true
@@ -191,12 +188,12 @@ spring.ai.ollama.chat.options.low-vram=false
 spring.ai.ollama.chat.options.top-p=0.9
 spring.ai.ollama.chat.options.tfs-z=1.0
 spring.ai.ollama.chat.options.keep-alive=5m
-
 ```
+
 * 注1: ES的端口由RunDocker类里的TestContainers自动配置,然后在ES配置类里直接调用,所以没有在application.properties里配置
 * 注2: 在maven同步下载完依赖包后,需要手动再mvn install一下,Graalpy会在项目里的target文件夹里build一个虚拟环境
 * 注3: 可以使用finalAssignmentTools/generate_secret_key文件夹下的脚本生成jwt的secret key
  
 ## 八股选猿
 
-- 等赶完毕设DLL后，对八股文的一些练习将放在`final_assignment_backend_quarkus/src/test/java/bagu`路径下
+对八股文的一些练习将放在`final_assignment_backend_quarkus/src/test/java/bagu`路径下
