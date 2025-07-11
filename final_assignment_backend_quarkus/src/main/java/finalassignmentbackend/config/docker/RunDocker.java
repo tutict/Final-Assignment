@@ -19,11 +19,21 @@ public class RunDocker {
 
     private static final Logger log = LoggerFactory.getLogger(RunDocker.class);
     private GenericContainer<?> manticoreContainer;
+    private GenericContainer<?> redisContainer;
 
     @Inject
     @ConfigProperty(name = "manticore.image", defaultValue = "manticoresearch/manticore:latest")
     String manticoreImage;
 
+    @Inject
+    @ConfigProperty(name = "redis.image", defaultValue = "redis:7")
+    String redisImage;
+
+    /**
+     * 启动ManticoreSearch容器与关闭容器
+     *
+     * @param ev the startup event
+     */
     void onStart(@Observes StartupEvent ev) {
         startManticoreSearch();
     }
@@ -32,6 +42,16 @@ public class RunDocker {
         stopManticore();
     }
 
+    /**
+     * 启动Redis容器与关闭容器
+     *
+     * @param ev the startup event
+     */
+    void onStartRedis(@Observes StartupEvent ev) { startRedis(); }
+
+    void onStopRedis(@Observes ShutdownEvent ev) { stopRedis(); }
+
+    // 启动ManticoreSearch
     @SuppressWarnings("resource")
     public void startManticoreSearch() {
         try {
@@ -52,15 +72,34 @@ public class RunDocker {
             log.info("Manticore container started successfully at {}", manticoreUrl);
         } catch (Exception e) {
             log.warn("Failed to start Manticore container: {}", e.getMessage(), e);
-            throw new RuntimeException("Manticore startup failed", e);
         }
     }
 
+    // TODO: 启动Redis
+    @SuppressWarnings("resource")
+    public void startRedis() {
+        try {
+
+        } catch (Exception e) {
+            log.warn("Failed to stop Manticore container: {}", e.getMessage(), e);
+        }
+    }
+
+    // 关闭ManticoreSearch
     public void stopManticore() {
         if (manticoreContainer != null && manticoreContainer.isRunning()) {
             manticoreContainer.stop();
             manticoreContainer.close();
             log.info("Manticore container stopped and closed");
+        }
+    }
+
+    // 关闭Redis
+    public void stopRedis() {
+        if (redisContainer != null && redisContainer.isRunning()) {
+            redisContainer.stop();
+            redisContainer.close();
+            log.info("Redis container stopped and closed");
         }
     }
 }
