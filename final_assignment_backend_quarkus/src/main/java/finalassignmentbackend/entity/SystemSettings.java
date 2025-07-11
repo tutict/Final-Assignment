@@ -2,11 +2,13 @@ package finalassignmentbackend.entity;
 
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
 import java.io.Serial;
 import java.io.Serializable;
+import java.time.LocalDateTime;
 
 /**
  * 系统设置类，用于存储系统级别的配置信息
@@ -71,4 +73,11 @@ public class SystemSettings implements Serializable {
     // 备注信息，映射到数据库remarks字段
     @TableField("remarks")
     private String remarks;
+
+    /**
+     * 软删除时间戳
+     */
+    @TableField("deleted_at")
+    @TableLogic(value = "null", delval = "now()")
+    private LocalDateTime deletedAt;
 }

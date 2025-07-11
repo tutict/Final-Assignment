@@ -3,7 +3,7 @@ package finalassignmentbackend.service.view;
 import finalassignmentbackend.entity.RequestHistory;
 import finalassignmentbackend.mapper.RequestHistoryMapper;
 import finalassignmentbackend.mapper.view.OffenseDetailsMapper;
-import finalassignmentbackend.entity.view.OffenseDetails;
+import finalassignmentbackend.entity.OffenseDetails;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Event;
 import jakarta.enterprise.event.Observes;

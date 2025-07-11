@@ -1,6 +1,6 @@
 package finalassignmentbackend.controller.view;
 
-import finalassignmentbackend.entity.view.OffenseDetails;
+import finalassignmentbackend.entity.OffenseDetails;
 import finalassignmentbackend.service.view.OffenseDetailsService;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.inject.Inject;

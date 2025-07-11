@@ -1,4 +1,4 @@
-package finalassignmentbackend.entity.view;
+package finalassignmentbackend.entity;
 
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
