@@ -1,9 +1,6 @@
 package com.tutict.finalassignmentbackend.entity;
 
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableField;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.*;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
@@ -52,4 +49,11 @@ public class AppealManagement implements Serializable {
     @TableField("process_result")
     @JsonProperty("process_result")
     private String processResult;
+
+    /**
+     * 软删除时间戳
+     */
+    @TableField("deleted_at")
+    @TableLogic(value = "null", delval = "now()")
+    private LocalDateTime deletedAt;
 }

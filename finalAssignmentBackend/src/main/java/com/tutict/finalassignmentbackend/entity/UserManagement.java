@@ -1,9 +1,6 @@
 package com.tutict.finalassignmentbackend.entity;
 
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableField;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
 
 import java.io.Serial;
@@ -48,4 +45,11 @@ public class UserManagement implements Serializable {
 
     @TableField("remarks")
     private String remarks;
+
+    /**
+     * 软删除时间戳
+     */
+    @TableField("deleted_at")
+    @TableLogic(value = "null", delval = "now()")
+    private LocalDateTime deletedAt;
 }

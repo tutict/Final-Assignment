@@ -1,14 +1,12 @@
 package com.tutict.finalassignmentbackend.entity;
 
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableField;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
 
 import java.io.Serial;
 import java.io.Serializable;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 /**
  * 驾驶员信息实体类，对应数据库表 "driver_information"
@@ -88,4 +86,11 @@ public class DriverInformation implements Serializable {
      */
     @TableField("expiry_date")
     private LocalDate expiryDate;
+
+    /**
+     * 软删除时间戳
+     */
+    @TableField("deleted_at")
+    @TableLogic(value = "null", delval = "now()")
+    private LocalDateTime deletedAt;
 }
