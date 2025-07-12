@@ -1,4 +1,4 @@
-package finalassignmentbackend.controller.view;
+package finalassignmentbackend.controller;
 
 import finalassignmentbackend.entity.OffenseDetails;
 import finalassignmentbackend.service.view.OffenseDetailsService;

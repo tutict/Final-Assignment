@@ -12,54 +12,71 @@ import org.eclipse.microprofile.reactive.messaging.Incoming;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+// Kafka监听器类，用于处理系统日志的消息
 @ApplicationScoped
 public class SystemLogsKafkaListener {
 
+    // 日志记录器，用于记录处理过程中的信息
     private static final Logger log = Logger.getLogger(SystemLogsKafkaListener.class.getName());
 
+    // 注入系统日志服务
     @Inject
     SystemLogsService systemLogsService;
 
+    // 注入JSON对象映射器
     @Inject
     ObjectMapper objectMapper;
 
+    // 监听"system_create"主题的消息，处理系统日志创建
     @Incoming("system_create")
     @Transactional
     @RunOnVirtualThread
     public void onSystemLogCreateReceived(String message) {
-        processMessage(message, "create", (systemLog) -> systemLogsService.createSystemLog(systemLog));
+        log.log(Level.INFO, "收到Kafka创建消息: {0}", message);
+        processMessage(message, "create", systemLogsService::createSystemLog);
     }
 
+    // 监听"system_update"主题的消息，处理系统日志更新
     @Incoming("system_update")
     @Transactional
     @RunOnVirtualThread
     public void onSystemLogUpdateReceived(String message) {
-        processMessage(message, "update", (systemLog) -> systemLogsService.updateSystemLog(systemLog));
+        log.log(Level.INFO, "收到Kafka更新消息: {0}", message);
+        processMessage(message, "update", systemLogsService::updateSystemLog);
     }
 
+    // 处理Kafka消息的通用方法
     private void processMessage(String message, String action, MessageProcessor<SystemLogs> processor) {
         try {
+            // 反序列化消息为系统日志对象
             SystemLogs systemLog = deserializeMessage(message);
+            log.log(Level.INFO, "反序列化系统日志对象: {0}", systemLog);
+            // 对于创建操作，重置日志ID
             if ("create".equals(action)) {
                 systemLog.setLogId(null);
-                processor.process(systemLog);
             }
-            log.info(String.format("System log %s action processed successfully: %s", action, message));
+            // 执行消息处理逻辑
+            processor.process(systemLog);
+            log.info(String.format("系统日志%s操作处理成功: %s", action, systemLog));
         } catch (Exception e) {
-            log.log(Level.SEVERE, String.format("Error processing %s system log message: %s", action, message), e);
-            throw new RuntimeException(String.format("Failed to process %s system log message", action), e);
+            // 记录处理错误日志
+            log.log(Level.SEVERE, String.format("处理%s系统日志消息时出错: %s", action, message), e);
+            throw new RuntimeException(String.format("无法处理%s系统日志消息", action), e);
         }
     }
 
+    // 将消息反序列化为系统日志对象
     private SystemLogs deserializeMessage(String message) {
         try {
             return objectMapper.readValue(message, SystemLogs.class);
         } catch (Exception e) {
-            log.log(Level.SEVERE, "Failed to deserialize message: " + message, e);
-            throw new RuntimeException("Failed to deserialize message", e);
+            // 记录反序列化错误日志
+            log.log(Level.SEVERE, "反序列化消息失败: {0}", message);
+            throw new RuntimeException("反序列化消息失败", e);
         }
     }
 
+    // 函数式接口，用于定义消息处理逻辑
     @FunctionalInterface
     private interface MessageProcessor<T> {
         void process(T t) throws Exception;
