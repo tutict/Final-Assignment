@@ -2,6 +2,14 @@ package com.tutict.finalassignmentbackend.controller;
 
 import com.tutict.finalassignmentbackend.entity.UserManagement;
 import com.tutict.finalassignmentbackend.service.AuthWsService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.security.PermitAll;
 import jakarta.annotation.security.RolesAllowed;
 import org.springframework.http.HttpStatus;
@@ -24,6 +32,7 @@ import java.util.logging.Logger;
 
 @RestController
 @RequestMapping("/api/auth")
+@Tag(name = "Authentication", description = "APIs for user authentication and management")
 public class AuthController {
 
     private static final Logger logger = Logger.getLogger(AuthController.class.getName());
@@ -39,7 +48,40 @@ public class AuthController {
     @PostMapping("/login")
     @PermitAll
     @Async
-    public CompletableFuture<ResponseEntity<Map<String, Object>>> login(@RequestBody AuthWsService.LoginRequest loginRequest) {
+    @Operation(
+            summary = "用户登录",
+            description = "允许用户通过用户名和密码登录，成功后返回 JWT 令牌。异步处理请求以提高性能。"
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "登录成功，返回包含 JWT 令牌和其他用户信息的 Map",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(type = "object", example = "{\"jwtToken\": \"<token>\", \"username\": \"<username>\"}")
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "无效的请求，用户名或密码为空",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(type = "object", example = "{\"error\": \"Username and password are required\"}")
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "登录失败，用户名或密码错误",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(type = "object", example = "{\"error\": \"Invalid credentials\"}")
+                    )
+            )
+    })
+    public CompletableFuture<ResponseEntity<Map<String, Object>>> login(
+            @RequestBody
+            @Parameter(description = "登录请求，包含用户名和密码", required = true)
+            AuthWsService.LoginRequest loginRequest) {
         if (loginRequest == null || loginRequest.getUsername() == null || loginRequest.getPassword() == null) {
             logger.log(Level.SEVERE, "Login request invalid: null or missing username/password");
             return CompletableFuture.completedFuture(
@@ -66,7 +108,40 @@ public class AuthController {
     @PermitAll
     @Async
     @Transactional
-    public CompletableFuture<ResponseEntity<Map<String, String>>> registerUser(@RequestBody AuthWsService.RegisterRequest registerRequest) {
+    @Operation(
+            summary = "用户注册",
+            description = "允许用户注册新账户，异步处理并在事务中执行。成功后返回注册状态。"
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "201",
+                    description = "注册成功，返回注册状态",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(type = "object", example = "{\"status\": \"User registered successfully\"}")
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "409",
+                    description = "注册失败，用户名已存在或其他冲突",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(type = "object", example = "{\"error\": \"Username already exists\"}")
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "服务器内部错误",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(type = "object", example = "{\"error\": \"Internal server error\"}")
+                    )
+            )
+    })
+    public CompletableFuture<ResponseEntity<Map<String, String>>> registerUser(
+            @RequestBody
+            @Parameter(description = "注册请求，包含用户名、密码和其他用户信息", required = true)
+            AuthWsService.RegisterRequest registerRequest) {
         logger.log(Level.INFO, "Received register request for username: {0}", registerRequest.getUsername());
         return CompletableFuture.supplyAsync(() -> {
                     try {
@@ -93,6 +168,37 @@ public class AuthController {
 
     @GetMapping("/users")
     @RolesAllowed("ADMIN")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(
+            summary = "获取所有用户",
+            description = "管理员获取所有用户信息的列表，仅限 ADMIN 角色访问。"
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "成功返回用户列表",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = UserManagement.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "服务器内部错误",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(type = "array", example = "[]")
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "无权限访问，需 ADMIN 角色",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(type = "object", example = "{\"error\": \"Access denied\"}")
+                    )
+            )
+    })
     public ResponseEntity<List<UserManagement>> getAllUsers() {
         try {
             List<UserManagement> users = authWsService.getAllUsers();

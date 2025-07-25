@@ -3,6 +3,12 @@ package com.tutict.finalassignmentbackend.controller;
 import com.tutict.finalassignmentbackend.entity.AppealManagement;
 import com.tutict.finalassignmentbackend.entity.OffenseInformation;
 import com.tutict.finalassignmentbackend.service.AppealManagementService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -16,6 +22,8 @@ import java.util.logging.Logger;
 
 @RestController
 @RequestMapping("/api/appeals")
+@SecurityRequirement(name = "bearerAuth")
+@Tag(name = "Appeal Management", description = "APIs for managing appeals related to offenses")
 public class AppealManagementController {
 
     private static final Logger logger = Logger.getLogger(AppealManagementController.class.getName());
@@ -26,12 +34,17 @@ public class AppealManagementController {
         this.appealManagementService = appealManagementService;
     }
 
-    // Create a new appeal (USER permission)
     @PostMapping
     @PreAuthorize("hasRole('USER')")
+    @Operation(summary = "创建新申诉", description = "允许用户创建新的申诉记录，需要提供幂等键以防止重复提交")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "申诉创建成功，返回创建的申诉记录"),
+            @ApiResponse(responseCode = "400", description = "无效的输入参数"),
+            @ApiResponse(responseCode = "500", description = "服务器内部错误")
+    })
     public ResponseEntity<AppealManagement> createAppeal(
-            @RequestBody AppealManagement appeal,
-            @RequestParam String idempotencyKey) {
+            @RequestBody @Parameter(description = "申诉记录的详细信息") AppealManagement appeal,
+            @RequestParam @Parameter(description = "幂等键，用于防止重复提交") String idempotencyKey) {
         try {
             AppealManagement createdAppeal = appealManagementService.checkAndInsertIdempotency(idempotencyKey, appeal, "create");
             return ResponseEntity.status(HttpStatus.CREATED).body(createdAppeal);
@@ -44,10 +57,16 @@ public class AppealManagementController {
         }
     }
 
-    // Get appeal by ID (USER and ADMIN)
     @GetMapping("/{appealId}")
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    public ResponseEntity<AppealManagement> getAppealById(@PathVariable Integer appealId) {
+    @Operation(summary = "根据ID获取申诉", description = "获取指定ID的申诉记录")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "成功返回申诉记录"),
+            @ApiResponse(responseCode = "400", description = "无效的申诉ID"),
+            @ApiResponse(responseCode = "404", description = "未找到申诉记录")
+    })
+    public ResponseEntity<AppealManagement> getAppealById(
+            @PathVariable @Parameter(description = "申诉ID") Integer appealId) {
         try {
             AppealManagement appeal = appealManagementService.getAppealById(appealId);
             if (appeal != null) {
@@ -61,28 +80,37 @@ public class AppealManagementController {
         }
     }
 
-    // Get all appeals (USER and ADMIN)
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    @Operation(summary = "获取所有申诉", description = "返回所有申诉记录列表")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "成功返回申诉记录列表")
+    })
     public ResponseEntity<List<AppealManagement>> getAllAppeals() {
         List<AppealManagement> appeals = appealManagementService.getAllAppeals();
         return ResponseEntity.ok(appeals);
     }
 
-    // Update appeal information (ADMIN only)
     @PutMapping("/{appealId}")
     @Transactional
     @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "更新申诉信息", description = "管理员更新指定ID的申诉记录，需要提供幂等键")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "申诉更新成功，返回更新后的记录"),
+            @ApiResponse(responseCode = "400", description = "无效的输入参数"),
+            @ApiResponse(responseCode = "404", description = "未找到申诉记录"),
+            @ApiResponse(responseCode = "500", description = "服务器内部错误")
+    })
     public ResponseEntity<AppealManagement> updateAppeal(
-            @PathVariable Integer appealId,
-            @RequestBody AppealManagement updatedAppeal,
-            @RequestParam String idempotencyKey) {
+            @PathVariable @Parameter(description = "申诉ID") Integer appealId,
+            @RequestBody @Parameter(description = "更新后的申诉信息") AppealManagement updatedAppeal,
+            @RequestParam @Parameter(description = "幂等键，用于防止重复提交") String idempotencyKey) {
         try {
             AppealManagement existingAppeal = appealManagementService.getAppealById(appealId);
             if (existingAppeal == null) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
             }
-            updatedAppeal.setAppealId(appealId); // Ensure ID consistency
+            updatedAppeal.setAppealId(appealId);
             AppealManagement updated = appealManagementService.checkAndInsertIdempotency(idempotencyKey, updatedAppeal, "update");
             return ResponseEntity.ok(updated);
         } catch (IllegalArgumentException e) {
@@ -94,10 +122,16 @@ public class AppealManagementController {
         }
     }
 
-    // Delete appeal (ADMIN only)
     @DeleteMapping("/{appealId}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> deleteAppeal(@PathVariable Integer appealId) {
+    @Operation(summary = "删除申诉", description = "管理员删除指定ID的申诉记录")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "申诉删除成功"),
+            @ApiResponse(responseCode = "400", description = "无效的申诉ID"),
+            @ApiResponse(responseCode = "404", description = "未找到申诉记录")
+    })
+    public ResponseEntity<Void> deleteAppeal(
+            @PathVariable @Parameter(description = "申诉ID") Integer appealId) {
         try {
             appealManagementService.deleteAppeal(appealId);
             return ResponseEntity.noContent().build();
@@ -110,10 +144,15 @@ public class AppealManagementController {
         }
     }
 
-    // Get appeals by process status (USER and ADMIN)
     @GetMapping("/status/{processStatus}")
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    public ResponseEntity<List<AppealManagement>> getAppealsByProcessStatus(@PathVariable String processStatus) {
+    @Operation(summary = "按处理状态获取申诉", description = "获取指定处理状态的申诉记录列表")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "成功返回申诉记录列表"),
+            @ApiResponse(responseCode = "400", description = "无效的处理状态")
+    })
+    public ResponseEntity<List<AppealManagement>> getAppealsByProcessStatus(
+            @PathVariable @Parameter(description = "处理状态") String processStatus) {
         try {
             List<AppealManagement> appeals = appealManagementService.getAppealsByProcessStatus(processStatus);
             return ResponseEntity.ok(appeals);
@@ -123,10 +162,15 @@ public class AppealManagementController {
         }
     }
 
-    // Get appeals by appellant name (USER and ADMIN)
     @GetMapping("/name/{appellantName}")
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    public ResponseEntity<List<AppealManagement>> getAppealsByAppellantName(@PathVariable String appellantName) {
+    @Operation(summary = "按申诉人姓名获取申诉", description = "获取指定申诉人姓名的申诉记录列表")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "成功返回申诉记录列表"),
+            @ApiResponse(responseCode = "400", description = "无效的申诉人姓名")
+    })
+    public ResponseEntity<List<AppealManagement>> getAppealsByAppellantName(
+            @PathVariable @Parameter(description = "申诉人姓名") String appellantName) {
         try {
             List<AppealManagement> appeals = appealManagementService.getAppealsByAppellantName(appellantName);
             return ResponseEntity.ok(appeals);
@@ -136,10 +180,16 @@ public class AppealManagementController {
         }
     }
 
-    // Get offense information by appeal ID (USER and ADMIN)
     @GetMapping("/{appealId}/offense")
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    public ResponseEntity<OffenseInformation> getOffenseByAppealId(@PathVariable Integer appealId) {
+    @Operation(summary = "获取申诉相关的违章信息", description = "获取指定申诉ID对应的违章信息")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "成功返回违章信息"),
+            @ApiResponse(responseCode = "400", description = "无效的申诉ID"),
+            @ApiResponse(responseCode = "404", description = "未找到违章信息")
+    })
+    public ResponseEntity<OffenseInformation> getOffenseByAppealId(
+            @PathVariable @Parameter(description = "申诉ID") Integer appealId) {
         try {
             OffenseInformation offense = appealManagementService.getOffenseByAppealId(appealId);
             if (offense != null) {
@@ -153,10 +203,15 @@ public class AppealManagementController {
         }
     }
 
-    // Get appeals by ID card number (USER and ADMIN)
     @GetMapping("/id-card/{idCardNumber}")
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    public ResponseEntity<List<AppealManagement>> getAppealsByIdCardNumber(@PathVariable String idCardNumber) {
+    @Operation(summary = "按身份证号获取申诉", description = "获取指定身份证号的申诉记录列表")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "成功返回申诉记录列表"),
+            @ApiResponse(responseCode = "400", description = "无效的身份证号")
+    })
+    public ResponseEntity<List<AppealManagement>> getAppealsByIdCardNumber(
+            @PathVariable @Parameter(description = "身份证号") String idCardNumber) {
         try {
             List<AppealManagement> appeals = appealManagementService.getAppealsByIdCardNumber(idCardNumber);
             return ResponseEntity.ok(appeals);
@@ -166,10 +221,15 @@ public class AppealManagementController {
         }
     }
 
-    // Get appeals by contact number (USER and ADMIN)
     @GetMapping("/contact/{contactNumber}")
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    public ResponseEntity<List<AppealManagement>> getAppealsByContactNumber(@PathVariable String contactNumber) {
+    @Operation(summary = "按联系电话获取申诉", description = "获取指定联系电话的申诉记录列表")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "成功返回申诉记录列表"),
+            @ApiResponse(responseCode = "400", description = "无效的联系电话")
+    })
+    public ResponseEntity<List<AppealManagement>> getAppealsByContactNumber(
+            @PathVariable @Parameter(description = "联系电话") String contactNumber) {
         try {
             List<AppealManagement> appeals = appealManagementService.getAppealsByContactNumber(contactNumber);
             return ResponseEntity.ok(appeals);
@@ -179,10 +239,15 @@ public class AppealManagementController {
         }
     }
 
-    // Get appeals by offense ID (USER and ADMIN)
     @GetMapping("/offense/{offenseId}")
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    public ResponseEntity<List<AppealManagement>> getAppealsByOffenseId(@PathVariable Integer offenseId) {
+    @Operation(summary = "按违章ID获取申诉", description = "获取指定违章ID的申诉记录列表")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "成功返回申诉记录列表"),
+            @ApiResponse(responseCode = "400", description = "无效的违章ID")
+    })
+    public ResponseEntity<List<AppealManagement>> getAppealsByOffenseId(
+            @PathVariable @Parameter(description = "违章ID") Integer offenseId) {
         try {
             List<AppealManagement> appeals = appealManagementService.getAppealsByOffenseId(offenseId);
             return ResponseEntity.ok(appeals);
@@ -192,12 +257,17 @@ public class AppealManagementController {
         }
     }
 
-    // Get appeals by appeal time range (USER and ADMIN)
     @GetMapping("/time-range")
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    @Operation(summary = "按时间范围获取申诉", description = "获取指定时间范围内的申诉记录列表")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "成功返回申诉记录列表"),
+            @ApiResponse(responseCode = "400", description = "无效的时间范围参数"),
+            @ApiResponse(responseCode = "500", description = "时间解析错误")
+    })
     public ResponseEntity<List<AppealManagement>> getAppealsByAppealTimeBetween(
-            @RequestParam String startTime,
-            @RequestParam String endTime) {
+            @RequestParam @Parameter(description = "开始时间，格式：yyyy-MM-dd'T'HH:mm:ss") String startTime,
+            @RequestParam @Parameter(description = "结束时间，格式：yyyy-MM-dd'T'HH:mm:ss") String endTime) {
         try {
             LocalDateTime start = LocalDateTime.parse(startTime);
             LocalDateTime end = LocalDateTime.parse(endTime);
@@ -214,22 +284,25 @@ public class AppealManagementController {
 
     @GetMapping("/by-appellant-name")
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    @Operation(summary = "按申诉人姓名搜索申诉", description = "分页搜索包含指定申诉人姓名的申诉记录")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "成功返回申诉记录列表"),
+            @ApiResponse(responseCode = "204", description = "未找到匹配的申诉记录"),
+            @ApiResponse(responseCode = "400", description = "无效的分页参数"),
+            @ApiResponse(responseCode = "500", description = "服务器内部错误")
+    })
     public ResponseEntity<List<AppealManagement>> searchByAppellantName(
-            @RequestParam String query,
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size) {
-
+            @RequestParam @Parameter(description = "搜索的申诉人姓名") String query,
+            @RequestParam(defaultValue = "1") @Parameter(description = "页码，从1开始") int page,
+            @RequestParam(defaultValue = "10") @Parameter(description = "每页记录数") int size) {
         logger.log(Level.INFO, "Received request to search appeals by appellant name: {0}, page: {1}, size: {2}",
                 new Object[]{query, page, size});
-
         try {
             List<AppealManagement> results = appealManagementService.searchAppealName(query, page, size);
-
             if (results == null || results.isEmpty()) {
                 logger.log(Level.INFO, "No appeals found for appellant name: {0}", new Object[]{query});
                 return ResponseEntity.noContent().build();
             }
-
             logger.log(Level.INFO, "Returning {0} appeals for appellant name: {1}",
                     new Object[]{results.size(), query});
             return ResponseEntity.ok(results);
@@ -246,22 +319,25 @@ public class AppealManagementController {
 
     @GetMapping("/by-reason")
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    @Operation(summary = "按申诉原因搜索申诉", description = "分页搜索包含指定申诉原因的申诉记录")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "成功返回申诉记录列表"),
+            @ApiResponse(responseCode = "204", description = "未找到匹配的申诉记录"),
+            @ApiResponse(responseCode = "400", description = "无效的分页参数"),
+            @ApiResponse(responseCode = "500", description = "服务器内部错误")
+    })
     public ResponseEntity<List<AppealManagement>> searchByAppealReason(
-            @RequestParam String query,
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size) {
-
+            @RequestParam @Parameter(description = "搜索的申诉原因") String query,
+            @RequestParam(defaultValue = "1") @Parameter(description = "页码，从1开始") int page,
+            @RequestParam(defaultValue = "10") @Parameter(description = "每页记录数") int size) {
         logger.log(Level.INFO, "Received request to search appeals by reason: {0}, page: {1}, size: {2}",
                 new Object[]{query, page, size});
-
         try {
             List<AppealManagement> results = appealManagementService.searchAppealReason(query, page, size);
-
             if (results == null || results.isEmpty()) {
                 logger.log(Level.INFO, "No appeals found for reason: {0}", new Object[]{query});
                 return ResponseEntity.noContent().build();
             }
-
             logger.log(Level.INFO, "Returning {0} appeals for reason: {1}",
                     new Object[]{results.size(), query});
             return ResponseEntity.ok(results);
@@ -276,10 +352,15 @@ public class AppealManagementController {
         }
     }
 
-    // Count appeals by process status (USER and ADMIN)
     @GetMapping("/count/status/{processStatus}")
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    public ResponseEntity<Long> countAppealsByStatus(@PathVariable String processStatus) {
+    @Operation(summary = "统计指定状态的申诉数量", description = "返回指定处理状态的申诉记录总数")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "成功返回申诉数量"),
+            @ApiResponse(responseCode = "400", description = "无效的处理状态")
+    })
+    public ResponseEntity<Long> countAppealsByStatus(
+            @PathVariable @Parameter(description = "处理状态") String processStatus) {
         try {
             long count = appealManagementService.countAppealsByStatus(processStatus);
             return ResponseEntity.ok(count);
@@ -289,10 +370,15 @@ public class AppealManagementController {
         }
     }
 
-    // New endpoint: Get appeals by appeal reason containing (USER and ADMIN)
     @GetMapping("/reason/{reason}")
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    public ResponseEntity<List<AppealManagement>> getAppealsByReasonContaining(@PathVariable String reason) {
+    @Operation(summary = "按申诉原因获取申诉", description = "获取包含指定申诉原因的申诉记录列表")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "成功返回申诉记录列表"),
+            @ApiResponse(responseCode = "400", description = "无效的申诉原因")
+    })
+    public ResponseEntity<List<AppealManagement>> getAppealsByReasonContaining(
+            @PathVariable @Parameter(description = "申诉原因") String reason) {
         try {
             List<AppealManagement> appeals = appealManagementService.getAppealsByReasonContaining(reason);
             return ResponseEntity.ok(appeals);
@@ -302,13 +388,18 @@ public class AppealManagementController {
         }
     }
 
-    // New endpoint: Get appeals by process status and time range (USER and ADMIN)
     @GetMapping("/status-and-time")
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    @Operation(summary = "按状态和时间范围获取申诉", description = "获取指定处理状态和时间范围内的申诉记录列表")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "成功返回申诉记录列表"),
+            @ApiResponse(responseCode = "400", description = "无效的参数"),
+            @ApiResponse(responseCode = "500", description = "时间解析错误")
+    })
     public ResponseEntity<List<AppealManagement>> getAppealsByStatusAndTime(
-            @RequestParam String processStatus,
-            @RequestParam String startTime,
-            @RequestParam String endTime) {
+            @RequestParam @Parameter(description = "处理状态") String processStatus,
+            @RequestParam @Parameter(description = "开始时间，格式：yyyy-MM-dd'T'HH:mm:ss") String startTime,
+            @RequestParam @Parameter(description = "结束时间，格式：yyyy-MM-dd'T'HH:mm:ss") String endTime) {
         try {
             LocalDateTime start = LocalDateTime.parse(startTime);
             LocalDateTime end = LocalDateTime.parse(endTime);

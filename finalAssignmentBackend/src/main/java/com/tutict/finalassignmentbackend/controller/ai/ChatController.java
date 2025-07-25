@@ -1,6 +1,11 @@
 package com.tutict.finalassignmentbackend.controller.ai;
 
 import com.tutict.finalassignmentbackend.service.AIChatSearchService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatResponse;
@@ -20,6 +25,7 @@ import java.util.logging.Logger;
 
 @RestController
 @RequestMapping("/api/ai")
+@Tag(name = "AI Chat", description = "API for interacting with AI-powered traffic violation query assistant")
 public class ChatController {
     private static final Logger LOG = Logger.getLogger(ChatController.class.getName());
     private final OllamaChatModel chatModel;
@@ -31,10 +37,19 @@ public class ChatController {
     }
 
     @GetMapping(value = "/chat", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @Operation(
+            summary = "与AI聊天助手交互",
+            description = "向AI交通违法查询助手发送消息，支持网络搜索选项，返回结构化的流式响应（Server-Sent Events）。必须提供 `message` 或 `massage` 参数之一，`massage` 已废弃，建议使用 `message`。"
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "成功返回流式聊天响应（SSE 格式）"),
+            @ApiResponse(responseCode = "400", description = "缺少必需参数（message 或 massage）或参数无效"),
+            @ApiResponse(responseCode = "500", description = "服务器内部错误")
+    })
     public Flux<ChatResponse> chat(
-            @RequestParam(value = "message", required = false) String message,
-            @RequestParam(value = "massage", required = false) String massage,
-            @RequestParam(value = "webSearch", defaultValue = "false") boolean webSearch) {
+            @RequestParam(value = "message", required = false) @Parameter(description = "用户消息，推荐使用此参数", example = "如何查询交通违法记录？") String message,
+            @RequestParam(value = "massage", required = false) @Parameter(description = "用户消息（已废弃，建议使用 message）", example = "如何查询交通违法记录？", deprecated = true) String massage,
+            @RequestParam(value = "webSearch", defaultValue = "false") @Parameter(description = "是否启用网络搜索", example = "true") boolean webSearch) {
 
         String userMessage = (message != null && !message.isBlank())
                 ? message
@@ -78,7 +93,7 @@ public class ChatController {
                 sb.append(String.format("%d. %s\n   %s\n",
                         i + 1,
                         item.getOrDefault("title", "<无标题>"),
-                        item.getOrDefault("abstract", "<无摘要>")));
+                        item.getOrDefault("abstract", "<empty abstract>")));
             }
         }
         return sb;

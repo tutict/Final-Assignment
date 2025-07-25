@@ -2,6 +2,12 @@ package com.tutict.finalassignmentbackend.controller;
 
 import com.tutict.finalassignmentbackend.entity.DeductionInformation;
 import com.tutict.finalassignmentbackend.service.DeductionInformationService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,6 +21,8 @@ import java.util.logging.Level;
 
 @RestController
 @RequestMapping("/api/deductions")
+@SecurityRequirement(name = "bearerAuth")
+@Tag(name = "Deduction Information", description = "APIs for managing deduction information records")
 public class DeductionInformationController {
 
     private static final Logger logger = Logger.getLogger(DeductionInformationController.class.getName());
@@ -25,20 +33,41 @@ public class DeductionInformationController {
         this.deductionInformationService = deductionInformationService;
     }
 
-    // 创建新的扣除记录 (仅 ADMIN)
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> createDeduction(@RequestBody DeductionInformation deduction, @RequestParam String idempotencyKey) {
+    @Operation(
+            summary = "创建扣除记录",
+            description = "管理员创建新的扣除记录，需要提供幂等键以防止重复提交。"
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "扣除记录创建成功"),
+            @ApiResponse(responseCode = "400", description = "无效的输入参数或幂等键冲突"),
+            @ApiResponse(responseCode = "403", description = "无权限访问，仅限 ADMIN 角色"),
+            @ApiResponse(responseCode = "500", description = "服务器内部错误")
+    })
+    public ResponseEntity<Void> createDeduction(
+            @RequestBody @Parameter(description = "扣除记录的详细信息", required = true) DeductionInformation deduction,
+            @RequestParam @Parameter(description = "幂等键，用于防止重复提交", required = true) String idempotencyKey) {
         logger.info("Attempting to create deduction with idempotency key: " + idempotencyKey);
         deductionInformationService.checkAndInsertIdempotency(idempotencyKey, deduction, "create");
         logger.info("Deduction created successfully.");
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
-    // 根据扣除ID获取扣除信息 (USER 和 ADMIN)
     @GetMapping("/{deductionId}")
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    public ResponseEntity<DeductionInformation> getDeductionById(@PathVariable int deductionId) {
+    @Operation(
+            summary = "根据ID获取扣除记录",
+            description = "获取指定ID的扣除记录，USER 和 ADMIN 角色均可访问。"
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "成功返回扣除记录"),
+            @ApiResponse(responseCode = "403", description = "无权限访问，需 USER 或 ADMIN 角色"),
+            @ApiResponse(responseCode = "404", description = "未找到扣除记录"),
+            @ApiResponse(responseCode = "500", description = "服务器内部错误")
+    })
+    public ResponseEntity<DeductionInformation> getDeductionById(
+            @PathVariable @Parameter(description = "扣除记录ID", required = true) int deductionId) {
         DeductionInformation deduction = deductionInformationService.getDeductionById(deductionId);
         if (deduction != null) {
             return ResponseEntity.ok(deduction);
@@ -47,19 +76,40 @@ public class DeductionInformationController {
         }
     }
 
-    // 获取所有扣除记录 (USER 和 ADMIN)
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    @Operation(
+            summary = "获取所有扣除记录",
+            description = "获取所有扣除记录的列表，USER 和 ADMIN 角色均可访问。"
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "成功返回扣除记录列表"),
+            @ApiResponse(responseCode = "403", description = "无权限访问，需 USER 或 ADMIN 角色"),
+            @ApiResponse(responseCode = "500", description = "服务器内部错误")
+    })
     public ResponseEntity<List<DeductionInformation>> getAllDeductions() {
         List<DeductionInformation> deductions = deductionInformationService.getAllDeductions();
         return ResponseEntity.ok(deductions);
     }
 
-    // 更新扣除记录 (仅 ADMIN)
     @PutMapping("/{deductionId}")
     @Transactional
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> updateDeduction(@PathVariable int deductionId, @RequestBody DeductionInformation updatedDeduction, @RequestParam String idempotencyKey) {
+    @Operation(
+            summary = "更新扣除记录",
+            description = "管理员更新指定ID的扣除记录，需要提供幂等键以防止重复提交。操作在事务中执行。"
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "扣除记录更新成功"),
+            @ApiResponse(responseCode = "400", description = "无效的输入参数或幂等键冲突"),
+            @ApiResponse(responseCode = "403", description = "无权限访问，仅限 ADMIN 角色"),
+            @ApiResponse(responseCode = "404", description = "未找到扣除记录"),
+            @ApiResponse(responseCode = "500", description = "服务器内部错误")
+    })
+    public ResponseEntity<Void> updateDeduction(
+            @PathVariable @Parameter(description = "扣除记录ID", required = true) int deductionId,
+            @RequestBody @Parameter(description = "更新后的扣除记录信息", required = true) DeductionInformation updatedDeduction,
+            @RequestParam @Parameter(description = "幂等键，用于防止重复提交", required = true) String idempotencyKey) {
         DeductionInformation existingDeduction = deductionInformationService.getDeductionById(deductionId);
         if (existingDeduction != null) {
             existingDeduction.setRemarks(updatedDeduction.getRemarks());
@@ -67,7 +117,6 @@ public class DeductionInformationController {
             existingDeduction.setDeductedPoints(updatedDeduction.getDeductedPoints());
             existingDeduction.setDeductionTime(updatedDeduction.getDeductionTime());
             existingDeduction.setApprover(updatedDeduction.getApprover());
-
             deductionInformationService.checkAndInsertIdempotency(idempotencyKey, existingDeduction, "update");
             return ResponseEntity.ok().build();
         } else {
@@ -75,47 +124,84 @@ public class DeductionInformationController {
         }
     }
 
-    // 删除扣除记录 (仅 ADMIN)
     @DeleteMapping("/{deductionId}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> deleteDeduction(@PathVariable int deductionId) {
+    @Operation(
+            summary = "删除扣除记录",
+            description = "管理员删除指定ID的扣除记录，仅限 ADMIN 角色。"
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "扣除记录删除成功"),
+            @ApiResponse(responseCode = "403", description = "无权限访问，仅限 ADMIN 角色"),
+            @ApiResponse(responseCode = "404", description = "未找到扣除记录"),
+            @ApiResponse(responseCode = "500", description = "服务器内部错误")
+    })
+    public ResponseEntity<Void> deleteDeduction(
+            @PathVariable @Parameter(description = "扣除记录ID", required = true) int deductionId) {
         deductionInformationService.deleteDeduction(deductionId);
         return ResponseEntity.noContent().build();
     }
 
-    // 根据处理人获取扣除记录 (USER 和 ADMIN)
     @GetMapping("/handler/{handler}")
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    public ResponseEntity<List<DeductionInformation>> getDeductionsByHandler(@PathVariable String handler) {
+    @Operation(
+            summary = "根据处理人获取扣除记录",
+            description = "获取指定处理人的扣除记录列表，USER 和 ADMIN 角色均可访问。"
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "成功返回扣除记录列表"),
+            @ApiResponse(responseCode = "403", description = "无权限访问，需 USER 或 ADMIN 角色"),
+            @ApiResponse(responseCode = "500", description = "服务器内部错误")
+    })
+    public ResponseEntity<List<DeductionInformation>> getDeductionsByHandler(
+            @PathVariable @Parameter(description = "处理人名称", required = true) String handler) {
         List<DeductionInformation> deductions = deductionInformationService.getDeductionsByHandler(handler);
         return ResponseEntity.ok(deductions);
     }
 
-    // 根据时间范围获取扣除记录 (USER 和 ADMIN)
     @GetMapping("/timeRange")
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    public ResponseEntity<List<DeductionInformation>> getDeductionsByTimeRange(@RequestParam Date startTime, @RequestParam Date endTime) {
+    @Operation(
+            summary = "根据时间范围获取扣除记录",
+            description = "获取指定时间范围内的扣除记录列表，USER 和 ADMIN 角色均可访问。时间格式为 yyyy-MM-dd'T'HH:mm:ss。"
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "成功返回扣除记录列表"),
+            @ApiResponse(responseCode = "400", description = "无效的时间范围参数"),
+            @ApiResponse(responseCode = "403", description = "无权限访问，需 USER 或 ADMIN 角色"),
+            @ApiResponse(responseCode = "500", description = "服务器内部错误")
+    })
+    public ResponseEntity<List<DeductionInformation>> getDeductionsByTimeRange(
+            @RequestParam @Parameter(description = "开始时间，格式：yyyy-MM-dd'T'HH:mm:ss", required = true) Date startTime,
+            @RequestParam @Parameter(description = "结束时间，格式：yyyy-MM-dd'T'HH:mm:ss", required = true) Date endTime) {
         List<DeductionInformation> deductions = deductionInformationService.getDeductionsByTimeRange(startTime, endTime);
         return ResponseEntity.ok(deductions);
     }
 
     @GetMapping("/by-handler")
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    @Operation(
+            summary = "按处理人搜索扣除记录",
+            description = "搜索包含指定处理人的扣除记录，最多返回指定数量的记录，USER 和 ADMIN 角色均可访问。"
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "成功返回扣除记录列表"),
+            @ApiResponse(responseCode = "204", description = "未找到匹配的扣除记录"),
+            @ApiResponse(responseCode = "400", description = "无效的搜索参数"),
+            @ApiResponse(responseCode = "403", description = "无权限访问，需 USER 或 ADMIN 角色"),
+            @ApiResponse(responseCode = "500", description = "服务器内部错误")
+    })
     public ResponseEntity<List<DeductionInformation>> searchByHandler(
-            @RequestParam String handler,
-            @RequestParam(defaultValue = "10") int maxSuggestions) {
-
+            @RequestParam @Parameter(description = "处理人名称", required = true) String handler,
+            @RequestParam(defaultValue = "10") @Parameter(description = "最大返回记录数", example = "10") int maxSuggestions) {
         logger.log(Level.INFO, "Received request to search deductions by handler: {0}, maxSuggestions: {1}",
                 new Object[]{handler, maxSuggestions});
-
         try {
             List<DeductionInformation> results = deductionInformationService.searchByHandler(handler, maxSuggestions);
-
             if (results == null || results.isEmpty()) {
                 logger.log(Level.INFO, "No deductions found for handler: {0}", new Object[]{handler});
                 return ResponseEntity.noContent().build();
             }
-
             logger.log(Level.INFO, "Returning {0} deductions for handler: {1}",
                     new Object[]{results.size(), handler});
             return ResponseEntity.ok(results);
@@ -128,23 +214,30 @@ public class DeductionInformationController {
 
     @GetMapping("/by-time-range")
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    @Operation(
+            summary = "按时间范围搜索扣除记录",
+            description = "搜索指定时间范围内的扣除记录，最多返回指定数量的记录，USER 和 ADMIN 角色均可访问。时间格式为 yyyy-MM-dd'T'HH:mm:ss。"
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "成功返回扣除记录列表"),
+            @ApiResponse(responseCode = "204", description = "未找到匹配的扣除记录"),
+            @ApiResponse(responseCode = "400", description = "无效的时间范围参数"),
+            @ApiResponse(responseCode = "403", description = "无权限访问，需 USER 或 ADMIN 角色"),
+            @ApiResponse(responseCode = "500", description = "服务器内部错误")
+    })
     public ResponseEntity<List<DeductionInformation>> searchByDeductionTimeRange(
-            @RequestParam String startTime,
-            @RequestParam String endTime,
-            @RequestParam(defaultValue = "10") int maxSuggestions) {
-
+            @RequestParam @Parameter(description = "开始时间，格式：yyyy-MM-dd'T'HH:mm:ss", required = true) String startTime,
+            @RequestParam @Parameter(description = "结束时间，格式：yyyy-MM-dd'T'HH:mm:ss", required = true) String endTime,
+            @RequestParam(defaultValue = "10") @Parameter(description = "最大返回记录数", example = "10") int maxSuggestions) {
         logger.log(Level.INFO, "Received request to search deductions by time range: startTime={0}, endTime={1}, maxSuggestions={2}",
                 new Object[]{startTime, endTime, maxSuggestions});
-
         try {
             List<DeductionInformation> results = deductionInformationService.searchByDeductionTimeRange(startTime, endTime, maxSuggestions);
-
             if (results == null || results.isEmpty()) {
                 logger.log(Level.INFO, "No deductions found for time range: {0} to {1}",
                         new Object[]{startTime, endTime});
                 return ResponseEntity.noContent().build();
             }
-
             logger.log(Level.INFO, "Returning {0} deductions for time range: {1} to {2}",
                     new Object[]{results.size(), startTime, endTime});
             return ResponseEntity.ok(results);
