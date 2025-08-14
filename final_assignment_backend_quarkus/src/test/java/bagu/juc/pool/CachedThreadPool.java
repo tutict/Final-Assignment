@@ -1,11 +1,10 @@
 package bagu.juc.pool;
 
+import org.openjdk.jmh.annotations.*;
 
-import org.openjdk.jmh.annotations.Benchmark;
-import org.openjdk.jmh.annotations.Fork;
-import org.openjdk.jmh.annotations.Measurement;
-import org.openjdk.jmh.annotations.Warmup;
-
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 public class CachedThreadPool {
@@ -17,5 +16,40 @@ public class CachedThreadPool {
     @Measurement(iterations = 1)
     public static void main(String[] args) {
 
+        // 创建一个缓存线程池
+        ExecutorService executorService = Executors.newCachedThreadPool();
+
+        for (int i = 0; i < 10; i++) {
+            int taskId = i;
+            executorService.submit(() -> {
+                try {
+                    logger.info("任务编号:" + taskId + "正在执行" + Thread.currentThread().getName());
+                    // 暂停了一秒钟
+                    TimeUnit.SECONDS.sleep(1);
+                    logger.info("任务" + taskId + "完成了");
+                } catch (InterruptedException e) {
+                    logger.warning("任务" + taskId + "被中断" + "错误详情" + e.getMessage());
+                    // 恢复中断状态
+                    Thread.currentThread().interrupt();
+                }
+            });
+        }
+
+        // 等待所有任务完成,关闭线程池
+        executorService.shutdown();
+
+        try {
+            if (!executorService.awaitTermination(10, TimeUnit.SECONDS)) {
+                logger.info("线程池未在指定时间停止，强制关闭");
+                executorService.shutdownNow();
+            } else {
+                logger.info("所有任务完成，线程已关闭");
+            }
+        } catch (InterruptedException e) {
+            logger.warning("等待线程池被终止时被中断" + e.getMessage());
+            executorService.shutdownNow();
+            // 恢复中断状态
+            Thread.currentThread().interrupt();
+        }
     }
 }

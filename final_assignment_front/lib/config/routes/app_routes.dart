@@ -299,8 +299,4 @@ class _Paths {
   static const trafficViolationScreen = '/trafficViolationScreen';
 
   static const progressManagementPage = '/progressManagementPage';
-// 示例：
-// static const index = '/';
-// static const splash = '/splash';
-// static const product = '/product';
 }

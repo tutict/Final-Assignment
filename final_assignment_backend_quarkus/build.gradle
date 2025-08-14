@@ -45,6 +45,7 @@ dependencies {
     implementation 'com.manticoresearch:manticoresearch:7.0.0'
     implementation 'org.graalvm.polyglot:polyglot:24.1.2'
     implementation 'org.testcontainers:testcontainers:1.21.3'
+    implementation 'io.quarkiverse.satoken:quarkus-satoken-resteasy:1.30.0'
     compileOnly 'org.projectlombok:lombok:1.18.38'
     runtimeOnly 'org.graalvm.polyglot:python:24.1.2'
     annotationProcessor 'org.projectlombok:lombok:1.18.38'
