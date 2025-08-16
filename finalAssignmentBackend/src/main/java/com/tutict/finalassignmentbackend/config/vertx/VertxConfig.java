@@ -2,6 +2,7 @@ package com.tutict.finalassignmentbackend.config.vertx;
 
 import com.tutict.finalassignmentbackend.config.NetWorkHandler;
 import io.vertx.core.DeploymentOptions;
+import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
@@ -25,7 +26,8 @@ public class VertxConfig {
         log.info("Starting Vert.x instance...");
         try {
             DeploymentOptions deploymentOptions = new DeploymentOptions().setInstances(1);
-            vertx.deployVerticle(netWorkHandler, deploymentOptions, result -> {
+            Future<String> deployFuture = vertx.deployVerticle(netWorkHandler, deploymentOptions);
+            deployFuture.onComplete(result -> {
                 if (result.succeeded()) {
                     log.info("NetWorkHandler deployed successfully: {}", result.result());
                 } else {
@@ -39,7 +41,8 @@ public class VertxConfig {
 
     @PreDestroy
     public void shutdown() {
-        vertx.close(ar -> {
+        Future<Void> closeFuture = vertx.close();
+        closeFuture.onComplete(ar -> {
             if (ar.succeeded()) {
                 log.info("Vert.x instance closed successfully.");
             } else {
