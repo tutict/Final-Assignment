@@ -33,7 +33,7 @@ public class RunDocker {
         startRedis();
         startRedpanda();
         startElasticsearch();
-//        startManticoreSearch();
+        // startManticoreSearch();
     }
 
     public void startRedis() {

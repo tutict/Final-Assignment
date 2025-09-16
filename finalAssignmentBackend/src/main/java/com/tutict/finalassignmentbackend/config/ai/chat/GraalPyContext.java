@@ -2,6 +2,7 @@ package com.tutict.finalassignmentbackend.config.ai.chat;
 
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.Value;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
@@ -24,7 +25,7 @@ public class GraalPyContext {
 
             // Verify venv directory exists
             if (!venvDir.exists()) {
-                throw new RuntimeException("venv directory does not exist: " + venvDir.getAbsolutePath());
+                throw new RuntimeException("venv directory does not exist ( Maybe you didn't run maven install ) : " + venvDir.getAbsolutePath());
             }
 
             if (os.startsWith("windows")) {
@@ -38,15 +39,7 @@ public class GraalPyContext {
             }
 
             // Get directory containing baidu_crawler.py
-            File pythonScriptDir = new File(projectRoot, "finalAssignmentBackend/src/main/resources/python/");
-            if (!pythonScriptDir.exists()) {
-                throw new RuntimeException("Python script directory does not exist: " + pythonScriptDir.getAbsolutePath());
-            }
-            String pythonScriptPath = pythonScriptDir.getAbsolutePath();
-
-            // Combine site-packages and script directory paths
-            String pythonPath = sitePackagesPath + File.pathSeparator + pythonScriptPath;
-
+            String pythonPath = getString(projectRoot, sitePackagesPath);
             if (os.startsWith("windows")) {
                 executablePath = new File(venvDir, "Scripts/graalpy.exe").getAbsolutePath();
             } else if (os.startsWith("linux")) {
@@ -65,6 +58,17 @@ public class GraalPyContext {
         } catch (Exception e) {
             throw new RuntimeException("Failed to initialize GraalPy context: " + e.getMessage(), e);
         }
+    }
+
+    private static @NotNull String getString(String projectRoot, String sitePackagesPath) {
+        File pythonScriptDir = new File(projectRoot, "finalAssignmentBackend/src/main/resources/python/");
+        if (!pythonScriptDir.exists()) {
+            throw new RuntimeException("Python script directory does not exist: " + pythonScriptDir.getAbsolutePath());
+        }
+        String pythonScriptPath = pythonScriptDir.getAbsolutePath();
+
+        // Combine site-packages and script directory paths
+        return sitePackagesPath + File.pathSeparator + pythonScriptPath;
     }
 
     public Value eval(String source) {
