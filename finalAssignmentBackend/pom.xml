@@ -15,7 +15,7 @@
     <name>finalAssignmetBackend</name>
     <description>finalAssignmetBackend</description>
     <properties>
-        <java.version>24</java.version>
+        <java.version>25</java.version>
     </properties>
 
     <dependencies>

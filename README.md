@@ -139,7 +139,7 @@ quarkus.langchain4j.ollama.chat-model.model-id=deepseek-r1:7b
 #### 技术架构
 
 - 🚀 **核心框架**  
-  Spring Boot 3.4.4 + Graalvm 24 
+  Spring Boot 3.4.5 + Graalvm 25 
 - 🛠 **数据层**  
   MyBatis Plus 3.5.10.1 + MySQL 8.0.41 + Redis 多级缓存
 - **docker**  
