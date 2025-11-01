@@ -163,7 +163,8 @@ public class ShellScriptConfig {
      */
     private void captureOutput(Process process, String scriptPath) {
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-             FileWriter writer = new FileWriter(LOG_FILE, true)) {
+
+            FileWriter writer = new FileWriter(LOG_FILE, true)) {
             String line;
             while ((line = reader.readLine()) != null) {
                 logger.info("[Script Output] {}: {}", scriptPath, line);
