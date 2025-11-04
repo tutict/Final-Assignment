@@ -7,8 +7,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"final_assignment_front_go/project/internal/domain"
-	"final_assignment_front_go/project/internal/service"
+	"final_assignment_backend_go/project/internal/domain"
+	"final_assignment_backend_go/project/internal/service"
 )
 
 // BackupRestoreController 控制器层

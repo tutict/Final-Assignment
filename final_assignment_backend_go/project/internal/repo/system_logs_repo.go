@@ -1,7 +1,7 @@
 package repo
 
 import (
-	"final_assignment_front_go/project/internal/domain"
+	"final_assignment_backend_go/project/internal/domain"
 
 	"gorm.io/gorm"
 )

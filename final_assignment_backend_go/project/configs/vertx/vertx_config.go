@@ -6,7 +6,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"final_assignment_front_go/project/configs"
+	"final_assignment_backend_go/project/configs"
 )
 
 type Vertx struct {

@@ -7,7 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"final_assignment_front_go/project/configs/auth"
+	"final_assignment_backend_go/project/configs/auth"
 )
 
 // AuthenticationMiddleware 验证 JWT 并将用户信息注入 Gin 上下文

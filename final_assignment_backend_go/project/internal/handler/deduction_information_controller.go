@@ -1,14 +1,15 @@
 package handler
 
 import (
-	"final_assignment_front_go/project/internal/domain"
-	"final_assignment_front_go/project/internal/service"
 	"log"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
+
+	"final_assignment_backend_go/project/internal/domain"
+	"final_assignment_backend_go/project/internal/service"
 )
 
 // DeductionInformationController 控制器层

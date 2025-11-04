@@ -1,8 +1,8 @@
 package service
 
 import (
-	"final_assignment_front_go/project/internal/domain"
-	"final_assignment_front_go/project/internal/repo"
+	"final_assignment_backend_go/project/internal/domain"
+	"final_assignment_backend_go/project/internal/repo"
 )
 
 type SystemSettingsService struct {

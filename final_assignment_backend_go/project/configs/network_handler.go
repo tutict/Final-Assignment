@@ -19,7 +19,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 
-	"final_assignment_front_go/project/configs/websocket_settings"
+	"final_assignment_backend_go/project/configs/websocket_settings"
 )
 
 // NetWorkHandler 实现网络层功能（HTTP 反向代理 + WebSocket RPC）

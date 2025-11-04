@@ -1,4 +1,4 @@
-module final_assignment_front_go
+module final_assignment_backend_go
 
 go 1.24.0
 

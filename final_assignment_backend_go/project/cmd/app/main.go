@@ -8,11 +8,11 @@ import (
 	"os/signal"
 	"syscall"
 
-	"final_assignment_front_go/project/global_exception"
+	"final_assignment_backend_go/project/global_exception"
 
-	"final_assignment_front_go/project/configs/redis"
+	"final_assignment_backend_go/project/configs/redis"
 
-	"final_assignment_front_go/project/configs/docker"
+	"final_assignment_backend_go/project/configs/docker"
 
 	"github.com/gin-gonic/gin"
 )

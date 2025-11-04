@@ -8,9 +8,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"final_assignment_front_go/project/internal/service"
+	"final_assignment_backend_go/project/internal/service"
 
-	"final_assignment_front_go/project/internal/domain"
+	"final_assignment_backend_go/project/internal/domain"
 )
 
 // AppealHandler 对应 Java 的 AppealManagementController
@@ -25,7 +25,7 @@ func NewAppealHandler(appealService *service.AppealService) *AppealHandler {
 
 // CreateAppeal 创建新申诉（POST /api/appeals）
 func (h *AppealHandler) CreateAppeal(c *gin.Context) {
-	var appeal model.AppealManagement
+	var appeal domain.AppealManagement
 	idempotencyKey := c.Query("idempotencyKey")
 
 	if err := c.ShouldBindJSON(&appeal); err != nil {
@@ -76,7 +76,7 @@ func (h *AppealHandler) UpdateAppeal(c *gin.Context) {
 		return
 	}
 
-	var updated model.AppealManagement
+	var updated domain.AppealManagement
 	idempotencyKey := c.Query("idempotencyKey")
 
 	if err := c.ShouldBindJSON(&updated); err != nil {
@@ -84,7 +84,7 @@ func (h *AppealHandler) UpdateAppeal(c *gin.Context) {
 		return
 	}
 
-	updated.AppealID = uint(id)
+	updated.AppealID = int(uint(id))
 	appeal, err := h.appealService.CheckAndInsertIdempotency(idempotencyKey, &updated, "update")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
