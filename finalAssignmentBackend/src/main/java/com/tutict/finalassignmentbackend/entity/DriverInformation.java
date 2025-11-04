@@ -25,7 +25,7 @@ public class DriverInformation implements Serializable {
      * 驾驶员 ID，主键，自动生成
      */
     @TableId(value = "driver_id", type = IdType.AUTO)
-    private Integer driverId;
+    private Long driverId;
 
     /**
      * 姓名
@@ -40,19 +40,7 @@ public class DriverInformation implements Serializable {
     private String idCardNumber;
 
     /**
-     * 联系电话
-     */
-    @TableField("contact_number")
-    private String contactNumber;
-
-    /**
-     * 驾驶证号码
-     */
-    @TableField("driver_license_number")
-    private String driverLicenseNumber;
-
-    /**
-     * 性别
+     * 性别 (Male, Female)
      */
     @TableField("gender")
     private String gender;
@@ -64,19 +52,43 @@ public class DriverInformation implements Serializable {
     private LocalDate birthdate;
 
     /**
+     * 联系电话
+     */
+    @TableField("contact_number")
+    private String contactNumber;
+
+    /**
+     * 电子邮箱
+     */
+    @TableField("email")
+    private String email;
+
+    /**
+     * 联系地址
+     */
+    @TableField("address")
+    private String address;
+
+    /**
+     * 驾驶证号码
+     */
+    @TableField("driver_license_number")
+    private String driverLicenseNumber;
+
+    /**
+     * 准驾车型 (A1, A2, B1, B2, C1, C2等)
+     */
+    @TableField("license_type")
+    private String licenseType;
+
+    /**
      * 首次领取驾驶证日期
      */
     @TableField("first_license_date")
     private LocalDate firstLicenseDate;
 
     /**
-     * 允许驾驶的车辆类型
-     */
-    @TableField("allowed_vehicle_type")
-    private String allowedVehicleType;
-
-    /**
-     * 驾驶证发证日期
+     * 驾驶证签发日期
      */
     @TableField("issue_date")
     private LocalDate issueDate;
@@ -88,9 +100,63 @@ public class DriverInformation implements Serializable {
     private LocalDate expiryDate;
 
     /**
+     * 发证机关
+     */
+    @TableField("issuing_authority")
+    private String issuingAuthority;
+
+    /**
+     * 当前积分 (满分12分)
+     */
+    @TableField("current_points")
+    private Integer currentPoints;
+
+    /**
+     * 累计扣分
+     */
+    @TableField("total_deducted_points")
+    private Integer totalDeductedPoints;
+
+    /**
+     * 驾驶证状态 (Active, Suspended, Revoked, Expired)
+     */
+    @TableField("status")
+    private String status;
+
+    /**
+     * 创建时间
+     */
+    @TableField(value = "created_at", fill = FieldFill.INSERT)
+    private LocalDateTime createdAt;
+
+    /**
+     * 更新时间
+     */
+    @TableField(value = "updated_at", fill = FieldFill.INSERT_UPDATE)
+    private LocalDateTime updatedAt;
+
+    /**
+     * 创建人
+     */
+    @TableField("created_by")
+    private String createdBy;
+
+    /**
+     * 更新人
+     */
+    @TableField("updated_by")
+    private String updatedBy;
+
+    /**
      * 软删除时间戳
      */
     @TableField("deleted_at")
     @TableLogic(value = "null", delval = "now()")
     private LocalDateTime deletedAt;
+
+    /**
+     * 备注
+     */
+    @TableField("remarks")
+    private String remarks;
 }
