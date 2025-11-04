@@ -1,78 +1,182 @@
 package com.tutict.finalassignmentbackend.repository;
 
 import com.tutict.finalassignmentbackend.entity.elastic.VehicleInformationDocument;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.elasticsearch.annotations.Query;
 import org.springframework.data.elasticsearch.core.SearchHits;
 import org.springframework.data.elasticsearch.repository.ElasticsearchRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface VehicleInformationSearchRepository extends ElasticsearchRepository<VehicleInformationDocument, Integer> {
+public interface VehicleInformationSearchRepository extends ElasticsearchRepository<VehicleInformationDocument, Long> {
 
-    // Completion suggestions for licensePlate with idCardNumber filter
-    @Query("{\"bool\": {\"filter\": [{\"term\": {\"idCardNumber.keyword\": \"?0\"}}], " +
-            "\"must\": [{\"query_string\": {\"query\": \"*?1*\", \"fields\": [\"licensePlate.ngram\"]}}]}}")
-    SearchHits<VehicleInformationDocument> findCompletionSuggestions(String idCardNumber, String prefix, int maxSuggestions);
+    int DEFAULT_PAGE_SIZE = 10;
 
-    // Search by licensePlate with idCardNumber filter
-    @Query("{\"bool\": {\"filter\": [{\"term\": {\"idCardNumber.keyword\": \"?1\"}}], " +
-            "\"must\": [{\"query_string\": {\"query\": \"*?0*\", \"fields\": [\"licensePlate.ngram\"]}}]}}")
-    SearchHits<VehicleInformationDocument> searchByLicensePlate(String licensePlate, String idCardNumber);
+    @Query("""
+    {
+      "bool": {
+        "must": [
+          {
+            "match_phrase_prefix": {
+              "licensePlate": {
+                "query": "?0"
+              }
+            }
+          }
+        ],
+        "filter": [
+          {
+            "term": {
+              "ownerIdCard.keyword": {
+                "value": "?1"
+              }
+            }
+          }
+        ]
+      }
+    }
+    """)
+    SearchHits<VehicleInformationDocument> searchByLicensePlate(String prefix, String ownerIdCard, Pageable pageable);
 
-    // Search by vehicleType prefix with idCardNumber filter
-    @Query("{\"bool\": {\"filter\": [{\"term\": {\"idCardNumber.keyword\": \"?1\"}}], " +
-            "\"must\": [{\"query_string\": {\"query\": \"?0*\", \"fields\": [\"vehicleType.ngram\"]}}]}}")
-    SearchHits<VehicleInformationDocument> searchByVehicleTypePrefix(String vehicleType, String idCardNumber);
+    default SearchHits<VehicleInformationDocument> searchByLicensePlate(String prefix, String ownerIdCard) {
+        return searchByLicensePlate(prefix, ownerIdCard, PageRequest.of(0, DEFAULT_PAGE_SIZE));
+    }
 
-    // Fuzzy search by vehicleType with idCardNumber filter
-    @Query("{\"bool\": {\"filter\": [{\"term\": {\"idCardNumber.keyword\": \"?1\"}}], " +
-            "\"must\": [{\"query_string\": {\"query\": \"*?0*\", \"fields\": [\"vehicleType.ngram\"], \"fuzzy_transpositions\": true, \"fuzzy_max_expansions\": 50}}]}}")
-    SearchHits<VehicleInformationDocument> searchByVehicleTypeFuzzy(String vehicleType, String idCardNumber);
+    @Query("""
+    {
+      "bool": {
+        "must": [
+          {
+            "match": {
+              "licensePlate": {
+                "query": "?0",
+                "fuzziness": "AUTO"
+              }
+            }
+          }
+        ],
+        "filter": [
+          {
+            "term": {
+              "ownerIdCard.keyword": {
+                "value": "?1"
+              }
+            }
+          }
+        ]
+      }
+    }
+    """)
+    SearchHits<VehicleInformationDocument> searchByLicensePlateFuzzy(String plate, String ownerIdCard, Pageable pageable);
 
-    // Search by vehicleId with idCardNumber filter
-    @Query("{\"bool\": {\"filter\": [{\"term\": {\"idCardNumber.keyword\": \"?1\"}}], " +
-            "\"must\": [{\"query_string\": {\"query\": \"*?0*\", \"fields\": [\"vehicleId.ngram\"]}}]}}")
-    SearchHits<VehicleInformationDocument> searchByVehicleId(String vehicleId, String idCardNumber);
+    default SearchHits<VehicleInformationDocument> searchByLicensePlateFuzzy(String plate, String ownerIdCard) {
+        return searchByLicensePlateFuzzy(plate, ownerIdCard, PageRequest.of(0, DEFAULT_PAGE_SIZE));
+    }
 
-    // Fuzzy search by vehicleId with idCardNumber filter
-    @Query("{\"bool\": {\"filter\": [{\"term\": {\"idCardNumber.keyword\": \"?1\"}}], " +
-            "\"must\": [{\"query_string\": {\"query\": \"*?0*\", \"fields\": [\"vehicleId.ngram\"], \"fuzzy_transpositions\": true, \"fuzzy_max_expansions\": 50}}]}}")
-    SearchHits<VehicleInformationDocument> searchByVehicleIdFuzzy(String vehicleId, String idCardNumber);
+    @Query("""
+    {
+      "bool": {
+        "must": [
+          {
+            "match_phrase_prefix": {
+              "vehicleType": {
+                "query": "?0"
+              }
+            }
+          }
+        ],
+        "filter": [
+          {
+            "term": {
+              "ownerIdCard.keyword": {
+                "value": "?1"
+              }
+            }
+          }
+        ]
+      }
+    }
+    """)
+    SearchHits<VehicleInformationDocument> searchByVehicleTypePrefix(String prefix, String ownerIdCard, Pageable pageable);
 
-    // Completion suggestions for vehicleId with idCardNumber filter
-    @Query("{\"bool\": {\"filter\": [{\"term\": {\"idCardNumber.keyword\": \"?0\"}}], " +
-            "\"must\": [{\"query_string\": {\"query\": \"*?1*\", \"fields\": [\"vehicleId.ngram\"]}}]}}")
-    SearchHits<VehicleInformationDocument> findVehicleIdCompletionSuggestions(String idCardNumber, String prefix, int maxSuggestions);
+    default SearchHits<VehicleInformationDocument> searchByVehicleTypePrefix(String prefix, String ownerIdCard) {
+        return searchByVehicleTypePrefix(prefix, ownerIdCard, PageRequest.of(0, DEFAULT_PAGE_SIZE));
+    }
 
-    // Global completion suggestions for licensePlate
-    @Query("{\"query_string\": {\"query\": \"*?0*\", \"fields\": [\"licensePlate.ngram\"]}}")
-    SearchHits<VehicleInformationDocument> findCompletionSuggestionsGlobally(String prefix, int maxSuggestions);
+    @Query("""
+    {
+      "bool": {
+        "must": [
+          {
+            "match": {
+              "vehicleType": {
+                "query": "?0",
+                "fuzziness": "AUTO"
+              }
+            }
+          }
+        ],
+        "filter": [
+          {
+            "term": {
+              "ownerIdCard.keyword": {
+                "value": "?1"
+              }
+            }
+          }
+        ]
+      }
+    }
+    """)
+    SearchHits<VehicleInformationDocument> searchByVehicleTypeFuzzy(String vehicleType, String ownerIdCard, Pageable pageable);
 
-    // Global exact licensePlate search
-    @Query("{\"term\": {\"licensePlate.keyword\": \"?0\"}}")
-    SearchHits<VehicleInformationDocument> searchByLicensePlateExactGlobally(String licensePlate);
+    default SearchHits<VehicleInformationDocument> searchByVehicleTypeFuzzy(String vehicleType, String ownerIdCard) {
+        return searchByVehicleTypeFuzzy(vehicleType, ownerIdCard, PageRequest.of(0, DEFAULT_PAGE_SIZE));
+    }
 
-    // Global licensePlate fuzzy search
-    @Query("{\"query_string\": {\"query\": \"*?0*\", \"fields\": [\"licensePlate.ngram\"]}}")
-    SearchHits<VehicleInformationDocument> searchByLicensePlateGlobally(String licensePlate);
+    @Query("""
+    {
+      "bool": {
+        "must": [
+          {
+            "match_phrase_prefix": {
+              "licensePlate": {
+                "query": "?1"
+              }
+            }
+          }
+        ],
+        "filter": [
+          {
+            "term": {
+              "ownerIdCard.keyword": {
+                "value": "?0"
+              }
+            }
+          }
+        ]
+      }
+    }
+    """)
+    SearchHits<VehicleInformationDocument> findCompletionSuggestions(String ownerIdCard, String prefix, Pageable pageable);
 
-    // Global vehicleType prefix search
-    @Query("{\"query_string\": {\"query\": \"?0*\", \"fields\": [\"vehicleType.ngram\"]}}")
-    SearchHits<VehicleInformationDocument> searchByVehicleTypePrefixGlobally(String vehicleType);
+    default SearchHits<VehicleInformationDocument> findCompletionSuggestions(String ownerIdCard, String prefix, int maxSuggestions) {
+        return findCompletionSuggestions(ownerIdCard, prefix, PageRequest.of(0, Math.max(1, maxSuggestions)));
+    }
 
-    // Global vehicleType fuzzy search
-    @Query("{\"query_string\": {\"query\": \"*?0*\", \"fields\": [\"vehicleType.ngram\"], \"fuzzy_transpositions\": true, \"fuzzy_max_expansions\": 50}}")
-    SearchHits<VehicleInformationDocument> searchByVehicleTypeFuzzyGlobally(String vehicleType);
+    @Query("""
+    {
+      "match_phrase_prefix": {
+        "licensePlate": {
+          "query": "?0"
+        }
+      }
+    }
+    """)
+    SearchHits<VehicleInformationDocument> findCompletionSuggestionsGlobally(String prefix, Pageable pageable);
 
-    // Global vehicleId prefix search
-    @Query("{\"query_string\": {\"query\": \"*?0*\", \"fields\": [\"vehicleId.ngram\"]}}")
-    SearchHits<VehicleInformationDocument> searchByVehicleIdPrefixGlobally(String vehicleId);
-
-    // Global vehicleId fuzzy search
-    @Query("{\"query_string\": {\"query\": \"*?0*\", \"fields\": [\"vehicleId.ngram\"], \"fuzzy_transpositions\": true, \"fuzzy_max_expansions\": 50}}")
-    SearchHits<VehicleInformationDocument> searchByVehicleIdFuzzyGlobally(String vehicleId);
-
-    // Global completion suggestions for vehicleId
-    @Query("{\"query_string\": {\"query\": \"*?0*\", \"fields\": [\"vehicleId.ngram\"]}}")
-    SearchHits<VehicleInformationDocument> findVehicleIdCompletionSuggestionsGlobally(String prefix, int maxSuggestions);
+    default SearchHits<VehicleInformationDocument> findCompletionSuggestionsGlobally(String prefix, int maxSuggestions) {
+        return findCompletionSuggestionsGlobally(prefix, PageRequest.of(0, Math.max(1, maxSuggestions)));
+    }
 }

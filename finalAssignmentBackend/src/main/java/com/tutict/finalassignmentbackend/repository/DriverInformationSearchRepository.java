@@ -1,33 +1,153 @@
 package com.tutict.finalassignmentbackend.repository;
 
 import com.tutict.finalassignmentbackend.entity.elastic.DriverInformationDocument;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.elasticsearch.annotations.Query;
 import org.springframework.data.elasticsearch.core.SearchHits;
 import org.springframework.data.elasticsearch.repository.ElasticsearchRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface DriverInformationSearchRepository extends ElasticsearchRepository<DriverInformationDocument, Integer> {
+public interface DriverInformationSearchRepository extends ElasticsearchRepository<DriverInformationDocument, Long> {
 
-    // 使用 query_string 查询，支持更灵活的模糊匹配，按 driverLicenseNumber 模糊搜索
-    @Query("{\"bool\": {\"must\": [{\"query_string\": {\"query\": \"*?0*\", \"fields\": [\"driverLicenseNumber.ngram\"]}}]}}")
-    SearchHits<DriverInformationDocument> searchByDriverLicenseNumber(String driverLicenseNumber);
+    int DEFAULT_PAGE_SIZE = 10;
 
-    @Query("{\"bool\": {\"must\": [{\"match\": {\"driverLicenseNumber\": {\"query\": \"?0\", \"fuzziness\": \"AUTO\"}}}]}}")
-    SearchHits<DriverInformationDocument> searchByDriverLicenseNumberFuzzy(String driverLicenseNumber);
+    @Query("""
+            {
+              "match_phrase_prefix": {
+                "name": {
+                  "query": "?0"
+                }
+              }
+            }
+            """)
+    SearchHits<DriverInformationDocument> searchByNamePrefix(String name, Pageable pageable);
 
-    // 使用 query_string 查询，支持更灵活的模糊匹配，按 name 模糊搜索
-    @Query("{\"bool\": {\"must\": [{\"query_string\": {\"query\": \"*?0*\", \"fields\": [\"name.ngram\"]}}]}}")
-    SearchHits<DriverInformationDocument> searchByNamePrefix(String name);
+    default SearchHits<DriverInformationDocument> searchByNamePrefix(String name) {
+        return searchByNamePrefix(name, PageRequest.of(0, DEFAULT_PAGE_SIZE));
+    }
 
-    // 模糊匹配查询 name
-    @Query("{\"bool\": {\"must\": [{\"match\": {\"name\": {\"query\": \"?0\", \"fuzziness\": \"AUTO\"}}}]}}")
-    SearchHits<DriverInformationDocument> searchByNameFuzzy(String name);
+    @Query("""
+            {
+              "match": {
+                "name": {
+                  "query": "?0",
+                  "fuzziness": "AUTO"
+                }
+              }
+            }
+            """)
+    SearchHits<DriverInformationDocument> searchByNameFuzzy(String name, Pageable pageable);
 
-    // 使用 query_string 查询，支持更灵活的模糊匹配，按 idCardNumber 模糊搜索
-    @Query("{\"bool\": {\"must\": [{\"query_string\": {\"query\": \"*?0*\", \"fields\": [\"idCardNumber.ngram\"]}}]}}")
-    SearchHits<DriverInformationDocument> searchByIdCardNumber(String idCardNumber);
+    default SearchHits<DriverInformationDocument> searchByNameFuzzy(String name) {
+        return searchByNameFuzzy(name, PageRequest.of(0, DEFAULT_PAGE_SIZE));
+    }
 
-    @Query("{\"bool\": {\"must\": [{\"match\": {\"idCardNumber\": {\"query\": \"?0\", \"fuzziness\": \"AUTO\"}}}]}}")
-    SearchHits<DriverInformationDocument> searchByIdCardNumberFuzzy(String idCardNumber);
+    @Query("""
+            {
+              "match_phrase_prefix": {
+                "idCardNumber": {
+                  "query": "?0"
+                }
+              }
+            }
+            """)
+    SearchHits<DriverInformationDocument> searchByIdCardNumber(String idCardNumber, Pageable pageable);
+
+    default SearchHits<DriverInformationDocument> searchByIdCardNumber(String idCardNumber) {
+        return searchByIdCardNumber(idCardNumber, PageRequest.of(0, DEFAULT_PAGE_SIZE));
+    }
+
+    @Query("""
+            {
+              "match": {
+                "idCardNumber": {
+                  "query": "?0",
+                  "fuzziness": "AUTO"
+                }
+              }
+            }
+            """)
+    SearchHits<DriverInformationDocument> searchByIdCardNumberFuzzy(String idCardNumber, Pageable pageable);
+
+    default SearchHits<DriverInformationDocument> searchByIdCardNumberFuzzy(String idCardNumber) {
+        return searchByIdCardNumberFuzzy(idCardNumber, PageRequest.of(0, DEFAULT_PAGE_SIZE));
+    }
+
+    @Query("""
+            {
+              "match_phrase_prefix": {
+                "driverLicenseNumber": {
+                  "query": "?0"
+                }
+              }
+            }
+            """)
+    SearchHits<DriverInformationDocument> searchByDriverLicenseNumber(String driverLicenseNumber, Pageable pageable);
+
+    default SearchHits<DriverInformationDocument> searchByDriverLicenseNumber(String driverLicenseNumber) {
+        return searchByDriverLicenseNumber(driverLicenseNumber, PageRequest.of(0, DEFAULT_PAGE_SIZE));
+    }
+
+    @Query("""
+            {
+              "match": {
+                "driverLicenseNumber": {
+                  "query": "?0",
+                  "fuzziness": "AUTO"
+                }
+              }
+            }
+            """)
+    SearchHits<DriverInformationDocument> searchByDriverLicenseNumberFuzzy(String driverLicenseNumber, Pageable pageable);
+
+    default SearchHits<DriverInformationDocument> searchByDriverLicenseNumberFuzzy(String driverLicenseNumber) {
+        return searchByDriverLicenseNumberFuzzy(driverLicenseNumber, PageRequest.of(0, DEFAULT_PAGE_SIZE));
+    }
+
+    @Query("""
+            {
+              "term": {
+                "driverId": {
+                  "value": ?0
+                }
+              }
+            }
+            """)
+    SearchHits<DriverInformationDocument> findByDriverId(Long driverId, Pageable pageable);
+
+    default SearchHits<DriverInformationDocument> findByDriverId(Long driverId) {
+        return findByDriverId(driverId, PageRequest.of(0, DEFAULT_PAGE_SIZE));
+    }
+
+    @Query("""
+            {
+              "term": {
+                "status.keyword": {
+                  "value": "?0"
+                }
+              }
+            }
+            """)
+    SearchHits<DriverInformationDocument> searchByStatus(String status, Pageable pageable);
+
+    default SearchHits<DriverInformationDocument> searchByStatus(String status) {
+        return searchByStatus(status, PageRequest.of(0, DEFAULT_PAGE_SIZE));
+    }
+
+    @Query("""
+            {
+              "match_phrase_prefix": {
+                "contactNumber": {
+                  "query": "?0"
+                }
+              }
+            }
+            """)
+    SearchHits<DriverInformationDocument> searchByContactNumber(String contactNumber, Pageable pageable);
+
+    default SearchHits<DriverInformationDocument> searchByContactNumber(String contactNumber) {
+        return searchByContactNumber(contactNumber, PageRequest.of(0, DEFAULT_PAGE_SIZE));
+    }
 }
