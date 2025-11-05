@@ -2,67 +2,97 @@ package com.tutict.finalassignmentbackend.kafkaListener;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.entity.DeductionRecord;
-import com.tutict.finalassignmentbackend.mapper.DeductionRecordMapper;
+import com.tutict.finalassignmentbackend.service.DeductionRecordService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.support.KafkaHeaders;
+import org.springframework.messaging.handler.annotation.Header;
+import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Service;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 @Service
-@EnableKafka
 public class DeductionRecordKafkaListener {
 
     private static final Logger log = Logger.getLogger(DeductionRecordKafkaListener.class.getName());
 
-    private final DeductionRecordMapper deductionRecordMapper;
+    private final DeductionRecordService deductionRecordService;
     private final ObjectMapper objectMapper;
 
     @Autowired
-    public DeductionRecordKafkaListener(DeductionRecordMapper deductionRecordMapper, ObjectMapper objectMapper) {
-        this.deductionRecordMapper = deductionRecordMapper;
+    public DeductionRecordKafkaListener(DeductionRecordService deductionRecordService,
+                                        ObjectMapper objectMapper) {
+        this.deductionRecordService = deductionRecordService;
         this.objectMapper = objectMapper;
     }
 
     @KafkaListener(topics = "deduction_record_create", groupId = "deductionRecordGroup", concurrency = "3")
-    public void onDeductionRecordCreateReceived(String message) {
-        log.log(Level.INFO, "Received Kafka message for create: {0}", message);
-        Thread.ofVirtual().start(() -> processMessage(message, "create"));
+    public void onDeductionRecordCreate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
+                                        @Payload String message) {
+        log.log(Level.INFO, "Received Kafka message for DeductionRecord create: {0}", message);
+        Thread.ofVirtual().start(() -> processMessage(asKey(rawKey), message, "create"));
     }
 
     @KafkaListener(topics = "deduction_record_update", groupId = "deductionRecordGroup", concurrency = "3")
-    public void onDeductionRecordUpdateReceived(String message) {
-        log.log(Level.INFO, "Received Kafka message for update: {0}", message);
-        Thread.ofVirtual().start(() -> processMessage(message, "update"));
+    public void onDeductionRecordUpdate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
+                                        @Payload String message) {
+        log.log(Level.INFO, "Received Kafka message for DeductionRecord update: {0}", message);
+        Thread.ofVirtual().start(() -> processMessage(asKey(rawKey), message, "update"));
     }
 
-    private void processMessage(String message, String action) {
+    private void processMessage(String idempotencyKey, String message, String action) {
+        if (isBlank(idempotencyKey)) {
+            log.warning("Received DeductionRecord event without idempotency key, skipping");
+            return;
+        }
+        DeductionRecord payload = deserializeMessage(message);
+        if (payload == null) {
+            log.warning("Received DeductionRecord event with empty payload, skipping");
+            return;
+        }
         try {
-            DeductionRecord entity = deserializeMessage(message);
-            if ("create".equals(action)) {
-                entity.setDeductionId(null);
-                deductionRecordMapper.insert(entity);
-            } else if ("update".equals(action)) {
-                deductionRecordMapper.updateById(entity);
-            } else {
-                log.log(Level.WARNING, "Unsupported action: {0}", action);
+            if (deductionRecordService.shouldSkipProcessing(idempotencyKey)) {
+                log.log(Level.INFO, "Skipping duplicate DeductionRecord event (key={0}, action={1})",
+                        new Object[]{idempotencyKey, action});
                 return;
             }
-            log.info(String.format("DeductionRecord %s action processed successfully: %s", action, entity));
-        } catch (Exception e) {
-            log.log(Level.SEVERE, String.format("Error processing %s DeductionRecord message: %s", action, message), e);
-            throw new RuntimeException(String.format("Failed to process %s DeductionRecord message", action), e);
+
+            DeductionRecord result;
+            if ("create".equalsIgnoreCase(action)) {
+                payload.setDeductionId(null);
+                result = deductionRecordService.createDeductionRecord(payload);
+            } else if ("update".equalsIgnoreCase(action)) {
+                result = deductionRecordService.updateDeductionRecord(payload);
+            } else {
+                log.log(Level.WARNING, "Unsupported DeductionRecord action: {0}", action);
+                return;
+            }
+            deductionRecordService.markHistorySuccess(idempotencyKey, result.getDeductionId());
+        } catch (Exception ex) {
+            deductionRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
+            log.log(Level.SEVERE,
+                    String.format("Error processing DeductionRecord event (key=%s, action=%s)", idempotencyKey, action),
+                    ex);
+            throw ex;
         }
     }
 
     private DeductionRecord deserializeMessage(String message) {
         try {
             return objectMapper.readValue(message, DeductionRecord.class);
-        } catch (Exception e) {
-            log.log(Level.SEVERE, "Failed to deserialize message: {0}", message);
-            throw new RuntimeException("Failed to deserialize message", e);
+        } catch (Exception ex) {
+            log.log(Level.SEVERE, "Failed to deserialize DeductionRecord message: {0}", message);
+            return null;
         }
+    }
+
+    private String asKey(byte[] rawKey) {
+        return rawKey == null ? null : new String(rawKey);
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
     }
 }

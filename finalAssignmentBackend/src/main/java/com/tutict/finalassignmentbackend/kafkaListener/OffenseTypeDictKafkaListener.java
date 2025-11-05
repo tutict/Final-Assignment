@@ -2,67 +2,96 @@ package com.tutict.finalassignmentbackend.kafkaListener;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.entity.OffenseTypeDict;
-import com.tutict.finalassignmentbackend.mapper.OffenseTypeDictMapper;
+import com.tutict.finalassignmentbackend.service.OffenseTypeDictService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.support.KafkaHeaders;
+import org.springframework.messaging.handler.annotation.Header;
+import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Service;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 @Service
-@EnableKafka
 public class OffenseTypeDictKafkaListener {
 
     private static final Logger log = Logger.getLogger(OffenseTypeDictKafkaListener.class.getName());
 
-    private final OffenseTypeDictMapper offenseTypeDictMapper;
+    private final OffenseTypeDictService offenseTypeDictService;
     private final ObjectMapper objectMapper;
 
     @Autowired
-    public OffenseTypeDictKafkaListener(OffenseTypeDictMapper offenseTypeDictMapper, ObjectMapper objectMapper) {
-        this.offenseTypeDictMapper = offenseTypeDictMapper;
+    public OffenseTypeDictKafkaListener(OffenseTypeDictService offenseTypeDictService,
+                                        ObjectMapper objectMapper) {
+        this.offenseTypeDictService = offenseTypeDictService;
         this.objectMapper = objectMapper;
     }
 
     @KafkaListener(topics = "offense_type_dict_create", groupId = "offenseTypeDictGroup", concurrency = "3")
-    public void onOffenseTypeDictCreateReceived(String message) {
-        log.log(Level.INFO, "Received Kafka message for create: {0}", message);
-        Thread.ofVirtual().start(() -> processMessage(message, "create"));
+    public void onOffenseTypeDictCreate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
+                                        @Payload String message) {
+        log.log(Level.INFO, "Received Kafka message for OffenseTypeDict create: {0}", message);
+        Thread.ofVirtual().start(() -> processMessage(asKey(rawKey), message, "create"));
     }
 
     @KafkaListener(topics = "offense_type_dict_update", groupId = "offenseTypeDictGroup", concurrency = "3")
-    public void onOffenseTypeDictUpdateReceived(String message) {
-        log.log(Level.INFO, "Received Kafka message for update: {0}", message);
-        Thread.ofVirtual().start(() -> processMessage(message, "update"));
+    public void onOffenseTypeDictUpdate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
+                                        @Payload String message) {
+        log.log(Level.INFO, "Received Kafka message for OffenseTypeDict update: {0}", message);
+        Thread.ofVirtual().start(() -> processMessage(asKey(rawKey), message, "update"));
     }
 
-    private void processMessage(String message, String action) {
+    private void processMessage(String idempotencyKey, String message, String action) {
+        if (isBlank(idempotencyKey)) {
+            log.warning("Received OffenseTypeDict event without idempotency key, skipping");
+            return;
+        }
+        OffenseTypeDict payload = deserializeMessage(message);
+        if (payload == null) {
+            log.warning("Received OffenseTypeDict event with empty payload, skipping");
+            return;
+        }
         try {
-            OffenseTypeDict entity = deserializeMessage(message);
-            if ("create".equals(action)) {
-                entity.setTypeId(null);
-                offenseTypeDictMapper.insert(entity);
-            } else if ("update".equals(action)) {
-                offenseTypeDictMapper.updateById(entity);
-            } else {
-                log.log(Level.WARNING, "Unsupported action: {0}", action);
+            if (offenseTypeDictService.shouldSkipProcessing(idempotencyKey)) {
+                log.log(Level.INFO, "Skipping duplicate OffenseTypeDict event (key={0}, action={1})",
+                        new Object[]{idempotencyKey, action});
                 return;
             }
-            log.info(String.format("OffenseTypeDict %s action processed successfully: %s", action, entity));
-        } catch (Exception e) {
-            log.log(Level.SEVERE, String.format("Error processing %s OffenseTypeDict message: %s", action, message), e);
-            throw new RuntimeException(String.format("Failed to process %s OffenseTypeDict message", action), e);
+            OffenseTypeDict result;
+            if ("create".equalsIgnoreCase(action)) {
+                payload.setTypeId(null);
+                result = offenseTypeDictService.createDict(payload);
+            } else if ("update".equalsIgnoreCase(action)) {
+                result = offenseTypeDictService.updateDict(payload);
+            } else {
+                log.log(Level.WARNING, "Unsupported OffenseTypeDict action: {0}", action);
+                return;
+            }
+            offenseTypeDictService.markHistorySuccess(idempotencyKey, result.getTypeId());
+        } catch (Exception ex) {
+            offenseTypeDictService.markHistoryFailure(idempotencyKey, ex.getMessage());
+            log.log(Level.SEVERE,
+                    String.format("Error processing OffenseTypeDict event (key=%s, action=%s)", idempotencyKey, action),
+                    ex);
+            throw ex;
         }
     }
 
     private OffenseTypeDict deserializeMessage(String message) {
         try {
             return objectMapper.readValue(message, OffenseTypeDict.class);
-        } catch (Exception e) {
-            log.log(Level.SEVERE, "Failed to deserialize message: {0}", message);
-            throw new RuntimeException("Failed to deserialize message", e);
+        } catch (Exception ex) {
+            log.log(Level.SEVERE, "Failed to deserialize OffenseTypeDict message: {0}", message);
+            return null;
         }
+    }
+
+    private String asKey(byte[] rawKey) {
+        return rawKey == null ? null : new String(rawKey);
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
     }
 }

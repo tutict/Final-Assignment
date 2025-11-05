@@ -1,5 +1,6 @@
 package com.tutict.finalassignmentbackend.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.AppealRecord;
@@ -37,18 +38,21 @@ public class AppealRecordService {
 
     private final AppealRecordMapper appealRecordMapper;
     private final SysRequestHistoryMapper sysRequestHistoryMapper;
-    private final KafkaTemplate<String, AppealRecord> kafkaTemplate;
     private final AppealRecordSearchRepository appealRecordSearchRepository;
+    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final ObjectMapper objectMapper;
 
     @Autowired
     public AppealRecordService(AppealRecordMapper appealRecordMapper,
                                SysRequestHistoryMapper sysRequestHistoryMapper,
-                               KafkaTemplate<String, AppealRecord> kafkaTemplate,
-                               AppealRecordSearchRepository appealRecordSearchRepository) {
+                               KafkaTemplate<String, String> kafkaTemplate,
+                               AppealRecordSearchRepository appealRecordSearchRepository,
+                               ObjectMapper objectMapper) {
         this.appealRecordMapper = appealRecordMapper;
         this.sysRequestHistoryMapper = sysRequestHistoryMapper;
         this.kafkaTemplate = kafkaTemplate;
         this.appealRecordSearchRepository = appealRecordSearchRepository;
+        this.objectMapper = objectMapper;
     }
 
     @Transactional
@@ -63,9 +67,10 @@ public class AppealRecordService {
 
         SysRequestHistory newHistory = buildHistory(idempotencyKey);
         sysRequestHistoryMapper.insert(newHistory);
-        sendKafkaMessage("appeal_" + action, appealRecord);
+        sendKafkaMessage("appeal_" + action, idempotencyKey, appealRecord);
         newHistory.setBusinessStatus("SUCCESS");
         newHistory.setBusinessId(Optional.ofNullable(appealRecord.getAppealId()).map(Long::valueOf).orElse(null));
+        newHistory.setRequestParams("PENDING");
         newHistory.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.updateById(newHistory);
     }
@@ -150,11 +155,45 @@ public class AppealRecordService {
         return history;
     }
 
-    private void sendKafkaMessage(String topic, AppealRecord appealRecord) {
+    public boolean shouldSkipProcessing(String idempotencyKey) {
+        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
+        return history != null
+                && "SUCCESS".equalsIgnoreCase(history.getBusinessStatus())
+                && "DONE".equalsIgnoreCase(history.getRequestParams());
+    }
+
+    public void markHistorySuccess(String idempotencyKey, Long appealId) {
+        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
+        if (history == null) {
+            log.log(Level.WARNING, "Cannot mark success for missing idempotency key {0}", idempotencyKey);
+            return;
+        }
+        history.setBusinessStatus("SUCCESS");
+        history.setBusinessId(appealId);
+        history.setRequestParams("DONE");
+        history.setUpdatedAt(LocalDateTime.now());
+        sysRequestHistoryMapper.updateById(history);
+    }
+
+    public void markHistoryFailure(String idempotencyKey, String reason) {
+        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
+        if (history == null) {
+            log.log(Level.WARNING, "Cannot mark failure for missing idempotency key {0}", idempotencyKey);
+            return;
+        }
+        history.setBusinessStatus("FAILED");
+        history.setRequestParams(truncate(reason));
+        history.setUpdatedAt(LocalDateTime.now());
+        sysRequestHistoryMapper.updateById(history);
+    }
+
+    private void sendKafkaMessage(String topic, String idempotencyKey, AppealRecord appealRecord) {
         try {
-            kafkaTemplate.send(topic, appealRecord);
+            String payload = objectMapper.writeValueAsString(appealRecord);
+            kafkaTemplate.send(topic, idempotencyKey, payload);
         } catch (Exception e) {
             log.log(Level.WARNING, "Failed to send appeal Kafka message", e);
+            throw new RuntimeException("Failed to send appeal record event", e);
         }
     }
 
@@ -188,5 +227,12 @@ public class AppealRecordService {
         if (appealId == null || appealId <= 0) {
             throw new IllegalArgumentException("Invalid appeal ID: " + appealId);
         }
+    }
+
+    private String truncate(String value) {
+        if (value == null) {
+            return null;
+        }
+        return value.length() <= 500 ? value : value.substring(0, 500);
     }
 }

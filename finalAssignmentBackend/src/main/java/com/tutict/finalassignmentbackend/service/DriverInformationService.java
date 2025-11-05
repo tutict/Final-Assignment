@@ -1,5 +1,6 @@
 package com.tutict.finalassignmentbackend.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.DriverInformation;
 import com.tutict.finalassignmentbackend.entity.SysRequestHistory;
@@ -42,20 +43,23 @@ public class DriverInformationService {
     private final DriverInformationMapper driverInformationMapper;
     private final SysUserMapper sysUserMapper;
     private final SysRequestHistoryMapper sysRequestHistoryMapper;
-    private final KafkaTemplate<String, DriverInformation> kafkaTemplate;
     private final DriverInformationSearchRepository driverInformationSearchRepository;
+    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final ObjectMapper objectMapper;
 
     @Autowired
     public DriverInformationService(DriverInformationMapper driverInformationMapper,
                                     SysUserMapper sysUserMapper,
                                     SysRequestHistoryMapper sysRequestHistoryMapper,
-                                    KafkaTemplate<String, DriverInformation> kafkaTemplate,
-                                    DriverInformationSearchRepository driverInformationSearchRepository) {
+                                    KafkaTemplate<String, String> kafkaTemplate,
+                                    DriverInformationSearchRepository driverInformationSearchRepository,
+                                    ObjectMapper objectMapper) {
         this.driverInformationMapper = driverInformationMapper;
         this.sysUserMapper = sysUserMapper;
         this.sysRequestHistoryMapper = sysRequestHistoryMapper;
         this.kafkaTemplate = kafkaTemplate;
         this.driverInformationSearchRepository = driverInformationSearchRepository;
+        this.objectMapper = objectMapper;
     }
 
     @Transactional
@@ -76,10 +80,11 @@ public class DriverInformationService {
         history.setBusinessStatus("PROCESSING");
         sysRequestHistoryMapper.insert(history);
 
-        sendKafkaMessage("driver_" + action, driverInformation);
+        sendKafkaMessage("driver_" + action, idempotencyKey, driverInformation);
 
         history.setBusinessStatus("SUCCESS");
         history.setBusinessId(Optional.ofNullable(driverInformation.getDriverId()).map(Long::valueOf).orElse(null));
+        history.setRequestParams("PENDING");
         sysRequestHistoryMapper.updateById(history);
     }
 
@@ -209,6 +214,38 @@ public class DriverInformationService {
                 .collect(Collectors.toList());
     }
 
+    public boolean shouldSkipProcessing(String idempotencyKey) {
+        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
+        return history != null
+                && "SUCCESS".equalsIgnoreCase(history.getBusinessStatus())
+                && "DONE".equalsIgnoreCase(history.getRequestParams());
+    }
+
+    public void markHistorySuccess(String idempotencyKey, Long driverId) {
+        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
+        if (history == null) {
+            log.log(Level.WARNING, "Cannot mark success for missing idempotency key {0}", idempotencyKey);
+            return;
+        }
+        history.setBusinessStatus("SUCCESS");
+        history.setBusinessId(driverId);
+        history.setRequestParams("DONE");
+        history.setUpdatedAt(LocalDateTime.now());
+        sysRequestHistoryMapper.updateById(history);
+    }
+
+    public void markHistoryFailure(String idempotencyKey, String reason) {
+        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
+        if (history == null) {
+            log.log(Level.WARNING, "Cannot mark failure for missing idempotency key {0}", idempotencyKey);
+            return;
+        }
+        history.setBusinessStatus("FAILED");
+        history.setRequestParams(truncate(reason));
+        history.setUpdatedAt(LocalDateTime.now());
+        sysRequestHistoryMapper.updateById(history);
+    }
+
     private void searchAndCollect(String query,
                                   FunctionWithException<String, SearchHits<DriverInformationDocument>> executor,
                                   FunctionWithException<DriverInformationDocument, String> fieldSelector,
@@ -245,11 +282,13 @@ public class DriverInformationService {
         });
     }
 
-    private void sendKafkaMessage(String topic, DriverInformation driverInformation) {
+    private void sendKafkaMessage(String topic, String idempotencyKey, DriverInformation driverInformation) {
         try {
-            kafkaTemplate.send(topic, driverInformation);
+            String payload = objectMapper.writeValueAsString(driverInformation);
+            kafkaTemplate.send(topic, idempotencyKey, payload);
         } catch (Exception e) {
             log.log(Level.WARNING, "Failed to send driver Kafka message", e);
+            throw new RuntimeException("Failed to send driver event", e);
         }
     }
 
@@ -274,6 +313,13 @@ public class DriverInformationService {
         if (page < 1 || size < 1) {
             throw new IllegalArgumentException("Page must be >= 1 and size must be >= 1");
         }
+    }
+
+    private String truncate(String value) {
+        if (value == null) {
+            return null;
+        }
+        return value.length() <= 500 ? value : value.substring(0, 500);
     }
 
     @FunctionalInterface

@@ -1,41 +1,158 @@
 package com.tutict.finalassignmentbackend.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.PaymentRecord;
+import com.tutict.finalassignmentbackend.entity.SysRequestHistory;
 import com.tutict.finalassignmentbackend.entity.elastic.PaymentRecordDocument;
 import com.tutict.finalassignmentbackend.mapper.PaymentRecordMapper;
+import com.tutict.finalassignmentbackend.mapper.SysRequestHistoryMapper;
 import com.tutict.finalassignmentbackend.repository.PaymentRecordSearchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 @Service
-public class PaymentRecordService extends AbstractElasticsearchCrudService<PaymentRecord, PaymentRecordDocument, Long> {
+public class PaymentRecordService {
 
+    private static final Logger log = Logger.getLogger(PaymentRecordService.class.getName());
     private static final String CACHE_NAME = "paymentRecordCache";
 
-    private final PaymentRecordSearchRepository repository;
+    private final PaymentRecordMapper paymentRecordMapper;
+    private final SysRequestHistoryMapper sysRequestHistoryMapper;
+    private final PaymentRecordSearchRepository paymentRecordSearchRepository;
+    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final ObjectMapper objectMapper;
 
     @Autowired
-    public PaymentRecordService(PaymentRecordMapper mapper,
-                                PaymentRecordSearchRepository repository) {
-        super(mapper,
-                repository,
-                PaymentRecordDocument::fromEntity,
-                PaymentRecordDocument::toEntity,
-                PaymentRecord::getPaymentId,
-                CACHE_NAME);
-        this.repository = repository;
+    public PaymentRecordService(PaymentRecordMapper paymentRecordMapper,
+                                SysRequestHistoryMapper sysRequestHistoryMapper,
+                                PaymentRecordSearchRepository paymentRecordSearchRepository,
+                                KafkaTemplate<String, String> kafkaTemplate,
+                                ObjectMapper objectMapper) {
+        this.paymentRecordMapper = paymentRecordMapper;
+        this.sysRequestHistoryMapper = sysRequestHistoryMapper;
+        this.paymentRecordSearchRepository = paymentRecordSearchRepository;
+        this.kafkaTemplate = kafkaTemplate;
+        this.objectMapper = objectMapper;
+    }
+
+    @Transactional
+    @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
+    @WsAction(service = "PaymentRecordService", action = "checkAndInsertIdempotency")
+    public void checkAndInsertIdempotency(String idempotencyKey, PaymentRecord paymentRecord, String action) {
+        Objects.requireNonNull(paymentRecord, "PaymentRecord must not be null");
+        if (sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey) != null) {
+            throw new RuntimeException("Duplicate payment record request detected");
+        }
+
+        SysRequestHistory history = new SysRequestHistory();
+        history.setIdempotencyKey(idempotencyKey);
+        history.setBusinessStatus("PROCESSING");
+        history.setCreatedAt(LocalDateTime.now());
+        history.setUpdatedAt(LocalDateTime.now());
+        sysRequestHistoryMapper.insert(history);
+
+        sendKafkaMessage("payment_record_" + action, idempotencyKey, paymentRecord);
+
+        history.setBusinessStatus("SUCCESS");
+        history.setBusinessId(Optional.ofNullable(paymentRecord.getPaymentId()).map(Long::valueOf).orElse(null));
+        history.setRequestParams("PENDING");
+        history.setUpdatedAt(LocalDateTime.now());
+        sysRequestHistoryMapper.updateById(history);
+    }
+
+    @Transactional
+    @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
+    public PaymentRecord createPaymentRecord(PaymentRecord paymentRecord) {
+        validatePaymentRecord(paymentRecord);
+        paymentRecordMapper.insert(paymentRecord);
+        syncToIndexAfterCommit(paymentRecord);
+        return paymentRecord;
+    }
+
+    @Transactional
+    @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
+    public PaymentRecord updatePaymentRecord(PaymentRecord paymentRecord) {
+        validatePaymentRecord(paymentRecord);
+        requirePositive(paymentRecord.getPaymentId(), "Payment ID");
+        int rows = paymentRecordMapper.updateById(paymentRecord);
+        if (rows == 0) {
+            throw new IllegalStateException("No PaymentRecord updated for id=" + paymentRecord.getPaymentId());
+        }
+        syncToIndexAfterCommit(paymentRecord);
+        return paymentRecord;
+    }
+
+    @Transactional
+    @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
+    public void deletePaymentRecord(Long paymentId) {
+        requirePositive(paymentId, "Payment ID");
+        int rows = paymentRecordMapper.deleteById(paymentId);
+        if (rows == 0) {
+            throw new IllegalStateException("No PaymentRecord deleted for id=" + paymentId);
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                paymentRecordSearchRepository.deleteById(paymentId);
+            }
+        });
+    }
+
+    @Transactional(readOnly = true)
+    @Cacheable(cacheNames = CACHE_NAME, key = "#paymentId", unless = "#result == null")
+    public PaymentRecord findById(Long paymentId) {
+        requirePositive(paymentId, "Payment ID");
+        return paymentRecordSearchRepository.findById(paymentId)
+                .map(PaymentRecordDocument::toEntity)
+                .orElseGet(() -> {
+                    PaymentRecord entity = paymentRecordMapper.selectById(paymentId);
+                    if (entity != null) {
+                        paymentRecordSearchRepository.save(PaymentRecordDocument.fromEntity(entity));
+                    }
+                    return entity;
+                });
+    }
+
+    @Transactional(readOnly = true)
+    @Cacheable(cacheNames = CACHE_NAME, key = "'all'", unless = "#result == null || #result.isEmpty()")
+    public List<PaymentRecord> findAll() {
+        List<PaymentRecord> fromIndex = StreamSupport.stream(paymentRecordSearchRepository.findAll().spliterator(), false)
+                .map(PaymentRecordDocument::toEntity)
+                .collect(Collectors.toList());
+        if (!fromIndex.isEmpty()) {
+            return fromIndex;
+        }
+        List<PaymentRecord> fromDb = paymentRecordMapper.selectList(null);
+        fromDb.stream()
+                .map(PaymentRecordDocument::fromEntity)
+                .filter(Objects::nonNull)
+                .forEach(paymentRecordSearchRepository::save);
+        return fromDb;
     }
 
     @Cacheable(cacheNames = CACHE_NAME, key = "'fine:' + #fineId + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
     public List<PaymentRecord> findByFineId(Long fineId, int page, int size) {
         requirePositive(fineId, "Fine ID");
         validatePagination(page, size);
-        List<PaymentRecord> index = mapHits(repository.findByFineId(fineId, page(page, size)));
+        List<PaymentRecord> index = mapHits(paymentRecordSearchRepository.findByFineId(fineId, pageable(page, size)));
         if (!index.isEmpty()) {
             return index;
         }
@@ -51,7 +168,7 @@ public class PaymentRecordService extends AbstractElasticsearchCrudService<Payme
             return List.of();
         }
         validatePagination(page, size);
-        List<PaymentRecord> index = mapHits(repository.searchByPayerIdCard(payerIdCard, page(page, size)));
+        List<PaymentRecord> index = mapHits(paymentRecordSearchRepository.searchByPayerIdCard(payerIdCard, pageable(page, size)));
         if (!index.isEmpty()) {
             return index;
         }
@@ -67,7 +184,7 @@ public class PaymentRecordService extends AbstractElasticsearchCrudService<Payme
             return List.of();
         }
         validatePagination(page, size);
-        List<PaymentRecord> index = mapHits(repository.searchByPaymentStatus(paymentStatus, page(page, size)));
+        List<PaymentRecord> index = mapHits(paymentRecordSearchRepository.searchByPaymentStatus(paymentStatus, pageable(page, size)));
         if (!index.isEmpty()) {
             return index;
         }
@@ -83,7 +200,7 @@ public class PaymentRecordService extends AbstractElasticsearchCrudService<Payme
             return List.of();
         }
         validatePagination(page, size);
-        List<PaymentRecord> index = mapHits(repository.searchByTransactionId(transactionId, page(page, size)));
+        List<PaymentRecord> index = mapHits(paymentRecordSearchRepository.searchByTransactionId(transactionId, pageable(page, size)));
         if (!index.isEmpty()) {
             return index;
         }
@@ -93,15 +210,138 @@ public class PaymentRecordService extends AbstractElasticsearchCrudService<Payme
         return fetchFromDatabase(wrapper, page, size);
     }
 
+    public boolean shouldSkipProcessing(String idempotencyKey) {
+        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
+        return history != null
+                && "SUCCESS".equalsIgnoreCase(history.getBusinessStatus())
+                && "DONE".equalsIgnoreCase(history.getRequestParams());
+    }
+
+    public void markHistorySuccess(String idempotencyKey, Long paymentId) {
+        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
+        if (history == null) {
+            log.log(Level.WARNING, "Cannot mark success for missing idempotency key {0}", idempotencyKey);
+            return;
+        }
+        history.setBusinessStatus("SUCCESS");
+        history.setBusinessId(paymentId);
+        history.setRequestParams("DONE");
+        history.setUpdatedAt(LocalDateTime.now());
+        sysRequestHistoryMapper.updateById(history);
+    }
+
+    public void markHistoryFailure(String idempotencyKey, String reason) {
+        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
+        if (history == null) {
+            log.log(Level.WARNING, "Cannot mark failure for missing idempotency key {0}", idempotencyKey);
+            return;
+        }
+        history.setBusinessStatus("FAILED");
+        history.setRequestParams(truncate(reason));
+        history.setUpdatedAt(LocalDateTime.now());
+        sysRequestHistoryMapper.updateById(history);
+    }
+
+    private void syncToIndexAfterCommit(PaymentRecord paymentRecord) {
+        if (paymentRecord == null) {
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                PaymentRecordDocument doc = PaymentRecordDocument.fromEntity(paymentRecord);
+                if (doc != null) {
+                    paymentRecordSearchRepository.save(doc);
+                }
+            }
+        });
+    }
+
     private List<PaymentRecord> fetchFromDatabase(QueryWrapper<PaymentRecord> wrapper, int page, int size) {
         Page<PaymentRecord> mpPage = new Page<>(Math.max(page, 1), Math.max(size, 1));
-        mapper().selectPage(mpPage, wrapper);
+        paymentRecordMapper.selectPage(mpPage, wrapper);
         List<PaymentRecord> records = mpPage.getRecords();
         syncBatchToIndexAfterCommit(records);
         return records;
     }
 
+    private void sendKafkaMessage(String topic, String idempotencyKey, PaymentRecord paymentRecord) {
+        try {
+            String payload = objectMapper.writeValueAsString(paymentRecord);
+            kafkaTemplate.send(topic, idempotencyKey, payload);
+        } catch (Exception ex) {
+            log.log(Level.SEVERE, "Failed to send PaymentRecord Kafka message", ex);
+            throw new RuntimeException("Failed to send PaymentRecord event", ex);
+        }
+    }
+
+    private void validatePaymentRecord(PaymentRecord paymentRecord) {
+        Objects.requireNonNull(paymentRecord, "PaymentRecord must not be null");
+        if (paymentRecord.getFineId() == null) {
+            throw new IllegalArgumentException("Fine ID must not be null");
+        }
+        if (paymentRecord.getPaymentTime() == null) {
+            paymentRecord.setPaymentTime(LocalDateTime.now());
+        }
+        if (paymentRecord.getPaymentStatus() == null || paymentRecord.getPaymentStatus().isBlank()) {
+            paymentRecord.setPaymentStatus("Pending");
+        }
+    }
+
+    private void validatePagination(int page, int size) {
+        if (page < 1 || size < 1) {
+            throw new IllegalArgumentException("Page must be >= 1 and size must be >= 1");
+        }
+    }
+
+    private void requirePositive(Number number, String fieldName) {
+        if (number == null || number.longValue() <= 0) {
+            throw new IllegalArgumentException(fieldName + " must be greater than zero");
+        }
+    }
+
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
+    }
+
+    private String truncate(String value) {
+        if (value == null) {
+            return null;
+        }
+        return value.length() <= 500 ? value : value.substring(0, 500);
+    }
+
+    private void syncBatchToIndexAfterCommit(List<PaymentRecord> records) {
+        if (records == null || records.isEmpty()) {
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                List<PaymentRecordDocument> documents = records.stream()
+                        .filter(Objects::nonNull)
+                        .map(PaymentRecordDocument::fromEntity)
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toList());
+                if (!documents.isEmpty()) {
+                    paymentRecordSearchRepository.saveAll(documents);
+                }
+            }
+        });
+    }
+
+    private List<PaymentRecord> mapHits(org.springframework.data.elasticsearch.core.SearchHits<PaymentRecordDocument> hits) {
+        if (hits == null || !hits.hasSearchHits()) {
+            return List.of();
+        }
+        return hits.getSearchHits().stream()
+                .map(org.springframework.data.elasticsearch.core.SearchHit::getContent)
+                .filter(obj -> true)
+                .map(PaymentRecordDocument::toEntity)
+                .collect(Collectors.toList());
+    }
+
+    private org.springframework.data.domain.Pageable pageable(int page, int size) {
+        return org.springframework.data.domain.PageRequest.of(Math.max(page - 1, 0), Math.max(size, 1));
     }
 }
