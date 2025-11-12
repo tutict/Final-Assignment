@@ -220,11 +220,20 @@ public class OffenseTypeDictService {
 
     private void validateDict(OffenseTypeDict dict) {
         Objects.requireNonNull(dict, "OffenseTypeDict must not be null");
-        if (dict.getDictType() == null || dict.getDictType().isBlank()) {
-            throw new IllegalArgumentException("Dictionary type must not be blank");
+        if (dict.getOffenseCode() == null || dict.getOffenseCode().isBlank()) {
+            throw new IllegalArgumentException("Offense code must not be blank");
         }
-        if (dict.getDictLabel() == null || dict.getDictLabel().isBlank()) {
-            throw new IllegalArgumentException("Dictionary label must not be blank");
+        if (dict.getOffenseName() == null || dict.getOffenseName().isBlank()) {
+            throw new IllegalArgumentException("Offense name must not be blank");
+        }
+        if (dict.getStatus() == null || dict.getStatus().isBlank()) {
+            dict.setStatus("Active");
+        }
+        if (dict.getCreatedAt() == null) {
+            dict.setCreatedAt(LocalDateTime.now());
+        }
+        if (dict.getUpdatedAt() == null) {
+            dict.setUpdatedAt(LocalDateTime.now());
         }
     }
 

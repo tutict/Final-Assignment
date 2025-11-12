@@ -28,6 +28,7 @@ import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 @Service
 public class VehicleInformationService {
@@ -149,8 +150,8 @@ public class VehicleInformationService {
     @Cacheable(cacheNames = CACHE_NAME, key = "'all'", unless = "#result == null || #result.isEmpty()")
     @WsAction(service = "VehicleInformationService", action = "getAllVehicleInformation")
     public List<VehicleInformation> getAllVehicleInformation() {
-        List<VehicleInformation> fromIndex = vehicleInformationSearchRepository.findAll()
-                .stream()
+        List<VehicleInformation> fromIndex = StreamSupport.stream(
+                        vehicleInformationSearchRepository.findAll().spliterator(), false)
                 .map(VehicleInformationDocument::toEntity)
                 .collect(Collectors.toList());
         if (!fromIndex.isEmpty()) {

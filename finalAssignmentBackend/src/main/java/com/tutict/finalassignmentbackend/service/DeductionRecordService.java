@@ -300,6 +300,17 @@ public class DeductionRecordService {
         });
     }
 
+    private void sendKafkaMessage(String topic, String idempotencyKey, DeductionRecord deductionRecord) {
+        try {
+            kafkaTemplate.send(topic, idempotencyKey, deductionRecord);
+        } catch (Exception ex) {
+            log.log(Level.SEVERE,
+                    String.format("Failed to send DeductionRecord Kafka message (topic=%s, key=%s)", topic, idempotencyKey),
+                    ex);
+            throw new RuntimeException("Failed to send deduction record event", ex);
+        }
+    }
+
     private List<DeductionRecord> mapHits(org.springframework.data.elasticsearch.core.SearchHits<DeductionRecordDocument> hits) {
         if (hits == null || !hits.hasSearchHits()) {
             return List.of();

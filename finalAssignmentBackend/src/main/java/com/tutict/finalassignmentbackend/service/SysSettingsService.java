@@ -13,7 +13,7 @@ import com.tutict.finalassignmentbackend.repository.SysSettingsSearchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-importorg.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -31,7 +31,7 @@ import java.util.stream.StreamSupport;
 @Service
 public class SysSettingsService {
 
-    private static final Logger log = Logger.getLogger(SysSettingsService.class.getName());
+    private static final Logger LOG = Logger.getLogger(SysSettingsService.class.getName());
     private static final String CACHE_NAME = "sysSettingsCache";
 
     private final SysSettingsMapper sysSettingsMapper;
@@ -60,7 +60,7 @@ public class SysSettingsService {
         Objects.requireNonNull(settings, "SysSettings must not be null");
         SysRequestHistory existing = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
         if (existing != null) {
-            log.warning(() -> String.format("Duplicate sys settings request detected (key=%s)", idempotencyKey));
+            LOG.warning(() -> String.format("Duplicate sys settings request detected (key=%s)", idempotencyKey));
             throw new RuntimeException("Duplicate sys settings request detected");
         }
 
@@ -141,11 +141,11 @@ public class SysSettingsService {
         }
         QueryWrapper<SysSettings> wrapper = new QueryWrapper<>();
         wrapper.eq("setting_key", settingKey);
-        SysSettings fromDb = sysSettingsMapper.selectOne(wrapper);
-        if (fromDb != null) {
-            syncToIndexAfterCommit(fromDb);
+        SysSettings entity = sysSettingsMapper.selectOne(wrapper);
+        if (entity != null) {
+            sysSettingsSearchRepository.save(SysSettingsDocument.fromEntity(entity));
         }
-        return fromDb;
+        return entity;
     }
 
     @Transactional(readOnly = true)
@@ -185,7 +185,7 @@ public class SysSettingsService {
     public void markHistorySuccess(String idempotencyKey, Integer settingId) {
         SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
         if (history == null) {
-            log.log(Level.WARNING, "Cannot mark success for missing idempotency key {0}", idempotencyKey);
+            LOG.log(Level.WARNING, "Cannot mark success for missing idempotency key {0}", idempotencyKey);
             return;
         }
         history.setBusinessStatus("SUCCESS");
@@ -198,7 +198,7 @@ public class SysSettingsService {
     public void markHistoryFailure(String idempotencyKey, String reason) {
         SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
         if (history == null) {
-            log.log(Level.WARNING, "Cannot mark failure for missing idempotency key {0}", idempotencyKey);
+            LOG.log(Level.WARNING, "Cannot mark failure for missing idempotency key {0}", idempotencyKey);
             return;
         }
         history.setBusinessStatus("FAILED");
@@ -212,8 +212,8 @@ public class SysSettingsService {
             String payload = objectMapper.writeValueAsString(settings);
             kafkaTemplate.send(topic, idempotencyKey, payload);
         } catch (Exception ex) {
-            log.log(Level.SEVERE, "Failed to send SysSettings Kafka message", ex);
-            throw new RuntimeException("Failed to send sys settings event", ex);
+            LOG.log(Level.SEVERE, "Failed to send SysSettings Kafka message", ex);
+            throw new RuntimeException("Failed to send SysSettings event", ex);
         }
     }
 
@@ -266,8 +266,8 @@ public class SysSettingsService {
         if (isBlank(settings.getSettingKey())) {
             throw new IllegalArgumentException("Setting key must not be blank");
         }
-        if (isBlank(settings.getSettingValue())) {
-            throw new IllegalArgumentException("Setting value must not be blank");
+        if (settings.getSettingValue() == null) {
+            throw new IllegalArgumentException("Setting value must not be null");
         }
         if (settings.getCreatedAt() == null) {
             settings.setCreatedAt(LocalDateTime.now());

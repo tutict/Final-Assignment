@@ -105,6 +105,11 @@ public class PaymentStateMachineConfig extends StateMachineConfigurerAdapter<Pay
                 .withExternal()
                 .source(PaymentState.OVERDUE)
                 .target(PaymentState.WAIVED)
+                .event(PaymentEvent.WAIVE_FINE)
+                .and()
+                .withExternal()
+                .source(PaymentState.PAID)
+                .target(PaymentState.WAIVED)
                 .event(PaymentEvent.WAIVE_FINE);
     }
 
@@ -114,16 +119,18 @@ public class PaymentStateMachineConfig extends StateMachineConfigurerAdapter<Pay
             @Override
             public void stateChanged(State<PaymentState, PaymentEvent> from,
                                    State<PaymentState, PaymentEvent> to) {
-                LOG.log(Level.INFO, "支付状态变更: {} -> {}",
-                        from != null ? from.getId() : "null", to.getId());
+                LOG.log(Level.INFO, "支付状态变更: {0} -> {1}",
+                        new Object[]{from != null ? from.getId() : "null", to != null ? to.getId() : "null"});
             }
 
             @Override
             public void transition(Transition<PaymentState, PaymentEvent> transition) {
-                LOG.log(Level.INFO, "支付状态转换: {} -> {} 通过事件 {}",
-                        transition.getSource().getId(),
-                        transition.getTarget().getId(),
-                        transition.getTrigger().getEvent());
+                if (transition.getSource() != null && transition.getTarget() != null && transition.getTrigger() != null) {
+                    LOG.log(Level.INFO, "支付状态转换: {0} -> {1} via {2}",
+                            new Object[]{transition.getSource().getId(),
+                                    transition.getTarget().getId(),
+                                    transition.getTrigger().getEvent()});
+                }
             }
         };
     }

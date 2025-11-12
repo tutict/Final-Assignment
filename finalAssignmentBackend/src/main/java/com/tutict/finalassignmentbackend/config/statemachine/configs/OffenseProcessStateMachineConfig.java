@@ -91,7 +91,7 @@ public class OffenseProcessStateMachineConfig extends StateMachineConfigurerAdap
                 .event(OffenseProcessEvent.WITHDRAW_APPEAL)
                 .and()
 
-                // 任何状态 -> 已取消
+                // 任何状态 -> 已取消（数据库 Cancelled 状态）
                 .withExternal()
                 .source(OffenseProcessState.UNPROCESSED)
                 .target(OffenseProcessState.CANCELLED)
@@ -105,6 +105,21 @@ public class OffenseProcessStateMachineConfig extends StateMachineConfigurerAdap
                 .withExternal()
                 .source(OffenseProcessState.PROCESSED)
                 .target(OffenseProcessState.CANCELLED)
+                .event(OffenseProcessEvent.CANCEL)
+                .and()
+                .withExternal()
+                .source(OffenseProcessState.APPEALING)
+                .target(OffenseProcessState.CANCELLED)
+                .event(OffenseProcessEvent.CANCEL)
+                .and()
+                .withExternal()
+                .source(OffenseProcessState.APPEAL_APPROVED)
+                .target(OffenseProcessState.CANCELLED)
+                .event(OffenseProcessEvent.CANCEL)
+                .and()
+                .withExternal()
+                .source(OffenseProcessState.APPEAL_REJECTED)
+                .target(OffenseProcessState.CANCELLED)
                 .event(OffenseProcessEvent.CANCEL);
     }
 
@@ -114,15 +129,18 @@ public class OffenseProcessStateMachineConfig extends StateMachineConfigurerAdap
             @Override
             public void stateChanged(State<OffenseProcessState, OffenseProcessEvent> from,
                                      State<OffenseProcessState, OffenseProcessEvent> to) {
-                LOG.log(Level.INFO, "违法记录状态变更: {} -> {}",
-                        from != null ? from.getId() : "null");
+                LOG.log(Level.INFO, "违法记录状态变更: {0} -> {1}",
+                        new Object[]{from != null ? from.getId() : "null", to != null ? to.getId() : "null"});
             }
 
             @Override
             public void transition(Transition<OffenseProcessState, OffenseProcessEvent> transition) {
-                LOG.log(Level.INFO, "违法记录状态转换: {} -> {} 通过事件 {}",
-                        transition.getSource().getId()
-                );
+                if (transition.getSource() != null && transition.getTarget() != null && transition.getTrigger() != null) {
+                    LOG.log(Level.INFO, "违法记录状态转换: {0} -> {1} via {2}",
+                            new Object[]{transition.getSource().getId(),
+                                    transition.getTarget().getId(),
+                                    transition.getTrigger().getEvent()});
+                }
             }
         };
     }

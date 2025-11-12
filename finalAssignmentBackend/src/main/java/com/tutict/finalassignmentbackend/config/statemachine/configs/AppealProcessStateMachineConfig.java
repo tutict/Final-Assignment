@@ -95,16 +95,18 @@ public class AppealProcessStateMachineConfig extends StateMachineConfigurerAdapt
             @Override
             public void stateChanged(State<AppealProcessState, AppealProcessEvent> from,
                                    State<AppealProcessState, AppealProcessEvent> to) {
-                LOG.log(Level.INFO, "申诉处理状态变更: {} -> {}",
-                        from != null ? from.getId() : "null", to.getId());
+                LOG.log(Level.INFO, "申诉处理状态变更: {0} -> {1}",
+                        new Object[]{from != null ? from.getId() : "null", to != null ? to.getId() : "null"});
             }
 
             @Override
             public void transition(Transition<AppealProcessState, AppealProcessEvent> transition) {
-                LOG.log(Level.INFO, "申诉处理状态转换: {} -> {} 通过事件 {}",
-                        transition.getSource().getId(),
-                        transition.getTarget().getId(),
-                        transition.getTrigger().getEvent());
+                if (transition.getSource() != null && transition.getTarget() != null && transition.getTrigger() != null) {
+                    LOG.log(Level.INFO, "申诉处理状态转换: {0} -> {1} via {2}",
+                            new Object[]{transition.getSource().getId(),
+                                    transition.getTarget().getId(),
+                                    transition.getTrigger().getEvent()});
+                }
             }
         };
     }

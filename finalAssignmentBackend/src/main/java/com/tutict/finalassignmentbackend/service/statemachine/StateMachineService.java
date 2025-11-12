@@ -1,4 +1,4 @@
-package com.tutict.finalassignmentbackend.config.statemachine.service;
+package com.tutict.finalassignmentbackend.service.statemachine;
 
 import com.tutict.finalassignmentbackend.config.statemachine.events.*;
 import com.tutict.finalassignmentbackend.config.statemachine.states.*;
@@ -54,12 +54,12 @@ public class StateMachineService {
 
             if (result) {
                 OffenseProcessState newState = stateMachine.getState().getId();
-                LOG.log(Level.INFO, "违法记录 {} 状态转换成功: {} -> {} (事件: {})",
-                        offenseId, currentState, newState, event);
+                LOG.log(Level.INFO, "违法记录 {0} 状态转换成功: {1} -> {2} (事件: {3})",
+                        new Object[]{offenseId, currentState, newState, event});
                 return newState;
             } else {
-                LOG.log(Level.WARNING, "违法记录 {} 状态转换失败: {} (事件: {})",
-                        offenseId, currentState, event);
+                LOG.log(Level.WARNING, "违法记录 {0} 状态转换失败: {1} (事件: {2})",
+                        new Object[]{offenseId, currentState, event});
                 return currentState;
             }
         } catch (Exception e) {
@@ -90,12 +90,12 @@ public class StateMachineService {
 
             if (result) {
                 PaymentState newState = stateMachine.getState().getId();
-                LOG.log(Level.INFO, "罚款记录 {} 支付状态转换成功: {} -> {} (事件: {})",
-                        fineId, currentState, newState, event);
+                LOG.log(Level.INFO, "罚款记录 {0} 支付状态转换成功: {1} -> {2} (事件: {3})",
+                        new Object[]{fineId, currentState, newState, event});
                 return newState;
             } else {
-                LOG.log(Level.WARNING, "罚款记录 {} 支付状态转换失败: {} (事件: {})",
-                        fineId, currentState, event);
+                LOG.log(Level.WARNING, "罚款记录 {0} 支付状态转换失败: {1} (事件: {2})",
+                        new Object[]{fineId, currentState, event});
                 return currentState;
             }
         } catch (Exception e) {
@@ -126,12 +126,12 @@ public class StateMachineService {
 
             if (result) {
                 AppealProcessState newState = stateMachine.getState().getId();
-                LOG.log(Level.INFO, "申诉记录 {} 状态转换成功: {} -> {} (事件: {})",
-                        appealId, currentState, newState, event);
+                LOG.log(Level.INFO, "申诉记录 {0} 状态转换成功: {1} -> {2} (事件: {3})",
+                        new Object[]{appealId, currentState, newState, event});
                 return newState;
             } else {
-                LOG.log(Level.WARNING, "申诉记录 {} 状态转换失败: {} (事件: {})",
-                        appealId, currentState, event);
+                LOG.log(Level.WARNING, "申诉记录 {0} 状态转换失败: {1} (事件: {2})",
+                        new Object[]{appealId, currentState, event});
                 return currentState;
             }
         } catch (Exception e) {

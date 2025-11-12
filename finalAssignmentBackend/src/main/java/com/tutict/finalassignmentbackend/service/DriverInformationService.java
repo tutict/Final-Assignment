@@ -33,6 +33,7 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 @Service
 public class DriverInformationService {
@@ -150,8 +151,8 @@ public class DriverInformationService {
     @Cacheable(cacheNames = CACHE_NAME, key = "'all'", unless = "#result == null || #result.isEmpty()")
     @WsAction(service = "DriverInformationService", action = "getAllDrivers")
     public List<DriverInformation> getAllDrivers() {
-        List<DriverInformation> fromIndex = driverInformationSearchRepository.findAll()
-                .stream()
+        List<DriverInformation> fromIndex = StreamSupport.stream(
+                        driverInformationSearchRepository.findAll().spliterator(), false)
                 .map(DriverInformationDocument::toEntity)
                 .collect(Collectors.toList());
         if (!fromIndex.isEmpty()) {

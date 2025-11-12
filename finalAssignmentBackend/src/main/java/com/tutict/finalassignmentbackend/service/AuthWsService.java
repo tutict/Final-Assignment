@@ -1,20 +1,23 @@
 package com.tutict.finalassignmentbackend.service;
 
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.tutict.finalassignmentbackend.config.login.jwt.TokenProvider;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
-import com.tutict.finalassignmentbackend.entity.LoginLog;
-import com.tutict.finalassignmentbackend.entity.RoleManagement;
-import com.tutict.finalassignmentbackend.entity.UserManagement;
+import com.tutict.finalassignmentbackend.entity.AuditLoginLog;
+import com.tutict.finalassignmentbackend.entity.SysRole;
+import com.tutict.finalassignmentbackend.entity.SysUser;
+import com.tutict.finalassignmentbackend.entity.SysUserRole;
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -23,160 +26,200 @@ import java.util.stream.Collectors;
 public class AuthWsService {
 
     private static final Logger logger = Logger.getLogger(AuthWsService.class.getName());
+    private static final int MAX_ROLE_PAGE_SIZE = 100;
 
     private final TokenProvider tokenProvider;
-    private final LoginLogService loginLogService;
-    private final UserManagementService userManagementService;
-    private final RoleManagementService roleManagementService;
-    private final RoleManagementService userRoleService;
+    private final AuditLoginLogService auditLoginLogService;
+    private final SysUserService sysUserService;
+    private final SysRoleService sysRoleService;
+    private final SysUserRoleService sysUserRoleService;
 
     @Autowired
     public AuthWsService(TokenProvider tokenProvider,
-                         LoginLogService loginLogService,
-                         UserManagementService userManagementService,
-                         RoleManagementService roleManagementService,
-                         RoleManagementService userRoleService) {
+                         AuditLoginLogService auditLoginLogService,
+                         SysUserService sysUserService,
+                         SysRoleService sysRoleService,
+                         SysUserRoleService sysUserRoleService) {
         this.tokenProvider = tokenProvider;
-        this.loginLogService = loginLogService;
-        this.userManagementService = userManagementService;
-        this.roleManagementService = roleManagementService;
-        this.userRoleService = userRoleService;
+        this.auditLoginLogService = auditLoginLogService;
+        this.sysUserService = sysUserService;
+        this.sysRoleService = sysRoleService;
+        this.sysUserRoleService = sysUserRoleService;
     }
 
     @CacheEvict(cacheNames = "AuthCache", allEntries = true)
     @WsAction(service = "AuthWsService", action = "login")
     public Map<String, Object> login(LoginRequest loginRequest) {
-        if (loginRequest.getUsername() == null || loginRequest.getUsername().isEmpty()) {
-            logger.severe("Authentication failed: username is null or empty");
-            throw new RuntimeException("Invalid username");
-        }
-        if (loginRequest.getPassword() == null || loginRequest.getPassword().isEmpty()) {
-            logger.severe("Authentication failed: password is null or empty");
-            throw new RuntimeException("Invalid password");
-        }
+        validateLoginRequest(loginRequest);
 
-        logger.info(String.format("[WS] Attempting to authenticate user: %s", loginRequest.getUsername()));
-        UserManagement user = userManagementService.getUserByUsername(loginRequest.getUsername());
+        logger.info(() -> String.format("[WS] Attempting to authenticate user: %s", loginRequest.getUsername()));
+        SysUser user = sysUserService.findByUsername(loginRequest.getUsername());
 
         if (user != null && authenticateUser(user, loginRequest.getPassword())) {
-            List<RoleManagement> roles = roleManagementService.getRolesByUserId(user.getUserId());
-            if (roles != null && !roles.isEmpty()) {
-                String rolesString = roles.stream()
-                        .map(RoleManagement::getRoleName)
-                        .collect(Collectors.joining(","));
-                String jwtToken = tokenProvider.createToken(user.getUsername(), rolesString);
-                logger.info(String.format("User authenticated successfully (WS): %s with roles: %s", loginRequest.getUsername(), rolesString));
-                return Map.of("jwtToken", jwtToken);
-            } else {
-                logger.severe(String.format("No roles found for user: %s", loginRequest.getUsername()));
-                recordFailedLogin(loginRequest.getUsername());
+            List<String> roles = resolveRoleNames(user.getUserId());
+            if (roles.isEmpty()) {
+                logger.severe(() -> String.format("No roles found for user: %s", loginRequest.getUsername()));
+                recordFailedLogin(loginRequest.getUsername(), "NO_ROLES_ASSIGNED");
                 throw new RuntimeException("No roles assigned to user.");
             }
-        } else {
-            logger.severe(String.format("Authentication failed (WS) for user: %s", loginRequest.getUsername()));
-            recordFailedLogin(loginRequest.getUsername());
-            throw new RuntimeException("Invalid username or password.");
+            String rolesString = String.join(",", roles);
+            String jwtToken = tokenProvider.createToken(user.getUsername(), rolesString);
+            logger.info(() -> String.format("User authenticated successfully (WS): %s with roles: %s",
+                    loginRequest.getUsername(), rolesString));
+            return Map.of(
+                    "jwtToken", jwtToken,
+                    "username", user.getUsername(),
+                    "roles", roles
+            );
         }
+
+        logger.severe(() -> String.format("Authentication failed (WS) for user: %s", loginRequest.getUsername()));
+        recordFailedLogin(loginRequest.getUsername(), "INVALID_CREDENTIALS");
+        throw new RuntimeException("Invalid username or password.");
     }
 
     @Transactional
     @CacheEvict(cacheNames = {"AuthCache", "usernameExistsCache"}, allEntries = true)
     @WsAction(service = "AuthWsService", action = "registerUser")
     public String registerUser(RegisterRequest registerRequest) {
-        logger.info(String.format("尝试注册用户: %s", registerRequest.getUsername()));
-        if (registerRequest.getUsername() == null || registerRequest.getUsername().isEmpty()) {
-            logger.severe("用户名为空");
-            throw new IllegalArgumentException("用户名不能为空");
-        }
-        if (registerRequest.getPassword() == null || registerRequest.getPassword().isEmpty()) {
-            logger.severe("密码为空");
-            throw new IllegalArgumentException("密码不能为空");
-        }
+        validateRegisterRequest(registerRequest);
+        logger.info(() -> String.format("尝试注册用户: %s", registerRequest.getUsername()));
 
-        // 检查用户名是否存在
-        boolean usernameExists = userManagementService.isUsernameExists(registerRequest.getUsername());
-        logger.log(Level.SEVERE, "用户名检查: {0}，存在: {1}", new Object[]{registerRequest.getUsername(), usernameExists});
-        if (usernameExists) {
-            logger.log(Level.SEVERE, "用户名已存在: {}", registerRequest.getUsername());
+        if (sysUserService.isUsernameExists(registerRequest.getUsername())) {
+            logger.severe(() -> String.format("用户名已存在: %s", registerRequest.getUsername()));
             throw new RuntimeException("用户名已存在: " + registerRequest.getUsername());
         }
 
-        // 检查幂等性
         String idempotencyKey = registerRequest.getIdempotencyKey();
-        if (idempotencyKey != null && !idempotencyKey.isEmpty()) {
+        if (StringUtils.hasText(idempotencyKey)) {
+            SysUser probe = new SysUser();
+            probe.setUsername(registerRequest.getUsername());
             try {
-                userManagementService.checkAndInsertIdempotency(idempotencyKey, new UserManagement(), "create");
+                sysUserService.checkAndInsertIdempotency(idempotencyKey, probe, "create");
             } catch (RuntimeException e) {
-                logger.log(Level.WARNING, "幂等性检查失败: {0}, 错误: {1}", new Object[]{idempotencyKey, e.getMessage()});
+                logger.log(Level.WARNING, "幂等性检查失败 {0}, 错误: {1}", new Object[]{idempotencyKey, e.getMessage()});
                 throw new RuntimeException("注册失败: 重复请求", e);
             }
         }
 
-        // 创建用户
-        UserManagement newUser = new UserManagement();
+        SysUser newUser = new SysUser();
         newUser.setUsername(registerRequest.getUsername());
-        newUser.setPassword(registerRequest.getPassword()); // 生产环境应加密
-        newUser.setCreatedTime(LocalDateTime.now());
-        newUser.setModifiedTime(LocalDateTime.now());
+        newUser.setPassword(registerRequest.getPassword()); // TODO: hash password
         newUser.setStatus("Active");
+        newUser.setCreatedAt(LocalDateTime.now());
+        newUser.setUpdatedAt(LocalDateTime.now());
+        sysUserService.createSysUser(newUser);
+        logger.info(() -> String.format("用户创建成功: %s", registerRequest.getUsername()));
 
-        try {
-            userManagementService.createUser(newUser);
-            logger.log(Level.INFO, "用户创建成功: {}", registerRequest.getUsername());
-        } catch (Exception e) {
-            logger.log(Level.WARNING, "用户创建失败: {0}, 错误: {1}", new Object[]{registerRequest.getUsername(), e.getMessage()});
-            throw new RuntimeException("用户创建失败: " + e.getMessage());
+        SysUser savedUser = sysUserService.findByUsername(registerRequest.getUsername());
+        if (savedUser == null) {
+            logger.warning(() -> String.format("无法获取新建用户: %s", registerRequest.getUsername()));
+            throw new RuntimeException("用户创建失败，无法获取用户信息");
         }
 
-        // 分配角色
-        String roleName = registerRequest.getRole();
-        logger.log(Level.INFO, "为用户 {0} 分配角色: {1}", new Object[]{registerRequest.getUsername(), roleName});
-        RoleManagement role = roleManagementService.getRoleByName(roleName);
-        if (role == null) {
-            logger.log(Level.SEVERE, "角色 {} 不存在，创建新角色", roleName);
-            role = new RoleManagement();
-            role.setRoleName(roleName);
-            role.setRoleDescription(roleName.equals("ADMIN") ? "管理员角色" : "普通用户角色");
-            role.setCreatedTime(LocalDateTime.now());
-            roleManagementService.createRole(role);
-        }
+        SysRole role = resolveOrCreateRole(registerRequest.getRole());
+        assignRole(savedUser, role);
 
-        QueryWrapper<UserManagement> userQuery = new QueryWrapper<>();
-        userQuery.eq("username", newUser.getUsername());
-        UserManagement savedUser = userManagementService.getUserByUsername(newUser.getUsername());
-        if (savedUser != null) {
-            logger.log(Level.INFO, "为用户 {0} 分配角色 {1}", new Object[]{savedUser.getUsername(), role.getRoleName()});
-            userRoleService.assignRole(savedUser.getUserId(), role.getRoleId());
-        } else {
-            logger.log(Level.WARNING, "无法获取新建用户: {}", newUser.getUsername());
-            throw new RuntimeException("用户创建失败，无法获取用户");
-        }
-
-        logger.log(Level.INFO, "用户注册成功: {}", registerRequest.getUsername());
+        logger.info(() -> String.format("用户注册成功: %s", registerRequest.getUsername()));
         return "CREATED";
     }
 
     @CacheEvict(cacheNames = "AuthCache", allEntries = true)
     @WsAction(service = "AuthWsService", action = "getAllUsers")
-    public List<UserManagement> getAllUsers() {
+    public List<SysUser> getAllUsers() {
         logger.info("[WS] Fetching all users");
-        List<UserManagement> users = userManagementService.getAllUsers();
+        List<SysUser> users = sysUserService.getAllUsers();
         if (users.isEmpty()) {
             logger.warning("No users found in the system");
         }
         return users;
     }
 
-    private boolean authenticateUser(UserManagement user, String password) {
-        return user.getPassword().equals(password);
+    private void validateLoginRequest(LoginRequest loginRequest) {
+        Objects.requireNonNull(loginRequest, "Login request must not be null");
+        if (!StringUtils.hasText(loginRequest.getUsername())) {
+            logger.severe("Authentication failed: username is null or empty");
+            throw new RuntimeException("Invalid username");
+        }
+        if (!StringUtils.hasText(loginRequest.getPassword())) {
+            logger.severe("Authentication failed: password is null or empty");
+            throw new RuntimeException("Invalid password");
+        }
     }
 
-    private void recordFailedLogin(String username) {
-        LoginLog loginLog = new LoginLog();
+    private void validateRegisterRequest(RegisterRequest registerRequest) {
+        Objects.requireNonNull(registerRequest, "Register request must not be null");
+        if (!StringUtils.hasText(registerRequest.getUsername())) {
+            throw new IllegalArgumentException("用户名不能为空");
+        }
+        if (!StringUtils.hasText(registerRequest.getPassword())) {
+            throw new IllegalArgumentException("密码不能为空");
+        }
+    }
+
+    private boolean authenticateUser(SysUser user, String password) {
+        return Objects.equals(user.getPassword(), password);
+    }
+
+    private List<String> resolveRoleNames(Long userId) {
+        if (userId == null) {
+            return List.of();
+        }
+        try {
+            List<SysUserRole> relations = sysUserRoleService.findByUserId(userId, 1, MAX_ROLE_PAGE_SIZE);
+            if (relations == null || relations.isEmpty()) {
+                return List.of();
+            }
+            List<String> names = new ArrayList<>();
+            for (SysUserRole relation : relations) {
+                if (relation == null || relation.getRoleId() == null) {
+                    continue;
+                }
+                SysRole role = sysRoleService.findById(relation.getRoleId());
+                if (role != null && StringUtils.hasText(role.getRoleName())) {
+                    names.add(role.getRoleName());
+                }
+            }
+            return names.stream().distinct().collect(Collectors.toList());
+        } catch (Exception ex) {
+            logger.log(Level.WARNING, "Failed to resolve roles for userId=" + userId, ex);
+            return List.of();
+        }
+    }
+
+    private SysRole resolveOrCreateRole(String requestedRole) {
+        String roleCode = StringUtils.hasText(requestedRole) ? requestedRole : "USER";
+        SysRole role = sysRoleService.findByRoleCode(roleCode);
+        if (role != null) {
+            return role;
+        }
+        logger.info(() -> String.format("Role %s not found, creating automatically", roleCode));
+        SysRole newRole = new SysRole();
+        newRole.setRoleCode(roleCode);
+        newRole.setRoleName(roleCode);
+        newRole.setRoleDescription("AUTO_CREATED_BY_AUTH_WS");
+        newRole.setRoleType("Custom");
+        newRole.setStatus("Active");
+        newRole.setCreatedAt(LocalDateTime.now());
+        return sysRoleService.createSysRole(newRole);
+    }
+
+    private void assignRole(SysUser user, SysRole role) {
+        SysUserRole relation = new SysUserRole();
+        relation.setUserId(user.getUserId());
+        relation.setRoleId(role.getRoleId());
+        relation.setCreatedAt(LocalDateTime.now());
+        relation.setCreatedBy("AuthWsService");
+        sysUserRoleService.createRelation(relation);
+    }
+
+    private void recordFailedLogin(String username, String reason) {
+        AuditLoginLog loginLog = new AuditLoginLog();
         loginLog.setUsername(username);
         loginLog.setLoginTime(LocalDateTime.now());
         loginLog.setLoginResult("FAILED");
-        loginLogService.createLoginLog(loginLog);
+        loginLog.setFailureReason(reason);
+        auditLoginLogService.createAuditLoginLog(loginLog);
     }
 
     @Data
