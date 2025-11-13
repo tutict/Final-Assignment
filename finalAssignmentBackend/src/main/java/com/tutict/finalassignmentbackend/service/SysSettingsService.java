@@ -93,7 +93,7 @@ public class SysSettingsService {
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
     public SysSettings updateSysSettings(SysSettings settings) {
         validateSettings(settings);
-        requirePositive(settings.getSettingId(), "Setting ID");
+        requirePositive(settings.getSettingId());
         int rows = sysSettingsMapper.updateById(settings);
         if (rows == 0) {
             throw new IllegalStateException("SysSettings not found for id=" + settings.getSettingId());
@@ -105,7 +105,7 @@ public class SysSettingsService {
     @Transactional
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
     public void deleteSysSettings(Integer settingId) {
-        requirePositive(settingId, "Setting ID");
+        requirePositive(settingId);
         int rows = sysSettingsMapper.deleteById(settingId);
         if (rows == 0) {
             throw new IllegalStateException("SysSettings not found for id=" + settingId);
@@ -121,7 +121,7 @@ public class SysSettingsService {
     @Transactional(readOnly = true)
     @Cacheable(cacheNames = CACHE_NAME, key = "#settingId", unless = "#result == null")
     public SysSettings findById(Integer settingId) {
-        requirePositive(settingId, "Setting ID");
+        requirePositive(settingId);
         return sysSettingsSearchRepository.findById(settingId)
                 .map(SysSettingsDocument::toEntity)
                 .orElseGet(() -> {
@@ -283,9 +283,9 @@ public class SysSettingsService {
         }
     }
 
-    private void requirePositive(Number number, String fieldName) {
+    private void requirePositive(Number number) {
         if (number == null || number.longValue() <= 0) {
-            throw new IllegalArgumentException(fieldName + " must be greater than zero");
+            throw new IllegalArgumentException("Setting ID" + " must be greater than zero");
         }
     }
 

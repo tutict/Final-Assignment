@@ -304,7 +304,6 @@ public class DriverVehicleService {
         }
         return hits.getSearchHits().stream()
                 .map(SearchHit::getContent)
-                .filter(Objects::nonNull)
                 .map(DriverVehicleDocument::toEntity)
                 .collect(Collectors.toList());
     }

@@ -23,7 +23,6 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -73,7 +72,7 @@ public class OffenseRecordService {
         sendKafkaMessage("offense_record_" + action, idempotencyKey, offenseRecord);
 
         history.setBusinessStatus("SUCCESS");
-        history.setBusinessId(Optional.ofNullable(offenseRecord.getOffenseId()).map(Long::valueOf).orElse(null));
+        history.setBusinessId(offenseRecord.getOffenseId());
         history.setRequestParams("PENDING");
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.updateById(history);
@@ -322,7 +321,6 @@ public class OffenseRecordService {
         }
         return hits.getSearchHits().stream()
                 .map(org.springframework.data.elasticsearch.core.SearchHit::getContent)
-                .filter(Objects::nonNull)
                 .map(OffenseRecordDocument::toEntity)
                 .collect(Collectors.toList());
     }

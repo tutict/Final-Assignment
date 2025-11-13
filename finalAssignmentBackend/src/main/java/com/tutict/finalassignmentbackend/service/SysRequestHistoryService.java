@@ -88,7 +88,7 @@ public class SysRequestHistoryService {
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
     public SysRequestHistory updateSysRequestHistory(SysRequestHistory history) {
         validateHistory(history);
-        requirePositive(history.getId(), "History ID");
+        requirePositive(history.getId());
         int rows = sysRequestHistoryMapper.updateById(history);
         if (rows == 0) {
             throw new IllegalStateException("SysRequestHistory not found for id=" + history.getId());
@@ -100,7 +100,7 @@ public class SysRequestHistoryService {
     @Transactional
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
     public void deleteSysRequestHistory(Long id) {
-        requirePositive(id, "History ID");
+        requirePositive(id);
         int rows = sysRequestHistoryMapper.deleteById(id);
         if (rows == 0) {
             throw new IllegalStateException("SysRequestHistory not found for id=" + id);
@@ -116,7 +116,7 @@ public class SysRequestHistoryService {
     @Transactional(readOnly = true)
     @Cacheable(cacheNames = CACHE_NAME, key = "#id", unless = "#result == null")
     public SysRequestHistory findById(Long id) {
-        requirePositive(id, "History ID");
+        requirePositive(id);
         return sysRequestHistorySearchRepository.findById(id)
                 .map(SysRequestHistoryDocument::toEntity)
                 .orElseGet(() -> {
@@ -269,9 +269,9 @@ public class SysRequestHistoryService {
         }
     }
 
-    private void requirePositive(Number number, String fieldName) {
+    private void requirePositive(Number number) {
         if (number == null || number.longValue() <= 0) {
-            throw new IllegalArgumentException(fieldName + " must be greater than zero");
+            throw new IllegalArgumentException("History ID" + " must be greater than zero");
         }
     }
 

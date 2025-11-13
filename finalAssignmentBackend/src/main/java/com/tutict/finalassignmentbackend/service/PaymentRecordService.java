@@ -22,7 +22,6 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -72,7 +71,7 @@ public class PaymentRecordService {
         sendKafkaMessage("payment_record_" + action, idempotencyKey, paymentRecord);
 
         history.setBusinessStatus("SUCCESS");
-        history.setBusinessId(Optional.ofNullable(paymentRecord.getPaymentId()).map(Long::valueOf).orElse(null));
+        history.setBusinessId(paymentRecord.getPaymentId());
         history.setRequestParams("PENDING");
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.updateById(history);
@@ -336,7 +335,6 @@ public class PaymentRecordService {
         }
         return hits.getSearchHits().stream()
                 .map(org.springframework.data.elasticsearch.core.SearchHit::getContent)
-                .filter(obj -> true)
                 .map(PaymentRecordDocument::toEntity)
                 .collect(Collectors.toList());
     }

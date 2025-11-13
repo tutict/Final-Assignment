@@ -22,11 +22,9 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 @Service
 public class SysRolePermissionService {
@@ -74,7 +72,7 @@ public class SysRolePermissionService {
         sendKafkaMessage("sys_role_permission_" + action, idempotencyKey, relation);
 
         history.setBusinessStatus("SUCCESS");
-        history.setBusinessId(Optional.ofNullable(relation.getId()).orElse(null));
+        history.setBusinessId(relation.getId());
         history.setRequestParams("PENDING");
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.updateById(history);

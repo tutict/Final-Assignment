@@ -5,7 +5,9 @@ import com.tutict.finalassignmentbackend.config.statemachine.states.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.statemachine.StateMachine;
-import org.springframework.statemachine.StateMachineFactory;
+import org.springframework.statemachine.StateMachineContext;
+import org.springframework.statemachine.config.StateMachineFactory;
+import org.springframework.statemachine.support.DefaultStateMachineContext;
 import org.springframework.stereotype.Service;
 
 import java.util.logging.Level;
@@ -20,17 +22,17 @@ public class StateMachineService {
 
     private static final Logger LOG = Logger.getLogger(StateMachineService.class.getName());
 
-    @Autowired
-    @Qualifier("offenseProcessStateMachineFactory")
-    private StateMachineFactory<OffenseProcessState, OffenseProcessEvent> offenseProcessStateMachineFactory;
+    private final StateMachineFactory<OffenseProcessState, OffenseProcessEvent> offenseProcessStateMachineFactory;
 
-    @Autowired
-    @Qualifier("paymentStateMachineFactory")
-    private StateMachineFactory<PaymentState, PaymentEvent> paymentStateMachineFactory;
+    private final StateMachineFactory<PaymentState, PaymentEvent> paymentStateMachineFactory;
 
-    @Autowired
-    @Qualifier("appealProcessStateMachineFactory")
-    private StateMachineFactory<AppealProcessState, AppealProcessEvent> appealProcessStateMachineFactory;
+    private final StateMachineFactory<AppealProcessState, AppealProcessEvent> appealProcessStateMachineFactory;
+
+    public StateMachineService(@Qualifier("offenseProcessStateMachineFactory") StateMachineFactory<OffenseProcessState, OffenseProcessEvent> offenseProcessStateMachineFactory, @Qualifier("paymentStateMachineFactory") StateMachineFactory<PaymentState, PaymentEvent> paymentStateMachineFactory, @Qualifier("appealProcessStateMachineFactory") StateMachineFactory<AppealProcessState, AppealProcessEvent> appealProcessStateMachineFactory) {
+        this.offenseProcessStateMachineFactory = offenseProcessStateMachineFactory;
+        this.paymentStateMachineFactory = paymentStateMachineFactory;
+        this.appealProcessStateMachineFactory = appealProcessStateMachineFactory;
+    }
 
     /**
      * 处理违法记录状态转换
@@ -45,9 +47,9 @@ public class StateMachineService {
             StateMachine<OffenseProcessState, OffenseProcessEvent> stateMachine = offenseProcessStateMachineFactory.getStateMachine();
 
             // 设置当前状态
-            stateMachine.getStateMachineAccessor().doWithAllRegions(access -> {
-                access.resetStateMachineReactively(currentState).block();
-            });
+            stateMachine.getStateMachineAccessor().doWithAllRegions(access ->
+                    access.resetStateMachineReactively(buildContext(currentState)).block()
+            );
 
             // 发送事件
             boolean result = stateMachine.sendEvent(event);
@@ -81,9 +83,9 @@ public class StateMachineService {
             StateMachine<PaymentState, PaymentEvent> stateMachine = paymentStateMachineFactory.getStateMachine();
 
             // 设置当前状态
-            stateMachine.getStateMachineAccessor().doWithAllRegions(access -> {
-                access.resetStateMachineReactively(currentState).block();
-            });
+            stateMachine.getStateMachineAccessor().doWithAllRegions(access ->
+                    access.resetStateMachineReactively(buildContext(currentState)).block()
+            );
 
             // 发送事件
             boolean result = stateMachine.sendEvent(event);
@@ -117,9 +119,9 @@ public class StateMachineService {
             StateMachine<AppealProcessState, AppealProcessEvent> stateMachine = appealProcessStateMachineFactory.getStateMachine();
 
             // 设置当前状态
-            stateMachine.getStateMachineAccessor().doWithAllRegions(access -> {
-                access.resetStateMachineReactively(currentState).block();
-            });
+            stateMachine.getStateMachineAccessor().doWithAllRegions(access ->
+                    access.resetStateMachineReactively(buildContext(currentState)).block()
+            );
 
             // 发送事件
             boolean result = stateMachine.sendEvent(event);
@@ -150,9 +152,9 @@ public class StateMachineService {
     public boolean canTransitionOffenseState(OffenseProcessState currentState, OffenseProcessEvent event) {
         try {
             StateMachine<OffenseProcessState, OffenseProcessEvent> stateMachine = offenseProcessStateMachineFactory.getStateMachine();
-            stateMachine.getStateMachineAccessor().doWithAllRegions(access -> {
-                access.resetStateMachineReactively(currentState).block();
-            });
+            stateMachine.getStateMachineAccessor().doWithAllRegions(access ->
+                    access.resetStateMachineReactively(buildContext(currentState)).block()
+            );
 
             return stateMachine.getTransitions().stream()
                     .anyMatch(transition ->
@@ -175,9 +177,9 @@ public class StateMachineService {
     public boolean canTransitionPaymentState(PaymentState currentState, PaymentEvent event) {
         try {
             StateMachine<PaymentState, PaymentEvent> stateMachine = paymentStateMachineFactory.getStateMachine();
-            stateMachine.getStateMachineAccessor().doWithAllRegions(access -> {
-                access.resetStateMachineReactively(currentState).block();
-            });
+            stateMachine.getStateMachineAccessor().doWithAllRegions(access ->
+                    access.resetStateMachineReactively(buildContext(currentState)).block()
+            );
 
             return stateMachine.getTransitions().stream()
                     .anyMatch(transition ->
@@ -200,9 +202,9 @@ public class StateMachineService {
     public boolean canTransitionAppealState(AppealProcessState currentState, AppealProcessEvent event) {
         try {
             StateMachine<AppealProcessState, AppealProcessEvent> stateMachine = appealProcessStateMachineFactory.getStateMachine();
-            stateMachine.getStateMachineAccessor().doWithAllRegions(access -> {
-                access.resetStateMachineReactively(currentState).block();
-            });
+            stateMachine.getStateMachineAccessor().doWithAllRegions(access ->
+                    access.resetStateMachineReactively(buildContext(currentState)).block()
+            );
 
             return stateMachine.getTransitions().stream()
                     .anyMatch(transition ->
@@ -213,5 +215,9 @@ public class StateMachineService {
             LOG.log(Level.WARNING, "检查申诉状态转换有效性失败: " + e.getMessage(), e);
             return false;
         }
+    }
+
+    private <S, E> StateMachineContext<S, E> buildContext(S state) {
+        return new DefaultStateMachineContext<>(state, null, null, null);
     }
 }

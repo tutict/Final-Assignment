@@ -25,7 +25,6 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -69,7 +68,7 @@ public class AppealRecordService {
         sysRequestHistoryMapper.insert(newHistory);
         sendKafkaMessage("appeal_" + action, idempotencyKey, appealRecord);
         newHistory.setBusinessStatus("SUCCESS");
-        newHistory.setBusinessId(Optional.ofNullable(appealRecord.getAppealId()).map(Long::valueOf).orElse(null));
+        newHistory.setBusinessId(appealRecord.getAppealId());
         newHistory.setRequestParams("PENDING");
         newHistory.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.updateById(newHistory);

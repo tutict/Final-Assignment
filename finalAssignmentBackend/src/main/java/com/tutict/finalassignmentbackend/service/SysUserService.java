@@ -23,7 +23,6 @@ import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -94,7 +93,7 @@ public class SysUserService {
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
     public SysUser updateSysUser(SysUser sysUser) {
         validateSysUser(sysUser);
-        requirePositive(sysUser.getUserId(), "User ID");
+        requirePositive(sysUser.getUserId());
         int rows = sysUserMapper.updateById(sysUser);
         if (rows == 0) {
             throw new IllegalStateException("SysUser not found for id=" + sysUser.getUserId());
@@ -106,7 +105,7 @@ public class SysUserService {
     @Transactional
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
     public void deleteSysUser(Long userId) {
-        requirePositive(userId, "User ID");
+        requirePositive(userId);
         int rows = sysUserMapper.deleteById(userId);
         if (rows == 0) {
             throw new IllegalStateException("SysUser not found for id=" + userId);
@@ -122,7 +121,7 @@ public class SysUserService {
     @Transactional(readOnly = true)
     @Cacheable(cacheNames = CACHE_NAME, key = "#userId", unless = "#result == null")
     public SysUser findById(Long userId) {
-        requirePositive(userId, "User ID");
+        requirePositive(userId);
         return sysUserSearchRepository.findById(userId)
                 .map(SysUserDocument::toEntity)
                 .orElseGet(() -> {
@@ -314,9 +313,9 @@ public class SysUserService {
         }
     }
 
-    private void requirePositive(Number number, String fieldName) {
+    private void requirePositive(Number number) {
         if (number == null || number.longValue() <= 0) {
-            throw new IllegalArgumentException(fieldName + " must be greater than zero");
+            throw new IllegalArgumentException("User ID" + " must be greater than zero");
         }
     }
 

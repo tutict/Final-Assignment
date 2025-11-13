@@ -24,7 +24,6 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -74,7 +73,7 @@ public class FineRecordService {
         sendKafkaMessage("fine_record_" + action, idempotencyKey, fineRecord);
 
         history.setBusinessStatus("SUCCESS");
-        history.setBusinessId(Optional.ofNullable(fineRecord.getFineId()).map(Long::valueOf).orElse(null));
+        history.setBusinessId(fineRecord.getFineId());
         history.setRequestParams("PENDING");
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.updateById(history);
@@ -254,7 +253,7 @@ public class FineRecordService {
             return;
         }
         history.setBusinessStatus("FAILED");
-        history.setRequestParams(truncate(reason, 500));
+        history.setRequestParams(truncate(reason));
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.updateById(history);
     }
@@ -309,7 +308,6 @@ public class FineRecordService {
         }
         return hits.getSearchHits().stream()
                 .map(org.springframework.data.elasticsearch.core.SearchHit::getContent)
-                .filter(Objects::nonNull)
                 .map(FineRecordDocument::toEntity)
                 .collect(Collectors.toList());
     }
@@ -365,10 +363,10 @@ public class FineRecordService {
         return value == null || value.trim().isEmpty();
     }
 
-    private String truncate(String value, int maxLength) {
+    private String truncate(String value) {
         if (value == null) {
             return null;
         }
-        return value.length() <= maxLength ? value : value.substring(0, maxLength);
+        return value.length() <= 500 ? value : value.substring(0, 500);
     }
 }

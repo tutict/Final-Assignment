@@ -95,7 +95,7 @@ public class AuditLoginLogService {
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
     public AuditLoginLog updateAuditLoginLog(AuditLoginLog loginLog) {
         validateLoginLog(loginLog);
-        requirePositive(loginLog.getLogId(), "Log ID");
+        requirePositive(loginLog.getLogId());
         int rows = auditLoginLogMapper.updateById(loginLog);
         if (rows == 0) {
             throw new IllegalStateException("Audit login log not found for id=" + loginLog.getLogId());
@@ -107,7 +107,7 @@ public class AuditLoginLogService {
     @Transactional
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
     public void deleteAuditLoginLog(Long logId) {
-        requirePositive(logId, "Log ID");
+        requirePositive(logId);
         int rows = auditLoginLogMapper.deleteById(logId);
         if (rows == 0) {
             throw new IllegalStateException("Audit login log not found for id=" + logId);
@@ -123,7 +123,7 @@ public class AuditLoginLogService {
     @Transactional(readOnly = true)
     @Cacheable(cacheNames = CACHE_NAME, key = "#logId", unless = "#result == null")
     public AuditLoginLog findById(Long logId) {
-        requirePositive(logId, "Log ID");
+        requirePositive(logId);
         return auditLoginLogSearchRepository.findById(logId)
                 .map(AuditLoginLogDocument::toEntity)
                 .orElseGet(() -> {
@@ -302,7 +302,6 @@ public class AuditLoginLogService {
         }
         return hits.getSearchHits().stream()
                 .map(SearchHit::getContent)
-                .filter(Objects::nonNull)
                 .map(AuditLoginLogDocument::toEntity)
                 .collect(Collectors.toList());
     }
@@ -326,9 +325,9 @@ public class AuditLoginLogService {
         }
     }
 
-    private void requirePositive(Number number, String fieldName) {
+    private void requirePositive(Number number) {
         if (number == null || number.longValue() <= 0) {
-            throw new IllegalArgumentException(fieldName + " must be greater than zero");
+            throw new IllegalArgumentException("Log ID" + " must be greater than zero");
         }
     }
 

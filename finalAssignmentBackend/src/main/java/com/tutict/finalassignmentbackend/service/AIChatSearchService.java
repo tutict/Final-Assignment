@@ -13,6 +13,7 @@ import org.graalvm.polyglot.PolyglotException;
 import org.graalvm.polyglot.Value;
 
 import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -29,8 +30,10 @@ public class AIChatSearchService {
         this.graalPyContext = context;
         try {
             graalPyContext.eval(
-                    "import json\n" +
-                            "from baidu_crawler import search\n"
+                    """
+                            import json
+                            from baidu_crawler import search
+                            """
             );
             logger.info("GraalPy Python 环境已就绪，模块 baidu_crawler.search 可用");
         } catch (PolyglotException e) {
@@ -76,10 +79,12 @@ public class AIChatSearchService {
 
         // Construct Python script
         String pythonCode = String.format(
-                "import json\n" +
-                        "from baidu_crawler import search\n" +
-                        "res = search('%s', num_results=15, debug=True)\n" +
-                        "json.dumps(res, ensure_ascii=False)\n",
+                """
+                        import json
+                        from baidu_crawler import search
+                        res = search('%s', num_results=15, debug=True)
+                        json.dumps(res, ensure_ascii=False)
+                        """,
                 gbkQuery
         );
 
@@ -111,7 +116,7 @@ public class AIChatSearchService {
         try {
             results = objectMapper.readValue(
                     json,
-                    new TypeReference<List<Map<String, String>>>() {
+                    new TypeReference<>() {
                     }
             );
             // Convert GBK-encoded fields to UTF-8
@@ -119,12 +124,11 @@ public class AIChatSearchService {
                 result.replaceAll((key, value) -> {
                     try {
                         // Try UTF-8 first, fall back to GBK if invalid
-                        byte[] bytes = value.getBytes("UTF-8");
-                        String test = new String(bytes, "UTF-8");
-                        return test; // If valid UTF-8, use it
+                        byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
+                        return new String(bytes, StandardCharsets.UTF_8); // If valid UTF-8, use it
                     } catch (Exception e) {
                         try {
-                            return new String(value.getBytes("GBK"), "UTF-8");
+                            return new String(value.getBytes("GBK"), StandardCharsets.UTF_8);
                         } catch (UnsupportedEncodingException ex) {
                             logger.warn("无法转换字段 {}: {}", key, value, ex);
                             return value;

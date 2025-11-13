@@ -92,7 +92,7 @@ public class SysRoleService {
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
     public SysRole updateSysRole(SysRole sysRole) {
         validateSysRole(sysRole);
-        requirePositive(sysRole.getRoleId(), "Role ID");
+        requirePositive(sysRole.getRoleId());
         int rows = sysRoleMapper.updateById(sysRole);
         if (rows == 0) {
             throw new IllegalStateException("SysRole not found for id=" + sysRole.getRoleId());
@@ -104,7 +104,7 @@ public class SysRoleService {
     @Transactional
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
     public void deleteSysRole(Integer roleId) {
-        requirePositive(roleId, "Role ID");
+        requirePositive(roleId);
         int rows = sysRoleMapper.deleteById(roleId);
         if (rows == 0) {
             throw new IllegalStateException("SysRole not found for id=" + roleId);
@@ -120,7 +120,7 @@ public class SysRoleService {
     @Transactional(readOnly = true)
     @Cacheable(cacheNames = CACHE_NAME, key = "#roleId", unless = "#result == null")
     public SysRole findById(Integer roleId) {
-        requirePositive(roleId, "Role ID");
+        requirePositive(roleId);
         return sysRoleSearchRepository.findById(roleId)
                 .map(SysRoleDocument::toEntity)
                 .orElseGet(() -> {
@@ -256,9 +256,9 @@ public class SysRoleService {
         }
     }
 
-    private void requirePositive(Number number, String fieldName) {
+    private void requirePositive(Number number) {
         if (number == null || number.longValue() <= 0) {
-            throw new IllegalArgumentException(fieldName + " must be greater than zero");
+            throw new IllegalArgumentException("Role ID" + " must be greater than zero");
         }
     }
 

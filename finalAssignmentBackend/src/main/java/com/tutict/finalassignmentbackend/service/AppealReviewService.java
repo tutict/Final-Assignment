@@ -20,7 +20,6 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -69,7 +68,7 @@ public class AppealReviewService {
         sendKafkaMessage("appeal_review_" + action, idempotencyKey, appealReview);
 
         history.setBusinessStatus("SUCCESS");
-        history.setBusinessId(Optional.ofNullable(appealReview.getReviewId()).map(Long::valueOf).orElse(null));
+        history.setBusinessId(appealReview.getReviewId());
         history.setRequestParams("PENDING");
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.updateById(history);
@@ -88,7 +87,7 @@ public class AppealReviewService {
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
     public AppealReview updateReview(AppealReview appealReview) {
         validateAppealReview(appealReview);
-        requirePositive(appealReview.getReviewId(), "Review ID");
+        requirePositive(appealReview.getReviewId());
         int rows = appealReviewMapper.updateById(appealReview);
         if (rows == 0) {
             throw new IllegalStateException("No AppealReview updated for id=" + appealReview.getReviewId());
@@ -100,7 +99,7 @@ public class AppealReviewService {
     @Transactional
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
     public void deleteReview(Long reviewId) {
-        requirePositive(reviewId, "Review ID");
+        requirePositive(reviewId);
         int rows = appealReviewMapper.deleteById(reviewId);
         if (rows == 0) {
             throw new IllegalStateException("No AppealReview deleted for id=" + reviewId);
@@ -115,7 +114,7 @@ public class AppealReviewService {
 
     @Cacheable(cacheNames = CACHE_NAME, key = "#reviewId", unless = "#result == null")
     public AppealReview findById(Long reviewId) {
-        requirePositive(reviewId, "Review ID");
+        requirePositive(reviewId);
         return appealReviewSearchRepository.findById(reviewId)
                 .map(AppealReviewDocument::toEntity)
                 .orElseGet(() -> {
@@ -228,9 +227,9 @@ public class AppealReviewService {
         }
     }
 
-    private void requirePositive(Number number, String fieldName) {
+    private void requirePositive(Number number) {
         if (number == null || number.longValue() <= 0) {
-            throw new IllegalArgumentException(fieldName + " must be greater than zero");
+            throw new IllegalArgumentException("Review ID" + " must be greater than zero");
         }
     }
 

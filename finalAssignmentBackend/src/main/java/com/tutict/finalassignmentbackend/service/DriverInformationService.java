@@ -24,11 +24,9 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -84,7 +82,7 @@ public class DriverInformationService {
         sendKafkaMessage("driver_" + action, idempotencyKey, driverInformation);
 
         history.setBusinessStatus("SUCCESS");
-        history.setBusinessId(Optional.ofNullable(driverInformation.getDriverId()).map(Long::valueOf).orElse(null));
+        history.setBusinessId(driverInformation.getDriverId());
         history.setRequestParams("PENDING");
         sysRequestHistoryMapper.updateById(history);
     }
@@ -258,7 +256,7 @@ public class DriverInformationService {
             }
             for (SearchHit<DriverInformationDocument> hit : hits) {
                 DriverInformationDocument doc = hit.getContent();
-                if (doc != null && fieldSelector.apply(doc) != null) {
+                if (fieldSelector.apply(doc) != null) {
                     sink.add(doc.toEntity());
                 }
             }

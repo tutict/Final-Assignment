@@ -93,7 +93,7 @@ public class SysPermissionService {
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
     public SysPermission updateSysPermission(SysPermission permission) {
         validatePermission(permission);
-        requirePositive(permission.getPermissionId(), "Permission ID");
+        requirePositive(permission.getPermissionId());
         int rows = sysPermissionMapper.updateById(permission);
         if (rows == 0) {
             throw new IllegalStateException("SysPermission not found for id=" + permission.getPermissionId());
@@ -105,7 +105,7 @@ public class SysPermissionService {
     @Transactional
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
     public void deleteSysPermission(Integer permissionId) {
-        requirePositive(permissionId, "Permission ID");
+        requirePositive(permissionId);
         int rows = sysPermissionMapper.deleteById(permissionId);
         if (rows == 0) {
             throw new IllegalStateException("SysPermission not found for id=" + permissionId);
@@ -121,7 +121,7 @@ public class SysPermissionService {
     @Transactional(readOnly = true)
     @Cacheable(cacheNames = CACHE_NAME, key = "#permissionId", unless = "#result == null")
     public SysPermission findById(Integer permissionId) {
-        requirePositive(permissionId, "Permission ID");
+        requirePositive(permissionId);
         return sysPermissionSearchRepository.findById(permissionId)
                 .map(SysPermissionDocument::toEntity)
                 .orElseGet(() -> {
@@ -149,7 +149,7 @@ public class SysPermissionService {
 
     @Cacheable(cacheNames = CACHE_NAME, key = "'parent:' + #parentId + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
     public List<SysPermission> findByParentId(Integer parentId, int page, int size) {
-        requireNonNegative(parentId, "Parent ID");
+        requireNonNegative(parentId);
         validatePagination(page, size);
         QueryWrapper<SysPermission> wrapper = new QueryWrapper<>();
         wrapper.eq("parent_id", parentId)
@@ -268,15 +268,15 @@ public class SysPermissionService {
         }
     }
 
-    private void requirePositive(Number number, String fieldName) {
+    private void requirePositive(Number number) {
         if (number == null || number.longValue() <= 0) {
-            throw new IllegalArgumentException(fieldName + " must be greater than zero");
+            throw new IllegalArgumentException("Permission ID" + " must be greater than zero");
         }
     }
 
-    private void requireNonNegative(Number number, String fieldName) {
+    private void requireNonNegative(Number number) {
         if (number != null && number.intValue() < 0) {
-            throw new IllegalArgumentException(fieldName + " must be >= 0");
+            throw new IllegalArgumentException("Parent ID" + " must be >= 0");
         }
     }
 

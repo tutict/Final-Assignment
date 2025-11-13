@@ -27,7 +27,6 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -77,7 +76,7 @@ public class AuditOperationLogService {
         sendKafkaMessage("audit_operation_log_" + action, idempotencyKey, auditOperationLog);
 
         history.setBusinessStatus("SUCCESS");
-        history.setBusinessId(Optional.ofNullable(auditOperationLog.getLogId()).map(Long::valueOf).orElse(null));
+        history.setBusinessId(auditOperationLog.getLogId());
         history.setRequestParams("PENDING");
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.updateById(history);
@@ -304,7 +303,6 @@ public class AuditOperationLogService {
         }
         return hits.getSearchHits().stream()
                 .map(SearchHit::getContent)
-                .filter(Objects::nonNull)
                 .map(AuditOperationLogDocument::toEntity)
                 .collect(Collectors.toList());
     }

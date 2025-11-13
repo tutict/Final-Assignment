@@ -72,7 +72,7 @@ public class VehicleInformationService {
         sendKafkaMessage(action, vehicleInformation);
 
         history.setBusinessStatus("SUCCESS");
-        history.setBusinessId(Optional.ofNullable(vehicleInformation.getVehicleId()).map(Long::valueOf).orElse(null));
+        history.setBusinessId(vehicleInformation.getVehicleId());
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.updateById(history);
     }
