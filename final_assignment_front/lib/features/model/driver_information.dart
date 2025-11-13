@@ -1,118 +1,200 @@
 class DriverInformation {
-  /* 驾驶员 ID，主键，自动生成 */
-  int? driverId;
+  final int? driverId;
+  final String? name;
+  final String? idCardNumber;
+  final String? gender;
+  final DateTime? birthdate;
+  final String? contactNumber;
+  final String? email;
+  final String? address;
+  final String? driverLicenseNumber;
+  final String? licenseType;
+  final String? allowedVehicleType; // 兼容旧字段
+  final DateTime? firstLicenseDate;
+  final DateTime? issueDate;
+  final DateTime? expiryDate;
+  final String? issuingAuthority;
+  final int? currentPoints;
+  final int? totalDeductedPoints;
+  final String? status;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+  final String? createdBy;
+  final String? updatedBy;
+  final DateTime? deletedAt;
+  final String? remarks;
+  final String? idempotencyKey;
 
-  /* 姓名 */
-  String? name;
-
-  /* 身份证号码 */
-  String? idCardNumber;
-
-  /* 联系电话 */
-  String? contactNumber;
-
-  /* 驾驶证号码 */
-  String? driverLicenseNumber;
-
-  /* 性别 */
-  String? gender;
-
-  /* 出生日期 */
-  DateTime? birthdate;
-
-  /* 首次领取驾驶证日期 */
-  DateTime? firstLicenseDate;
-
-  /* 允许驾驶的车辆类型 */
-  String? allowedVehicleType;
-
-  /* 驾驶证发证日期 */
-  DateTime? issueDate;
-
-  /* 驾驶证有效期截止日期 */
-  DateTime? expiryDate;
-
-  String? idempotencyKey; // 改为可选
-
-  DriverInformation({
+  const DriverInformation({
     this.driverId,
     this.name,
     this.idCardNumber,
-    this.contactNumber,
-    this.driverLicenseNumber,
     this.gender,
     this.birthdate,
-    this.firstLicenseDate,
+    this.contactNumber,
+    this.email,
+    this.address,
+    this.driverLicenseNumber,
+    this.licenseType,
     this.allowedVehicleType,
+    this.firstLicenseDate,
     this.issueDate,
     this.expiryDate,
+    this.issuingAuthority,
+    this.currentPoints,
+    this.totalDeductedPoints,
+    this.status,
+    this.createdAt,
+    this.updatedAt,
+    this.createdBy,
+    this.updatedBy,
+    this.deletedAt,
+    this.remarks,
     this.idempotencyKey,
   });
 
-  @override
-  String toString() {
-    return 'DriverInformation[driverId=$driverId, name=$name, idCardNumber=$idCardNumber, contactNumber=$contactNumber, driverLicenseNumber=$driverLicenseNumber, gender=$gender, birthdate=$birthdate, firstLicenseDate=$firstLicenseDate, allowedVehicleType=$allowedVehicleType, issueDate=$issueDate, expiryDate=$expiryDate, idempotencyKey=$idempotencyKey]';
+  DriverInformation copyWith({
+    int? driverId,
+    String? name,
+    String? idCardNumber,
+    String? gender,
+    DateTime? birthdate,
+    String? contactNumber,
+    String? email,
+    String? address,
+    String? driverLicenseNumber,
+    String? licenseType,
+    String? allowedVehicleType,
+    DateTime? firstLicenseDate,
+    DateTime? issueDate,
+    DateTime? expiryDate,
+    String? issuingAuthority,
+    int? currentPoints,
+    int? totalDeductedPoints,
+    String? status,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    String? createdBy,
+    String? updatedBy,
+    DateTime? deletedAt,
+    String? remarks,
+    String? idempotencyKey,
+  }) {
+    return DriverInformation(
+      driverId: driverId ?? this.driverId,
+      name: name ?? this.name,
+      idCardNumber: idCardNumber ?? this.idCardNumber,
+      gender: gender ?? this.gender,
+      birthdate: birthdate ?? this.birthdate,
+      contactNumber: contactNumber ?? this.contactNumber,
+      email: email ?? this.email,
+      address: address ?? this.address,
+      driverLicenseNumber:
+          driverLicenseNumber ?? this.driverLicenseNumber,
+      licenseType: licenseType ?? this.licenseType,
+      allowedVehicleType:
+          allowedVehicleType ?? this.allowedVehicleType ?? this.licenseType,
+      firstLicenseDate: firstLicenseDate ?? this.firstLicenseDate,
+      issueDate: issueDate ?? this.issueDate,
+      expiryDate: expiryDate ?? this.expiryDate,
+      issuingAuthority: issuingAuthority ?? this.issuingAuthority,
+      currentPoints: currentPoints ?? this.currentPoints,
+      totalDeductedPoints:
+          totalDeductedPoints ?? this.totalDeductedPoints,
+      status: status ?? this.status,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      createdBy: createdBy ?? this.createdBy,
+      updatedBy: updatedBy ?? this.updatedBy,
+      deletedAt: deletedAt ?? this.deletedAt,
+      remarks: remarks ?? this.remarks,
+      idempotencyKey: idempotencyKey ?? this.idempotencyKey,
+    );
   }
 
   factory DriverInformation.fromJson(Map<String, dynamic> json) {
+    final type = json['licenseType'] ?? json['allowedVehicleType'];
     return DriverInformation(
-      driverId: json['driverId'] as int?,
-      name: _stripQuotes(json['name'] as String?),
-      idCardNumber: _stripQuotes(json['idCardNumber'] as String?),
-      contactNumber: _stripQuotes(json['contactNumber'] as String?),
-      driverLicenseNumber: _stripQuotes(json['driverLicenseNumber'] as String?),
-      gender: _stripQuotes(json['gender'] as String?),
-      birthdate: json['birthdate'] != null
-          ? DateTime.parse(_stripQuotes(json['birthdate'] as String?)!)
-          : null,
-      firstLicenseDate: json['firstLicenseDate'] != null
-          ? DateTime.parse(_stripQuotes(json['firstLicenseDate'] as String?)!)
-          : null,
-      allowedVehicleType: _stripQuotes(json['allowedVehicleType'] as String?),
-      issueDate: json['issueDate'] != null
-          ? DateTime.parse(_stripQuotes(json['issueDate'] as String?)!)
-          : null,
-      expiryDate: json['expiryDate'] != null
-          ? DateTime.parse(_stripQuotes(json['expiryDate'] as String?)!)
-          : null,
-      idempotencyKey: _stripQuotes(json['idempotencyKey'] as String?),
+      driverId: json['driverId'],
+      name: json['name'],
+      idCardNumber: _stripQuotes(json['idCardNumber']),
+      gender: json['gender'],
+      birthdate: _parseDate(json['birthdate']),
+      contactNumber: _stripQuotes(json['contactNumber']),
+      email: json['email'],
+      address: json['address'],
+      driverLicenseNumber: json['driverLicenseNumber'],
+      licenseType: type,
+      allowedVehicleType: json['allowedVehicleType'] ?? type,
+      firstLicenseDate: _parseDate(json['firstLicenseDate']),
+      issueDate: _parseDate(json['issueDate']),
+      expiryDate: _parseDate(json['expiryDate']),
+      issuingAuthority: json['issuingAuthority'],
+      currentPoints: json['currentPoints'],
+      totalDeductedPoints: json['totalDeductedPoints'],
+      status: json['status'],
+      createdAt: _parseDateTime(json['createdAt']),
+      updatedAt: _parseDateTime(json['updatedAt']),
+      createdBy: json['createdBy'],
+      updatedBy: json['updatedBy'],
+      deletedAt: _parseDateTime(json['deletedAt']),
+      remarks: json['remarks'],
+      idempotencyKey: json['idempotencyKey'],
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      if (driverId != null) 'driverId': driverId,
-      if (name != null) 'name': name,
-      if (idCardNumber != null) 'idCardNumber': idCardNumber,
-      if (contactNumber != null) 'contactNumber': contactNumber,
-      if (driverLicenseNumber != null) 'driverLicenseNumber': driverLicenseNumber,
-      if (gender != null) 'gender': gender,
-      if (birthdate != null) 'birthdate': birthdate!.toIso8601String(),
-      if (firstLicenseDate != null) 'firstLicenseDate': firstLicenseDate!.toIso8601String(),
-      if (allowedVehicleType != null) 'allowedVehicleType': allowedVehicleType,
-      if (issueDate != null) 'issueDate': issueDate!.toIso8601String(),
-      if (expiryDate != null) 'expiryDate': expiryDate!.toIso8601String(),
-      if (idempotencyKey != null) 'idempotencyKey': idempotencyKey,
+      'driverId': driverId,
+      'name': name,
+      'idCardNumber': idCardNumber,
+      'gender': gender,
+      'birthdate': birthdate?.toIso8601String(),
+      'contactNumber': contactNumber,
+      'email': email,
+      'address': address,
+      'driverLicenseNumber': driverLicenseNumber,
+      'licenseType': licenseType ?? allowedVehicleType,
+      'allowedVehicleType': allowedVehicleType ?? licenseType,
+      'firstLicenseDate': firstLicenseDate?.toIso8601String(),
+      'issueDate': issueDate?.toIso8601String(),
+      'expiryDate': expiryDate?.toIso8601String(),
+      'issuingAuthority': issuingAuthority,
+      'currentPoints': currentPoints,
+      'totalDeductedPoints': totalDeductedPoints,
+      'status': status,
+      'createdAt': createdAt?.toIso8601String(),
+      'updatedAt': updatedAt?.toIso8601String(),
+      'createdBy': createdBy,
+      'updatedBy': updatedBy,
+      'deletedAt': deletedAt?.toIso8601String(),
+      'remarks': remarks,
+      'idempotencyKey': idempotencyKey,
     };
   }
 
   static List<DriverInformation> listFromJson(List<dynamic> json) {
     return json
-        .map((value) => DriverInformation.fromJson(value as Map<String, dynamic>))
+        .map((value) =>
+            DriverInformation.fromJson(value as Map<String, dynamic>))
         .toList();
   }
 
-  static Map<String, DriverInformation> mapFromJson(Map<String, dynamic> json) {
-    var map = <String, DriverInformation>{};
+  static Map<String, DriverInformation> mapFromJson(
+      Map<String, dynamic> json) {
+    final map = <String, DriverInformation>{};
     if (json.isNotEmpty) {
-      json.forEach((String key, dynamic value) =>
-      map[key] = DriverInformation.fromJson(value as Map<String, dynamic>));
+      json.forEach((String key, dynamic value) {
+        map[key] =
+            DriverInformation.fromJson(value as Map<String, dynamic>);
+      });
     }
     return map;
   }
 
-  static Map<String, List<DriverInformation>> mapListFromJson(Map<String, dynamic> json) {
-    var map = <String, List<DriverInformation>>{};
+  static Map<String, List<DriverInformation>> mapListFromJson(
+      Map<String, dynamic> json) {
+    final map = <String, List<DriverInformation>>{};
     if (json.isNotEmpty) {
       json.forEach((String key, dynamic value) {
         map[key] = DriverInformation.listFromJson(value as List<dynamic>);
@@ -121,40 +203,20 @@ class DriverInformation {
     return map;
   }
 
-  // Helper to strip extra quotes from strings
-  static String? _stripQuotes(String? value) {
+  static String? _stripQuotes(dynamic value) {
     if (value == null) return null;
-    return value.replaceAll('"', '').trim();
+    final str = value.toString();
+    return str.replaceAll('"', '').trim();
   }
 
-  // CopyWith method for creating a new instance with updated fields
-  DriverInformation copyWith({
-    int? driverId,
-    String? name,
-    String? idCardNumber,
-    String? contactNumber,
-    String? driverLicenseNumber,
-    String? gender,
-    DateTime? birthdate,
-    DateTime? firstLicenseDate,
-    String? allowedVehicleType,
-    DateTime? issueDate,
-    DateTime? expiryDate,
-    String? idempotencyKey,
-  }) {
-    return DriverInformation(
-      driverId: driverId ?? this.driverId,
-      name: name ?? this.name,
-      idCardNumber: idCardNumber ?? this.idCardNumber,
-      contactNumber: contactNumber ?? this.contactNumber,
-      driverLicenseNumber: driverLicenseNumber ?? this.driverLicenseNumber,
-      gender: gender ?? this.gender,
-      birthdate: birthdate ?? this.birthdate,
-      firstLicenseDate: firstLicenseDate ?? this.firstLicenseDate,
-      allowedVehicleType: allowedVehicleType ?? this.allowedVehicleType,
-      issueDate: issueDate ?? this.issueDate,
-      expiryDate: expiryDate ?? this.expiryDate,
-      idempotencyKey: idempotencyKey ?? this.idempotencyKey,
-    );
+  static DateTime? _parseDate(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    if (value is String && value.isNotEmpty) {
+      return DateTime.tryParse(value);
+    }
+    return null;
   }
+
+  static DateTime? _parseDateTime(dynamic value) => _parseDate(value);
 }

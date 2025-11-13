@@ -1,14 +1,10 @@
 import 'dart:convert';
 import 'package:final_assignment_front/utils/services/http_bearer_auth.dart';
 import 'package:http/http.dart' as http;
-import 'package:final_assignment_front/features/model/appeal_management.dart';
 import 'package:final_assignment_front/features/model/backup_restore.dart';
-import 'package:final_assignment_front/features/model/category.dart';
 import 'package:final_assignment_front/features/model/deduction_information.dart';
 import 'package:final_assignment_front/features/model/driver_information.dart';
 import 'package:final_assignment_front/features/model/fine_information.dart';
-import 'package:final_assignment_front/features/model/int.dart';
-import 'package:final_assignment_front/features/model/integer.dart';
 import 'package:final_assignment_front/features/model/login_log.dart';
 import 'package:final_assignment_front/features/model/login_request.dart';
 import 'package:final_assignment_front/features/model/offense_information.dart';
@@ -16,10 +12,8 @@ import 'package:final_assignment_front/features/model/operation_log.dart';
 import 'package:final_assignment_front/features/model/permission_management.dart';
 import 'package:final_assignment_front/features/model/register_request.dart';
 import 'package:final_assignment_front/features/model/role_management.dart';
-import 'package:final_assignment_front/features/model/security_context.dart';
 import 'package:final_assignment_front/features/model/system_logs.dart';
 import 'package:final_assignment_front/features/model/system_settings.dart';
-import 'package:final_assignment_front/features/model/tag.dart';
 import 'package:final_assignment_front/features/model/user_management.dart';
 import 'package:final_assignment_front/features/model/vehicle_information.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
@@ -100,22 +94,14 @@ class ApiClient {
           return value != null ? DateTime.parse(value as String) : null;
         case 'Map<String, dynamic>':
           return value as Map<String, dynamic>;
-        case 'AppealManagement':
-          return AppealManagement.fromJson(value as Map<String, dynamic>);
         case 'BackupRestore':
           return BackupRestore.fromJson(value as Map<String, dynamic>);
-        case 'Category':
-          return Category.fromJson(value as Map<String, dynamic>);
         case 'DeductionInformation':
           return DeductionInformation.fromJson(value as Map<String, dynamic>);
         case 'DriverInformation':
           return DriverInformation.fromJson(value as Map<String, dynamic>);
         case 'FineInformation':
           return FineInformation.fromJson(value as Map<String, dynamic>);
-        case 'Int':
-          return Int.fromJson(value as Map<String, dynamic>);
-        case 'Integer':
-          return Integer.fromJson(value as Map<String, dynamic>);
         case 'LoginLog':
           return LoginLog.fromJson(value as Map<String, dynamic>);
         case 'LoginRequest':
@@ -130,14 +116,10 @@ class ApiClient {
           return RegisterRequest.fromJson(value as Map<String, dynamic>);
         case 'RoleManagement':
           return RoleManagement.fromJson(value as Map<String, dynamic>);
-        case 'SecurityContext':
-          return SecurityContext.fromJson(value as Map<String, dynamic>);
         case 'SystemLogs':
           return SystemLogs.fromJson(value as Map<String, dynamic>);
         case 'SystemSettings':
           return SystemSettings.fromJson(value as Map<String, dynamic>);
-        case 'Tag':
-          return Tag.fromJson(value as Map<String, dynamic>);
         case 'UserManagement':
           return UserManagement.fromJson(value as Map<String, dynamic>);
         case 'VehicleInformation':

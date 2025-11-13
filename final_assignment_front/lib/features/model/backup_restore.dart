@@ -1,126 +1,180 @@
 class BackupRestore {
-  /* 备份ID 使用自动增长类型作为主键 */
-  int? backupId;
+  final int? backupId;
+  final String? backupType;
+  final String? backupFileName;
+  final String? backupFilePath;
+  final int? backupFileSize;
+  final DateTime? backupTime;
+  final int? backupDuration;
+  final String? backupHandler;
+  final DateTime? restoreTime;
+  final int? restoreDuration;
+  final String? restoreStatus;
+  final String? restoreHandler;
+  final String? errorMessage;
+  final String? status;
+  final DateTime? createdTime;
+  final DateTime? modifiedTime;
+  final DateTime? deletedAt;
+  final String? remarks;
+  final String? idempotencyKey;
 
-  /* 备份文件名 记录备份文件的名称 */
-  String? backupFileName;
-
-  /* 备份时间 记录执行备份操作的时间 */
-  DateTime? backupTime;
-
-  /* 恢复时间 记录执行恢复操作的时间 */
-  DateTime? restoreTime;
-
-  /* 恢复状态 描述备份文件恢复操作的状态 */
-  String? restoreStatus;
-
-  /* 备注 记录关于备份与恢复操作的额外信息 */
-  String? remarks;
-
-  String? idempotencyKey;
-
-  BackupRestore({
+  const BackupRestore({
     this.backupId,
+    this.backupType,
     this.backupFileName,
+    this.backupFilePath,
+    this.backupFileSize,
     this.backupTime,
+    this.backupDuration,
+    this.backupHandler,
     this.restoreTime,
+    this.restoreDuration,
     this.restoreStatus,
+    this.restoreHandler,
+    this.errorMessage,
+    this.status,
+    this.createdTime,
+    this.modifiedTime,
+    this.deletedAt,
     this.remarks,
     this.idempotencyKey,
   });
 
-  @override
-  String toString() {
-    return 'BackupRestore[backupId=$backupId, backupFileName=$backupFileName, backupTime=$backupTime, restoreTime=$restoreTime, restoreStatus=$restoreStatus, remarks=$remarks, idempotencyKey=$idempotencyKey]';
-  }
-
-  factory BackupRestore.fromJson(Map<String, dynamic> json) {
-    return BackupRestore(
-      backupId: json['backupId'] as int?,
-      backupFileName: json['backupFileName'] as String?,
-      backupTime: json['backupTime'] != null
-          ? DateTime.parse(json['backupTime'] as String)
-          : null,
-      restoreTime: json['restoreTime'] != null
-          ? DateTime.parse(json['restoreTime'] as String)
-          : null,
-      restoreStatus: json['restoreStatus'] as String?,
-      remarks: json['remarks'] as String?,
-      idempotencyKey: json['idempotencyKey'] as String?,
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    final Map<String, dynamic> json = {};
-    if (backupId != null) {
-      json['backupId'] = backupId;
-    }
-    if (backupFileName != null) {
-      json['backupFileName'] = backupFileName;
-    }
-    if (backupTime != null) {
-      json['backupTime'] = backupTime!.toIso8601String();
-    }
-    if (restoreTime != null) {
-      json['restoreTime'] = restoreTime!.toIso8601String();
-    }
-    if (restoreStatus != null) {
-      json['restoreStatus'] = restoreStatus;
-    }
-    if (remarks != null) {
-      json['remarks'] = remarks;
-    }
-    if (idempotencyKey != null) {
-      json['idempotencyKey'] = idempotencyKey;
-    }
-    return json;
-  }
-
-  static List<BackupRestore> listFromJson(List<dynamic> json) {
-    return json
-        .map((value) => BackupRestore.fromJson(value as Map<String, dynamic>))
-        .toList();
-  }
-
-  static Map<String, BackupRestore> mapFromJson(Map<String, dynamic> json) {
-    var map = <String, BackupRestore>{};
-    if (json.isNotEmpty) {
-      json.forEach((String key, dynamic value) =>
-      map[key] = BackupRestore.fromJson(value as Map<String, dynamic>));
-    }
-    return map;
-  }
-
-  // Maps a JSON object with a list of BackupRestore objects as value to a Dart map
-  static Map<String, List<BackupRestore>> mapListFromJson(
-      Map<String, dynamic> json) {
-    var map = <String, List<BackupRestore>>{};
-    if (json.isNotEmpty) {
-      json.forEach((String key, dynamic value) {
-        map[key] = BackupRestore.listFromJson(value as List<dynamic>);
-      });
-    }
-    return map;
-  }
-
-  // CopyWith method for creating a new instance with updated fields
   BackupRestore copyWith({
     int? backupId,
+    String? backupType,
     String? backupFileName,
+    String? backupFilePath,
+    int? backupFileSize,
     DateTime? backupTime,
+    int? backupDuration,
+    String? backupHandler,
     DateTime? restoreTime,
+    int? restoreDuration,
     String? restoreStatus,
+    String? restoreHandler,
+    String? errorMessage,
+    String? status,
+    DateTime? createdTime,
+    DateTime? modifiedTime,
+    DateTime? deletedAt,
     String? remarks,
     String? idempotencyKey,
   }) {
     return BackupRestore(
       backupId: backupId ?? this.backupId,
+      backupType: backupType ?? this.backupType,
       backupFileName: backupFileName ?? this.backupFileName,
+      backupFilePath: backupFilePath ?? this.backupFilePath,
+      backupFileSize: backupFileSize ?? this.backupFileSize,
       backupTime: backupTime ?? this.backupTime,
+      backupDuration: backupDuration ?? this.backupDuration,
+      backupHandler: backupHandler ?? this.backupHandler,
       restoreTime: restoreTime ?? this.restoreTime,
+      restoreDuration: restoreDuration ?? this.restoreDuration,
       restoreStatus: restoreStatus ?? this.restoreStatus,
+      restoreHandler: restoreHandler ?? this.restoreHandler,
+      errorMessage: errorMessage ?? this.errorMessage,
+      status: status ?? this.status,
+      createdTime: createdTime ?? this.createdTime,
+      modifiedTime: modifiedTime ?? this.modifiedTime,
+      deletedAt: deletedAt ?? this.deletedAt,
       remarks: remarks ?? this.remarks,
       idempotencyKey: idempotencyKey ?? this.idempotencyKey,
     );
+  }
+
+  factory BackupRestore.fromJson(Map<String, dynamic> json) {
+    return BackupRestore(
+      backupId: json['backupId'],
+      backupType: json['backupType'],
+      backupFileName: json['backupFileName'],
+      backupFilePath: json['backupFilePath'],
+      backupFileSize: json['backupFileSize'],
+      backupTime: _parseDateTime(json['backupTime']),
+      backupDuration: json['backupDuration'],
+      backupHandler: json['backupHandler'],
+      restoreTime: _parseDateTime(json['restoreTime']),
+      restoreDuration: json['restoreDuration'],
+      restoreStatus: json['restoreStatus'],
+      restoreHandler: json['restoreHandler'],
+      errorMessage: json['errorMessage'],
+      status: json['status'],
+      createdTime: _parseDateTime(json['createdAt'] ?? json['createdTime']),
+      modifiedTime: _parseDateTime(json['updatedAt'] ?? json['modifiedTime']),
+      deletedAt: _parseDateTime(json['deletedAt']),
+      remarks: json['remarks'],
+      idempotencyKey: json['idempotencyKey'],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'backupId': backupId,
+      'backupType': backupType,
+      'backupFileName': backupFileName,
+      'backupFilePath': backupFilePath,
+      'backupFileSize': backupFileSize,
+      'backupTime': backupTime?.toIso8601String(),
+      'backupDuration': backupDuration,
+      'backupHandler': backupHandler,
+      'restoreTime': restoreTime?.toIso8601String(),
+      'restoreDuration': restoreDuration,
+      'restoreStatus': restoreStatus,
+      'restoreHandler': restoreHandler,
+      'errorMessage': errorMessage,
+      'status': status,
+      'createdAt': createdTime?.toIso8601String(),
+      'createdTime': createdTime?.toIso8601String(),
+      'updatedAt': modifiedTime?.toIso8601String(),
+      'modifiedTime': modifiedTime?.toIso8601String(),
+      'deletedAt': deletedAt?.toIso8601String(),
+      'remarks': remarks,
+      'idempotencyKey': idempotencyKey,
+    };
+  }
+
+  @override
+  String toString() {
+    return 'BackupRestore(backupId: $backupId, backupType: $backupType, status: $status)';
+  }
+
+  static List<BackupRestore> listFromJson(List<dynamic> jsonList) {
+    return jsonList
+        .map((value) => BackupRestore.fromJson(value as Map<String, dynamic>))
+        .toList();
+  }
+
+  static Map<String, BackupRestore> mapFromJson(
+      Map<String, dynamic> json) {
+    final map = <String, BackupRestore>{};
+    if (json.isNotEmpty) {
+      json.forEach((key, value) {
+        map[key] = BackupRestore.fromJson(value as Map<String, dynamic>);
+      });
+    }
+    return map;
+  }
+
+  static Map<String, List<BackupRestore>> mapListFromJson(
+      Map<String, dynamic> json) {
+    final map = <String, List<BackupRestore>>{};
+    if (json.isNotEmpty) {
+      json.forEach((key, value) {
+        map[key] =
+            BackupRestore.listFromJson(value as List<dynamic>);
+      });
+    }
+    return map;
+  }
+
+  static DateTime? _parseDateTime(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    if (value is String && value.isNotEmpty) {
+      return DateTime.tryParse(value);
+    }
+    return null;
   }
 }

@@ -42,38 +42,38 @@ class MaterialThemeColors {
 /// AppTheme 类包含了应用的所有自定义主题样式。
 class AppTheme {
   /// 通用文本主题，颜色由 colorScheme 决定
-  static TextTheme get textTheme => const TextTheme(
-    displayLarge: TextStyle(
-      fontSize: 32,
-      fontWeight: FontWeight.bold,
-      fontFamily: 'SimSunExtG',
-      inherit: true,
-    ),
-    titleLarge: TextStyle(
-      fontSize: 20,
-      fontWeight: FontWeight.bold,
-      fontFamily: 'SimSunExtG',
-      inherit: true,
-    ),
-    bodyLarge: TextStyle(
-      fontSize: 16,
-      fontFamily: 'SimSunExtG',
-      inherit: true,
-    ),
-    bodyMedium: TextStyle(
-      fontSize: 14,
-      fontFamily: 'SimSunExtG',
-      inherit: true,
-    ),
-    labelLarge: TextStyle(
-      fontSize: 16,
-      fontWeight: FontWeight.w500,
-      fontFamily: 'SimSunExtG',
-      inherit: true,
-    ),
-  );
+  static TextTheme textTheme(Color baseColor) => TextTheme(
+        displayLarge: TextStyle(
+          fontSize: 34,
+          fontWeight: FontWeight.bold,
+          fontFamily: 'SimSunExtG',
+          color: baseColor,
+        ),
+        titleLarge: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+          fontFamily: 'SimSunExtG',
+          color: baseColor,
+        ),
+        bodyLarge: TextStyle(
+          fontSize: 16,
+          fontFamily: 'SimSunExtG',
+          color: baseColor,
+        ),
+        bodyMedium: TextStyle(
+          fontSize: 14,
+          fontFamily: 'SimSunExtG',
+          color: baseColor.withOpacity(0.9),
+        ),
+        labelLarge: TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.w500,
+          fontFamily: 'SimSunExtG',
+          color: baseColor,
+        ),
+      );
 
-  /// 通用按钮主题
+  /// 基础按钮主题
   static ElevatedButtonThemeData elevatedButtonTheme(ColorScheme colorScheme) =>
       ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
@@ -86,22 +86,39 @@ class AppTheme {
           textStyle: const TextStyle(
             fontFamily: 'SimSunExtG',
             fontSize: ThemeStyles.defaultFontSize,
-            fontWeight: FontWeight.w500,
-            inherit: true,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      );
+
+  /// 描边按钮主题
+  static OutlinedButtonThemeData outlinedButtonTheme(ColorScheme colorScheme) =>
+      OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          side: BorderSide(color: colorScheme.primary),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(ThemeStyles.buttonBorderRadius),
+          ),
+          textStyle: TextStyle(
+            fontFamily: 'SimSunExtG',
+            fontSize: ThemeStyles.defaultFontSize,
+            color: colorScheme.primary,
           ),
         ),
       );
 
   /// 通用输入框装饰主题
   static InputDecorationTheme inputDecorationTheme(
-      ColorScheme colorScheme, Color fillColor) =>
+    ColorScheme colorScheme,
+    Color fillColor,
+  ) =>
       InputDecorationTheme(
         filled: true,
         fillColor: fillColor,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(ThemeStyles.inputBorderRadius),
-          borderSide: const BorderSide(
-            color: Colors.grey,
+          borderSide: BorderSide(
+            color: colorScheme.outlineVariant,
             width: ThemeStyles.inputBorderWidth,
           ),
         ),
@@ -112,197 +129,142 @@ class AppTheme {
             width: ThemeStyles.inputFocusedBorderWidth,
           ),
         ),
+        hintStyle: TextStyle(
+          color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+          fontFamily: 'SimSunExtG',
+        ),
       );
 
+  /// 构建统一的基础主题，供不同配色调用
+  static ThemeData _buildTheme({
+    required Brightness brightness,
+    required Color seedColor,
+    required Color canvasColor,
+    required Color cardColor,
+  }) {
+    final colorScheme = ColorScheme.fromSeed(
+      seedColor: seedColor,
+      brightness: brightness,
+    );
+    final bool isLight = brightness == Brightness.light;
+    final Color baseTextColor =
+        isLight ? Colors.black87 : Colors.white.withOpacity(0.95);
+
+    return ThemeData(
+      useMaterial3: true,
+      fontFamily: 'SimSunExtG',
+      brightness: brightness,
+      colorScheme: colorScheme,
+      scaffoldBackgroundColor: canvasColor,
+      canvasColor: canvasColor,
+      cardColor: cardColor,
+      visualDensity: VisualDensity.adaptivePlatformDensity,
+      textTheme: textTheme(baseTextColor),
+      elevatedButtonTheme: elevatedButtonTheme(colorScheme),
+      outlinedButtonTheme: outlinedButtonTheme(colorScheme),
+      inputDecorationTheme: inputDecorationTheme(
+        colorScheme,
+        isLight ? cardColor : cardColor.withOpacity(0.9),
+      ),
+      appBarTheme: AppBarTheme(
+        backgroundColor: canvasColor,
+        elevation: 0,
+        centerTitle: true,
+        foregroundColor: baseTextColor,
+        titleTextStyle: textTheme(baseTextColor).titleLarge,
+      ),
+      bottomNavigationBarTheme: BottomNavigationBarThemeData(
+        backgroundColor: cardColor,
+        elevation: 6,
+        type: BottomNavigationBarType.fixed,
+        selectedItemColor: colorScheme.primary,
+        unselectedItemColor: colorScheme.onSurfaceVariant,
+        showUnselectedLabels: true,
+      ),
+      cardTheme: CardThemeData(
+        color: cardColor,
+        elevation: isLight ? 1 : 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+        ),
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      ),
+      chipTheme: ChipThemeData(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+        ),
+        backgroundColor: colorScheme.primaryContainer.withOpacity(0.5),
+        selectedColor: colorScheme.primary,
+        labelStyle: TextStyle(
+          fontFamily: 'SimSunExtG',
+          color: colorScheme.onPrimary,
+        ),
+      ),
+      dividerTheme: DividerThemeData(
+        color: colorScheme.outlineVariant.withOpacity(0.4),
+        thickness: 0.8,
+        space: 32,
+      ),
+      iconTheme: IconThemeData(color: colorScheme.onSurfaceVariant),
+      navigationRailTheme: NavigationRailThemeData(
+        backgroundColor: cardColor,
+        selectedIconTheme: IconThemeData(color: colorScheme.primary),
+        unselectedIconTheme:
+            IconThemeData(color: colorScheme.onSurfaceVariant),
+        selectedLabelTextStyle: textTheme(baseTextColor).labelLarge,
+        unselectedLabelTextStyle:
+            textTheme(baseTextColor).labelLarge?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+      ),
+    );
+  }
+
   /// 基本亮色主题
-  static ThemeData get basicLight => ThemeData(
-    useMaterial3: true,
-    fontFamily: 'SimSunExtG',
-    brightness: Brightness.light,
-    colorScheme: ColorScheme.fromSeed(
-      seedColor: BasicThemeColors.seedColor,
-      brightness: Brightness.light,
-    ),
-    elevatedButtonTheme:
-    elevatedButtonTheme(ColorScheme.fromSeed(seedColor: BasicThemeColors.seedColor)),
-    canvasColor: BasicThemeColors.lightCanvasColor,
-    cardColor: BasicThemeColors.lightCardColor,
-    appBarTheme: const AppBarTheme(
-      backgroundColor: BasicThemeColors.lightCanvasColor,
-      foregroundColor: Colors.black,
-      elevation: 1,
-      centerTitle: true,
-    ),
-    bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-      backgroundColor: BasicThemeColors.lightCardColor,
-      selectedItemColor: Color.fromRGBO(0, 122, 255, 1),
-      unselectedItemColor: Color.fromRGBO(142, 142, 147, 1),
-      elevation: 8,
-    ),
-    textTheme: textTheme,
-    inputDecorationTheme: inputDecorationTheme(
-      ColorScheme.fromSeed(seedColor: BasicThemeColors.seedColor),
-      BasicThemeColors.lightCardColor,
-    ),
-  );
+  static ThemeData get basicLight => _buildTheme(
+        brightness: Brightness.light,
+        seedColor: BasicThemeColors.seedColor,
+        canvasColor: BasicThemeColors.lightCanvasColor,
+        cardColor: BasicThemeColors.lightCardColor,
+      );
 
   /// 基本暗色主题
-  static ThemeData get basicDark => ThemeData(
-    useMaterial3: true,
-    fontFamily: 'SimSunExtG',
-    brightness: Brightness.dark,
-    colorScheme: ColorScheme.fromSeed(
-      seedColor: BasicThemeColors.seedColor,
-      brightness: Brightness.dark,
-    ),
-    elevatedButtonTheme:
-    elevatedButtonTheme(ColorScheme.fromSeed(seedColor: BasicThemeColors.seedColor)),
-    canvasColor: BasicThemeColors.darkCanvasColor,
-    cardColor: BasicThemeColors.darkCardColor,
-    appBarTheme: const AppBarTheme(
-      backgroundColor: BasicThemeColors.darkCardColor,
-      foregroundColor: Colors.white,
-      elevation: 1,
-      centerTitle: true,
-    ),
-    bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-      backgroundColor: BasicThemeColors.darkCardColor,
-      selectedItemColor: BasicThemeColors.seedColor,
-      unselectedItemColor: Color.fromRGBO(142, 142, 147, 1),
-      elevation: 8,
-    ),
-    textTheme: textTheme,
-    inputDecorationTheme: inputDecorationTheme(
-      ColorScheme.fromSeed(seedColor: BasicThemeColors.seedColor),
-      BasicThemeColors.darkCardColor,
-    ),
-  );
+  static ThemeData get basicDark => _buildTheme(
+        brightness: Brightness.dark,
+        seedColor: BasicThemeColors.seedColor,
+        canvasColor: BasicThemeColors.darkCanvasColor,
+        cardColor: BasicThemeColors.darkCardColor,
+      );
 
   /// Ionic 亮色主题
-  static ThemeData get ionicLightTheme => ThemeData(
-    useMaterial3: true,
-    fontFamily: 'SimSunExtG',
-    brightness: Brightness.light,
-    colorScheme: ColorScheme.fromSeed(
-      seedColor: IonicThemeColors.lightSeedColor,
-      brightness: Brightness.light,
-    ),
-    elevatedButtonTheme: elevatedButtonTheme(
-        ColorScheme.fromSeed(seedColor: IonicThemeColors.lightSeedColor)),
-    canvasColor: IonicThemeColors.lightCanvasColor,
-    cardColor: IonicThemeColors.lightCardColor,
-    appBarTheme: const AppBarTheme(
-      backgroundColor: IonicThemeColors.lightCanvasColor,
-      foregroundColor: Colors.black,
-      elevation: 1,
-      centerTitle: true,
-    ),
-    bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-      backgroundColor: IonicThemeColors.lightCardColor,
-      selectedItemColor: IonicThemeColors.lightSeedColor,
-      unselectedItemColor: Color.fromRGBO(142, 142, 147, 1),
-      elevation: 8,
-    ),
-    textTheme: textTheme,
-    inputDecorationTheme: inputDecorationTheme(
-      ColorScheme.fromSeed(seedColor: IonicThemeColors.lightSeedColor),
-      IonicThemeColors.lightCardColor,
-    ),
-  );
+  static ThemeData get ionicLightTheme => _buildTheme(
+        brightness: Brightness.light,
+        seedColor: IonicThemeColors.lightSeedColor,
+        canvasColor: IonicThemeColors.lightCanvasColor,
+        cardColor: IonicThemeColors.lightCardColor,
+      );
 
   /// Ionic 暗色主题
-  static ThemeData get ionicDarkTheme => ThemeData(
-    useMaterial3: true,
-    fontFamily: 'SimSunExtG',
-    brightness: Brightness.dark,
-    colorScheme: ColorScheme.fromSeed(
-      seedColor: IonicThemeColors.darkSeedColor,
-      brightness: Brightness.dark,
-    ),
-    elevatedButtonTheme: elevatedButtonTheme(
-        ColorScheme.fromSeed(seedColor: IonicThemeColors.darkSeedColor)),
-    canvasColor: IonicThemeColors.darkCanvasColor,
-    cardColor: IonicThemeColors.darkCardColor,
-    appBarTheme: const AppBarTheme(
-      backgroundColor: IonicThemeColors.darkCardColor,
-      foregroundColor: Colors.white,
-      elevation: 1,
-      centerTitle: true,
-    ),
-    bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-      backgroundColor: IonicThemeColors.darkCardColor,
-      selectedItemColor: IonicThemeColors.darkSeedColor,
-      unselectedItemColor: Color.fromRGBO(142, 142, 147, 1),
-      elevation: 8,
-    ),
-    textTheme: textTheme,
-    inputDecorationTheme: inputDecorationTheme(
-      ColorScheme.fromSeed(seedColor: IonicThemeColors.darkSeedColor),
-      IonicThemeColors.darkCardColor,
-    ),
-  );
+  static ThemeData get ionicDarkTheme => _buildTheme(
+        brightness: Brightness.dark,
+        seedColor: IonicThemeColors.darkSeedColor,
+        canvasColor: IonicThemeColors.darkCanvasColor,
+        cardColor: IonicThemeColors.darkCardColor,
+      );
 
   /// Material 亮色主题
-  static ThemeData get materialLightTheme => ThemeData(
-    useMaterial3: true,
-    fontFamily: 'SimSunExtG',
-    brightness: Brightness.light,
-    colorScheme: ColorScheme.fromSeed(
-      seedColor: MaterialThemeColors.lightSeedColor,
-      brightness: Brightness.light,
-    ),
-    elevatedButtonTheme: elevatedButtonTheme(
-        ColorScheme.fromSeed(seedColor: MaterialThemeColors.lightSeedColor)),
-    canvasColor: MaterialThemeColors.lightCanvasColor,
-    cardColor: MaterialThemeColors.lightCardColor,
-    appBarTheme: const AppBarTheme(
-      backgroundColor: MaterialThemeColors.lightCardColor,
-      foregroundColor: Colors.black,
-      elevation: 1,
-      centerTitle: true,
-    ),
-    bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-      backgroundColor: MaterialThemeColors.lightCardColor,
-      selectedItemColor: MaterialThemeColors.lightSeedColor,
-      unselectedItemColor: Color.fromRGBO(158, 158, 158, 1),
-      elevation: 8,
-    ),
-    textTheme: textTheme,
-    inputDecorationTheme: inputDecorationTheme(
-      ColorScheme.fromSeed(seedColor: MaterialThemeColors.lightSeedColor),
-      MaterialThemeColors.lightCardColor,
-    ),
-  );
+  static ThemeData get materialLightTheme => _buildTheme(
+        brightness: Brightness.light,
+        seedColor: MaterialThemeColors.lightSeedColor,
+        canvasColor: MaterialThemeColors.lightCanvasColor,
+        cardColor: MaterialThemeColors.lightCardColor,
+      );
 
   /// Material 暗色主题
-  static ThemeData get materialDarkTheme => ThemeData(
-    useMaterial3: true,
-    fontFamily: 'SimSunExtG',
-    brightness: Brightness.dark,
-    colorScheme: ColorScheme.fromSeed(
-      seedColor: MaterialThemeColors.darkSeedColor,
-      brightness: Brightness.dark,
-    ),
-    elevatedButtonTheme: elevatedButtonTheme(
-        ColorScheme.fromSeed(seedColor: MaterialThemeColors.darkSeedColor)),
-    canvasColor: MaterialThemeColors.darkCanvasColor,
-    cardColor: MaterialThemeColors.darkCardColor,
-    appBarTheme: const AppBarTheme(
-      backgroundColor: MaterialThemeColors.darkCardColor,
-      foregroundColor: Colors.white,
-      elevation: 1,
-      centerTitle: true,
-    ),
-    bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-      backgroundColor: MaterialThemeColors.darkCardColor,
-      selectedItemColor: MaterialThemeColors.darkSeedColor,
-      unselectedItemColor: Color.fromRGBO(142, 142, 147, 1),
-      elevation: 8,
-    ),
-    textTheme: textTheme,
-    inputDecorationTheme: inputDecorationTheme(
-      ColorScheme.fromSeed(seedColor: MaterialThemeColors.darkSeedColor),
-      MaterialThemeColors.darkCardColor,
-    ),
-  );
+  static ThemeData get materialDarkTheme => _buildTheme(
+        brightness: Brightness.dark,
+        seedColor: MaterialThemeColors.darkSeedColor,
+        canvasColor: MaterialThemeColors.darkCanvasColor,
+        cardColor: MaterialThemeColors.darkCardColor,
+      );
 }

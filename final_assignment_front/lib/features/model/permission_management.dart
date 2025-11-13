@@ -1,96 +1,166 @@
 class PermissionManagement {
-  /* 权限ID，主键 该字段映射permission_id，使用自动增长方式生成ID */
-  int? permissionId;
+  final int? permissionId;
+  final int? parentId;
+  final String? permissionCode;
+  final String? permissionName;
+  final String? permissionType;
+  final String? permissionDescription;
+  final String? menuPath;
+  final String? menuIcon;
+  final String? component;
+  final String? apiPath;
+  final String? apiMethod;
+  final bool? isVisible;
+  final bool? isExternal;
+  final int? sortOrder;
+  final String? status;
+  final DateTime? createdTime;
+  final DateTime? modifiedTime;
+  final String? createdBy;
+  final String? updatedBy;
+  final DateTime? deletedAt;
+  final String? remarks;
+  final String? idempotencyKey;
 
-  /* 权限名称 该字段映射permission_name */
-  String? permissionName;
-
-  /* 权限描述 该字段映射permission_description */
-  String? permissionDescription;
-
-  /* 创建时间 该字段映射created_time */
-  DateTime? createdTime;
-
-  /* 修改时间 该字段映射modified_time */
-  DateTime? modifiedTime;
-
-  /* 备注信息 该字段映射remarks */
-  String? remarks;
-
-  String? idempotencyKey;
-
-  PermissionManagement({
+  const PermissionManagement({
     this.permissionId,
+    this.parentId,
+    this.permissionCode,
     this.permissionName,
+    this.permissionType,
     this.permissionDescription,
+    this.menuPath,
+    this.menuIcon,
+    this.component,
+    this.apiPath,
+    this.apiMethod,
+    this.isVisible,
+    this.isExternal,
+    this.sortOrder,
+    this.status,
     this.createdTime,
     this.modifiedTime,
+    this.createdBy,
+    this.updatedBy,
+    this.deletedAt,
     this.remarks,
     this.idempotencyKey,
   });
 
-  @override
-  String toString() {
-    return 'PermissionManagement[permissionId=$permissionId, permissionName=$permissionName, permissionDescription=$permissionDescription, createdTime=$createdTime, modifiedTime=$modifiedTime, remarks=$remarks, idempotencyKey=$idempotencyKey]';
-  }
-
-  factory PermissionManagement.fromJson(Map<String, dynamic> json) {
-    return PermissionManagement(
-      permissionId: json['permissionId'] as int?,
-      permissionName: json['permissionName'] as String?,
-      permissionDescription: json['permissionDescription'] as String?,
-      createdTime: json['createdTime'] != null
-          ? DateTime.parse(json['createdTime'] as String)
-          : null,
-      modifiedTime: json['modifiedTime'] != null
-          ? DateTime.parse(json['modifiedTime'] as String)
-          : null,
-      remarks: json['remarks'] as String?,
-      idempotencyKey: json['idempotencyKey'] as String?,
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    final Map<String, dynamic> json = {};
-    if (permissionId != null) json['permissionId'] = permissionId;
-    if (permissionName != null) json['permissionName'] = permissionName;
-    if (permissionDescription != null) {
-      json['permissionDescription'] = permissionDescription;
-    }
-    if (createdTime != null) {
-      json['createdTime'] = createdTime!.toIso8601String();
-    }
-    if (modifiedTime != null) {
-      json['modifiedTime'] = modifiedTime!.toIso8601String();
-    }
-    if (remarks != null) json['remarks'] = remarks;
-    if (idempotencyKey != null) json['idempotencyKey'] = idempotencyKey;
-    return json;
-  }
-
   PermissionManagement copyWith({
     int? permissionId,
+    int? parentId,
+    String? permissionCode,
     String? permissionName,
+    String? permissionType,
     String? permissionDescription,
+    String? menuPath,
+    String? menuIcon,
+    String? component,
+    String? apiPath,
+    String? apiMethod,
+    bool? isVisible,
+    bool? isExternal,
+    int? sortOrder,
+    String? status,
     DateTime? createdTime,
     DateTime? modifiedTime,
+    String? createdBy,
+    String? updatedBy,
+    DateTime? deletedAt,
     String? remarks,
     String? idempotencyKey,
   }) {
     return PermissionManagement(
       permissionId: permissionId ?? this.permissionId,
+      parentId: parentId ?? this.parentId,
+      permissionCode: permissionCode ?? this.permissionCode,
       permissionName: permissionName ?? this.permissionName,
+      permissionType: permissionType ?? this.permissionType,
       permissionDescription:
           permissionDescription ?? this.permissionDescription,
+      menuPath: menuPath ?? this.menuPath,
+      menuIcon: menuIcon ?? this.menuIcon,
+      component: component ?? this.component,
+      apiPath: apiPath ?? this.apiPath,
+      apiMethod: apiMethod ?? this.apiMethod,
+      isVisible: isVisible ?? this.isVisible,
+      isExternal: isExternal ?? this.isExternal,
+      sortOrder: sortOrder ?? this.sortOrder,
+      status: status ?? this.status,
       createdTime: createdTime ?? this.createdTime,
       modifiedTime: modifiedTime ?? this.modifiedTime,
+      createdBy: createdBy ?? this.createdBy,
+      updatedBy: updatedBy ?? this.updatedBy,
+      deletedAt: deletedAt ?? this.deletedAt,
       remarks: remarks ?? this.remarks,
       idempotencyKey: idempotencyKey ?? this.idempotencyKey,
     );
   }
 
-  static List<PermissionManagement> listFromJson(List<dynamic> json) {
-    return json
+  factory PermissionManagement.fromJson(Map<String, dynamic> json) {
+    return PermissionManagement(
+      permissionId: json['permissionId'],
+      parentId: json['parentId'],
+      permissionCode: json['permissionCode'],
+      permissionName: json['permissionName'],
+      permissionType: json['permissionType'],
+      permissionDescription: json['permissionDescription'],
+      menuPath: json['menuPath'],
+      menuIcon: json['menuIcon'],
+      component: json['component'],
+      apiPath: json['apiPath'],
+      apiMethod: json['apiMethod'],
+      isVisible: _parseBool(json['isVisible']),
+      isExternal: _parseBool(json['isExternal']),
+      sortOrder: json['sortOrder'],
+      status: json['status'],
+      createdTime: _parseDateTime(json['createdAt'] ?? json['createdTime']),
+      modifiedTime: _parseDateTime(json['updatedAt'] ?? json['modifiedTime']),
+      createdBy: json['createdBy'],
+      updatedBy: json['updatedBy'],
+      deletedAt: _parseDateTime(json['deletedAt']),
+      remarks: json['remarks'],
+      idempotencyKey: json['idempotencyKey'],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'permissionId': permissionId,
+      'parentId': parentId,
+      'permissionCode': permissionCode,
+      'permissionName': permissionName,
+      'permissionType': permissionType,
+      'permissionDescription': permissionDescription,
+      'menuPath': menuPath,
+      'menuIcon': menuIcon,
+      'component': component,
+      'apiPath': apiPath,
+      'apiMethod': apiMethod,
+      'isVisible': isVisible,
+      'isExternal': isExternal,
+      'sortOrder': sortOrder,
+      'status': status,
+      'createdAt': createdTime?.toIso8601String(),
+      'createdTime': createdTime?.toIso8601String(),
+      'updatedAt': modifiedTime?.toIso8601String(),
+      'modifiedTime': modifiedTime?.toIso8601String(),
+      'createdBy': createdBy,
+      'updatedBy': updatedBy,
+      'deletedAt': deletedAt?.toIso8601String(),
+      'remarks': remarks,
+      'idempotencyKey': idempotencyKey,
+    };
+  }
+
+  @override
+  String toString() {
+    return 'PermissionManagement(permissionId: $permissionId, code: $permissionCode, name: $permissionName)';
+  }
+
+  static List<PermissionManagement> listFromJson(List<dynamic> jsonList) {
+    return jsonList
         .map((value) =>
             PermissionManagement.fromJson(value as Map<String, dynamic>))
         .toList();
@@ -98,23 +168,46 @@ class PermissionManagement {
 
   static Map<String, PermissionManagement> mapFromJson(
       Map<String, dynamic> json) {
-    var map = <String, PermissionManagement>{};
+    final map = <String, PermissionManagement>{};
     if (json.isNotEmpty) {
-      json.forEach((String key, dynamic value) => map[key] =
-          PermissionManagement.fromJson(value as Map<String, dynamic>));
+      json.forEach((key, value) {
+        map[key] =
+            PermissionManagement.fromJson(value as Map<String, dynamic>);
+      });
     }
     return map;
   }
 
-  // Maps a JSON object with a list of PermissionManagement objects as value to a Dart map
   static Map<String, List<PermissionManagement>> mapListFromJson(
       Map<String, dynamic> json) {
-    var map = <String, List<PermissionManagement>>{};
+    final map = <String, List<PermissionManagement>>{};
     if (json.isNotEmpty) {
-      json.forEach((String key, dynamic value) {
-        map[key] = PermissionManagement.listFromJson(value as List<dynamic>);
+      json.forEach((key, value) {
+        map[key] =
+            PermissionManagement.listFromJson(value as List<dynamic>);
       });
     }
     return map;
+  }
+
+  static DateTime? _parseDateTime(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    if (value is String && value.isNotEmpty) {
+      return DateTime.tryParse(value);
+    }
+    return null;
+  }
+
+  static bool? _parseBool(dynamic value) {
+    if (value == null) return null;
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    if (value is String) {
+      final lower = value.toLowerCase();
+      if (lower == '1' || lower == 'true') return true;
+      if (lower == '0' || lower == 'false') return false;
+    }
+    return null;
   }
 }

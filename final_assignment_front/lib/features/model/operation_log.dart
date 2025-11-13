@@ -1,116 +1,157 @@
 class OperationLog {
-  /* 日志ID，主键 使用自动增长方式生成ID */
-  int? logId;
+  final int? logId;
+  final String? operationType;
+  final String? operationModule;
+  final String? operationFunction;
+  final String? operationContent;
+  final DateTime? operationTime;
+  final int? userId;
+  final String? username;
+  final String? realName;
+  final String? requestMethod;
+  final String? requestUrl;
+  final String? requestParams;
+  final String? requestIp;
+  final String? operationResult;
+  final String? responseData;
+  final String? errorMessage;
+  final int? executionTime;
+  final String? oldValue;
+  final String? newValue;
+  final DateTime? createdAt;
+  final DateTime? deletedAt;
+  final String? remarks;
 
-  /* 用户ID，记录执行操作的用户 */
-  int? userId;
-
-  /* 操作时间，记录操作发生的时间 */
-  DateTime? operationTime;
-
-  /* 操作IP地址，记录操作发起的IP地址 */
-  String? operationIpAddress;
-
-  /* 操作内容，描述具体的操作行为 */
-  String? operationContent;
-
-  /* 操作结果，记录操作的执行结果 */
-  String? operationResult;
-
-  /* 备注，用于记录额外的说明信息 */
-  String? remarks;
-
-  String? idempotencyKey;
-
-  OperationLog({
+  const OperationLog({
     this.logId,
-    this.userId,
-    this.operationTime,
-    this.operationIpAddress,
+    this.operationType,
+    this.operationModule,
+    this.operationFunction,
     this.operationContent,
+    this.operationTime,
+    this.userId,
+    this.username,
+    this.realName,
+    this.requestMethod,
+    this.requestUrl,
+    this.requestParams,
+    this.requestIp,
     this.operationResult,
+    this.responseData,
+    this.errorMessage,
+    this.executionTime,
+    this.oldValue,
+    this.newValue,
+    this.createdAt,
+    this.deletedAt,
     this.remarks,
-    this.idempotencyKey,
   });
 
-  @override
-  String toString() {
-    return 'OperationLog[logId=$logId, userId=$userId, operationTime=$operationTime, operationIpAddress=$operationIpAddress, operationContent=$operationContent, operationResult=$operationResult, remarks=$remarks, idempotencyKey=$idempotencyKey]';
+  OperationLog copyWith({
+    int? logId,
+    String? operationType,
+    String? operationModule,
+    String? operationFunction,
+    String? operationContent,
+    DateTime? operationTime,
+    int? userId,
+    String? username,
+    String? realName,
+    String? requestMethod,
+    String? requestUrl,
+    String? requestParams,
+    String? requestIp,
+    String? operationResult,
+    String? responseData,
+    String? errorMessage,
+    int? executionTime,
+    String? oldValue,
+    String? newValue,
+    DateTime? createdAt,
+    DateTime? deletedAt,
+    String? remarks,
+  }) {
+    return OperationLog(
+      logId: logId ?? this.logId,
+      operationType: operationType ?? this.operationType,
+      operationModule: operationModule ?? this.operationModule,
+      operationFunction: operationFunction ?? this.operationFunction,
+      operationContent: operationContent ?? this.operationContent,
+      operationTime: operationTime ?? this.operationTime,
+      userId: userId ?? this.userId,
+      username: username ?? this.username,
+      realName: realName ?? this.realName,
+      requestMethod: requestMethod ?? this.requestMethod,
+      requestUrl: requestUrl ?? this.requestUrl,
+      requestParams: requestParams ?? this.requestParams,
+      requestIp: requestIp ?? this.requestIp,
+      operationResult: operationResult ?? this.operationResult,
+      responseData: responseData ?? this.responseData,
+      errorMessage: errorMessage ?? this.errorMessage,
+      executionTime: executionTime ?? this.executionTime,
+      oldValue: oldValue ?? this.oldValue,
+      newValue: newValue ?? this.newValue,
+      createdAt: createdAt ?? this.createdAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      remarks: remarks ?? this.remarks,
+    );
   }
 
   factory OperationLog.fromJson(Map<String, dynamic> json) {
     return OperationLog(
       logId: json['logId'] as int?,
-      userId: json['userId'] as int?,
-      operationTime: json['operationTime'] != null
-          ? DateTime.parse(json['operationTime'] as String)
-          : null,
-      operationIpAddress: json['operationIpAddress'] as String?,
+      operationType: json['operationType'] as String?,
+      operationModule: json['operationModule'] as String?,
+      operationFunction: json['operationFunction'] as String?,
       operationContent: json['operationContent'] as String?,
+      operationTime: json['operationTime'] != null
+          ? DateTime.tryParse(json['operationTime'] as String)
+          : null,
+      userId: json['userId'] as int?,
+      username: json['username'] as String?,
+      realName: json['realName'] as String?,
+      requestMethod: json['requestMethod'] as String?,
+      requestUrl: json['requestUrl'] as String?,
+      requestParams: json['requestParams'] as String?,
+      requestIp: json['requestIp'] as String?,
       operationResult: json['operationResult'] as String?,
+      responseData: json['responseData'] as String?,
+      errorMessage: json['errorMessage'] as String?,
+      executionTime: json['executionTime'] as int?,
+      oldValue: json['oldValue'] as String?,
+      newValue: json['newValue'] as String?,
+      createdAt: json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt'] as String)
+          : null,
+      deletedAt: json['deletedAt'] != null
+          ? DateTime.tryParse(json['deletedAt'] as String)
+          : null,
       remarks: json['remarks'] as String?,
-      idempotencyKey: json['idempotencyKey'] as String?,
     );
   }
 
-  Map<String, dynamic> toJson() {
-    final Map<String, dynamic> json = {};
-    if (logId != null) json['logId'] = logId;
-    if (userId != null) json['userId'] = userId;
-    if (operationTime != null) json['operationTime'] = operationTime!.toIso8601String();
-    if (operationIpAddress != null) json['operationIpAddress'] = operationIpAddress;
-    if (operationContent != null) json['operationContent'] = operationContent;
-    if (operationResult != null) json['operationResult'] = operationResult;
-    if (remarks != null) json['remarks'] = remarks;
-    if (idempotencyKey != null) json['idempotencyKey'] = idempotencyKey;
-    return json;
-  }
-
-  OperationLog copyWith({
-    int? logId,
-    int? userId,
-    DateTime? operationTime,
-    String? operationIpAddress,
-    String? operationContent,
-    String? operationResult,
-    String? remarks,
-    String? idempotencyKey,
-  }) {
-    return OperationLog(
-      logId: logId ?? this.logId,
-      userId: userId ?? this.userId,
-      operationTime: operationTime ?? this.operationTime,
-      operationIpAddress: operationIpAddress ?? this.operationIpAddress,
-      operationContent: operationContent ?? this.operationContent,
-      operationResult: operationResult ?? this.operationResult,
-      remarks: remarks ?? this.remarks,
-      idempotencyKey: idempotencyKey ?? this.idempotencyKey,
-    );
-  }
-
-  static List<OperationLog> listFromJson(List<dynamic> json) {
-    return json
-        .map((value) => OperationLog.fromJson(value as Map<String, dynamic>))
-        .toList();
-  }
-
-  static Map<String, OperationLog> mapFromJson(Map<String, dynamic> json) {
-    var map = <String, OperationLog>{};
-    if (json.isNotEmpty) {
-      json.forEach((String key, dynamic value) =>
-      map[key] = OperationLog.fromJson(value as Map<String, dynamic>));
-    }
-    return map;
-  }
-
-  // Maps a JSON object with a list of OperationLog objects as value to a Dart map
-  static Map<String, List<OperationLog>> mapListFromJson(Map<String, dynamic> json) {
-    var map = <String, List<OperationLog>>{};
-    if (json.isNotEmpty) {
-      json.forEach((String key, dynamic value) {
-        map[key] = OperationLog.listFromJson(value as List<dynamic>);
-      });
-    }
-    return map;
-  }
+  Map<String, dynamic> toJson() => {
+        'logId': logId,
+        'operationType': operationType,
+        'operationModule': operationModule,
+        'operationFunction': operationFunction,
+        'operationContent': operationContent,
+        'operationTime': operationTime?.toIso8601String(),
+        'userId': userId,
+        'username': username,
+        'realName': realName,
+        'requestMethod': requestMethod,
+        'requestUrl': requestUrl,
+        'requestParams': requestParams,
+        'requestIp': requestIp,
+        'operationResult': operationResult,
+        'responseData': responseData,
+        'errorMessage': errorMessage,
+        'executionTime': executionTime,
+        'oldValue': oldValue,
+        'newValue': newValue,
+        'createdAt': createdAt?.toIso8601String(),
+        'deletedAt': deletedAt?.toIso8601String(),
+        'remarks': remarks,
+      };
 }

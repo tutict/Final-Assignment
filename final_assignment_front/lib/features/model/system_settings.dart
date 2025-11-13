@@ -1,145 +1,243 @@
 class SystemSettings {
-  /* 系统名称，作为数据库主键字段映射 */
-  String? systemName;
+  final int? settingId;
+  final String? settingKey;
+  final String? settingValue;
+  final String? settingType;
+  final String? category;
+  final String? description;
+  final bool? isEncrypted;
+  final bool? isEditable;
+  final int? sortOrder;
+  final DateTime? createdTime;
+  final DateTime? modifiedTime;
+  final String? updatedBy;
+  final DateTime? deletedAt;
+  final String? remarks;
+  final String? idempotencyKey;
 
-  /* 系统版本，映射到数据库system_version字段 */
-  String? systemVersion;
+  // 兼容旧版 API 的聚合字段
+  final String? systemName;
+  final String? systemVersion;
+  final String? systemDescription;
+  final String? copyrightInfo;
+  final String? storagePath;
+  final int? loginTimeout;
+  final int? sessionTimeout;
+  final String? dateFormat;
+  final int? pageSize;
+  final String? smtpServer;
+  final String? emailAccount;
+  final String? emailPassword;
 
-  /* 系统描述，映射到数据库system_description字段 */
-  String? systemDescription;
-
-  /* 版权信息，映射到数据库copyright_info字段 */
-  String? copyrightInfo;
-
-  /* 存储路径，映射到数据库storage_path字段 */
-  String? storagePath;
-
-  /* 登录超时时间，映射到数据库login_timeout字段 */
-  int? loginTimeout;
-
-  /* 会话超时时间，映射到数据库session_timeout字段 */
-  int? sessionTimeout;
-
-  /* 日期格式，映射到数据库date_format字段 */
-  String? dateFormat;
-
-  /* 分页大小，映射到数据库page_size字段 */
-  int? pageSize;
-
-  /* SMTP服务器地址，映射到数据库smtp_server字段 */
-  String? smtpServer;
-
-  /* 邮箱账号，映射到数据库email_account字段 */
-  String? emailAccount;
-
-  /* 邮箱密码，映射到数据库email_password字段 */
-  String? emailPassword;
-
-  /* 备注信息，映射到数据库remarks字段 */
-  String? remarks;
-
-  String? idempotencyKey;
-
-  SystemSettings({
-    required int? loginTimeout,
-    required int? sessionTimeout,
-    required String? dateFormat,
-    required int? pageSize,
-    required String? smtpServer,
-    required String? emailAccount,
-    required String? emailPassword,
-    required String? remarks,
-    required String idempotencyKey,
+  const SystemSettings({
+    this.settingId,
+    this.settingKey,
+    this.settingValue,
+    this.settingType,
+    this.category,
+    this.description,
+    this.isEncrypted,
+    this.isEditable,
+    this.sortOrder,
+    this.createdTime,
+    this.modifiedTime,
+    this.updatedBy,
+    this.deletedAt,
+    this.remarks,
+    this.idempotencyKey,
+    this.systemName,
+    this.systemVersion,
+    this.systemDescription,
+    this.copyrightInfo,
+    this.storagePath,
+    this.loginTimeout,
+    this.sessionTimeout,
+    this.dateFormat,
+    this.pageSize,
+    this.smtpServer,
+    this.emailAccount,
+    this.emailPassword,
   });
 
-  @override
-  String toString() {
-    return 'SystemSettings[systemName=$systemName, systemVersion=$systemVersion, systemDescription=$systemDescription, copyrightInfo=$copyrightInfo, storagePath=$storagePath, loginTimeout=$loginTimeout, sessionTimeout=$sessionTimeout, dateFormat=$dateFormat, pageSize=$pageSize, smtpServer=$smtpServer, emailAccount=$emailAccount, emailPassword=$emailPassword, remarks=$remarks, idempotencyKey=$idempotencyKey, ]';
+  SystemSettings copyWith({
+    int? settingId,
+    String? settingKey,
+    String? settingValue,
+    String? settingType,
+    String? category,
+    String? description,
+    bool? isEncrypted,
+    bool? isEditable,
+    int? sortOrder,
+    DateTime? createdTime,
+    DateTime? modifiedTime,
+    String? updatedBy,
+    DateTime? deletedAt,
+    String? remarks,
+    String? idempotencyKey,
+    String? systemName,
+    String? systemVersion,
+    String? systemDescription,
+    String? copyrightInfo,
+    String? storagePath,
+    int? loginTimeout,
+    int? sessionTimeout,
+    String? dateFormat,
+    int? pageSize,
+    String? smtpServer,
+    String? emailAccount,
+    String? emailPassword,
+  }) {
+    return SystemSettings(
+      settingId: settingId ?? this.settingId,
+      settingKey: settingKey ?? this.settingKey,
+      settingValue: settingValue ?? this.settingValue,
+      settingType: settingType ?? this.settingType,
+      category: category ?? this.category,
+      description: description ?? this.description,
+      isEncrypted: isEncrypted ?? this.isEncrypted,
+      isEditable: isEditable ?? this.isEditable,
+      sortOrder: sortOrder ?? this.sortOrder,
+      createdTime: createdTime ?? this.createdTime,
+      modifiedTime: modifiedTime ?? this.modifiedTime,
+      updatedBy: updatedBy ?? this.updatedBy,
+      deletedAt: deletedAt ?? this.deletedAt,
+      remarks: remarks ?? this.remarks,
+      idempotencyKey: idempotencyKey ?? this.idempotencyKey,
+      systemName: systemName ?? this.systemName,
+      systemVersion: systemVersion ?? this.systemVersion,
+      systemDescription: systemDescription ?? this.systemDescription,
+      copyrightInfo: copyrightInfo ?? this.copyrightInfo,
+      storagePath: storagePath ?? this.storagePath,
+      loginTimeout: loginTimeout ?? this.loginTimeout,
+      sessionTimeout: sessionTimeout ?? this.sessionTimeout,
+      dateFormat: dateFormat ?? this.dateFormat,
+      pageSize: pageSize ?? this.pageSize,
+      smtpServer: smtpServer ?? this.smtpServer,
+      emailAccount: emailAccount ?? this.emailAccount,
+      emailPassword: emailPassword ?? this.emailPassword,
+    );
   }
 
-  SystemSettings.fromJson(Map<String, dynamic> json) {
-    systemName = json['systemName'];
-    systemVersion = json['systemVersion'];
-    systemDescription = json['systemDescription'];
-    copyrightInfo = json['copyrightInfo'];
-    storagePath = json['storagePath'];
-    loginTimeout = json['loginTimeout'];
-    sessionTimeout = json['sessionTimeout'];
-    dateFormat = json['dateFormat'];
-    pageSize = json['pageSize'];
-    smtpServer = json['smtpServer'];
-    emailAccount = json['emailAccount'];
-    emailPassword = json['emailPassword'];
-    remarks = json['remarks'];
-    idempotencyKey = json['idempotencyKey'];
+  factory SystemSettings.fromJson(Map<String, dynamic> json) {
+    return SystemSettings(
+      settingId: json['settingId'],
+      settingKey: json['settingKey'],
+      settingValue: json['settingValue'],
+      settingType: json['settingType'],
+      category: json['category'],
+      description: json['description'],
+      isEncrypted: _parseBool(json['isEncrypted']),
+      isEditable: _parseBool(json['isEditable']),
+      sortOrder: json['sortOrder'],
+      createdTime: _parseDateTime(json['createdAt'] ?? json['createdTime']),
+      modifiedTime: _parseDateTime(json['updatedAt'] ?? json['modifiedTime']),
+      updatedBy: json['updatedBy'],
+      deletedAt: _parseDateTime(json['deletedAt']),
+      remarks: json['remarks'],
+      idempotencyKey: json['idempotencyKey'],
+      systemName: json['systemName'],
+      systemVersion: json['systemVersion'],
+      systemDescription: json['systemDescription'],
+      copyrightInfo: json['copyrightInfo'],
+      storagePath: json['storagePath'],
+      loginTimeout: json['loginTimeout'],
+      sessionTimeout: json['sessionTimeout'],
+      dateFormat: json['dateFormat'],
+      pageSize: json['pageSize'],
+      smtpServer: json['smtpServer'],
+      emailAccount: json['emailAccount'],
+      emailPassword: json['emailPassword'],
+    );
   }
 
   Map<String, dynamic> toJson() {
-    Map<String, dynamic> json = {};
-    if (systemName != null) {
-      json['systemName'] = systemName;
-    }
-    if (systemVersion != null) {
-      json['systemVersion'] = systemVersion;
-    }
-    if (systemDescription != null) {
-      json['systemDescription'] = systemDescription;
-    }
-    if (copyrightInfo != null) {
-      json['copyrightInfo'] = copyrightInfo;
-    }
-    if (storagePath != null) {
-      json['storagePath'] = storagePath;
-    }
-    if (loginTimeout != null) {
-      json['loginTimeout'] = loginTimeout;
-    }
-    if (sessionTimeout != null) {
-      json['sessionTimeout'] = sessionTimeout;
-    }
-    if (dateFormat != null) {
-      json['dateFormat'] = dateFormat;
-    }
-    if (pageSize != null) {
-      json['pageSize'] = pageSize;
-    }
-    if (smtpServer != null) {
-      json['smtpServer'] = smtpServer;
-    }
-    if (emailAccount != null) {
-      json['emailAccount'] = emailAccount;
-    }
-    if (emailPassword != null) {
-      json['emailPassword'] = emailPassword;
-    }
-    if (remarks != null) {
-      json['remarks'] = remarks;
-    }
-    return json;
+    return {
+      'settingId': settingId,
+      'settingKey': settingKey,
+      'settingValue': settingValue,
+      'settingType': settingType,
+      'category': category,
+      'description': description,
+      'isEncrypted': isEncrypted,
+      'isEditable': isEditable,
+      'sortOrder': sortOrder,
+      'createdAt': createdTime?.toIso8601String(),
+      'createdTime': createdTime?.toIso8601String(),
+      'updatedAt': modifiedTime?.toIso8601String(),
+      'modifiedTime': modifiedTime?.toIso8601String(),
+      'updatedBy': updatedBy,
+      'deletedAt': deletedAt?.toIso8601String(),
+      'remarks': remarks,
+      'idempotencyKey': idempotencyKey,
+      'systemName': systemName,
+      'systemVersion': systemVersion,
+      'systemDescription': systemDescription,
+      'copyrightInfo': copyrightInfo,
+      'storagePath': storagePath,
+      'loginTimeout': loginTimeout,
+      'sessionTimeout': sessionTimeout,
+      'dateFormat': dateFormat,
+      'pageSize': pageSize,
+      'smtpServer': smtpServer,
+      'emailAccount': emailAccount,
+      'emailPassword': emailPassword,
+    };
   }
 
-  static List<SystemSettings> listFromJson(List<dynamic> json) {
-    return json.map((value) => SystemSettings.fromJson(value)).toList();
+  @override
+  String toString() {
+    return 'SystemSettings(settingKey: $settingKey, settingValue: $settingValue, systemName: $systemName)';
   }
 
-  static Map<String, SystemSettings> mapFromJson(Map<String, dynamic> json) {
-    var map = <String, SystemSettings>{};
-    if (json.isNotEmpty) {
-      json.forEach((String key, dynamic value) =>
-          map[key] = SystemSettings.fromJson(value));
-    }
-    return map;
+  static List<SystemSettings> listFromJson(List<dynamic> jsonList) {
+    return jsonList
+        .map((value) => SystemSettings.fromJson(value as Map<String, dynamic>))
+        .toList();
   }
 
-  // maps a json object with a list of SystemSettings-objects as value to a dart map
-  static Map<String, List<SystemSettings>> mapListFromJson(
+  static Map<String, SystemSettings> mapFromJson(
       Map<String, dynamic> json) {
-    var map = <String, List<SystemSettings>>{};
+    final map = <String, SystemSettings>{};
     if (json.isNotEmpty) {
-      json.forEach((String key, dynamic value) {
-        map[key] = SystemSettings.listFromJson(value);
+      json.forEach((key, value) {
+        map[key] =
+            SystemSettings.fromJson(value as Map<String, dynamic>);
       });
     }
     return map;
+  }
+
+  static Map<String, List<SystemSettings>> mapListFromJson(
+      Map<String, dynamic> json) {
+    final map = <String, List<SystemSettings>>{};
+    if (json.isNotEmpty) {
+      json.forEach((key, value) {
+        map[key] =
+            SystemSettings.listFromJson(value as List<dynamic>);
+      });
+    }
+    return map;
+  }
+
+  static DateTime? _parseDateTime(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    if (value is String && value.isNotEmpty) {
+      return DateTime.tryParse(value);
+    }
+    return null;
+  }
+
+  static bool? _parseBool(dynamic value) {
+    if (value == null) return null;
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    if (value is String) {
+      final lower = value.toLowerCase();
+      if (lower == '1' || lower == 'true') return true;
+      if (lower == '0' || lower == 'false') return false;
+    }
+    return null;
   }
 }

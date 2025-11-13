@@ -1,195 +1,240 @@
-import 'package:flutter/foundation.dart';
-
 class VehicleInformation {
-  int? vehicleId;
-  String? licensePlate;
-  String? vehicleType;
-  String? ownerName;
-  String? idCardNumber;
-  String? contactNumber;
-  String? engineNumber;
-  String? frameNumber;
-  String? vehicleColor;
-  DateTime? firstRegistrationDate;
-  String? currentStatus;
+  final int? vehicleId;
+  final String? licensePlate;
+  final String? plateColor;
+  final String? vehicleType;
+  final String? brand;
+  final String? model;
+  final String? vehicleColor;
+  final String? engineNumber;
+  final String? frameNumber;
+  final String? ownerName;
+  final String? ownerIdCard;
+  final String? ownerContact;
+  final String? ownerAddress;
+  final DateTime? firstRegistrationDate;
+  final DateTime? registrationDate;
+  final String? issuingAuthority;
+  final String? status;
+  final DateTime? inspectionExpiryDate;
+  final DateTime? insuranceExpiryDate;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+  final String? createdBy;
+  final String? updatedBy;
+  final DateTime? deletedAt;
+  final String? remarks;
+  final String? plateStatusSnapshot; // legacy UI fields fallback
 
-  VehicleInformation({
+  const VehicleInformation({
     this.vehicleId,
     this.licensePlate,
+    this.plateColor,
     this.vehicleType,
-    this.ownerName,
-    this.idCardNumber,
-    this.contactNumber,
+    this.brand,
+    this.model,
+    this.vehicleColor,
     this.engineNumber,
     this.frameNumber,
-    this.vehicleColor,
+    this.ownerName,
+    this.ownerIdCard,
+    this.ownerContact,
+    this.ownerAddress,
     this.firstRegistrationDate,
-    this.currentStatus,
+    this.registrationDate,
+    this.issuingAuthority,
+    this.status,
+    this.inspectionExpiryDate,
+    this.insuranceExpiryDate,
+    this.createdAt,
+    this.updatedAt,
+    this.createdBy,
+    this.updatedBy,
+    this.deletedAt,
+    this.remarks,
+    this.plateStatusSnapshot,
   });
 
-  @override
-  String toString() {
-    return 'VehicleInformation[vehicleId=$vehicleId, licensePlate=$licensePlate, vehicleType=$vehicleType, ownerName=$ownerName, idCardNumber=$idCardNumber, contactNumber=$contactNumber, engineNumber=$engineNumber, frameNumber=$frameNumber, vehicleColor=$vehicleColor, firstRegistrationDate=$firstRegistrationDate, currentStatus=$currentStatus]';
-  }
+  /// 兼容旧版字段：idCardNumber -> ownerIdCard
+  String? get idCardNumber => ownerIdCard;
 
-  factory VehicleInformation.fromJson(Map<String, dynamic> json) {
-    // 添加调试日志，打印原始 JSON 数据
-    debugPrint('Parsing VehicleInformation from JSON: $json');
+  /// 兼容旧版字段：contactNumber -> ownerContact
+  String? get contactNumber => ownerContact;
 
-    // 提取字段
-    final vehicle = VehicleInformation(
-      vehicleId: json['vehicleId'] as int?,
-      licensePlate: json['licensePlate'] as String?,
-      vehicleType: json['vehicleType'] as String?,
-      ownerName: json['ownerName'] as String?,
-      idCardNumber: json['idCardNumber'] as String?,
-      contactNumber: json['contactNumber'] as String?,
-      engineNumber: json['engineNumber'] as String?,
-      frameNumber: json['frameNumber'] as String?,
-      vehicleColor: json['vehicleColor'] as String?,
-      firstRegistrationDate: json['firstRegistrationDate'] != null
-          ? _parseDateTime(json['firstRegistrationDate'] as String)
-          : null,
-      currentStatus: json['currentStatus'] as String?,
-    );
-
-    // 验证中文字段（可选）
-    _validateStringField('licensePlate', vehicle.licensePlate);
-    _validateStringField('vehicleType', vehicle.vehicleType);
-    _validateStringField('ownerName', vehicle.ownerName);
-
-    return vehicle;
-  }
-
-  static void _validateStringField(String fieldName, String? value) {
-    if (value != null && value.contains(RegExp(r'[<>\x00-\x1F]'))) {
-      debugPrint('Warning: Potential encoding issue in $fieldName: $value');
-    }
-  }
-
-  static DateTime? _parseDateTime(String dateStr) {
-    try {
-      return DateTime.parse(dateStr);
-    } catch (e) {
-      debugPrint('Invalid date format: $dateStr, error: $e');
-      return null;
-    }
-  }
-
-  Map<String, dynamic> toJson() {
-    final json = {
-      'vehicleId': vehicleId,
-      'licensePlate': licensePlate ?? '',
-      'vehicleType': vehicleType ?? '',
-      'ownerName': ownerName ?? '',
-      'idCardNumber': idCardNumber,
-      'contactNumber': contactNumber,
-      'engineNumber': engineNumber,
-      'frameNumber': frameNumber,
-      'vehicleColor': vehicleColor,
-      'firstRegistrationDate': firstRegistrationDate?.toIso8601String(),
-      'currentStatus': currentStatus,
-    };
-    // 添加调试日志，打印序列化后的 JSON
-    debugPrint('Serializing VehicleInformation to JSON: $json');
-    return json;
-  }
+  /// 兼容旧版字段：currentStatus -> status
+  String? get currentStatus => status ?? plateStatusSnapshot;
 
   VehicleInformation copyWith({
     int? vehicleId,
     String? licensePlate,
+    String? plateColor,
     String? vehicleType,
-    String? ownerName,
-    String? idCardNumber,
-    String? contactNumber,
+    String? brand,
+    String? model,
+    String? vehicleColor,
     String? engineNumber,
     String? frameNumber,
-    String? vehicleColor,
+    String? ownerName,
+    String? ownerIdCard,
+    String? ownerContact,
+    String? ownerAddress,
     DateTime? firstRegistrationDate,
-    String? currentStatus,
+    DateTime? registrationDate,
+    String? issuingAuthority,
+    String? status,
+    DateTime? inspectionExpiryDate,
+    DateTime? insuranceExpiryDate,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    String? createdBy,
+    String? updatedBy,
+    DateTime? deletedAt,
+    String? remarks,
+    String? plateStatusSnapshot,
   }) {
     return VehicleInformation(
       vehicleId: vehicleId ?? this.vehicleId,
       licensePlate: licensePlate ?? this.licensePlate,
+      plateColor: plateColor ?? this.plateColor,
       vehicleType: vehicleType ?? this.vehicleType,
-      ownerName: ownerName ?? this.ownerName,
-      idCardNumber: idCardNumber ?? this.idCardNumber,
-      contactNumber: contactNumber ?? this.contactNumber,
+      brand: brand ?? this.brand,
+      model: model ?? this.model,
+      vehicleColor: vehicleColor ?? this.vehicleColor,
       engineNumber: engineNumber ?? this.engineNumber,
       frameNumber: frameNumber ?? this.frameNumber,
-      vehicleColor: vehicleColor ?? this.vehicleColor,
-      firstRegistrationDate: firstRegistrationDate ?? this.firstRegistrationDate,
-      currentStatus: currentStatus ?? this.currentStatus,
+      ownerName: ownerName ?? this.ownerName,
+      ownerIdCard: ownerIdCard ?? this.ownerIdCard,
+      ownerContact: ownerContact ?? this.ownerContact,
+      ownerAddress: ownerAddress ?? this.ownerAddress,
+      firstRegistrationDate:
+          firstRegistrationDate ?? this.firstRegistrationDate,
+      registrationDate: registrationDate ?? this.registrationDate,
+      issuingAuthority: issuingAuthority ?? this.issuingAuthority,
+      status: status ?? this.status,
+      inspectionExpiryDate:
+          inspectionExpiryDate ?? this.inspectionExpiryDate,
+      insuranceExpiryDate: insuranceExpiryDate ?? this.insuranceExpiryDate,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      createdBy: createdBy ?? this.createdBy,
+      updatedBy: updatedBy ?? this.updatedBy,
+      deletedAt: deletedAt ?? this.deletedAt,
+      remarks: remarks ?? this.remarks,
+      plateStatusSnapshot: plateStatusSnapshot ?? this.plateStatusSnapshot,
     );
   }
 
-  void validateForCreation() {
-    if (licensePlate == null || licensePlate!.isEmpty) {
-      throw Exception('车牌号不能为空');
-    }
-    if (vehicleType == null || vehicleType!.isEmpty) {
-      throw Exception('车辆类型不能为空');
-    }
-    if (ownerName == null || ownerName!.isEmpty) {
-      throw Exception('车主姓名不能为空');
-    }
+  factory VehicleInformation.fromJson(Map<String, dynamic> json) {
+    return VehicleInformation(
+      vehicleId: json['vehicleId'],
+      licensePlate: json['licensePlate'],
+      plateColor: json['plateColor'],
+      vehicleType: json['vehicleType'],
+      brand: json['brand'],
+      model: json['model'],
+      vehicleColor: json['vehicleColor'],
+      engineNumber: json['engineNumber'],
+      frameNumber: json['frameNumber'],
+      ownerName: json['ownerName'],
+      ownerIdCard: json['ownerIdCard'] ?? json['idCardNumber'],
+      ownerContact: json['ownerContact'] ?? json['contactNumber'],
+      ownerAddress: json['ownerAddress'],
+      firstRegistrationDate:
+          _parseDate(json['firstRegistrationDate']),
+      registrationDate: _parseDate(json['registrationDate']),
+      issuingAuthority: json['issuingAuthority'],
+      status: json['status'] ?? json['currentStatus'],
+      inspectionExpiryDate:
+          _parseDate(json['inspectionExpiryDate']),
+      insuranceExpiryDate:
+          _parseDate(json['insuranceExpiryDate']),
+      createdAt: _parseDateTime(json['createdAt']),
+      updatedAt: _parseDateTime(json['updatedAt']),
+      createdBy: json['createdBy'],
+      updatedBy: json['updatedBy'],
+      deletedAt: _parseDateTime(json['deletedAt']),
+      remarks: json['remarks'],
+      plateStatusSnapshot: json['currentStatus'],
+    );
   }
 
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-          other is VehicleInformation &&
-              runtimeType == other.runtimeType &&
-              vehicleId == other.vehicleId &&
-              licensePlate == other.licensePlate &&
-              vehicleType == other.vehicleType &&
-              ownerName == other.ownerName &&
-              idCardNumber == other.idCardNumber &&
-              contactNumber == other.contactNumber &&
-              engineNumber == other.engineNumber &&
-              frameNumber == other.frameNumber &&
-              vehicleColor == other.vehicleColor &&
-              firstRegistrationDate == other.firstRegistrationDate &&
-              currentStatus == other.currentStatus;
+  Map<String, dynamic> toJson() {
+    return {
+      'vehicleId': vehicleId,
+      'licensePlate': licensePlate,
+      'plateColor': plateColor,
+      'vehicleType': vehicleType,
+      'brand': brand,
+      'model': model,
+      'vehicleColor': vehicleColor,
+      'engineNumber': engineNumber,
+      'frameNumber': frameNumber,
+      'ownerName': ownerName,
+      'ownerIdCard': ownerIdCard,
+      'idCardNumber': ownerIdCard,
+      'ownerContact': ownerContact,
+      'contactNumber': ownerContact,
+      'ownerAddress': ownerAddress,
+      'firstRegistrationDate':
+          firstRegistrationDate?.toIso8601String(),
+      'registrationDate': registrationDate?.toIso8601String(),
+      'issuingAuthority': issuingAuthority,
+      'status': status,
+      'currentStatus': status,
+      'inspectionExpiryDate':
+          inspectionExpiryDate?.toIso8601String(),
+      'insuranceExpiryDate':
+          insuranceExpiryDate?.toIso8601String(),
+      'createdAt': createdAt?.toIso8601String(),
+      'updatedAt': updatedAt?.toIso8601String(),
+      'createdBy': createdBy,
+      'updatedBy': updatedBy,
+      'deletedAt': deletedAt?.toIso8601String(),
+      'remarks': remarks,
+    };
+  }
 
-  @override
-  int get hashCode => Object.hash(
-    vehicleId,
-    licensePlate,
-    vehicleType,
-    ownerName,
-    idCardNumber,
-    contactNumber,
-    engineNumber,
-    frameNumber,
-    vehicleColor,
-    firstRegistrationDate,
-    currentStatus,
-  );
-
-  static List<VehicleInformation> listFromJson(List<dynamic> json) {
-    debugPrint('Parsing list of VehicleInformation from JSON: $json');
-    return json
-        .map((value) => VehicleInformation.fromJson(value as Map<String, dynamic>))
+  static List<VehicleInformation> listFromJson(List<dynamic> jsonList) {
+    return jsonList
+        .map((value) =>
+            VehicleInformation.fromJson(value as Map<String, dynamic>))
         .toList();
   }
 
-  static Map<String, VehicleInformation> mapFromJson(Map<String, dynamic> json) {
-    var map = <String, VehicleInformation>{};
+  static Map<String, VehicleInformation> mapFromJson(
+      Map<String, dynamic> json) {
+    final map = <String, VehicleInformation>{};
     if (json.isNotEmpty) {
-      json.forEach((String key, dynamic value) =>
-      map[key] = VehicleInformation.fromJson(value as Map<String, dynamic>));
+      json.forEach((key, value) {
+        map[key] =
+            VehicleInformation.fromJson(value as Map<String, dynamic>);
+      });
     }
     return map;
   }
 
-  static Map<String, List<VehicleInformation>> mapListFromJson(Map<String, dynamic> json) {
-    var map = <String, List<VehicleInformation>>{};
+  static Map<String, List<VehicleInformation>> mapListFromJson(
+      Map<String, dynamic> json) {
+    final map = <String, List<VehicleInformation>>{};
     if (json.isNotEmpty) {
-      json.forEach((String key, dynamic value) {
-        map[key] = VehicleInformation.listFromJson(value as List<dynamic>);
+      json.forEach((key, value) {
+        map[key] =
+            VehicleInformation.listFromJson(value as List<dynamic>);
       });
     }
     return map;
+  }
+
+  static DateTime? _parseDate(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    if (value is String && value.isNotEmpty) {
+      return DateTime.tryParse(value);
+    }
+    return null;
+  }
+
+  static DateTime? _parseDateTime(dynamic value) {
+    return _parseDate(value);
   }
 }
