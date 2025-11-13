@@ -1,260 +1,191 @@
 package com.tutict.finalassignmentbackend.controller;
 
-import com.tutict.finalassignmentbackend.entity.OperationLog;
-import com.tutict.finalassignmentbackend.service.OperationLogService;
+import com.tutict.finalassignmentbackend.entity.AuditOperationLog;
+import com.tutict.finalassignmentbackend.service.AuditOperationLogService;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.annotation.security.RolesAllowed;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
-import java.util.Collections;
-import java.util.Date;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 @RestController
-@RequestMapping("/api/operationLogs")
+@RequestMapping("/api/logs/operation")
+@Tag(name = "Operation Audit", description = "系统操作日志管理接口")
 @SecurityRequirement(name = "bearerAuth")
-@Tag(name = "Operation Log", description = "APIs for managing operation log records")
+@RolesAllowed({"SUPER_ADMIN", "ADMIN"})
 public class OperationLogController {
 
-    private static final Logger log = Logger.getLogger(OperationLogController.class.getName());
+    private static final Logger LOG = Logger.getLogger(OperationLogController.class.getName());
 
-    private final OperationLogService operationLogService;
+    private final AuditOperationLogService auditOperationLogService;
 
-    public OperationLogController(OperationLogService operationLogService) {
-        this.operationLogService = operationLogService;
+    public OperationLogController(AuditOperationLogService auditOperationLogService) {
+        this.auditOperationLogService = auditOperationLogService;
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    @Operation(
-            summary = "创建操作日志",
-            description = "创建新的操作日志记录，USER 和 ADMIN 角色均可访问。需要提供幂等键以防止重复提交。"
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "201", description = "操作日志创建成功"),
-            @ApiResponse(responseCode = "400", description = "无效的输入参数或幂等键冲突"),
-            @ApiResponse(responseCode = "403", description = "无权限访问，需 USER 或 ADMIN 角色"),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    public ResponseEntity<Void> createOperationLog(
-            @RequestBody @Parameter(description = "操作日志的详细信息", required = true) OperationLog operationLog,
-            @RequestParam @Parameter(description = "幂等键，用于防止重复提交", required = true) String idempotencyKey) {
-        operationLogService.checkAndInsertIdempotency(idempotencyKey, operationLog, "create");
-        return ResponseEntity.status(HttpStatus.CREATED).build();
-    }
-
-    @GetMapping("/{logId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    @Operation(
-            summary = "根据ID获取操作日志",
-            description = "获取指定ID的操作日志，USER 和 ADMIN 角色均可访问。"
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "成功返回操作日志"),
-            @ApiResponse(responseCode = "403", description = "无权限访问，需 USER 或 ADMIN 角色"),
-            @ApiResponse(responseCode = "404", description = "未找到操作日志"),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    public ResponseEntity<OperationLog> getOperationLog(
-            @PathVariable @Parameter(description = "操作日志ID", required = true) int logId) {
-        OperationLog operationLog = operationLogService.getOperationLog(logId);
-        if (operationLog != null) {
-            return ResponseEntity.ok(operationLog);
-        } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+    @Operation(summary = "写入操作日志")
+    public ResponseEntity<AuditOperationLog> create(@RequestBody AuditOperationLog request,
+                                                    @RequestHeader(value = "Idempotency-Key", required = false)
+                                                    String idempotencyKey) {
+        boolean useKey = hasKey(idempotencyKey);
+        try {
+            if (useKey) {
+                if (auditOperationLogService.shouldSkipProcessing(idempotencyKey)) {
+                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+                }
+                auditOperationLogService.checkAndInsertIdempotency(idempotencyKey, request, "create");
+            }
+            AuditOperationLog saved = auditOperationLogService.createAuditOperationLog(request);
+            if (useKey && saved.getLogId() != null) {
+                auditOperationLogService.markHistorySuccess(idempotencyKey, saved.getLogId());
+            }
+            return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+        } catch (Exception ex) {
+            if (useKey) {
+                auditOperationLogService.markHistoryFailure(idempotencyKey, ex.getMessage());
+            }
+            LOG.log(Level.SEVERE, "Create operation log failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
         }
     }
 
-    @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    @Operation(
-            summary = "获取所有操作日志",
-            description = "获取所有操作日志的列表，USER 和 ADMIN 角色均可访问。"
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "成功返回操作日志列表"),
-            @ApiResponse(responseCode = "403", description = "无权限访问，需 USER 或 ADMIN 角色"),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    public ResponseEntity<List<OperationLog>> getAllOperationLogs() {
-        List<OperationLog> operationLogs = operationLogService.getAllOperationLogs();
-        return ResponseEntity.ok(operationLogs);
-    }
-
     @PutMapping("/{logId}")
-    @Transactional
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(
-            summary = "更新操作日志",
-            description = "管理员更新指定ID的操作日志，需要提供幂等键以防止重复提交。操作在事务中执行。"
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "操作日志更新成功"),
-            @ApiResponse(responseCode = "400", description = "无效的输入参数或幂等键冲突"),
-            @ApiResponse(responseCode = "403", description = "无权限访问，仅限 ADMIN 角色"),
-            @ApiResponse(responseCode = "404", description = "未找到操作日志"),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    public ResponseEntity<OperationLog> updateOperationLog(
-            @PathVariable @Parameter(description = "操作日志ID", required = true) int logId,
-            @RequestBody @Parameter(description = "更新后的操作日志信息", required = true) OperationLog updatedOperationLog,
-            @RequestParam @Parameter(description = "幂等键，用于防止重复提交", required = true) String idempotencyKey) {
-        OperationLog existingOperationLog = operationLogService.getOperationLog(logId);
-        if (existingOperationLog != null) {
-            updatedOperationLog.setLogId(logId);
-            operationLogService.checkAndInsertIdempotency(idempotencyKey, updatedOperationLog, "update");
-            return ResponseEntity.ok(updatedOperationLog);
-        } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+    @Operation(summary = "更新操作日志")
+    public ResponseEntity<AuditOperationLog> update(@PathVariable Long logId,
+                                                    @RequestBody AuditOperationLog request,
+                                                    @RequestHeader(value = "Idempotency-Key", required = false)
+                                                    String idempotencyKey) {
+        boolean useKey = hasKey(idempotencyKey);
+        try {
+            request.setLogId(logId);
+            if (useKey) {
+                auditOperationLogService.checkAndInsertIdempotency(idempotencyKey, request, "update");
+            }
+            AuditOperationLog updated = auditOperationLogService.updateAuditOperationLog(request);
+            if (useKey && updated.getLogId() != null) {
+                auditOperationLogService.markHistorySuccess(idempotencyKey, updated.getLogId());
+            }
+            return ResponseEntity.ok(updated);
+        } catch (Exception ex) {
+            if (useKey) {
+                auditOperationLogService.markHistoryFailure(idempotencyKey, ex.getMessage());
+            }
+            LOG.log(Level.SEVERE, "Update operation log failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
         }
     }
 
     @DeleteMapping("/{logId}")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(
-            summary = "删除操作日志",
-            description = "管理员删除指定ID的操作日志，仅限 ADMIN 角色。"
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "204", description = "操作日志删除成功"),
-            @ApiResponse(responseCode = "403", description = "无权限访问，仅限 ADMIN 角色"),
-            @ApiResponse(responseCode = "404", description = "未找到操作日志"),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    public ResponseEntity<Void> deleteOperationLog(
-            @PathVariable @Parameter(description = "操作日志ID", required = true) int logId) {
-        operationLogService.deleteOperationLog(logId);
-        return ResponseEntity.noContent().build();
-    }
-
-    @GetMapping("/timeRange")
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    @Operation(
-            summary = "根据时间范围获取操作日志",
-            description = "获取指定时间范围内的操作日志列表，USER 和 ADMIN 角色均可访问。时间格式为 yyyy-MM-dd。"
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "成功返回操作日志列表"),
-            @ApiResponse(responseCode = "400", description = "无效的时间范围参数"),
-            @ApiResponse(responseCode = "403", description = "无权限访问，需 USER 或 ADMIN 角色"),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    public ResponseEntity<List<OperationLog>> getOperationLogsByTimeRange(
-            @RequestParam(defaultValue = "1970-01-01") @Parameter(description = "开始时间，格式：yyyy-MM-dd", example = "1970-01-01") Date startTime,
-            @RequestParam(defaultValue = "2100-01-01") @Parameter(description = "结束时间，格式：yyyy-MM-dd", example = "2100-01-01") Date endTime) {
-        List<OperationLog> operationLogs = operationLogService.getOperationLogsByTimeRange(startTime, endTime);
-        return ResponseEntity.ok(operationLogs);
-    }
-
-    @GetMapping("/userId/{userId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    @Operation(
-            summary = "根据用户ID获取操作日志",
-            description = "获取指定用户ID的操作日志列表，USER 和 ADMIN 角色均可访问。"
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "成功返回操作日志列表"),
-            @ApiResponse(responseCode = "403", description = "无权限访问，需 USER 或 ADMIN 角色"),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    public ResponseEntity<List<OperationLog>> getOperationLogsByUserId(
-            @PathVariable @Parameter(description = "用户ID", required = true) String userId) {
-        List<OperationLog> operationLogs = operationLogService.getOperationLogsByUserId(userId);
-        return ResponseEntity.ok(operationLogs);
-    }
-
-    @GetMapping("/result/{result}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    @Operation(
-            summary = "根据操作结果获取操作日志",
-            description = "获取指定操作结果的操作日志列表，USER 和 ADMIN 角色均可访问。"
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "成功返回操作日志列表"),
-            @ApiResponse(responseCode = "403", description = "无权限访问，需 USER 或 ADMIN 角色"),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    public ResponseEntity<List<OperationLog>> getOperationLogsByResult(
-            @PathVariable @Parameter(description = "操作结果（如 SUCCESS 或 FAILURE）", required = true) String result) {
-        List<OperationLog> operationLogs = operationLogService.getOperationLogsByResult(result);
-        return ResponseEntity.ok(operationLogs);
-    }
-
-    @GetMapping("/autocomplete/user-ids/me")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(
-            summary = "获取用户ID自动补全建议",
-            description = "根据前缀获取用户ID自动补全建议，仅限 ADMIN 角色。返回的用户ID列表已进行 URL 解码。"
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "成功返回用户ID建议列表"),
-            @ApiResponse(responseCode = "204", description = "未找到匹配的用户ID建议"),
-            @ApiResponse(responseCode = "403", description = "无权限访问，仅限 ADMIN 角色"),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    public ResponseEntity<List<String>> getUserIdAutocompleteSuggestionsGlobally(
-            @RequestParam @Parameter(description = "用户ID前缀", required = true) String prefix) {
-        String decodedPrefix = URLDecoder.decode(prefix, StandardCharsets.UTF_8);
-        log.log(Level.INFO, "Fetching user ID suggestions for prefix: {0}, decoded: {1}",
-                new Object[]{prefix, decodedPrefix});
-
-        List<String> suggestions = operationLogService.getUserIdsByPrefixGlobally(decodedPrefix);
-        if (suggestions == null) {
-            suggestions = Collections.emptyList();
+    @Operation(summary = "删除操作日志")
+    public ResponseEntity<Void> delete(@PathVariable Long logId) {
+        try {
+            auditOperationLogService.deleteAuditOperationLog(logId);
+            return ResponseEntity.noContent().build();
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Delete operation log failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
         }
-
-        if (suggestions.isEmpty()) {
-            log.log(Level.INFO, "No user ID suggestions found for prefix: {0}", new Object[]{decodedPrefix});
-        } else {
-            log.log(Level.INFO, "Found {0} user ID suggestions for prefix: {1}",
-                    new Object[]{suggestions.size(), decodedPrefix});
-        }
-
-        return ResponseEntity.ok(suggestions);
     }
 
-    @GetMapping("/autocomplete/operation-results/me")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(
-            summary = "获取操作结果自动补全建议",
-            description = "根据前缀获取操作结果自动补全建议，仅限 ADMIN 角色。返回的操作结果列表已进行 URL 解码。"
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "成功返回操作结果建议列表"),
-            @ApiResponse(responseCode = "204", description = "未找到匹配的操作结果建议"),
-            @ApiResponse(responseCode = "403", description = "无权限访问，仅限 ADMIN 角色"),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    public ResponseEntity<List<String>> getOperationResultAutocompleteSuggestionsGlobally(
-            @RequestParam @Parameter(description = "操作结果前缀", required = true) String prefix) {
-        String decodedPrefix = URLDecoder.decode(prefix, StandardCharsets.UTF_8);
-        log.log(Level.INFO, "Fetching operation result suggestions for prefix: {0}, decoded: {1}",
-                new Object[]{prefix, decodedPrefix});
-
-        List<String> suggestions = operationLogService.getOperationResultsByPrefixGlobally(decodedPrefix);
-        if (suggestions == null) {
-            suggestions = Collections.emptyList();
+    @GetMapping("/{logId}")
+    @Operation(summary = "查询操作日志详情")
+    public ResponseEntity<AuditOperationLog> get(@PathVariable Long logId) {
+        try {
+            AuditOperationLog log = auditOperationLogService.findById(logId);
+            return log == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(log);
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Get operation log failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
         }
+    }
 
-        if (suggestions.isEmpty()) {
-            log.log(Level.INFO, "No operation result suggestions found for prefix: {0}", new Object[]{decodedPrefix});
-        } else {
-            log.log(Level.INFO, "Found {0} operation result suggestions for prefix: {1}",
-                    new Object[]{suggestions.size(), decodedPrefix});
+    @GetMapping
+    @Operation(summary = "查询全部操作日志")
+    public ResponseEntity<List<AuditOperationLog>> list() {
+        try {
+            return ResponseEntity.ok(auditOperationLogService.findAll());
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "List operation logs failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
         }
+    }
 
-        return ResponseEntity.ok(suggestions);
+    @GetMapping("/search/module")
+    @Operation(summary = "按模块搜索操作日志")
+    public ResponseEntity<List<AuditOperationLog>> searchByModule(@RequestParam String module,
+                                                                  @RequestParam(defaultValue = "1") int page,
+                                                                  @RequestParam(defaultValue = "20") int size) {
+        try {
+            return ResponseEntity.ok(auditOperationLogService.searchByModule(module, page, size));
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Search operation log by module failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @GetMapping("/search/type")
+    @Operation(summary = "按操作类型搜索日志")
+    public ResponseEntity<List<AuditOperationLog>> searchByType(@RequestParam String type,
+                                                                @RequestParam(defaultValue = "1") int page,
+                                                                @RequestParam(defaultValue = "20") int size) {
+        try {
+            return ResponseEntity.ok(auditOperationLogService.searchByOperationType(type, page, size));
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Search operation log by type failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @GetMapping("/search/user/{userId}")
+    @Operation(summary = "按用户搜索操作日志")
+    public ResponseEntity<List<AuditOperationLog>> searchByUser(@PathVariable Long userId,
+                                                                @RequestParam(defaultValue = "1") int page,
+                                                                @RequestParam(defaultValue = "20") int size) {
+        try {
+            return ResponseEntity.ok(auditOperationLogService.findByUserId(userId, page, size));
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Search operation log by user failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @GetMapping("/search/time-range")
+    @Operation(summary = "按操作时间范围搜索")
+    public ResponseEntity<List<AuditOperationLog>> searchByTimeRange(@RequestParam String startTime,
+                                                                     @RequestParam String endTime,
+                                                                     @RequestParam(defaultValue = "1") int page,
+                                                                     @RequestParam(defaultValue = "20") int size) {
+        try {
+            return ResponseEntity.ok(auditOperationLogService.searchByOperationTimeRange(startTime, endTime, page, size));
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Search operation log by time range failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
+        }
+    }
+
+    private boolean hasKey(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private HttpStatus resolveStatus(Exception ex) {
+        return (ex instanceof IllegalArgumentException || ex instanceof IllegalStateException)
+                ? HttpStatus.BAD_REQUEST
+                : HttpStatus.INTERNAL_SERVER_ERROR;
     }
 }

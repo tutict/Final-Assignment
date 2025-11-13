@@ -1,300 +1,217 @@
 package com.tutict.finalassignmentbackend.controller;
 
-import com.tutict.finalassignmentbackend.entity.OffenseInformation;
-import com.tutict.finalassignmentbackend.service.OffenseInformationService;
+import com.tutict.finalassignmentbackend.entity.OffenseRecord;
+import com.tutict.finalassignmentbackend.service.OffenseRecordService;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.annotation.security.RolesAllowed;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.util.Date;
 import java.util.List;
-import java.util.logging.Logger;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 
 @RestController
 @RequestMapping("/api/offenses")
+@Tag(name = "Offense Management", description = "交通违法记录管理接口")
 @SecurityRequirement(name = "bearerAuth")
-@Tag(name = "Offense Information", description = "APIs for managing offense information records")
+@RolesAllowed({"SUPER_ADMIN", "ADMIN", "TRAFFIC_POLICE", "APPEAL_REVIEWER"})
 public class OffenseInformationController {
 
-    private static final Logger logger = Logger.getLogger(OffenseInformationController.class.getName());
+    private static final Logger LOG = Logger.getLogger(OffenseInformationController.class.getName());
 
-    private final OffenseInformationService offenseInformationService;
+    private final OffenseRecordService offenseRecordService;
 
-    public OffenseInformationController(OffenseInformationService offenseInformationService) {
-        this.offenseInformationService = offenseInformationService;
+    public OffenseInformationController(OffenseRecordService offenseRecordService) {
+        this.offenseRecordService = offenseRecordService;
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(
-            summary = "创建违法行为记录",
-            description = "管理员创建新的违法行为记录，需要提供幂等键以防止重复提交。"
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "201", description = "违法行为记录创建成功"),
-            @ApiResponse(responseCode = "400", description = "无效的输入参数"),
-            @ApiResponse(responseCode = "403", description = "无权限访问，仅限 ADMIN 角色"),
-            @ApiResponse(responseCode = "409", description = "重复请求，幂等键冲突"),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    public ResponseEntity<Void> createOffense(
-            @RequestBody @Parameter(description = "违法行为记录的详细信息", required = true) OffenseInformation offenseInformation,
-            @RequestParam @Parameter(description = "幂等键，用于防止重复提交", required = true) String idempotencyKey) {
+    @Operation(summary = "创建违法记录")
+    public ResponseEntity<OffenseRecord> create(@RequestBody OffenseRecord request,
+                                                @RequestHeader(value = "Idempotency-Key", required = false)
+                                                String idempotencyKey) {
+        boolean useKey = hasKey(idempotencyKey);
         try {
-            offenseInformationService.checkAndInsertIdempotency(idempotencyKey, offenseInformation, "create");
-            return ResponseEntity.status(HttpStatus.CREATED).build();
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(null);
-        }
-    }
-
-    @GetMapping("/{offenseId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    @Operation(
-            summary = "根据ID获取违法行为记录",
-            description = "获取指定ID的违法行为记录，USER 和 ADMIN 角色均可访问。"
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "成功返回违法行为记录"),
-            @ApiResponse(responseCode = "400", description = "无效的违法行为ID"),
-            @ApiResponse(responseCode = "403", description = "无权限访问，需 USER 或 ADMIN 角色"),
-            @ApiResponse(responseCode = "404", description = "未找到违法行为记录"),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    public ResponseEntity<OffenseInformation> getOffenseByOffenseId(
-            @PathVariable @Parameter(description = "违法行为ID", required = true) int offenseId) {
-        try {
-            OffenseInformation offenseInformation = offenseInformationService.getOffenseByOffenseId(offenseId);
-            if (offenseInformation != null) {
-                return ResponseEntity.ok(offenseInformation);
-            } else {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            if (useKey) {
+                if (offenseRecordService.shouldSkipProcessing(idempotencyKey)) {
+                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+                }
+                offenseRecordService.checkAndInsertIdempotency(idempotencyKey, request, "create");
             }
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            OffenseRecord saved = offenseRecordService.createOffenseRecord(request);
+            if (useKey && saved.getOffenseId() != null) {
+                offenseRecordService.markHistorySuccess(idempotencyKey, saved.getOffenseId());
+            }
+            return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+        } catch (Exception ex) {
+            if (useKey) {
+                offenseRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
+            }
+            LOG.log(Level.SEVERE, "Create offense failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
         }
-    }
-
-    @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    @Operation(
-            summary = "获取所有违法行为记录",
-            description = "获取所有违法行为记录的列表，USER 和 ADMIN 角色均可访问。"
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "成功返回违法行为记录列表"),
-            @ApiResponse(responseCode = "403", description = "无权限访问，需 USER 或 ADMIN 角色"),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    public ResponseEntity<List<OffenseInformation>> getOffensesInformation() {
-        List<OffenseInformation> offensesInformation = offenseInformationService.getOffensesInformation();
-        return ResponseEntity.ok(offensesInformation);
     }
 
     @PutMapping("/{offenseId}")
-    @Transactional
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(
-            summary = "更新违法行为记录",
-            description = "管理员更新指定ID的违法行为记录，需要提供幂等键以防止重复提交。操作在事务中执行。"
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "违法行为记录更新成功"),
-            @ApiResponse(responseCode = "400", description = "无效的输入参数"),
-            @ApiResponse(responseCode = "403", description = "无权限访问，仅限 ADMIN 角色"),
-            @ApiResponse(responseCode = "404", description = "未找到违法行为记录"),
-            @ApiResponse(responseCode = "409", description = "重复请求，幂等键冲突"),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    public ResponseEntity<OffenseInformation> updateOffense(
-            @PathVariable @Parameter(description = "违法行为ID", required = true) int offenseId,
-            @RequestBody @Parameter(description = "更新后的违法行为记录信息", required = true) OffenseInformation updatedOffenseInformation,
-            @RequestParam @Parameter(description = "幂等键，用于防止重复提交", required = true) String idempotencyKey) {
+    @Operation(summary = "更新违法记录")
+    public ResponseEntity<OffenseRecord> update(@PathVariable Long offenseId,
+                                                @RequestBody OffenseRecord request,
+                                                @RequestHeader(value = "Idempotency-Key", required = false)
+                                                String idempotencyKey) {
+        boolean useKey = hasKey(idempotencyKey);
         try {
-            OffenseInformation existingOffenseInformation = offenseInformationService.getOffenseByOffenseId(offenseId);
-            if (existingOffenseInformation != null) {
-                updatedOffenseInformation.setOffenseId(offenseId);
-                offenseInformationService.checkAndInsertIdempotency(idempotencyKey, updatedOffenseInformation, "update");
-                return ResponseEntity.ok(updatedOffenseInformation);
-            } else {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            request.setOffenseId(offenseId);
+            if (useKey) {
+                offenseRecordService.checkAndInsertIdempotency(idempotencyKey, request, "update");
             }
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+            OffenseRecord updated = offenseRecordService.updateOffenseRecord(request);
+            if (useKey && updated.getOffenseId() != null) {
+                offenseRecordService.markHistorySuccess(idempotencyKey, updated.getOffenseId());
+            }
+            return ResponseEntity.ok(updated);
+        } catch (Exception ex) {
+            if (useKey) {
+                offenseRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
+            }
+            LOG.log(Level.SEVERE, "Update offense failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
         }
     }
 
     @DeleteMapping("/{offenseId}")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(
-            summary = "删除违法行为记录",
-            description = "管理员删除指定ID的违法行为记录，仅限 ADMIN 角色。"
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "204", description = "违法行为记录删除成功"),
-            @ApiResponse(responseCode = "400", description = "无效的违法行为ID"),
-            @ApiResponse(responseCode = "403", description = "无权限访问，仅限 ADMIN 角色"),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    public ResponseEntity<Void> deleteOffense(
-            @PathVariable @Parameter(description = "违法行为ID", required = true) int offenseId) {
+    @Operation(summary = "删除违法记录")
+    public ResponseEntity<Void> delete(@PathVariable Long offenseId) {
         try {
-            offenseInformationService.deleteOffense(offenseId);
+            offenseRecordService.deleteOffenseRecord(offenseId);
             return ResponseEntity.noContent().build();
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Delete offense failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
         }
     }
 
-    @GetMapping("/timeRange")
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    @Operation(
-            summary = "根据时间范围获取违法行为记录",
-            description = "获取指定时间范围内的违法行为记录列表，USER 和 ADMIN 角色均可访问。时间格式为 yyyy-MM-dd。"
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "成功返回违法行为记录列表"),
-            @ApiResponse(responseCode = "400", description = "无效的时间范围参数"),
-            @ApiResponse(responseCode = "403", description = "无权限访问，需 USER 或 ADMIN 角色"),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    public ResponseEntity<List<OffenseInformation>> getOffensesByTimeRange(
-            @RequestParam(defaultValue = "1970-01-01") @Parameter(description = "开始时间，格式：yyyy-MM-dd", example = "1970-01-01") Date startTime,
-            @RequestParam(defaultValue = "2100-01-01") @Parameter(description = "结束时间，格式：yyyy-MM-dd", example = "2100-01-01") Date endTime) {
+    @GetMapping("/{offenseId}")
+    @Operation(summary = "查询违法详情")
+    public ResponseEntity<OffenseRecord> get(@PathVariable Long offenseId) {
         try {
-            List<OffenseInformation> offenses = offenseInformationService.getOffensesByTimeRange(startTime, endTime);
-            return ResponseEntity.ok(offenses);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            OffenseRecord record = offenseRecordService.findById(offenseId);
+            return record == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(record);
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Get offense failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
         }
     }
 
-    @GetMapping("/by-offense-type")
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    @Operation(
-            summary = "按违法行为类型搜索记录",
-            description = "分页搜索包含指定违法行为类型的记录，USER 和 ADMIN 角色均可访问。"
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "成功返回违法行为记录列表"),
-            @ApiResponse(responseCode = "204", description = "未找到匹配的违法行为记录"),
-            @ApiResponse(responseCode = "400", description = "无效的搜索或分页参数"),
-            @ApiResponse(responseCode = "403", description = "无权限访问，需 USER 或 ADMIN 角色"),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    public ResponseEntity<List<OffenseInformation>> searchByOffenseType(
-            @RequestParam @Parameter(description = "违法行为类型查询字符串", required = true) String query,
-            @RequestParam(defaultValue = "1") @Parameter(description = "页码，从1开始", example = "1") int page,
-            @RequestParam(defaultValue = "10") @Parameter(description = "每页记录数", example = "10") int size) {
-        logger.log(Level.INFO, "Received request to search offenses by offense type: {0}, page: {1}, size: {2}",
-                new Object[]{query, page, size});
+    @GetMapping
+    @Operation(summary = "查询全部违法记录")
+    public ResponseEntity<List<OffenseRecord>> list() {
         try {
-            List<OffenseInformation> results = offenseInformationService.searchOffenseType(query, page, size);
-            if (results == null || results.isEmpty()) {
-                logger.log(Level.INFO, "No offenses found for offense type: {0}", new Object[]{query});
-                return ResponseEntity.noContent().build();
-            }
-            logger.log(Level.INFO, "Returning {0} offenses for offense type: {1}",
-                    new Object[]{results.size(), query});
-            return ResponseEntity.ok(results);
-        } catch (IllegalArgumentException e) {
-            logger.log(Level.WARNING, "Invalid pagination parameters for offense type search: {0}", new Object[]{e.getMessage()});
-            return ResponseEntity.badRequest().body(null);
-        } catch (Exception e) {
-            logger.log(Level.SEVERE, "Error processing search by offense type: {0}, error: {1}",
-                    new Object[]{query, e.getMessage()});
-            return ResponseEntity.status(500).body(null);
+            return ResponseEntity.ok(offenseRecordService.findAll());
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "List offenses failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
         }
     }
 
-    @GetMapping("/by-driver-name")
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    @Operation(
-            summary = "按司机姓名搜索违法行为记录",
-            description = "分页搜索包含指定司机姓名的违法行为记录，USER 和 ADMIN 角色均可访问。"
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "成功返回违法行为记录列表"),
-            @ApiResponse(responseCode = "204", description = "未找到匹配的违法行为记录"),
-            @ApiResponse(responseCode = "400", description = "无效的搜索或分页参数"),
-            @ApiResponse(responseCode = "403", description = "无权限访问，需 USER 或 ADMIN 角色"),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    public ResponseEntity<List<OffenseInformation>> searchByDriverName(
-            @RequestParam @Parameter(description = "司机姓名查询字符串", required = true) String query,
-            @RequestParam(defaultValue = "1") @Parameter(description = "页码，从1开始", example = "1") int page,
-            @RequestParam(defaultValue = "10") @Parameter(description = "每页记录数", example = "10") int size) {
-        logger.log(Level.INFO, "Received request to search offenses by driver name: {0}, page: {1}, size: {2}",
-                new Object[]{query, page, size});
+    @GetMapping("/driver/{driverId}")
+    @Operation(summary = "按驾驶证分页查询违法")
+    public ResponseEntity<List<OffenseRecord>> byDriver(@PathVariable Long driverId,
+                                                        @RequestParam(defaultValue = "1") int page,
+                                                        @RequestParam(defaultValue = "20") int size) {
         try {
-            List<OffenseInformation> results = offenseInformationService.searchByDriverName(query, page, size);
-            if (results == null || results.isEmpty()) {
-                logger.log(Level.INFO, "No offenses found for driver name: {0}", new Object[]{query});
-                return ResponseEntity.noContent().build();
-            }
-            logger.log(Level.INFO, "Returning {0} offenses for driver name: {1}",
-                    new Object[]{results.size(), query});
-            return ResponseEntity.ok(results);
-        } catch (IllegalArgumentException e) {
-            logger.log(Level.WARNING, "Invalid pagination parameters for driver name search: {0}", new Object[]{e.getMessage()});
-            return ResponseEntity.badRequest().body(null);
-        } catch (Exception e) {
-            logger.log(Level.SEVERE, "Error processing search by driver name: {0}, error: {1}",
-                    new Object[]{query, e.getMessage()});
-            return ResponseEntity.status(500).body(null);
+            return ResponseEntity.ok(offenseRecordService.findByDriverId(driverId, page, size));
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "List offenses by driver failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
         }
     }
 
-    @GetMapping("/by-license-plate")
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    @Operation(
-            summary = "按车牌号搜索违法行为记录",
-            description = "分页搜索包含指定车牌号的违法行为记录，USER 和 ADMIN 角色均可访问。"
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "成功返回违法行为记录列表"),
-            @ApiResponse(responseCode = "204", description = "未找到匹配的违法行为记录"),
-            @ApiResponse(responseCode = "400", description = "无效的搜索或分页参数"),
-            @ApiResponse(responseCode = "403", description = "无权限访问，需 USER 或 ADMIN 角色"),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    public ResponseEntity<List<OffenseInformation>> searchByLicensePlate(
-            @RequestParam @Parameter(description = "车牌号查询字符串", required = true) String query,
-            @RequestParam(defaultValue = "1") @Parameter(description = "页码，从1开始", example = "1") int page,
-            @RequestParam(defaultValue = "10") @Parameter(description = "每页记录数", example = "10") int size) {
-        logger.log(Level.INFO, "Received request to search offenses by license plate: {0}, page: {1}, size: {2}",
-                new Object[]{query, page, size});
+    @GetMapping("/vehicle/{vehicleId}")
+    @Operation(summary = "按车辆分页查询违法")
+    public ResponseEntity<List<OffenseRecord>> byVehicle(@PathVariable Long vehicleId,
+                                                         @RequestParam(defaultValue = "1") int page,
+                                                         @RequestParam(defaultValue = "20") int size) {
         try {
-            List<OffenseInformation> results = offenseInformationService.searchLicensePlate(query, page, size);
-            if (results == null || results.isEmpty()) {
-                logger.log(Level.INFO, "No offenses found for license plate: {0}", new Object[]{query});
-                return ResponseEntity.noContent().build();
-            }
-            logger.log(Level.INFO, "Returning {0} offenses for license plate: {1}",
-                    new Object[]{results.size(), query});
-            return ResponseEntity.ok(results);
-        } catch (IllegalArgumentException e) {
-            logger.log(Level.WARNING, "Invalid pagination parameters for license plate search: {0}", new Object[]{e.getMessage()});
-            return ResponseEntity.badRequest().body(null);
-        } catch (Exception e) {
-            logger.log(Level.SEVERE, "Error processing search by license plate: {0}, error: {1}",
-                    new Object[]{query, e.getMessage()});
-            return ResponseEntity.status(500).body(null);
+            return ResponseEntity.ok(offenseRecordService.findByVehicleId(vehicleId, page, size));
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "List offenses by vehicle failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
         }
+    }
+
+    @GetMapping("/search/code")
+    @Operation(summary = "按违法代码搜索")
+    public ResponseEntity<List<OffenseRecord>> searchByCode(@RequestParam String offenseCode,
+                                                            @RequestParam(defaultValue = "1") int page,
+                                                            @RequestParam(defaultValue = "20") int size) {
+        try {
+            return ResponseEntity.ok(offenseRecordService.searchByOffenseCode(offenseCode, page, size));
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Search offense by code failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @GetMapping("/search/status")
+    @Operation(summary = "按处理状态搜索")
+    public ResponseEntity<List<OffenseRecord>> searchByStatus(@RequestParam String status,
+                                                              @RequestParam(defaultValue = "1") int page,
+                                                              @RequestParam(defaultValue = "20") int size) {
+        try {
+            return ResponseEntity.ok(offenseRecordService.searchByProcessStatus(status, page, size));
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Search offense by status failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @GetMapping("/search/time-range")
+    @Operation(summary = "按违法时间范围搜索")
+    public ResponseEntity<List<OffenseRecord>> searchByTimeRange(@RequestParam String startTime,
+                                                                 @RequestParam String endTime,
+                                                                 @RequestParam(defaultValue = "1") int page,
+                                                                 @RequestParam(defaultValue = "20") int size) {
+        try {
+            return ResponseEntity.ok(offenseRecordService.searchByOffenseTimeRange(startTime, endTime, page, size));
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Search offense by time range failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @GetMapping("/search/number")
+    @Operation(summary = "按违法编号搜索")
+    public ResponseEntity<List<OffenseRecord>> searchByNumber(@RequestParam String offenseNumber,
+                                                              @RequestParam(defaultValue = "1") int page,
+                                                              @RequestParam(defaultValue = "20") int size) {
+        try {
+            return ResponseEntity.ok(offenseRecordService.searchByOffenseNumber(offenseNumber, page, size));
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Search offense by number failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
+        }
+    }
+
+    private boolean hasKey(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private HttpStatus resolveStatus(Exception ex) {
+        return (ex instanceof IllegalArgumentException || ex instanceof IllegalStateException)
+                ? HttpStatus.BAD_REQUEST
+                : HttpStatus.INTERNAL_SERVER_ERROR;
     }
 }

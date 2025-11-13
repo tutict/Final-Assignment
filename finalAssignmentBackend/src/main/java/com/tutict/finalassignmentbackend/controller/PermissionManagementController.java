@@ -1,190 +1,151 @@
 package com.tutict.finalassignmentbackend.controller;
 
-import com.tutict.finalassignmentbackend.entity.PermissionManagement;
-import com.tutict.finalassignmentbackend.service.PermissionManagementService;
+import com.tutict.finalassignmentbackend.entity.SysPermission;
+import com.tutict.finalassignmentbackend.service.SysPermissionService;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.annotation.security.RolesAllowed;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 @RestController
 @RequestMapping("/api/permissions")
+@Tag(name = "Permission Management", description = "系统权限管理接口")
 @SecurityRequirement(name = "bearerAuth")
-@Tag(name = "Permission Management", description = "APIs for managing permission records")
+@RolesAllowed({"SUPER_ADMIN", "ADMIN"})
 public class PermissionManagementController {
 
-    private final PermissionManagementService permissionManagementService;
+    private static final Logger LOG = Logger.getLogger(PermissionManagementController.class.getName());
 
-    public PermissionManagementController(PermissionManagementService permissionManagementService) {
-        this.permissionManagementService = permissionManagementService;
+    private final SysPermissionService sysPermissionService;
+
+    public PermissionManagementController(SysPermissionService sysPermissionService) {
+        this.sysPermissionService = sysPermissionService;
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(
-            summary = "创建权限记录",
-            description = "管理员创建新的权限记录，仅限 ADMIN 角色。需要提供幂等键以防止重复提交。"
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "201", description = "权限记录创建成功"),
-            @ApiResponse(responseCode = "400", description = "无效的输入参数或幂等键冲突"),
-            @ApiResponse(responseCode = "403", description = "无权限访问，仅限 ADMIN 角色"),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    public ResponseEntity<Void> createPermission(
-            @RequestBody @Parameter(description = "权限记录的详细信息", required = true) PermissionManagement permission,
-            @RequestParam @Parameter(description = "幂等键，用于防止重复提交", required = true) String idempotencyKey) {
-        permissionManagementService.checkAndInsertIdempotency(idempotencyKey, permission, "create");
-        return ResponseEntity.status(HttpStatus.CREATED).build();
-    }
-
-    @GetMapping("/{permissionId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    @Operation(
-            summary = "根据ID获取权限记录",
-            description = "获取指定ID的权限记录，USER 和 ADMIN 角色均可访问。"
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "成功返回权限记录"),
-            @ApiResponse(responseCode = "403", description = "无权限访问，需 USER 或 ADMIN 角色"),
-            @ApiResponse(responseCode = "404", description = "未找到权限记录"),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    public ResponseEntity<PermissionManagement> getPermissionById(
-            @PathVariable @Parameter(description = "权限ID", required = true) int permissionId) {
-        PermissionManagement permission = permissionManagementService.getPermissionById(permissionId);
-        if (permission != null) {
-            return ResponseEntity.ok(permission);
-        } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+    @Operation(summary = "创建权限")
+    public ResponseEntity<SysPermission> create(@RequestBody SysPermission request,
+                                                @RequestHeader(value = "Idempotency-Key", required = false)
+                                                String idempotencyKey) {
+        boolean useKey = hasKey(idempotencyKey);
+        try {
+            if (useKey) {
+                if (sysPermissionService.shouldSkipProcessing(idempotencyKey)) {
+                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+                }
+                sysPermissionService.checkAndInsertIdempotency(idempotencyKey, request, "create");
+            }
+            SysPermission saved = sysPermissionService.createSysPermission(request);
+            if (useKey && saved.getPermissionId() != null) {
+                sysPermissionService.markHistorySuccess(idempotencyKey, saved.getPermissionId());
+            }
+            return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+        } catch (Exception ex) {
+            if (useKey) {
+                sysPermissionService.markHistoryFailure(idempotencyKey, ex.getMessage());
+            }
+            LOG.log(Level.SEVERE, "Create permission failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
         }
-    }
-
-    @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    @Operation(
-            summary = "获取所有权限记录",
-            description = "获取所有权限记录的列表，USER 和 ADMIN 角色均可访问。"
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "成功返回权限记录列表"),
-            @ApiResponse(responseCode = "403", description = "无权限访问，需 USER 或 ADMIN 角色"),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    public ResponseEntity<List<PermissionManagement>> getAllPermissions() {
-        List<PermissionManagement> permissions = permissionManagementService.getAllPermissions();
-        return ResponseEntity.ok(permissions);
-    }
-
-    @GetMapping("/name/{permissionName}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    @Operation(
-            summary = "根据权限名称获取权限记录",
-            description = "获取指定权限名称的权限记录，USER 和 ADMIN 角色均可访问。"
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "成功返回权限记录"),
-            @ApiResponse(responseCode = "403", description = "无权限访问，需 USER 或 ADMIN 角色"),
-            @ApiResponse(responseCode = "404", description = "未找到权限记录"),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    public ResponseEntity<PermissionManagement> getPermissionByName(
-            @PathVariable @Parameter(description = "权限名称", required = true) String permissionName) {
-        PermissionManagement permission = permissionManagementService.getPermissionByName(permissionName);
-        if (permission != null) {
-            return ResponseEntity.ok(permission);
-        } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-        }
-    }
-
-    @GetMapping("/search")
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    @Operation(
-            summary = "根据权限名称模糊搜索权限记录",
-            description = "根据权限名称模糊匹配获取权限记录列表，USER 和 ADMIN 角色均可访问。"
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "成功返回权限记录列表"),
-            @ApiResponse(responseCode = "403", description = "无权限访问，需 USER 或 ADMIN 角色"),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    public ResponseEntity<List<PermissionManagement>> getPermissionsByNameLike(
-            @RequestParam @Parameter(description = "权限名称查询字符串", required = true) String name) {
-        List<PermissionManagement> permissions = permissionManagementService.getPermissionsByNameLike(name);
-        return ResponseEntity.ok(permissions);
     }
 
     @PutMapping("/{permissionId}")
-    @Transactional
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(
-            summary = "更新权限记录",
-            description = "管理员更新指定ID的权限记录，需要提供幂等键以防止重复提交。操作在事务中执行。"
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "权限记录更新成功"),
-            @ApiResponse(responseCode = "400", description = "无效的输入参数或幂等键冲突"),
-            @ApiResponse(responseCode = "403", description = "无权限访问，仅限 ADMIN 角色"),
-            @ApiResponse(responseCode = "404", description = "未找到权限记录"),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    public ResponseEntity<PermissionManagement> updatePermission(
-            @PathVariable @Parameter(description = "权限ID", required = true) int permissionId,
-            @RequestBody @Parameter(description = "更新后的权限记录信息", required = true) PermissionManagement updatedPermission,
-            @RequestParam @Parameter(description = "幂等键，用于防止重复提交", required = true) String idempotencyKey) {
-        PermissionManagement existingPermission = permissionManagementService.getPermissionById(permissionId);
-        if (existingPermission != null) {
-            updatedPermission.setPermissionId(permissionId);
-            permissionManagementService.checkAndInsertIdempotency(idempotencyKey, updatedPermission, "update");
-            return ResponseEntity.ok(updatedPermission);
-        } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+    @Operation(summary = "更新权限")
+    public ResponseEntity<SysPermission> update(@PathVariable Integer permissionId,
+                                                @RequestBody SysPermission request,
+                                                @RequestHeader(value = "Idempotency-Key", required = false)
+                                                String idempotencyKey) {
+        boolean useKey = hasKey(idempotencyKey);
+        try {
+            request.setPermissionId(permissionId);
+            if (useKey) {
+                sysPermissionService.checkAndInsertIdempotency(idempotencyKey, request, "update");
+            }
+            SysPermission updated = sysPermissionService.updateSysPermission(request);
+            if (useKey && updated.getPermissionId() != null) {
+                sysPermissionService.markHistorySuccess(idempotencyKey, updated.getPermissionId());
+            }
+            return ResponseEntity.ok(updated);
+        } catch (Exception ex) {
+            if (useKey) {
+                sysPermissionService.markHistoryFailure(idempotencyKey, ex.getMessage());
+            }
+            LOG.log(Level.SEVERE, "Update permission failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
         }
     }
 
     @DeleteMapping("/{permissionId}")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(
-            summary = "根据ID删除权限记录",
-            description = "管理员删除指定ID的权限记录，仅限 ADMIN 角色。"
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "204", description = "权限记录删除成功"),
-            @ApiResponse(responseCode = "403", description = "无权限访问，仅限 ADMIN 角色"),
-            @ApiResponse(responseCode = "404", description = "未找到权限记录"),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    public ResponseEntity<Void> deletePermission(
-            @PathVariable @Parameter(description = "权限ID", required = true) int permissionId) {
-        permissionManagementService.deletePermission(permissionId);
-        return ResponseEntity.noContent().build();
+    @Operation(summary = "删除权限")
+    public ResponseEntity<Void> delete(@PathVariable Integer permissionId) {
+        try {
+            sysPermissionService.deleteSysPermission(permissionId);
+            return ResponseEntity.noContent().build();
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Delete permission failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
+        }
     }
 
-    @DeleteMapping("/name/{permissionName}")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(
-            summary = "根据权限名称删除权限记录",
-            description = "管理员删除指定权限名称的权限记录，仅限 ADMIN 角色。"
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "204", description = "权限记录删除成功"),
-            @ApiResponse(responseCode = "403", description = "无权限访问，仅限 ADMIN 角色"),
-            @ApiResponse(responseCode = "404", description = "未找到权限记录"),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    public ResponseEntity<Void> deletePermissionByName(
-            @PathVariable @Parameter(description = "权限名称", required = true) String permissionName) {
-        permissionManagementService.deletePermissionByName(permissionName);
-        return ResponseEntity.noContent().build();
+    @GetMapping("/{permissionId}")
+    @Operation(summary = "查询权限详情")
+    public ResponseEntity<SysPermission> get(@PathVariable Integer permissionId) {
+        try {
+            SysPermission permission = sysPermissionService.findById(permissionId);
+            return permission == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(permission);
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Get permission failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @GetMapping
+    @Operation(summary = "查询全部权限")
+    public ResponseEntity<List<SysPermission>> list() {
+        try {
+            return ResponseEntity.ok(sysPermissionService.findAll());
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "List permissions failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @GetMapping("/parent/{parentId}")
+    @Operation(summary = "按父节点查询权限")
+    public ResponseEntity<List<SysPermission>> listByParent(@PathVariable Integer parentId,
+                                                            @RequestParam(defaultValue = "1") int page,
+                                                            @RequestParam(defaultValue = "50") int size) {
+        try {
+            return ResponseEntity.ok(sysPermissionService.findByParentId(parentId, page, size));
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "List permissions by parent failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
+        }
+    }
+
+    private boolean hasKey(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private HttpStatus resolveStatus(Exception ex) {
+        return (ex instanceof IllegalArgumentException || ex instanceof IllegalStateException)
+                ? HttpStatus.BAD_REQUEST
+                : HttpStatus.INTERNAL_SERVER_ERROR;
     }
 }

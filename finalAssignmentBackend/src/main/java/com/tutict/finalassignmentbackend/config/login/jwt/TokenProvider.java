@@ -6,6 +6,7 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import lombok.Getter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -56,21 +57,21 @@ public class TokenProvider {
      * @return 生成的 JWT 令牌
      */
     public String createToken(String username, String roles) {
-        if (!validateRoleCodes(roles)) {
-            throw new IllegalArgumentException("Invalid role codes provided for token creation");
+        if (validateRoleCodes(roles)) {
+            String normalizedRoles = String.join(",", normalizeRoleCodes(roles));
+
+            long now = System.currentTimeMillis();
+            Date expirationDate = new Date(now + 86400000L); // 令牌有效期 24 小时
+
+            return Jwts.builder()
+                    .subject(username)
+                    .claim("roles", normalizedRoles) // 将角色加入到 token 中
+                    .issuedAt(new Date(now))
+                    .expiration(expirationDate)
+                    .signWith(secretKey)
+                    .compact();
         }
-        String normalizedRoles = String.join(",", normalizeRoleCodes(roles));
-
-        long now = System.currentTimeMillis();
-        Date expirationDate = new Date(now + 86400000L); // 令牌有效期 24 小时
-
-        return Jwts.builder()
-                .subject(username)
-                .claim("roles", normalizedRoles) // 将角色加入到 token 中
-                .issuedAt(new Date(now))
-                .expiration(expirationDate)
-                .signWith(secretKey)
-                .compact();
+        throw new IllegalArgumentException("Invalid role codes provided for token creation");
     }
 
     /**
@@ -281,7 +282,10 @@ public class TokenProvider {
      * @return 如果所有声明与数据库 schema 匹配则返回 true
      */
     public boolean validateRoleClaims(String roleCodes, String roleTypes, String dataScope) {
-        if (!validateRoleCodes(roleCodes) || !validateRoleTypes(roleTypes) || !validateDataScope(dataScope)) {
+        if (!validateRoleCodes(roleCodes)) {
+            return false;
+        }
+        if (!validateRoleTypes(roleTypes) || !validateDataScope(dataScope)) {
             return false;
         }
 
@@ -357,6 +361,7 @@ public class TokenProvider {
         return ROLE_SCHEMA.containsKey(roleCode);
     }
 
+    @Getter
     private static final class RoleMetadata {
         private final RoleType roleType;
         private final DataScope dataScope;
@@ -366,12 +371,5 @@ public class TokenProvider {
             this.dataScope = dataScope;
         }
 
-        public RoleType getRoleType() {
-            return roleType;
-        }
-
-        public DataScope getDataScope() {
-            return dataScope;
-        }
     }
 }

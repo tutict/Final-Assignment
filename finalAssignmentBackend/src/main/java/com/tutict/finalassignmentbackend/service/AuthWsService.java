@@ -6,6 +6,8 @@ import com.tutict.finalassignmentbackend.entity.AuditLoginLog;
 import com.tutict.finalassignmentbackend.entity.SysRole;
 import com.tutict.finalassignmentbackend.entity.SysUser;
 import com.tutict.finalassignmentbackend.entity.SysUserRole;
+import com.tutict.finalassignmentbackend.enums.DataScope;
+import com.tutict.finalassignmentbackend.enums.RoleType;
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
@@ -18,6 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Locale;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -56,20 +59,46 @@ public class AuthWsService {
         SysUser user = sysUserService.findByUsername(loginRequest.getUsername());
 
         if (user != null && authenticateUser(user, loginRequest.getPassword())) {
-            List<String> roles = resolveRoleNames(user.getUserId());
+            RoleAggregation aggregation = aggregateRoles(user.getUserId());
+            List<String> roles = aggregation.getRoleNames();
             if (roles.isEmpty()) {
                 logger.severe(() -> String.format("No roles found for user: %s", loginRequest.getUsername()));
                 recordFailedLogin(loginRequest.getUsername(), "NO_ROLES_ASSIGNED");
                 throw new RuntimeException("No roles assigned to user.");
             }
             String rolesString = String.join(",", roles);
-            String jwtToken = tokenProvider.createToken(user.getUsername(), rolesString);
+            String roleCodesCsv = String.join(",", aggregation.getRoleCodes());
+            String roleTypesCsv = String.join(",", aggregation.getRoleTypes());
+            String dataScopeCode = aggregation.getDataScope().getCode();
+
+            boolean claimsSupported = StringUtils.hasText(roleCodesCsv)
+                    && StringUtils.hasText(roleTypesCsv)
+                    && tokenProvider.validateRoleClaims(roleCodesCsv, roleTypesCsv, dataScopeCode);
+
+            String jwtToken;
+            if (claimsSupported) {
+                jwtToken = tokenProvider.createEnhancedToken(user.getUsername(), roleCodesCsv, roleTypesCsv, dataScopeCode);
+            } else {
+                logger.warning(() -> String.format("角色声明不完整, 回退使用基础 token, user=%s", user.getUsername()));
+                jwtToken = tokenProvider.createToken(user.getUsername(), rolesString);
+            }
+
+            boolean systemRole = tokenProvider.hasSystemRole(jwtToken);
+            boolean businessRole = tokenProvider.hasBusinessRole(jwtToken);
+            boolean hasDepartmentScope = tokenProvider.hasDataScopePermission(jwtToken, DataScope.DEPARTMENT);
+
             logger.info(() -> String.format("User authenticated successfully (WS): %s with roles: %s",
                     loginRequest.getUsername(), rolesString));
             return Map.of(
                     "jwtToken", jwtToken,
                     "username", user.getUsername(),
-                    "roles", roles
+                    "roles", roles,
+                    "roleCodes", aggregation.getRoleCodes(),
+                    "roleTypes", aggregation.getRoleTypes(),
+                    "dataScope", dataScopeCode,
+                    "systemRole", systemRole,
+                    "businessRole", businessRole,
+                    "departmentScope", hasDepartmentScope
             );
         }
 
@@ -161,32 +190,6 @@ public class AuthWsService {
         return Objects.equals(user.getPassword(), password);
     }
 
-    private List<String> resolveRoleNames(Long userId) {
-        if (userId == null) {
-            return List.of();
-        }
-        try {
-            List<SysUserRole> relations = sysUserRoleService.findByUserId(userId, 1, MAX_ROLE_PAGE_SIZE);
-            if (relations == null || relations.isEmpty()) {
-                return List.of();
-            }
-            List<String> names = new ArrayList<>();
-            for (SysUserRole relation : relations) {
-                if (relation == null || relation.getRoleId() == null) {
-                    continue;
-                }
-                SysRole role = sysRoleService.findById(relation.getRoleId());
-                if (role != null && StringUtils.hasText(role.getRoleName())) {
-                    names.add(role.getRoleName());
-                }
-            }
-            return names.stream().distinct().collect(Collectors.toList());
-        } catch (Exception ex) {
-            logger.log(Level.WARNING, "Failed to resolve roles for userId=" + userId, ex);
-            return List.of();
-        }
-    }
-
     private SysRole resolveOrCreateRole(String requestedRole) {
         String roleCode = StringUtils.hasText(requestedRole) ? requestedRole : "USER";
         SysRole role = sysRoleService.findByRoleCode(roleCode);
@@ -220,6 +223,136 @@ public class AuthWsService {
         loginLog.setLoginResult("FAILED");
         loginLog.setFailureReason(reason);
         auditLoginLogService.createAuditLoginLog(loginLog);
+    }
+
+    private RoleAggregation aggregateRoles(Long userId) {
+        if (userId == null) {
+            return RoleAggregation.empty();
+        }
+        try {
+            List<SysUserRole> relations = sysUserRoleService.findByUserId(userId, 1, MAX_ROLE_PAGE_SIZE);
+            if (relations == null || relations.isEmpty()) {
+                return RoleAggregation.empty();
+            }
+            List<String> roleNames = new ArrayList<>();
+            List<String> roleCodes = new ArrayList<>();
+            List<String> roleTypes = new ArrayList<>();
+            DataScope aggregatedScope = DataScope.SELF;
+
+            for (SysUserRole relation : relations) {
+                if (relation == null || relation.getRoleId() == null) {
+                    continue;
+                }
+                SysRole role = sysRoleService.findById(relation.getRoleId());
+                if (role == null) {
+                    continue;
+                }
+                if (StringUtils.hasText(role.getRoleName())) {
+                    roleNames.add(role.getRoleName());
+                }
+                String roleCode = resolveRoleCode(role);
+                if (StringUtils.hasText(roleCode)) {
+                    roleCodes.add(roleCode);
+                }
+                String roleType = resolveRoleType(role);
+                if (StringUtils.hasText(roleType)) {
+                    roleTypes.add(roleType);
+                }
+                DataScope requiredScope = resolveDataScope(role);
+                aggregatedScope = widenScope(aggregatedScope, requiredScope);
+            }
+
+            return new RoleAggregation(
+                    roleNames.stream().distinct().collect(Collectors.toList()),
+                    roleCodes.stream().distinct().collect(Collectors.toList()),
+                    roleTypes.stream().distinct().collect(Collectors.toList()),
+                    aggregatedScope
+            );
+        } catch (Exception ex) {
+            logger.log(Level.WARNING, "Failed to aggregate roles for userId=" + userId, ex);
+            return RoleAggregation.empty();
+        }
+    }
+
+    private String resolveRoleCode(SysRole role) {
+        if (role == null) {
+            return null;
+        }
+        String code = StringUtils.hasText(role.getRoleCode()) ? role.getRoleCode() : role.getRoleName();
+        return StringUtils.hasText(code) ? code.trim().toUpperCase(Locale.ROOT) : null;
+    }
+
+    private String resolveRoleType(SysRole role) {
+        if (role == null || !StringUtils.hasText(role.getRoleType())) {
+            return RoleType.BUSINESS.getCode();
+        }
+        RoleType type = RoleType.fromCode(role.getRoleType());
+        return type != null ? type.getCode() : RoleType.BUSINESS.getCode();
+    }
+
+    private DataScope resolveDataScope(SysRole role) {
+        if (role == null) {
+            return DataScope.SELF;
+        }
+        DataScope scope = DataScope.fromCode(role.getDataScope());
+        return scope != null ? scope : DataScope.SELF;
+    }
+
+    private DataScope widenScope(DataScope current, DataScope candidate) {
+        if (candidate == null) {
+            return current;
+        }
+        if (current == null) {
+            return candidate;
+        }
+        return scopeRank(candidate) > scopeRank(current) ? candidate : current;
+    }
+
+    private int scopeRank(DataScope scope) {
+        if (scope == null) {
+            return 0;
+        }
+        return switch (scope) {
+            case CUSTOM -> 1;
+            case SELF -> 2;
+            case DEPARTMENT -> 3;
+            case DEPARTMENT_AND_SUB -> 4;
+            case ALL -> 5;
+        };
+    }
+
+    private static class RoleAggregation {
+        private final List<String> roleNames;
+        private final List<String> roleCodes;
+        private final List<String> roleTypes;
+        private final DataScope dataScope;
+
+        private RoleAggregation(List<String> roleNames, List<String> roleCodes, List<String> roleTypes, DataScope dataScope) {
+            this.roleNames = roleNames;
+            this.roleCodes = roleCodes;
+            this.roleTypes = roleTypes;
+            this.dataScope = dataScope == null ? DataScope.SELF : dataScope;
+        }
+
+        static RoleAggregation empty() {
+            return new RoleAggregation(List.of(), List.of(), List.of(), DataScope.SELF);
+        }
+
+        List<String> getRoleNames() {
+            return roleNames;
+        }
+
+        List<String> getRoleCodes() {
+            return roleCodes;
+        }
+
+        List<String> getRoleTypes() {
+            return roleTypes;
+        }
+
+        DataScope getDataScope() {
+            return dataScope;
+        }
     }
 
     @Data

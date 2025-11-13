@@ -1,8 +1,9 @@
 package com.tutict.finalassignmentbackend.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tutict.finalassignmentbackend.config.statemachine.states.PaymentState;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.PaymentRecord;
 import com.tutict.finalassignmentbackend.entity.SysRequestHistory;
@@ -68,6 +69,7 @@ public class PaymentRecordService {
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.insert(history);
 
+        // 利用 Kafka 广播支付事件结果，以便审计和对账
         sendKafkaMessage("payment_record_" + action, idempotencyKey, paymentRecord);
 
         history.setBusinessStatus("SUCCESS");
@@ -97,6 +99,20 @@ public class PaymentRecordService {
         }
         syncToIndexAfterCommit(paymentRecord);
         return paymentRecord;
+    }
+
+    public PaymentRecord updatePaymentStatus(Long paymentId, PaymentState newState) {
+        requirePositive(paymentId, "Payment ID");
+        PaymentRecord existing = paymentRecordMapper.selectById(paymentId);
+        if (existing == null) {
+            throw new IllegalStateException("PaymentRecord not found for id=" + paymentId);
+        }
+        // 工作流只允许更新状态枚举值，其他字段由业务接口维护
+        existing.setPaymentStatus(newState != null ? newState.getCode() : existing.getPaymentStatus());
+        existing.setUpdatedAt(LocalDateTime.now());
+        paymentRecordMapper.updateById(existing);
+        syncToIndexAfterCommit(existing);
+        return existing;
     }
 
     @Transactional
@@ -241,6 +257,7 @@ public class PaymentRecordService {
         sysRequestHistoryMapper.updateById(history);
     }
 
+    // 通过事务回调，确保只有数据库提交成功后才刷新 ES，避免脏数据
     private void syncToIndexAfterCommit(PaymentRecord paymentRecord) {
         if (paymentRecord == null) {
             return;
@@ -310,6 +327,7 @@ public class PaymentRecordService {
         return value.length() <= 500 ? value : value.substring(0, 500);
     }
 
+    // 批量操作时同样复用 afterCommit 钩子，降低对 ES 的写入频率
     private void syncBatchToIndexAfterCommit(List<PaymentRecord> records) {
         if (records == null || records.isEmpty()) {
             return;

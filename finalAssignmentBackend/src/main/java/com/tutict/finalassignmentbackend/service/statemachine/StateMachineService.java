@@ -46,12 +46,12 @@ public class StateMachineService {
         try {
             StateMachine<OffenseProcessState, OffenseProcessEvent> stateMachine = offenseProcessStateMachineFactory.getStateMachine();
 
-            // 设置当前状态
+            // 将状态机重置到指定状态，确保状态迁移以数据库状态为准
             stateMachine.getStateMachineAccessor().doWithAllRegions(access ->
                     access.resetStateMachineReactively(buildContext(currentState)).block()
             );
 
-            // 发送事件
+            // 发送事件，触发状态流转
             boolean result = stateMachine.sendEvent(event);
 
             if (result) {
@@ -82,7 +82,7 @@ public class StateMachineService {
         try {
             StateMachine<PaymentState, PaymentEvent> stateMachine = paymentStateMachineFactory.getStateMachine();
 
-            // 设置当前状态
+            // 支付场景同样需要将状态机回放到数据库中记录的状态
             stateMachine.getStateMachineAccessor().doWithAllRegions(access ->
                     access.resetStateMachineReactively(buildContext(currentState)).block()
             );
@@ -118,7 +118,7 @@ public class StateMachineService {
         try {
             StateMachine<AppealProcessState, AppealProcessEvent> stateMachine = appealProcessStateMachineFactory.getStateMachine();
 
-            // 设置当前状态
+            // 申诉状态较多，统一使用 StateMachine 来校验合法性
             stateMachine.getStateMachineAccessor().doWithAllRegions(access ->
                     access.resetStateMachineReactively(buildContext(currentState)).block()
             );
@@ -218,6 +218,7 @@ public class StateMachineService {
     }
 
     private <S, E> StateMachineContext<S, E> buildContext(S state) {
+        // DefaultStateMachineContext 只关心当前状态，无事件/扩展变量时传入 null 即可
         return new DefaultStateMachineContext<>(state, null, null, null);
     }
 }

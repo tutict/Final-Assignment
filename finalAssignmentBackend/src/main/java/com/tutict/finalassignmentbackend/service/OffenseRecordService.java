@@ -1,8 +1,9 @@
 package com.tutict.finalassignmentbackend.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tutict.finalassignmentbackend.config.statemachine.states.OffenseProcessState;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.OffenseRecord;
 import com.tutict.finalassignmentbackend.entity.SysRequestHistory;
@@ -82,6 +83,7 @@ public class OffenseRecordService {
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
     public OffenseRecord createOffenseRecord(OffenseRecord offenseRecord) {
         validateOffenseRecord(offenseRecord);
+        // 同步写库，成功后再异步刷新 ES
         offenseRecordMapper.insert(offenseRecord);
         syncToIndexAfterCommit(offenseRecord);
         return offenseRecord;
@@ -98,6 +100,20 @@ public class OffenseRecordService {
         }
         syncToIndexAfterCommit(offenseRecord);
         return offenseRecord;
+    }
+
+    public OffenseRecord updateProcessStatus(Long offenseId, OffenseProcessState newState) {
+        requirePositive(offenseId, "Offense ID");
+        OffenseRecord existing = offenseRecordMapper.selectById(offenseId);
+        if (existing == null) {
+            throw new IllegalStateException("OffenseRecord not found for id=" + offenseId);
+        }
+        // 仅允许状态机计算出的状态覆盖数据库的 process_status 字段
+        existing.setProcessStatus(newState != null ? newState.getCode() : existing.getProcessStatus());
+        existing.setUpdatedAt(LocalDateTime.now());
+        offenseRecordMapper.updateById(existing);
+        syncToIndexAfterCommit(existing);
+        return existing;
     }
 
     @Transactional
@@ -315,6 +331,9 @@ public class OffenseRecordService {
         });
     }
 
+    /**
+     * 将 ES 命中结果转换成实体列表，供缓存 miss 时快速返回
+     */
     private List<OffenseRecord> mapHits(org.springframework.data.elasticsearch.core.SearchHits<OffenseRecordDocument> hits) {
         if (hits == null || !hits.hasSearchHits()) {
             return List.of();

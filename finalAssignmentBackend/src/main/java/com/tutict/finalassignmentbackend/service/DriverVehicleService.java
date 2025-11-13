@@ -335,6 +335,7 @@ public class DriverVehicleService {
         if (!Boolean.TRUE.equals(binding.getIsPrimary())) {
             return;
         }
+        // 每位驾驶员仅允许一个主绑定，出现重复时自动降级旧数据
         QueryWrapper<DriverVehicle> wrapper = new QueryWrapper<>();
         wrapper.eq("driver_id", binding.getDriverId())
                 .eq("is_primary", true);

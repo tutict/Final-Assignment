@@ -1,188 +1,146 @@
 package com.tutict.finalassignmentbackend.controller;
 
-import com.tutict.finalassignmentbackend.entity.BackupRestore;
-import com.tutict.finalassignmentbackend.service.BackupRestoreService;
+import com.tutict.finalassignmentbackend.entity.SysBackupRestore;
+import com.tutict.finalassignmentbackend.service.SysBackupRestoreService;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.annotation.security.RolesAllowed;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/backups")
+@RequestMapping("/api/system/backup")
+@Tag(name = "Backup & Restore", description = "系统备份与还原管理接口")
 @SecurityRequirement(name = "bearerAuth")
-@Tag(name = "Backup and Restore", description = "APIs for managing backup and restore operations")
+@RolesAllowed({"SUPER_ADMIN", "ADMIN"})
 public class BackupRestoreController {
 
-    private static final Logger logger = Logger.getLogger(BackupRestoreController.class.getName());
+    private static final Logger LOG = Logger.getLogger(BackupRestoreController.class.getName());
 
-    private final BackupRestoreService backupRestoreService;
+    private final SysBackupRestoreService backupRestoreService;
 
-    public BackupRestoreController(BackupRestoreService backupRestoreService) {
+    public BackupRestoreController(SysBackupRestoreService backupRestoreService) {
         this.backupRestoreService = backupRestoreService;
     }
 
     @PostMapping
-    @Transactional
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(
-            summary = "创建备份记录",
-            description = "管理员创建新的备份记录，需要提供幂等键以防止重复提交。操作在事务中执行。"
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "201", description = "备份记录创建成功"),
-            @ApiResponse(responseCode = "400", description = "无效的输入参数或幂等键冲突"),
-            @ApiResponse(responseCode = "403", description = "无权限访问，仅限 ADMIN 角色"),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    public ResponseEntity<Void> createBackup(
-            @RequestBody @Parameter(description = "备份记录的详细信息", required = true) BackupRestore backup,
-            @RequestParam @Parameter(description = "幂等键，用于防止重复提交", required = true) String idempotencyKey) {
-        logger.info("Attempting to create backup with idempotency key: " + idempotencyKey);
-        backupRestoreService.checkAndInsertIdempotency(idempotencyKey, backup, "create");
-        logger.info("Backup created successfully.");
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+    @Operation(summary = "创建备份/还原任务")
+    public ResponseEntity<SysBackupRestore> create(@RequestBody SysBackupRestore request,
+                                                   @RequestHeader(value = "Idempotency-Key", required = false)
+                                                   String idempotencyKey) {
+        boolean useKey = hasKey(idempotencyKey);
+        try {
+            if (useKey) {
+                if (backupRestoreService.shouldSkipProcessing(idempotencyKey)) {
+                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+                }
+                backupRestoreService.checkAndInsertIdempotency(idempotencyKey, request, "create");
+            }
+            SysBackupRestore saved = backupRestoreService.createSysBackupRestore(request);
+            if (useKey && saved.getBackupId() != null) {
+                backupRestoreService.markHistorySuccess(idempotencyKey, saved.getBackupId());
+            }
+            return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+        } catch (Exception ex) {
+            if (useKey) {
+                backupRestoreService.markHistoryFailure(idempotencyKey, ex.getMessage());
+            }
+            LOG.log(Level.SEVERE, "Create backup task failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
+        }
     }
 
-    @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    @Operation(
-            summary = "获取所有备份记录",
-            description = "获取所有备份记录的列表，USER 和 ADMIN 角色均可访问。"
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "成功返回备份记录列表"),
-            @ApiResponse(responseCode = "403", description = "无权限访问，需 USER 或 ADMIN 角色"),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    public ResponseEntity<List<BackupRestore>> getAllBackups() {
-        logger.info("Fetching all backups.");
-        List<BackupRestore> backups = backupRestoreService.getAllBackups();
-        logger.info("Total backups found: " + backups.size());
-        return ResponseEntity.ok(backups);
-    }
-
-    @GetMapping("/{backupId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    @Operation(
-            summary = "根据ID获取备份记录",
-            description = "获取指定ID的备份记录，USER 和 ADMIN 角色均可访问。"
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "成功返回备份记录"),
-            @ApiResponse(responseCode = "403", description = "无权限访问，需 USER 或 ADMIN 角色"),
-            @ApiResponse(responseCode = "404", description = "未找到备份记录"),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    public ResponseEntity<BackupRestore> getBackupById(
-            @PathVariable @Parameter(description = "备份记录ID", required = true) int backupId) {
-        logger.info("Fetching backup by ID: " + backupId);
-        BackupRestore backup = backupRestoreService.getBackupById(backupId);
-        if (backup != null) {
-            return ResponseEntity.ok(backup);
-        } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+    @PutMapping("/{backupId}")
+    @Operation(summary = "更新备份/还原任务")
+    public ResponseEntity<SysBackupRestore> update(@PathVariable Long backupId,
+                                                   @RequestBody SysBackupRestore request,
+                                                   @RequestHeader(value = "Idempotency-Key", required = false)
+                                                   String idempotencyKey) {
+        boolean useKey = hasKey(idempotencyKey);
+        try {
+            request.setBackupId(backupId);
+            if (useKey) {
+                backupRestoreService.checkAndInsertIdempotency(idempotencyKey, request, "update");
+            }
+            SysBackupRestore updated = backupRestoreService.updateSysBackupRestore(request);
+            if (useKey && updated.getBackupId() != null) {
+                backupRestoreService.markHistorySuccess(idempotencyKey, updated.getBackupId());
+            }
+            return ResponseEntity.ok(updated);
+        } catch (Exception ex) {
+            if (useKey) {
+                backupRestoreService.markHistoryFailure(idempotencyKey, ex.getMessage());
+            }
+            LOG.log(Level.SEVERE, "Update backup task failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
         }
     }
 
     @DeleteMapping("/{backupId}")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(
-            summary = "删除备份记录",
-            description = "管理员删除指定ID的备份记录，仅限 ADMIN 角色。"
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "204", description = "备份记录删除成功"),
-            @ApiResponse(responseCode = "403", description = "无权限访问，仅限 ADMIN 角色"),
-            @ApiResponse(responseCode = "404", description = "未找到备份记录"),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    public ResponseEntity<Void> deleteBackup(
-            @PathVariable @Parameter(description = "备份记录ID", required = true) int backupId) {
-        logger.info("Attempting to delete backup with ID: " + backupId);
-        backupRestoreService.deleteBackup(backupId);
-        logger.info("Backup deleted successfully.");
-        return ResponseEntity.noContent().build();
-    }
-
-    @PutMapping("/{backupId}")
-    @Transactional
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(
-            summary = "更新备份记录",
-            description = "管理员更新指定ID的备份记录，需要提供幂等键以防止重复提交。操作在事务中执行。"
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "备份记录更新成功"),
-            @ApiResponse(responseCode = "400", description = "无效的输入参数或幂等键冲突"),
-            @ApiResponse(responseCode = "403", description = "无权限访问，仅限 ADMIN 角色"),
-            @ApiResponse(responseCode = "404", description = "未找到备份记录"),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    public ResponseEntity<Void> updateBackup(
-            @PathVariable @Parameter(description = "备份记录ID", required = true) int backupId,
-            @RequestBody @Parameter(description = "更新后的备份记录信息", required = true) BackupRestore updatedBackup,
-            @RequestParam @Parameter(description = "幂等键，用于防止重复提交", required = true) String idempotencyKey) {
-        logger.info("Attempting to update backup with ID: " + backupId);
-        BackupRestore existingBackup = backupRestoreService.getBackupById(backupId);
-        if (existingBackup != null) {
-            updatedBackup.setBackupId(backupId);
-            backupRestoreService.checkAndInsertIdempotency(idempotencyKey, updatedBackup, "update");
-            logger.info("Backup updated successfully.");
-            return ResponseEntity.ok().build();
-        } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+    @Operation(summary = "删除备份/还原任务")
+    public ResponseEntity<Void> delete(@PathVariable Long backupId) {
+        try {
+            backupRestoreService.deleteSysBackupRestore(backupId);
+            return ResponseEntity.noContent().build();
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Delete backup task failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
         }
     }
 
-    @GetMapping("/filename/{backupFileName}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    @Operation(
-            summary = "根据文件名获取备份记录",
-            description = "获取指定文件名的备份记录，USER 和 ADMIN 角色均可访问。"
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "成功返回备份记录"),
-            @ApiResponse(responseCode = "403", description = "无权限访问，需 USER 或 ADMIN 角色"),
-            @ApiResponse(responseCode = "404", description = "未找到备份记录"),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    public ResponseEntity<BackupRestore> getBackupByFileName(
-            @PathVariable @Parameter(description = "备份文件名", required = true) String backupFileName) {
-        logger.info("Fetching backup by file name: " + backupFileName);
-        BackupRestore backup = backupRestoreService.getBackupByFileName(backupFileName);
-        if (backup != null) {
-            return ResponseEntity.ok(backup);
-        } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+    @GetMapping("/{backupId}")
+    @Operation(summary = "查询备份/还原详情")
+    public ResponseEntity<SysBackupRestore> get(@PathVariable Long backupId) {
+        try {
+            SysBackupRestore record = backupRestoreService.findById(backupId);
+            return record == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(record);
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Get backup task failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
         }
     }
 
-    @GetMapping("/time/{backupTime}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    @Operation(
-            summary = "根据备份时间获取备份记录",
-            description = "获取指定备份时间的备份记录列表，USER 和 ADMIN 角色均可访问。备份时间格式为 yyyy-MM-dd'T'HH:mm:ss。"
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "成功返回备份记录列表"),
-            @ApiResponse(responseCode = "400", description = "无效的备份时间格式"),
-            @ApiResponse(responseCode = "403", description = "无权限访问，需 USER 或 ADMIN 角色"),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    public ResponseEntity<List<BackupRestore>> getBackupsByTime(
-            @PathVariable @Parameter(description = "备份时间，格式：yyyy-MM-dd'T'HH:mm:ss", required = true) String backupTime) {
-        logger.info("Fetching backups by time: " + backupTime);
-        List<BackupRestore> backups = backupRestoreService.getBackupsByTime(backupTime);
-        return ResponseEntity.ok(backups);
+    @GetMapping
+    @Operation(summary = "查询备份/还原任务列表")
+    public ResponseEntity<List<SysBackupRestore>> list(@RequestParam(value = "status", required = false) String status) {
+        try {
+            List<SysBackupRestore> all = backupRestoreService.findAll();
+            if (status == null || status.isBlank()) {
+                return ResponseEntity.ok(all);
+            }
+            List<SysBackupRestore> filtered = all.stream()
+                    .filter(item -> status.equalsIgnoreCase(item.getStatus()))
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(filtered);
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "List backup tasks failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
+        }
+    }
+
+    private boolean hasKey(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private HttpStatus resolveStatus(Exception ex) {
+        return (ex instanceof IllegalArgumentException || ex instanceof IllegalStateException)
+                ? HttpStatus.BAD_REQUEST
+                : HttpStatus.INTERNAL_SERVER_ERROR;
     }
 }

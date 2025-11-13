@@ -1,460 +1,283 @@
 package com.tutict.finalassignmentbackend.controller;
 
-import com.tutict.finalassignmentbackend.entity.UserManagement;
-import com.tutict.finalassignmentbackend.service.UserManagementService;
+import com.tutict.finalassignmentbackend.entity.SysUser;
+import com.tutict.finalassignmentbackend.entity.SysUserRole;
+import com.tutict.finalassignmentbackend.service.SysUserRoleService;
+import com.tutict.finalassignmentbackend.service.SysUserService;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.annotation.security.RolesAllowed;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
-import java.security.Principal;
-import java.util.Collections;
 import java.util.List;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 
 @RestController
 @RequestMapping("/api/users")
+@Tag(name = "User Management", description = "系统用户与角色管理接口")
 @SecurityRequirement(name = "bearerAuth")
-@Tag(name = "User Management", description = "APIs for managing user records")
+@RolesAllowed({"SUPER_ADMIN", "ADMIN"})
 public class UserManagementController {
 
-    private static final Logger logger = LoggerFactory.getLogger(UserManagementController.class);
-    private final UserManagementService userManagementService;
+    private static final Logger LOG = Logger.getLogger(UserManagementController.class.getName());
 
-    @Autowired
-    public UserManagementController(UserManagementService userManagementService) {
-        this.userManagementService = userManagementService;
+    private final SysUserService sysUserService;
+    private final SysUserRoleService sysUserRoleService;
+
+    public UserManagementController(SysUserService sysUserService,
+                                    SysUserRoleService sysUserRoleService) {
+        this.sysUserService = sysUserService;
+        this.sysUserRoleService = sysUserRoleService;
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(
-            summary = "创建用户记录",
-            description = "管理员创建新的用户记录，仅限 ADMIN 角色。需要提供幂等键以防止重复提交。如果用户名已存在，将返回冲突状态。"
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "201", description = "用户记录创建成功"),
-            @ApiResponse(responseCode = "400", description = "无效的输入参数或幂等键冲突"),
-            @ApiResponse(responseCode = "403", description = "无权限访问，仅限 ADMIN 角色"),
-            @ApiResponse(responseCode = "409", description = "用户名已存在"),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    public ResponseEntity<Void> createUser(
-            @RequestBody @Parameter(description = "用户记录的详细信息", required = true) UserManagement user,
-            @RequestParam @Parameter(description = "幂等键，用于防止重复提交", required = true) String idempotencyKey) {
-        logger.info("Attempting to create user: {}", user.getUsername());
-        if (userManagementService.isUsernameExists(user.getUsername())) {
-            logger.warn("Username already exists: {}", user.getUsername());
-            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+    @Operation(summary = "创建用户")
+    public ResponseEntity<SysUser> createUser(@RequestBody SysUser request,
+                                              @RequestHeader(value = "Idempotency-Key", required = false)
+                                              String idempotencyKey) {
+        boolean useKey = hasKey(idempotencyKey);
+        try {
+            if (useKey) {
+                if (sysUserService.shouldSkipProcessing(idempotencyKey)) {
+                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+                }
+                sysUserService.checkAndInsertIdempotency(idempotencyKey, request, "create");
+            }
+            SysUser saved = sysUserService.createSysUser(request);
+            if (useKey && saved.getUserId() != null) {
+                sysUserService.markHistorySuccess(idempotencyKey, saved.getUserId());
+            }
+            return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+        } catch (Exception ex) {
+            if (useKey) {
+                sysUserService.markHistoryFailure(idempotencyKey, ex.getMessage());
+            }
+            LOG.log(Level.SEVERE, "Create user failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
         }
-        userManagementService.checkAndInsertIdempotency(idempotencyKey, user, "create");
-        logger.info("User created successfully: {}", user.getUsername());
-        return ResponseEntity.status(HttpStatus.CREATED).build();
-    }
-
-    @GetMapping("/me")
-    @PreAuthorize("hasRole('USER')")
-    @Operation(
-            summary = "获取当前用户信息",
-            description = "获取当前登录用户的详细信息，USER 角色可访问。用户信息从 JWT 令牌的 Principal 中提取。"
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "成功返回当前用户信息"),
-            @ApiResponse(responseCode = "401", description = "未认证，用户未登录"),
-            @ApiResponse(responseCode = "403", description = "无权限访问，需 USER 角色"),
-            @ApiResponse(responseCode = "404", description = "未找到用户信息"),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    public ResponseEntity<UserManagement> getCurrentUser(
-            @Parameter(hidden = true) Principal principal) {
-        logger.info("Entering getCurrentUser method");
-        if (principal == null) {
-            logger.warn("Principal is null, no authenticated user");
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-        String username = principal.getName();
-        logger.info("Fetching current user from JWT: {}", username);
-        UserManagement existingUser = userManagementService.getUserByUsername(username);
-        if (existingUser != null) {
-            logger.info("User found: {}", username);
-            return ResponseEntity.ok(existingUser);
-        } else {
-            logger.warn("User not found: {}", username);
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-        }
-    }
-
-    @PutMapping("/me")
-    @Transactional
-    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
-    @Operation(
-            summary = "更新当前用户信息",
-            description = "更新当前登录用户的信息，USER 和 ADMIN 角色可访问。需要提供幂等键以防止重复提交。操作在事务中执行。"
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "用户信息更新成功"),
-            @ApiResponse(responseCode = "400", description = "无效的输入参数或幂等键冲突"),
-            @ApiResponse(responseCode = "401", description = "未认证，用户未登录"),
-            @ApiResponse(responseCode = "403", description = "无权限访问，需 USER 或 ADMIN 角色"),
-            @ApiResponse(responseCode = "404", description = "未找到用户信息"),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    public ResponseEntity<Void> updateCurrentUser(
-            @RequestBody @Parameter(description = "更新后的用户信息", required = true) UserManagement updatedUser,
-            @RequestParam @Parameter(description = "幂等键，用于防止重复提交", required = true) String idempotencyKey,
-            @Parameter(hidden = true) Principal principal) {
-        String username = principal.getName();
-        logger.info("Attempting to update current user: {}", username);
-        UserManagement existingUser = userManagementService.getUserByUsername(username);
-        if (existingUser != null) {
-            updatedUser.setUserId(existingUser.getUserId());
-            userManagementService.checkAndInsertIdempotency(idempotencyKey, updatedUser, "update");
-            logger.info("User updated successfully: {}", username);
-            return ResponseEntity.ok().build();
-        } else {
-            logger.warn("User not found: {}", username);
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-        }
-    }
-
-    @PutMapping("/me/password")
-    @Transactional
-    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
-    @Operation(
-            summary = "更新当前用户密码",
-            description = "更新当前登录用户的密码，USER 和 ADMIN 角色可访问。需要提供幂等键以防止重复提交。密码应为纯文本字符串，操作在事务中执行。"
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "密码更新成功"),
-            @ApiResponse(responseCode = "400", description = "无效的输入参数或幂等键冲突"),
-            @ApiResponse(responseCode = "401", description = "未认证，用户未登录"),
-            @ApiResponse(responseCode = "403", description = "无权限访问，需 USER 或 ADMIN 角色"),
-            @ApiResponse(responseCode = "404", description = "未找到用户信息"),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    public ResponseEntity<Void> updatePassword(
-            @RequestBody @Parameter(description = "新密码（纯文本）", required = true, example = "newPassword123") String password,
-            @RequestParam @Parameter(description = "幂等键，用于防止重复提交", required = true) String idempotencyKey,
-            @Parameter(hidden = true) Principal principal) {
-        if (principal == null) {
-            logger.warn("Principal is null, no authenticated user");
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-        String username = principal.getName();
-        logger.info("Attempting to update password for user: {}", username);
-        UserManagement existingUser = userManagementService.getUserByUsername(username);
-        if (existingUser != null) {
-            String cleanedPassword = password.replaceAll("^\"|\"$", "");
-            existingUser.setPassword(cleanedPassword);
-            userManagementService.checkAndInsertIdempotency(idempotencyKey, existingUser, "update");
-            logger.info("Password updated successfully for user: {}", username);
-            return ResponseEntity.ok().build();
-        } else {
-            logger.warn("User not found: {}", username);
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-        }
-    }
-
-    @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    @Operation(
-            summary = "获取所有用户记录",
-            description = "获取所有用户记录的列表，USER 和 ADMIN 角色均可访问。"
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "成功返回用户记录列表"),
-            @ApiResponse(responseCode = "403", description = "无权限访问，需 USER 或 ADMIN 角色"),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    public ResponseEntity<List<UserManagement>> getAllUsers() {
-        logger.info("Fetching all users");
-        List<UserManagement> users = userManagementService.getAllUsers();
-        logger.info("Total users found: {}", users.size());
-        return ResponseEntity.ok(users);
-    }
-
-    @GetMapping("/{userId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    @Operation(
-            summary = "根据ID获取用户记录",
-            description = "获取指定ID的用户记录，USER 和 ADMIN 角色均可访问。"
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "成功返回用户记录"),
-            @ApiResponse(responseCode = "403", description = "无权限访问，需 USER 或 ADMIN 角色"),
-            @ApiResponse(responseCode = "404", description = "未找到用户记录"),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    public ResponseEntity<UserManagement> getUserById(
-            @PathVariable @Parameter(description = "用户ID", required = true) int userId) {
-        logger.info("Fetching user by ID: {}", userId);
-        UserManagement user = userManagementService.getUserById(userId);
-        if (user != null) {
-            logger.info("User found: {}", userId);
-            return ResponseEntity.ok(user);
-        } else {
-            logger.warn("User not found: {}", userId);
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-        }
-    }
-
-    @GetMapping("/username/{username}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    @Operation(
-            summary = "根据用户名获取用户记录",
-            description = "获取指定用户名的用户记录，USER 和 ADMIN 角色均可访问。"
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "成功返回用户记录"),
-            @ApiResponse(responseCode = "403", description = "无权限访问，需 USER 或 ADMIN 角色"),
-            @ApiResponse(responseCode = "404", description = "未找到用户记录"),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    public ResponseEntity<UserManagement> getUserByUsername(
-            @PathVariable @Parameter(description = "用户名", required = true) String username) {
-        logger.info("Fetching user by username: {}", username);
-        UserManagement user = userManagementService.getUserByUsername(username);
-        if (user != null) {
-            logger.info("User found: {}", username);
-            return ResponseEntity.ok(user);
-        } else {
-            logger.warn("User not found: {}", username);
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-        }
-    }
-
-    @GetMapping("/role/{roleName}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    @Operation(
-            summary = "根据角色获取用户记录",
-            description = "获取指定角色的用户记录列表，USER 和 ADMIN 角色均可访问。"
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "成功返回用户记录列表"),
-            @ApiResponse(responseCode = "403", description = "无权限访问，需 USER 或 ADMIN 角色"),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    public ResponseEntity<List<UserManagement>> getUsersByRole(
-            @PathVariable @Parameter(description = "角色名称（如 ADMIN、USER）", required = true) String roleName) {
-        logger.info("Fetching users by role: {}", roleName);
-        List<UserManagement> users = userManagementService.getUsersByRole(roleName);
-        logger.info("Total users of role {}: {}", roleName, users.size());
-        return ResponseEntity.ok(users);
-    }
-
-    @GetMapping("/status/{status}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    @Operation(
-            summary = "根据状态获取用户记录",
-            description = "获取指定状态的用户记录列表，USER 和 ADMIN 角色均可访问。"
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "成功返回用户记录列表"),
-            @ApiResponse(responseCode = "403", description = "无权限访问，需 USER 或 ADMIN 角色"),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    public ResponseEntity<List<UserManagement>> getUsersByStatus(
-            @PathVariable @Parameter(description = "用户状态（如 ACTIVE、INACTIVE）", required = true) String status) {
-        logger.info("Fetching users by status: {}", status);
-        List<UserManagement> users = userManagementService.getUsersByStatus(status);
-        logger.info("Total users with status {}: {}", status, users.size());
-        return ResponseEntity.ok(users);
     }
 
     @PutMapping("/{userId}")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(
-            summary = "更新指定用户记录",
-            description = "管理员更新指定ID的用户记录，仅限 ADMIN 角色。需要提供幂等键以防止重复提交。"
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "用户记录更新成功"),
-            @ApiResponse(responseCode = "400", description = "无效的输入参数或幂等键冲突"),
-            @ApiResponse(responseCode = "403", description = "无权限访问，仅限 ADMIN 角色"),
-            @ApiResponse(responseCode = "404", description = "未找到用户记录"),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    public ResponseEntity<Void> updateUser(
-            @PathVariable @Parameter(description = "用户ID", required = true) int userId,
-            @RequestBody @Parameter(description = "更新后的用户信息", required = true) UserManagement updatedUser,
-            @RequestParam @Parameter(description = "幂等键，用于防止重复提交", required = true) String idempotencyKey) {
-        logger.info("Attempting to update user: {}", userId);
-        UserManagement existingUser = userManagementService.getUserById(userId);
-        if (existingUser != null) {
-            updatedUser.setUserId(userId);
-            userManagementService.checkAndInsertIdempotency(idempotencyKey, updatedUser, "update");
-            logger.info("User updated successfully: {}", userId);
-            return ResponseEntity.ok().build();
-        } else {
-            logger.warn("User not found: {}", userId);
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+    @Operation(summary = "更新用户")
+    public ResponseEntity<SysUser> updateUser(@PathVariable Long userId,
+                                              @RequestBody SysUser request,
+                                              @RequestHeader(value = "Idempotency-Key", required = false)
+                                              String idempotencyKey) {
+        boolean useKey = hasKey(idempotencyKey);
+        try {
+            request.setUserId(userId);
+            if (useKey) {
+                sysUserService.checkAndInsertIdempotency(idempotencyKey, request, "update");
+            }
+            SysUser updated = sysUserService.updateSysUser(request);
+            if (useKey && updated.getUserId() != null) {
+                sysUserService.markHistorySuccess(idempotencyKey, updated.getUserId());
+            }
+            return ResponseEntity.ok(updated);
+        } catch (Exception ex) {
+            if (useKey) {
+                sysUserService.markHistoryFailure(idempotencyKey, ex.getMessage());
+            }
+            LOG.log(Level.SEVERE, "Update user failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
         }
     }
 
     @DeleteMapping("/{userId}")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(
-            summary = "根据ID删除用户记录",
-            description = "管理员删除指定ID的用户记录，仅限 ADMIN 角色。"
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "204", description = "用户记录删除成功"),
-            @ApiResponse(responseCode = "403", description = "无权限访问，仅限 ADMIN 角色"),
-            @ApiResponse(responseCode = "404", description = "未找到用户记录"),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    public ResponseEntity<Void> deleteUser(
-            @PathVariable @Parameter(description = "用户ID", required = true) int userId) {
-        logger.info("Attempting to delete user: {}", userId);
+    @Operation(summary = "删除用户")
+    public ResponseEntity<Void> deleteUser(@PathVariable Long userId) {
         try {
-            UserManagement userToDelete = userManagementService.getUserById(userId);
-            if (userToDelete != null) {
-                userManagementService.deleteUser(userId);
-                logger.info("User deleted successfully: {}", userId);
-            } else {
-                logger.warn("User not found: {}", userId);
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-            }
-        } catch (Exception e) {
-            logger.error("An error occurred while processing request for user {}", userId, e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            sysUserService.deleteSysUser(userId);
+            return ResponseEntity.noContent().build();
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Delete user failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
         }
-        return ResponseEntity.noContent().build();
     }
 
-    @DeleteMapping("/username/{username}")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(
-            summary = "根据用户名删除用户记录",
-            description = "管理员删除指定用户名的用户记录，仅限 ADMIN 角色。"
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "204", description = "用户记录删除成功"),
-            @ApiResponse(responseCode = "403", description = "无权限访问，仅限 ADMIN 角色"),
-            @ApiResponse(responseCode = "404", description = "未找到用户记录"),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    public ResponseEntity<Void> deleteUserByUsername(
-            @PathVariable @Parameter(description = "用户名", required = true) String username) {
-        logger.info("Attempting to delete user by username: {}", username);
+    @GetMapping("/{userId}")
+    @Operation(summary = "查询用户详情")
+    public ResponseEntity<SysUser> getUser(@PathVariable Long userId) {
         try {
-            UserManagement userToDelete = userManagementService.getUserByUsername(username);
-            if (userToDelete != null) {
-                userManagementService.deleteUserByUsername(username);
-                logger.info("User deleted successfully: {}", username);
-            } else {
-                logger.warn("User not found: {}", username);
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            SysUser user = sysUserService.findById(userId);
+            return user == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(user);
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Get user failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @GetMapping
+    @Operation(summary = "查询全部用户")
+    public ResponseEntity<List<SysUser>> listUsers() {
+        try {
+            return ResponseEntity.ok(sysUserService.findAll());
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "List users failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @GetMapping("/search/username/{username}")
+    @Operation(summary = "按用户名查询用户")
+    public ResponseEntity<SysUser> getByUsername(@PathVariable String username) {
+        try {
+            SysUser user = sysUserService.findByUsername(username);
+            return user == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(user);
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Get user by username failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @GetMapping("/search/status")
+    @Operation(summary = "按状态分页查询用户")
+    public ResponseEntity<List<SysUser>> listByStatus(@RequestParam String status,
+                                                      @RequestParam(defaultValue = "1") int page,
+                                                      @RequestParam(defaultValue = "20") int size) {
+        try {
+            return ResponseEntity.ok(sysUserService.findByStatus(status, page, size));
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "List users by status failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @GetMapping("/search/department")
+    @Operation(summary = "按部门分页查询用户")
+    public ResponseEntity<List<SysUser>> listByDepartment(@RequestParam String department,
+                                                          @RequestParam(defaultValue = "1") int page,
+                                                          @RequestParam(defaultValue = "20") int size) {
+        try {
+            return ResponseEntity.ok(sysUserService.findByDepartment(department, page, size));
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "List users by department failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @PostMapping("/{userId}/roles")
+    @Operation(summary = "绑定用户角色")
+    public ResponseEntity<SysUserRole> addUserRole(@PathVariable Long userId,
+                                                   @RequestBody SysUserRole relation,
+                                                   @RequestHeader(value = "Idempotency-Key", required = false)
+                                                   String idempotencyKey) {
+        boolean useKey = hasKey(idempotencyKey);
+        try {
+            relation.setUserId(userId);
+            if (useKey) {
+                if (sysUserRoleService.shouldSkipProcessing(idempotencyKey)) {
+                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+                }
+                sysUserRoleService.checkAndInsertIdempotency(idempotencyKey, relation, "create");
             }
-        } catch (Exception e) {
-            logger.error("An error occurred while processing request for user {}", username, e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            SysUserRole saved = sysUserRoleService.createRelation(relation);
+            if (useKey && saved.getId() != null) {
+                sysUserRoleService.markHistorySuccess(idempotencyKey, saved.getId());
+            }
+            return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+        } catch (Exception ex) {
+            if (useKey) {
+                sysUserRoleService.markHistoryFailure(idempotencyKey, ex.getMessage());
+            }
+            LOG.log(Level.SEVERE, "Add user role failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
         }
-        return ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/autocomplete/usernames/me")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(
-            summary = "获取用户名自动补全建议",
-            description = "根据前缀获取用户名自动补全建议，仅限 ADMIN 角色。返回的用户名列表已进行 URL 解码。"
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "成功返回用户名建议列表"),
-            @ApiResponse(responseCode = "204", description = "未找到匹配的用户名建议"),
-            @ApiResponse(responseCode = "403", description = "无权限访问，仅限 ADMIN 角色"),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    public ResponseEntity<List<String>> getUsernameAutocompleteSuggestionsGlobally(
-            @RequestParam @Parameter(description = "用户名前缀", required = true) String prefix) {
-        String decodedPrefix = URLDecoder.decode(prefix, StandardCharsets.UTF_8);
-        logger.info("Fetching username suggestions for prefix: {}, decoded: {}", prefix, decodedPrefix);
-
-        List<String> suggestions = userManagementService.getUsernamesByPrefixGlobally(decodedPrefix);
-        if (suggestions == null) {
-            suggestions = Collections.emptyList();
+    @DeleteMapping("/roles/{relationId}")
+    @Operation(summary = "删除用户角色关联")
+    public ResponseEntity<Void> deleteUserRole(@PathVariable Long relationId) {
+        try {
+            sysUserRoleService.deleteRelation(relationId);
+            return ResponseEntity.noContent().build();
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Delete user role failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
         }
-
-        if (suggestions.isEmpty()) {
-            logger.info("No username suggestions found for prefix: {}", decodedPrefix);
-        } else {
-            logger.info("Found {} username suggestions for prefix: {}", suggestions.size(), decodedPrefix);
-        }
-
-        return ResponseEntity.ok(suggestions);
     }
 
-    @GetMapping("/autocomplete/statuses/me")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(
-            summary = "获取状态自动补全建议",
-            description = "根据前缀获取用户状态自动补全建议，仅限 ADMIN 角色。返回的状态列表已进行 URL 解码。"
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "成功返回状态建议列表"),
-            @ApiResponse(responseCode = "204", description = "未找到匹配的状态建议"),
-            @ApiResponse(responseCode = "403", description = "无权限访问，仅限 ADMIN 角色"),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    public ResponseEntity<List<String>> getStatusAutocompleteSuggestionsGlobally(
-            @RequestParam @Parameter(description = "状态前缀（如 ACTIVE、INACTIVE）", required = true) String prefix) {
-        String decodedPrefix = URLDecoder.decode(prefix, StandardCharsets.UTF_8);
-        logger.info("Fetching status suggestions for prefix: {}, decoded: {}", prefix, decodedPrefix);
-
-        List<String> suggestions = userManagementService.getStatusesByPrefixGlobally(decodedPrefix);
-        if (suggestions == null) {
-            suggestions = Collections.emptyList();
+    @GetMapping("/{userId}/roles")
+    @Operation(summary = "查询用户角色列表")
+    public ResponseEntity<List<SysUserRole>> listUserRoles(@PathVariable Long userId,
+                                                           @RequestParam(defaultValue = "1") int page,
+                                                           @RequestParam(defaultValue = "20") int size) {
+        try {
+            return ResponseEntity.ok(sysUserRoleService.findByUserId(userId, page, size));
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "List user roles failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
         }
-
-        if (suggestions.isEmpty()) {
-            logger.info("No status suggestions found for prefix: {}", decodedPrefix);
-        } else {
-            logger.info("Found {} status suggestions for prefix: {}", suggestions.size(), decodedPrefix);
-        }
-
-        return ResponseEntity.ok(suggestions);
     }
 
-    @GetMapping("/autocomplete/phone-numbers/me")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(
-            summary = "获取电话号码自动补全建议",
-            description = "根据前缀获取电话号码自动补全建议，仅限 ADMIN 角色。返回的电话号码列表已进行 URL 解码。"
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "成功返回电话号码建议列表"),
-            @ApiResponse(responseCode = "204", description = "未找到匹配的电话号码建议"),
-            @ApiResponse(responseCode = "403", description = "无权限访问，仅限 ADMIN 角色"),
-            @ApiResponse(responseCode = "500", description = "服务器内部错误")
-    })
-    public ResponseEntity<List<String>> getPhoneNumberAutocompleteSuggestionsGlobally(
-            @RequestParam @Parameter(description = "电话号码前缀", required = true) String prefix) {
-        String decodedPrefix = URLDecoder.decode(prefix, StandardCharsets.UTF_8);
-        logger.info("Fetching phone number suggestions for prefix: {}, decoded: {}", prefix, decodedPrefix);
-
-        List<String> suggestions = userManagementService.getPhoneNumbersByPrefixGlobally(decodedPrefix);
-        if (suggestions == null) {
-            suggestions = Collections.emptyList();
+    @PutMapping("/role-bindings/{relationId}")
+    @Operation(summary = "更新用户角色关联")
+    public ResponseEntity<SysUserRole> updateUserRole(@PathVariable Long relationId,
+                                                      @RequestBody SysUserRole relation,
+                                                      @RequestHeader(value = "Idempotency-Key", required = false)
+                                                      String idempotencyKey) {
+        boolean useKey = hasKey(idempotencyKey);
+        try {
+            relation.setId(relationId);
+            if (useKey) {
+                sysUserRoleService.checkAndInsertIdempotency(idempotencyKey, relation, "update");
+            }
+            SysUserRole updated = sysUserRoleService.updateRelation(relation);
+            if (useKey && updated.getId() != null) {
+                sysUserRoleService.markHistorySuccess(idempotencyKey, updated.getId());
+            }
+            return ResponseEntity.ok(updated);
+        } catch (Exception ex) {
+            if (useKey) {
+                sysUserRoleService.markHistoryFailure(idempotencyKey, ex.getMessage());
+            }
+            LOG.log(Level.SEVERE, "Update user role failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
         }
+    }
 
-        if (suggestions.isEmpty()) {
-            logger.info("No phone number suggestions found for prefix: {}", decodedPrefix);
-        } else {
-            logger.info("Found {} phone number suggestions for prefix: {}", suggestions.size(), decodedPrefix);
-        }
+    @GetMapping("/role-bindings/{relationId}")
+    @Operation(summary = "查询用户角色关联详情")
+    public ResponseEntity<SysUserRole> getUserRole(@PathVariable Long relationId) {
+        SysUserRole relation = sysUserRoleService.findById(relationId);
+        return relation == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(relation);
+    }
 
-        return ResponseEntity.ok(suggestions);
+    @GetMapping("/role-bindings")
+    @Operation(summary = "分页查询全部用户角色关联")
+    public ResponseEntity<List<SysUserRole>> listRoleBindings(@RequestParam(defaultValue = "1") int page,
+                                                              @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(sysUserRoleService.findAll(page, size));
+    }
+
+    @GetMapping("/role-bindings/by-role/{roleId}")
+    @Operation(summary = "按角色查询用户角色关联")
+    public ResponseEntity<List<SysUserRole>> listBindingsByRole(@PathVariable Integer roleId,
+                                                                @RequestParam(defaultValue = "1") int page,
+                                                                @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(sysUserRoleService.findByRoleId(roleId, page, size));
+    }
+
+    private boolean hasKey(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private HttpStatus resolveStatus(Exception ex) {
+        return (ex instanceof IllegalArgumentException || ex instanceof IllegalStateException)
+                ? HttpStatus.BAD_REQUEST
+                : HttpStatus.INTERNAL_SERVER_ERROR;
     }
 }

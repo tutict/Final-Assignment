@@ -1,7 +1,8 @@
 package com.tutict.finalassignmentbackend.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tutict.finalassignmentbackend.config.statemachine.states.AppealProcessState;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.AppealRecord;
 import com.tutict.finalassignmentbackend.entity.SysRequestHistory;
@@ -93,6 +94,22 @@ public class AppealRecordService {
         }
         syncIndexAfterCommit(appealRecord);
         return appealRecord;
+    }
+
+    /**
+     * 供工作流调用的状态更新方法，只改 processStatus 字段
+     */
+    public AppealRecord updateProcessStatus(Long appealId, AppealProcessState newState) {
+        validateAppealId(appealId);
+        AppealRecord existing = appealRecordMapper.selectById(appealId);
+        if (existing == null) {
+            throw new IllegalStateException("Appeal not found: " + appealId);
+        }
+        existing.setProcessStatus(newState != null ? newState.getCode() : existing.getProcessStatus());
+        existing.setUpdatedAt(LocalDateTime.now());
+        appealRecordMapper.updateById(existing);
+        syncIndexAfterCommit(existing);
+        return existing;
     }
 
     @Transactional
