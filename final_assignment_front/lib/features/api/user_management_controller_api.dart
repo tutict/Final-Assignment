@@ -79,93 +79,7 @@ class UserManagementControllerApi {
     }
   }
 
-// --- GET /api/users/me ---
-  Future<http.Response> apiUsersMeGetWithHttpInfo() async {
-    final path = "/api/users/me".replaceAll("{format}", "json");
-    final headerParams = await _getHeaders();
-
-    return await apiClient.invokeAPI(
-      path,
-      'GET',
-      [],
-      null,
-      headerParams,
-      {},
-      null,
-      ['bearerAuth'],
-    );
-  }
-
-  Future<UserManagement?> apiUsersMeGet() async {
-    try {
-      final response = await apiUsersMeGetWithHttpInfo();
-      debugPrint('Users me get response status: ${response.statusCode}');
-      debugPrint('Users me get response body: ${response.body}');
-
-      if (response.statusCode >= 400) {
-        final errorMessage = response.body.isNotEmpty
-            ? _decodeBodyBytes(response)
-            : 'Unknown error';
-        throw ApiException(response.statusCode, errorMessage);
-      } else if (response.body.isNotEmpty) {
-        return UserManagement.fromJson(jsonDecode(_decodeBodyBytes(response)));
-      } else {
-        return null;
-      }
-    } catch (e) {
-      debugPrint('Users me get error: $e');
-      rethrow;
-    }
-  }
-
-  // --- PUT /api/users/me ---
-  Future<http.Response> apiUsersMePutWithHttpInfo({
-    required UserManagement userManagement,
-    required String idempotencyKey,
-  }) async {
-    if (idempotencyKey.isEmpty) {
-      throw ApiException(400, "Missing required param: idempotencyKey");
-    }
-
-    final path = "/api/users/me".replaceAll("{format}", "json");
-    final queryParams = [QueryParam("idempotencyKey", idempotencyKey)];
-    final headerParams = await _getHeaders();
-
-    return await apiClient.invokeAPI(
-      path,
-      'PUT',
-      queryParams,
-      userManagement.toJson(),
-      headerParams,
-      {},
-      'application/json',
-      ['bearerAuth'],
-    );
-  }
-
-  Future<void> apiUsersMePut({
-    required UserManagement userManagement,
-    required String idempotencyKey,
-  }) async {
-    try {
-      final response = await apiUsersMePutWithHttpInfo(
-        userManagement: userManagement,
-        idempotencyKey: idempotencyKey,
-      );
-      debugPrint('Users me put response status: ${response.statusCode}');
-      debugPrint('Users me put response body: ${response.body}');
-
-      if (response.statusCode >= 400) {
-        final errorMessage = response.body.isNotEmpty
-            ? _decodeBodyBytes(response)
-            : 'Unknown error';
-        throw ApiException(response.statusCode, errorMessage);
-      }
-    } catch (e) {
-      debugPrint('Users me put error: $e');
-      rethrow;
-    }
-  }
+  // removed: /api/users/me (not provided by backend controllers)
 
   // --- POST /api/users ---
   Future<http.Response> apiUsersPostWithHttpInfo({
@@ -222,19 +136,228 @@ class UserManagementControllerApi {
     }
   }
 
-  // --- GET /api/users/status/{status} ---
-  Future<http.Response> apiUsersStatusStatusGetWithHttpInfo({
+  // --- GET /api/users/search/status?status=&page=&size= ---
+  Future<http.Response> apiUsersSearchStatusGetWithHttpInfo({
     required String status,
+    int page = 1,
+    int size = 20,
   }) async {
     if (status.isEmpty) {
       throw ApiException(400, "Missing required param: status");
     }
-
-    final path = "/api/users/status/${Uri.encodeComponent(status)}"
-        .replaceAll("{format}", "json");
+    final path = "/api/users/search/status".replaceAll("{format}", "json");
     final headerParams = await _getHeaders();
-
+    final queryParams = [
+      QueryParam("status", status),
+      QueryParam("page", page.toString()),
+      QueryParam("size", size.toString()),
+    ];
     return await apiClient.invokeAPI(
+      path,
+      'GET',
+      queryParams,
+      null,
+      headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
+  }
+
+  // --- GET /api/users/search/department?department=&page=&size= ---
+  Future<http.Response> apiUsersSearchDepartmentGetWithHttpInfo({
+    required String department,
+    int page = 1,
+    int size = 20,
+  }) async {
+    if (department.isEmpty) {
+      throw ApiException(400, "Missing required param: department");
+    }
+    final path = "/api/users/search/department".replaceAll("{format}", "json");
+    final headerParams = await _getHeaders();
+    final queryParams = [
+      QueryParam("department", department),
+      QueryParam("page", page.toString()),
+      QueryParam("size", size.toString()),
+    ];
+    return await apiClient.invokeAPI(
+      path,
+      'GET',
+      queryParams,
+      null,
+      headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
+  }
+
+  Future<List<UserManagement>> apiUsersSearchDepartmentGet({
+    required String department,
+    int page = 1,
+    int size = 20,
+  }) async {
+    try {
+      final response = await apiUsersSearchDepartmentGetWithHttpInfo(
+          department: department, page: page, size: size);
+      debugPrint(
+          'Users search department response status: ${response.statusCode}');
+      debugPrint('Users search department response body: ${response.body}');
+
+      if (response.statusCode >= 400) {
+        final errorMessage = response.body.isNotEmpty
+            ? _decodeBodyBytes(response)
+            : 'Unknown error';
+        throw ApiException(response.statusCode, errorMessage);
+      } else if (response.body.isNotEmpty) {
+        final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+        return jsonList.map((json) => UserManagement.fromJson(json)).toList();
+      } else {
+        return [];
+      }
+    } catch (e) {
+      debugPrint('Users search department error: $e');
+      rethrow;
+    }
+  }
+
+  // --- POST /api/users/{userId}/roles --- bind user role
+  Future<http.Response> apiUsersUserIdRolesPostWithHttpInfo({
+    required int userId,
+    required Map<String, dynamic> body, // expects SysUserRoleModel.toJson()
+    required String idempotencyKey,
+  }) async {
+    if (idempotencyKey.isEmpty) {
+      throw ApiException(400, "Missing required param: idempotencyKey");
+    }
+    final path = "/api/users/$userId/roles".replaceAll("{format}", "json");
+    final headerParams = await _getHeaders();
+    final queryParams = [QueryParam("idempotencyKey", idempotencyKey)];
+    return await apiClient.invokeAPI(
+      path,
+      'POST',
+      queryParams,
+      body,
+      headerParams,
+      {},
+      'application/json',
+      ['bearerAuth'],
+    );
+  }
+
+  Future<Map<String, dynamic>?> apiUsersUserIdRolesPost({
+    required int userId,
+    required Map<String, dynamic> body,
+    required String idempotencyKey,
+  }) async {
+    final response = await apiUsersUserIdRolesPostWithHttpInfo(
+      userId: userId,
+      body: body,
+      idempotencyKey: idempotencyKey,
+    );
+    if (response.statusCode >= 400) {
+      final errorMessage = response.body.isNotEmpty
+          ? _decodeBodyBytes(response)
+          : 'Unknown error';
+      throw ApiException(response.statusCode, errorMessage);
+    }
+    return response.body.isNotEmpty
+        ? jsonDecode(_decodeBodyBytes(response)) as Map<String, dynamic>
+        : null;
+  }
+
+  // --- DELETE /api/users/roles/{relationId} ---
+  Future<void> apiUsersRolesRelationIdDelete({required int relationId}) async {
+    final path = "/api/users/roles/$relationId".replaceAll("{format}", "json");
+    final headerParams = await _getHeaders();
+    final response = await apiClient.invokeAPI(
+      path,
+      'DELETE',
+      [],
+      null,
+      headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      final errorMessage = response.body.isNotEmpty
+          ? _decodeBodyBytes(response)
+          : 'Unknown error';
+      throw ApiException(response.statusCode, errorMessage);
+    }
+  }
+
+  // --- GET /api/users/{userId}/roles?page=&size= ---
+  Future<List<Map<String, dynamic>>> apiUsersUserIdRolesGet({
+    required int userId,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final path = "/api/users/$userId/roles".replaceAll("{format}", "json");
+    final headerParams = await _getHeaders();
+    final response = await apiClient.invokeAPI(
+      path,
+      'GET',
+      [QueryParam("page", "$page"), QueryParam("size", "$size")],
+      null,
+      headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      final errorMessage = response.body.isNotEmpty
+          ? _decodeBodyBytes(response)
+          : 'Unknown error';
+      throw ApiException(response.statusCode, errorMessage);
+    }
+    if (response.body.isEmpty) return [];
+    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+    return jsonList.cast<Map<String, dynamic>>();
+  }
+
+  // --- PUT /api/users/role-bindings/{relationId} ---
+  Future<Map<String, dynamic>?> apiUsersRoleBindingsRelationIdPut({
+    required int relationId,
+    required Map<String, dynamic> body,
+    required String idempotencyKey,
+  }) async {
+    if (idempotencyKey.isEmpty) {
+      throw ApiException(400, "Missing required param: idempotencyKey");
+    }
+    final path =
+        "/api/users/role-bindings/$relationId".replaceAll("{format}", "json");
+    final headerParams = await _getHeaders();
+    final response = await apiClient.invokeAPI(
+      path,
+      'PUT',
+      [QueryParam("idempotencyKey", idempotencyKey)],
+      body,
+      headerParams,
+      {},
+      'application/json',
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      final errorMessage = response.body.isNotEmpty
+          ? _decodeBodyBytes(response)
+          : 'Unknown error';
+      throw ApiException(response.statusCode, errorMessage);
+    }
+    return response.body.isNotEmpty
+        ? jsonDecode(_decodeBodyBytes(response)) as Map<String, dynamic>
+        : null;
+  }
+
+  // --- GET /api/users/role-bindings/{relationId} ---
+  Future<Map<String, dynamic>?> apiUsersRoleBindingsRelationIdGet({
+    required int relationId,
+  }) async {
+    final path =
+        "/api/users/role-bindings/$relationId".replaceAll("{format}", "json");
+    final headerParams = await _getHeaders();
+    final response = await apiClient.invokeAPI(
       path,
       'GET',
       [],
@@ -244,16 +367,84 @@ class UserManagementControllerApi {
       null,
       ['bearerAuth'],
     );
+    if (response.statusCode >= 400) {
+      final errorMessage = response.body.isNotEmpty
+          ? _decodeBodyBytes(response)
+          : 'Unknown error';
+      throw ApiException(response.statusCode, errorMessage);
+    }
+    return response.body.isNotEmpty
+        ? jsonDecode(_decodeBodyBytes(response)) as Map<String, dynamic>
+        : null;
   }
 
-  Future<List<UserManagement>> apiUsersStatusStatusGet({
+  // --- GET /api/users/role-bindings?page=&size= ---
+  Future<List<Map<String, dynamic>>> apiUsersRoleBindingsGet({
+    int page = 1,
+    int size = 20,
+  }) async {
+    final path = "/api/users/role-bindings".replaceAll("{format}", "json");
+    final headerParams = await _getHeaders();
+    final response = await apiClient.invokeAPI(
+      path,
+      'GET',
+      [QueryParam("page", "$page"), QueryParam("size", "$size")],
+      null,
+      headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      final errorMessage = response.body.isNotEmpty
+          ? _decodeBodyBytes(response)
+          : 'Unknown error';
+      throw ApiException(response.statusCode, errorMessage);
+    }
+    if (response.body.isEmpty) return [];
+    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+    return jsonList.cast<Map<String, dynamic>>();
+  }
+
+  // --- GET /api/users/role-bindings/by-role/{roleId}?page=&size= ---
+  Future<List<Map<String, dynamic>>> apiUsersRoleBindingsByRoleRoleIdGet({
+    required int roleId,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final path =
+        "/api/users/role-bindings/by-role/$roleId".replaceAll("{format}", "json");
+    final headerParams = await _getHeaders();
+    final response = await apiClient.invokeAPI(
+      path,
+      'GET',
+      [QueryParam("page", "$page"), QueryParam("size", "$size")],
+      null,
+      headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      final errorMessage = response.body.isNotEmpty
+          ? _decodeBodyBytes(response)
+          : 'Unknown error';
+      throw ApiException(response.statusCode, errorMessage);
+    }
+    if (response.body.isEmpty) return [];
+    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+    return jsonList.cast<Map<String, dynamic>>();
+  }
+  Future<List<UserManagement>> apiUsersSearchStatusGet({
     required String status,
+    int page = 1,
+    int size = 20,
   }) async {
     try {
-      final response =
-          await apiUsersStatusStatusGetWithHttpInfo(status: status);
-      debugPrint('Users status get response status: ${response.statusCode}');
-      debugPrint('Users status get response body: ${response.body}');
+      final response = await apiUsersSearchStatusGetWithHttpInfo(
+          status: status, page: page, size: size);
+      debugPrint('Users search status response status: ${response.statusCode}');
+      debugPrint('Users search status response body: ${response.body}');
 
       if (response.statusCode >= 400) {
         final errorMessage = response.body.isNotEmpty
@@ -267,60 +458,12 @@ class UserManagementControllerApi {
         return [];
       }
     } catch (e) {
-      debugPrint('Users status get error: $e');
+      debugPrint('Users search status error: $e');
       rethrow;
     }
   }
 
-  // --- GET /api/users/type/{userType} ---
-  Future<http.Response> apiUsersTypeUserTypeGetWithHttpInfo({
-    required String userType,
-  }) async {
-    if (userType.isEmpty) {
-      throw ApiException(400, "Missing required param: userType");
-    }
-
-    final path = "/api/users/type/${Uri.encodeComponent(userType)}"
-        .replaceAll("{format}", "json");
-    final headerParams = await _getHeaders();
-
-    return await apiClient.invokeAPI(
-      path,
-      'GET',
-      [],
-      null,
-      headerParams,
-      {},
-      null,
-      ['bearerAuth'],
-    );
-  }
-
-  Future<List<UserManagement>> apiUsersTypeUserTypeGet({
-    required String userType,
-  }) async {
-    try {
-      final response =
-          await apiUsersTypeUserTypeGetWithHttpInfo(userType: userType);
-      debugPrint('Users type get response status: ${response.statusCode}');
-      debugPrint('Users type get response body: ${response.body}');
-
-      if (response.statusCode >= 400) {
-        final errorMessage = response.body.isNotEmpty
-            ? _decodeBodyBytes(response)
-            : 'Unknown error';
-        throw ApiException(response.statusCode, errorMessage);
-      } else if (response.body.isNotEmpty) {
-        final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-        return jsonList.map((json) => UserManagement.fromJson(json)).toList();
-      } else {
-        return [];
-      }
-    } catch (e) {
-      debugPrint('Users type get error: $e');
-      rethrow;
-    }
-  }
+  // removed: /api/users/type/{userType} (not provided by backend controllers)
 
   // --- DELETE /api/users/{userId} ---
   Future<http.Response> apiUsersUserIdDeleteWithHttpInfo({
@@ -475,42 +618,15 @@ class UserManagementControllerApi {
       throw ApiException(400, "Missing required param: username");
     }
 
-    final path = "/api/users/username/${Uri.encodeComponent(username)}"
-        .replaceAll("{format}", "json");
-    final headerParams = await _getHeaders();
-
-    return await apiClient.invokeAPI(
-      path,
-      'DELETE',
-      [],
-      null,
-      headerParams,
-      {},
-      null,
-      ['bearerAuth'],
-    );
+    // removed endpoint
+    throw ApiException(410, "Endpoint removed: DELETE /api/users/username/{username}");
   }
 
   Future<void> apiUsersUsernameUsernameDelete({
     required String username,
   }) async {
-    try {
-      final response =
-          await apiUsersUsernameUsernameDeleteWithHttpInfo(username: username);
-      debugPrint(
-          'Users username delete response status: ${response.statusCode}');
-      debugPrint('Users username delete response body: ${response.body}');
-
-      if (response.statusCode >= 400) {
-        final errorMessage = response.body.isNotEmpty
-            ? _decodeBodyBytes(response)
-            : 'Unknown error';
-        throw ApiException(response.statusCode, errorMessage);
-      }
-    } catch (e) {
-      debugPrint('Users username delete error: $e');
-      rethrow;
-    }
+    // removed endpoint
+    throw ApiException(410, "Endpoint removed: DELETE /api/users/username/{username}");
   }
 
   // --- GET /api/users/username/{username} ---
@@ -521,10 +637,26 @@ class UserManagementControllerApi {
       throw ApiException(400, "Missing required param: username");
     }
 
-    final path = "/api/users/username/${Uri.encodeComponent(username)}"
+    // replaced by /api/users/search/username/{username}
+    return await apiUsersSearchUsernameGetWithHttpInfo(username: username);
+  }
+
+  Future<UserManagement?> apiUsersUsernameUsernameGet({
+    required String username,
+  }) async {
+    return await apiUsersSearchUsernameGet(username: username);
+  }
+
+  // --- GET /api/users/search/username/{username} ---
+  Future<http.Response> apiUsersSearchUsernameGetWithHttpInfo({
+    required String username,
+  }) async {
+    if (username.isEmpty) {
+      throw ApiException(400, "Missing required param: username");
+    }
+    final path = "/api/users/search/username/${Uri.encodeComponent(username)}"
         .replaceAll("{format}", "json");
     final headerParams = await _getHeaders();
-
     return await apiClient.invokeAPI(
       path,
       'GET',
@@ -537,14 +669,14 @@ class UserManagementControllerApi {
     );
   }
 
-  Future<UserManagement?> apiUsersUsernameUsernameGet({
+  Future<UserManagement?> apiUsersSearchUsernameGet({
     required String username,
   }) async {
     try {
       final response =
-          await apiUsersUsernameUsernameGetWithHttpInfo(username: username);
-      debugPrint('Users username get response status: ${response.statusCode}');
-      debugPrint('Users username get response body: ${response.body}');
+          await apiUsersSearchUsernameGetWithHttpInfo(username: username);
+      debugPrint('Users search username response status: ${response.statusCode}');
+      debugPrint('Users search username response body: ${response.body}');
 
       if (response.statusCode >= 400) {
         final errorMessage = response.body.isNotEmpty
@@ -557,7 +689,7 @@ class UserManagementControllerApi {
         return null;
       }
     } catch (e) {
-      debugPrint('Users username get error: $e');
+      debugPrint('Users search username error: $e');
       rethrow;
     }
   }
@@ -619,105 +751,26 @@ class UserManagementControllerApi {
   Future<http.Response> apiUsersAutocompleteStatusesGetWithHttpInfo({
     required String prefix,
   }) async {
-    if (prefix.isEmpty) {
-      throw ApiException(400, "Missing required param: prefix");
-    }
-
-    final path =
-        "/api/users/autocomplete/statuses".replaceAll("{format}", "json");
-    final queryParams = [QueryParam("prefix", prefix)];
-    final headerParams = await _getHeaders();
-
-    return await apiClient.invokeAPI(
-      path,
-      'GET',
-      queryParams,
-      null,
-      headerParams,
-      {},
-      null,
-      ['bearerAuth'],
-    );
+    throw ApiException(410, "Endpoint removed: /api/users/autocomplete/statuses");
   }
 
   Future<List<String>> apiUsersAutocompleteStatusesGet({
     required String prefix,
   }) async {
-    try {
-      final response =
-          await apiUsersAutocompleteStatusesGetWithHttpInfo(prefix: prefix);
-      debugPrint(
-          'Users autocomplete statuses response status: ${response.statusCode}');
-      debugPrint('Users autocomplete statuses response body: ${response.body}');
-
-      if (response.statusCode >= 400) {
-        final errorMessage = response.body.isNotEmpty
-            ? _decodeBodyBytes(response)
-            : 'Unknown error';
-        throw ApiException(response.statusCode, errorMessage);
-      } else if (response.body.isNotEmpty) {
-        final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-        return jsonList.cast<String>();
-      } else {
-        return [];
-      }
-    } catch (e) {
-      debugPrint('Users autocomplete statuses error: $e');
-      rethrow;
-    }
+    throw ApiException(410, "Endpoint removed: /api/users/autocomplete/statuses");
   }
 
   // --- GET /api/users/autocomplete/phone-numbers ---
   Future<http.Response> apiUsersAutocompletePhoneNumbersGetWithHttpInfo({
     required String prefix,
   }) async {
-    if (prefix.isEmpty) {
-      throw ApiException(400, "Missing required param: prefix");
-    }
-
-    final path =
-        "/api/users/autocomplete/phone-numbers".replaceAll("{format}", "json");
-    final queryParams = [QueryParam("prefix", prefix)];
-    final headerParams = await _getHeaders();
-
-    return await apiClient.invokeAPI(
-      path,
-      'GET',
-      queryParams,
-      null,
-      headerParams,
-      {},
-      null,
-      ['bearerAuth'],
-    );
+    throw ApiException(410, "Endpoint removed: /api/users/autocomplete/phone-numbers");
   }
 
   Future<List<String>> apiUsersAutocompletePhoneNumbersGet({
     required String prefix,
   }) async {
-    try {
-      final response =
-          await apiUsersAutocompletePhoneNumbersGetWithHttpInfo(prefix: prefix);
-      debugPrint(
-          'Users autocomplete phone-numbers response status: ${response.statusCode}');
-      debugPrint(
-          'Users autocomplete phone-numbers response body: ${response.body}');
-
-      if (response.statusCode >= 400) {
-        final errorMessage = response.body.isNotEmpty
-            ? _decodeBodyBytes(response)
-            : 'Unknown error';
-        throw ApiException(response.statusCode, errorMessage);
-      } else if (response.body.isNotEmpty) {
-        final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-        return jsonList.cast<String>();
-      } else {
-        return [];
-      }
-    } catch (e) {
-      debugPrint('Users autocomplete phone-numbers error: $e');
-      rethrow;
-    }
+    throw ApiException(410, "Endpoint removed: /api/users/autocomplete/phone-numbers");
   }
 
   // --- WebSocket Methods ---

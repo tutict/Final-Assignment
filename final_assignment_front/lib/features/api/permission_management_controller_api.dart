@@ -367,4 +367,31 @@ class PermissionManagementControllerApi {
     }
     return null;
   }
+
+  // HTTP: GET /api/permissions/parent/{parentId} - 按父节点查询权限
+  Future<List<PermissionManagement>> apiPermissionsParentParentIdGet({
+    required int parentId,
+    int page = 1,
+    int size = 50,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/permissions/parent/$parentId',
+      'GET',
+      [
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    final List<dynamic> data =
+        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    return PermissionManagement.listFromJson(data);
+  }
 }

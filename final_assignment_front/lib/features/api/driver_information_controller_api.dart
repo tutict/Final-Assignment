@@ -280,9 +280,9 @@ class DriverInformationControllerApi {
     if (query.isEmpty) {
       throw ApiException(400, "Missing required param: query");
     }
-    const path = '/api/drivers/by-id-card';
+    const path = '/api/drivers/search/id-card';
     final queryParams = [
-      QueryParam('query', query),
+      QueryParam('keywords', query),
       QueryParam('page', page.toString()),
       QueryParam('size', size.toString()),
     ];
@@ -317,9 +317,9 @@ class DriverInformationControllerApi {
     if (query.isEmpty) {
       throw ApiException(400, "Missing required param: query");
     }
-    const path = '/api/drivers/by-license-number';
+    const path = '/api/drivers/search/license';
     final queryParams = [
-      QueryParam('query', query),
+      QueryParam('keywords', query),
       QueryParam('page', page.toString()),
       QueryParam('size', size.toString()),
     ];
@@ -354,9 +354,9 @@ class DriverInformationControllerApi {
     if (query.isEmpty) {
       throw ApiException(400, "Missing required param: query");
     }
-    const path = '/api/drivers/by-name';
+    const path = '/api/drivers/search/name';
     final queryParams = [
-      QueryParam('query', query),
+      QueryParam('keywords', query),
       QueryParam('page', page.toString()),
       QueryParam('size', size.toString()),
     ];

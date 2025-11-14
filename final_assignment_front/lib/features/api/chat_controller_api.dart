@@ -18,7 +18,8 @@ class ChatControllerApi {
   Future<http.Response> apiAiChatGetWithHttpInfo(String message) async {
     Object postBody = '';
     String path = "/api/ai/chat".replaceAll("{format}", "json");
-    List<QueryParam> queryParams = [QueryParam("massage", message)];
+    // Use the new 'message' parameter (backend still accepts 'massage' as deprecated)
+    List<QueryParam> queryParams = [QueryParam("message", message)];
     Map<String, String> headerParams = {};
 
     final prefs = await SharedPreferences.getInstance();
@@ -84,8 +85,12 @@ class ChatControllerApi {
       developer.log("No JWT token found for stream", name: 'ChatControllerApi');
     }
 
-    final uri = Uri.parse(
-        'http://localhost:8080/api/ai/chat?massage=$message&webSearch=$webSearch');
+    // Stream via the configured gateway/base path
+    final base = apiClient.basePath.endsWith('/')
+        ? apiClient.basePath.substring(0, apiClient.basePath.length - 1)
+        : apiClient.basePath;
+    final uri =
+        Uri.parse('$base/api/ai/chat?message=$message&webSearch=$webSearch');
     final request = http.Request('GET', uri)..headers.addAll(headers);
 
     final client = http.Client();

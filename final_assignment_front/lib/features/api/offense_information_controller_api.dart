@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'package:final_assignment_front/features/model/offense_information.dart';
+import 'package:final_assignment_front/features/model/driver_information.dart';
+import 'package:final_assignment_front/features/model/vehicle_information.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:flutter/material.dart';
@@ -190,7 +192,7 @@ class OffenseInformationControllerApi {
     String startTime = '1970-01-01', // Default matches backend
     String endTime = '2100-01-01', // Default matches backend
   }) async {
-    const path = '/api/offenses/timeRange';
+    const path = '/api/offenses/search/time-range';
     final queryParams = [
       QueryParam('startTime', startTime),
       QueryParam('endTime', endTime),
@@ -223,9 +225,9 @@ class OffenseInformationControllerApi {
     if (query.isEmpty) {
       throw ApiException(400, "Missing required param: query");
     }
-    const path = '/api/offenses/by-offense-type';
+const path = '/api/offenses/search/code';
     final queryParams = [
-      QueryParam('query', query),
+      QueryParam('offenseCode', query),
       QueryParam('page', page.toString()),
       QueryParam('size', size.toString()),
     ];
@@ -260,17 +262,72 @@ class OffenseInformationControllerApi {
     if (query.isEmpty) {
       throw ApiException(400, "Missing required param: query");
     }
-    const path = '/api/offenses/by-driver-name';
-    final queryParams = [
-      QueryParam('query', query),
-      QueryParam('page', page.toString()),
-      QueryParam('size', size.toString()),
-    ];
+    // Composite: drivers by name -> offenses by driverId
+    const driverPath = '/api/drivers/search/name';
+    final headerParams = await _getHeaders();
+    final driverResp = await apiClient.invokeAPI(
+      driverPath,
+      'GET',
+      [
+        QueryParam('keywords', query),
+        QueryParam('page', '1'),
+        QueryParam('size', '20'),
+      ],
+      null,
+      headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (driverResp.statusCode >= 400) {
+      throw ApiException(driverResp.statusCode, _decodeBodyBytes(driverResp));
+    }
+    if (driverResp.body.isEmpty) return [];
+    final List<dynamic> driversJson = jsonDecode(_decodeBodyBytes(driverResp));
+    final drivers =
+        driversJson.map((e) => DriverInformation.fromJson(e)).toList();
+    if (drivers.isEmpty) return [];
+
+    final Map<int, OffenseInformation> merged = {};
+    for (final d in drivers) {
+      final did = d.driverId;
+      if (did == null) continue;
+      final offensesResp = await apiClient.invokeAPI(
+        '/api/offenses/driver/$did',
+        'GET',
+        [QueryParam('page', '$page'), QueryParam('size', '$size')],
+        null,
+        headerParams,
+        {},
+        null,
+        ['bearerAuth'],
+      );
+      if (offensesResp.statusCode >= 400 || offensesResp.body.isEmpty) {
+        continue;
+      }
+      final List<dynamic> oJson = jsonDecode(_decodeBodyBytes(offensesResp));
+      for (final oj in oJson) {
+        final oi = OffenseInformation.fromJson(oj);
+        if (oi.offenseId != null) {
+          merged[oi.offenseId!] = oi;
+        }
+      }
+    }
+    return merged.values.toList();
+  }
+
+  /// GET /api/offenses/driver/{driverId} - 按驾驶员ID查询
+  Future<List<OffenseInformation>> apiOffensesDriverDriverIdGet({
+    required int driverId,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final path = '/api/offenses/driver/$driverId';
     final headerParams = await _getHeaders();
     final response = await apiClient.invokeAPI(
       path,
       'GET',
-      queryParams,
+      [QueryParam('page', '$page'), QueryParam('size', '$size')],
       null,
       headerParams,
       {},
@@ -278,9 +335,7 @@ class OffenseInformationControllerApi {
       ['bearerAuth'],
     );
     if (response.statusCode >= 400) {
-      if (response.statusCode == 204) {
-        return []; // No content, return empty list
-      }
+      if (response.statusCode == 204) return [];
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     }
     if (response.body.isEmpty) return [];
@@ -288,6 +343,94 @@ class OffenseInformationControllerApi {
     return jsonList.map((json) => OffenseInformation.fromJson(json)).toList();
   }
 
+  /// GET /api/offenses/vehicle/{vehicleId} - 按车辆ID查询
+  Future<List<OffenseInformation>> apiOffensesVehicleVehicleIdGet({
+    required int vehicleId,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final path = '/api/offenses/vehicle/$vehicleId';
+    final headerParams = await _getHeaders();
+    final response = await apiClient.invokeAPI(
+      path,
+      'GET',
+      [QueryParam('page', '$page'), QueryParam('size', '$size')],
+      null,
+      headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      if (response.statusCode == 204) return [];
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    if (response.body.isEmpty) return [];
+    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+    return jsonList.map((json) => OffenseInformation.fromJson(json)).toList();
+  }
+
+  /// GET /api/offenses/search/status?processStatus=... - 按处理状态查询
+  Future<List<OffenseInformation>> apiOffensesSearchStatusGet({
+    required String processStatus,
+    int page = 1,
+    int size = 20,
+  }) async {
+    const path = '/api/offenses/search/status';
+    final headerParams = await _getHeaders();
+    final response = await apiClient.invokeAPI(
+      path,
+      'GET',
+      [
+        QueryParam('processStatus', processStatus),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      if (response.statusCode == 204) return [];
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    if (response.body.isEmpty) return [];
+    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+    return jsonList.map((json) => OffenseInformation.fromJson(json)).toList();
+  }
+
+  /// GET /api/offenses/search/number?offenseNumber=... - 按违法编号查询
+  Future<List<OffenseInformation>> apiOffensesSearchNumberGet({
+    required String offenseNumber,
+    int page = 1,
+    int size = 20,
+  }) async {
+    const path = '/api/offenses/search/number';
+    final headerParams = await _getHeaders();
+    final response = await apiClient.invokeAPI(
+      path,
+      'GET',
+      [
+        QueryParam('offenseNumber', offenseNumber),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      if (response.statusCode == 204) return [];
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    if (response.body.isEmpty) return [];
+    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+    return jsonList.map((json) => OffenseInformation.fromJson(json)).toList();
+  }
   /// GET /api/offenses/by-license-plate - 搜索违法行为按车牌号 (用户及管理员)
   Future<List<OffenseInformation>> apiOffensesByLicensePlateGet({
     required String query,
@@ -297,31 +440,44 @@ class OffenseInformationControllerApi {
     if (query.isEmpty) {
       throw ApiException(400, "Missing required param: query");
     }
-    const path = '/api/offenses/by-license-plate';
-    final queryParams = [
-      QueryParam('query', query),
-      QueryParam('page', page.toString()),
-      QueryParam('size', size.toString()),
-    ];
     final headerParams = await _getHeaders();
-    final response = await apiClient.invokeAPI(
-      path,
+    // Step1: exact search vehicle by license plate
+    final vResp = await apiClient.invokeAPI(
+      '/api/vehicles/search/license',
       'GET',
-      queryParams,
+      [QueryParam('licensePlate', query)],
       null,
       headerParams,
       {},
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      if (response.statusCode == 204) {
-        return []; // No content, return empty list
-      }
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    if (vResp.statusCode == 404 || vResp.body.isEmpty) {
+      return [];
     }
-    if (response.body.isEmpty) return [];
-    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+    if (vResp.statusCode >= 400) {
+      throw ApiException(vResp.statusCode, _decodeBodyBytes(vResp));
+    }
+    final vehicle = VehicleInformation.fromJson(
+        jsonDecode(_decodeBodyBytes(vResp)) as Map<String, dynamic>);
+    if (vehicle.vehicleId == null) return [];
+
+    // Step2: offenses by vehicle id
+    final oResp = await apiClient.invokeAPI(
+      '/api/offenses/vehicle/${vehicle.vehicleId}',
+      'GET',
+      [QueryParam('page', '$page'), QueryParam('size', '$size')],
+      null,
+      headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (oResp.statusCode >= 400) {
+      throw ApiException(oResp.statusCode, _decodeBodyBytes(oResp));
+    }
+    if (oResp.body.isEmpty) return [];
+    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(oResp));
     return jsonList.map((json) => OffenseInformation.fromJson(json)).toList();
   }
 

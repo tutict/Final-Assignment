@@ -351,4 +351,52 @@ class RoleManagementControllerApi {
     }
     return [];
   }
+
+  // HTTP: GET /api/roles/by-code/{roleCode} - 根据角色编码获取
+  Future<RoleManagement?> apiRolesByCodeRoleCodeGet(String roleCode) async {
+    if (roleCode.isEmpty) {
+      throw ApiException(400, "Missing required param: roleCode");
+    }
+    final response = await apiClient.invokeAPI(
+      '/api/roles/by-code/$roleCode',
+      'GET',
+      [],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    if (response.body.isEmpty) return null;
+    final data = apiClient.deserialize(_decodeBodyBytes(response), 'Map<String, dynamic>');
+    return RoleManagement.fromJson(data);
+  }
+
+  // HTTP: GET /api/roles/{roleId}/permissions - 查询角色拥有的权限
+  Future<List<dynamic>> apiRolesRoleIdPermissionsGet({
+    required int roleId,
+    int page = 1,
+    int size = 50,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/roles/$roleId/permissions',
+      'GET',
+      [
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    return apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+  }
 }

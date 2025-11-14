@@ -35,4 +35,12 @@ class HttpBearerAuth implements Authentication {
     _accessToken = accessToken;
     debugPrint('Set access token: $_accessToken');
   }
+
+  /// Returns the resolved token string if available, otherwise null.
+  String? getAccessTokenString() {
+    if (_accessToken == null) return null;
+    if (_accessToken is String) return _accessToken as String;
+    if (_accessToken is String Function()) return (_accessToken as String Function())();
+    return null;
+  }
 }

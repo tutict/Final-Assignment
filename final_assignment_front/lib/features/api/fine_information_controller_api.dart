@@ -199,15 +199,15 @@ class FineInformationControllerApi {
     return jsonList.map((json) => FineInformation.fromJson(json)).toList();
   }
 
-  /// GET /api/fines/timeRange - 根据时间范围获取罚款 (用户及管理员)
+  /// GET /api/fines/search/date-range - 根据时间范围获取罚款 (用户及管理员)
   Future<List<FineInformation>> apiFinesTimeRangeGet({
-    String startTime = '1970-01-01', // Default matches backend
-    String endTime = '2100-01-01',   // Default matches backend
+    String startDate = '1970-01-01', // Default matches backend
+    String endDate = '2100-01-01',   // Default matches backend
   }) async {
-    const path = '/api/fines/timeRange';
+    const path = '/api/fines/search/date-range';
     final queryParams = [
-      QueryParam('startTime', startTime),
-      QueryParam('endTime', endTime),
+      QueryParam('startDate', startDate),
+      QueryParam('endDate', endDate),
     ];
     final headerParams = await _getHeaders();
     final response = await apiClient.invokeAPI(
@@ -256,6 +256,94 @@ class FineInformationControllerApi {
     if (response.body.isEmpty) return null;
     final data = apiClient.deserialize(_decodeBodyBytes(response), 'Map<String, dynamic>');
     return FineInformation.fromJson(data);
+  }
+
+  /// GET /api/fines/offense/{offenseId} - 按违法记录分页查询罚款
+  Future<List<FineInformation>> apiFinesOffenseOffenseIdGet({
+    required int offenseId,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final path = '/api/fines/offense/$offenseId';
+    final headerParams = await _getHeaders();
+    final response = await apiClient.invokeAPI(
+      path,
+      'GET',
+      [QueryParam('page', '$page'), QueryParam('size', '$size')],
+      null,
+      headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    if (response.body.isEmpty) return [];
+    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+    return jsonList.map((json) => FineInformation.fromJson(json)).toList();
+  }
+
+  /// GET /api/fines/search/handler - 按处理人搜索罚款记录
+  Future<List<FineInformation>> apiFinesSearchHandlerGet({
+    required String handler,
+    String mode = 'prefix', // or 'fuzzy'
+    int page = 1,
+    int size = 20,
+  }) async {
+    const path = '/api/fines/search/handler';
+    final headerParams = await _getHeaders();
+    final response = await apiClient.invokeAPI(
+      path,
+      'GET',
+      [
+        QueryParam('handler', handler),
+        QueryParam('mode', mode),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    if (response.body.isEmpty) return [];
+    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+    return jsonList.map((json) => FineInformation.fromJson(json)).toList();
+  }
+
+  /// GET /api/fines/search/status - 按支付状态搜索罚款记录
+  Future<List<FineInformation>> apiFinesSearchStatusGet({
+    required String status,
+    int page = 1,
+    int size = 20,
+  }) async {
+    const path = '/api/fines/search/status';
+    final headerParams = await _getHeaders();
+    final response = await apiClient.invokeAPI(
+      path,
+      'GET',
+      [
+        QueryParam('status', status),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    if (response.body.isEmpty) return [];
+    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+    return jsonList.map((json) => FineInformation.fromJson(json)).toList();
   }
 
   /// GET /api/fines/by-time-range - 搜索罚款按时间范围 (用户及管理员)

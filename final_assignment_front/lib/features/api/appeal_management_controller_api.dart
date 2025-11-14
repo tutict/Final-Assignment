@@ -1,10 +1,11 @@
 import 'dart:convert';
-import 'package:final_assignment_front/features/model/appeal_management.dart';
-import 'package:final_assignment_front/features/model/offense_information.dart';
+
+import 'package:final_assignment_front/features/model/appeal_record.dart';
+import 'package:final_assignment_front/features/model/appeal_review.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
+import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 final ApiClient defaultApiClient = ApiClient();
@@ -15,592 +16,308 @@ class AppealManagementControllerApi {
   AppealManagementControllerApi([ApiClient? apiClient])
       : apiClient = apiClient ?? defaultApiClient;
 
-  String _decodeBodyBytes(http.Response response) => response.body;
-
-  Future<Map<String, String>> _getHeaders() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('jwtToken') ?? '';
-    return {
-      'Content-Type': 'application/json; charset=utf-8',
-      if (token.isNotEmpty) 'Authorization': 'Bearer $token',
-    };
-  }
-
-  /// 从 SharedPreferences 中读取 jwtToken 并设置到 ApiClient 中
   Future<void> initializeWithJwt() async {
     final prefs = await SharedPreferences.getInstance();
     final jwtToken = prefs.getString('jwtToken');
-    if (jwtToken == null) {
+    if (jwtToken == null || jwtToken.isEmpty) {
       throw Exception('未登录，请重新登录');
     }
     apiClient.setJwtToken(jwtToken);
-    debugPrint(
-        'Initialized AppealManagementControllerApi with token: $jwtToken');
+    debugPrint('Initialized AppealManagementControllerApi with token: $jwtToken');
   }
 
-  /// 辅助方法：将幂等性键添加为查询参数
-  List<QueryParam> _addIdempotencyKey(String idempotencyKey) {
-    return [QueryParam('idempotencyKey', idempotencyKey)];
+  String _decodeBodyBytes(http.Response response) {
+    return utf8.decode(response.bodyBytes);
   }
 
-  // --- POST /api/appeals ---
-  Future<AppealManagement> apiAppealsPost({
-    required AppealManagement appealManagement,
-    required String idempotencyKey,
+  Future<Map<String, String>> _getHeaders({String? idempotencyKey}) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('jwtToken') ?? '';
+    final headers = <String, String>{
+      'Content-Type': 'application/json; charset=utf-8',
+    };
+    if (token.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+    if (idempotencyKey != null && idempotencyKey.trim().isNotEmpty) {
+      headers['Idempotency-Key'] = idempotencyKey.trim();
+    }
+    return headers;
+  }
+
+  void _ensureSuccess(http.Response response) {
+    if (response.statusCode >= 400) {
+      final message = response.body.isNotEmpty
+          ? _decodeBodyBytes(response)
+          : 'Request failed with status ${response.statusCode}';
+      throw ApiException(response.statusCode, message);
+    }
+  }
+
+  List<AppealRecordModel> _parseAppealList(String body) {
+    if (body.isEmpty) return [];
+    final List<dynamic> raw = jsonDecode(body) as List<dynamic>;
+    return raw
+        .map((item) => AppealRecordModel.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
+  List<AppealReviewModel> _parseReviewList(String body) {
+    if (body.isEmpty) return [];
+    final List<dynamic> raw = jsonDecode(body) as List<dynamic>;
+    return raw
+        .map((item) => AppealReviewModel.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// POST /api/appeals
+  Future<AppealRecordModel> apiAppealsPost({
+    required AppealRecordModel appealRecord,
+    String? idempotencyKey,
   }) async {
-    const path = "/api/appeals";
-    final headerParams = await _getHeaders();
     final response = await apiClient.invokeAPI(
-      path,
+      '/api/appeals',
       'POST',
-      _addIdempotencyKey(idempotencyKey),
-      appealManagement.toJson(),
-      headerParams,
-      {},
+      const [],
+      appealRecord.toJson(),
+      await _getHeaders(idempotencyKey: idempotencyKey),
+      const {},
       'application/json',
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
-    final data = apiClient.deserialize(
-        _decodeBodyBytes(response), 'Map<String, dynamic>');
-    return AppealManagement.fromJson(data);
+    _ensureSuccess(response);
+    final body = _decodeBodyBytes(response);
+    return AppealRecordModel.fromJson(
+        jsonDecode(body) as Map<String, dynamic>);
   }
 
-  // --- GET /api/appeals/{appealId} ---
-  Future<AppealManagement> apiAppealsAppealIdGet({
+  /// PUT /api/appeals/{appealId}
+  Future<AppealRecordModel> apiAppealsAppealIdPut({
     required int appealId,
+    required AppealRecordModel appealRecord,
+    String? idempotencyKey,
   }) async {
-    final path = "/api/appeals/$appealId";
-    final headerParams = await _getHeaders();
     final response = await apiClient.invokeAPI(
-      path,
-      'GET',
-      [],
-      null,
-      headerParams,
-      {},
-      null,
-      ['bearerAuth'],
-    );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
-    final data = apiClient.deserialize(
-        _decodeBodyBytes(response), 'Map<String, dynamic>');
-    return AppealManagement.fromJson(data);
-  }
-
-  // --- GET /api/appeals ---
-  Future<List<AppealManagement>> apiAppealsGet() async {
-    const path = "/api/appeals";
-    final headerParams = await _getHeaders();
-    final response = await apiClient.invokeAPI(
-      path,
-      'GET',
-      [],
-      null,
-      headerParams,
-      {},
-      null,
-      ['bearerAuth'],
-    );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-      return jsonList.map((json) => AppealManagement.fromJson(json)).toList();
-    } else {
-      return [];
-    }
-  }
-
-  // --- PUT /api/appeals/{appealId} ---
-  Future<AppealManagement> apiAppealsAppealIdPut({
-    required int appealId,
-    required AppealManagement appealManagement,
-    required String idempotencyKey,
-  }) async {
-    final path = "/api/appeals/$appealId";
-    final headerParams = await _getHeaders();
-    final response = await apiClient.invokeAPI(
-      path,
+      '/api/appeals/$appealId',
       'PUT',
-      _addIdempotencyKey(idempotencyKey),
-      appealManagement.toJson(),
-      headerParams,
-      {},
+      const [],
+      appealRecord.toJson(),
+      await _getHeaders(idempotencyKey: idempotencyKey),
+      const {},
       'application/json',
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
-    final data = apiClient.deserialize(
-        _decodeBodyBytes(response), 'Map<String, dynamic>');
-    return AppealManagement.fromJson(data);
+    _ensureSuccess(response);
+    final body = _decodeBodyBytes(response);
+    return AppealRecordModel.fromJson(
+        jsonDecode(body) as Map<String, dynamic>);
   }
 
-  // --- DELETE /api/appeals/{appealId} ---
-  Future<void> apiAppealsAppealIdDelete({
-    required int appealId,
-  }) async {
-    final path = "/api/appeals/$appealId";
-    final headerParams = await _getHeaders();
+  /// DELETE /api/appeals/{appealId}
+  Future<void> apiAppealsAppealIdDelete({required int appealId}) async {
     final response = await apiClient.invokeAPI(
-      path,
+      '/api/appeals/$appealId',
       'DELETE',
-      [],
+      const [],
       null,
-      headerParams,
-      {},
+      await _getHeaders(),
+      const {},
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    if (response.statusCode != 204 && response.statusCode != 200) {
+      _ensureSuccess(response);
     }
   }
 
-  // --- GET /api/appeals/status/{processStatus} ---
-  Future<List<AppealManagement>> apiAppealsStatusProcessStatusGet({
-    required String processStatus,
-  }) async {
-    if (processStatus.isEmpty) {
-      throw ApiException(400, "Missing required param: processStatus");
-    }
-    final path = "/api/appeals/status/${Uri.encodeComponent(processStatus)}";
-    final headerParams = await _getHeaders();
+  /// GET /api/appeals/{appealId}
+  Future<AppealRecordModel?> apiAppealsAppealIdGet(
+      {required int appealId}) async {
     final response = await apiClient.invokeAPI(
-      path,
+      '/api/appeals/$appealId',
       'GET',
-      [],
+      const [],
       null,
-      headerParams,
-      {},
+      await _getHeaders(),
+      const {},
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-      return jsonList.map((json) => AppealManagement.fromJson(json)).toList();
-    } else {
-      return [];
+    if (response.statusCode == 404) {
+      return null;
     }
+    _ensureSuccess(response);
+    if (response.body.isEmpty) {
+      return null;
+    }
+    return AppealRecordModel.fromJson(
+        jsonDecode(_decodeBodyBytes(response)) as Map<String, dynamic>);
   }
 
-  // --- GET /api/appeals/name/{appellantName} ---
-  Future<List<AppealManagement>> apiAppealsNameAppellantNameGet({
-    required String appellantName,
-  }) async {
-    if (appellantName.isEmpty) {
-      throw ApiException(400, "Missing required param: appellantName");
-    }
-    final path = "/api/appeals/name/${Uri.encodeComponent(appellantName)}";
-    final headerParams = await _getHeaders();
-    final response = await apiClient.invokeAPI(
-      path,
-      'GET',
-      [],
-      null,
-      headerParams,
-      {},
-      null,
-      ['bearerAuth'],
-    );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-      return jsonList.map((json) => AppealManagement.fromJson(json)).toList();
-    } else {
-      return [];
-    }
-  }
-
-  // --- GET /api/appeals/{appealId}/offense ---
-  Future<OffenseInformation> apiAppealsAppealIdOffenseGet({
-    required int appealId,
-  }) async {
-    final path = "/api/appeals/$appealId/offense";
-    final headerParams = await _getHeaders();
-    final response = await apiClient.invokeAPI(
-      path,
-      'GET',
-      [],
-      null,
-      headerParams,
-      {},
-      null,
-      ['bearerAuth'],
-    );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
-    final data = apiClient.deserialize(
-        _decodeBodyBytes(response), 'Map<String, dynamic>');
-    return OffenseInformation.fromJson(data);
-  }
-
-  // --- GET /api/appeals/id-card/{idCardNumber} ---
-  Future<List<AppealManagement>> apiAppealsIdCardIdCardNumberGet({
-    required String idCardNumber,
-  }) async {
-    if (idCardNumber.isEmpty) {
-      throw ApiException(400, "Missing required param: idCardNumber");
-    }
-    final path = "/api/appeals/id-card/${Uri.encodeComponent(idCardNumber)}";
-    final headerParams = await _getHeaders();
-    final response = await apiClient.invokeAPI(
-      path,
-      'GET',
-      [],
-      null,
-      headerParams,
-      {},
-      null,
-      ['bearerAuth'],
-    );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-      return jsonList.map((json) => AppealManagement.fromJson(json)).toList();
-    } else {
-      return [];
-    }
-  }
-
-  // --- GET /api/appeals/contact/{contactNumber} ---
-  Future<List<AppealManagement>> apiAppealsContactContactNumberGet({
-    required String contactNumber,
-  }) async {
-    if (contactNumber.isEmpty) {
-      throw ApiException(400, "Missing required param: contactNumber");
-    }
-    final path = "/api/appeals/contact/${Uri.encodeComponent(contactNumber)}";
-    final headerParams = await _getHeaders();
-    final response = await apiClient.invokeAPI(
-      path,
-      'GET',
-      [],
-      null,
-      headerParams,
-      {},
-      null,
-      ['bearerAuth'],
-    );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-      return jsonList.map((json) => AppealManagement.fromJson(json)).toList();
-    } else {
-      return [];
-    }
-  }
-
-  // --- GET /api/appeals/offense/{offenseId} ---
-  Future<List<AppealManagement>> apiAppealsOffenseOffenseIdGet({
+  /// GET /api/appeals?offenseId=...&page=...&size=...
+  Future<List<AppealRecordModel>> apiAppealsGet({
     required int offenseId,
-  }) async {
-    final path = "/api/appeals/offense/$offenseId";
-    final headerParams = await _getHeaders();
-    final response = await apiClient.invokeAPI(
-      path,
-      'GET',
-      [],
-      null,
-      headerParams,
-      {},
-      null,
-      ['bearerAuth'],
-    );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-      return jsonList.map((json) => AppealManagement.fromJson(json)).toList();
-    } else {
-      return [];
-    }
-  }
-
-  // --- GET /api/appeals/time-range ---
-  Future<List<AppealManagement>> apiAppealsTimeRangeGet({
-    required String startTime,
-    required String endTime,
-  }) async {
-    if (startTime.isEmpty || endTime.isEmpty) {
-      throw ApiException(400, "Missing required params: startTime or endTime");
-    }
-    const path = "/api/appeals/time-range";
-    final queryParams = [
-      QueryParam('startTime', startTime),
-      QueryParam('endTime', endTime),
-    ];
-    final headerParams = await _getHeaders();
-    final response = await apiClient.invokeAPI(
-      path,
-      'GET',
-      queryParams,
-      null,
-      headerParams,
-      {},
-      null,
-      ['bearerAuth'],
-    );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-      return jsonList.map((json) => AppealManagement.fromJson(json)).toList();
-    } else {
-      return [];
-    }
-  }
-
-  // --- GET /api/appeals/by-appellant-name ---
-  Future<List<AppealManagement>> apiAppealsByAppellantNameGet({
-    required String query,
     int page = 1,
-    int size = 10,
+    int size = 20,
   }) async {
-    if (query.isEmpty) {
-      throw ApiException(400, "Missing required param: query");
+    if (offenseId <= 0) {
+      throw ApiException(400, 'Missing required param: offenseId');
     }
-    const path = "/api/appeals/by-appellant-name";
-    final queryParams = [
-      QueryParam('query', query),
+    final queryParams = <QueryParam>[
+      QueryParam('offenseId', offenseId.toString()),
       QueryParam('page', page.toString()),
       QueryParam('size', size.toString()),
     ];
-    final headerParams = await _getHeaders();
     final response = await apiClient.invokeAPI(
-      path,
+      '/api/appeals',
       'GET',
       queryParams,
       null,
-      headerParams,
-      {},
+      await _getHeaders(),
+      const {},
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-      return jsonList.map((json) => AppealManagement.fromJson(json)).toList();
-    } else {
+    if (response.statusCode == 404) {
       return [];
     }
+    _ensureSuccess(response);
+    return _parseAppealList(_decodeBodyBytes(response));
   }
 
-  // --- GET /api/appeals/by-reason ---
-  Future<List<AppealManagement>> apiAppealsByReasonGet({
-    required String query,
-    int page = 1,
-    int size = 10,
+  /// POST /api/appeals/{appealId}/reviews
+  Future<AppealReviewModel> apiAppealsAppealIdReviewsPost({
+    required int appealId,
+    required AppealReviewModel review,
+    String? idempotencyKey,
   }) async {
-    if (query.isEmpty) {
-      throw ApiException(400, "Missing required param: query");
-    }
-    const path = "/api/appeals/by-reason";
-    final queryParams = [
-      QueryParam('query', query),
-      QueryParam('page', page.toString()),
-      QueryParam('size', size.toString()),
-    ];
-    final headerParams = await _getHeaders();
     final response = await apiClient.invokeAPI(
-      path,
-      'GET',
-      queryParams,
+      '/api/appeals/$appealId/reviews',
+      'POST',
+      const [],
+      review.toJson(),
+      await _getHeaders(idempotencyKey: idempotencyKey),
+      const {},
+      'application/json',
+      ['bearerAuth'],
+    );
+    _ensureSuccess(response);
+    return AppealReviewModel.fromJson(
+        jsonDecode(_decodeBodyBytes(response)) as Map<String, dynamic>);
+  }
+
+  /// PUT /api/appeals/reviews/{reviewId}
+  Future<AppealReviewModel> apiAppealsReviewsReviewIdPut({
+    required int reviewId,
+    required AppealReviewModel review,
+    String? idempotencyKey,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/appeals/reviews/$reviewId',
+      'PUT',
+      const [],
+      review.toJson(),
+      await _getHeaders(idempotencyKey: idempotencyKey),
+      const {},
+      'application/json',
+      ['bearerAuth'],
+    );
+    _ensureSuccess(response);
+    return AppealReviewModel.fromJson(
+        jsonDecode(_decodeBodyBytes(response)) as Map<String, dynamic>);
+  }
+
+  /// DELETE /api/appeals/reviews/{reviewId}
+  Future<void> apiAppealsReviewsReviewIdDelete(
+      {required int reviewId}) async {
+    final response = await apiClient.invokeAPI(
+      '/api/appeals/reviews/$reviewId',
+      'DELETE',
+      const [],
       null,
-      headerParams,
-      {},
+      await _getHeaders(),
+      const {},
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-      return jsonList.map((json) => AppealManagement.fromJson(json)).toList();
-    } else {
+    if (response.statusCode != 204 && response.statusCode != 200) {
+      _ensureSuccess(response);
+    }
+  }
+
+  /// GET /api/appeals/reviews/{reviewId}
+  Future<AppealReviewModel?> apiAppealsReviewsReviewIdGet(
+      {required int reviewId}) async {
+    final response = await apiClient.invokeAPI(
+      '/api/appeals/reviews/$reviewId',
+      'GET',
+      const [],
+      null,
+      await _getHeaders(),
+      const {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode == 404) {
+      return null;
+    }
+    _ensureSuccess(response);
+    if (response.body.isEmpty) {
+      return null;
+    }
+    return AppealReviewModel.fromJson(
+        jsonDecode(_decodeBodyBytes(response)) as Map<String, dynamic>);
+  }
+
+  /// GET /api/appeals/reviews
+  Future<List<AppealReviewModel>> apiAppealsReviewsGet() async {
+    final response = await apiClient.invokeAPI(
+      '/api/appeals/reviews',
+      'GET',
+      const [],
+      null,
+      await _getHeaders(),
+      const {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode == 404) {
       return [];
     }
+    _ensureSuccess(response);
+    return _parseReviewList(_decodeBodyBytes(response));
   }
 
-  // --- GET /api/appeals/count/status/{processStatus} ---
-  Future<int> apiAppealsCountStatusProcessStatusGet({
-    required String processStatus,
+  /// GET /api/appeals/reviews/count?level=xxx
+  Future<int> apiAppealsReviewsCountGet({
+    required String reviewLevel,
   }) async {
-    if (processStatus.isEmpty) {
-      throw ApiException(400, "Missing required param: processStatus");
+    if (reviewLevel.trim().isEmpty) {
+      throw ApiException(400, 'Missing required param: reviewLevel');
     }
-    final path =
-        "/api/appeals/count/status/${Uri.encodeComponent(processStatus)}";
-    final headerParams = await _getHeaders();
     final response = await apiClient.invokeAPI(
-      path,
+      '/api/appeals/reviews/count',
       'GET',
-      [],
+      [QueryParam('level', reviewLevel)],
       null,
-      headerParams,
-      {},
+      await _getHeaders(),
+      const {},
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    _ensureSuccess(response);
+    if (response.body.isEmpty) {
+      return 0;
     }
-    return int.parse(_decodeBodyBytes(response));
-  }
-
-  // --- GET /api/appeals/reason/{reason} ---
-  Future<List<AppealManagement>> apiAppealsReasonReasonGet({
-    required String reason,
-  }) async {
-    if (reason.isEmpty) {
-      throw ApiException(400, "Missing required param: reason");
+    final data =
+        jsonDecode(_decodeBodyBytes(response)) as Map<String, dynamic>;
+    final count = data['count'];
+    if (count is int) {
+      return count;
     }
-    final path = "/api/appeals/reason/${Uri.encodeComponent(reason)}";
-    final headerParams = await _getHeaders();
-    final response = await apiClient.invokeAPI(
-      path,
-      'GET',
-      [],
-      null,
-      headerParams,
-      {},
-      null,
-      ['bearerAuth'],
-    );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-      return jsonList.map((json) => AppealManagement.fromJson(json)).toList();
-    } else {
-      return [];
+    if (count is num) {
+      return count.toInt();
     }
-  }
-
-  // --- GET /api/appeals/status-and-time ---
-  Future<List<AppealManagement>> apiAppealsStatusAndTimeGet({
-    required String processStatus,
-    required String startTime,
-    required String endTime,
-  }) async {
-    if (processStatus.isEmpty || startTime.isEmpty || endTime.isEmpty) {
-      throw ApiException(
-          400, "Missing required params: processStatus, startTime, or endTime");
-    }
-    const path = "/api/appeals/status-and-time";
-    final queryParams = [
-      QueryParam('processStatus', processStatus),
-      QueryParam('startTime', startTime),
-      QueryParam('endTime', endTime),
-    ];
-    final headerParams = await _getHeaders();
-    final response = await apiClient.invokeAPI(
-      path,
-      'GET',
-      queryParams,
-      null,
-      headerParams,
-      {},
-      null,
-      ['bearerAuth'],
-    );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    } else if (response.body.isNotEmpty) {
-      final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-      return jsonList.map((json) => AppealManagement.fromJson(json)).toList();
-    } else {
-      return [];
-    }
-  }
-
-  // --- WebSocket Methods (unchanged, included for completeness) ---
-
-  /// 通过 WebSocket 删除申诉
-  Future<Object?> eventbusAppealsAppealIdDelete(
-      {required String appealId}) async {
-    final msg = {
-      "service": "AppealManagementService",
-      "action": "deleteAppeal",
-      "args": [int.parse(appealId)],
-    };
-    final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey("result")) {
-      return respMap["result"];
-    } else if (respMap.containsKey("status")) {
-      return respMap["status"];
-    }
-    return respMap;
-  }
-
-  /// 通过 WebSocket 获取申诉详情
-  Future<Object?> eventbusAppealsAppealIdGet({required String appealId}) async {
-    final msg = {
-      "service": "AppealManagementService",
-      "action": "getAppealById",
-      "args": [int.parse(appealId)],
-    };
-    final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey("result")) {
-      return respMap["result"];
-    }
-    return respMap;
-  }
-
-  /// 通过 WebSocket 获取申诉关联的违法信息
-  Future<Object?> eventbusAppealsAppealIdOffenseGet(
-      {required String appealId}) async {
-    final msg = {
-      "service": "AppealManagementService",
-      "action": "getOffenseByAppealId",
-      "args": [int.parse(appealId)],
-    };
-    final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey("result")) {
-      return respMap["result"];
-    }
-    return respMap;
-  }
-
-  /// 通过 WebSocket 更新申诉（简化调用，仅作为示例，实际推荐使用 HTTP PUT）
-  Future<Object?> eventbusAppealsAppealIdPut(
-      {required String appealId, int? integer}) async {
-    final msg = {
-      "service": "AppealManagementService",
-      "action": "updateAppeal",
-      "args": [int.parse(appealId), integer ?? 0],
-    };
-    final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey("result")) {
-      return respMap["result"];
-    }
-    return respMap;
-  }
-
-  /// 通过 WebSocket 获取所有申诉记录
-  Future<List<Object>?> eventbusAppealsGet() async {
-    final msg = {
-      "service": "AppealManagementService",
-      "action": "getAllAppeals",
-      "args": []
-    };
-    final respMap = await apiClient.sendWsMessage(msg);
-    if (respMap.containsKey("result") && respMap["result"] is List) {
-      return respMap["result"] as List<Object>;
-    }
-    return null;
+    return 0;
   }
 }
