@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:math';
 import 'package:final_assignment_front/features/api/operation_log_controller_api.dart';
-import 'package:final_assignment_front/features/api/system_logs_controller_api.dart';
+import 'package:final_assignment_front/features/api/user_management_controller_api.dart';
 import 'package:final_assignment_front/features/model/operation_log.dart';
 import 'package:final_assignment_front/features/model/system_logs.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
@@ -15,9 +15,10 @@ import 'package:http/http.dart' as http;
 import 'dart:io';
 
 class LogController extends GetxController with WidgetsBindingObserver {
+  static const String _backendBaseUrl = 'http://localhost:8081';
   final OperationLogControllerApi _operationLogApi =
       OperationLogControllerApi();
-  final SystemLogsControllerApi _systemLogApi = SystemLogsControllerApi();
+  final UserManagementControllerApi _userApi = UserManagementControllerApi();
   String? _currentUsername;
   int? _currentUserId;
   String? _currentIpAddress;
@@ -72,7 +73,6 @@ class LogController extends GetxController with WidgetsBindingObserver {
       await _fetchIpAddress();
 // Initialize APIs
       await _operationLogApi.initializeWithJwt();
-      await _systemLogApi.initializeWithJwt();
       _isInitialized = true;
       developer.log(
           'LogController initialized with username: $_currentUsername, userId: $_currentUserId, IP: $_currentIpAddress');
@@ -88,27 +88,23 @@ class LogController extends GetxController with WidgetsBindingObserver {
   Future<void> _fetchUserId() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken');
-      if (jwtToken == null) {
-        developer.log('No JWT token for fetching userId');
+      final storedUsername = prefs.getString('userName');
+      if (storedUsername == null || storedUsername.isEmpty) {
+        developer.log('No username found in prefs for user lookup');
         return;
       }
-      final response = await http.get(
-        Uri.parse('http://localhost:8081/api/users/me'),
-        headers: {
-          'Authorization': 'Bearer $jwtToken',
-          'Content-Type': 'application/json',
-        },
-      ).timeout(const Duration(seconds: 5));
-      if (response.statusCode == 200) {
-        final userData = jsonDecode(response.body);
-        _currentUserId = userData['userId'] != null
-            ? int.tryParse(userData['userId'].toString())
-            : null;
-        developer.log('Fetched userId: $_currentUserId from /api/users/me');
-      } else {
-        developer.log('Failed to fetch userId: ${response.statusCode}');
+      await _userApi.initializeWithJwt();
+      final user =
+          await _userApi.apiUsersSearchUsernameGet(username: storedUsername);
+      if (user == null || user.userId == null) {
+        developer.log('Failed to fetch user info for $storedUsername');
+        return;
       }
+      _currentUserId = user.userId;
+      _currentUsername =
+          user.realName ?? user.username ?? storedUsername;
+      developer.log(
+          'Fetched userId: $_currentUserId via /api/users/search/username');
     } catch (e) {
       developer.log('Error fetching userId: $e',
           stackTrace: StackTrace.current);
@@ -151,15 +147,10 @@ class LogController extends GetxController with WidgetsBindingObserver {
       logContent: 'Application Started',
       operationUser: _currentUsername ?? 'Unknown',
       operationTime: DateTime.now(),
-      operationIpAddress: _currentIpAddress,
       remarks: 'Traffic Violation Management System started',
-      idempotencyKey: idempotencyKey,
     );
     try {
-      await _systemLogApi.apiSystemLogsPost(
-        systemLogs: systemLog,
-        idempotencyKey: idempotencyKey,
-      );
+      await _postSystemLog(systemLog, idempotencyKey);
       developer.log('Logged application startup to system_logs');
     } catch (e) {
       developer.log('Failed to log app startup to system_logs: $e',
@@ -178,13 +169,11 @@ class LogController extends GetxController with WidgetsBindingObserver {
         operationContent: 'Application Started',
         operationResult: 'Success',
         operationTime: DateTime.now(),
-        operationIpAddress: _currentIpAddress,
         remarks: 'User launched the app',
-        idempotencyKey: idempotencyKey,
       );
       for (int attempt = 0; attempt < maxRetries; attempt++) {
         try {
-          await _operationLogApi.apiOperationLogsPost(
+          await _operationLogApi.apiLogsOperationPost(
             operationLog: operationLog,
             idempotencyKey: idempotencyKey,
           );
@@ -197,7 +186,6 @@ class LogController extends GetxController with WidgetsBindingObserver {
             developer.log(
                 'Duplicate request detected for operation log, retrying with new idempotencyKey (attempt ${attempt + 1}/$maxRetries)');
             idempotencyKey = _generateIdempotencyKey();
-            operationLog.idempotencyKey = idempotencyKey;
             await Future.delayed(Duration(milliseconds: 100 * (attempt + 1)));
           } else {
             developer.log('Failed to log app startup to operation_logs: $e',
@@ -227,15 +215,10 @@ class LogController extends GetxController with WidgetsBindingObserver {
       logContent: logContent,
       operationUser: _currentUsername ?? 'Unknown',
       operationTime: DateTime.now(),
-      operationIpAddress: _currentIpAddress,
       remarks: null,
-      idempotencyKey: idempotencyKey,
     );
     try {
-      await _systemLogApi.apiSystemLogsPost(
-        systemLogs: systemLog,
-        idempotencyKey: idempotencyKey,
-      );
+      await _postSystemLog(systemLog, idempotencyKey);
       developer.log('Logged app lifecycle event to system_logs: $logContent');
     } catch (e) {
       developer.log('Failed to log app lifecycle event to system_logs: $e',
@@ -254,13 +237,11 @@ class LogController extends GetxController with WidgetsBindingObserver {
         operationContent: 'App Lifecycle Changed',
         operationResult: 'Success',
         operationTime: DateTime.now(),
-        operationIpAddress: _currentIpAddress,
         remarks: logContent,
-        idempotencyKey: idempotencyKey,
       );
       for (int attempt = 0; attempt < maxRetries; attempt++) {
         try {
-          await _operationLogApi.apiOperationLogsPost(
+          await _operationLogApi.apiLogsOperationPost(
             operationLog: operationLog,
             idempotencyKey: idempotencyKey,
           );
@@ -274,7 +255,6 @@ class LogController extends GetxController with WidgetsBindingObserver {
             developer.log(
                 'Duplicate request detected for operation log, retrying with new idempotencyKey (attempt ${attempt + 1}/$maxRetries)');
             idempotencyKey = _generateIdempotencyKey();
-            operationLog.idempotencyKey = idempotencyKey;
             await Future.delayed(Duration(milliseconds: 100 * (attempt + 1)));
           } else {
             developer.log(
@@ -313,15 +293,10 @@ class LogController extends GetxController with WidgetsBindingObserver {
       logContent: error,
       operationUser: _currentUsername ?? 'Unknown',
       operationTime: DateTime.now(),
-      operationIpAddress: _currentIpAddress,
       remarks: stackTrace ?? remarks,
-      idempotencyKey: idempotencyKey,
     );
     try {
-      await _systemLogApi.apiSystemLogsPost(
-        systemLogs: systemLog,
-        idempotencyKey: idempotencyKey,
-      );
+      await _postSystemLog(systemLog, idempotencyKey);
       developer.log('Logged system error to system_logs: $error');
     } catch (e) {
       developer.log('Failed to log system error to system_logs: $e',
@@ -340,13 +315,11 @@ class LogController extends GetxController with WidgetsBindingObserver {
         operationContent: 'System Error Occurred',
         operationResult: 'Failed',
         operationTime: DateTime.now(),
-        operationIpAddress: _currentIpAddress,
         remarks: error,
-        idempotencyKey: idempotencyKey,
       );
       for (int attempt = 0; attempt < maxRetries; attempt++) {
         try {
-          await _operationLogApi.apiOperationLogsPost(
+          await _operationLogApi.apiLogsOperationPost(
             operationLog: operationLog,
             idempotencyKey: idempotencyKey,
           );
@@ -359,7 +332,6 @@ class LogController extends GetxController with WidgetsBindingObserver {
             developer.log(
                 'Duplicate request detected for operation log, retrying with new idempotencyKey (attempt ${attempt + 1}/$maxRetries)');
             idempotencyKey = _generateIdempotencyKey();
-            operationLog.idempotencyKey = idempotencyKey;
             await Future.delayed(Duration(milliseconds: 100 * (attempt + 1)));
           } else {
             developer.log('Failed to log system error to operation_logs: $e',
@@ -513,7 +485,7 @@ class LogController extends GetxController with WidgetsBindingObserver {
     if (await _validateJwtToken()) {
 // Retry initialization of APIs
       await _operationLogApi.initializeWithJwt();
-      await _systemLogApi.initializeWithJwt();
+      await _userApi.initializeWithJwt();
       developer.log('Reinitialized APIs after token refresh');
     } else {
       developer.log('Failed to refresh token, scheduling redirect to login');
@@ -537,13 +509,11 @@ class LogController extends GetxController with WidgetsBindingObserver {
       operationContent: 'Navigated to $pageName',
       operationResult: 'Success',
       operationTime: DateTime.now(),
-      operationIpAddress: _currentIpAddress,
       remarks: remarks,
-      idempotencyKey: idempotencyKey,
     );
     for (int attempt = 0; attempt < maxRetries; attempt++) {
       try {
-        await _operationLogApi.apiOperationLogsPost(
+        await _operationLogApi.apiLogsOperationPost(
           operationLog: operationLog,
           idempotencyKey: idempotencyKey,
         );
@@ -556,7 +526,6 @@ class LogController extends GetxController with WidgetsBindingObserver {
           developer.log(
               'Duplicate request detected for navigation log, retrying with new idempotencyKey (attempt ${attempt + 1}/$maxRetries)');
           idempotencyKey = _generateIdempotencyKey();
-          operationLog.idempotencyKey = idempotencyKey;
           await Future.delayed(Duration(milliseconds: 100 * (attempt + 1)));
         } else {
           developer.log('Failed to log navigation: $e',
@@ -585,13 +554,11 @@ class LogController extends GetxController with WidgetsBindingObserver {
       operationContent: action,
       operationResult: result ?? 'Success',
       operationTime: DateTime.now(),
-      operationIpAddress: _currentIpAddress,
       remarks: remarks,
-      idempotencyKey: idempotencyKey,
     );
     for (int attempt = 0; attempt < maxRetries; attempt++) {
       try {
-        await _operationLogApi.apiOperationLogsPost(
+        await _operationLogApi.apiLogsOperationPost(
           operationLog: operationLog,
           idempotencyKey: idempotencyKey,
         );
@@ -604,7 +571,6 @@ class LogController extends GetxController with WidgetsBindingObserver {
           developer.log(
               'Duplicate request detected for user action log, retrying with new idempotencyKey (attempt ${attempt + 1}/$maxRetries)');
           idempotencyKey = _generateIdempotencyKey();
-          operationLog.idempotencyKey = idempotencyKey;
           await Future.delayed(Duration(milliseconds: 100 * (attempt + 1)));
         } else {
           developer.log('Failed to log user action: $e',
@@ -643,15 +609,10 @@ class LogController extends GetxController with WidgetsBindingObserver {
       logContent: logContent,
       operationUser: _currentUsername ?? 'Unknown',
       operationTime: DateTime.now(),
-      operationIpAddress: _currentIpAddress,
       remarks: remarks,
-      idempotencyKey: idempotencyKey,
     );
     try {
-      await _systemLogApi.apiSystemLogsPost(
-        systemLogs: systemLog,
-        idempotencyKey: idempotencyKey,
-      );
+      await _postSystemLog(systemLog, idempotencyKey);
       developer.log('Logged API call to system_logs: $logContent');
     } catch (e) {
       developer.log('Failed to log API call to system_logs: $e',
@@ -670,13 +631,11 @@ class LogController extends GetxController with WidgetsBindingObserver {
         operationContent: 'API $method Call',
         operationResult: error != null ? 'Failed' : 'Success',
         operationTime: DateTime.now(),
-        operationIpAddress: _currentIpAddress,
         remarks: '$logContent${remarks != null ? ' - $remarks' : ''}',
-        idempotencyKey: idempotencyKey,
       );
       for (int attempt = 0; attempt < maxRetries; attempt++) {
         try {
-          await _operationLogApi.apiOperationLogsPost(
+          await _operationLogApi.apiLogsOperationPost(
             operationLog: operationLog,
             idempotencyKey: idempotencyKey,
           );
@@ -689,7 +648,6 @@ class LogController extends GetxController with WidgetsBindingObserver {
             developer.log(
                 'Duplicate request detected for API call log, retrying with new idempotencyKey (attempt ${attempt + 1}/$maxRetries)');
             idempotencyKey = _generateIdempotencyKey();
-            operationLog.idempotencyKey = idempotencyKey;
             await Future.delayed(Duration(milliseconds: 100 * (attempt + 1)));
           } else {
             developer.log('Failed to log API call to operation_logs: $e',
@@ -746,6 +704,30 @@ class LogController extends GetxController with WidgetsBindingObserver {
         await _handle403Error();
       }
       rethrow;
+    }
+  }
+
+  Future<void> _postSystemLog(
+      SystemLogs logEntry, String idempotencyKey) async {
+    final prefs = await SharedPreferences.getInstance();
+    final jwtToken = prefs.getString('jwtToken');
+    if (jwtToken == null) {
+      throw ApiException(401, 'Missing JWT token for system log');
+    }
+    final uri = Uri.parse('$_backendBaseUrl/api/system/logs')
+        .replace(queryParameters: {'idempotencyKey': idempotencyKey});
+    final response = await http
+        .post(
+          uri,
+          headers: {
+            HttpHeaders.authorizationHeader: 'Bearer $jwtToken',
+            HttpHeaders.contentTypeHeader: 'application/json; charset=utf-8',
+          },
+          body: jsonEncode(logEntry.toJson()),
+        )
+        .timeout(const Duration(seconds: 5));
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, response.body);
     }
   }
 }

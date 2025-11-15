@@ -86,9 +86,15 @@ class UserDashboardController extends GetxController with NavigationMixin {
 
   Future<void> _fetchDriverData() async {
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final storedUsername = prefs.getString('userName');
+      if (storedUsername == null || storedUsername.isEmpty) {
+        throw Exception('Username not found in storage');
+      }
       final userApi = UserManagementControllerApi();
       await userApi.initializeWithJwt();
-      final user = await userApi.apiUsersMeGet();
+      final user =
+          await userApi.apiUsersSearchUsernameGet(username: storedUsername);
       if (user == null || user.userId == null) {
         throw Exception('User or user ID not found');
       }
@@ -97,20 +103,22 @@ class UserDashboardController extends GetxController with NavigationMixin {
       final driverApi = DriverInformationControllerApi();
       await driverApi.initializeWithJwt();
       final driver = await driverApi.apiDriversDriverIdGet(driverId: userId);
-      if (driver == null || driver.name == null) {
-        throw Exception('Driver or driver name not found');
-      }
+      final resolvedName =
+          driver?.name ?? user.realName ?? user.username ?? storedUsername;
+      final resolvedEmail = user.email ?? currentEmail.value;
 
       updateCurrentUser(
-        driver.name!,
-        currentEmail.value, // Keep existing email
+        resolvedName,
+        resolvedEmail,
       );
-      driverLicenseNumber.value = driver.driverLicenseNumber ?? '';
-      idCardNumber.value = driver.idCardNumber ?? '';
-      // Save correct name to SharedPreferences
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('userName', driver.name!);
-      developer.log('Updated userName in prefs: ${driver.name}');
+      driverLicenseNumber.value = driver?.driverLicenseNumber ?? '';
+      idCardNumber.value = driver?.idCardNumber ?? '';
+      await prefs.setString('userName', resolvedName);
+      await prefs.setString('userId', userId.toString());
+      if (resolvedEmail.isNotEmpty) {
+        await prefs.setString('userEmail', resolvedEmail);
+      }
+      developer.log('Updated user info from API: name=$resolvedName, id=$userId');
     } catch (e) {
       developer.log('Failed to fetch driver data: $e');
       _showErrorSnackBar('无法获取司机信息: $e');

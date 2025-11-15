@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:final_assignment_front/features/api/appeal_management_controller_api.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
-import 'package:final_assignment_front/features/model/appeal_management.dart';
+import 'package:final_assignment_front/features/model/appeal_record.dart';
 import 'package:final_assignment_front/features/model/progress_item.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -13,7 +13,7 @@ class ProgressController extends GetxController {
       AppealManagementControllerApi();
   final RxList<ProgressItem> progressItems = <ProgressItem>[].obs;
   final RxList<ProgressItem> filteredItems = <ProgressItem>[].obs;
-  final RxList<AppealManagement> appeals = <AppealManagement>[].obs;
+  final RxList<AppealRecordModel> appeals = <AppealRecordModel>[].obs;
   final RxList<String> statusCategories =
       ['Pending', 'Processing', 'Completed', 'Archived'].obs;
   final RxBool isLoading = false.obs;
@@ -38,15 +38,28 @@ class ProgressController extends GetxController {
 
   Future<void> fetchAppeals() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken');
-      if (jwtToken == null) {
-        throw Exception('JWT Token not found');
+      await appealApi.initializeWithJwt();
+      final response = await appealApi.apiClient.invokeAPI(
+        '/api/appeals',
+        'GET',
+        const [],
+        null,
+        {},
+        const {},
+        null,
+        ['bearerAuth'],
+      );
+      if (response.statusCode == 404 || response.body.isEmpty) {
+        appeals.clear();
+        return;
       }
-      appealApi.apiClient.setJwtToken(jwtToken);
-
-      final fetchedAppeals = await appealApi.apiAppealsGet();
-      appeals.value = fetchedAppeals;
+      if (response.statusCode >= 400) {
+        throw ApiException(response.statusCode, response.body);
+      }
+      final List<dynamic> data = jsonDecode(response.body);
+      appeals.value = data
+          .map((json) => AppealRecordModel.fromJson(json as Map<String, dynamic>))
+          .toList();
     } catch (e) {
       errorMessage.value = _formatErrorMessage(e);
       Get.snackbar('错误', '加载申诉失败: $e', snackPosition: SnackPosition.TOP);
@@ -96,7 +109,7 @@ class ProgressController extends GetxController {
     try {
       final prefs = await SharedPreferences.getInstance();
       final jwtToken = prefs.getString('jwtToken');
-      final username = prefs.getString('username');
+      final username = prefs.getString('userName');
       if (jwtToken == null || username == null) {
         throw Exception('JWT Token or username not found');
       }

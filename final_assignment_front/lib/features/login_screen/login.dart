@@ -114,11 +114,11 @@ class _LoginScreenState extends State<LoginScreen>
         final userData = result['user'] ?? {};
         debugPrint('登录返回的用户数据: $userData');
         final int? userIdFromLogin = userData['userId'];
-        final String name = userData['name'] ?? username.split('@').first;
-        final String email = userData['email'] ?? username;
-        debugPrint('提取的 userId: $userIdFromLogin, 姓名: $name, 邮箱: $email');
+        String resolvedName = userData['name'] ?? username.split('@').first;
+        String resolvedEmail = userData['email'] ?? username;
+        debugPrint('提取的 userId: $userIdFromLogin, 姓名: $resolvedName, 邮箱: $resolvedEmail');
 
-        String driverName = name;
+        String driverName = resolvedName;
 
         await driverApi.initializeWithJwt();
         debugPrint('Driver API 已初始化');
@@ -126,28 +126,19 @@ class _LoginScreenState extends State<LoginScreen>
         await userManagementApi.initializeWithJwt();
         debugPrint('UserManagement API 已初始化');
 
-        int? userId;
+        int? userId = userIdFromLogin;
         try {
-          final userInfo = await userManagementApi.apiUsersMeGet();
+          final userInfo = await userManagementApi
+              .apiUsersSearchUsernameGet(username: username);
           if (userInfo != null) {
-            userId = userInfo.userId;
-            debugPrint('从 /api/users/me 获取的 userId: $userId');
+            userId = userInfo.userId ?? userId;
+            resolvedName =
+                userInfo.realName ?? userInfo.username ?? resolvedName;
+            resolvedEmail = userInfo.email ?? resolvedEmail;
+            debugPrint('通过用户名查询获取的 userId: $userId, 姓名: $resolvedName');
           }
         } catch (e) {
-          debugPrint('获取用户信息失败: $e');
-        }
-
-        if (userId == null) {
-          try {
-            final userInfo = await userManagementApi
-                .apiUsersUsernameUsernameGet(username: username);
-            if (userInfo != null) {
-              userId = userInfo.userId;
-              debugPrint('从 /api/users/username/$username 获取的 userId: $userId');
-            }
-          } catch (e) {
-            debugPrint('通过用户名查询用户信息失败: $e');
-          }
+          debugPrint('通过用户名查询用户信息失败: $e');
         }
 
         if (userId != null) {
@@ -165,7 +156,7 @@ class _LoginScreenState extends State<LoginScreen>
               final idempotencyKey = generateIdempotencyKey();
               final newDriverInfo = DriverInformation(
                 driverId: userId,
-                name: name,
+                name: resolvedName,
                 contactNumber: '',
                 idCardNumber: '',
               );
@@ -173,7 +164,7 @@ class _LoginScreenState extends State<LoginScreen>
                 driverInformation: newDriverInfo,
                 idempotencyKey: idempotencyKey,
               );
-              driverName = name;
+              driverName = resolvedName;
               debugPrint('创建新司机记录，driverName: $driverName');
             } else {
               debugPrint('获取 DriverInformation 失败: $e');
@@ -183,13 +174,14 @@ class _LoginScreenState extends State<LoginScreen>
           debugPrint('无法获取 userId，跳过 DriverInformation 查询');
         }
 
+        driverName = driverName.isNotEmpty ? driverName : resolvedName;
         await prefs.setString('driverName', driverName);
-        await prefs.setString('userEmail', email);
+        await prefs.setString('userEmail', resolvedEmail);
         if (userId != null) await prefs.setString('userId', userId.toString());
 
         Get.find<ChatController>().setUserRole(_userRole!);
 
-        debugPrint('登录成功 - 角色: $_userRole, 姓名: $driverName, 邮箱: $email');
+        debugPrint('登录成功 - 角色: $_userRole, 姓名: $driverName, 邮箱: $resolvedEmail');
         return null;
       }
       return result['message'] ?? '登录失败';
@@ -245,15 +237,15 @@ class _LoginScreenState extends State<LoginScreen>
 
           final userData = loginResult['user'] ?? {};
           final int? userId = userData['userId'];
-          final String name = userData['name'] ?? username.split('@').first;
-          final String email = userData['email'] ?? username;
+          String resolvedName = userData['name'] ?? username.split('@').first;
+          String resolvedEmail = userData['email'] ?? username;
 
-          String driverName = name;
+          String driverName = resolvedName;
           if (userId != null) {
             await driverApi.initializeWithJwt();
             final driverInfo = DriverInformation(
               driverId: userId,
-              name: name,
+              name: resolvedName,
               idCardNumber: '',
               contactNumber: '',
             );
@@ -263,9 +255,9 @@ class _LoginScreenState extends State<LoginScreen>
             );
             final fetchedDriver =
             await driverApi.apiDriversDriverIdGet(driverId: userId);
-            driverName = fetchedDriver?.name ?? name;
+            driverName = fetchedDriver?.name ?? resolvedName;
             await prefs.setString('driverName', driverName);
-            await prefs.setString('userEmail', email);
+            await prefs.setString('userEmail', resolvedEmail);
             await prefs.setString('userId', userId.toString());
             debugPrint('Driver created and fetched name: $driverName');
           }
@@ -273,7 +265,7 @@ class _LoginScreenState extends State<LoginScreen>
           Get.find<ChatController>().setUserRole(_userRole!);
 
           debugPrint(
-              'Signup and login successful - Role: $_userRole, Name: $driverName, Email: $email');
+              'Signup and login successful - Role: $_userRole, Name: $driverName, Email: $resolvedEmail');
           return null;
         }
         return loginResult['message'] ?? '注册成功，但登录失败';
