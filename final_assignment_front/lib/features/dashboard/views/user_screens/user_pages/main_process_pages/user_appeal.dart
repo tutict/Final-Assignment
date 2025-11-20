@@ -3,12 +3,13 @@ import 'package:final_assignment_front/features/dashboard/controllers/progress_c
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:final_assignment_front/features/model/appeal_management.dart';
+import 'package:final_assignment_front/features/model/appeal_record.dart';
 import 'package:final_assignment_front/features/api/appeal_management_controller_api.dart';
 import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
+import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
+import 'package:final_assignment_front/features/api/user_management_controller_api.dart';
 import 'package:final_assignment_front/features/model/driver_information.dart';
 import 'package:final_assignment_front/features/model/user_management.dart';
-import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:get/get.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 import 'dart:developer' as developer;
@@ -32,15 +33,18 @@ class UserAppealPage extends StatefulWidget {
 class _UserAppealPageState extends State<UserAppealPage> {
   late AppealManagementControllerApi appealApi;
   late DriverInformationControllerApi driverApi;
-  final ApiClient apiClient = ApiClient();
+  final OffenseInformationControllerApi offenseApi =
+      OffenseInformationControllerApi();
+  final UserManagementControllerApi userApi =
+      UserManagementControllerApi();
   final TextEditingController _searchController = TextEditingController();
-  List<AppealManagement> _appeals = [];
+  List<AppealRecordModel> _appeals = [];
   bool _isLoading = true;
   bool _isUser = false;
   String _errorMessage = '';
   late ScrollController _scrollController;
   bool _hasOffenses = false;
-  List<dynamic> _userOffenses = [];
+  List<dynamic> _offenseCache = [];
   String? _currentDriverName;
 
   DateTime? _startTime;
@@ -67,15 +71,6 @@ class _UserAppealPageState extends State<UserAppealPage> {
     super.dispose();
   }
 
-  Future<Map<String, String>> _getHeaders() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('jwtToken') ?? '';
-    return {
-      'Content-Type': 'application/json; charset=utf-8',
-      if (token.isNotEmpty) 'Authorization': 'Bearer $token',
-    };
-  }
-
   Future<void> _loadAppealsAndCheckRole() async {
     setState(() => _isLoading = true);
     try {
@@ -84,9 +79,10 @@ class _UserAppealPageState extends State<UserAppealPage> {
       if (jwtToken == null) {
         throw Exception('未登录，请重新登录');
       }
-      apiClient.setJwtToken(jwtToken);
-      appealApi.apiClient.setJwtToken(jwtToken);
-      driverApi.apiClient.setJwtToken(jwtToken);
+      await appealApi.initializeWithJwt();
+      await driverApi.initializeWithJwt();
+      await offenseApi.initializeWithJwt();
+      await userApi.initializeWithJwt();
 
       _currentDriverName = prefs.getString('driverName');
       if (_currentDriverName == null) {
@@ -130,50 +126,48 @@ class _UserAppealPageState extends State<UserAppealPage> {
 
   Future<String?> _fetchDriverName(String jwtToken) async {
     try {
-      final userResponse = await apiClient.invokeAPI(
-        '/api/users/me',
-        'GET',
-        [],
-        null,
-        {'Authorization': 'Bearer $jwtToken'},
-        {},
-        'application/json',
-        ['bearerAuth'],
-      );
-      if (userResponse.statusCode == 200) {
-        final userData = jsonDecode(utf8.decode(userResponse.bodyBytes));
-        developer.log('User data: $userData');
-        final userId = userData['userId'] as int?;
-        if (userId == null) {
-          throw Exception('User data does not contain userId');
-        }
-
-        await driverApi.initializeWithJwt();
-        var driverInfo =
-        await driverApi.apiDriversDriverIdGet(driverId: userId);
-        if (driverInfo == null) {
-          final user = UserManagement.fromJson(userData);
-          driverInfo = DriverInformation(
-            driverId: userId,
-            name: user.username ?? '未知用户',
-            contactNumber: user.contactNumber ?? '',
-            idCardNumber: '',
-            driverLicenseNumber:
-            '${DateTime.now().millisecondsSinceEpoch.toString().substring(6)}${(1000 + (DateTime.now().millisecondsSinceEpoch % 9000)).toString()}',
-          );
-          await driverApi.apiDriversPost(
-            driverInformation: driverInfo,
-            idempotencyKey: generateIdempotencyKey(),
-          );
-          driverInfo = await driverApi.apiDriversDriverIdGet(driverId: userId);
-        }
-        final driverName = driverInfo?.name ?? '未知用户';
-        developer.log('Driver name from API: $driverName');
-        return driverName;
-      } else {
-        throw Exception(
-            'Failed to fetch user data: ${userResponse.statusCode}');
+      final prefs = await SharedPreferences.getInstance();
+      final storedUsername = prefs.getString('userName');
+      Map<String, dynamic>? decoded;
+      try {
+        decoded = _decodeJwt(jwtToken);
+      } catch (_) {}
+      final username = storedUsername?.isNotEmpty == true
+          ? storedUsername!
+          : decoded?['sub']?.toString();
+      if (username == null || username.isEmpty) {
+        throw Exception('无法确定当前用户');
       }
+      await userApi.initializeWithJwt();
+      final userData =
+          await userApi.apiUsersSearchUsernameGet(username: username);
+      if (userData == null || userData.userId == null) {
+        throw Exception('User data does not contain userId');
+      }
+      final int userId = userData.userId!;
+
+      await driverApi.initializeWithJwt();
+      var driverInfo =
+          await driverApi.apiDriversDriverIdGet(driverId: userId);
+      if (driverInfo == null) {
+        driverInfo = DriverInformation(
+          driverId: userId,
+          name: userData.username ?? '未知用户',
+          contactNumber: userData.contactNumber ?? '',
+          idCardNumber: '',
+          driverLicenseNumber:
+              '${DateTime.now().millisecondsSinceEpoch.toString().substring(6)}${(1000 + (DateTime.now().millisecondsSinceEpoch % 9000)).toString()}',
+        );
+        await driverApi.apiDriversPost(
+          driverInformation: driverInfo,
+          idempotencyKey: generateIdempotencyKey(),
+        );
+        driverInfo =
+            await driverApi.apiDriversDriverIdGet(driverId: userId);
+      }
+      final driverName = driverInfo?.name ?? userData.username ?? '未知用户';
+      developer.log('Driver name from API: $driverName');
+      return driverName;
     } catch (e) {
       developer.log('Error fetching driver name: $e');
       return null;
@@ -185,27 +179,16 @@ class _UserAppealPageState extends State<UserAppealPage> {
       if (_currentDriverName == null) {
         throw Exception('未找到驾驶员姓名');
       }
-      final response = await apiClient.invokeAPI(
-        '/api/offenses/by-driver-name?query=$_currentDriverName&page=1&size=20',
-        'GET',
-        [],
-        null,
-        await _getHeaders(),
-        {},
-        'application/json',
-        ['bearerAuth'],
+      final offenses = await offenseApi.apiOffensesByDriverNameGet(
+        query: _currentDriverName!,
+        page: 1,
+        size: 20,
       );
-      if (response.statusCode == 200) {
-        final List<dynamic> offenses =
-        jsonDecode(utf8.decode(response.bodyBytes));
-        developer.log('Fetched offenses: $offenses');
-        setState(() {
-          _userOffenses = offenses;
-          _hasOffenses = offenses.isNotEmpty;
-        });
-      } else {
-        throw Exception('检查违法信息失败: ${response.statusCode}');
-      }
+      developer.log('Fetched offenses: ${offenses.length}');
+      setState(() {
+        _offenseCache = offenses.map((o) => o.toJson()).toList();
+        _hasOffenses = offenses.isNotEmpty;
+      });
     } catch (e) {
       developer.log('Error checking user offenses: $e');
       setState(() {
@@ -219,24 +202,13 @@ class _UserAppealPageState extends State<UserAppealPage> {
       if (_currentDriverName == null) {
         throw Exception('未找到驾驶员姓名');
       }
-      final response = await apiClient.invokeAPI(
-        '/api/offenses/by-driver-name?query=$_currentDriverName&page=1&size=20',
-        'GET',
-        [],
-        null,
-        await _getHeaders(),
-        {},
-        'application/json',
-        ['bearerAuth'],
+      _offenseCache = await offenseApi.apiOffensesByDriverNameGet(
+        query: _currentDriverName!,
+        page: 1,
+        size: 20,
       );
-      if (response.statusCode == 200) {
-        final List<dynamic> offenses =
-        jsonDecode(utf8.decode(response.bodyBytes));
-        developer.log('Fetched offenses for dialog: $offenses');
-        return offenses;
-      } else {
-        throw Exception('获取违法信息失败: ${response.statusCode}');
-      }
+      developer.log('Fetched offenses for dialog: $_offenseCache');
+      return _offenseCache.map((o) => o.toJson()).toList();
     } catch (e) {
       developer.log('Error fetching user offenses: $e');
       return [];
@@ -245,21 +217,14 @@ class _UserAppealPageState extends State<UserAppealPage> {
 
   Future<UserManagement?> _fetchUserManagement() async {
     try {
-      final response = await apiClient.invokeAPI(
-        '/api/users/me',
-        'GET',
-        [],
-        null,
-        await _getHeaders(),
-        {},
-        'application/json',
-        ['bearerAuth'],
-      );
-      if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
-        return UserManagement.fromJson(data);
+      await userApi.initializeWithJwt();
+      final prefs = await SharedPreferences.getInstance();
+      final storedUsername = prefs.getString('userName');
+      if (storedUsername == null || storedUsername.isEmpty) {
+        throw Exception('未找到用户名');
       }
-      return null;
+      return await userApi.apiUsersSearchUsernameGet(
+          username: storedUsername);
     } catch (e) {
       developer.log('获取用户信息失败: $e');
       return null;
@@ -285,34 +250,57 @@ class _UserAppealPageState extends State<UserAppealPage> {
         throw Exception('未找到驾驶员姓名');
       }
 
-      List<AppealManagement> appeals;
       if (resetFilters) {
         _startTime = null;
         _endTime = null;
         _searchController.clear();
       }
 
-      if (_startTime != null && _endTime != null) {
-        appeals = await appealApi.apiAppealsTimeRangeGet(
-          startTime: _startTime!.toIso8601String().substring(0, 10),
-          endTime: _endTime!.toIso8601String().substring(0, 10),
-        );
-        appeals = appeals
-            .where((appeal) => appeal.appellantName == _currentDriverName)
-            .toList();
-      } else if (_searchController.text.isNotEmpty) {
-        appeals = await appealApi.apiAppealsReasonReasonGet(
-            reason: _searchController.text.trim());
-        appeals = appeals
-            .where((appeal) => appeal.appellantName == _currentDriverName)
-            .toList();
-      } else {
-        appeals = await appealApi.apiAppealsNameAppellantNameGet(
-            appellantName: _currentDriverName!);
+      final offenseIds = _offenseCache
+          .map((o) => o['offenseId'])
+          .whereType<int>()
+          .toSet();
+      if (offenseIds.isEmpty) {
+        setState(() {
+          _appeals = [];
+          _isLoading = false;
+          _errorMessage = '暂无申诉记录';
+        });
+        return;
+      }
+      final List<AppealRecordModel> fetched = [];
+      for (final id in offenseIds) {
+        try {
+          final records =
+              await appealApi.apiAppealsGet(offenseId: id, page: 1, size: 50);
+          fetched.addAll(records);
+        } catch (e) {
+          developer
+              .log('Failed to fetch appeals for offense $id: $e');
+        }
       }
 
+      final searchText = _searchController.text.trim().toLowerCase();
+      final filtered = fetched.where((appeal) {
+        final matchesName =
+            appeal.appellantName == null || appeal.appellantName == _currentDriverName;
+        final matchesSearch = searchText.isEmpty
+            ? true
+            : (appeal.appealReason ?? '')
+                .toLowerCase()
+                .contains(searchText);
+        bool matchesRange = true;
+        if (_startTime != null && _endTime != null) {
+          final time = appeal.appealTime;
+          matchesRange = time != null &&
+              !time.isBefore(_startTime!) &&
+              !time.isAfter(_endTime!);
+        }
+        return matchesName && matchesSearch && matchesRange;
+      }).toList();
+
       setState(() {
-        _appeals = appeals;
+        _appeals = filtered;
         _isLoading = false;
         if (_appeals.isEmpty) {
           _errorMessage = _searchController.text.isNotEmpty ||
@@ -330,27 +318,19 @@ class _UserAppealPageState extends State<UserAppealPage> {
   }
 
   Future<List<String>> _fetchAutocompleteSuggestions(String prefix) async {
-    try {
-      final appeals = await appealApi.apiAppealsReasonReasonGet(
-        reason: prefix.trim(),
-      );
-      return appeals
-          .map((appeal) => appeal.appealReason ?? '')
-          .where(
-              (reason) => reason.toLowerCase().contains(prefix.toLowerCase()))
-          .toList();
-    } catch (e) {
-      developer.log('Failed to fetch autocomplete suggestions: $e');
-      return [];
-    }
+    final lowerPrefix = prefix.toLowerCase();
+    return _appeals
+        .map((appeal) => appeal.appealReason ?? '')
+        .where((reason) => reason.toLowerCase().contains(lowerPrefix))
+        .toList();
   }
 
   Future<void> _submitAppeal(
-      AppealManagement appeal, String idempotencyKey) async {
+      AppealRecordModel appeal, String idempotencyKey) async {
     try {
       developer.log('Submitting appeal with idempotencyKey: $idempotencyKey');
       await appealApi.apiAppealsPost(
-          appealManagement: appeal, idempotencyKey: idempotencyKey);
+          appealRecord: appeal, idempotencyKey: idempotencyKey);
       developer.log('Appeal submitted successfully: ${appeal.toJson()}');
       _showSnackBar('申诉提交成功！');
       await _fetchUserAppeals();
@@ -364,9 +344,9 @@ class _UserAppealPageState extends State<UserAppealPage> {
     final TextEditingController nameController =
     TextEditingController(text: _currentDriverName ?? '');
     final user = await _fetchUserManagement();
-    final driverInfo = user?.userId != null
-        ? await _fetchDriverInformation(user!.userId)
-        : null;
+    final int? userId = user?.userId;
+    final driverInfo =
+        userId != null ? await _fetchDriverInformation(userId) : null;
     final TextEditingController idCardController =
     TextEditingController(text: driverInfo?.idCardNumber ?? '');
     final TextEditingController contactController = TextEditingController(
@@ -584,12 +564,11 @@ class _UserAppealPageState extends State<UserAppealPage> {
                             //   return;
                             // }
 
-                            final newAppeal = AppealManagement(
-                              appealId: null,
+                            final newAppeal = AppealRecordModel(
                               offenseId: selectedOffenseId,
                               appellantName: name,
-                              idCardNumber: idCard,
-                              contactNumber: contact,
+                              appellantIdCard: idCard,
+                              appellantContact: contact,
                               appealReason: reason,
                               appealTime: DateTime.now(),
                               processStatus: 'Pending',
@@ -949,7 +928,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
 }
 
 class UserAppealDetailPage extends StatefulWidget {
-  final AppealManagement appeal;
+  final AppealRecordModel appeal;
 
   const UserAppealDetailPage({super.key, required this.appeal});
 
@@ -1186,9 +1165,9 @@ class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
                         _buildDetailRow('上诉人',
                             widget.appeal.appellantName ?? '无', themeData),
                         _buildDetailRow('身份证号码',
-                            widget.appeal.idCardNumber ?? '无', themeData),
+                            widget.appeal.appellantIdCard ?? '无', themeData),
                         _buildDetailRow('联系电话',
-                            widget.appeal.contactNumber ?? '无', themeData),
+                            widget.appeal.appellantContact ?? '无', themeData),
                         _buildDetailRow('申诉原因',
                             widget.appeal.appealReason ?? '无', themeData),
                         _buildDetailRow(

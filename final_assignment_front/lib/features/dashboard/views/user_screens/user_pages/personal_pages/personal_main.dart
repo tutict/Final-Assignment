@@ -1,5 +1,5 @@
-import 'dart:convert';
 import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
+import 'package:final_assignment_front/features/api/user_management_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 import 'package:final_assignment_front/features/model/driver_information.dart';
 import 'package:final_assignment_front/features/model/user_management.dart';
@@ -42,6 +42,8 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
   final ApiClient apiClient = ApiClient();
   final DriverInformationControllerApi driverApi =
       DriverInformationControllerApi();
+  final UserManagementControllerApi userApi =
+      UserManagementControllerApi();
   bool _isLoading = true;
   final bool _isEditable = true;
   bool _driverLicenseNumberEdited = false; // Renamed from _idCardNumberEdited
@@ -105,29 +107,21 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
       await driverApi.initializeWithJwt();
       debugPrint('Driver API initialized with JWT');
 
-      final response = await apiClient.invokeAPI(
-        '/api/users/me',
-        'GET',
-        [],
-        null,
-        {'Authorization': 'Bearer $jwtToken'},
-        {},
-        'application/json',
-        ['bearerAuth'],
-      );
-      if (response.statusCode != 200) {
-        throw ApiException(response.statusCode,
-            '加载用户信息失败: ${utf8.decode(response.bodyBytes)}');
+      await userApi.initializeWithJwt();
+      final storedUsername = prefs.getString('userName');
+      if (storedUsername == null || storedUsername.isEmpty) {
+        throw Exception('未找到用户名，请重新登录');
       }
-
-      final data = jsonDecode(utf8.decode(response.bodyBytes));
-      debugPrint('User data: $data');
-      final user = UserManagement.fromJson(data);
+      final user = await userApi.apiUsersSearchUsernameGet(
+          username: storedUsername);
+      if (user == null || user.userId == null) {
+        throw Exception('加载用户信息失败');
+      }
+      final int userId = user.userId!;
 
       DriverInformation? driverInfo;
       try {
-        driverInfo =
-            await driverApi.apiDriversDriverIdGet(driverId: user.userId);
+        driverInfo = await driverApi.apiDriversDriverIdGet(driverId: userId);
         debugPrint('Driver info fetched: ${driverInfo?.toJson()}');
         if (driverInfo?.driverLicenseNumber != null &&
             driverInfo!.driverLicenseNumber!.isNotEmpty) {
@@ -139,7 +133,7 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
           // Generate a 12-digit driver license number
           final driverLicenseNumber = generateDriverLicenseNumber();
           driverInfo = DriverInformation(
-            driverId: user.userId,
+            driverId: userId,
             name: user.username ?? '未知用户',
             contactNumber: user.contactNumber ?? '',
             idCardNumber: '',
@@ -147,13 +141,12 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
             driverLicenseNumber: driverLicenseNumber,
           );
           debugPrint(
-              'Creating new driver with driverId: ${user.userId}, name: ${user.username}, driverLicenseNumber: $driverLicenseNumber');
+              'Creating new driver with driverId: $userId, name: ${user.username}, driverLicenseNumber: $driverLicenseNumber');
           await driverApi.apiDriversPost(
             driverInformation: driverInfo,
             idempotencyKey: idempotencyKey,
           );
-          driverInfo =
-              await driverApi.apiDriversDriverIdGet(driverId: user.userId);
+          driverInfo = await driverApi.apiDriversDriverIdGet(driverId: userId);
           debugPrint('Driver created and fetched: ${driverInfo?.toJson()}');
           _driverLicenseNumberEdited =
               true; // Mark as edited to prevent further changes
@@ -180,7 +173,10 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
           _isLoading = false;
         });
       }
-      controller.updateCurrentUser(driverInfo?.name ?? '', user.username ?? '');
+      controller.updateCurrentUser(
+        driverInfo?.name ?? '',
+        user.email ?? user.username ?? '',
+      );
     } catch (e) {
       debugPrint('Load current user error: $e');
       if (mounted) {
@@ -202,7 +198,13 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
 
     try {
       final currentUser = await _userFuture;
-      if (currentUser == null) throw Exception('未找到当前用户信息');
+      if (currentUser == null) {
+        throw Exception('未找到当前用户信息');
+      }
+      final userId = currentUser.userId;
+      if (userId == null) {
+        throw Exception('用户ID不存在，请重新登录');
+      }
       final idempotencyKey = generateIdempotencyKey();
       final prefs = await SharedPreferences.getInstance();
       final jwtToken = prefs.getString('jwtToken');
@@ -211,7 +213,7 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
       switch (field) {
         case 'name':
           final newDriverName = DriverInformation(
-            driverId: currentUser.userId,
+            driverId: userId,
             name: value,
             contactNumber:
                 _driverInfo?.contactNumber ?? currentUser.contactNumber ?? '',
@@ -219,38 +221,38 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
             driverLicenseNumber: _driverInfo?.driverLicenseNumber ?? '',
           );
           debugPrint(
-              'Updating driver with driverId: ${currentUser.userId}, name: $value');
+              'Updating driver with driverId: $userId, name: $value');
           await driverApi.apiDriversPost(
             driverInformation: newDriverName,
             idempotencyKey: idempotencyKey,
           );
-          _driverInfo = await driverApi.apiDriversDriverIdGet(
-              driverId: currentUser.userId);
+          _driverInfo =
+              await driverApi.apiDriversDriverIdGet(driverId: userId);
           debugPrint('Driver updated and fetched: ${_driverInfo?.toJson()}');
           break;
 
         case 'contactNumber':
           final newDriverContact = DriverInformation(
-            driverId: currentUser.userId,
+            driverId: userId,
             name: _driverInfo?.name ?? currentUser.username ?? '未知用户',
             contactNumber: value,
             idCardNumber: _driverInfo?.idCardNumber ?? '',
             driverLicenseNumber: _driverInfo?.driverLicenseNumber ?? '',
           );
           debugPrint(
-              'Updating driver with driverId: ${currentUser.userId}, contactNumber: $value');
+              'Updating driver with driverId: $userId, contactNumber: $value');
           await driverApi.apiDriversPost(
             driverInformation: newDriverContact,
             idempotencyKey: idempotencyKey,
           );
-          _driverInfo = await driverApi.apiDriversDriverIdGet(
-              driverId: currentUser.userId);
+          _driverInfo =
+              await driverApi.apiDriversDriverIdGet(driverId: userId);
           debugPrint('Driver updated and fetched: ${_driverInfo?.toJson()}');
           break;
 
         case 'driverLicenseNumber':
           final newDriverLicense = DriverInformation(
-            driverId: currentUser.userId,
+            driverId: userId,
             name: _driverInfo?.name ?? currentUser.username ?? '未知用户',
             contactNumber:
                 _driverInfo?.contactNumber ?? currentUser.contactNumber ?? '',
@@ -259,20 +261,20 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
                 value.isEmpty ? generateDriverLicenseNumber() : value,
           );
           debugPrint(
-              'Updating driver with driverId: ${currentUser.userId}, driverLicenseNumber: ${newDriverLicense.driverLicenseNumber}');
+              'Updating driver with driverId: $userId, driverLicenseNumber: ${newDriverLicense.driverLicenseNumber}');
           await driverApi.apiDriversPost(
             driverInformation: newDriverLicense,
             idempotencyKey: idempotencyKey,
           );
-          _driverInfo = await driverApi.apiDriversDriverIdGet(
-              driverId: currentUser.userId);
+          _driverInfo =
+              await driverApi.apiDriversDriverIdGet(driverId: userId);
           debugPrint('Driver updated and fetched: ${_driverInfo?.toJson()}');
           if (mounted) setState(() => _driverLicenseNumberEdited = true);
           break;
 
         case 'idCardNumber': // Add this case
           final newDriverIdCard = DriverInformation(
-            driverId: currentUser.userId,
+            driverId: userId,
             name: _driverInfo?.name ?? currentUser.username ?? '未知用户',
             contactNumber:
             _driverInfo?.contactNumber ?? currentUser.contactNumber ?? '',
@@ -280,13 +282,13 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
             driverLicenseNumber: _driverInfo?.driverLicenseNumber ?? '',
           );
           debugPrint(
-              'Updating driver with driverId: ${currentUser.userId}, idCardNumber: $value');
+              'Updating driver with driverId: $userId, idCardNumber: $value');
           await driverApi.apiDriversPost(
             driverInformation: newDriverIdCard,
             idempotencyKey: idempotencyKey,
           );
-          _driverInfo = await driverApi.apiDriversDriverIdGet(
-              driverId: currentUser.userId);
+          _driverInfo =
+              await driverApi.apiDriversDriverIdGet(driverId: userId);
           debugPrint('Driver updated and fetched: ${_driverInfo?.toJson()}');
           break;
 
@@ -670,19 +672,8 @@ class _PersonalInformationPageState extends State<PersonalMainPage> {
                 ),
                 _buildListTile(
                   title: '备注',
-                  subtitle: userInfo.remarks ?? '无数据',
+                  subtitle: userInfo.remarks ?? '������',
                   themeData: themeData,
-                  onTap: _isEditable
-                      ? () {
-                          _showEditDialog(
-                              '备注',
-                              TextEditingController(
-                                  text: userInfo.remarks ?? ''), (value) {
-                            userInfo.remarks = value;
-                            _loadCurrentUser();
-                          });
-                        }
-                      : null,
                 ),
                 const SizedBox(height: 16.0),
               ],

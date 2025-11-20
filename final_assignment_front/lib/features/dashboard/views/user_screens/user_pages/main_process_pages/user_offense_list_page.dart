@@ -1,15 +1,15 @@
 // user_offense_list_page.dart
-import 'dart:convert';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:http/http.dart' as http;
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
+import 'package:final_assignment_front/features/api/user_management_controller_api.dart';
 import 'package:final_assignment_front/features/model/offense_information.dart';
 import 'package:final_assignment_front/features/model/driver_information.dart';
+import 'package:final_assignment_front/features/model/user_management.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_dashboard_screen.dart';
@@ -36,6 +36,7 @@ class _UserOffenseListPageState extends State<UserOffenseListPage> {
       OffenseInformationControllerApi();
   final DriverInformationControllerApi driverApi =
       DriverInformationControllerApi();
+  final UserManagementControllerApi userApi = UserManagementControllerApi();
   final List<OffenseInformation> _offenses = [];
   List<OffenseInformation> _filteredOffenses = [];
   final TextEditingController _searchController = TextEditingController();
@@ -82,19 +83,10 @@ class _UserOffenseListPageState extends State<UserOffenseListPage> {
         return false;
       }
       if (JwtDecoder.isExpired(jwtToken)) {
-        jwtToken = await _refreshJwtToken();
-        if (jwtToken == null) {
-          setState(() => _errorMessage = '登录已过期，请重新登录');
-          return false;
-        }
-        await prefs.setString('jwtToken', jwtToken);
-        if (JwtDecoder.isExpired(jwtToken)) {
-          setState(() => _errorMessage = '新登录信息已过期，请重新登录');
-          return false;
-        }
-        await offenseApi.initializeWithJwt();
-        await driverApi.initializeWithJwt();
+        setState(() => _errorMessage = '登录已过期，请重新登录');
+        return false;
       }
+      await userApi.initializeWithJwt();
       // Try to get driverName from SharedPreferences first
       _driverName = prefs.getString('driverName') ?? '';
       if (_driverName.isEmpty) {
@@ -116,64 +108,48 @@ class _UserOffenseListPageState extends State<UserOffenseListPage> {
 
   Future<String?> _fetchDriverName(String jwtToken) async {
     try {
-      final response = await http.get(
-        Uri.parse('http://localhost:8081/api/users/me'),
-        headers: {'Authorization': 'Bearer $jwtToken'},
-      );
-      if (response.statusCode == 200) {
-        final userData = jsonDecode(response.body);
-        final userId = userData['userId'] as int?;
-        if (userId == null) {
-          throw Exception('User data does not contain userId');
-        }
-        await driverApi.initializeWithJwt();
-        var driverInfo =
-            await driverApi.apiDriversDriverIdGet(driverId: userId);
-        if (driverInfo == null) {
-          driverInfo = DriverInformation(
-            driverId: userId,
-            name: userData['username'] ?? '未知用户',
-            contactNumber: userData['contactNumber'] ?? '',
-            idCardNumber: '',
-            driverLicenseNumber:
-                '${DateTime.now().millisecondsSinceEpoch.toString().substring(6)}${(1000 + (DateTime.now().millisecondsSinceEpoch % 9000)).toString()}',
-          );
-          await driverApi.apiDriversPost(
-            driverInformation: driverInfo,
-            idempotencyKey: generateIdempotencyKey(),
-          );
-          driverInfo = await driverApi.apiDriversDriverIdGet(driverId: userId);
-        }
-        final driverName = driverInfo?.name ?? '未知用户';
-        developer.log('Driver name from API: $driverName');
-        return driverName;
-      } else {
-        throw Exception('Failed to fetch user data: ${response.statusCode}');
+      final prefs = await SharedPreferences.getInstance();
+      final storedUsername = prefs.getString('userName');
+      Map<String, dynamic>? decoded;
+      try {
+        decoded = JwtDecoder.decode(jwtToken);
+      } catch (_) {}
+      final username = storedUsername?.isNotEmpty == true
+          ? storedUsername!
+          : decoded?['sub']?.toString();
+      if (username == null || username.isEmpty) {
+        throw Exception('无法确定当前用户名');
       }
+      await userApi.initializeWithJwt();
+      final user =
+          await userApi.apiUsersSearchUsernameGet(username: username);
+      if (user?.userId == null) {
+        throw Exception('User data does not contain userId');
+      }
+      await driverApi.initializeWithJwt();
+      var driverInfo =
+          await driverApi.apiDriversDriverIdGet(driverId: user!.userId!);
+      if (driverInfo == null) {
+        driverInfo = DriverInformation(
+          driverId: user.userId,
+          name: user.username ?? '未知用户',
+          contactNumber: user.contactNumber ?? '',
+          idCardNumber: '',
+          driverLicenseNumber:
+              '${DateTime.now().millisecondsSinceEpoch.toString().substring(6)}${(1000 + (DateTime.now().millisecondsSinceEpoch % 9000)).toString()}',
+        );
+        await driverApi.apiDriversPost(
+          driverInformation: driverInfo,
+          idempotencyKey: generateIdempotencyKey(),
+        );
+        driverInfo =
+            await driverApi.apiDriversDriverIdGet(driverId: user.userId!);
+      }
+      final driverName = driverInfo?.name ?? user.username ?? '未知用户';
+      developer.log('Driver name from API: $driverName');
+      return driverName;
     } catch (e) {
       developer.log('Error fetching driver name: $e');
-      return null;
-    }
-  }
-
-  Future<String?> _refreshJwtToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    final refreshToken = prefs.getString('refreshToken');
-    if (refreshToken == null) return null;
-    try {
-      final response = await http.post(
-        Uri.parse('http://localhost:8081/api/auth/refresh'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'refreshToken': refreshToken}),
-      );
-      if (response.statusCode == 200) {
-        final newJwt = jsonDecode(response.body)['jwtToken'];
-        await prefs.setString('jwtToken', newJwt);
-        return newJwt;
-      }
-      return null;
-    } catch (e) {
-      developer.log('Error refreshing JWT: $e');
       return null;
     }
   }

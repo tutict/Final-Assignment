@@ -1,13 +1,12 @@
-import 'dart:convert';
 import 'package:final_assignment_front/features/api/fine_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
+import 'package:final_assignment_front/features/api/user_management_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 import 'package:final_assignment_front/features/model/fine_information.dart';
-import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'package:get/Get.dart';
-import 'package:http/http.dart' as http;
+import 'package:get/get.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:developer' as developer;
 
@@ -25,7 +24,8 @@ class _FineInformationPageState extends State<FineInformationPage> {
       Get.find<UserDashboardController>();
   final DriverInformationControllerApi driverApi =
       DriverInformationControllerApi();
-  final ApiClient apiClient = ApiClient();
+  final UserManagementControllerApi userApi =
+      UserManagementControllerApi();
   bool _isLoading = true;
   String _errorMessage = '';
   String? _currentDriverName;
@@ -61,6 +61,8 @@ class _FineInformationPageState extends State<FineInformationPage> {
         throw Exception('未登录或未找到驾驶员信息');
       }
       await fineApi.initializeWithJwt();
+      await driverApi.initializeWithJwt();
+      await userApi.initializeWithJwt();
       _finesFuture = _loadUserFines();
       final fines = await _finesFuture;
       developer.log('Loaded Fines: $fines');
@@ -80,32 +82,36 @@ class _FineInformationPageState extends State<FineInformationPage> {
 
   Future<String?> _fetchDriverName(String jwtToken) async {
     try {
-      final userResponse = await http.get(
-        Uri.parse('http://localhost:8081/api/users/me'),
-        headers: {'Authorization': 'Bearer $jwtToken'},
-      );
-      if (userResponse.statusCode == 200) {
-        final userData = jsonDecode(utf8.decode(userResponse.bodyBytes));
-        developer.log('User data: $userData');
-        final userId = userData['userId'] as int?;
-        if (userId == null) {
-          throw Exception('User data does not contain userId');
-        }
+      await userApi.initializeWithJwt();
+      final prefs = await SharedPreferences.getInstance();
+      final storedUsername = prefs.getString('userName');
+      Map<String, dynamic>? decoded;
+      try {
+        decoded = JwtDecoder.decode(jwtToken);
+      } catch (_) {}
+      final username = storedUsername?.isNotEmpty == true
+          ? storedUsername!
+          : decoded?['sub']?.toString();
+      if (username == null || username.isEmpty) {
+        throw Exception('无法确定当前用户名');
+      }
 
-        await driverApi.initializeWithJwt();
-        final driverInfo =
-            await driverApi.apiDriversDriverIdGet(driverId: userId);
-        if (driverInfo != null) {
-          final driverName = driverInfo.name ?? driverInfo.name;
-          developer.log('Driver name from API: $driverName');
-          return driverName;
-        } else {
-          developer.log('No driver info found for userId: $userId');
-          return null;
-        }
+      final user =
+          await userApi.apiUsersSearchUsernameGet(username: username);
+      if (user?.userId == null) {
+        throw Exception('User data does not contain userId');
+      }
+
+      await driverApi.initializeWithJwt();
+      final driverInfo =
+          await driverApi.apiDriversDriverIdGet(driverId: user!.userId!);
+      if (driverInfo != null && driverInfo.name != null) {
+        final driverName = driverInfo.name!;
+        developer.log('Driver name from API: $driverName');
+        return driverName;
       } else {
-        throw Exception(
-            'Failed to fetch user data: ${userResponse.statusCode}');
+        developer.log('No driver info found for userId: ${user.userId}');
+        return null;
       }
     } catch (e) {
       developer.log('Error fetching driver name: $e');

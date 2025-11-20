@@ -1,8 +1,7 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:final_assignment_front/features/api/vehicle_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
+import 'package:final_assignment_front/features/api/user_management_controller_api.dart';
 import 'package:final_assignment_front/features/model/vehicle_information.dart';
 import 'package:final_assignment_front/features/model/driver_information.dart';
 import 'package:final_assignment_front/features/model/user_management.dart';
@@ -47,6 +46,8 @@ class _VehicleManagementState extends State<VehicleManagement> {
   final TextEditingController _searchController = TextEditingController();
   final VehicleInformationControllerApi vehicleApi =
       VehicleInformationControllerApi();
+  final UserManagementControllerApi userApi =
+      UserManagementControllerApi();
   final DriverInformationControllerApi driverApi =
       DriverInformationControllerApi();
   final List<VehicleInformation> _vehicleList = [];
@@ -55,8 +56,6 @@ class _VehicleManagementState extends State<VehicleManagement> {
   String _errorMessage = '';
   String? _currentDriverName;
   String? _currentDriverIdCardNumber;
-  int _currentPage = 1;
-  final int _pageSize = 10;
   bool _hasMore = true;
   String _searchType = 'licensePlate';
 
@@ -85,10 +84,12 @@ class _VehicleManagementState extends State<VehicleManagement> {
 
       await vehicleApi.initializeWithJwt();
       await driverApi.initializeWithJwt();
+      await userApi.initializeWithJwt();
 
       final user = await _fetchUserManagement();
-      final driverInfo = user?.userId != null
-          ? await driverApi.apiDriversDriverIdGet(driverId: user!.userId)
+      final userId = user?.userId;
+      final driverInfo = userId != null
+          ? await driverApi.apiDriversDriverIdGet(driverId: userId)
           : null;
       _currentDriverName = driverInfo?.name ?? username;
       _currentDriverIdCardNumber = driverInfo?.idCardNumber;
@@ -113,19 +114,14 @@ class _VehicleManagementState extends State<VehicleManagement> {
   Future<UserManagement?> _fetchUserManagement() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken');
-      final response = await http.get(
-        Uri.parse('http://localhost:8081/api/users/me'),
-        headers: {
-          'Authorization': 'Bearer $jwtToken',
-          'Content-Type': 'application/json'
-        },
-      );
-      if (response.statusCode == 200) {
-        return UserManagement.fromJson(
-            jsonDecode(utf8.decode(response.bodyBytes)));
+      final storedUsername = prefs.getString('userName');
+      if (storedUsername == null || storedUsername.isEmpty) {
+        debugPrint('Username not found in local storage');
+        return null;
       }
-      return null;
+      await userApi.initializeWithJwt();
+      return await userApi.apiUsersSearchUsernameGet(
+          username: storedUsername);
     } catch (e) {
       debugPrint('Failed to fetch UserManagement: $e');
       return null;
@@ -148,7 +144,6 @@ class _VehicleManagementState extends State<VehicleManagement> {
     }
 
     if (reset) {
-      _currentPage = 1;
       _hasMore = true;
       _vehicleList.clear();
       _filteredVehicleList.clear();
@@ -162,23 +157,22 @@ class _VehicleManagementState extends State<VehicleManagement> {
 
     final searchQuery = query?.trim() ?? '';
     debugPrint(
-        'Fetching vehicles with query: $searchQuery, page: $_currentPage, searchType: $_searchType');
+        'Fetching vehicles with query: $searchQuery, searchType: $_searchType');
 
     try {
-      List<VehicleInformation> vehicles = [];
-      vehicles = await vehicleApi.apiVehiclesOwnerIdCardNumberGet(
-        idCardNumber: _currentDriverIdCardNumber!,
-        page: _currentPage,
-        size: _pageSize,
+      final vehicles = await vehicleApi.apiVehiclesSearchOwnerGet(
+        idCard: _currentDriverIdCardNumber!,
       );
 
       debugPrint(
           'Vehicles fetched: ${vehicles.map((v) => v.toJson()).toList()}');
       setState(() {
-        _vehicleList.addAll(vehicles);
-        if (vehicles.length < _pageSize) _hasMore = false;
+        _vehicleList
+          ..clear()
+          ..addAll(vehicles);
+        _hasMore = false;
         _applyFilters(searchQuery);
-        if (_filteredVehicleList.isEmpty && _currentPage == 1) {
+        if (_filteredVehicleList.isEmpty) {
           _errorMessage = searchQuery.isNotEmpty ? '未找到符合条件的车辆' : '您当前没有车辆记录';
         }
       });
@@ -239,11 +233,10 @@ class _VehicleManagementState extends State<VehicleManagement> {
       if (_searchType == 'licensePlate') {
         debugPrint(
             'Fetching license plate suggestions for idCardNumber: $_currentDriverIdCardNumber, prefix: $prefix');
-        final suggestions =
-            await vehicleApi.apiVehiclesAutocompleteLicensePlateMeGet(
+        final suggestions = await vehicleApi.apiVehiclesAutocompletePlatesGet(
           prefix: prefix,
-          idCardNumber: _currentDriverIdCardNumber!,
-          maxSuggestions: 5,
+          idCard: _currentDriverIdCardNumber!,
+          size: 5,
         );
         return suggestions
             .where((s) => s.toLowerCase().contains(prefix.toLowerCase()))
@@ -251,11 +244,10 @@ class _VehicleManagementState extends State<VehicleManagement> {
       } else {
         debugPrint(
             'Fetching vehicle type suggestions for idCardNumber: $_currentDriverIdCardNumber, prefix: $prefix');
-        final suggestions =
-            await vehicleApi.apiVehiclesAutocompleteVehicleTypeMeGet(
+        final suggestions = await vehicleApi.apiVehiclesAutocompleteTypesGet(
           prefix: prefix,
-          idCardNumber: _currentDriverIdCardNumber!,
-          maxSuggestions: 5,
+          idCard: _currentDriverIdCardNumber!,
+          size: 5,
         );
         return suggestions
             .where((s) => s.toLowerCase().contains(prefix.toLowerCase()))
@@ -269,7 +261,6 @@ class _VehicleManagementState extends State<VehicleManagement> {
 
   Future<void> _loadMoreVehicles() async {
     if (!_hasMore || _isLoading) return;
-    _currentPage++;
     await _fetchUserVehicles(query: _searchController.text);
   }
 
@@ -526,7 +517,7 @@ class _VehicleManagementState extends State<VehicleManagement> {
                       }
                       return false;
                     },
-                    child: _isLoading && _currentPage == 1
+                    child: _isLoading && _vehicleList.isEmpty
                         ? Center(
                             child: CircularProgressIndicator(
                                 valueColor: AlwaysStoppedAnimation(
@@ -684,6 +675,8 @@ class AddVehiclePage extends StatefulWidget {
 class _AddVehiclePageState extends State<AddVehiclePage> {
   final VehicleInformationControllerApi vehicleApi =
       VehicleInformationControllerApi();
+  final UserManagementControllerApi userApi =
+      UserManagementControllerApi();
   final DriverInformationControllerApi driverApi =
       DriverInformationControllerApi();
   final _formKey = GlobalKey<FormState>();
@@ -722,6 +715,7 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
 
       await vehicleApi.initializeWithJwt();
       await driverApi.initializeWithJwt();
+      await userApi.initializeWithJwt();
       await _preFillForm(username);
     } catch (e) {
       _showSnackBar('初始化失败: $e', isError: true);
@@ -732,8 +726,9 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
 
   Future<void> _preFillForm(String username) async {
     final user = await _fetchUserManagement();
-    final driverInfo = user?.userId != null
-        ? await driverApi.apiDriversDriverIdGet(driverId: user!.userId)
+    final userId = user?.userId;
+    final driverInfo = userId != null
+        ? await driverApi.apiDriversDriverIdGet(driverId: userId)
         : null;
 
     debugPrint('Fetched UserManagement: ${user?.toJson()}');
@@ -756,21 +751,14 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
   Future<UserManagement?> _fetchUserManagement() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken');
-      final response = await http.get(
-        Uri.parse('http://localhost:8081/api/users/me'),
-        headers: {
-          'Authorization': 'Bearer $jwtToken',
-          'Content-Type': 'application/json'
-        },
-      );
-      if (response.statusCode == 200) {
-        return UserManagement.fromJson(
-            jsonDecode(utf8.decode(response.bodyBytes)));
+      final storedUsername = prefs.getString('userName');
+      if (storedUsername == null || storedUsername.isEmpty) {
+        debugPrint('Username missing when fetching user info');
+        return null;
       }
-      debugPrint(
-          'Failed to fetch UserManagement: Status ${response.statusCode}');
-      return null;
+      await userApi.initializeWithJwt();
+      return await userApi.apiUsersSearchUsernameGet(
+          username: storedUsername);
     } catch (e) {
       debugPrint('Error fetching UserManagement: $e');
       return null;
@@ -801,7 +789,8 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
       return;
     }
 
-    if (await vehicleApi.apiVehiclesExistsGet(licensePlate: licensePlate)) {
+    if (await vehicleApi.apiVehiclesExistsLicensePlateGet(
+        licensePlate: licensePlate)) {
       _showSnackBar('车牌号已存在，请使用其他车牌号', isError: true);
       return;
     }
@@ -819,8 +808,8 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
         licensePlate: licensePlate,
         vehicleType: _vehicleTypeController.text.trim(),
         ownerName: _ownerNameController.text.trim(),
-        idCardNumber: idCardNumber,
-        contactNumber: _contactNumberController.text.trim().isEmpty
+        ownerIdCard: idCardNumber,
+        ownerContact: _contactNumberController.text.trim().isEmpty
             ? null
             : _contactNumberController.text.trim(),
         engineNumber: _engineNumberController.text.trim().isEmpty
@@ -836,14 +825,14 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
             ? null
             : DateTime.parse(
                 '${_firstRegistrationDateController.text.trim()}T00:00:00.000'),
-        currentStatus: _currentStatusController.text.trim().isEmpty
+        status: _currentStatusController.text.trim().isEmpty
             ? 'Active'
             : _currentStatusController.text.trim(),
       );
 
       final idempotencyKey = generateIdempotencyKey();
       await vehicleApi.apiVehiclesPost(
-        vehicleInformation: vehicle,
+        vehicle: vehicle,
         idempotencyKey: idempotencyKey,
       );
 
@@ -1106,6 +1095,8 @@ class EditVehiclePage extends StatefulWidget {
 class _EditVehiclePageState extends State<EditVehiclePage> {
   final VehicleInformationControllerApi vehicleApi =
       VehicleInformationControllerApi();
+  final UserManagementControllerApi userApi =
+      UserManagementControllerApi();
   final DriverInformationControllerApi driverApi =
       DriverInformationControllerApi();
   final _formKey = GlobalKey<FormState>();
@@ -1137,6 +1128,7 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
     try {
       await vehicleApi.initializeWithJwt();
       await driverApi.initializeWithJwt();
+      await userApi.initializeWithJwt();
       await _initializeFields();
     } catch (e) {
       _showSnackBar('初始化失败: $e', isError: true);
@@ -1154,8 +1146,9 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
     if (username.isEmpty) throw Exception('JWT 中未找到用户名');
 
     final user = await _fetchUserManagement();
-    final driverInfo = user?.userId != null
-        ? await driverApi.apiDriversDriverIdGet(driverId: user!.userId)
+    final userId = user?.userId;
+    final driverInfo = userId != null
+        ? await driverApi.apiDriversDriverIdGet(driverId: userId)
         : null;
     if (driverInfo == null || driverInfo.name == null) {
       throw Exception('无法获取驾驶员信息或姓名');
@@ -1180,19 +1173,14 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
   Future<UserManagement?> _fetchUserManagement() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken');
-      final response = await http.get(
-        Uri.parse('http://localhost:8081/api/users/me'),
-        headers: {
-          'Authorization': 'Bearer $jwtToken',
-          'Content-Type': 'application/json'
-        },
-      );
-      if (response.statusCode == 200) {
-        return UserManagement.fromJson(
-            jsonDecode(utf8.decode(response.bodyBytes)));
+      final storedUsername = prefs.getString('userName');
+      if (storedUsername == null || storedUsername.isEmpty) {
+        debugPrint('Username missing when fetching user info');
+        return null;
       }
-      return null;
+      await userApi.initializeWithJwt();
+      return await userApi.apiUsersSearchUsernameGet(
+          username: storedUsername);
     } catch (e) {
       debugPrint('Failed to fetch UserManagement: $e');
       return null;
@@ -1224,7 +1212,8 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
     }
 
     if (newLicensePlate != widget.vehicle.licensePlate &&
-        await vehicleApi.apiVehiclesExistsGet(licensePlate: newLicensePlate)) {
+        await vehicleApi.apiVehiclesExistsLicensePlateGet(
+            licensePlate: newLicensePlate)) {
       _showSnackBar('车牌号已存在，请使用其他车牌号', isError: true);
       return;
     }
@@ -1236,8 +1225,8 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
         licensePlate: newLicensePlate,
         vehicleType: _vehicleTypeController.text.trim(),
         ownerName: _ownerNameController.text.trim(),
-        idCardNumber: _idCardNumberController.text.trim(),
-        contactNumber: _contactNumberController.text.trim().isEmpty
+        ownerIdCard: _idCardNumberController.text.trim(),
+        ownerContact: _contactNumberController.text.trim().isEmpty
             ? null
             : _contactNumberController.text.trim(),
         engineNumber: _engineNumberController.text.trim().isEmpty
@@ -1253,7 +1242,7 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
             ? null
             : DateTime.parse(
                 '${_firstRegistrationDateController.text.trim()}T00:00:00.000'),
-        currentStatus: _currentStatusController.text.trim().isEmpty
+        status: _currentStatusController.text.trim().isEmpty
             ? 'Active'
             : _currentStatusController.text.trim(),
       );
@@ -1261,7 +1250,7 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
       final idempotencyKey = generateIdempotencyKey();
       await vehicleApi.apiVehiclesVehicleIdPut(
         vehicleId: widget.vehicle.vehicleId ?? 0,
-        vehicleInformation: vehicle,
+        vehicle: vehicle,
         idempotencyKey: idempotencyKey,
       );
 
@@ -1514,6 +1503,8 @@ class VehicleDetailPage extends StatefulWidget {
 class _VehicleDetailPageState extends State<VehicleDetailPage> {
   final VehicleInformationControllerApi vehicleApi =
       VehicleInformationControllerApi();
+  final UserManagementControllerApi userApi =
+      UserManagementControllerApi();
   bool _isLoading = false;
   bool _isEditable = false;
   String _errorMessage = '';
@@ -1541,10 +1532,11 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
       if (username.isEmpty) throw Exception('JWT 中未找到用户名');
 
       await vehicleApi.initializeWithJwt();
+      await userApi.initializeWithJwt();
       final user = await _fetchUserManagement();
-      final driverInfo = user?.userId != null
-          ? await _fetchDriverInformation(user!.userId)
-          : null;
+      final userId = user?.userId;
+      final driverInfo =
+          userId != null ? await _fetchDriverInformation(userId) : null;
       _currentDriverIdCardNumber = driverInfo?.idCardNumber;
       await _checkUserRole();
     } catch (e) {
@@ -1557,19 +1549,14 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
   Future<UserManagement?> _fetchUserManagement() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken');
-      final response = await http.get(
-        Uri.parse('http://localhost:8081/api/users/me'),
-        headers: {
-          'Authorization': 'Bearer $jwtToken',
-          'Content-Type': 'application/json'
-        },
-      );
-      if (response.statusCode == 200) {
-        return UserManagement.fromJson(
-            jsonDecode(utf8.decode(response.bodyBytes)));
+      final storedUsername = prefs.getString('userName');
+      if (storedUsername == null || storedUsername.isEmpty) {
+        debugPrint('Username missing when fetching user info');
+        return null;
       }
-      return null;
+      await userApi.initializeWithJwt();
+      return await userApi.apiUsersSearchUsernameGet(
+          username: storedUsername);
     } catch (e) {
       debugPrint('Failed to fetch UserManagement: $e');
       return null;
@@ -1593,34 +1580,16 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
       final jwtToken = prefs.getString('jwtToken');
       if (jwtToken == null) throw Exception('未找到 JWT，请重新登录');
       final decodedToken = JwtDecoder.decode(jwtToken);
-      final currentUsername = decodedToken['sub'] ?? '';
-      if (currentUsername.isEmpty) throw Exception('JWT 中未找到用户名');
-
-      final response = await http.get(
-        Uri.parse('http://localhost:8081/api/users/me'),
-        headers: {
-          'Authorization': 'Bearer $jwtToken',
-          'Content-Type': 'application/json'
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final userData = jsonDecode(utf8.decode(response.bodyBytes));
-        final roles = (userData['roles'] as List<dynamic>?)
-                ?.map((r) => r.toString())
-                .toList() ??
-            [];
-        setState(() => _isEditable = roles.contains('ROLE_ADMIN') ||
+      final roles = decodedToken['roles']?.toString().split(',') ?? [];
+      setState(() {
+        _isEditable = roles.contains('ROLE_ADMIN') ||
             (_currentDriverIdCardNumber != null &&
-                _currentDriverIdCardNumber == widget.vehicle.idCardNumber));
-      } else {
-        throw Exception('验证失败：${response.statusCode}');
-      }
+                _currentDriverIdCardNumber == widget.vehicle.idCardNumber);
+      });
     } catch (e) {
       setState(() => _errorMessage = '加载权限失败: $e');
     }
   }
-
   Future<void> _deleteVehicle(int vehicleId) async {
     setState(() => _isLoading = true);
     try {
