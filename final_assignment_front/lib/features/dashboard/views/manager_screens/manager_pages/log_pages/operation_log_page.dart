@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:developer' as developer;
 
 import 'package:final_assignment_front/config/routes/app_pages.dart';
@@ -9,7 +8,6 @@ import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -75,52 +73,23 @@ class _OperationLogPageState extends State<OperationLogPage> {
 
   Future<bool> _validateJwtToken() async {
     final prefs = await SharedPreferences.getInstance();
-    String? jwtToken = prefs.getString('jwtToken');
+    final jwtToken = prefs.getString('jwtToken');
     if (jwtToken == null || jwtToken.isEmpty) {
       setState(() => _errorMessage = '未授权，请重新登录');
       return false;
     }
     try {
-      final decodedToken = JwtDecoder.decode(jwtToken);
       if (JwtDecoder.isExpired(jwtToken)) {
-        jwtToken = await _refreshJwtToken();
-        if (jwtToken == null) {
-          setState(() => _errorMessage = '登录已过期，请重新登录');
-          return false;
-        }
-        await prefs.setString('jwtToken', jwtToken);
-        if (JwtDecoder.isExpired(jwtToken)) {
-          setState(() => _errorMessage = '新登录信息已过期，请重新登录');
-          return false;
-        }
-        await logApi.initializeWithJwt();
+        setState(() => _errorMessage = '登录已过期，请重新登录');
+        return false;
       }
-      _currentUsername = decodedToken['sub'] ?? '';
+      await logApi.initializeWithJwt();
+      final decodedToken = JwtDecoder.decode(jwtToken);
+      _currentUsername = decodedToken['sub']?.toString() ?? '';
       return true;
     } catch (e) {
       setState(() => _errorMessage = '无效的登录信息，请重新登录');
       return false;
-    }
-  }
-
-  Future<String?> _refreshJwtToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    final refreshToken = prefs.getString('refreshToken');
-    if (refreshToken == null) return null;
-    try {
-      final response = await http.post(
-        Uri.parse('http://localhost:8081/api/auth/refresh'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'refreshToken': refreshToken}),
-      );
-      if (response.statusCode == 200) {
-        final newJwt = jsonDecode(response.body)['jwtToken'];
-        await prefs.setString('jwtToken', newJwt);
-        return newJwt;
-      }
-      return null;
-    } catch (e) {
-      return null;
     }
   }
 
@@ -131,7 +100,6 @@ class _OperationLogPageState extends State<OperationLogPage> {
         Get.offAllNamed(AppPages.login);
         return;
       }
-      await logApi.initializeWithJwt();
       await _checkUserRole();
       if (_isAdmin) {
         await _fetchLogs(reset: true);
@@ -194,7 +162,7 @@ class _OperationLogPageState extends State<OperationLogPage> {
       List<OperationLog> logs = [];
       final searchQuery = query?.trim() ?? '';
       if (_searchType == 'userId' && searchQuery.isNotEmpty) {
-        logs = await logApi.apiOperationLogsGet();
+        logs = await logApi.apiLogsOperationGet();
         logs = logs
             .where((log) =>
                 log.userId
@@ -204,7 +172,7 @@ class _OperationLogPageState extends State<OperationLogPage> {
                 false)
             .toList();
       } else if (_searchType == 'operationResult' && searchQuery.isNotEmpty) {
-        logs = await logApi.apiOperationLogsGet();
+        logs = await logApi.apiLogsOperationGet();
         logs = logs
             .where((log) =>
                 log.operationResult
@@ -213,12 +181,12 @@ class _OperationLogPageState extends State<OperationLogPage> {
                 false)
             .toList();
       } else if (_startTime != null && _endTime != null) {
-        logs = await logApi.apiOperationLogsTimeRangeGet(
+        logs = await logApi.apiLogsOperationSearchTimeRangeGet(
           startTime: _startTime!.toIso8601String(),
           endTime: _endTime!.add(const Duration(days: 1)).toIso8601String(),
         );
       } else {
-        logs = await logApi.apiOperationLogsGet();
+        logs = await logApi.apiLogsOperationGet();
       }
 
       setState(() {
@@ -293,29 +261,19 @@ class _OperationLogPageState extends State<OperationLogPage> {
   }
 
   Future<List<String>> _fetchAutocompleteSuggestions(String prefix) async {
-    try {
-      if (!await _validateJwtToken()) {
-        Get.offAllNamed(AppPages.login);
-        return [];
-      }
-      List<String> suggestions;
-      if (_searchType == 'userId') {
-        suggestions =
-            await logApi.apiOperationLogsAutocompleteUserIdsGet(prefix: prefix);
-      } else {
-        suggestions = await logApi
-            .apiOperationLogsAutocompleteOperationResultsGet(prefix: prefix);
-      }
-      return suggestions
-          .where((suggestion) =>
-              suggestion.toLowerCase().contains(prefix.toLowerCase()))
-          .take(5)
-          .toList();
-    } catch (e) {
-      developer.log('Failed to fetch autocomplete suggestions: $e',
-          stackTrace: StackTrace.current);
+    if (prefix.isEmpty || _searchType == 'timeRange') {
       return [];
     }
+    final normalized = prefix.toLowerCase();
+    final values = _searchType == 'userId'
+        ? _logs.map((log) => log.userId?.toString() ?? '')
+        : _logs.map((log) => log.operationResult ?? '');
+    return values
+        .where((value) => value.isNotEmpty)
+        .where((value) => value.toLowerCase().contains(normalized))
+        .toSet()
+        .take(5)
+        .toList();
   }
 
   Future<void> _loadMoreLogs() async {
@@ -444,10 +402,9 @@ class _OperationLogPageState extends State<OperationLogPage> {
                         remarks: remarksController.text.isEmpty
                             ? null
                             : remarksController.text,
-                        idempotencyKey: idempotencyKey,
                         operationTime: DateTime.now(),
                       );
-                      await logApi.apiOperationLogsPost(
+                      await logApi.apiLogsOperationPost(
                         operationLog: newLog,
                         idempotencyKey: idempotencyKey,
                       );
@@ -475,6 +432,11 @@ class _OperationLogPageState extends State<OperationLogPage> {
   }
 
   Future<void> _showEditLogDialog(OperationLog log) async {
+    final logId = log.logId;
+    if (logId == null) {
+      _showSnackBar('无法编辑：日志ID缺失', isError: true);
+      return;
+    }
     final userIdController =
         TextEditingController(text: log.userId?.toString());
     final operationContentController =
@@ -579,14 +541,12 @@ class _OperationLogPageState extends State<OperationLogPage> {
                         operationContent: operationContentController.text,
                         operationResult: operationResultController.text,
                         operationTime: log.operationTime,
-                        operationIpAddress: log.operationIpAddress,
                         remarks: remarksController.text.isEmpty
                             ? null
                             : remarksController.text,
-                        idempotencyKey: idempotencyKey,
                       );
-                      await logApi.apiOperationLogsLogIdPut(
-                        logId: log.logId.toString(),
+                      await logApi.apiLogsOperationLogIdPut(
+                        logId: logId,
                         operationLog: updatedLog,
                         idempotencyKey: idempotencyKey,
                       );
@@ -613,7 +573,7 @@ class _OperationLogPageState extends State<OperationLogPage> {
     );
   }
 
-  Future<void> _deleteLog(String logId) async {
+  Future<void> _deleteLog(int logId) async {
     final themeData = controller.currentBodyTheme.value;
     final confirmed = await showDialog<bool>(
       context: context,
@@ -652,7 +612,7 @@ class _OperationLogPageState extends State<OperationLogPage> {
         return;
       }
       try {
-        await logApi.apiOperationLogsLogIdDelete(logId: logId);
+        await logApi.apiLogsOperationLogIdDelete(logId: logId);
         _showSnackBar('日志删除成功');
         await _refreshLogs();
       } catch (e) {
@@ -942,7 +902,7 @@ class _OperationLogPageState extends State<OperationLogPage> {
                 ),
               ),
               Text(
-                'IP地址: ${log.operationIpAddress ?? "无"}',
+                'IP地址: ${log.requestIp ?? "无"}',
                 style: themeData.textTheme.bodyMedium?.copyWith(
                   color: themeData.colorScheme.onSurfaceVariant,
                 ),
@@ -969,7 +929,14 @@ class _OperationLogPageState extends State<OperationLogPage> {
                   IconButton(
                     icon:
                         Icon(Icons.delete, color: themeData.colorScheme.error),
-                    onPressed: () => _deleteLog(log.logId.toString()),
+                    onPressed: () {
+                      final logId = log.logId;
+                      if (logId == null) {
+                        _showSnackBar('无法删除：日志ID缺失', isError: true);
+                        return;
+                      }
+                      _deleteLog(logId);
+                    },
                     tooltip: '删除日志',
                   ),
                 ],

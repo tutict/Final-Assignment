@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/vehicle_information_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_dashboard_screen.dart';
@@ -8,8 +9,8 @@ import 'package:final_assignment_front/features/model/vehicle_information.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // Utility methods for validation
 bool isValidLicensePlate(String value) {
@@ -262,15 +263,16 @@ class _VehicleListState extends State<VehicleList> {
         return [];
       }
       if (_searchType == 'licensePlate') {
-        final suggestions = await vehicleApi.apiVehiclesLicensePlateGloballyGet(
-          licensePlate: prefix,
+        final suggestions = await vehicleApi.apiVehiclesSearchLicenseGlobalGet(
+          prefix: prefix,
         );
         return suggestions
             .where((s) => s.toLowerCase().contains(prefix.toLowerCase()))
             .toList();
       } else {
-        final suggestions = await vehicleApi.apiVehiclesTypeGloballyGet(
-          vehicleType: prefix,
+        final suggestions =
+            await vehicleApi.apiVehiclesAutocompleteTypesGlobalGet(
+          prefix: prefix,
         );
         return suggestions
             .where((s) => s.toLowerCase().contains(prefix.toLowerCase()))
@@ -807,10 +809,17 @@ class _VehicleListState extends State<VehicleList> {
                                                     color: themeData
                                                         .colorScheme.error,
                                                   ),
-                                                  onPressed: () =>
-                                                      _deleteVehicle(
-                                                          vehicle.vehicleId ??
-                                                              0),
+                                                  onPressed: () {
+                                                    final vehicleId =
+                                                        vehicle.vehicleId;
+                                                    if (vehicleId == null) {
+                                                      _showSnackBar(
+                                                          '无法删除：缺少车辆ID',
+                                                          isError: true);
+                                                      return;
+                                                    }
+                                                    _deleteVehicle(vehicleId);
+                                                  },
                                                   tooltip: '删除车辆',
                                                 ),
                                                 Icon(
@@ -840,6 +849,29 @@ class _VehicleListState extends State<VehicleList> {
         ),
       );
     });
+  }
+
+  void _showSnackBar(String message, {bool isError = false}) {
+    if (!mounted) return;
+    final themeData = controller.currentBodyTheme.value;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          style: TextStyle(
+            color: isError
+                ? themeData.colorScheme.onError
+                : themeData.colorScheme.onPrimary,
+          ),
+        ),
+        backgroundColor: isError
+            ? themeData.colorScheme.error
+            : themeData.colorScheme.primary,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
+        margin: const EdgeInsets.all(10.0),
+      ),
+    );
   }
 }
 
@@ -948,7 +980,8 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
       Navigator.pushReplacementNamed(context, '/login');
       return;
     }
-    if (await vehicleApi.apiVehiclesExistsGet(licensePlate: licensePlate)) {
+    if (await vehicleApi.apiVehiclesExistsLicensePlateGet(
+        licensePlate: licensePlate)) {
       _showSnackBar('车牌号已存在，请使用其他车牌号', isError: true);
       return;
     }
@@ -1388,7 +1421,8 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
       return;
     }
     if (newLicensePlate != widget.vehicle.licensePlate &&
-        await vehicleApi.apiVehiclesExistsGet(licensePlate: newLicensePlate)) {
+        await vehicleApi.apiVehiclesExistsLicensePlateGet(
+            licensePlate: newLicensePlate)) {
       _showSnackBar('车牌号已存在，请使用其他车牌号', isError: true);
       return;
     }
@@ -1761,7 +1795,7 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
       await vehicleApi.initializeWithJwt();
       final user = await _fetchUserManagement();
       final driverInfo = user?.userId != null
-          ? await _fetchDriverInformation(user!.userId)
+          ? await _fetchDriverInformation(user!.userId!)
           : null;
       _currentDriverName = driverInfo?.name ?? username;
       await _checkUserRole();
@@ -2021,8 +2055,17 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
                   IconButton(
                     icon:
                         Icon(Icons.delete, color: themeData.colorScheme.error),
-                    onPressed: () => _showDeleteConfirmationDialog('删除',
-                        () => _deleteVehicle(widget.vehicle.vehicleId ?? 0)),
+                    onPressed: () {
+                      final vehicleId = widget.vehicle.vehicleId;
+                      if (vehicleId == null) {
+                        _showSnackBar('无法删除：缺少车辆ID', isError: true);
+                        return;
+                      }
+                      _showDeleteConfirmationDialog(
+                        '删除',
+                        () => _deleteVehicle(vehicleId),
+                      );
+                    },
                     tooltip: '删除车辆',
                   ),
                 ]

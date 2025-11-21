@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:developer' as developer;
 
 import 'package:final_assignment_front/config/routes/app_pages.dart';
@@ -9,7 +8,6 @@ import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -75,52 +73,23 @@ class _LoginLogPageState extends State<LoginLogPage> {
 
   Future<bool> _validateJwtToken() async {
     final prefs = await SharedPreferences.getInstance();
-    String? jwtToken = prefs.getString('jwtToken');
+    final jwtToken = prefs.getString('jwtToken');
     if (jwtToken == null || jwtToken.isEmpty) {
       setState(() => _errorMessage = '未授权，请重新登录');
       return false;
     }
     try {
-      final decodedToken = JwtDecoder.decode(jwtToken);
       if (JwtDecoder.isExpired(jwtToken)) {
-        jwtToken = await _refreshJwtToken();
-        if (jwtToken == null) {
-          setState(() => _errorMessage = '登录已过期，请重新登录');
-          return false;
-        }
-        await prefs.setString('jwtToken', jwtToken);
-        if (JwtDecoder.isExpired(jwtToken)) {
-          setState(() => _errorMessage = '新登录信息已过期，请重新登录');
-          return false;
-        }
-        await logApi.initializeWithJwt();
+        setState(() => _errorMessage = '登录已过期，请重新登录');
+        return false;
       }
-      _currentUsername = decodedToken['sub'] ?? '';
+      await logApi.initializeWithJwt();
+      final decodedToken = JwtDecoder.decode(jwtToken);
+      _currentUsername = decodedToken['sub']?.toString() ?? '';
       return true;
     } catch (e) {
       setState(() => _errorMessage = '无效的登录信息，请重新登录');
       return false;
-    }
-  }
-
-  Future<String?> _refreshJwtToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    final refreshToken = prefs.getString('refreshToken');
-    if (refreshToken == null) return null;
-    try {
-      final response = await http.post(
-        Uri.parse('http://localhost:8081/api/auth/refresh'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'refreshToken': refreshToken}),
-      );
-      if (response.statusCode == 200) {
-        final newJwt = jsonDecode(response.body)['jwtToken'];
-        await prefs.setString('jwtToken', newJwt);
-        return newJwt;
-      }
-      return null;
-    } catch (e) {
-      return null;
     }
   }
 
@@ -191,46 +160,18 @@ class _LoginLogPageState extends State<LoginLogPage> {
         Get.offAllNamed(AppPages.login);
         return;
       }
-      List<LoginLog> logs = [];
-      final searchQuery = query?.trim() ?? '';
-      if (_searchType == 'username' && searchQuery.isNotEmpty) {
-        logs = await logApi.apiLoginLogsGet();
-        logs = logs
-            .where((log) =>
-                log.username
-                    ?.toLowerCase()
-                    .contains(searchQuery.toLowerCase()) ??
-                false)
-            .toList();
-      } else if (_searchType == 'loginResult' && searchQuery.isNotEmpty) {
-        logs = await logApi.apiLoginLogsGet();
-        logs = logs
-            .where((log) =>
-                log.loginResult
-                    ?.toLowerCase()
-                    .contains(searchQuery.toLowerCase()) ??
-                false)
-            .toList();
-      } else if (_startTime != null && _endTime != null) {
-        logs = await logApi.apiLoginLogsTimeRangeGet(
-          startTime: _startTime!.toIso8601String(),
-          endTime: _endTime!.add(const Duration(days: 1)).toIso8601String(),
-        );
-      } else {
-        logs = await logApi.apiLoginLogsGet();
-      }
-
+      final logs = await logApi.apiLogsLoginGet();
       setState(() {
         _logs.addAll(logs);
-        _hasMore = logs.length == _pageSize;
+        _hasMore = false;
         _applyFilters(query ?? _searchController.text);
         if (_filteredLogs.isEmpty) {
-          _errorMessage =
-              searchQuery.isNotEmpty || (_startTime != null && _endTime != null)
-                  ? '未找到符合条件的日志记录'
-                  : '暂无日志记录';
+          _errorMessage = (_searchController.text.isNotEmpty ||
+                  (_startTime != null && _endTime != null))
+              ? '未找到符合条件的日志记录'
+              : '暂无日志记录';
         }
-        _currentPage++;
+        _currentPage = 1;
       });
       developer.log('Loaded logs: ${_logs.length}');
     } catch (e) {
@@ -292,25 +233,16 @@ class _LoginLogPageState extends State<LoginLogPage> {
   }
 
   Future<List<String>> _fetchAutocompleteSuggestions(String prefix) async {
-    try {
-      if (!await _validateJwtToken()) {
-        Get.offAllNamed(AppPages.login);
-        return [];
-      }
-      List<String> suggestions;
-      if (_searchType == 'username') {
-        suggestions =
-            await logApi.apiLoginLogsAutocompleteUsernamesGet(username: prefix);
-      } else {
-        suggestions = await logApi.apiLoginLogsAutocompleteLoginResultsGet(
-            loginResult: prefix);
-      }
-      return suggestions.take(5).toList();
-    } catch (e) {
-      developer.log('Failed to fetch autocomplete suggestions: $e',
-          stackTrace: StackTrace.current);
-      return [];
-    }
+    final normalized = prefix.toLowerCase();
+    final values = _searchType == 'username'
+        ? _logs.map((log) => log.username ?? '')
+        : _logs.map((log) => log.loginResult ?? '');
+    return values
+        .where((value) => value.isNotEmpty)
+        .where((value) => value.toLowerCase().contains(normalized))
+        .toSet()
+        .take(5)
+        .toList();
   }
 
   Future<void> _loadMoreLogs() async {
@@ -338,7 +270,7 @@ class _LoginLogPageState extends State<LoginLogPage> {
 
   Future<void> _showCreateLogDialog() async {
     final usernameController = TextEditingController(text: _currentUsername);
-    final loginIpAddressController = TextEditingController();
+    final loginIpController = TextEditingController();
     final loginResultController = TextEditingController();
     final browserTypeController = TextEditingController();
     final osVersionController = TextEditingController();
@@ -376,7 +308,7 @@ class _LoginLogPageState extends State<LoginLogPage> {
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
-                      controller: loginIpAddressController,
+                      controller: loginIpController,
                       decoration: InputDecoration(
                         labelText: '登录IP地址',
                         border: OutlineInputBorder(
@@ -453,7 +385,7 @@ class _LoginLogPageState extends State<LoginLogPage> {
                     try {
                       final newLog = LoginLog(
                         username: usernameController.text,
-                        loginIpAddress: loginIpAddressController.text,
+                        loginIp: loginIpController.text,
                         loginResult: loginResultController.text,
                         browserType: browserTypeController.text.isEmpty
                             ? null
@@ -464,10 +396,9 @@ class _LoginLogPageState extends State<LoginLogPage> {
                         remarks: remarksController.text.isEmpty
                             ? null
                             : remarksController.text,
-                        idempotencyKey: idempotencyKey,
                         loginTime: DateTime.now(),
                       );
-                      await logApi.apiLoginLogsPost(
+                      await logApi.apiLogsLoginPost(
                         loginLog: newLog,
                         idempotencyKey: idempotencyKey,
                       );
@@ -495,9 +426,13 @@ class _LoginLogPageState extends State<LoginLogPage> {
   }
 
   Future<void> _showEditLogDialog(LoginLog log) async {
+    final logId = log.logId;
+    if (logId == null) {
+      _showSnackBar('无法编辑：日志ID缺失', isError: true);
+      return;
+    }
     final usernameController = TextEditingController(text: log.username);
-    final loginIpAddressController =
-        TextEditingController(text: log.loginIpAddress);
+    final loginIpController = TextEditingController(text: log.loginIp ?? '');
     final loginResultController = TextEditingController(text: log.loginResult);
     final browserTypeController = TextEditingController(text: log.browserType);
     final osVersionController = TextEditingController(text: log.osVersion);
@@ -535,7 +470,7 @@ class _LoginLogPageState extends State<LoginLogPage> {
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
-                      controller: loginIpAddressController,
+                      controller: loginIpController,
                       decoration: InputDecoration(
                         labelText: '登录IP地址',
                         border: OutlineInputBorder(
@@ -613,7 +548,7 @@ class _LoginLogPageState extends State<LoginLogPage> {
                       final updatedLog = LoginLog(
                         logId: log.logId,
                         username: usernameController.text,
-                        loginIpAddress: loginIpAddressController.text,
+                        loginIp: loginIpController.text,
                         loginResult: loginResultController.text,
                         loginTime: log.loginTime,
                         browserType: browserTypeController.text.isEmpty
@@ -625,10 +560,9 @@ class _LoginLogPageState extends State<LoginLogPage> {
                         remarks: remarksController.text.isEmpty
                             ? null
                             : remarksController.text,
-                        idempotencyKey: idempotencyKey,
                       );
-                      await logApi.apiLoginLogsLogIdPut(
-                        logId: log.logId.toString(),
+                      await logApi.apiLogsLoginLogIdPut(
+                        logId: logId,
                         loginLog: updatedLog,
                         idempotencyKey: idempotencyKey,
                       );
@@ -655,7 +589,7 @@ class _LoginLogPageState extends State<LoginLogPage> {
     );
   }
 
-  Future<void> _deleteLog(String logId) async {
+  Future<void> _deleteLog(int logId) async {
     final themeData = controller.currentBodyTheme.value;
     final confirmed = await showDialog<bool>(
       context: context,
@@ -694,7 +628,7 @@ class _LoginLogPageState extends State<LoginLogPage> {
         return;
       }
       try {
-        await logApi.apiLoginLogsLogIdDelete(logId: logId);
+        await logApi.apiLogsLoginLogIdDelete(logId: logId);
         _showSnackBar('日志删除成功');
         await _refreshLogs();
       } catch (e) {
@@ -964,7 +898,7 @@ class _LoginLogPageState extends State<LoginLogPage> {
                 ),
               ),
               Text(
-                '登录IP地址: ${log.loginIpAddress ?? "无"}',
+                '登录IP地址: ${log.loginIp ?? "无"}',
                 style: themeData.textTheme.bodyMedium?.copyWith(
                   color: themeData.colorScheme.onSurfaceVariant,
                 ),
@@ -1015,7 +949,14 @@ class _LoginLogPageState extends State<LoginLogPage> {
                   IconButton(
                     icon:
                         Icon(Icons.delete, color: themeData.colorScheme.error),
-                    onPressed: () => _deleteLog(log.logId.toString()),
+                    onPressed: () {
+                      final logId = log.logId;
+                      if (logId == null) {
+                        _showSnackBar('无法删除：日志ID缺失', isError: true);
+                        return;
+                      }
+                      _deleteLog(logId);
+                    },
                     tooltip: '删除日志',
                   ),
                 ],

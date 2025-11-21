@@ -1,15 +1,16 @@
 import 'dart:convert';
 import 'dart:developer' as developer;
-import 'package:final_assignment_front/features/api/vehicle_information_controller_api.dart';
-import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_dashboard_screen.dart';
-import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+
 import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
+import 'package:final_assignment_front/features/api/vehicle_information_controller_api.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_dashboard_screen.dart';
 import 'package:final_assignment_front/features/model/offense_information.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
 import 'package:jwt_decoder/jwt_decoder.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // Utility methods for validation
 bool isValidLicensePlate(String value) {
@@ -950,8 +951,8 @@ class _AddOffensePageState extends State<AddOffensePage> {
         Navigator.pushReplacementNamed(context, AppPages.login);
         return [];
       }
-      final vehicles = await vehicleApi.apiVehiclesSearchGet(
-          query: prefix, page: 1, size: 10);
+      final vehicles = await vehicleApi.apiVehiclesSearchGeneralGet(
+          keywords: prefix, page: 1, size: 10);
       return vehicles
           .map((v) => v.ownerName ?? '')
           .where((name) => name.toLowerCase().contains(prefix.toLowerCase()))
@@ -969,8 +970,7 @@ class _AddOffensePageState extends State<AddOffensePage> {
         Navigator.pushReplacementNamed(context, AppPages.login);
         return [];
       }
-      return await vehicleApi.apiVehiclesLicensePlateGloballyGet(
-          licensePlate: prefix);
+      return await vehicleApi.apiVehiclesSearchLicenseGlobalGet(prefix: prefix);
     } catch (e) {
       _showSnackBar('获取车牌号建议失败: $e', isError: true);
       return [];
@@ -987,43 +987,32 @@ class _AddOffensePageState extends State<AddOffensePage> {
     try {
       final offenseTime =
           DateTime.parse("${_offenseTimeController.text.trim()}T00:00:00.000");
-      final offensePayload = {
-        'offenseId': null,
-        'driverName': _driverNameController.text.trim(),
-        'licensePlate': _licensePlateController.text.trim(),
-        'offenseType': _offenseTypeController.text.trim(),
-        'offenseCode': _offenseCodeController.text.trim(),
-        'offenseLocation': _offenseLocationController.text.trim(),
-        'offenseTime': offenseTime.toIso8601String(),
-        'deductedPoints': _deductedPointsController.text.trim().isEmpty
+      final idempotencyKey = generateIdempotencyKey();
+      final offensePayload = OffenseInformation(
+        offenseTime: offenseTime,
+        driverName: _driverNameController.text.trim(),
+        licensePlate: _licensePlateController.text.trim(),
+        offenseType: _offenseTypeController.text.trim(),
+        offenseCode: _offenseCodeController.text.trim(),
+        offenseLocation: _offenseLocationController.text.trim(),
+        deductedPoints: _deductedPointsController.text.trim().isEmpty
             ? null
             : int.parse(_deductedPointsController.text.trim()),
-        'fineAmount': _fineAmountController.text.trim().isEmpty
+        fineAmount: _fineAmountController.text.trim().isEmpty
             ? null
-            : num.parse(_fineAmountController.text.trim()),
-        'processStatus': _processStatusController.text.trim().isEmpty
+            : double.parse(_fineAmountController.text.trim()),
+        processStatus: _processStatusController.text.trim().isEmpty
             ? 'Pending'
             : _processStatusController.text.trim(),
-        'processResult': _processResultController.text.trim().isEmpty
+        processResult: _processResultController.text.trim().isEmpty
             ? null
             : _processResultController.text.trim(),
-      };
-      final idempotencyKey = generateIdempotencyKey();
-      final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken');
-      final response = await http.post(
-        Uri.parse(
-            'http://localhost:8081/api/offenses?idempotencyKey=$idempotencyKey'),
-        headers: {
-          'Authorization': 'Bearer $jwtToken',
-          'Content-Type': 'application/json; charset=UTF-8',
-        },
-        body: jsonEncode(offensePayload),
+        idempotencyKey: idempotencyKey,
       );
-      if (response.statusCode != 201) {
-        throw Exception(
-            'Failed to create offense: ${response.statusCode} - ${response.body}');
-      }
+      await offenseApi.apiOffensesPost(
+        offenseInformation: offensePayload,
+        idempotencyKey: idempotencyKey,
+      );
       _showSnackBar('创建违法行为记录成功！');
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
@@ -1745,8 +1734,8 @@ class _EditOffensePageState extends State<EditOffensePage> {
         Navigator.pushReplacementNamed(context, AppPages.login);
         return [];
       }
-      final vehicles = await vehicleApi.apiVehiclesSearchGet(
-          query: prefix, page: 1, size: 10);
+      final vehicles = await vehicleApi.apiVehiclesSearchGeneralGet(
+          keywords: prefix, page: 1, size: 10);
       return vehicles
           .map((v) => v.ownerName ?? '')
           .where((name) => name.toLowerCase().contains(prefix.toLowerCase()))
@@ -1764,8 +1753,7 @@ class _EditOffensePageState extends State<EditOffensePage> {
         Navigator.pushReplacementNamed(context, AppPages.login);
         return [];
       }
-      return await vehicleApi.apiVehiclesLicensePlateGloballyGet(
-          licensePlate: prefix);
+      return await vehicleApi.apiVehiclesSearchLicenseGlobalGet(prefix: prefix);
     } catch (e) {
       _showSnackBar('获取车牌号建议失败: $e', isError: true);
       return [];
@@ -1782,43 +1770,33 @@ class _EditOffensePageState extends State<EditOffensePage> {
     try {
       final offenseTime =
           DateTime.parse("${_offenseTimeController.text.trim()}T00:00:00.000");
-      final offensePayload = {
-        'offenseId': widget.offense.offenseId,
-        'driverName': _driverNameController.text.trim(),
-        'licensePlate': _licensePlateController.text.trim(),
-        'offenseType': _offenseTypeController.text.trim(),
-        'offenseCode': _offenseCodeController.text.trim(),
-        'offenseLocation': _offenseLocationController.text.trim(),
-        'offenseTime': offenseTime.toIso8601String(),
-        'deductedPoints': _deductedPointsController.text.trim().isEmpty
+      final offensePayload = OffenseInformation(
+        offenseId: widget.offense.offenseId,
+        driverName: _driverNameController.text.trim(),
+        licensePlate: _licensePlateController.text.trim(),
+        offenseType: _offenseTypeController.text.trim(),
+        offenseCode: _offenseCodeController.text.trim(),
+        offenseLocation: _offenseLocationController.text.trim(),
+        offenseTime: offenseTime,
+        deductedPoints: _deductedPointsController.text.trim().isEmpty
             ? null
             : int.parse(_deductedPointsController.text.trim()),
-        'fineAmount': _fineAmountController.text.trim().isEmpty
+        fineAmount: _fineAmountController.text.trim().isEmpty
             ? null
-            : num.parse(_fineAmountController.text.trim()),
-        'processStatus': _processStatusController.text.trim().isEmpty
+            : double.parse(_fineAmountController.text.trim()),
+        processStatus: _processStatusController.text.trim().isEmpty
             ? 'Pending'
             : _processStatusController.text.trim(),
-        'processResult': _processResultController.text.trim().isEmpty
+        processResult: _processResultController.text.trim().isEmpty
             ? null
             : _processResultController.text.trim(),
-      };
-      final idempotencyKey = generateIdempotencyKey();
-      final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken');
-      final response = await http.put(
-        Uri.parse(
-            'http://localhost:8081/api/offenses/${widget.offense.offenseId}?idempotencyKey=$idempotencyKey'),
-        headers: {
-          'Authorization': 'Bearer $jwtToken',
-          'Content-Type': 'application/json; charset=UTF-8',
-        },
-        body: jsonEncode(offensePayload),
       );
-      if (response.statusCode != 200) {
-        throw Exception(
-            'Failed to update offense: ${response.statusCode} - ${response.body}');
-      }
+      final idempotencyKey = generateIdempotencyKey();
+      await offenseApi.apiOffensesOffenseIdPut(
+        offenseId: widget.offense.offenseId!,
+        offenseInformation: offensePayload,
+        idempotencyKey: idempotencyKey,
+      );
       _showSnackBar('更新违法行为记录成功！');
       if (mounted) Navigator.pop(context, true);
     } catch (e) {

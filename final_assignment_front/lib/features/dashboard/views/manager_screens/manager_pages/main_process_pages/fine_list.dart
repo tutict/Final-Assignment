@@ -24,6 +24,15 @@ String formatDate(DateTime? date) {
   return "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
 }
 
+DateTime? _resolvedFineDate(FineInformation fine) {
+  return fine.fineDate ??
+      (fine.fineTime != null ? DateTime.tryParse(fine.fineTime!) : null);
+}
+
+DateTime _comparableFineDate(FineInformation fine) {
+  return _resolvedFineDate(fine) ?? DateTime.fromMillisecondsSinceEpoch(0);
+}
+
 /// FineList 页面：管理员才能访问
 class FineList extends StatefulWidget {
   const FineList({super.key});
@@ -202,15 +211,8 @@ class _FineListState extends State<FineList> {
         try {
           if (searchQuery.isEmpty && _startDate == null && _endDate == null) {
             fines = await fineApi.apiFinesGet() ?? [];
-            fines.sort((a, b) {
-              final aTime = a.fineTime != null
-                  ? DateTime.parse(a.fineTime!)
-                  : DateTime(1970);
-              final bTime = b.fineTime != null
-                  ? DateTime.parse(b.fineTime!)
-                  : DateTime(1970);
-              return bTime.compareTo(aTime);
-            });
+            fines.sort((a, b) =>
+                _comparableFineDate(b).compareTo(_comparableFineDate(a)));
           } else if (_searchType == 'payee' && searchQuery.isNotEmpty) {
             fines =
                 await fineApi.apiFinesPayeePayeeGet(payee: searchQuery) ?? [];
@@ -218,9 +220,12 @@ class _FineListState extends State<FineList> {
               _startDate != null &&
               _endDate != null) {
             fines = await fineApi.apiFinesTimeRangeGet(
-              startTime: _startDate!.toIso8601String(),
-              endTime:
-              _endDate!.add(const Duration(days: 1)).toIso8601String(),
+              startDate: _startDate!.toIso8601String().split('T').first,
+              endDate: _endDate!
+                  .add(const Duration(days: 1))
+                  .toIso8601String()
+                  .split('T')
+                  .first,
             ) ??
                 [];
           }
@@ -304,8 +309,7 @@ class _FineListState extends State<FineList> {
       _filteredFineList.clear();
       _filteredFineList = _fineList.where((fine) {
         final payee = (fine.payee ?? '').toLowerCase();
-        final fineTime =
-        fine.fineTime != null ? DateTime.parse(fine.fineTime!) : null;
+        final fineDate = _resolvedFineDate(fine);
 
         bool matchesQuery = true;
         if (searchQuery.isNotEmpty && _searchType == 'payee') {
@@ -313,11 +317,14 @@ class _FineListState extends State<FineList> {
         }
 
         bool matchesDateRange = true;
-        if (_startDate != null && _endDate != null && fineTime != null) {
-          matchesDateRange = fineTime.isAfter(_startDate!) &&
-              fineTime.isBefore(_endDate!.add(const Duration(days: 1)));
-        } else if (_startDate != null && _endDate != null && fineTime == null) {
-          matchesDateRange = false;
+        if (_startDate != null && _endDate != null) {
+          if (fineDate == null) {
+            matchesDateRange = false;
+          } else {
+            final inclusiveEnd = _endDate!.add(const Duration(days: 1));
+            matchesDateRange =
+                !fineDate.isBefore(_startDate!) && fineDate.isBefore(inclusiveEnd);
+          }
         }
 
         return matchesQuery && matchesDateRange;
@@ -841,7 +848,7 @@ class _FineListState extends State<FineList> {
                                   ),
                                 ),
                                 Text(
-                                  '时间: ${formatDate(fijne.fineTime != null ? DateTime.parse(fijne.fineTime!) : null)}',
+                                  '时间: ${formatDate(_resolvedFineDate(fijne))}',
                                   style: themeData
                                       .textTheme.bodyMedium
                                       ?.copyWith(
@@ -1012,8 +1019,10 @@ class _AddFinePageState extends State<AddFinePage> {
         Navigator.pushReplacementNamed(context, AppPages.login);
         return [];
       }
-      return await vehicleApi.apiVehiclesLicensePlateGloballyGet(
-          licensePlate: prefix);
+      return await vehicleApi.apiVehiclesSearchLicenseGlobalGet(
+        prefix: prefix,
+        size: 10,
+      );
     } catch (e) {
       _showSnackBar('获取车牌号建议失败: $e', isError: true);
       return [];
@@ -1841,9 +1850,7 @@ class _FineDetailPageState extends State<FineDetailPage> {
                     ),
                     _buildDetailRow(
                       '罚款时间',
-                      _currentFine.fineTime != null
-                          ? formatDate(DateTime.parse(_currentFine.fineTime!))
-                          : '未知',
+                      formatDate(_resolvedFineDate(_currentFine)),
                       themeData,
                     ),
                     _buildDetailRow(
