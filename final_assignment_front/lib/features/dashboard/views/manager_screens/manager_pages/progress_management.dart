@@ -1,7 +1,7 @@
 import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/progress_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_dashboard_screen.dart';
-import 'package:final_assignment_front/features/model/appeal_management.dart';
+import 'package:final_assignment_front/features/model/appeal_record.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -325,7 +325,7 @@ class ProgressManagementPage extends StatelessWidget {
       ProgressController controller, ThemeData themeData) {
     final titleController = TextEditingController();
     final detailsController = TextEditingController();
-    AppealManagement? selectedAppeal;
+    AppealRecordModel? selectedAppeal;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -361,7 +361,7 @@ class ProgressManagementPage extends StatelessWidget {
                 maxLines: 3,
               ),
               const SizedBox(height: 16),
-              Obx(() => DropdownButtonFormField<AppealManagement>(
+              Obx(() => DropdownButtonFormField<AppealRecordModel>(
                     decoration: InputDecoration(
                       labelText: '关联申诉（可选）',
                       border: OutlineInputBorder(

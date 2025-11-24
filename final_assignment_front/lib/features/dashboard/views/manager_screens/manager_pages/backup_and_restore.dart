@@ -1,15 +1,14 @@
 import 'package:final_assignment_front/features/api/backup_restore_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_dashboard_screen.dart';
 import 'package:final_assignment_front/features/model/backup_restore.dart';
+import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:flutter/material.dart';
-import 'package:get/Get.dart';
-import 'package:http/http.dart' as http;
+import 'package:get/get.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
+import 'package:uuid/uuid.dart';
 
-String generateIdempotencyKey() {
-  return DateTime.now().millisecondsSinceEpoch.toString();
-}
+String generateIdempotencyKey() => const Uuid().v4();
 
 /// 备份与恢复管理页面
 class BackupAndRestore extends StatefulWidget {
@@ -20,9 +19,11 @@ class BackupAndRestore extends StatefulWidget {
 }
 
 class _BackupAndRestoreState extends State<BackupAndRestore> {
-  late BackupRestoreControllerApi backupApi;
-  late Future<List<BackupRestore>> _backupsFuture;
+  final BackupRestoreControllerApi backupApi = BackupRestoreControllerApi();
   final DashboardController controller = Get.find<DashboardController>();
+  final List<BackupRestore> _backups = [];
+  List<BackupRestore> _filteredBackups = [];
+  bool _apiInitialized = false;
   bool _isLoading = true;
   bool _isAdmin = false; // 确保是管理员
   String _errorMessage = '';
@@ -32,8 +33,7 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
   @override
   void initState() {
     super.initState();
-    backupApi = BackupRestoreControllerApi();
-    _checkUserRole(); // 检查用户角色并加载备份
+    _initialize(); // 检查用户角色并加载备份
   }
 
   @override
@@ -43,353 +43,252 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
     super.dispose();
   }
 
-  Future<void> _checkUserRole() async {
-    final prefs = await SharedPreferences.getInstance();
-    final jwtToken = prefs.getString('jwtToken');
-    if (jwtToken == null) {
+  Future<void> _initialize() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+    try {
+      if (!await _ensureApiInitialized()) {
+        setState(() {
+          _errorMessage = '未登录，请重新登录';
+          _isLoading = false;
+        });
+        return;
+      }
+      final prefs = await SharedPreferences.getInstance();
+      final jwtToken = prefs.getString('jwtToken');
+      if (jwtToken == null || jwtToken.isEmpty) {
+        throw Exception('未登录，请重新登录');
+      }
+      final roles = _extractRoles(jwtToken);
+      final isAdmin =
+          roles.any((role) => role.toUpperCase().contains('ADMIN'));
+      if (!isAdmin) {
+        setState(() {
+          _isAdmin = false;
+          _errorMessage = '权限不足：仅管理员可访问此页面';
+          _isLoading = false;
+        });
+        return;
+      }
+      setState(() => _isAdmin = true);
+      await _loadBackups();
+    } catch (e) {
       setState(() {
-        _errorMessage = '未登录，请重新登录';
+        _errorMessage = '初始化失败: ${_formatErrorMessage(e)}';
         _isLoading = false;
+      });
+    }
+  }
+
+  Future<bool> _ensureApiInitialized() async {
+    if (_apiInitialized) return true;
+    try {
+      await backupApi.initializeWithJwt();
+      _apiInitialized = true;
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  List<String> _extractRoles(String jwtToken) {
+    final decoded = JwtDecoder.decode(jwtToken);
+    final rolesField = decoded['roles'];
+    if (rolesField is List) {
+      return rolesField.map((role) => role.toString()).toList();
+    }
+    if (rolesField is String) {
+      return [rolesField];
+    }
+    return [];
+  }
+
+  Future<void> _loadBackups() async {
+    if (!_isAdmin) {
+      setState(() => _isLoading = false);
+      return;
+    }
+    if (!await _ensureApiInitialized()) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = '未登录，请重新登录';
       });
       return;
     }
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
 
-    final response = await http.get(
-      Uri.parse('http://localhost:8081/api/users/me'), // 后端地址
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $jwtToken',
-      },
-    );
-
-    if (response.statusCode == 200) {
-      final roleData = jsonDecode(response.body);
-      final userRole = (roleData['roles'] as List<dynamic>).firstWhere(
-        (role) => role == 'ADMIN',
-        orElse: () => 'USER',
-      );
-
+    try {
+      final backups = await backupApi.apiSystemBackupGet();
       setState(() {
-        _isAdmin = userRole == 'ADMIN';
-        if (_isAdmin) {
-          _loadBackups(); // 仅管理员加载所有备份
-        } else {
-          _errorMessage = '权限不足：仅管理员可访问此页面';
-          _isLoading = false;
-        }
+        _backups
+          ..clear()
+          ..addAll(backups);
+        _filteredBackups = List<BackupRestore>.from(_backups);
+        _isLoading = false;
       });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = '加载备份记录失败: ${_formatErrorMessage(e)}';
+        _filteredBackups = [];
+      });
+    }
+  }
+
+  void _searchBackups(String type, String query) {
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) {
+      setState(() => _filteredBackups = List.from(_backups));
+      return;
+    }
+    final lowerQuery = trimmed.toLowerCase();
+    List<BackupRestore> filtered;
+    if (type == 'filename') {
+      filtered = _backups
+          .where((backup) =>
+              (backup.backupFileName ?? '').toLowerCase().contains(lowerQuery))
+          .toList();
+    } else if (type == 'time') {
+      filtered = _backups
+          .where((backup) =>
+              _formatDate(backup.backupTime).contains(trimmed))
+          .toList();
     } else {
-      setState(() {
-        _errorMessage = '验证失败：${response.statusCode} - ${response.body}';
-        _isLoading = false;
-      });
+      filtered = List.from(_backups);
     }
-  }
-
-  Future<List<BackupRestore>> _loadBackups() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = '';
-    });
-
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken');
-      if (jwtToken == null) {
-        throw Exception('No JWT token found');
-      }
-
-      final response = await http.get(
-        Uri.parse('http://localhost:8081/api/backups'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $jwtToken',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        final backups =
-            data.map((json) => BackupRestore.fromJson(json)).toList();
-        setState(() {
-          _backupsFuture = Future.value(backups);
-          _isLoading = false;
-        });
-        return backups; // 返回 List<BackupRestore>
-      } else {
-        throw Exception('加载备份记录失败: ${response.statusCode} - ${response.body}');
-      }
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-        _errorMessage = '加载备份记录失败: $e';
-      });
-      return []; // 发生错误时返回空列表
-    }
-  }
-
-  Future<void> _searchBackups(String type, String query) async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = '';
-    });
-
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken');
-      if (jwtToken == null) {
-        throw Exception('No JWT token found');
-      }
-
-      Uri uri;
-      if (type == 'filename' && query.isNotEmpty) {
-        uri = Uri.parse('http://localhost:8081/api/backups/filename/$query');
-      } else if (type == 'time' && query.isNotEmpty) {
-        uri = Uri.parse('http://localhost:8081/api/backups/time/$query');
-      } else {
-        await _loadBackups();
-        return;
-      }
-
-      final response = await http.get(
-        uri,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $jwtToken',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final dynamic data = jsonDecode(response.body);
-        final backups = _parseBackupResult(data);
-        setState(() {
-          _backupsFuture = Future.value(backups);
-          _isLoading = false;
-        });
-      } else {
-        throw Exception('搜索失败: ${response.statusCode} - ${response.body}');
-      }
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-        _errorMessage = '搜索备份失败: $e';
-      });
-    }
+    setState(() => _filteredBackups = filtered);
   }
 
   Future<void> _createBackup() async {
-    if (!mounted) return;
+    if (!mounted || !_isAdmin) return;
 
     final scaffoldMessenger = ScaffoldMessenger.of(context);
+    if (!await _ensureApiInitialized()) {
+      scaffoldMessenger.showSnackBar(
+        const SnackBar(content: Text('未登录，请重新登录')),
+      );
+      return;
+    }
+
     try {
-      final backupName = 'backup_${DateTime.now().toIso8601String()}';
-      final String idempotencyKey = generateIdempotencyKey();
+      final backupName =
+          'backup_${DateTime.now().millisecondsSinceEpoch.toString()}';
+      final idempotencyKey = generateIdempotencyKey();
 
       final newBackup = BackupRestore(
-        backupId: null,
         backupFileName: backupName,
         backupTime: DateTime.now(),
-        restoreTime: null,
-        restoreStatus: null,
         remarks: '手动创建的备份',
+        status: 'PENDING',
         idempotencyKey: idempotencyKey,
       );
 
-      final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken');
-      if (jwtToken == null || !_isAdmin) {
-        throw Exception('No JWT token found or insufficient permissions');
-      }
-
-      final response = await http.post(
-        Uri.parse(
-            'http://localhost:8081/api/backups?idempotencyKey=$idempotencyKey'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $jwtToken',
-        },
-        body: jsonEncode(newBackup.toJson()),
+      await backupApi.apiSystemBackupPost(
+        backupRestore: newBackup,
+        idempotencyKey: idempotencyKey,
       );
 
-      if (response.statusCode == 201) {
-        scaffoldMessenger.showSnackBar(
-          const SnackBar(content: Text('备份创建成功！')),
-        );
-        _loadBackups();
-      } else {
-        final result = jsonDecode(response.body);
-        if (result['status'] == 'duplicate') {
-          scaffoldMessenger.showSnackBar(
-            SnackBar(
-                content: Text('备份创建重复：${result['message'] ?? '已存在相同的备份请求'}')),
-          );
-        } else {
-          scaffoldMessenger.showSnackBar(
-            SnackBar(content: Text('备份创建失败：${result['message'] ?? '未知错误'}')),
-          );
-        }
-      }
+      scaffoldMessenger.showSnackBar(
+        const SnackBar(content: Text('备份创建成功')),
+      );
+      await _loadBackups();
     } catch (e) {
       scaffoldMessenger.showSnackBar(
-        SnackBar(
-            content:
-                Text('创建备份失败: $e', style: const TextStyle(color: Colors.red))),
+        SnackBar(content: Text('创建备份失败: ${_formatErrorMessage(e)}')),
       );
     }
   }
 
   Future<void> _updateBackup(int backupId, BackupRestore updatedBackup) async {
-    if (!mounted) return;
+    if (!mounted || !_isAdmin) return;
 
     final scaffoldMessenger = ScaffoldMessenger.of(context);
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken');
-      if (jwtToken == null || !_isAdmin) {
-        throw Exception('No JWT token found or insufficient permissions');
-      }
-
-      final String idempotencyKey = generateIdempotencyKey();
-      updatedBackup.idempotencyKey = idempotencyKey;
-
-      final response = await http.put(
-        Uri.parse(
-            'http://localhost:8081/api/backups/$backupId?idempotencyKey=$idempotencyKey'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $jwtToken',
-        },
-        body: jsonEncode(updatedBackup.toJson()),
+    if (!await _ensureApiInitialized()) {
+      scaffoldMessenger.showSnackBar(
+        const SnackBar(content: Text('未登录，请重新登录')),
       );
+      return;
+    }
 
-      if (response.statusCode == 200) {
-        scaffoldMessenger.showSnackBar(
-          const SnackBar(content: Text('备份更新成功！')),
-        );
-        _loadBackups();
-      } else {
-        final result = jsonDecode(response.body);
-        if (result['status'] == 'duplicate') {
-          scaffoldMessenger.showSnackBar(
-            SnackBar(
-                content: Text('备份更新重复：${result['message'] ?? '已存在相同的更新请求'}')),
-          );
-        } else {
-          scaffoldMessenger.showSnackBar(
-            SnackBar(content: Text('备份更新失败：${result['message'] ?? '未知错误'}')),
-          );
-        }
-      }
+    try {
+      final idempotencyKey = generateIdempotencyKey();
+      final payload = updatedBackup.copyWith(idempotencyKey: idempotencyKey);
+      await backupApi.apiSystemBackupBackupIdPut(
+        backupId: backupId,
+        backupRestore: payload,
+        idempotencyKey: idempotencyKey,
+      );
+      scaffoldMessenger.showSnackBar(
+        const SnackBar(content: Text('备份更新成功')),
+      );
+      await _loadBackups();
     } catch (e) {
       scaffoldMessenger.showSnackBar(
-        SnackBar(
-            content:
-                Text('更新备份失败: $e', style: const TextStyle(color: Colors.red))),
+        SnackBar(content: Text('更新备份失败: ${_formatErrorMessage(e)}')),
       );
     }
   }
 
-  Future<void> _restoreBackup(int backupId) async {
-    if (!mounted) return;
+  Future<void> _restoreBackup(BackupRestore backup) async {
+    if (!mounted || !_isAdmin || backup.backupId == null) return;
 
     final scaffoldMessenger = ScaffoldMessenger.of(context);
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken');
-      if (jwtToken == null || !_isAdmin) {
-        throw Exception('No JWT token found or insufficient permissions');
-      }
-
-      final String idempotencyKey = generateIdempotencyKey();
-      final response = await http.put(
-        Uri.parse(
-            'http://localhost:8081/api/backups/$backupId?idempotencyKey=$idempotencyKey'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $jwtToken',
-        },
-        body: jsonEncode({
-          'restoreTime': DateTime.now().toIso8601String(),
-          'restoreStatus': 'Restored',
-          'idempotencyKey': idempotencyKey,
-        }),
+    if (!await _ensureApiInitialized()) {
+      scaffoldMessenger.showSnackBar(
+        const SnackBar(content: Text('未登录，请重新登录')),
       );
+      return;
+    }
 
-      if (response.statusCode == 200) {
-        final result = jsonDecode(response.body);
-        if (result['status'] == 'success') {
-          scaffoldMessenger.showSnackBar(
-            const SnackBar(content: Text('恢复备份成功！')),
-          );
-          _loadBackups();
-        } else if (result['status'] == 'duplicate') {
-          scaffoldMessenger.showSnackBar(
-            SnackBar(
-                content: Text('恢复备份请求重复：${result['message'] ?? '已恢复过此备份'}')),
-          );
-        } else {
-          scaffoldMessenger.showSnackBar(
-            SnackBar(content: Text('恢复备份失败：${result['message'] ?? '未知错误'}')),
-          );
-        }
-      } else {
-        scaffoldMessenger.showSnackBar(
-          const SnackBar(content: Text('恢复备份失败：响应格式错误')),
-        );
-      }
+    try {
+      final idempotencyKey = generateIdempotencyKey();
+      final payload = backup.copyWith(
+        restoreTime: DateTime.now(),
+        restoreStatus: 'RESTORED',
+        status: 'RESTORED',
+        idempotencyKey: idempotencyKey,
+      );
+      await backupApi.apiSystemBackupBackupIdPut(
+        backupId: backup.backupId!,
+        backupRestore: payload,
+        idempotencyKey: idempotencyKey,
+      );
+      scaffoldMessenger.showSnackBar(
+        const SnackBar(content: Text('恢复备份成功')),
+      );
+      await _loadBackups();
     } catch (e) {
       scaffoldMessenger.showSnackBar(
-        SnackBar(
-            content:
-                Text('恢复备份失败: $e', style: const TextStyle(color: Colors.red))),
+        SnackBar(content: Text('恢复备份失败: ${_formatErrorMessage(e)}')),
       );
     }
   }
 
   Future<void> _deleteBackup(int backupId) async {
-    if (!mounted) return;
+    if (!mounted || !_isAdmin) return;
 
     final scaffoldMessenger = ScaffoldMessenger.of(context);
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken');
-      if (jwtToken == null || !_isAdmin) {
-        throw Exception('No JWT token found or insufficient permissions');
-      }
-
-      final String idempotencyKey = generateIdempotencyKey();
-      final response = await http.delete(
-        Uri.parse(
-            'http://localhost:8081/api/backups/$backupId?idempotencyKey=$idempotencyKey'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $jwtToken',
-        },
+    if (!await _ensureApiInitialized()) {
+      scaffoldMessenger.showSnackBar(
+        const SnackBar(content: Text('未登录，请重新登录')),
       );
+      return;
+    }
 
-      if (response.statusCode == 204) {
-        scaffoldMessenger.showSnackBar(
-          const SnackBar(content: Text('删除备份成功！')),
-        );
-        _loadBackups();
-      } else {
-        final result = jsonDecode(response.body);
-        if (result['status'] == 'duplicate') {
-          scaffoldMessenger.showSnackBar(
-            SnackBar(
-                content: Text('删除备份请求重复：${result['message'] ?? '已删除过此备份'}')),
-          );
-        } else {
-          scaffoldMessenger.showSnackBar(
-            SnackBar(content: Text('删除备份失败：${result['message'] ?? '未知错误'}')),
-          );
-        }
-      }
+    try {
+      await backupApi.apiSystemBackupBackupIdDelete(backupId: backupId);
+      scaffoldMessenger.showSnackBar(
+        const SnackBar(content: Text('删除备份成功')),
+      );
+      await _loadBackups();
     } catch (e) {
       scaffoldMessenger.showSnackBar(
-        SnackBar(
-            content:
-                Text('删除备份失败: $e', style: const TextStyle(color: Colors.red))),
+        SnackBar(content: Text('删除备份失败: ${_formatErrorMessage(e)}')),
       );
     }
   }
@@ -401,16 +300,14 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
     );
   }
 
-  List<BackupRestore> _parseBackupResult(dynamic result) {
-    if (result == null) return [];
-    if (result is List) {
-      return result
-          .map((item) => BackupRestore.fromJson(item as Map<String, dynamic>))
-          .toList();
-    } else if (result is Map<String, dynamic>) {
-      return [BackupRestore.fromJson(result)];
+  String _formatErrorMessage(dynamic error) {
+    if (error is ApiException) {
+      final message = error.message?.isNotEmpty == true
+          ? error.message!
+          : '服务器错误';
+      return '$message (HTTP ${error.code})';
     }
-    return [];
+    return error.toString();
   }
 
   void _goToDetailPage(BackupRestore backup) {
@@ -467,14 +364,9 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
                 return;
               }
 
-              final updatedBackup = BackupRestore(
-                backupId: backup.backupId,
+              final updatedBackup = backup.copyWith(
                 backupFileName: fileName,
-                backupTime: backup.backupTime,
-                restoreTime: backup.restoreTime,
-                restoreStatus: backup.restoreStatus,
                 remarks: remarks,
-                idempotencyKey: generateIdempotencyKey(),
               );
 
               _updateBackup(backup.backupId!, updatedBackup);
@@ -488,9 +380,14 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
   }
 
   // Helper method to format DateTime to a readable string
+  String _formatDate(DateTime? dateTime) {
+    if (dateTime == null) return '';
+    return "${dateTime.year.toString().padLeft(4, '0')}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')}";
+  }
+
   String _formatDateTime(DateTime? dateTime) {
-    if (dateTime == null) return '无';
-    return "${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')} ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}:${dateTime.second.toString().padLeft(2, '0')}";
+    if (dateTime == null) return '--';
+    return "${_formatDate(dateTime)} ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}:${dateTime.second.toString().padLeft(2, '0')}";
   }
 
   @override
@@ -499,10 +396,17 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
     final bool isLight = currentTheme.brightness == Brightness.light;
 
     if (!_isAdmin) {
+      if (_isLoading) {
+        return const Scaffold(
+          body: Center(child: CircularProgressIndicator()),
+        );
+      }
       return Scaffold(
         body: Center(
           child: Text(
-            _errorMessage,
+            _errorMessage.isNotEmpty
+                ? _errorMessage
+                : '权限不足：仅管理员可访问此页面',
             style: TextStyle(
               color: isLight ? Colors.black : Colors.white,
             ),
@@ -651,131 +555,122 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
                   ],
                 ),
                 const SizedBox(height: 16),
-                if (_isLoading)
-                  const Expanded(
-                      child: Center(child: CircularProgressIndicator()))
-                else if (_errorMessage.isNotEmpty)
-                  Expanded(child: Center(child: Text(_errorMessage)))
-                else
-                  Expanded(
-                    child: FutureBuilder<List<BackupRestore>>(
-                      future: _backupsFuture,
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState ==
-                            ConnectionState.waiting) {
-                          return const Center(
-                              child: CircularProgressIndicator());
-                        } else if (snapshot.hasError) {
-                          return Center(
-                            child: Text(
-                              '加载备份记录时发生错误: ${snapshot.error}',
-                              style: TextStyle(
-                                color: isLight ? Colors.black : Colors.white,
+                Expanded(
+                  child: _isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : _errorMessage.isNotEmpty
+                          ? Center(
+                              child: Text(
+                                _errorMessage,
+                                style: TextStyle(
+                                  color: isLight ? Colors.black : Colors.white,
+                                ),
                               ),
-                            ),
-                          );
-                        } else if (!snapshot.hasData ||
-                            snapshot.data!.isEmpty) {
-                          return Center(
-                            child: Text(
-                              '没有找到备份记录',
-                              style: TextStyle(
-                                color: isLight ? Colors.black : Colors.white,
-                              ),
-                            ),
-                          );
-                        } else {
-                          final backups = snapshot.data!;
-                          return RefreshIndicator(
-                            onRefresh: _loadBackups,
-                            child: ListView.builder(
-                              itemCount: backups.length,
-                              itemBuilder: (context, index) {
-                                final backup = backups[index];
-                                return Card(
-                                  margin: const EdgeInsets.symmetric(
-                                      vertical: 8.0, horizontal: 16.0),
-                                  elevation: 4,
-                                  color:
-                                      isLight ? Colors.white : Colors.grey[800],
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10.0),
-                                  ),
-                                  child: ListTile(
-                                    title: Text(
-                                      '文件名: ${backup.backupFileName ?? '无'}',
-                                      style: TextStyle(
-                                        color: isLight
-                                            ? Colors.black87
-                                            : Colors.white,
-                                      ),
-                                    ),
-                                    subtitle: Text(
-                                      '备份时间: ${_formatDateTime(backup.backupTime)}\n恢复时间: ${_formatDateTime(backup.restoreTime) ?? '未恢复'}\n恢复状态: ${backup.restoreStatus ?? '未恢复'}',
-                                      style: TextStyle(
-                                        color: isLight
-                                            ? Colors.black54
-                                            : Colors.white70,
-                                      ),
-                                    ),
-                                    trailing: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        IconButton(
-                                          icon: Icon(
-                                            Icons.restore,
-                                            color: isLight
-                                                ? Colors.green
-                                                : Colors.green[300],
-                                          ),
-                                          onPressed: () =>
-                                              _restoreBackup(backup.backupId!),
-                                          tooltip: '恢复此备份',
-                                        ),
-                                        IconButton(
-                                          icon: Icon(
-                                            Icons.edit,
-                                            color: isLight
-                                                ? Colors.blue
-                                                : Colors.blue[300],
-                                          ),
-                                          onPressed: () =>
-                                              _showUpdateBackupDialog(backup),
-                                          tooltip: '编辑此备份',
-                                        ),
-                                        IconButton(
-                                          icon: Icon(
-                                            Icons.delete,
-                                            color: isLight
-                                                ? Colors.red
-                                                : Colors.red[300],
-                                          ),
-                                          onPressed: () =>
-                                              _deleteBackup(backup.backupId!),
-                                          tooltip: '删除此备份',
-                                        ),
-                                        IconButton(
-                                          icon: Icon(
-                                            Icons.info,
-                                            color: isLight
-                                                ? Colors.blue
-                                                : Colors.blue[300],
-                                          ),
-                                          onPressed: () =>
-                                              _goToDetailPage(backup),
-                                          tooltip: '查看详情',
-                                        ),
-                                      ],
+                            )
+                          : _filteredBackups.isEmpty
+                              ? Center(
+                                  child: Text(
+                                    '没有找到备份记录',
+                                    style: TextStyle(
+                                      color: isLight
+                                          ? Colors.black
+                                          : Colors.white,
                                     ),
                                   ),
-                                );
-                              },
-                            ),
-                          );
-                        }
-                      },
-                    ),
-                  ),
+                                )
+                              : RefreshIndicator(
+                                  onRefresh: _loadBackups,
+                                  child: ListView.builder(
+                                    physics:
+                                        const AlwaysScrollableScrollPhysics(),
+                                    itemCount: _filteredBackups.length,
+                                    itemBuilder: (context, index) {
+                                      final backup = _filteredBackups[index];
+                                      return Card(
+                                        margin: const EdgeInsets.symmetric(
+                                            vertical: 8.0, horizontal: 16.0),
+                                        elevation: 4,
+                                        color: isLight
+                                            ? Colors.white
+                                            : Colors.grey[800],
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(10.0),
+                                        ),
+                                        child: ListTile(
+                                          title: Text(
+                                            '文件名: ${backup.backupFileName ?? '无'}',
+                                            style: TextStyle(
+                                              color: isLight
+                                                  ? Colors.black87
+                                                  : Colors.white,
+                                            ),
+                                          ),
+                                          subtitle: Text(
+                                            '备份时间: ${_formatDateTime(backup.backupTime)}\n恢复时间: ${_formatDateTime(backup.restoreTime)}\n恢复状态: ${backup.restoreStatus ?? '未恢复'}',
+                                            style: TextStyle(
+                                              color: isLight
+                                                  ? Colors.black54
+                                                  : Colors.white70,
+                                            ),
+                                          ),
+                                          trailing: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              IconButton(
+                                                icon: Icon(
+                                                  Icons.restore,
+                                                  color: isLight
+                                                      ? Colors.green
+                                                      : Colors.green[300],
+                                                ),
+                                                onPressed: () =>
+                                                    _restoreBackup(backup),
+                                                tooltip: '恢复此备份',
+                                              ),
+                                              IconButton(
+                                                icon: Icon(
+                                                  Icons.edit,
+                                                  color: isLight
+                                                      ? Colors.blue
+                                                      : Colors.blue[300],
+                                                ),
+                                                onPressed: () =>
+                                                    _showUpdateBackupDialog(
+                                                        backup),
+                                                tooltip: '编辑此备份',
+                                              ),
+                                              IconButton(
+                                                icon: Icon(
+                                                  Icons.delete,
+                                                  color: isLight
+                                                      ? Colors.red
+                                                      : Colors.red[300],
+                                                ),
+                                                onPressed: () =>
+                                                    _deleteBackup(
+                                                        backup.backupId!),
+                                                tooltip: '删除此备份',
+                                              ),
+                                              IconButton(
+                                                icon: Icon(
+                                                  Icons.info,
+                                                  color: isLight
+                                                      ? Colors.blue
+                                                      : Colors.blue[300],
+                                                ),
+                                                onPressed: () =>
+                                                    _goToDetailPage(backup),
+                                                tooltip: '查看详情',
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                ),
               ],
             ),
           ),
@@ -795,101 +690,111 @@ class BackupDetailPage extends StatefulWidget {
 }
 
 class _BackupDetailPageState extends State<BackupDetailPage> {
+  final BackupRestoreControllerApi _backupApi = BackupRestoreControllerApi();
+  final TextEditingController _remarksController = TextEditingController();
+  bool _apiInitialized = false;
   bool _isLoading = false;
   bool _isAdmin = false;
-  final TextEditingController _remarksController = TextEditingController();
+  late BackupRestore _backup;
 
   @override
   void initState() {
     super.initState();
-    _remarksController.text = widget.backup.remarks ?? '';
-    _checkUserRole();
+    _backup = widget.backup;
+    _remarksController.text = _backup.remarks ?? '';
+    _initialize();
   }
 
-  Future<void> _checkUserRole() async {
-    final prefs = await SharedPreferences.getInstance();
-    final jwtToken = prefs.getString('jwtToken');
-    if (jwtToken != null) {
-      final response = await http.get(
-        Uri.parse('http://localhost:8081/api/auth/me'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $jwtToken',
-        },
-      );
-      if (response.statusCode == 200) {
-        final roleData = jsonDecode(response.body);
-        setState(() {
-          _isAdmin = (roleData['roles'] as List<dynamic>).contains('ADMIN');
-        });
+  Future<void> _initialize() async {
+    setState(() => _isLoading = true);
+    try {
+      if (!await _ensureApiInitialized()) {
+        setState(() => _isLoading = false);
+        return;
       }
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('jwtToken');
+      if (token == null || token.isEmpty) {
+        setState(() {
+          _isAdmin = false;
+          _isLoading = false;
+        });
+        return;
+      }
+      final roles = _extractRoles(token);
+      setState(() {
+        _isAdmin = roles.any((role) => role.toUpperCase().contains('ADMIN'));
+        _isLoading = false;
+      });
+    } catch (_) {
+      setState(() {
+        _isAdmin = false;
+        _isLoading = false;
+      });
     }
   }
 
+  Future<bool> _ensureApiInitialized() async {
+    if (_apiInitialized) return true;
+    try {
+      await _backupApi.initializeWithJwt();
+      _apiInitialized = true;
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  List<String> _extractRoles(String token) {
+    final decoded = JwtDecoder.decode(token);
+    final rolesField = decoded['roles'];
+    if (rolesField is List) {
+      return rolesField.map((role) => role.toString()).toList();
+    }
+    if (rolesField is String) {
+      return [rolesField];
+    }
+    return [];
+  }
+
   Future<void> _updateBackup(int backupId, BackupRestore updatedBackup) async {
-    if (!mounted) return;
+    if (!mounted || !_isAdmin) return;
 
     final scaffoldMessenger = ScaffoldMessenger.of(context);
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
+
+    if (!await _ensureApiInitialized()) {
+      scaffoldMessenger.showSnackBar(
+        const SnackBar(content: Text('未登录，请重新登录')),
+      );
+      setState(() => _isLoading = false);
+      return;
+    }
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken');
-      if (jwtToken == null || !_isAdmin) {
-        throw Exception('No JWT token found or insufficient permissions');
-      }
-
-      final String idempotencyKey = generateIdempotencyKey();
-      updatedBackup.idempotencyKey = idempotencyKey;
-
-      final response = await http.put(
-        Uri.parse(
-            'http://localhost:8081/api/backups/$backupId?idempotencyKey=$idempotencyKey'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $jwtToken',
-        },
-        body: jsonEncode(updatedBackup.toJson()),
+      final idempotencyKey = generateIdempotencyKey();
+      final payload = updatedBackup.copyWith(idempotencyKey: idempotencyKey);
+      final result = await _backupApi.apiSystemBackupBackupIdPut(
+        backupId: backupId,
+        backupRestore: payload,
+        idempotencyKey: idempotencyKey,
       );
 
-      if (response.statusCode == 200) {
-        scaffoldMessenger.showSnackBar(
-          const SnackBar(content: Text('备份更新成功！')),
-        );
-        setState(() {
-          widget.backup.backupFileName = updatedBackup.backupFileName;
-          widget.backup.remarks = updatedBackup.remarks;
-        });
-        if (mounted) {
-          Navigator.pop(context, true);
-        }
-      } else {
-        final result = jsonDecode(response.body);
-        if (result['status'] == 'duplicate') {
-          scaffoldMessenger.showSnackBar(
-            SnackBar(
-                content: Text('备份更新重复：${result['message'] ?? '已存在相同的更新请求'}')),
-          );
-        } else {
-          scaffoldMessenger.showSnackBar(
-            SnackBar(content: Text('备份更新失败：${result['message'] ?? '未知错误'}')),
-          );
-        }
+      scaffoldMessenger.showSnackBar(
+        const SnackBar(content: Text('备份更新成功')),
+      );
+      setState(() {
+        _backup = result;
+        _isLoading = false;
+      });
+      if (mounted) {
+        Navigator.pop(context, true);
       }
     } catch (e) {
+      setState(() => _isLoading = false);
       scaffoldMessenger.showSnackBar(
-        SnackBar(
-            content:
-                Text('更新备份失败: $e', style: const TextStyle(color: Colors.red))),
+        SnackBar(content: Text('更新备份失败: ${_formatErrorMessage(e)}')),
       );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
     }
   }
 
@@ -900,9 +805,19 @@ class _BackupDetailPageState extends State<BackupDetailPage> {
     );
   }
 
+  String _formatErrorMessage(dynamic error) {
+    if (error is ApiException) {
+      final message = error.message?.isNotEmpty == true
+          ? error.message!
+          : '服务器错误';
+      return '$message (HTTP ${error.code})';
+    }
+    return error.toString();
+  }
+
   // Helper method to format DateTime to a readable string
   String _formatDateTime(DateTime? dateTime) {
-    if (dateTime == null) return '无';
+    if (dateTime == null) return '--';
     return "${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')} ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}:${dateTime.second.toString().padLeft(2, '0')}";
   }
 
@@ -911,9 +826,12 @@ class _BackupDetailPageState extends State<BackupDetailPage> {
     final currentTheme = Theme.of(context);
     final bool isLight = currentTheme.brightness == Brightness.light;
 
-    final backup = widget.backup;
-
     if (!_isAdmin) {
+      if (_isLoading) {
+        return const Scaffold(
+          body: Center(child: CircularProgressIndicator()),
+        );
+      }
       return Scaffold(
         body: Center(
           child: Text(
@@ -938,7 +856,7 @@ class _BackupDetailPageState extends State<BackupDetailPage> {
                 Icons.edit,
                 color: isLight ? Colors.white : Colors.white,
               ),
-              onPressed: () => _showUpdateBackupDialog(widget.backup),
+              onPressed: () => _showUpdateBackupDialog(_backup),
               tooltip: '编辑备份',
             ),
         ],
@@ -950,16 +868,18 @@ class _BackupDetailPageState extends State<BackupDetailPage> {
             : ListView(
                 children: [
                   _buildDetailRow(
-                      context, '备份 ID', backup.backupId?.toString() ?? '无'),
-                  _buildDetailRow(context, '文件名', backup.backupFileName ?? '无'),
+                      context, '备份 ID', _backup.backupId?.toString() ?? '无'),
                   _buildDetailRow(
-                      context, '备份时间', _formatDateTime(backup.backupTime)),
+                      context, '文件名', _backup.backupFileName ?? '无'),
+                  _buildDetailRow(
+                      context, '备份时间', _formatDateTime(_backup.backupTime)),
                   _buildDetailRow(context, '恢复时间',
-                      _formatDateTime(backup.restoreTime) ?? '未恢复'),
+                      _formatDateTime(_backup.restoreTime)),
                   _buildDetailRow(
-                      context, '恢复状态', backup.restoreStatus ?? '未恢复'),
-                  _buildDetailRow(context, '备注', backup.remarks ?? '无'),
-                  _buildDetailRow(context, '幂等键', backup.idempotencyKey ?? '无'),
+                      context, '恢复状态', _backup.restoreStatus ?? '未恢复'),
+                  _buildDetailRow(context, '备注', _backup.remarks ?? '无'),
+                  _buildDetailRow(
+                      context, '幂等键', _backup.idempotencyKey ?? '无'),
                 ],
               ),
       ),
@@ -1036,14 +956,9 @@ class _BackupDetailPageState extends State<BackupDetailPage> {
                 return;
               }
 
-              final updatedBackup = BackupRestore(
-                backupId: backup.backupId,
+              final updatedBackup = backup.copyWith(
                 backupFileName: fileName,
-                backupTime: backup.backupTime,
-                restoreTime: backup.restoreTime,
-                restoreStatus: backup.restoreStatus,
                 remarks: remarks,
-                idempotencyKey: generateIdempotencyKey(),
               );
 
               _updateBackup(backup.backupId!, updatedBackup);

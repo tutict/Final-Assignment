@@ -30,6 +30,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
   final TextEditingController _searchController = TextEditingController();
   final UserManagementControllerApi userApi = UserManagementControllerApi();
   final List<UserManagement> _userList = [];
+  List<UserManagement>? _cachedAllUsers;
   final ScrollController _scrollController = ScrollController();
   final DashboardController controller = Get.find<DashboardController>();
   final Logger _logger = Logger('UserManagementPage');
@@ -207,6 +208,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
       _currentPage = 1;
       _hasMore = true;
       _userList.clear();
+      _cachedAllUsers = null;
     }
     if (!_hasMore) return;
 
@@ -224,30 +226,60 @@ class _UserManagementPageState extends State<UserManagementPage> {
         return;
       }
       List<UserManagement> users = [];
+      bool hasMoreResults = false;
+
       if (searchQuery.isEmpty) {
-        users = await userApi.apiUsersGet();
+        final allUsers = await _loadAllUsers();
+        final startIndex = (_currentPage - 1) * _pageSize;
+        if (startIndex < allUsers.length) {
+          final endIndex = startIndex + _pageSize;
+          final actualEnd = endIndex > allUsers.length ? allUsers.length : endIndex;
+          users = allUsers.sublist(startIndex, actualEnd);
+          hasMoreResults = actualEnd < allUsers.length;
+        } else {
+          users = [];
+          hasMoreResults = false;
+        }
       } else if (_searchType == 'username') {
         final user = await userApi.apiUsersUsernameUsernameGet(username: searchQuery);
         users = user != null ? [user] : [];
       } else if (_searchType == 'status') {
-        users = await userApi.apiUsersStatusStatusGet(status: searchQuery);
+        users = await userApi.apiUsersSearchStatusGet(
+          status: searchQuery,
+          page: _currentPage,
+          size: _pageSize,
+        );
+        hasMoreResults = users.length == _pageSize;
+      } else if (_searchType == 'department') {
+        users = await userApi.apiUsersSearchDepartmentGet(
+          department: searchQuery,
+          page: _currentPage,
+          size: _pageSize,
+        );
+        hasMoreResults = users.length == _pageSize;
       } else if (_searchType == 'contactNumber') {
-        users = await userApi.apiUsersGet();
-        users = users.where((u) => u.contactNumber?.contains(searchQuery) ?? false).toList();
+        final allUsers = await _loadAllUsers();
+        users = allUsers.where((u) => u.contactNumber?.contains(searchQuery) ?? false).toList();
       } else if (_searchType == 'email') {
-        users = await userApi.apiUsersGet();
-        users = users.where((u) => u.email?.toLowerCase().contains(searchQuery.toLowerCase()) ?? false).toList();
+        final allUsers = await _loadAllUsers();
+        users = allUsers
+            .where((u) => u.email?.toLowerCase().contains(searchQuery.toLowerCase()) ?? false)
+            .toList();
       }
 
       users = users.where((u) => u.username != _currentUsername).toList();
 
       setState(() {
         _userList.addAll(users);
-        _hasMore = users.length == _pageSize;
+        _hasMore = hasMoreResults;
         if (_userList.isEmpty && _currentPage == 1) {
           _errorMessage = searchQuery.isNotEmpty ? '未找到符合条件的用户' : '当前没有用户记录';
         }
-        _currentPage++;
+        if (users.isNotEmpty) {
+          _currentPage++;
+        } else {
+          _hasMore = false;
+        }
       });
     } catch (e) {
       setState(() {
@@ -280,21 +312,67 @@ class _UserManagementPageState extends State<UserManagementPage> {
         Get.offAllNamed(AppPages.login);
         return [];
       }
-      List<String> suggestions;
+      final lowerPrefix = prefix.toLowerCase();
       if (_searchType == 'username') {
-        suggestions = await userApi.apiUsersAutocompleteUsernamesGet(prefix: prefix);
-      } else if (_searchType == 'status') {
-        suggestions = await userApi.apiUsersAutocompleteStatusesGet(prefix: prefix);
-      } else if (_searchType == 'contactNumber') {
-        suggestions = await userApi.apiUsersAutocompletePhoneNumbersGet(prefix: prefix);
-      } else {
-        suggestions = [];
+        final suggestions = await userApi.apiUsersAutocompleteUsernamesGet(prefix: prefix);
+        return suggestions
+            .where((s) => s.toLowerCase().contains(lowerPrefix))
+            .take(5)
+            .toList();
       }
-      return suggestions.where((s) => s.toLowerCase().contains(prefix.toLowerCase())).take(5).toList();
+      if (_searchType == 'status') {
+        return _statusDropdownItems
+            .map((item) => item['value'])
+            .whereType<String>()
+            .where((value) => value.toLowerCase().contains(lowerPrefix))
+            .toList();
+      }
+      if (_searchType == 'contactNumber') {
+        return await _buildLocalSuggestions(prefix, (user) => user.contactNumber);
+      }
+      if (_searchType == 'email') {
+        return await _buildLocalSuggestions(prefix, (user) => user.email);
+      }
+      if (_searchType == 'department') {
+        return await _buildLocalSuggestions(prefix, (user) => user.department);
+      }
+      return [];
     } catch (e) {
       _logger.severe('Failed to fetch autocomplete suggestions: $e', StackTrace.current);
       return [];
     }
+  }
+
+  Future<List<String>> _buildLocalSuggestions(
+    String prefix,
+    String? Function(UserManagement user) valueSelector,
+  ) async {
+    try {
+      final records = await _loadAllUsers();
+      final seen = <String>{};
+      final lowerPrefix = prefix.toLowerCase();
+      return records
+          .map(valueSelector)
+          .whereType<String>()
+          .map((value) => value.trim())
+          .where((value) => value.isNotEmpty)
+          .where((value) => value.toLowerCase().contains(lowerPrefix))
+          .where((value) => seen.add(value))
+          .take(5)
+          .toList();
+    } catch (e) {
+      _logger.severe('Failed to build local suggestions: $e', StackTrace.current);
+      return [];
+    }
+  }
+
+  Future<List<UserManagement>> _loadAllUsers() async {
+    if (_cachedAllUsers != null) {
+      return _cachedAllUsers!;
+    }
+    final allUsers = await userApi.apiUsersGet();
+    _cachedAllUsers = List<UserManagement>.from(allUsers);
+    return _cachedAllUsers!;
   }
 
   Future<void> _loadMoreUsers() async {
@@ -831,6 +909,8 @@ class _UserManagementPageState extends State<UserManagementPage> {
                           ? '搜索账号'
                           : _searchType == 'status'
                           ? '搜索状态'
+                          : _searchType == 'department'
+                          ? '搜索部门'
                           : _searchType == 'contactNumber'
                           ? '搜索联系电话'
                           : '搜索邮箱',
@@ -868,7 +948,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                   _refreshUserList();
                 });
               },
-              items: <String>['username', 'status', 'contactNumber', 'email']
+              items: <String>['username', 'status', 'department', 'contactNumber', 'email']
                   .map<DropdownMenuItem<String>>((String value) {
                 return DropdownMenuItem<String>(
                   value: value,
@@ -877,6 +957,8 @@ class _UserManagementPageState extends State<UserManagementPage> {
                         ? '按账号'
                         : value == 'status'
                         ? '按状态'
+                        : value == 'department'
+                        ? '按部门'
                         : value == 'contactNumber'
                         ? '按联系电话'
                         : '按邮箱',

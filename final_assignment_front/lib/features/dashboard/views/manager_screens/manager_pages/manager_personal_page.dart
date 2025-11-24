@@ -9,6 +9,7 @@ import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 String generateIdempotencyKey() {
@@ -26,6 +27,7 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
   late UserManagementControllerApi userApi;
   late DriverInformationControllerApi driverApi;
   late Future<UserManagement?> _managerFuture;
+  UserManagement? _currentManager;
   DriverInformation? _driverInfo;
   final DashboardController? controller =
       Get.isRegistered<DashboardController>()
@@ -78,7 +80,7 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
       final prefs = await SharedPreferences.getInstance();
       final jwtToken = prefs.getString('jwtToken');
       debugPrint('JWT Token: $jwtToken');
-      if (jwtToken == null) {
+      if (jwtToken == null || jwtToken.isEmpty) {
         throw Exception('JWT Token not found in SharedPreferences');
       }
 
@@ -86,41 +88,40 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
       await driverApi.initializeWithJwt();
       debugPrint('UserManagement and Driver APIs initialized with JWT');
 
-      final manager = await userApi.apiUsersMeGet();
-      if (manager == null) {
+      final decodedToken = JwtDecoder.decode(jwtToken);
+      final username = decodedToken['sub']?.toString();
+      if (username == null || username.isEmpty) {
+        throw Exception('未能从凭证中解析当前用户');
+      }
+
+      final manager =
+          await userApi.apiUsersUsernameUsernameGet(username: username);
+      if (manager == null || manager.userId == null) {
         throw Exception('未找到当前用户信息');
       }
 
-      DriverInformation? driverInfo;
-      try {
+      DriverInformation? driverInfo =
+          await driverApi.apiDriversDriverIdGet(driverId: manager.userId!);
+      if (driverInfo == null) {
+        final idempotencyKey = generateIdempotencyKey();
+        final newDriver = DriverInformation(
+          driverId: manager.userId,
+          name: manager.username ?? '未知用户',
+          contactNumber: manager.contactNumber ?? '',
+          idCardNumber: '',
+        );
+        debugPrint(
+            'Creating driver profile for user ${manager.userId} (${manager.username})');
+        await driverApi.apiDriversPost(
+          driverInformation: newDriver,
+          idempotencyKey: idempotencyKey,
+        );
         driverInfo =
-            await driverApi.apiDriversDriverIdGet(driverId: manager.userId);
-        debugPrint('Driver info fetched: ${driverInfo?.toJson()}');
-      } catch (e) {
-        if (e is ApiException && e.code == 404) {
-          final idempotencyKey = generateIdempotencyKey();
-          driverInfo = DriverInformation(
-            driverId: manager.userId,
-            name: manager.username ?? '未知用户',
-            contactNumber: manager.contactNumber ?? '',
-            idCardNumber: '',
-          );
-          debugPrint(
-              'Creating new driver with driverId: ${manager.userId}, name: ${manager.username}');
-          await driverApi.apiDriversPost(
-            driverInformation: driverInfo,
-            idempotencyKey: idempotencyKey,
-          );
-          driverInfo =
-              await driverApi.apiDriversDriverIdGet(driverId: manager.userId);
-          debugPrint('Driver created and fetched: ${driverInfo?.toJson()}');
-        } else {
-          debugPrint('Driver fetch error: $e');
-          if (mounted) setState(() => _errorMessage = _formatErrorMessage(e));
-          rethrow;
-        }
+            await driverApi.apiDriversDriverIdGet(driverId: manager.userId!);
       }
+
       _driverInfo = driverInfo;
+      _currentManager = manager;
 
       if (mounted) {
         setState(() {
@@ -157,82 +158,52 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
 
     try {
-      final currentManager = await _managerFuture;
-      if (currentManager == null) throw Exception('未找到当前用户信息');
+      final currentManager = _currentManager ?? await _managerFuture;
+      if (currentManager == null || currentManager.userId == null) {
+        throw Exception('未找到当前用户信息');
+      }
+      final userId = currentManager.userId!;
       final idempotencyKey = generateIdempotencyKey();
 
       switch (field) {
         case 'name':
-          final newDriverName = DriverInformation(
-            driverId: currentManager.userId,
+          await driverApi.apiDriversDriverIdNamePut(
+            driverId: userId,
             name: value,
-            contactNumber: _driverInfo?.contactNumber ??
-                currentManager.contactNumber ??
-                '',
-            idCardNumber: _driverInfo?.idCardNumber ?? '',
-          );
-          debugPrint(
-              'Updating driver with driverId: ${currentManager.userId}, name: $value');
-          await driverApi.apiDriversPost(
-            driverInformation: newDriverName,
             idempotencyKey: idempotencyKey,
           );
-          _driverInfo = await driverApi.apiDriversDriverIdGet(
-              driverId: currentManager.userId);
-          debugPrint('Driver updated and fetched: ${_driverInfo?.toJson()}');
           break;
-
         case 'contactNumber':
-          final newDriverContact = DriverInformation(
-            driverId: currentManager.userId,
-            name: _driverInfo?.name ?? currentManager.username ?? '未知用户',
+          await driverApi.apiDriversDriverIdContactNumberPut(
+            driverId: userId,
             contactNumber: value,
-            idCardNumber: _driverInfo?.idCardNumber ?? '',
-          );
-          debugPrint(
-              'Updating driver with driverId: ${currentManager.userId}, contactNumber: $value');
-          await driverApi.apiDriversPost(
-            driverInformation: newDriverContact,
             idempotencyKey: idempotencyKey,
           );
-          _driverInfo = await driverApi.apiDriversDriverIdGet(
-              driverId: currentManager.userId);
-          debugPrint('Driver updated and fetched: ${_driverInfo?.toJson()}');
           break;
-
         case 'password':
-          await userApi.apiUsersMePut(
-            userManagement: UserManagement(
-              userId: currentManager.userId,
-              username: currentManager.username,
-              password: value,
-            ),
+          final updatedUser = currentManager.copyWith(password: value);
+          await userApi.apiUsersUserIdPut(
+            userId: userId.toString(),
+            userManagement: updatedUser,
             idempotencyKey: idempotencyKey,
           );
           break;
-
         case 'email':
-          await userApi.apiUsersMePut(
-            userManagement: UserManagement(
-              userId: currentManager.userId,
-              username: currentManager.username,
-              email: value,
-            ),
+          final updatedUser = currentManager.copyWith(email: value);
+          await userApi.apiUsersUserIdPut(
+            userId: userId.toString(),
+            userManagement: updatedUser,
             idempotencyKey: idempotencyKey,
           );
           break;
-
         case 'remarks':
-          await userApi.apiUsersMePut(
-            userManagement: UserManagement(
-              userId: currentManager.userId,
-              username: currentManager.username,
-              remarks: value,
-            ),
+          final updatedUser = currentManager.copyWith(remarks: value);
+          await userApi.apiUsersUserIdPut(
+            userId: userId.toString(),
+            userManagement: updatedUser,
             idempotencyKey: idempotencyKey,
           );
           break;
-
         default:
           throw Exception('未知字段: $field');
       }
