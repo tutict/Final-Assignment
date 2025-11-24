@@ -2,6 +2,7 @@ import 'package:final_assignment_front/features/dashboard/views/manager_screens/
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/log_pages/login_log_page.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/log_pages/operation_log_page.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/log_pages/system_log_page.dart';
+import 'package:final_assignment_front/features/dashboard/views/widgets/dashboard_page_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -55,43 +56,55 @@ class _LogManagementState extends State<LogManagement> {
   @override
   Widget build(BuildContext context) {
     return Obx(
-      () => Theme(
-        data: controller.currentBodyTheme.value,
-        child: Scaffold(
-          appBar: AppBar(
-            title: const Text('日志管理菜单'),
+      () {
+        final themeData = controller.currentBodyTheme.value;
+        final colorScheme = themeData.colorScheme;
+        return Scaffold(
+          backgroundColor: colorScheme.surface,
+          appBar: DashboardPageAppBar(
+            theme: themeData,
+            title: '日志管理菜单',
+            onThemeToggle: controller.toggleBodyTheme,
           ),
           body: Padding(
             padding: const EdgeInsets.all(16.0),
-            child: ListView.builder(
+            child: ListView.separated(
               itemCount: logOptions.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 12),
               itemBuilder: (context, index) {
                 final option = logOptions[index];
-                return Column(
-                  children: [
-                    ListTile(
-                      leading: Icon(option['icon'], color: Colors.blue),
-                      title: Text(
-                        option['title'],
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
-                      ),
-                      trailing: const Icon(
-                        Icons.arrow_forward_ios,
-                        color: Colors.grey,
-                      ),
-                      onTap: () => _navigateToLogPage(option['route']),
+                return Card(
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  color: colorScheme.surfaceContainer,
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: colorScheme.primaryContainer,
+                      child: Icon(option['icon'],
+                          color: colorScheme.onPrimaryContainer),
                     ),
-                    if (index < logOptions.length - 1)
-                      const SizedBox(height: 16.0),
-                  ],
+                    title: Text(
+                      option['title'],
+                      style: themeData.textTheme.titleMedium?.copyWith(
+                        color: colorScheme.onSurface,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    trailing: Icon(
+                      Icons.arrow_forward_ios,
+                      color: colorScheme.onSurfaceVariant,
+                      size: 18,
+                    ),
+                    onTap: () => _navigateToLogPage(option['route']),
+                  ),
                 );
               },
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

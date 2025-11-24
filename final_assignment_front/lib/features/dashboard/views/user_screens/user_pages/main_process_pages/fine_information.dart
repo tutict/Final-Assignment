@@ -2,6 +2,7 @@ import 'package:final_assignment_front/features/api/fine_information_controller_
 import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/user_management_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/widgets/user_page_app_bar.dart';
 import 'package:final_assignment_front/features/model/fine_information.dart';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -301,17 +302,11 @@ class _FineInformationPageState extends State<FineInformationPage> {
 
     return Scaffold(
       backgroundColor: themeData.colorScheme.surface,
-      appBar: AppBar(
-        title: Text(
-          '交通违法罚款记录',
-          style: themeData.textTheme.headlineSmall?.copyWith(
-            color: themeData.colorScheme.onSurface,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        backgroundColor: themeData.colorScheme.primaryContainer,
-        foregroundColor: themeData.colorScheme.onPrimaryContainer,
-        elevation: 2,
+      appBar: UserPageAppBar(
+        theme: themeData,
+        title: '交通违法罚款记录',
+        onRefresh: _refreshFines,
+        onThemeToggle: controller.toggleBodyTheme,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),

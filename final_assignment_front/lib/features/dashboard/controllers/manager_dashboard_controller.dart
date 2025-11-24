@@ -4,7 +4,7 @@ class DashboardController extends GetxController with NavigationMixin {
   final scaffoldKey = GlobalKey<ScaffoldState>();
   final caseCardDataList = <CaseCardData>[].obs;
   var selectedStyle = 'Basic'.obs;
-  var currentTheme = 'Light'.obs;
+  final currentTheme = 'Light'.obs;
   final Rx<ThemeData> currentBodyTheme = AppTheme.basicLight.obs;
   final selectedCaseType = CaseType.caseManagement.obs;
   final isShowingSidebarContent = false.obs;
@@ -33,9 +33,19 @@ class DashboardController extends GetxController with NavigationMixin {
 
   Future<void> _loadTheme() async {
     final prefs = await SharedPreferences.getInstance();
-    final isDarkMode = prefs.getBool('isDarkMode') ?? false;
-    currentTheme.value = isDarkMode ? 'Dark' : 'Light';
-    _applyTheme();
+    final themeKey = 'dashboardTheme_${selectedStyle.value}';
+    final storedTheme = prefs.getString(themeKey);
+    if (storedTheme != null) {
+      currentTheme.value = storedTheme;
+      _applyTheme();
+    } else {
+      final systemBrightness =
+          WidgetsBinding.instance.platformDispatcher.platformBrightness;
+      currentTheme.value =
+          systemBrightness == Brightness.dark ? 'Dark' : 'Light';
+      _applyTheme();
+      await prefs.setString(themeKey, currentTheme.value);
+    }
   }
 
   void loadAdminData() {
@@ -112,11 +122,12 @@ class DashboardController extends GetxController with NavigationMixin {
   void toggleSidebar() => isSidebarOpen.value = !isSidebarOpen.value;
 
   void toggleBodyTheme() {
-    currentTheme.value = currentTheme.value == 'Light' ? 'Dark' : 'Light';
+    final newMode = currentTheme.value == 'Light' ? 'Dark' : 'Light';
+    currentTheme.value = newMode;
     _applyTheme();
-    // Save to SharedPreferences
     SharedPreferences.getInstance().then((prefs) {
-      prefs.setBool('isDarkMode', currentTheme.value == 'Dark');
+      prefs.setBool('isDarkMode', newMode == 'Dark');
+      prefs.setString('dashboardTheme_${selectedStyle.value}', newMode);
     });
   }
 
@@ -175,6 +186,14 @@ class DashboardController extends GetxController with NavigationMixin {
     );
 
     Get.changeTheme(currentBodyTheme.value);
+    _persistThemeSelection();
+  }
+
+  void _persistThemeSelection() {
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.setString(
+          'dashboardTheme_${selectedStyle.value}', currentTheme.value);
+    });
   }
 
   void triggerPersonalPageRefresh() {
@@ -305,7 +324,7 @@ class DashboardController extends GetxController with NavigationMixin {
 
   void setSelectedStyle(String style) {
     selectedStyle.value = style;
-    _applyTheme();
+    _loadTheme();
   }
 
   RxBool get refreshPersonalPage => _refreshPersonalPage;

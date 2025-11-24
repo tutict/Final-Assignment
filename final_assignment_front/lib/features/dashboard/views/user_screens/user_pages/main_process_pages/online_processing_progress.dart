@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/progress_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/widgets/user_page_app_bar.dart';
 import 'package:final_assignment_front/features/model/progress_item.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -29,17 +30,11 @@ class OnlineProcessingProgress extends StatelessWidget {
       final themeData = dashboardController.currentBodyTheme.value;
       return Scaffold(
         backgroundColor: themeData.colorScheme.surface,
-        appBar: AppBar(
-          title: Text(
-            '进度消息',
-            style: themeData.textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: themeData.colorScheme.onPrimaryContainer,
-            ),
-          ),
-          backgroundColor: themeData.colorScheme.primaryContainer,
-          elevation: 2,
-          foregroundColor: themeData.colorScheme.onPrimaryContainer,
+        appBar: UserPageAppBar(
+          theme: themeData,
+          title: '进度消息',
+          onRefresh: () => progressController.fetchProgress(),
+          onThemeToggle: dashboardController.toggleBodyTheme,
         ),
         body: Padding(
           padding: const EdgeInsets.all(16.0),

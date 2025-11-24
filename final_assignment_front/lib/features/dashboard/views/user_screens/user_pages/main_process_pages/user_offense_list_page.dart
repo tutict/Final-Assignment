@@ -1,19 +1,20 @@
 // user_offense_list_page.dart
+import 'dart:developer' as developer;
+
+import 'package:final_assignment_front/config/routes/app_pages.dart';
+import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
+import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
+import 'package:final_assignment_front/features/api/user_management_controller_api.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/widgets/user_page_app_bar.dart';
+import 'package:final_assignment_front/features/model/driver_information.dart';
+import 'package:final_assignment_front/features/model/offense_information.dart';
+import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
-import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
-import 'package:final_assignment_front/features/api/user_management_controller_api.dart';
-import 'package:final_assignment_front/features/model/offense_information.dart';
-import 'package:final_assignment_front/features/model/driver_information.dart';
-import 'package:final_assignment_front/features/model/user_management.dart';
-import 'package:final_assignment_front/utils/helpers/api_exception.dart';
-import 'package:final_assignment_front/config/routes/app_pages.dart';
-import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_dashboard_screen.dart';
-import 'dart:developer' as developer;
 
 String generateIdempotencyKey() {
   return DateTime.now().millisecondsSinceEpoch.toString();
@@ -51,7 +52,10 @@ class _UserOffenseListPageState extends State<UserOffenseListPage> {
   DateTime? _endTime;
   late ScrollController _scrollController;
 
-  final DashboardController controller = Get.find<DashboardController>();
+  final UserDashboardController? dashboardController =
+      Get.isRegistered<UserDashboardController>()
+          ? Get.find<UserDashboardController>()
+          : null;
 
   @override
   void initState() {
@@ -121,8 +125,7 @@ class _UserOffenseListPageState extends State<UserOffenseListPage> {
         throw Exception('无法确定当前用户名');
       }
       await userApi.initializeWithJwt();
-      final user =
-          await userApi.apiUsersSearchUsernameGet(username: username);
+      final user = await userApi.apiUsersSearchUsernameGet(username: username);
       if (user?.userId == null) {
         throw Exception('User data does not contain userId');
       }
@@ -512,7 +515,9 @@ class _UserOffenseListPageState extends State<UserOffenseListPage> {
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      final themeData = controller.currentBodyTheme.value;
+      final themeData = dashboardController != null
+          ? dashboardController!.currentBodyTheme.value
+          : Theme.of(context);
       if (!_isUser) {
         return Scaffold(
           backgroundColor: themeData.colorScheme.surface,
@@ -547,38 +552,11 @@ class _UserOffenseListPageState extends State<UserOffenseListPage> {
 
       return Scaffold(
         backgroundColor: themeData.colorScheme.surface,
-        appBar: AppBar(
-          title: Text(
-            '我的违法记录',
-            style: themeData.textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: themeData.colorScheme.onPrimaryContainer,
-            ),
-          ),
-          backgroundColor: themeData.colorScheme.primaryContainer,
-          foregroundColor: themeData.colorScheme.onPrimaryContainer,
-          elevation: 2,
-          actions: [
-            IconButton(
-              icon: Icon(Icons.refresh,
-                  color: themeData.colorScheme.onPrimaryContainer, size: 24),
-              onPressed: _refreshOffenses,
-              tooltip: '刷新列表',
-              padding: const EdgeInsets.symmetric(horizontal: 12.0),
-            ),
-            IconButton(
-              icon: Icon(
-                themeData.brightness == Brightness.light
-                    ? Icons.dark_mode
-                    : Icons.light_mode,
-                color: themeData.colorScheme.onPrimaryContainer,
-                size: 24,
-              ),
-              onPressed: controller.toggleBodyTheme,
-              tooltip: '切换主题',
-              padding: const EdgeInsets.symmetric(horizontal: 12.0),
-            ),
-          ],
+        appBar: UserPageAppBar(
+          theme: themeData,
+          title: '我的违法记录',
+          onRefresh: _refreshOffenses,
+          onThemeToggle: dashboardController?.toggleBodyTheme,
         ),
         body: RefreshIndicator(
           onRefresh: _refreshOffenses,
@@ -740,8 +718,12 @@ class _UserOffenseListPageState extends State<UserOffenseListPage> {
 
 class UserOffenseDetailPage extends StatelessWidget {
   final OffenseInformation offense;
+  final UserDashboardController? dashboardController;
 
-  const UserOffenseDetailPage({super.key, required this.offense});
+  UserOffenseDetailPage({super.key, required this.offense})
+      : dashboardController = Get.isRegistered<UserDashboardController>()
+            ? Get.find<UserDashboardController>()
+            : null;
 
   Widget _buildDetailRow(String label, String value, ThemeData themeData) {
     return Padding(
@@ -771,36 +753,16 @@ class UserOffenseDetailPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.find<DashboardController>();
     return Obx(() {
-      final themeData = controller.currentBodyTheme.value;
+      final themeData = dashboardController != null
+          ? dashboardController!.currentBodyTheme.value
+          : Theme.of(context);
       return Scaffold(
         backgroundColor: themeData.colorScheme.surface,
-        appBar: AppBar(
-          title: Text(
-            '违法详情',
-            style: themeData.textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: themeData.colorScheme.onPrimaryContainer,
-            ),
-          ),
-          backgroundColor: themeData.colorScheme.primaryContainer,
-          foregroundColor: themeData.colorScheme.onPrimaryContainer,
-          elevation: 2,
-          actions: [
-            IconButton(
-              icon: Icon(
-                themeData.brightness == Brightness.light
-                    ? Icons.dark_mode
-                    : Icons.light_mode,
-                color: themeData.colorScheme.onPrimaryContainer,
-                size: 24,
-              ),
-              onPressed: controller.toggleBodyTheme,
-              tooltip: '切换主题',
-              padding: const EdgeInsets.symmetric(horizontal: 12.0),
-            ),
-          ],
+        appBar: UserPageAppBar(
+          theme: themeData,
+          title: '违法详情',
+          onThemeToggle: dashboardController?.toggleBodyTheme,
         ),
         body: Padding(
           padding: const EdgeInsets.all(16.0),

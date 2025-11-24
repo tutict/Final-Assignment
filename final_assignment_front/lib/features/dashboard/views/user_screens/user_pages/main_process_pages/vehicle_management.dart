@@ -6,6 +6,7 @@ import 'package:final_assignment_front/features/model/vehicle_information.dart';
 import 'package:final_assignment_front/features/model/driver_information.dart';
 import 'package:final_assignment_front/features/model/user_management.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/widgets/user_page_app_bar.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
@@ -473,29 +474,16 @@ class _VehicleManagementState extends State<VehicleManagement> {
       final themeData = controller.currentBodyTheme.value;
       return Scaffold(
         backgroundColor: themeData.colorScheme.surface,
-        appBar: AppBar(
-          title: Text('车辆管理',
-              style: themeData.textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: themeData.colorScheme.onPrimaryContainer)),
-          backgroundColor: themeData.colorScheme.primaryContainer,
-          foregroundColor: themeData.colorScheme.onPrimaryContainer,
-          elevation: 2,
+        appBar: UserPageAppBar(
+          theme: themeData,
+          title: '车辆管理',
+          onRefresh: _refreshVehicles,
+          onThemeToggle: controller.toggleBodyTheme,
           actions: [
-            IconButton(
-                icon: const Icon(Icons.refresh),
-                onPressed: _refreshVehicles,
-                tooltip: '刷新车辆列表'),
-            IconButton(
-                icon: const Icon(Icons.add),
-                onPressed: _createVehicle,
-                tooltip: '添加新车辆信息'),
-            IconButton(
-              icon: Icon(themeData.brightness == Brightness.light
-                  ? Icons.dark_mode
-                  : Icons.light_mode),
-              onPressed: controller.toggleBodyTheme,
-              tooltip: '切换主题',
+            UserPageBarAction(
+              icon: Icons.add,
+              tooltip: '添加新车辆信息',
+              onPressed: _createVehicle,
             ),
           ],
         ),
@@ -984,14 +972,10 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
       backgroundColor: themeData.colorScheme.surface,
       appBar: widget.onVehicleAdded != null
           ? null
-          : AppBar(
-              title: Text('添加新车辆',
-                  style: themeData.textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: themeData.colorScheme.onPrimaryContainer)),
-              backgroundColor: themeData.colorScheme.primaryContainer,
-              foregroundColor: themeData.colorScheme.onPrimaryContainer,
-              elevation: 2,
+          : UserPageAppBar(
+              theme: themeData,
+              title: '添加新车辆',
+              onThemeToggle: controller?.toggleBodyTheme,
             ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -1400,14 +1384,10 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
     final themeData = controller?.currentBodyTheme.value ?? ThemeData.light();
     return Scaffold(
       backgroundColor: themeData.colorScheme.surface,
-      appBar: AppBar(
-        title: Text('编辑车辆信息',
-            style: themeData.textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: themeData.colorScheme.onPrimaryContainer)),
-        backgroundColor: themeData.colorScheme.primaryContainer,
-        foregroundColor: themeData.colorScheme.onPrimaryContainer,
-        elevation: 2,
+      appBar: UserPageAppBar(
+        theme: themeData,
+        title: '编辑车辆信息',
+        onThemeToggle: controller?.toggleBodyTheme,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -1713,18 +1693,15 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
 
     return Scaffold(
       backgroundColor: themeData.colorScheme.surface,
-      appBar: AppBar(
-        title: Text('车辆详情',
-            style: themeData.textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: themeData.colorScheme.onPrimaryContainer)),
-        backgroundColor: themeData.colorScheme.primaryContainer,
-        foregroundColor: themeData.colorScheme.onPrimaryContainer,
-        elevation: 2,
+      appBar: UserPageAppBar(
+        theme: themeData,
+        title: '车辆详情',
+        onThemeToggle: controller?.toggleBodyTheme,
         actions: _isEditable
             ? [
-                IconButton(
-                  icon: const Icon(Icons.edit),
+                UserPageBarAction(
+                  icon: Icons.edit,
+                  tooltip: '编辑车辆信息',
                   onPressed: () {
                     Navigator.push(
                             context,
@@ -1737,16 +1714,16 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
                       }
                     });
                   },
-                  tooltip: '编辑车辆信息',
                 ),
-                IconButton(
-                  icon: Icon(Icons.delete, color: themeData.colorScheme.error),
-                  onPressed: () => _showDeleteConfirmationDialog('删除',
-                      () => _deleteVehicle(widget.vehicle.vehicleId ?? 0)),
+                UserPageBarAction(
+                  icon: Icons.delete,
+                  color: themeData.colorScheme.error,
                   tooltip: '删除车辆',
+                  onPressed: () => _showDeleteConfirmationDialog(
+                      '删除', () => _deleteVehicle(widget.vehicle.vehicleId ?? 0)),
                 ),
               ]
-            : [],
+            : const [],
       ),
       body: _isLoading
           ? Center(

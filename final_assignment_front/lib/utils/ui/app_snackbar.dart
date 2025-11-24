@@ -9,11 +9,13 @@ class AppSnackbar {
     required String message,
     String? actionText,
     VoidCallback? onAction,
+    ThemeData? theme,
   }) {
     _showSnackBar(
       context,
       message: message,
-      backgroundColor: Colors.green.shade600,
+      theme: theme,
+      variant: _SnackbarVariant.success,
       actionText: actionText,
       onAction: onAction,
     );
@@ -24,11 +26,13 @@ class AppSnackbar {
     required String message,
     String? actionText,
     VoidCallback? onAction,
+    ThemeData? theme,
   }) {
     _showSnackBar(
       context,
       message: message,
-      backgroundColor: Colors.red.shade600,
+      theme: theme,
+      variant: _SnackbarVariant.error,
       actionText: actionText,
       onAction: onAction,
     );
@@ -39,11 +43,13 @@ class AppSnackbar {
     required String message,
     String? actionText,
     VoidCallback? onAction,
+    ThemeData? theme,
   }) {
     _showSnackBar(
       context,
       message: message,
-      backgroundColor: Colors.blueGrey.shade700,
+      theme: theme,
+      variant: _SnackbarVariant.info,
       actionText: actionText,
       onAction: onAction,
     );
@@ -52,23 +58,49 @@ class AppSnackbar {
   static void _showSnackBar(
     BuildContext context, {
     required String message,
-    required Color backgroundColor,
+    ThemeData? theme,
+    _SnackbarVariant variant = _SnackbarVariant.info,
     String? actionText,
     VoidCallback? onAction,
   }) {
+    final themeData = theme ?? Theme.of(context);
+    final colorScheme = themeData.colorScheme;
+    Color backgroundColor;
+    Color onColor;
+    switch (variant) {
+      case _SnackbarVariant.success:
+        backgroundColor = colorScheme.primary;
+        onColor = colorScheme.onPrimary;
+        break;
+      case _SnackbarVariant.error:
+        backgroundColor = colorScheme.error;
+        onColor = colorScheme.onError;
+        break;
+      case _SnackbarVariant.info:
+      default:
+        backgroundColor = colorScheme.surfaceVariant;
+        onColor = colorScheme.onSurface;
+        break;
+    }
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
+        content: Text(
+          message,
+          style: themeData.textTheme.bodyMedium?.copyWith(color: onColor),
+        ),
         backgroundColor: backgroundColor,
         behavior: SnackBarBehavior.floating,
         action: actionText != null
             ? SnackBarAction(
                 label: actionText,
                 onPressed: onAction ?? () {},
-                textColor: Colors.white,
+                textColor: onColor,
               )
             : null,
       ),
     );
   }
 }
+
+enum _SnackbarVariant { success, error, info }

@@ -1,7 +1,10 @@
-import 'package:flutter/cupertino.dart';
-import 'package:qr_flutter/qr_flutter.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/widgets/user_page_app_bar.dart';
 import 'package:final_assignment_front/features/model/fine_information.dart';
-import 'dart:developer' as developer;
+import 'package:final_assignment_front/utils/ui/ui_utils.dart';
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 class MainScan extends StatefulWidget {
   final FineInformation? fine;
@@ -13,193 +16,190 @@ class MainScan extends StatefulWidget {
 }
 
 class _MainScanState extends State<MainScan> {
-  String _platformVersion = 'Unknown';
+  final UserDashboardController dashboardController =
+      Get.find<UserDashboardController>();
+
   bool _isGenerating = false;
-  Widget? _qrWidget;
+  String? _lastGeneratedData;
 
   @override
   void initState() {
     super.initState();
-    _initPlatformState();
     if (widget.fine != null) {
-      _generateCode(); // Generate QR code for fine if provided
+      _generateCode(); // auto-generate when fine provided
     }
   }
 
-  /// Initialize platform state (optional, retained for compatibility)
-  Future<void> _initPlatformState() async {
-    setState(() {
-      _platformVersion = 'Flutter QR Code Generator';
-    });
-  }
-
-  /// Generate QR code using qr_flutter
   Future<void> _generateCode() async {
     if (_isGenerating) return;
+    final qrData = widget.fine != null
+        ? 'Fine ID: ${widget.fine!.fineId}\nAmount: ${widget.fine!.fineAmount}\nPayee: ${widget.fine!.payee}'
+        : '交通违法处理二维码';
+
     setState(() {
       _isGenerating = true;
-      _qrWidget = null;
     });
-
-    // Use fine data if provided, otherwise use default content
-    final content = widget.fine != null
-        ? 'Fine ID: ${widget.fine!.fineId}, Amount: ${widget.fine!.fineAmount}, Payee: ${widget.fine!.payee}'
-        : '这是条码';
 
     try {
       final qrWidget = QrImageView(
-        data: content,
+        data: qrData,
         version: QrVersions.auto,
-        size: 300.0,
-        backgroundColor: const Color(0xFFFFFFFF),
-        foregroundColor: const Color(0xFF7CB342),
+        size: 280,
+        backgroundColor: Colors.white,
+        foregroundColor: dashboardController.currentBodyTheme.value.colorScheme.primary,
         embeddedImage: const AssetImage('assets/images/ic_logo.jpg'),
-        embeddedImageStyle: const QrEmbeddedImageStyle(size: Size(60, 60)),
+        embeddedImageStyle: const QrEmbeddedImageStyle(size: Size(48, 48)),
       );
 
-      if (mounted) {
-        setState(() {
-          _qrWidget = qrWidget;
-          _isGenerating = false;
-        });
-        developer.log('Generated QR code with qr_flutter');
+      if (!mounted) return;
+      setState(() {
+        _lastGeneratedData = qrData;
+        _isGenerating = false;
+      });
 
-        showCupertinoDialog(
-          context: context,
-          builder: (context) => CupertinoAlertDialog(
-            title: Text(widget.fine != null
-                ? 'Fine QR Code (ID: ${widget.fine!.fineId})'
-                : 'QR Code'),
-            content: SizedBox(
-              width: 300,
-              height: 300,
-              child: qrWidget,
-            ),
-            actions: [
-              CupertinoDialogAction(
-                child: const Text('关闭'),
-                onPressed: () => Navigator.pop(context),
-              ),
-            ],
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isGenerating = false;
-        });
-        _showError('生成条码失败: $e');
-      }
-      developer.log('QR code generation error: $e');
-    }
-  }
-
-  /// Show error message via Cupertino dialog
-  void _showError(String message) {
-    showCupertinoDialog(
-      context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: const Text('错误'),
-        content: Text(message),
+      AppDialog.showCustomDialog(
+        context: context,
+        title: widget.fine != null ? '罚款二维码' : '二维码',
+        content: SizedBox(width: 280, height: 280, child: qrWidget),
         actions: [
-          CupertinoDialogAction(
-            child: const Text('确定'),
-            onPressed: () => Navigator.pop(context),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('关闭'),
           ),
         ],
-      ),
-    );
-  }
-
-  /// Build QR code display
-  Widget _buildQrCode() {
-    final theme = CupertinoTheme.of(context);
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.barBackgroundColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.primaryColor.withOpacity(0.2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Text(
-            widget.fine != null ? '罚款条码 (ID: ${widget.fine!.fineId})' : '生成条码',
-            style: theme.textTheme.navTitleTextStyle.copyWith(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Container(
-            constraints: const BoxConstraints(maxWidth: 300, maxHeight: 300),
-            child: _isGenerating
-                ? const Center(child: CupertinoActivityIndicator(radius: 16))
-                : _qrWidget != null
-                    ? _qrWidget!
-                    : Text(
-                        '尚未生成条码',
-                        style: theme.textTheme.textStyle.copyWith(
-                          color:
-                              theme.textTheme.textStyle.color?.withOpacity(0.6),
-                          fontSize: 16,
-                        ),
-                      ),
-          ),
-        ],
-      ),
-    );
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isGenerating = false);
+      AppSnackbar.showError(context, message: '生成二维码失败: $e');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = CupertinoTheme.of(context);
-    return CupertinoPageScaffold(
-      navigationBar: CupertinoNavigationBar(
-        middle: const Text('二维码生成'),
-        backgroundColor: theme.primaryColor,
-        brightness: Brightness.dark,
-      ),
-      child: SafeArea(
-        child: SingleChildScrollView(
+    return Obx(() {
+      final themeData = dashboardController.currentBodyTheme.value;
+      return Scaffold(
+        backgroundColor: themeData.colorScheme.surface,
+        appBar: UserPageAppBar(
+          theme: themeData,
+          title: '二维码生成',
+          onThemeToggle: dashboardController.toggleBodyTheme,
+        ),
+        body: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: theme.barBackgroundColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '平台版本: $_platformVersion',
-                  style: theme.textTheme.textStyle.copyWith(fontSize: 14),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              const SizedBox(height: 24),
-              _buildQrCode(),
+              if (widget.fine != null) _buildFineCard(themeData, widget.fine!),
               const SizedBox(height: 16),
-              CupertinoButton(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
-                color: theme.primaryColor,
+              _buildQrPreview(themeData),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
                 onPressed: _isGenerating ? null : _generateCode,
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(CupertinoIcons.qrcode, size: 20),
-                    SizedBox(width: 8),
-                    Text('生成条码'),
-                  ],
+                icon: const Icon(Icons.qr_code),
+                label: Text(_lastGeneratedData == null ? '生成二维码' : '重新生成'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
               ),
             ],
           ),
         ),
+      );
+    });
+  }
+
+  Widget _buildFineCard(ThemeData theme, FineInformation fine) {
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      color: theme.colorScheme.surfaceContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('罚款详情',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.onSurface,
+                )),
+            const Divider(),
+            _buildDetailRow(theme, '罚款编号', fine.fineId?.toString() ?? '--'),
+            _buildDetailRow(theme, '罚款金额', '${fine.fineAmount ?? 0} 元'),
+            _buildDetailRow(theme, '缴纳对象', fine.payee ?? '--'),
+            _buildDetailRow(theme, '缴纳状态', fine.paymentStatus ?? '--'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQrPreview(ThemeData theme) {
+    final colorScheme = theme.colorScheme;
+    final qrText = _lastGeneratedData ?? '尚未生成二维码';
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      color: colorScheme.surfaceContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Text(
+              _lastGeneratedData != null ? '已生成二维码' : '等待生成二维码',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 12),
+            if (_lastGeneratedData == null)
+              Text(
+                qrText,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            if (_lastGeneratedData != null)
+              Container(
+                constraints:
+                    const BoxConstraints(maxWidth: 260, maxHeight: 260),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  border: Border.all(color: colorScheme.primary.withOpacity(0.2)),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: QrImageView(
+                  data: _lastGeneratedData!,
+                  version: QrVersions.auto,
+                  size: 240,
+                  backgroundColor: Colors.white,
+                  foregroundColor: colorScheme.primary,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(
+      ThemeData theme, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label,
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+          Text(value,
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(fontWeight: FontWeight.w600)),
+        ],
       ),
     );
   }

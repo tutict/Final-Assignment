@@ -1,10 +1,13 @@
 import 'dart:convert';
+
 import 'package:final_assignment_front/features/api/appeal_management_controller_api.dart';
-import 'package:final_assignment_front/utils/helpers/api_exception.dart';
-import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:final_assignment_front/features/model/appeal_record.dart';
 import 'package:final_assignment_front/features/model/progress_item.dart';
+import 'package:final_assignment_front/utils/helpers/api_exception.dart';
+import 'package:final_assignment_front/utils/services/api_client.dart';
+import 'package:final_assignment_front/utils/ui/ui_utils.dart';
 import 'package:get/get.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ProgressController extends GetxController {
@@ -20,6 +23,22 @@ class ProgressController extends GetxController {
   final RxString errorMessage = ''.obs;
   final RxBool _isAdmin = false.obs;
 
+  void _showSnackbar(String title, String message, {bool isError = false}) {
+    final ctx = Get.context;
+    if (ctx != null) {
+      if (isError) {
+        AppSnackbar.showError(ctx, message: message);
+      } else {
+        AppSnackbar.showSuccess(ctx, message: message);
+      }
+    } else {
+      Get.snackbar(title, message,
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: isError ? Get.theme.colorScheme.error : null,
+          colorText: isError ? Get.theme.colorScheme.onError : null);
+    }
+  }
+
   @override
   void onInit() {
     super.onInit();
@@ -32,8 +51,26 @@ class ProgressController extends GetxController {
 
   Future<void> _loadUserRole() async {
     final prefs = await SharedPreferences.getInstance();
-    final role = prefs.getString('userRole');
-    _isAdmin.value = role == 'ADMIN';
+    final token = prefs.getString('jwtToken');
+    if (token == null || token.isEmpty) {
+      _isAdmin.value = false;
+      return;
+    }
+    try {
+      final decoded = JwtDecoder.decode(token);
+      final roles = decoded['roles'];
+      if (roles is List) {
+        _isAdmin.value = roles
+            .map((e) => e.toString())
+            .any((role) => role.contains('ADMIN'));
+      } else if (roles is String) {
+        _isAdmin.value = roles.contains('ADMIN');
+      } else {
+        _isAdmin.value = false;
+      }
+    } catch (_) {
+      _isAdmin.value = false;
+    }
   }
 
   Future<void> fetchAppeals() async {
@@ -58,11 +95,12 @@ class ProgressController extends GetxController {
       }
       final List<dynamic> data = jsonDecode(response.body);
       appeals.value = data
-          .map((json) => AppealRecordModel.fromJson(json as Map<String, dynamic>))
+          .map((json) =>
+              AppealRecordModel.fromJson(json as Map<String, dynamic>))
           .toList();
     } catch (e) {
       errorMessage.value = _formatErrorMessage(e);
-      Get.snackbar('错误', '加载申诉失败: $e', snackPosition: SnackPosition.TOP);
+      _showSnackbar('错误', '加载申诉失败: $e', isError: true);
     }
   }
 
@@ -139,13 +177,13 @@ class ProgressController extends GetxController {
 
       if (response.statusCode == 201) {
         await fetchProgress();
-        Get.snackbar('成功', '进度提交成功', snackPosition: SnackPosition.TOP);
+        _showSnackbar('成功', '进度提交成功');
       } else {
         throw ApiException(response.statusCode, 'Failed to submit progress');
       }
     } catch (e) {
       errorMessage.value = _formatErrorMessage(e);
-      Get.snackbar('错误', errorMessage.value, snackPosition: SnackPosition.TOP);
+      _showSnackbar('错误', errorMessage.value, isError: true);
     } finally {
       isLoading.value = false;
     }
@@ -190,13 +228,13 @@ class ProgressController extends GetxController {
 
       if (response.statusCode == 200) {
         await fetchProgress();
-        Get.snackbar('成功', '进度更新成功', snackPosition: SnackPosition.TOP);
+        _showSnackbar('成功', '进度更新成功');
       } else {
         throw ApiException(response.statusCode, 'Failed to update progress');
       }
     } catch (e) {
       errorMessage.value = _formatErrorMessage(e);
-      Get.snackbar('错误', errorMessage.value, snackPosition: SnackPosition.TOP);
+      _showSnackbar('错误', errorMessage.value, isError: true);
     } finally {
       isLoading.value = false;
     }
@@ -234,13 +272,13 @@ class ProgressController extends GetxController {
 
       if (response.statusCode == 200) {
         await fetchProgress();
-        Get.snackbar('成功', '状态更新成功', snackPosition: SnackPosition.TOP);
+        _showSnackbar('成功', '状态更新成功');
       } else {
         throw ApiException(response.statusCode, 'Failed to update status');
       }
     } catch (e) {
       errorMessage.value = _formatErrorMessage(e);
-      Get.snackbar('错误', errorMessage.value, snackPosition: SnackPosition.TOP);
+      _showSnackbar('错误', errorMessage.value, isError: true);
     } finally {
       isLoading.value = false;
     }
@@ -269,13 +307,13 @@ class ProgressController extends GetxController {
 
       if (response.statusCode == 204) {
         await fetchProgress();
-        Get.snackbar('成功', '进度删除成功', snackPosition: SnackPosition.TOP);
+        _showSnackbar('成功', '进度删除成功');
       } else {
         throw ApiException(response.statusCode, 'Failed to delete progress');
       }
     } catch (e) {
       errorMessage.value = _formatErrorMessage(e);
-      Get.snackbar('错误', errorMessage.value, snackPosition: SnackPosition.TOP);
+      _showSnackbar('错误', errorMessage.value, isError: true);
     } finally {
       isLoading.value = false;
     }

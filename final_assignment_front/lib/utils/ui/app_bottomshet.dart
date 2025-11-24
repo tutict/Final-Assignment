@@ -9,29 +9,35 @@ class AppBottomSheet {
     required BuildContext context,
     required List<Widget> options,
     String? title,
+    ThemeData? theme,
   }) {
+    final themeData = theme ?? Theme.of(context);
     return showModalBottomSheet<T>(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(16),
-        child: SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (title != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Text(
-                    title,
-                    style: Theme.of(ctx).textTheme.titleLarge,
+      builder: (ctx) => Theme(
+        data: themeData,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (title != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Text(
+                      title,
+                      style: themeData.textTheme.titleLarge
+                          ?.copyWith(fontWeight: FontWeight.bold),
+                    ),
                   ),
-                ),
-              ...options,
-            ],
+                ...options,
+              ],
+            ),
           ),
         ),
       ),
@@ -41,19 +47,24 @@ class AppBottomSheet {
   static Future<T?> showCustomContent<T>({
     required BuildContext context,
     required Widget child,
+    ThemeData? theme,
   }) {
+    final themeData = theme ?? Theme.of(context);
     return showModalBottomSheet<T>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Theme.of(context).cardColor,
+      backgroundColor: themeData.cardColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(ctx).viewInsets.bottom,
+      builder: (ctx) => Theme(
+        data: themeData,
+        child: Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom,
+          ),
+          child: child,
         ),
-        child: child,
       ),
     );
   }

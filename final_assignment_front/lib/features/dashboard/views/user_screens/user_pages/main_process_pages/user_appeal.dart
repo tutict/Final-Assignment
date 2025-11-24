@@ -12,6 +12,7 @@ import 'package:final_assignment_front/features/model/driver_information.dart';
 import 'package:final_assignment_front/features/model/user_management.dart';
 import 'package:get/get.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/widgets/user_page_app_bar.dart';
 import 'dart:developer' as developer;
 
 String generateIdempotencyKey() {
@@ -794,31 +795,11 @@ class _UserAppealPageState extends State<UserAppealPage> {
 
       return Scaffold(
         backgroundColor: themeData.colorScheme.surface,
-        appBar: AppBar(
-          title: Text(
-            '用户申诉管理',
-            style: themeData.textTheme.headlineSmall?.copyWith(
-              color: themeData.colorScheme.onPrimaryContainer,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          backgroundColor: themeData.colorScheme.primaryContainer,
-          foregroundColor: themeData.colorScheme.onPrimaryContainer,
-          elevation: 2,
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: () => _fetchUserAppeals(),
-              tooltip: '刷新申诉列表',
-            ),
-            IconButton(
-              icon: Icon(themeData.brightness == Brightness.light
-                  ? Icons.dark_mode
-                  : Icons.light_mode),
-              onPressed: () => controller?.toggleBodyTheme(),
-              tooltip: '切换主题',
-            ),
-          ],
+        appBar: UserPageAppBar(
+          theme: themeData,
+          title: '用户申诉管理',
+          onRefresh: _fetchUserAppeals,
+          onThemeToggle: controller?.toggleBodyTheme,
         ),
         body: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -1112,31 +1093,11 @@ class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
       final themeData = controller?.currentBodyTheme.value ?? Theme.of(context);
       return Scaffold(
         backgroundColor: themeData.colorScheme.surface,
-        appBar: AppBar(
-          title: Text(
-            '申诉详情',
-            style: themeData.textTheme.headlineSmall?.copyWith(
-              color: themeData.colorScheme.onPrimaryContainer,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          backgroundColor: themeData.colorScheme.primaryContainer,
-          foregroundColor: themeData.colorScheme.onPrimaryContainer,
-          elevation: 2,
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: _fetchProgress,
-              tooltip: '刷新反馈',
-            ),
-            IconButton(
-              icon: Icon(themeData.brightness == Brightness.light
-                  ? Icons.dark_mode
-                  : Icons.light_mode),
-              onPressed: () => controller?.toggleBodyTheme(),
-              tooltip: '切换主题',
-            ),
-          ],
+        appBar: UserPageAppBar(
+          theme: themeData,
+          title: '申诉详情',
+          onRefresh: _fetchProgress,
+          onThemeToggle: controller?.toggleBodyTheme,
         ),
         body: Padding(
           padding: const EdgeInsets.all(16.0),

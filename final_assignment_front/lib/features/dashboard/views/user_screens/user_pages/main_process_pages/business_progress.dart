@@ -1,10 +1,11 @@
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/main_process_pages/user_offense_list_page.dart';
 import 'package:flutter/material.dart';
-import 'package:get/Get.dart';
+import 'package:get/get.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/main_process_pages/fine_information.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/main_process_pages/user_appeal.dart';
 import 'package:final_assignment_front/features/dashboard/views/user_screens/user_pages/main_process_pages/vehicle_management.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/widgets/user_page_app_bar.dart';
 
 class BusinessProgressPage extends StatefulWidget {
   const BusinessProgressPage({super.key});
@@ -54,8 +55,10 @@ class _BusinessProgressPageState extends State<BusinessProgressPage> {
       () => Theme(
         data: controller.currentBodyTheme.value,
         child: Scaffold(
-          appBar: AppBar(
-            title: const Text('业务办理菜单'),
+          appBar: UserPageAppBar(
+            theme: controller.currentBodyTheme.value,
+            title: '业务办理菜单',
+            onThemeToggle: controller.toggleBodyTheme,
           ),
           body: Padding(
             padding: const EdgeInsets.all(16.0),

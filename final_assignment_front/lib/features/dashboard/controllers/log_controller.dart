@@ -1,6 +1,9 @@
 import 'dart:convert';
 import 'dart:developer' as developer;
+import 'dart:io';
 import 'dart:math';
+
+import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/features/api/operation_log_controller_api.dart';
 import 'package:final_assignment_front/features/api/user_management_controller_api.dart';
 import 'package:final_assignment_front/features/model/operation_log.dart';
@@ -8,11 +11,10 @@ import 'package:final_assignment_front/features/model/system_logs.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:http/http.dart' as http;
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
-import 'package:http/http.dart' as http;
-import 'dart:io';
 
 class LogController extends GetxController with WidgetsBindingObserver {
   static const String _backendBaseUrl = 'http://localhost:8081';
@@ -88,9 +90,10 @@ class LogController extends GetxController with WidgetsBindingObserver {
   Future<void> _fetchUserId() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final storedUsername = prefs.getString('userName');
+      var storedUsername = prefs.getString('userName');
+      storedUsername ??= _currentUsername;
       if (storedUsername == null || storedUsername.isEmpty) {
-        developer.log('No username found in prefs for user lookup');
+        developer.log('No username available for user lookup');
         return;
       }
       await _userApi.initializeWithJwt();
@@ -101,8 +104,7 @@ class LogController extends GetxController with WidgetsBindingObserver {
         return;
       }
       _currentUserId = user.userId;
-      _currentUsername =
-          user.realName ?? user.username ?? storedUsername;
+      _currentUsername = user.realName ?? user.username ?? storedUsername;
       developer.log(
           'Fetched userId: $_currentUserId via /api/users/search/username');
     } catch (e) {
@@ -112,7 +114,7 @@ class LogController extends GetxController with WidgetsBindingObserver {
   }
 
   Future<void> _deferNavigationToLogin() async {
-    if (_isRedirecting || Get.currentRoute == '/login') {
+    if (_isRedirecting || Get.currentRoute == AppPages.login) {
       developer
           .log('Already redirecting or on login route, skipping navigation');
       return;
@@ -120,8 +122,8 @@ class LogController extends GetxController with WidgetsBindingObserver {
     _isRedirecting = true;
 // Wait for context up to 5 seconds
     for (int i = 0; i < 50; i++) {
-      if (Get.context != null && Get.currentRoute != '/login') {
-        Get.offAllNamed('/login');
+      if (Get.context != null && Get.currentRoute != AppPages.login) {
+        Get.offAllNamed(AppPages.login);
         developer.log('Navigated to login route');
         break;
       }
@@ -448,7 +450,8 @@ class LogController extends GetxController with WidgetsBindingObserver {
                 (X509Certificate cert, String host, int port) =>
                     true; // For testing only
           final request = await client.getUrl(Uri.parse(service));
-          final response = await request.close().timeout(const Duration(seconds: 5));
+          final response =
+              await request.close().timeout(const Duration(seconds: 5));
           final responseBody = await response.transform(utf8.decoder).join();
           if (response.statusCode == 200) {
             if (service.contains('ipify')) {
@@ -476,7 +479,7 @@ class LogController extends GetxController with WidgetsBindingObserver {
   }
 
   Future<void> _handle403Error() async {
-    if (_isRedirecting || Get.currentRoute == '/login') {
+    if (_isRedirecting || Get.currentRoute == AppPages.login) {
       developer
           .log('Already redirecting or on login route, skipping 403 handling');
       return;

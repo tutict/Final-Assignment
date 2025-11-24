@@ -2,6 +2,7 @@ import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/progress_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_dashboard_screen.dart';
 import 'package:final_assignment_front/features/model/appeal_record.dart';
+import 'package:final_assignment_front/utils/ui/ui_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -326,19 +327,12 @@ class ProgressManagementPage extends StatelessWidget {
     final titleController = TextEditingController();
     final detailsController = TextEditingController();
     AppealRecordModel? selectedAppeal;
-    showDialog(
+    AppDialog.showCustomDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: themeData.colorScheme.surfaceContainerHighest,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          '创建进度',
-          style: themeData.textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: themeData.colorScheme.onSurface,
-          ),
-        ),
-        content: SingleChildScrollView(
+      theme: themeData,
+      title: '创建进度',
+      content: StatefulBuilder(
+        builder: (ctx, setState) => SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -361,62 +355,69 @@ class ProgressManagementPage extends StatelessWidget {
                 maxLines: 3,
               ),
               const SizedBox(height: 16),
-              Obx(() => DropdownButtonFormField<AppealRecordModel>(
-                    decoration: InputDecoration(
-                      labelText: '关联申诉（可选）',
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8)),
-                    ),
-                    value: selectedAppeal,
-                    items: controller.appeals.map((appeal) {
-                      return DropdownMenuItem(
-                        value: appeal,
-                        child: Text(
-                            '申诉: ${appeal.appellantName} (ID: ${appeal.appealId})'),
-                      );
-                    }).toList(),
-                    onChanged: (value) => selectedAppeal = value,
-                  )),
+              Obx(
+                () => DropdownButtonFormField<AppealRecordModel>(
+                  decoration: InputDecoration(
+                    labelText: '关联申诉（可选）',
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                  ),
+                  value: selectedAppeal,
+                  items: controller.appeals.map((appeal) {
+                    return DropdownMenuItem(
+                      value: appeal,
+                      child: Text(
+                          '申诉: ${appeal.appellantName} (ID: ${appeal.appealId})'),
+                    );
+                  }).toList(),
+                  onChanged: (value) =>
+                      setState(() => selectedAppeal = value),
+                ),
+              ),
             ],
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(
-              '取消',
-              style: themeData.textTheme.labelLarge?.copyWith(
-                color: themeData.colorScheme.onSurfaceVariant,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (titleController.text.isEmpty) {
-                Get.snackbar('错误', '标题不能为空',
-                    snackPosition: SnackPosition.BOTTOM);
-                return;
-              }
-              controller.submitProgress(
-                titleController.text,
-                detailsController.text.isNotEmpty
-                    ? detailsController.text
-                    : null,
-                appealId: selectedAppeal?.appealId,
-              );
-              Navigator.pop(ctx);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: themeData.colorScheme.primary,
-              foregroundColor: themeData.colorScheme.onPrimary,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-            ),
-            child: const Text('提交'),
-          ),
-        ],
       ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(
+            '取消',
+            style: themeData.textTheme.labelLarge?.copyWith(
+              color: themeData.colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            final title = titleController.text.trim();
+            if (title.isEmpty) {
+              AppSnackbar.showError(
+                context,
+                message: '标题不能为空',
+                theme: themeData,
+              );
+              return;
+            }
+            controller.submitProgress(
+              title,
+              detailsController.text.isNotEmpty
+                  ? detailsController.text
+                  : null,
+              appealId: selectedAppeal?.appealId,
+            );
+            Navigator.of(context).pop();
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: themeData.colorScheme.primary,
+            foregroundColor: themeData.colorScheme.onPrimary,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+          child: const Text('提交'),
+        ),
+      ],
     ).whenComplete(() {
       titleController.dispose();
       detailsController.dispose();
@@ -522,51 +523,15 @@ class ProgressManagementPage extends StatelessWidget {
 
   void _showDeleteConfirmationDialog(BuildContext context, int progressId,
       ProgressController controller, ThemeData themeData) {
-    showDialog(
+    AppDialog.showConfirmDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: themeData.colorScheme.surfaceContainerHighest,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          '确认删除',
-          style: themeData.textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: themeData.colorScheme.onSurface,
-          ),
-        ),
-        content: Text(
-          '您确定要删除此进度记录吗？此操作不可撤销。',
-          style: themeData.textTheme.bodyMedium?.copyWith(
-            color: themeData.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(
-              '取消',
-              style: themeData.textTheme.labelLarge?.copyWith(
-                color: themeData.colorScheme.onSurfaceVariant,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              await controller.deleteProgress(progressId);
-              Navigator.pop(ctx);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: themeData.colorScheme.error,
-              foregroundColor: themeData.colorScheme.onError,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            ),
-            child: const Text('删除'),
-          ),
-        ],
-      ),
+      theme: themeData,
+      title: '确认删除',
+      message: '您确定要删除此进度记录吗？此操作不可撤销。',
+      confirmText: '删除',
+      confirmColor: themeData.colorScheme.error,
+      leadingIcon: Icons.warning_amber_rounded,
+      onConfirmed: () => controller.deleteProgress(progressId),
     );
   }
 

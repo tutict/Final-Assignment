@@ -1,106 +1,44 @@
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
+import 'package:final_assignment_front/features/dashboard/views/user_screens/widgets/news_page_layout.dart';
 import 'package:flutter/material.dart';
-import 'package:get/Get.dart';
-import 'package:google_fonts/google_fonts.dart';
 
-class AccidentProgressPage extends StatefulWidget {
+class AccidentProgressPage extends StatelessWidget {
   const AccidentProgressPage({super.key});
 
   @override
-  State<AccidentProgressPage> createState() => _AccidentProgressPageState();
-}
-
-class _AccidentProgressPageState extends State<AccidentProgressPage> {
-  final controller = Get.find<UserDashboardController>();
-
-  @override
   Widget build(BuildContext context) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-
-    return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              isDarkMode ? Colors.deepPurple[900]! : Colors.deepPurple,
-              // 暗色模式使用更深的紫色
-              isDarkMode
-                  ? Theme.of(context).colorScheme.surface
-                  : Theme.of(context).colorScheme.surface,
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              _buildHeader(context, '事故处理状态追踪'),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildSectionTitle(context, '如何跟踪事故处理状态'),
-                      _buildStepCard(
-                        context,
-                        '1. 登录系统',
-                        '使用您的账号登录交通违法处理管理系统，进入用户仪表板。',
-                      ),
-                      _buildStepCard(
-                        context,
-                        '2. 进入事故管理',
-                        '在仪表板中选择“事故管理”选项，查看所有已提交的事故记录。',
-                      ),
-                      _buildStepCard(
-                        context,
-                        '3. 查看进度详情',
-                        '点击具体事故编号，查看当前状态（如“已提交”、“审核中”或“已完成”）。',
-                      ),
-                      const SizedBox(height: 16.0),
-                      _buildSectionTitle(context, '实用建议'),
-                      _buildContentCard(
-                        context,
-                        '定期检查',
-                        '建议每周登录系统检查事故处理进度，确保及时响应审核要求。',
-                      ),
-                      _buildContentCard(
-                        context,
-                        '通知设置',
-                        '启用系统通知，获取状态更新的实时提醒，避免遗漏重要信息。',
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader(BuildContext context, String title) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Row(
+    return NewsPageLayout(
+      title: '事故处理状态追踪',
+      accentColor: Colors.deepPurple,
+      contentBuilder: (context, theme) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          IconButton(
-            icon: Icon(Icons.arrow_back,
-                color: isDarkMode ? Colors.white : Colors.white),
-            onPressed: () => controller.exitSidebarContent(),
+          _buildSectionTitle(context, '如何跟踪事故处理状态'),
+          _buildStepCard(
+            context,
+            '1. 登录系统',
+            '使用您的账号登录交通违法处理管理系统，进入用户仪表板。',
           ),
-          Expanded(
-            child: Text(
-              title,
-              style: GoogleFonts.roboto(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: isDarkMode ? Colors.white : Colors.white,
-              ),
-            ),
+          _buildStepCard(
+            context,
+            '2. 进入事故管理',
+            '在仪表板中选择“事故管理”选项，查看所有已提交的事故记录。',
+          ),
+          _buildStepCard(
+            context,
+            '3. 查看进度详情',
+            '点击具体事故编号，查看当前状态（如“已提交”、“审核中”或“已完成”）。',
+          ),
+          const SizedBox(height: 16),
+          _buildSectionTitle(context, '实用建议'),
+          _buildContentCard(
+            context,
+            '定期检查',
+            '建议每周登录系统检查事故处理进度，确保及时响应审核要求。',
+          ),
+          _buildContentCard(
+            context,
+            '通知设置',
+            '启用系统通知，获取状态更新的实时提醒，避免遗漏重要信息。',
           ),
         ],
       ),
@@ -108,63 +46,67 @@ class _AccidentProgressPageState extends State<AccidentProgressPage> {
   }
 
   Widget _buildSectionTitle(BuildContext context, String title) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Text(
         title,
-        style: GoogleFonts.roboto(
-          fontSize: 20,
+        style: theme.textTheme.titleMedium?.copyWith(
           fontWeight: FontWeight.bold,
-          color: isDarkMode ? Colors.white : Colors.white,
+          color: theme.colorScheme.onSurface,
         ),
       ),
     );
   }
 
-  Widget _buildStepCard(BuildContext context, String title, String content) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+  Widget _buildStepCard(
+    BuildContext context,
+    String title,
+    String content,
+  ) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     return Card(
       elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       margin: const EdgeInsets.symmetric(vertical: 8.0),
-      color: isDarkMode ? Colors.grey[800] : Colors.white.withOpacity(0.9),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: isDarkMode
-              ? Colors.deepPurple
-              : Theme.of(context).colorScheme.primary,
+          backgroundColor: colorScheme.primary,
           child: Text(
-            title.split('.')[0], // 提取步骤编号
+            title.split('.')[0],
             style: const TextStyle(color: Colors.white),
           ),
         ),
         title: Text(
           title,
-          style: GoogleFonts.roboto(
-            fontSize: 18,
+          style: theme.textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.bold,
-            color: isDarkMode ? Colors.white : Colors.black87,
+            color: colorScheme.onSurface,
           ),
         ),
         subtitle: Text(
           content,
-          style: GoogleFonts.roboto(
-            fontSize: 16,
-            color: isDarkMode ? Colors.white70 : Colors.black54,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: colorScheme.onSurfaceVariant,
           ),
         ),
       ),
     );
   }
 
-  Widget _buildContentCard(BuildContext context, String title, String content) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+  Widget _buildContentCard(
+    BuildContext context,
+    String title,
+    String description,
+  ) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      color: colorScheme.surfaceContainerHighest,
+      elevation: 2,
       margin: const EdgeInsets.symmetric(vertical: 8.0),
-      color: isDarkMode ? Colors.grey[800] : Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -172,20 +114,16 @@ class _AccidentProgressPageState extends State<AccidentProgressPage> {
           children: [
             Text(
               title,
-              style: GoogleFonts.roboto(
-                fontSize: 18,
+              style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: isDarkMode
-                    ? Colors.deepPurpleAccent
-                    : Theme.of(context).colorScheme.primary,
+                color: colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 8),
             Text(
-              content,
-              style: GoogleFonts.roboto(
-                fontSize: 16,
-                color: isDarkMode ? Colors.white70 : Colors.black87,
+              description,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
               ),
             ),
           ],

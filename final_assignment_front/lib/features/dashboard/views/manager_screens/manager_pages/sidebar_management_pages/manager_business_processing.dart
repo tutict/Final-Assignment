@@ -5,6 +5,7 @@ import 'package:final_assignment_front/features/dashboard/views/manager_screens/
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/main_process_pages/fine_list.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/main_process_pages/offense_list.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager_screens/manager_pages/main_process_pages/vehicle_list.dart';
+import 'package:final_assignment_front/features/dashboard/views/widgets/dashboard_page_app_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -74,43 +75,75 @@ class _ManagerBusinessProcessingState extends State<ManagerBusinessProcessing> {
   @override
   Widget build(BuildContext context) {
     return Obx(
-      () => Theme(
-        data: controller.currentBodyTheme.value,
-        child: Scaffold(
-          appBar: AppBar(
-            title: const Text('业务处理菜单'),
+      () {
+        final themeData = controller.currentBodyTheme.value;
+        final colorScheme = themeData.colorScheme;
+        return Scaffold(
+          backgroundColor: colorScheme.surface,
+          appBar: DashboardPageAppBar(
+            theme: themeData,
+            title: '业务处理菜单',
+            onThemeToggle: controller.toggleBodyTheme,
           ),
           body: Padding(
             padding: const EdgeInsets.all(16.0),
-            child: ListView.builder(
+            child: GridView.builder(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                childAspectRatio: 4 / 3,
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 16,
+              ),
               itemCount: businessOptions.length,
               itemBuilder: (context, index) {
                 final option = businessOptions[index];
-                return Column(
-                  children: [
-                    ListTile(
-                      leading: Icon(option['icon'], color: Colors.blue),
-                      title: Text(
-                        option['title'],
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
-                      ),
-                      trailing: const Icon(
-                        Icons.arrow_forward_ios,
-                        color: Colors.grey,
-                      ),
-                      onTap: () => _navigateToBusiness(option['route']),
+                return InkWell(
+                  borderRadius: BorderRadius.circular(20),
+                  onTap: () => _navigateToBusiness(option['route']),
+                  child: Ink(
+                    decoration: BoxDecoration(
+                      color: colorScheme.surfaceContainer,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: colorScheme.outlineVariant),
                     ),
-                    if (index < businessOptions.length - 1)
-                      const SizedBox(height: 16.0),
-                  ],
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          CircleAvatar(
+                            backgroundColor:
+                                colorScheme.primaryContainer.withOpacity(0.6),
+                            child: Icon(
+                              option['icon'],
+                              color: colorScheme.onPrimaryContainer,
+                            ),
+                          ),
+                          const Spacer(),
+                          Text(
+                            option['title'],
+                            style: themeData.textTheme.titleMedium?.copyWith(
+                              color: colorScheme.onSurface,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '点击进入',
+                            style: themeData.textTheme.bodySmall?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 );
               },
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
