@@ -1,9 +1,11 @@
 # Final-Assignment 
 
-这是一个交通违法行为处理管理系统项目，曾用于大学毕业设计，此项目主要采用Flutter前端与Java后端架构（Quarkus/Spring Boot
-3）实现，未来考虑结合Flutter，将此项目开发成鸿蒙应用以支持多端适配。【目前趁着毕业找不到工作，正在扩展Go与React。 *~~项目搞完就转行吧,反正这个项目也叫Final_Assignment,小红书也说非92就转行~~* 】
+<font size=2>`四百多提交了，多少有点感悟。感觉写代码按照心法来分的话，可以分成just for money 和 just for fun（林纳斯自传名），不同心法练出不同“内功”，just for fun 心法练的就类似于小无相功。`</font>
 
-<font size=2>`四百提交了，多少有点感悟。感觉写代码按照心法来分的话，可以分成just for money 和 just for fun（林纳斯自传名），不同心法练出不同“内功”，just for fun 心法练的就类似于小无相功。`</font>
+这是一个交通违法行为处理管理系统项目，曾用于大学毕业设计，现在用于作为just for fun的项目，程序员这个赛道实在太卷，为谋生只能另寻出路了，大后天履约去小公司做直播运营(25.11.24)。
+
+此项目主要采用Flutter前端与Java后端架构（Quarkus / Spring Boot 3）实现，未来考虑结合Flutter，将此项目开发成鸿蒙应用以支持多端适配。【正在扩展Go与React代码。】
+
 
 - **运行代码之前需要确保docker在后台运行。**
 
@@ -224,9 +226,3 @@ spring.ai.ollama.chat.options.keep-alive=5m
 * **注1**: ES的端口由RunDocker类里的TestContainers自动配置,然后在ES配置类里直接调用,所以没有在application.properties里配置
 * **注2**: 在maven同步下载完依赖包后,需要手动再mvn install一下,Graalpy会在项目里的target文件夹里build一个虚拟环境
 * **注3**: 可以使用finalAssignmentTools/generate_secret_key文件夹下的脚本生成jwt的secret key
-
-********************************
- 
-## 八股选猿
-
-对八股文的一些练习将放在`final_assignment_backend_quarkus/src/test/java/bagu`路径下
