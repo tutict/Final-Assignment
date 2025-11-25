@@ -22,28 +22,28 @@
         <dependency>
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus</artifactId>
-            <version>3.5.12</version>
+            <version>3.5.14</version>
         </dependency>
         <dependency>
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-jsqlparser</artifactId>
-            <version>3.5.12</version>
+            <version>3.5.14</version>
         </dependency>
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-api</artifactId>
-            <version>0.12.7</version>
+            <version>0.13.0</version>
         </dependency>
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-impl</artifactId>
-            <version>0.12.7</version>
+            <version>0.13.0</version>
             <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-jackson</artifactId>
-            <version>0.12.7</version>
+            <version>0.13.0</version>
             <scope>runtime</scope>
         </dependency>
         <dependency>
@@ -69,27 +69,27 @@
         <dependency>
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-boot-starter</artifactId>
-            <version>3.5.12</version>
+            <version>3.5.14</version>
         </dependency>
         <dependency>
             <groupId>io.vertx</groupId>
             <artifactId>vertx-web</artifactId>
-            <version>5.0.3</version>
+            <version>5.0.5</version>
         </dependency>
         <dependency>
             <groupId>io.vertx</groupId>
             <artifactId>vertx-web-client</artifactId>
-            <version>5.0.3</version>
+            <version>5.0.5</version>
         </dependency>
         <dependency>
             <groupId>io.vertx</groupId>
             <artifactId>vertx-core</artifactId>
-            <version>5.0.3</version>
+            <version>5.0.5</version>
         </dependency>
         <dependency>
             <groupId>io.vertx</groupId>
             <artifactId>vertx-kafka-client</artifactId>
-            <version>5.0.3</version>
+            <version>5.0.5</version>
         </dependency>
         <dependency>
             <groupId>junit</groupId>
@@ -119,7 +119,7 @@
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-            <version>2.8.9</version>
+            <version>3.0.0</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -135,7 +135,7 @@
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <version>1.18.38</version>
+            <version>1.18.42</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -145,7 +145,7 @@
         <dependency>
             <groupId>org.mybatis.spring.boot</groupId>
             <artifactId>mybatis-spring-boot-starter-test</artifactId>
-            <version>3.0.4</version>
+            <version>3.0.5</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -160,12 +160,12 @@
         <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-config</artifactId>
-            <version>6.5.2</version>
+            <version>7.0.0</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-web</artifactId>
-            <version>6.5.2</version>
+            <version>7.0.0</version>
         </dependency>
         <dependency>
             <groupId>jakarta.annotation</groupId>
@@ -175,7 +175,7 @@
         <dependency>
             <groupId>org.apache.kafka</groupId>
             <artifactId>kafka-clients</artifactId>
-            <version>4.0.0</version>
+            <version>4.1.1</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -192,7 +192,7 @@
         <dependency>
             <groupId>com.github.docker-java</groupId>
             <artifactId>docker-java-api</artifactId>
-            <version>3.5.3</version>
+            <version>3.7.0</version>
         </dependency>
         <dependency>
             <groupId>jakarta.ws.rs</groupId>
@@ -225,12 +225,12 @@
         <dependency>
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-registry-prometheus</artifactId>
-            <version>1.15.3</version>
+            <version>1.16.0</version>
         </dependency>
         <dependency>
             <groupId>org.aspectj</groupId>
             <artifactId>aspectjweaver</artifactId>
-            <version>1.9.24</version>
+            <version>1.9.25</version>
         </dependency>
         <dependency>
             <groupId>com.redis</groupId>
@@ -259,24 +259,24 @@
         <dependency>
             <groupId>com.manticoresearch</groupId>
             <artifactId>manticoresearch</artifactId>
-            <version>7.0.0</version>
+            <version>8.1.0</version>
         </dependency>
         <dependency>
             <groupId>org.graalvm.polyglot</groupId>
             <artifactId>polyglot</artifactId>
-            <version>24.2.0</version>
+            <version>25.0.1</version>
         </dependency>
         <dependency>
             <groupId>org.graalvm.polyglot</groupId>
             <artifactId>python</artifactId>
-            <version>24.2.0</version>
+            <version>25.0.1</version>
             <type>pom</type>
             <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>org.graalvm.python</groupId>
             <artifactId>python-embedding</artifactId>
-            <version>24.2.0</version>
+            <version>25.0.1</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.statemachine</groupId>
@@ -325,7 +325,7 @@
             <dependency>
                 <groupId>org.springframework.ai</groupId>
                 <artifactId>spring-ai-bom</artifactId>
-                <version>1.0.3</version>
+                <version>1.1.0</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
