@@ -14,6 +14,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 @Service
+// Kafka 监听器，处理消息
 public class DeductionRecordKafkaListener {
 
     private static final Logger log = Logger.getLogger(DeductionRecordKafkaListener.class.getName());
@@ -21,6 +22,7 @@ public class DeductionRecordKafkaListener {
     private final DeductionRecordService deductionRecordService;
     private final ObjectMapper objectMapper;
 
+    // 构造器注入依赖
     @Autowired
     public DeductionRecordKafkaListener(DeductionRecordService deductionRecordService,
                                         ObjectMapper objectMapper) {
@@ -28,20 +30,25 @@ public class DeductionRecordKafkaListener {
         this.objectMapper = objectMapper;
     }
 
+    // 监听 Kafka 消息
     @KafkaListener(topics = "deduction_record_create", groupId = "deductionRecordGroup", concurrency = "3")
     public void onDeductionRecordCreate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                         @Payload String message) {
         log.log(Level.INFO, "Received Kafka message for DeductionRecord create: {0}", message);
+        // 使用虚拟线程异步处理，避免阻塞监听线程
         Thread.ofVirtual().start(() -> processMessage(asKey(rawKey), message, "create"));
     }
 
+    // 监听 Kafka 消息
     @KafkaListener(topics = "deduction_record_update", groupId = "deductionRecordGroup", concurrency = "3")
     public void onDeductionRecordUpdate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                         @Payload String message) {
         log.log(Level.INFO, "Received Kafka message for DeductionRecord update: {0}", message);
+        // 使用虚拟线程异步处理，避免阻塞监听线程
         Thread.ofVirtual().start(() -> processMessage(asKey(rawKey), message, "update"));
     }
 
+    // 统一处理消息并执行业务逻辑
     private void processMessage(String idempotencyKey, String message, String action) {
         if (isBlank(idempotencyKey)) {
             log.warning("Received DeductionRecord event without idempotency key, skipping");
@@ -79,6 +86,7 @@ public class DeductionRecordKafkaListener {
         }
     }
 
+    // 反序列化消息体
     private DeductionRecord deserializeMessage(String message) {
         try {
             return objectMapper.readValue(message, DeductionRecord.class);
@@ -88,10 +96,12 @@ public class DeductionRecordKafkaListener {
         }
     }
 
+    // 将 Kafka key 转为字符串
     private String asKey(byte[] rawKey) {
         return rawKey == null ? null : new String(rawKey);
     }
 
+    // 判空
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
     }

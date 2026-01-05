@@ -24,7 +24,7 @@ dependencies {
     implementation 'io.vertx:vertx-web-client:5.0.1'
     implementation 'io.quarkus:quarkus-vertx:3.24.3'
     implementation 'io.quarkus:quarkus-kafka-client:3.24.3'
-    implementation 'io.quarkiverse.mybatis:quarkus-mybatis-plus:2.2.4' // 确认是否为自定义版本
+    implementation 'io.quarkiverse.mybatis:quarkus-mybatis-plus:2.2.4'
     implementation 'org.mindrot:jbcrypt:0.4'
     implementation 'io.quarkus:quarkus-security:3.24.3'
     implementation 'io.quarkus:quarkus-jdbc-mysql:3.24.3'

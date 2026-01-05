@@ -13,6 +13,7 @@ import java.util.logging.Logger;
 
 @Service
 @EnableKafka
+// Kafka 监听器，处理消息
 public class SysSettingsKafkaListener {
 
     private static final Logger log = Logger.getLogger(SysSettingsKafkaListener.class.getName());
@@ -20,24 +21,30 @@ public class SysSettingsKafkaListener {
     private final SysSettingsMapper sysSettingsMapper;
     private final ObjectMapper objectMapper;
 
+    // 构造器注入依赖
     @Autowired
     public SysSettingsKafkaListener(SysSettingsMapper sysSettingsMapper, ObjectMapper objectMapper) {
         this.sysSettingsMapper = sysSettingsMapper;
         this.objectMapper = objectMapper;
     }
 
+    // 监听 Kafka 消息
     @KafkaListener(topics = "sys_settings_create", groupId = "sysSettingsGroup", concurrency = "3")
     public void onSysSettingsCreateReceived(String message) {
         log.log(Level.INFO, "Received Kafka message for create: {0}", message);
+        // 使用虚拟线程异步处理，避免阻塞监听线程
         Thread.ofVirtual().start(() -> processMessage(message, "create"));
     }
 
+    // 监听 Kafka 消息
     @KafkaListener(topics = "sys_settings_update", groupId = "sysSettingsGroup", concurrency = "3")
     public void onSysSettingsUpdateReceived(String message) {
         log.log(Level.INFO, "Received Kafka message for update: {0}", message);
+        // 使用虚拟线程异步处理，避免阻塞监听线程
         Thread.ofVirtual().start(() -> processMessage(message, "update"));
     }
 
+    // 统一处理消息并执行业务逻辑
     private void processMessage(String message, String action) {
         try {
             SysSettings entity = deserializeMessage(message);
@@ -57,6 +64,7 @@ public class SysSettingsKafkaListener {
         }
     }
 
+    // 反序列化消息体
     private SysSettings deserializeMessage(String message) {
         try {
             return objectMapper.readValue(message, SysSettings.class);

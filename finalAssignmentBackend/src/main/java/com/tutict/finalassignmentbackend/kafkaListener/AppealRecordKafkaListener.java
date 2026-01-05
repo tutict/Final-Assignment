@@ -14,6 +14,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 @Service
+// Kafka 监听器，处理消息
 public class AppealRecordKafkaListener {
 
     private static final Logger log = Logger.getLogger(AppealRecordKafkaListener.class.getName());
@@ -21,6 +22,7 @@ public class AppealRecordKafkaListener {
     private final AppealRecordService appealRecordService;
     private final ObjectMapper objectMapper;
 
+    // 构造器注入依赖
     @Autowired
     public AppealRecordKafkaListener(AppealRecordService appealRecordService,
                                      ObjectMapper objectMapper) {
@@ -28,20 +30,25 @@ public class AppealRecordKafkaListener {
         this.objectMapper = objectMapper;
     }
 
+    // 监听 Kafka 消息
     @KafkaListener(topics = "appeal_record_create", groupId = "appealRecordGroup", concurrency = "3")
     public void onAppealRecordCreate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                      @Payload String message) {
         log.log(Level.INFO, "Received Kafka message for AppealRecord create: {0}", message);
+        // 使用虚拟线程异步处理，避免阻塞监听线程
         Thread.ofVirtual().start(() -> processMessage(asKey(rawKey), message, "create"));
     }
 
+    // 监听 Kafka 消息
     @KafkaListener(topics = "appeal_record_update", groupId = "appealRecordGroup", concurrency = "3")
     public void onAppealRecordUpdate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                      @Payload String message) {
         log.log(Level.INFO, "Received Kafka message for AppealRecord update: {0}", message);
+        // 使用虚拟线程异步处理，避免阻塞监听线程
         Thread.ofVirtual().start(() -> processMessage(asKey(rawKey), message, "update"));
     }
 
+    // 统一处理消息并执行业务逻辑
     private void processMessage(String idempotencyKey, String message, String action) {
         if (isBlank(idempotencyKey)) {
             log.warning("Received appeal record event without idempotency key, skipping");
@@ -80,6 +87,7 @@ public class AppealRecordKafkaListener {
         }
     }
 
+    // 反序列化消息体
     private AppealRecord deserializeMessage(String message) {
         try {
             return objectMapper.readValue(message, AppealRecord.class);
@@ -89,10 +97,12 @@ public class AppealRecordKafkaListener {
         }
     }
 
+    // 将 Kafka key 转为字符串
     private String asKey(byte[] rawKey) {
         return rawKey == null ? null : new String(rawKey);
     }
 
+    // 判空
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
     }
