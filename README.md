@@ -4,9 +4,11 @@
 
 这是一个交通违法行为处理管理系统项目，曾用于大学毕业设计，现在用于作为just for fun的项目，程序员这个赛道实在太卷，为谋生只能另寻出路了。
 
-此项目主要采用Flutter前端与Java后端架构（Quarkus / Spring Boot 3）实现，未来考虑结合Flutter，将此项目开发成鸿蒙应用以支持多端适配。【正在扩展Go与React代码。】
+此项目主要采用Flutter前端与Java后端架构（Quarkus / Spring Boot 4）实现，未来考虑结合Flutter，将此项目开发成鸿蒙应用以支持多端适配。【正在扩展Go与React代码。】
+
 
 毕竟下面这些“学校学的技术”上不了公司的台面，就让它们好好待在Github里吧，如果有后来的学弟翻到我这个项目，大学请一定好好地“玩”，像我一样以一个极具技术挑战的项目用来做青春的句号也是极好的。
+
 
 - **运行代码之前需要确保docker在后台运行。**
 
@@ -142,7 +144,7 @@ quarkus.langchain4j.ollama.chat-model.model-id=deepseek-r1:7b
 #### 技术架构
 
 - 🚀 **核心框架**  
-  Spring Boot 3.4.5 + Graalvm 25 
+  Spring Boot 4.0.1 + Graalvm 25 
 - 🛠 **数据层**  
   MyBatis Plus 3.5.10.1 + MySQL 8.0.41 + Redis 多级缓存
 - **docker**  
