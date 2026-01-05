@@ -1,4 +1,5 @@
 import 'package:final_assignment_front/features/model/system_settings.dart';
+import 'package:final_assignment_front/features/model/sys_dict.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:flutter/material.dart';
@@ -28,6 +29,21 @@ class SystemSettingsControllerApi {
 
   /// 解码响应体字节到字符串
   String _decodeBodyBytes(Response response) => response.body;
+
+  Future<Map<String, String>> _getHeaders({String? idempotencyKey}) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('jwtToken') ?? '';
+    final headers = <String, String>{
+      'Content-Type': 'application/json; charset=utf-8',
+    };
+    if (token.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+    if (idempotencyKey != null && idempotencyKey.trim().isNotEmpty) {
+      headers['Idempotency-Key'] = idempotencyKey.trim();
+    }
+    return headers;
+  }
 
   /// GET /api/systemSettings/copyrightInfo - 获取版权信息
   Future<String?> apiSystemSettingsCopyrightInfoGet() async {
@@ -306,6 +322,617 @@ class SystemSettingsControllerApi {
     if (response.body.isEmpty) return null;
     return apiClient.deserialize(_decodeBodyBytes(response), 'String')
         as String?;
+  }
+
+  // --- New endpoints: /api/system/settings ---
+
+  /// POST /api/system/settings
+  Future<SystemSettings> apiSystemSettingsPost({
+    required SystemSettings systemSettings,
+    String? idempotencyKey,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/system/settings',
+      'POST',
+      const [],
+      systemSettings.toJson(),
+      await _getHeaders(idempotencyKey: idempotencyKey),
+      {},
+      'application/json',
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    final data = apiClient.deserialize(
+        _decodeBodyBytes(response), 'Map<String, dynamic>');
+    return SystemSettings.fromJson(data);
+  }
+
+  /// PUT /api/system/settings/{settingId}
+  Future<SystemSettings> apiSystemSettingsSettingIdPut({
+    required int settingId,
+    required SystemSettings systemSettings,
+    String? idempotencyKey,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/system/settings/$settingId',
+      'PUT',
+      const [],
+      systemSettings.toJson(),
+      await _getHeaders(idempotencyKey: idempotencyKey),
+      {},
+      'application/json',
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    final data = apiClient.deserialize(
+        _decodeBodyBytes(response), 'Map<String, dynamic>');
+    return SystemSettings.fromJson(data);
+  }
+
+  /// DELETE /api/system/settings/{settingId}
+  Future<void> apiSystemSettingsSettingIdDelete({
+    required int settingId,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/system/settings/$settingId',
+      'DELETE',
+      const [],
+      null,
+      await _getHeaders(),
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400 && response.statusCode != 204) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+  }
+
+  /// GET /api/system/settings/{settingId}
+  Future<SystemSettings?> apiSystemSettingsSettingIdGet({
+    required int settingId,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/system/settings/$settingId',
+      'GET',
+      const [],
+      null,
+      await _getHeaders(),
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode == 404) return null;
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    if (response.body.isEmpty) return null;
+    final data = apiClient.deserialize(
+        _decodeBodyBytes(response), 'Map<String, dynamic>');
+    return SystemSettings.fromJson(data);
+  }
+
+  /// GET /api/system/settings
+  Future<List<SystemSettings>> apiSystemSettingsListGet() async {
+    final response = await apiClient.invokeAPI(
+      '/api/system/settings',
+      'GET',
+      const [],
+      null,
+      await _getHeaders(),
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    final List<dynamic> data =
+        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    return SystemSettings.listFromJson(data);
+  }
+
+  /// GET /api/system/settings/key/{settingKey}
+  Future<SystemSettings?> apiSystemSettingsKeyGet({
+    required String settingKey,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/system/settings/key/$settingKey',
+      'GET',
+      const [],
+      null,
+      await _getHeaders(),
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode == 404) return null;
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    if (response.body.isEmpty) return null;
+    final data = apiClient.deserialize(
+        _decodeBodyBytes(response), 'Map<String, dynamic>');
+    return SystemSettings.fromJson(data);
+  }
+
+  /// GET /api/system/settings/category/{category}
+  Future<List<SystemSettings>> apiSystemSettingsCategoryGet({
+    required String category,
+    int page = 1,
+    int size = 50,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/system/settings/category/$category',
+      'GET',
+      [
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      await _getHeaders(),
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    final List<dynamic> data =
+        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    return SystemSettings.listFromJson(data);
+  }
+
+  /// GET /api/system/settings/search/key/prefix
+  Future<List<SystemSettings>> apiSystemSettingsSearchKeyPrefixGet({
+    required String settingKey,
+    int page = 1,
+    int size = 50,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/system/settings/search/key/prefix',
+      'GET',
+      [
+        QueryParam('settingKey', settingKey),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      await _getHeaders(),
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    final List<dynamic> data =
+        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    return SystemSettings.listFromJson(data);
+  }
+
+  /// GET /api/system/settings/search/key/fuzzy
+  Future<List<SystemSettings>> apiSystemSettingsSearchKeyFuzzyGet({
+    required String settingKey,
+    int page = 1,
+    int size = 50,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/system/settings/search/key/fuzzy',
+      'GET',
+      [
+        QueryParam('settingKey', settingKey),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      await _getHeaders(),
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    final List<dynamic> data =
+        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    return SystemSettings.listFromJson(data);
+  }
+
+  /// GET /api/system/settings/search/type
+  Future<List<SystemSettings>> apiSystemSettingsSearchTypeGet({
+    required String settingType,
+    int page = 1,
+    int size = 50,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/system/settings/search/type',
+      'GET',
+      [
+        QueryParam('settingType', settingType),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      await _getHeaders(),
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    final List<dynamic> data =
+        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    return SystemSettings.listFromJson(data);
+  }
+
+  /// GET /api/system/settings/search/editable
+  Future<List<SystemSettings>> apiSystemSettingsSearchEditableGet({
+    required bool isEditable,
+    int page = 1,
+    int size = 50,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/system/settings/search/editable',
+      'GET',
+      [
+        QueryParam('isEditable', isEditable.toString()),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      await _getHeaders(),
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    final List<dynamic> data =
+        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    return SystemSettings.listFromJson(data);
+  }
+
+  /// GET /api/system/settings/search/encrypted
+  Future<List<SystemSettings>> apiSystemSettingsSearchEncryptedGet({
+    required bool isEncrypted,
+    int page = 1,
+    int size = 50,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/system/settings/search/encrypted',
+      'GET',
+      [
+        QueryParam('isEncrypted', isEncrypted.toString()),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      await _getHeaders(),
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    final List<dynamic> data =
+        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    return SystemSettings.listFromJson(data);
+  }
+
+  // --- Dict endpoints under /api/system/settings/dicts ---
+
+  /// POST /api/system/settings/dicts
+  Future<SysDictModel> apiSystemSettingsDictsPost({
+    required SysDictModel sysDict,
+    String? idempotencyKey,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/system/settings/dicts',
+      'POST',
+      const [],
+      sysDict.toJson(),
+      await _getHeaders(idempotencyKey: idempotencyKey),
+      {},
+      'application/json',
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    final data =
+        apiClient.deserialize(_decodeBodyBytes(response), 'Map<String, dynamic>');
+    return SysDictModel.fromJson(data);
+  }
+
+  /// PUT /api/system/settings/dicts/{dictId}
+  Future<SysDictModel> apiSystemSettingsDictsDictIdPut({
+    required int dictId,
+    required SysDictModel sysDict,
+    String? idempotencyKey,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/system/settings/dicts/$dictId',
+      'PUT',
+      const [],
+      sysDict.toJson(),
+      await _getHeaders(idempotencyKey: idempotencyKey),
+      {},
+      'application/json',
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    final data =
+        apiClient.deserialize(_decodeBodyBytes(response), 'Map<String, dynamic>');
+    return SysDictModel.fromJson(data);
+  }
+
+  /// DELETE /api/system/settings/dicts/{dictId}
+  Future<void> apiSystemSettingsDictsDictIdDelete({
+    required int dictId,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/system/settings/dicts/$dictId',
+      'DELETE',
+      const [],
+      null,
+      await _getHeaders(),
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400 && response.statusCode != 204) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+  }
+
+  /// GET /api/system/settings/dicts/{dictId}
+  Future<SysDictModel?> apiSystemSettingsDictsDictIdGet({
+    required int dictId,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/system/settings/dicts/$dictId',
+      'GET',
+      const [],
+      null,
+      await _getHeaders(),
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode == 404) return null;
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    if (response.body.isEmpty) return null;
+    final data =
+        apiClient.deserialize(_decodeBodyBytes(response), 'Map<String, dynamic>');
+    return SysDictModel.fromJson(data);
+  }
+
+  /// GET /api/system/settings/dicts
+  Future<List<SysDictModel>> apiSystemSettingsDictsGet() async {
+    final response = await apiClient.invokeAPI(
+      '/api/system/settings/dicts',
+      'GET',
+      const [],
+      null,
+      await _getHeaders(),
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    final List<dynamic> data =
+        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    return SysDictModel.listFromJson(data);
+  }
+
+  /// GET /api/system/settings/dicts/search/type
+  Future<List<SysDictModel>> apiSystemSettingsDictsSearchTypeGet({
+    required String dictType,
+    int page = 1,
+    int size = 50,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/system/settings/dicts/search/type',
+      'GET',
+      [
+        QueryParam('dictType', dictType),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      await _getHeaders(),
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    final List<dynamic> data =
+        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    return SysDictModel.listFromJson(data);
+  }
+
+  /// GET /api/system/settings/dicts/search/code
+  Future<List<SysDictModel>> apiSystemSettingsDictsSearchCodeGet({
+    required String dictCode,
+    int page = 1,
+    int size = 50,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/system/settings/dicts/search/code',
+      'GET',
+      [
+        QueryParam('dictCode', dictCode),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      await _getHeaders(),
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    final List<dynamic> data =
+        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    return SysDictModel.listFromJson(data);
+  }
+
+  /// GET /api/system/settings/dicts/search/label/prefix
+  Future<List<SysDictModel>> apiSystemSettingsDictsSearchLabelPrefixGet({
+    required String dictLabel,
+    int page = 1,
+    int size = 50,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/system/settings/dicts/search/label/prefix',
+      'GET',
+      [
+        QueryParam('dictLabel', dictLabel),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      await _getHeaders(),
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    final List<dynamic> data =
+        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    return SysDictModel.listFromJson(data);
+  }
+
+  /// GET /api/system/settings/dicts/search/label/fuzzy
+  Future<List<SysDictModel>> apiSystemSettingsDictsSearchLabelFuzzyGet({
+    required String dictLabel,
+    int page = 1,
+    int size = 50,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/system/settings/dicts/search/label/fuzzy',
+      'GET',
+      [
+        QueryParam('dictLabel', dictLabel),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      await _getHeaders(),
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    final List<dynamic> data =
+        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    return SysDictModel.listFromJson(data);
+  }
+
+  /// GET /api/system/settings/dicts/search/parent
+  Future<List<SysDictModel>> apiSystemSettingsDictsSearchParentGet({
+    required int parentId,
+    int page = 1,
+    int size = 50,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/system/settings/dicts/search/parent',
+      'GET',
+      [
+        QueryParam('parentId', '$parentId'),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      await _getHeaders(),
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    final List<dynamic> data =
+        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    return SysDictModel.listFromJson(data);
+  }
+
+  /// GET /api/system/settings/dicts/search/default
+  Future<List<SysDictModel>> apiSystemSettingsDictsSearchDefaultGet({
+    required bool isDefault,
+    int page = 1,
+    int size = 50,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/system/settings/dicts/search/default',
+      'GET',
+      [
+        QueryParam('isDefault', isDefault.toString()),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      await _getHeaders(),
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    final List<dynamic> data =
+        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    return SysDictModel.listFromJson(data);
+  }
+
+  /// GET /api/system/settings/dicts/search/status
+  Future<List<SysDictModel>> apiSystemSettingsDictsSearchStatusGet({
+    required String status,
+    int page = 1,
+    int size = 50,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/system/settings/dicts/search/status',
+      'GET',
+      [
+        QueryParam('status', status),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      await _getHeaders(),
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    final List<dynamic> data =
+        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    return SysDictModel.listFromJson(data);
   }
 
   // WebSocket Methods (Aligned with HTTP Endpoints)

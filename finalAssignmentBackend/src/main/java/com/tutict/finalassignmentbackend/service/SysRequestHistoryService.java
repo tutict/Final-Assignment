@@ -18,6 +18,7 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -148,8 +149,142 @@ public class SysRequestHistoryService {
             return List.of();
         }
         validatePagination(page, size);
+        List<SysRequestHistory> index = mapHits(sysRequestHistorySearchRepository.searchByBusinessStatus(status, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
         QueryWrapper<SysRequestHistory> wrapper = new QueryWrapper<>();
         wrapper.eq("business_status", status)
+                .orderByDesc("updated_at");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'idempotency:' + #key + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<SysRequestHistory> searchByIdempotencyKey(String key, int page, int size) {
+        if (isBlank(key)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<SysRequestHistory> index = mapHits(sysRequestHistorySearchRepository.searchByIdempotencyKey(key, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<SysRequestHistory> wrapper = new QueryWrapper<>();
+        wrapper.likeRight("idempotency_key", key)
+                .orderByDesc("updated_at");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'method:' + #requestMethod + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<SysRequestHistory> searchByRequestMethod(String requestMethod, int page, int size) {
+        if (isBlank(requestMethod)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<SysRequestHistory> index = mapHits(sysRequestHistorySearchRepository.searchByRequestMethod(requestMethod, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<SysRequestHistory> wrapper = new QueryWrapper<>();
+        wrapper.eq("request_method", requestMethod)
+                .orderByDesc("updated_at");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'urlPrefix:' + #requestUrl + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<SysRequestHistory> searchByRequestUrlPrefix(String requestUrl, int page, int size) {
+        if (isBlank(requestUrl)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<SysRequestHistory> index = mapHits(sysRequestHistorySearchRepository.searchByRequestUrlPrefix(requestUrl, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<SysRequestHistory> wrapper = new QueryWrapper<>();
+        wrapper.likeRight("request_url", requestUrl)
+                .orderByDesc("updated_at");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'businessType:' + #businessType + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<SysRequestHistory> searchByBusinessType(String businessType, int page, int size) {
+        if (isBlank(businessType)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<SysRequestHistory> index = mapHits(sysRequestHistorySearchRepository.searchByBusinessType(businessType, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<SysRequestHistory> wrapper = new QueryWrapper<>();
+        wrapper.eq("business_type", businessType)
+                .orderByDesc("updated_at");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'businessId:' + #businessId + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<SysRequestHistory> findByBusinessId(Long businessId, int page, int size) {
+        if (businessId == null || businessId <= 0) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<SysRequestHistory> index = mapHits(sysRequestHistorySearchRepository.findByBusinessId(businessId, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<SysRequestHistory> wrapper = new QueryWrapper<>();
+        wrapper.eq("business_id", businessId)
+                .orderByDesc("updated_at");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'userId:' + #userId + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<SysRequestHistory> findByUserId(Long userId, int page, int size) {
+        if (userId == null || userId <= 0) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<SysRequestHistory> index = mapHits(sysRequestHistorySearchRepository.findByUserId(userId, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<SysRequestHistory> wrapper = new QueryWrapper<>();
+        wrapper.eq("user_id", userId)
+                .orderByDesc("updated_at");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'requestIp:' + #requestIp + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<SysRequestHistory> searchByRequestIp(String requestIp, int page, int size) {
+        if (isBlank(requestIp)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<SysRequestHistory> index = mapHits(sysRequestHistorySearchRepository.searchByRequestIp(requestIp, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<SysRequestHistory> wrapper = new QueryWrapper<>();
+        wrapper.likeRight("request_ip", requestIp)
+                .orderByDesc("updated_at");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'createdRange:' + #startTime + ':' + #endTime + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<SysRequestHistory> searchByCreatedAtRange(String startTime, String endTime, int page, int size) {
+        validatePagination(page, size);
+        LocalDateTime start = parseDateTime(startTime, "startTime");
+        LocalDateTime end = parseDateTime(endTime, "endTime");
+        if (start == null || end == null) {
+            return List.of();
+        }
+        List<SysRequestHistory> index = mapHits(sysRequestHistorySearchRepository.searchByCreatedAtRange(startTime, endTime, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<SysRequestHistory> wrapper = new QueryWrapper<>();
+        wrapper.between("created_at", start, end)
                 .orderByDesc("updated_at");
         return fetchFromDatabase(wrapper, page, size);
     }
@@ -245,6 +380,20 @@ public class SysRequestHistoryService {
         return records;
     }
 
+    private List<SysRequestHistory> mapHits(org.springframework.data.elasticsearch.core.SearchHits<SysRequestHistoryDocument> hits) {
+        if (hits == null || !hits.hasSearchHits()) {
+            return List.of();
+        }
+        return hits.getSearchHits().stream()
+                .map(org.springframework.data.elasticsearch.core.SearchHit::getContent)
+                .map(SysRequestHistoryDocument::toEntity)
+                .collect(Collectors.toList());
+    }
+
+    private org.springframework.data.domain.Pageable pageable(int page, int size) {
+        return org.springframework.data.domain.PageRequest.of(Math.max(page - 1, 0), Math.max(size, 1));
+    }
+
     private void validateHistory(SysRequestHistory history) {
         if (history == null) {
             throw new IllegalArgumentException("SysRequestHistory must not be null");
@@ -266,6 +415,18 @@ public class SysRequestHistoryService {
     private void validatePagination(int page, int size) {
         if (page < 1 || size < 1) {
             throw new IllegalArgumentException("Page must be >= 1 and size must be >= 1");
+        }
+    }
+
+    private LocalDateTime parseDateTime(String value, String fieldName) {
+        if (isBlank(value)) {
+            return null;
+        }
+        try {
+            return LocalDateTime.parse(value);
+        } catch (DateTimeParseException ex) {
+            log.log(Level.WARNING, "Failed to parse " + fieldName + ": " + value, ex);
+            return null;
         }
     }
 

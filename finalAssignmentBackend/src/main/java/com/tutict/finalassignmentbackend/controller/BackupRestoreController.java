@@ -134,6 +134,64 @@ public class BackupRestoreController {
         }
     }
 
+    @GetMapping("/search/type")
+    @Operation(summary = "Search backup tasks by type")
+    public ResponseEntity<List<SysBackupRestore>> searchByType(@RequestParam String backupType,
+                                                               @RequestParam(defaultValue = "1") int page,
+                                                               @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(backupRestoreService.searchByBackupType(backupType, page, size));
+    }
+
+    @GetMapping("/search/file-name")
+    @Operation(summary = "Search backup tasks by file name prefix")
+    public ResponseEntity<List<SysBackupRestore>> searchByFileName(@RequestParam String backupFileName,
+                                                                   @RequestParam(defaultValue = "1") int page,
+                                                                   @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(backupRestoreService.searchByBackupFileNamePrefix(backupFileName, page, size));
+    }
+
+    @GetMapping("/search/handler")
+    @Operation(summary = "Search backup tasks by handler")
+    public ResponseEntity<List<SysBackupRestore>> searchByHandler(@RequestParam String backupHandler,
+                                                                  @RequestParam(defaultValue = "1") int page,
+                                                                  @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(backupRestoreService.searchByBackupHandler(backupHandler, page, size));
+    }
+
+    @GetMapping("/search/restore-status")
+    @Operation(summary = "Search backup tasks by restore status")
+    public ResponseEntity<List<SysBackupRestore>> searchByRestoreStatus(@RequestParam String restoreStatus,
+                                                                        @RequestParam(defaultValue = "1") int page,
+                                                                        @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(backupRestoreService.searchByRestoreStatus(restoreStatus, page, size));
+    }
+
+    @GetMapping("/search/status")
+    @Operation(summary = "Search backup tasks by status")
+    public ResponseEntity<List<SysBackupRestore>> searchByStatus(@RequestParam String status,
+                                                                 @RequestParam(defaultValue = "1") int page,
+                                                                 @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(backupRestoreService.searchByStatus(status, page, size));
+    }
+
+    @GetMapping("/search/backup-time-range")
+    @Operation(summary = "Search backup tasks by backup time range")
+    public ResponseEntity<List<SysBackupRestore>> searchByBackupTimeRange(@RequestParam String startTime,
+                                                                          @RequestParam String endTime,
+                                                                          @RequestParam(defaultValue = "1") int page,
+                                                                          @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(backupRestoreService.searchByBackupTimeRange(startTime, endTime, page, size));
+    }
+
+    @GetMapping("/search/restore-time-range")
+    @Operation(summary = "Search backup tasks by restore time range")
+    public ResponseEntity<List<SysBackupRestore>> searchByRestoreTimeRange(@RequestParam String startTime,
+                                                                           @RequestParam String endTime,
+                                                                           @RequestParam(defaultValue = "1") int page,
+                                                                           @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(backupRestoreService.searchByRestoreTimeRange(startTime, endTime, page, size));
+    }
+
     private boolean hasKey(String value) {
         return value != null && !value.isBlank();
     }

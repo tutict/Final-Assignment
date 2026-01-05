@@ -100,4 +100,77 @@ public class SystemLogsController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
+
+    @GetMapping("/requests/search/idempotency")
+    @Operation(summary = "Search request history by idempotency key")
+    public ResponseEntity<List<SysRequestHistory>> searchByIdempotency(@RequestParam String key,
+                                                                       @RequestParam(defaultValue = "1") int page,
+                                                                       @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(sysRequestHistoryService.searchByIdempotencyKey(key, page, size));
+    }
+
+    @GetMapping("/requests/search/method")
+    @Operation(summary = "Search request history by request method")
+    public ResponseEntity<List<SysRequestHistory>> searchByRequestMethod(@RequestParam String requestMethod,
+                                                                         @RequestParam(defaultValue = "1") int page,
+                                                                         @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(sysRequestHistoryService.searchByRequestMethod(requestMethod, page, size));
+    }
+
+    @GetMapping("/requests/search/url")
+    @Operation(summary = "Search request history by request URL prefix")
+    public ResponseEntity<List<SysRequestHistory>> searchByRequestUrl(@RequestParam String requestUrl,
+                                                                      @RequestParam(defaultValue = "1") int page,
+                                                                      @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(sysRequestHistoryService.searchByRequestUrlPrefix(requestUrl, page, size));
+    }
+
+    @GetMapping("/requests/search/business-type")
+    @Operation(summary = "Search request history by business type")
+    public ResponseEntity<List<SysRequestHistory>> searchByBusinessType(@RequestParam String businessType,
+                                                                        @RequestParam(defaultValue = "1") int page,
+                                                                        @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(sysRequestHistoryService.searchByBusinessType(businessType, page, size));
+    }
+
+    @GetMapping("/requests/search/business-id")
+    @Operation(summary = "Search request history by business id")
+    public ResponseEntity<List<SysRequestHistory>> searchByBusinessId(@RequestParam Long businessId,
+                                                                      @RequestParam(defaultValue = "1") int page,
+                                                                      @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(sysRequestHistoryService.findByBusinessId(businessId, page, size));
+    }
+
+    @GetMapping("/requests/search/status")
+    @Operation(summary = "Search request history by business status")
+    public ResponseEntity<List<SysRequestHistory>> searchByBusinessStatus(@RequestParam String status,
+                                                                          @RequestParam(defaultValue = "1") int page,
+                                                                          @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(sysRequestHistoryService.findByBusinessStatus(status, page, size));
+    }
+
+    @GetMapping("/requests/search/user")
+    @Operation(summary = "Search request history by user id")
+    public ResponseEntity<List<SysRequestHistory>> searchByUser(@RequestParam Long userId,
+                                                                @RequestParam(defaultValue = "1") int page,
+                                                                @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(sysRequestHistoryService.findByUserId(userId, page, size));
+    }
+
+    @GetMapping("/requests/search/ip")
+    @Operation(summary = "Search request history by request IP")
+    public ResponseEntity<List<SysRequestHistory>> searchByRequestIp(@RequestParam String requestIp,
+                                                                     @RequestParam(defaultValue = "1") int page,
+                                                                     @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(sysRequestHistoryService.searchByRequestIp(requestIp, page, size));
+    }
+
+    @GetMapping("/requests/search/time-range")
+    @Operation(summary = "Search request history by created time range")
+    public ResponseEntity<List<SysRequestHistory>> searchByCreatedTimeRange(@RequestParam String startTime,
+                                                                            @RequestParam String endTime,
+                                                                            @RequestParam(defaultValue = "1") int page,
+                                                                            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(sysRequestHistoryService.searchByCreatedAtRange(startTime, endTime, page, size));
+    }
 }

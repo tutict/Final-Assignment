@@ -215,5 +215,110 @@ class LoginLogControllerApi {
     final List<dynamic> data = jsonDecode(_decode(r));
     return data.map((e) => LoginLog.fromJson(e as Map<String, dynamic>)).toList();
   }
-}
 
+  // GET /api/logs/login/search/location?loginLocation=&page=&size=
+  Future<List<LoginLog>> apiLogsLoginSearchLocationGet({
+    required String loginLocation,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final r = await _apiClient.invokeAPI(
+      '/api/logs/login/search/location',
+      'GET',
+      [
+        QueryParam('loginLocation', loginLocation),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      {},
+      {},
+      null,
+      const ['bearerAuth'],
+    );
+    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.body.isEmpty) return [];
+    final List<dynamic> data = jsonDecode(_decode(r));
+    return data.map((e) => LoginLog.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  // GET /api/logs/login/search/device-type?deviceType=&page=&size=
+  Future<List<LoginLog>> apiLogsLoginSearchDeviceTypeGet({
+    required String deviceType,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final r = await _apiClient.invokeAPI(
+      '/api/logs/login/search/device-type',
+      'GET',
+      [
+        QueryParam('deviceType', deviceType),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      {},
+      {},
+      null,
+      const ['bearerAuth'],
+    );
+    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.body.isEmpty) return [];
+    final List<dynamic> data = jsonDecode(_decode(r));
+    return data.map((e) => LoginLog.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  // GET /api/logs/login/search/browser-type?browserType=&page=&size=
+  Future<List<LoginLog>> apiLogsLoginSearchBrowserTypeGet({
+    required String browserType,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final r = await _apiClient.invokeAPI(
+      '/api/logs/login/search/browser-type',
+      'GET',
+      [
+        QueryParam('browserType', browserType),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      {},
+      {},
+      null,
+      const ['bearerAuth'],
+    );
+    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.body.isEmpty) return [];
+    final List<dynamic> data = jsonDecode(_decode(r));
+    return data.map((e) => LoginLog.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  // GET /api/logs/login/search/logout-time-range?startTime=&endTime=&page=&size=
+  Future<List<LoginLog>> apiLogsLoginSearchLogoutTimeRangeGet({
+    required String startTime,
+    required String endTime,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final r = await _apiClient.invokeAPI(
+      '/api/logs/login/search/logout-time-range',
+      'GET',
+      [
+        QueryParam('startTime', startTime),
+        QueryParam('endTime', endTime),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      {},
+      {},
+      null,
+      const ['bearerAuth'],
+    );
+    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.body.isEmpty) return [];
+    final List<dynamic> data = jsonDecode(_decode(r));
+    return data.map((e) => LoginLog.fromJson(e as Map<String, dynamic>)).toList();
+  }
+}

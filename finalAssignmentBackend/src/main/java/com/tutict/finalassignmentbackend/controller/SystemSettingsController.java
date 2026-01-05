@@ -156,6 +156,46 @@ public class SystemSettingsController {
         }
     }
 
+    @GetMapping("/search/key/prefix")
+    @Operation(summary = "Search settings by key prefix")
+    public ResponseEntity<List<SysSettings>> searchByKeyPrefix(@RequestParam String settingKey,
+                                                               @RequestParam(defaultValue = "1") int page,
+                                                               @RequestParam(defaultValue = "50") int size) {
+        return ResponseEntity.ok(sysSettingsService.searchBySettingKeyPrefix(settingKey, page, size));
+    }
+
+    @GetMapping("/search/key/fuzzy")
+    @Operation(summary = "Search settings by key fuzzy")
+    public ResponseEntity<List<SysSettings>> searchByKeyFuzzy(@RequestParam String settingKey,
+                                                              @RequestParam(defaultValue = "1") int page,
+                                                              @RequestParam(defaultValue = "50") int size) {
+        return ResponseEntity.ok(sysSettingsService.searchBySettingKeyFuzzy(settingKey, page, size));
+    }
+
+    @GetMapping("/search/type")
+    @Operation(summary = "Search settings by type")
+    public ResponseEntity<List<SysSettings>> searchByType(@RequestParam String settingType,
+                                                          @RequestParam(defaultValue = "1") int page,
+                                                          @RequestParam(defaultValue = "50") int size) {
+        return ResponseEntity.ok(sysSettingsService.searchBySettingType(settingType, page, size));
+    }
+
+    @GetMapping("/search/editable")
+    @Operation(summary = "Search settings by editable flag")
+    public ResponseEntity<List<SysSettings>> searchByEditable(@RequestParam boolean isEditable,
+                                                              @RequestParam(defaultValue = "1") int page,
+                                                              @RequestParam(defaultValue = "50") int size) {
+        return ResponseEntity.ok(sysSettingsService.searchByIsEditable(isEditable, page, size));
+    }
+
+    @GetMapping("/search/encrypted")
+    @Operation(summary = "Search settings by encrypted flag")
+    public ResponseEntity<List<SysSettings>> searchByEncrypted(@RequestParam boolean isEncrypted,
+                                                               @RequestParam(defaultValue = "1") int page,
+                                                               @RequestParam(defaultValue = "50") int size) {
+        return ResponseEntity.ok(sysSettingsService.searchByIsEncrypted(isEncrypted, page, size));
+    }
+
     @PostMapping("/dicts")
     @Operation(summary = "创建数据字典")
     public ResponseEntity<SysDict> createDict(@RequestBody SysDict request,
@@ -231,6 +271,62 @@ public class SystemSettingsController {
             LOG.log(Level.WARNING, "Get dict failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
         }
+    }
+
+    @GetMapping("/dicts/search/type")
+    @Operation(summary = "Search dicts by type")
+    public ResponseEntity<List<SysDict>> searchDictByType(@RequestParam String dictType,
+                                                          @RequestParam(defaultValue = "1") int page,
+                                                          @RequestParam(defaultValue = "50") int size) {
+        return ResponseEntity.ok(sysDictService.searchByDictType(dictType, page, size));
+    }
+
+    @GetMapping("/dicts/search/code")
+    @Operation(summary = "Search dicts by code prefix")
+    public ResponseEntity<List<SysDict>> searchDictByCode(@RequestParam String dictCode,
+                                                          @RequestParam(defaultValue = "1") int page,
+                                                          @RequestParam(defaultValue = "50") int size) {
+        return ResponseEntity.ok(sysDictService.searchByDictCodePrefix(dictCode, page, size));
+    }
+
+    @GetMapping("/dicts/search/label/prefix")
+    @Operation(summary = "Search dicts by label prefix")
+    public ResponseEntity<List<SysDict>> searchDictByLabelPrefix(@RequestParam String dictLabel,
+                                                                 @RequestParam(defaultValue = "1") int page,
+                                                                 @RequestParam(defaultValue = "50") int size) {
+        return ResponseEntity.ok(sysDictService.searchByDictLabelPrefix(dictLabel, page, size));
+    }
+
+    @GetMapping("/dicts/search/label/fuzzy")
+    @Operation(summary = "Search dicts by label fuzzy")
+    public ResponseEntity<List<SysDict>> searchDictByLabelFuzzy(@RequestParam String dictLabel,
+                                                                @RequestParam(defaultValue = "1") int page,
+                                                                @RequestParam(defaultValue = "50") int size) {
+        return ResponseEntity.ok(sysDictService.searchByDictLabelFuzzy(dictLabel, page, size));
+    }
+
+    @GetMapping("/dicts/search/parent")
+    @Operation(summary = "Search dicts by parent id")
+    public ResponseEntity<List<SysDict>> searchDictByParent(@RequestParam Integer parentId,
+                                                            @RequestParam(defaultValue = "1") int page,
+                                                            @RequestParam(defaultValue = "50") int size) {
+        return ResponseEntity.ok(sysDictService.findByParentId(parentId, page, size));
+    }
+
+    @GetMapping("/dicts/search/default")
+    @Operation(summary = "Search dicts by default flag")
+    public ResponseEntity<List<SysDict>> searchDictByDefault(@RequestParam boolean isDefault,
+                                                             @RequestParam(defaultValue = "1") int page,
+                                                             @RequestParam(defaultValue = "50") int size) {
+        return ResponseEntity.ok(sysDictService.searchByIsDefault(isDefault, page, size));
+    }
+
+    @GetMapping("/dicts/search/status")
+    @Operation(summary = "Search dicts by status")
+    public ResponseEntity<List<SysDict>> searchDictByStatus(@RequestParam String status,
+                                                            @RequestParam(defaultValue = "1") int page,
+                                                            @RequestParam(defaultValue = "50") int size) {
+        return ResponseEntity.ok(sysDictService.searchByStatus(status, page, size));
     }
 
     @GetMapping("/dicts")

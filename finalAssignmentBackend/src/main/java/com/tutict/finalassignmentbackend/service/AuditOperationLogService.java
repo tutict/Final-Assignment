@@ -213,6 +213,70 @@ public class AuditOperationLogService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
+    @Cacheable(cacheNames = CACHE_NAME, key = "'username:' + #username + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<AuditOperationLog> searchByUsername(String username, int page, int size) {
+        if (isBlank(username)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<AuditOperationLog> index = mapHits(auditOperationLogSearchRepository.searchByUsername(username, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<AuditOperationLog> wrapper = new QueryWrapper<>();
+        wrapper.like("username", username)
+                .orderByDesc("operation_time");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'requestUrl:' + #requestUrl + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<AuditOperationLog> searchByRequestUrl(String requestUrl, int page, int size) {
+        if (isBlank(requestUrl)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<AuditOperationLog> index = mapHits(auditOperationLogSearchRepository.searchByRequestUrl(requestUrl, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<AuditOperationLog> wrapper = new QueryWrapper<>();
+        wrapper.like("request_url", requestUrl)
+                .orderByDesc("operation_time");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'requestMethod:' + #requestMethod + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<AuditOperationLog> searchByRequestMethod(String requestMethod, int page, int size) {
+        if (isBlank(requestMethod)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<AuditOperationLog> index = mapHits(auditOperationLogSearchRepository.searchByRequestMethod(requestMethod, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<AuditOperationLog> wrapper = new QueryWrapper<>();
+        wrapper.eq("request_method", requestMethod)
+                .orderByDesc("operation_time");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'result:' + #operationResult + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<AuditOperationLog> searchByOperationResult(String operationResult, int page, int size) {
+        if (isBlank(operationResult)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<AuditOperationLog> index = mapHits(auditOperationLogSearchRepository.searchByOperationResult(operationResult, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<AuditOperationLog> wrapper = new QueryWrapper<>();
+        wrapper.eq("operation_result", operationResult)
+                .orderByDesc("operation_time");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
     public boolean shouldSkipProcessing(String idempotencyKey) {
         SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
         return history != null

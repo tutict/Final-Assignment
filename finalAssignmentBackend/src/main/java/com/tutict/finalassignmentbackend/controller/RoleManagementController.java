@@ -143,6 +143,62 @@ public class RoleManagementController {
         }
     }
 
+    @GetMapping("/search/code/prefix")
+    @Operation(summary = "Search roles by code prefix")
+    public ResponseEntity<List<SysRole>> searchByCodePrefix(@RequestParam String roleCode,
+                                                            @RequestParam(defaultValue = "1") int page,
+                                                            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(sysRoleService.searchByRoleCodePrefix(roleCode, page, size));
+    }
+
+    @GetMapping("/search/code/fuzzy")
+    @Operation(summary = "Search roles by code fuzzy")
+    public ResponseEntity<List<SysRole>> searchByCodeFuzzy(@RequestParam String roleCode,
+                                                           @RequestParam(defaultValue = "1") int page,
+                                                           @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(sysRoleService.searchByRoleCodeFuzzy(roleCode, page, size));
+    }
+
+    @GetMapping("/search/name/prefix")
+    @Operation(summary = "Search roles by name prefix")
+    public ResponseEntity<List<SysRole>> searchByNamePrefix(@RequestParam String roleName,
+                                                            @RequestParam(defaultValue = "1") int page,
+                                                            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(sysRoleService.searchByRoleNamePrefix(roleName, page, size));
+    }
+
+    @GetMapping("/search/name/fuzzy")
+    @Operation(summary = "Search roles by name fuzzy")
+    public ResponseEntity<List<SysRole>> searchByNameFuzzy(@RequestParam String roleName,
+                                                           @RequestParam(defaultValue = "1") int page,
+                                                           @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(sysRoleService.searchByRoleNameFuzzy(roleName, page, size));
+    }
+
+    @GetMapping("/search/type")
+    @Operation(summary = "Search roles by role type")
+    public ResponseEntity<List<SysRole>> searchByRoleType(@RequestParam String roleType,
+                                                          @RequestParam(defaultValue = "1") int page,
+                                                          @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(sysRoleService.searchByRoleType(roleType, page, size));
+    }
+
+    @GetMapping("/search/data-scope")
+    @Operation(summary = "Search roles by data scope")
+    public ResponseEntity<List<SysRole>> searchByDataScope(@RequestParam String dataScope,
+                                                           @RequestParam(defaultValue = "1") int page,
+                                                           @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(sysRoleService.searchByDataScope(dataScope, page, size));
+    }
+
+    @GetMapping("/search/status")
+    @Operation(summary = "Search roles by status")
+    public ResponseEntity<List<SysRole>> searchByStatus(@RequestParam String status,
+                                                        @RequestParam(defaultValue = "1") int page,
+                                                        @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(sysRoleService.searchByStatus(status, page, size));
+    }
+
     @PostMapping("/{roleId}/permissions")
     @Operation(summary = "为角色添加权限")
     public ResponseEntity<SysRolePermission> addPermission(@PathVariable Integer roleId,
@@ -258,6 +314,15 @@ public class RoleManagementController {
             LOG.log(Level.WARNING, "List role permissions by permissionId failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
         }
+    }
+
+    @GetMapping("/permissions/search")
+    @Operation(summary = "Search role-permission bindings by roleId and permissionId")
+    public ResponseEntity<List<SysRolePermission>> searchRolePermissionBindings(@RequestParam Integer roleId,
+                                                                                @RequestParam Integer permissionId,
+                                                                                @RequestParam(defaultValue = "1") int page,
+                                                                                @RequestParam(defaultValue = "50") int size) {
+        return ResponseEntity.ok(sysRolePermissionService.findByRoleIdAndPermissionId(roleId, permissionId, page, size));
     }
 
     private boolean hasKey(String value) {

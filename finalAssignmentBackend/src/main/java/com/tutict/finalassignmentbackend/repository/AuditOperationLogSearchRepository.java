@@ -73,4 +73,64 @@ public interface AuditOperationLogSearchRepository extends ElasticsearchReposito
     default SearchHits<AuditOperationLogDocument> searchByOperationTimeRange(String startTime, String endTime) {
         return searchByOperationTimeRange(startTime, endTime, PageRequest.of(0, DEFAULT_PAGE_SIZE));
     }
+
+    @Query("""
+            {
+              "match_phrase_prefix": {
+                "username": {
+                  "query": "?0"
+                }
+              }
+            }
+            """)
+    SearchHits<AuditOperationLogDocument> searchByUsername(String username, Pageable pageable);
+
+    default SearchHits<AuditOperationLogDocument> searchByUsername(String username) {
+        return searchByUsername(username, PageRequest.of(0, DEFAULT_PAGE_SIZE));
+    }
+
+    @Query("""
+            {
+              "match_phrase_prefix": {
+                "requestUrl": {
+                  "query": "?0"
+                }
+              }
+            }
+            """)
+    SearchHits<AuditOperationLogDocument> searchByRequestUrl(String requestUrl, Pageable pageable);
+
+    default SearchHits<AuditOperationLogDocument> searchByRequestUrl(String requestUrl) {
+        return searchByRequestUrl(requestUrl, PageRequest.of(0, DEFAULT_PAGE_SIZE));
+    }
+
+    @Query("""
+            {
+              "term": {
+                "requestMethod.keyword": {
+                  "value": "?0"
+                }
+              }
+            }
+            """)
+    SearchHits<AuditOperationLogDocument> searchByRequestMethod(String requestMethod, Pageable pageable);
+
+    default SearchHits<AuditOperationLogDocument> searchByRequestMethod(String requestMethod) {
+        return searchByRequestMethod(requestMethod, PageRequest.of(0, DEFAULT_PAGE_SIZE));
+    }
+
+    @Query("""
+            {
+              "term": {
+                "operationResult.keyword": {
+                  "value": "?0"
+                }
+              }
+            }
+            """)
+    SearchHits<AuditOperationLogDocument> searchByOperationResult(String operationResult, Pageable pageable);
+
+    default SearchHits<AuditOperationLogDocument> searchByOperationResult(String operationResult) {
+        return searchByOperationResult(operationResult, PageRequest.of(0, DEFAULT_PAGE_SIZE));
+    }
 }

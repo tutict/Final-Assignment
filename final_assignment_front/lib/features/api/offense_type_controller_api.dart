@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:final_assignment_front/features/model/backup_restore.dart';
+import 'package:final_assignment_front/features/model/offense_type_dict.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:flutter/material.dart';
@@ -9,20 +9,20 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 final ApiClient defaultApiClient = ApiClient();
 
-class BackupRestoreControllerApi {
+class OffenseTypeControllerApi {
   final ApiClient apiClient;
 
-  BackupRestoreControllerApi([ApiClient? apiClient])
+  OffenseTypeControllerApi([ApiClient? apiClient])
       : apiClient = apiClient ?? defaultApiClient;
 
   Future<void> initializeWithJwt() async {
     final prefs = await SharedPreferences.getInstance();
     final jwtToken = prefs.getString('jwtToken');
     if (jwtToken == null || jwtToken.isEmpty) {
-      throw Exception('未登录，请重新登录');
+      throw Exception('JWT token not found in SharedPreferences');
     }
     apiClient.setJwtToken(jwtToken);
-    debugPrint('Initialized BackupRestoreControllerApi with token: $jwtToken');
+    debugPrint('Initialized OffenseTypeControllerApi with token: $jwtToken');
   }
 
   String _decodeBodyBytes(http.Response response) {
@@ -53,59 +53,59 @@ class BackupRestoreControllerApi {
     }
   }
 
-  List<BackupRestore> _parseList(String body) {
+  List<OffenseTypeDictModel> _parseList(String body) {
     if (body.isEmpty) return [];
     final List<dynamic> jsonList = jsonDecode(body) as List<dynamic>;
     return jsonList
-        .map((item) => BackupRestore.fromJson(item as Map<String, dynamic>))
+        .map((item) => OffenseTypeDictModel.fromJson(item as Map<String, dynamic>))
         .toList();
   }
 
-  /// POST /api/system/backup
-  Future<BackupRestore> apiSystemBackupPost({
-    required BackupRestore backupRestore,
+  /// POST /api/offense-types
+  Future<OffenseTypeDictModel> apiOffenseTypesPost({
+    required OffenseTypeDictModel offenseType,
     String? idempotencyKey,
   }) async {
     final response = await apiClient.invokeAPI(
-      '/api/system/backup',
+      '/api/offense-types',
       'POST',
       const [],
-      backupRestore.toJson(),
+      offenseType.toJson(),
       await _getHeaders(idempotencyKey: idempotencyKey),
       const {},
       'application/json',
       ['bearerAuth'],
     );
     _ensureSuccess(response);
-    return BackupRestore.fromJson(
+    return OffenseTypeDictModel.fromJson(
         jsonDecode(_decodeBodyBytes(response)) as Map<String, dynamic>);
   }
 
-  /// PUT /api/system/backup/{backupId}
-  Future<BackupRestore> apiSystemBackupBackupIdPut({
-    required int backupId,
-    required BackupRestore backupRestore,
+  /// PUT /api/offense-types/{typeId}
+  Future<OffenseTypeDictModel> apiOffenseTypesTypeIdPut({
+    required int typeId,
+    required OffenseTypeDictModel offenseType,
     String? idempotencyKey,
   }) async {
     final response = await apiClient.invokeAPI(
-      '/api/system/backup/$backupId',
+      '/api/offense-types/$typeId',
       'PUT',
       const [],
-      backupRestore.toJson(),
+      offenseType.toJson(),
       await _getHeaders(idempotencyKey: idempotencyKey),
       const {},
       'application/json',
       ['bearerAuth'],
     );
     _ensureSuccess(response);
-    return BackupRestore.fromJson(
+    return OffenseTypeDictModel.fromJson(
         jsonDecode(_decodeBodyBytes(response)) as Map<String, dynamic>);
   }
 
-  /// DELETE /api/system/backup/{backupId}
-  Future<void> apiSystemBackupBackupIdDelete({required int backupId}) async {
+  /// DELETE /api/offense-types/{typeId}
+  Future<void> apiOffenseTypesTypeIdDelete({required int typeId}) async {
     final response = await apiClient.invokeAPI(
-      '/api/system/backup/$backupId',
+      '/api/offense-types/$typeId',
       'DELETE',
       const [],
       null,
@@ -119,11 +119,12 @@ class BackupRestoreControllerApi {
     }
   }
 
-  /// GET /api/system/backup/{backupId}
-  Future<BackupRestore?> apiSystemBackupBackupIdGet(
-      {required int backupId}) async {
+  /// GET /api/offense-types/{typeId}
+  Future<OffenseTypeDictModel?> apiOffenseTypesTypeIdGet({
+    required int typeId,
+  }) async {
     final response = await apiClient.invokeAPI(
-      '/api/system/backup/$backupId',
+      '/api/offense-types/$typeId',
       'GET',
       const [],
       null,
@@ -132,51 +133,40 @@ class BackupRestoreControllerApi {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode == 404) {
-      return null;
-    }
+    if (response.statusCode == 404) return null;
     _ensureSuccess(response);
-    if (response.body.isEmpty) {
-      return null;
-    }
-    return BackupRestore.fromJson(
+    if (response.body.isEmpty) return null;
+    return OffenseTypeDictModel.fromJson(
         jsonDecode(_decodeBodyBytes(response)) as Map<String, dynamic>);
   }
 
-  /// GET /api/system/backup?status=...
-  Future<List<BackupRestore>> apiSystemBackupGet({String? status}) async {
-    final queryParams = <QueryParam>[];
-    if (status != null && status.trim().isNotEmpty) {
-      queryParams.add(QueryParam('status', status.trim()));
-    }
+  /// GET /api/offense-types
+  Future<List<OffenseTypeDictModel>> apiOffenseTypesGet() async {
     final response = await apiClient.invokeAPI(
-      '/api/system/backup',
+      '/api/offense-types',
       'GET',
-      queryParams,
+      const [],
       null,
       await _getHeaders(),
       const {},
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode == 404) {
-      return [];
-    }
     _ensureSuccess(response);
     return _parseList(_decodeBodyBytes(response));
   }
 
-  /// GET /api/system/backup/search/type
-  Future<List<BackupRestore>> apiSystemBackupSearchTypeGet({
-    required String backupType,
+  /// GET /api/offense-types/search/code/prefix
+  Future<List<OffenseTypeDictModel>> apiOffenseTypesSearchCodePrefixGet({
+    required String offenseCode,
     int page = 1,
     int size = 20,
   }) async {
     final response = await apiClient.invokeAPI(
-      '/api/system/backup/search/type',
+      '/api/offense-types/search/code/prefix',
       'GET',
       [
-        QueryParam('backupType', backupType),
+        QueryParam('offenseCode', offenseCode),
         QueryParam('page', '$page'),
         QueryParam('size', '$size'),
       ],
@@ -190,17 +180,17 @@ class BackupRestoreControllerApi {
     return _parseList(_decodeBodyBytes(response));
   }
 
-  /// GET /api/system/backup/search/file-name
-  Future<List<BackupRestore>> apiSystemBackupSearchFileNameGet({
-    required String backupFileName,
+  /// GET /api/offense-types/search/code/fuzzy
+  Future<List<OffenseTypeDictModel>> apiOffenseTypesSearchCodeFuzzyGet({
+    required String offenseCode,
     int page = 1,
     int size = 20,
   }) async {
     final response = await apiClient.invokeAPI(
-      '/api/system/backup/search/file-name',
+      '/api/offense-types/search/code/fuzzy',
       'GET',
       [
-        QueryParam('backupFileName', backupFileName),
+        QueryParam('offenseCode', offenseCode),
         QueryParam('page', '$page'),
         QueryParam('size', '$size'),
       ],
@@ -214,17 +204,17 @@ class BackupRestoreControllerApi {
     return _parseList(_decodeBodyBytes(response));
   }
 
-  /// GET /api/system/backup/search/handler
-  Future<List<BackupRestore>> apiSystemBackupSearchHandlerGet({
-    required String backupHandler,
+  /// GET /api/offense-types/search/name/prefix
+  Future<List<OffenseTypeDictModel>> apiOffenseTypesSearchNamePrefixGet({
+    required String offenseName,
     int page = 1,
     int size = 20,
   }) async {
     final response = await apiClient.invokeAPI(
-      '/api/system/backup/search/handler',
+      '/api/offense-types/search/name/prefix',
       'GET',
       [
-        QueryParam('backupHandler', backupHandler),
+        QueryParam('offenseName', offenseName),
         QueryParam('page', '$page'),
         QueryParam('size', '$size'),
       ],
@@ -238,17 +228,17 @@ class BackupRestoreControllerApi {
     return _parseList(_decodeBodyBytes(response));
   }
 
-  /// GET /api/system/backup/search/restore-status
-  Future<List<BackupRestore>> apiSystemBackupSearchRestoreStatusGet({
-    required String restoreStatus,
+  /// GET /api/offense-types/search/name/fuzzy
+  Future<List<OffenseTypeDictModel>> apiOffenseTypesSearchNameFuzzyGet({
+    required String offenseName,
     int page = 1,
     int size = 20,
   }) async {
     final response = await apiClient.invokeAPI(
-      '/api/system/backup/search/restore-status',
+      '/api/offense-types/search/name/fuzzy',
       'GET',
       [
-        QueryParam('restoreStatus', restoreStatus),
+        QueryParam('offenseName', offenseName),
         QueryParam('page', '$page'),
         QueryParam('size', '$size'),
       ],
@@ -262,14 +252,62 @@ class BackupRestoreControllerApi {
     return _parseList(_decodeBodyBytes(response));
   }
 
-  /// GET /api/system/backup/search/status
-  Future<List<BackupRestore>> apiSystemBackupSearchStatusGet({
+  /// GET /api/offense-types/search/category
+  Future<List<OffenseTypeDictModel>> apiOffenseTypesSearchCategoryGet({
+    required String category,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/offense-types/search/category',
+      'GET',
+      [
+        QueryParam('category', category),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      await _getHeaders(),
+      const {},
+      null,
+      ['bearerAuth'],
+    );
+    _ensureSuccess(response);
+    return _parseList(_decodeBodyBytes(response));
+  }
+
+  /// GET /api/offense-types/search/severity
+  Future<List<OffenseTypeDictModel>> apiOffenseTypesSearchSeverityGet({
+    required String severityLevel,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/offense-types/search/severity',
+      'GET',
+      [
+        QueryParam('severityLevel', severityLevel),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      await _getHeaders(),
+      const {},
+      null,
+      ['bearerAuth'],
+    );
+    _ensureSuccess(response);
+    return _parseList(_decodeBodyBytes(response));
+  }
+
+  /// GET /api/offense-types/search/status
+  Future<List<OffenseTypeDictModel>> apiOffenseTypesSearchStatusGet({
     required String status,
     int page = 1,
     int size = 20,
   }) async {
     final response = await apiClient.invokeAPI(
-      '/api/system/backup/search/status',
+      '/api/offense-types/search/status',
       'GET',
       [
         QueryParam('status', status),
@@ -286,19 +324,19 @@ class BackupRestoreControllerApi {
     return _parseList(_decodeBodyBytes(response));
   }
 
-  /// GET /api/system/backup/search/backup-time-range
-  Future<List<BackupRestore>> apiSystemBackupSearchBackupTimeRangeGet({
-    required String startTime,
-    required String endTime,
+  /// GET /api/offense-types/search/fine-range
+  Future<List<OffenseTypeDictModel>> apiOffenseTypesSearchFineRangeGet({
+    required double minAmount,
+    required double maxAmount,
     int page = 1,
     int size = 20,
   }) async {
     final response = await apiClient.invokeAPI(
-      '/api/system/backup/search/backup-time-range',
+      '/api/offense-types/search/fine-range',
       'GET',
       [
-        QueryParam('startTime', startTime),
-        QueryParam('endTime', endTime),
+        QueryParam('minAmount', '$minAmount'),
+        QueryParam('maxAmount', '$maxAmount'),
         QueryParam('page', '$page'),
         QueryParam('size', '$size'),
       ],
@@ -312,19 +350,19 @@ class BackupRestoreControllerApi {
     return _parseList(_decodeBodyBytes(response));
   }
 
-  /// GET /api/system/backup/search/restore-time-range
-  Future<List<BackupRestore>> apiSystemBackupSearchRestoreTimeRangeGet({
-    required String startTime,
-    required String endTime,
+  /// GET /api/offense-types/search/points-range
+  Future<List<OffenseTypeDictModel>> apiOffenseTypesSearchPointsRangeGet({
+    required int minPoints,
+    required int maxPoints,
     int page = 1,
     int size = 20,
   }) async {
     final response = await apiClient.invokeAPI(
-      '/api/system/backup/search/restore-time-range',
+      '/api/offense-types/search/points-range',
       'GET',
       [
-        QueryParam('startTime', startTime),
-        QueryParam('endTime', endTime),
+        QueryParam('minPoints', '$minPoints'),
+        QueryParam('maxPoints', '$maxPoints'),
         QueryParam('page', '$page'),
         QueryParam('size', '$size'),
       ],

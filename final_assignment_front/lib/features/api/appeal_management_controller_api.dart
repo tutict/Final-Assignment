@@ -185,6 +185,224 @@ class AppealManagementControllerApi {
     return _parseAppealList(_decodeBodyBytes(response));
   }
 
+  /// GET /api/appeals/search/number/prefix
+  Future<List<AppealRecordModel>> apiAppealsSearchNumberPrefixGet({
+    required String appealNumber,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/appeals/search/number/prefix',
+      'GET',
+      [
+        QueryParam('appealNumber', appealNumber),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      await _getHeaders(),
+      const {},
+      null,
+      ['bearerAuth'],
+    );
+    _ensureSuccess(response);
+    return _parseAppealList(_decodeBodyBytes(response));
+  }
+
+  /// GET /api/appeals/search/number/fuzzy
+  Future<List<AppealRecordModel>> apiAppealsSearchNumberFuzzyGet({
+    required String appealNumber,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/appeals/search/number/fuzzy',
+      'GET',
+      [
+        QueryParam('appealNumber', appealNumber),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      await _getHeaders(),
+      const {},
+      null,
+      ['bearerAuth'],
+    );
+    _ensureSuccess(response);
+    return _parseAppealList(_decodeBodyBytes(response));
+  }
+
+  /// GET /api/appeals/search/appellant/name/prefix
+  Future<List<AppealRecordModel>> apiAppealsSearchAppellantNamePrefixGet({
+    required String appellantName,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/appeals/search/appellant/name/prefix',
+      'GET',
+      [
+        QueryParam('appellantName', appellantName),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      await _getHeaders(),
+      const {},
+      null,
+      ['bearerAuth'],
+    );
+    _ensureSuccess(response);
+    return _parseAppealList(_decodeBodyBytes(response));
+  }
+
+  /// GET /api/appeals/search/appellant/name/fuzzy
+  Future<List<AppealRecordModel>> apiAppealsSearchAppellantNameFuzzyGet({
+    required String appellantName,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/appeals/search/appellant/name/fuzzy',
+      'GET',
+      [
+        QueryParam('appellantName', appellantName),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      await _getHeaders(),
+      const {},
+      null,
+      ['bearerAuth'],
+    );
+    _ensureSuccess(response);
+    return _parseAppealList(_decodeBodyBytes(response));
+  }
+
+  /// GET /api/appeals/search/appellant/id-card
+  Future<List<AppealRecordModel>> apiAppealsSearchAppellantIdCardGet({
+    required String appellantIdCard,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/appeals/search/appellant/id-card',
+      'GET',
+      [
+        QueryParam('appellantIdCard', appellantIdCard),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      await _getHeaders(),
+      const {},
+      null,
+      ['bearerAuth'],
+    );
+    _ensureSuccess(response);
+    return _parseAppealList(_decodeBodyBytes(response));
+  }
+
+  /// GET /api/appeals/search/acceptance-status
+  Future<List<AppealRecordModel>> apiAppealsSearchAcceptanceStatusGet({
+    required String acceptanceStatus,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/appeals/search/acceptance-status',
+      'GET',
+      [
+        QueryParam('acceptanceStatus', acceptanceStatus),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      await _getHeaders(),
+      const {},
+      null,
+      ['bearerAuth'],
+    );
+    _ensureSuccess(response);
+    return _parseAppealList(_decodeBodyBytes(response));
+  }
+
+  /// GET /api/appeals/search/process-status
+  Future<List<AppealRecordModel>> apiAppealsSearchProcessStatusGet({
+    required String processStatus,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/appeals/search/process-status',
+      'GET',
+      [
+        QueryParam('processStatus', processStatus),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      await _getHeaders(),
+      const {},
+      null,
+      ['bearerAuth'],
+    );
+    _ensureSuccess(response);
+    return _parseAppealList(_decodeBodyBytes(response));
+  }
+
+  /// GET /api/appeals/search/time-range
+  Future<List<AppealRecordModel>> apiAppealsSearchTimeRangeGet({
+    required String startTime,
+    required String endTime,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/appeals/search/time-range',
+      'GET',
+      [
+        QueryParam('startTime', startTime),
+        QueryParam('endTime', endTime),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      await _getHeaders(),
+      const {},
+      null,
+      ['bearerAuth'],
+    );
+    _ensureSuccess(response);
+    return _parseAppealList(_decodeBodyBytes(response));
+  }
+
+  /// GET /api/appeals/search/handler
+  Future<List<AppealRecordModel>> apiAppealsSearchHandlerGet({
+    required String acceptanceHandler,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/appeals/search/handler',
+      'GET',
+      [
+        QueryParam('acceptanceHandler', acceptanceHandler),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      await _getHeaders(),
+      const {},
+      null,
+      ['bearerAuth'],
+    );
+    _ensureSuccess(response);
+    return _parseAppealList(_decodeBodyBytes(response));
+  }
+
   /// POST /api/appeals/{appealId}/reviews
   Future<AppealReviewModel> apiAppealsAppealIdReviewsPost({
     required int appealId,
@@ -284,6 +502,80 @@ class AppealManagementControllerApi {
     if (response.statusCode == 404) {
       return [];
     }
+    _ensureSuccess(response);
+    return _parseReviewList(_decodeBodyBytes(response));
+  }
+
+  /// GET /api/appeals/reviews/search/reviewer
+  Future<List<AppealReviewModel>> apiAppealsReviewsSearchReviewerGet({
+    required String reviewer,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/appeals/reviews/search/reviewer',
+      'GET',
+      [
+        QueryParam('reviewer', reviewer),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      await _getHeaders(),
+      const {},
+      null,
+      ['bearerAuth'],
+    );
+    _ensureSuccess(response);
+    return _parseReviewList(_decodeBodyBytes(response));
+  }
+
+  /// GET /api/appeals/reviews/search/reviewer-dept
+  Future<List<AppealReviewModel>> apiAppealsReviewsSearchReviewerDeptGet({
+    required String reviewerDept,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/appeals/reviews/search/reviewer-dept',
+      'GET',
+      [
+        QueryParam('reviewerDept', reviewerDept),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      await _getHeaders(),
+      const {},
+      null,
+      ['bearerAuth'],
+    );
+    _ensureSuccess(response);
+    return _parseReviewList(_decodeBodyBytes(response));
+  }
+
+  /// GET /api/appeals/reviews/search/time-range
+  Future<List<AppealReviewModel>> apiAppealsReviewsSearchTimeRangeGet({
+    required String startTime,
+    required String endTime,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/appeals/reviews/search/time-range',
+      'GET',
+      [
+        QueryParam('startTime', startTime),
+        QueryParam('endTime', endTime),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      await _getHeaders(),
+      const {},
+      null,
+      ['bearerAuth'],
+    );
     _ensureSuccess(response);
     return _parseReviewList(_decodeBodyBytes(response));
   }

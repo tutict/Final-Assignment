@@ -143,6 +143,54 @@ public class UserManagementController {
         }
     }
 
+    @GetMapping("/search/username/prefix")
+    @Operation(summary = "Search users by username prefix")
+    public ResponseEntity<List<SysUser>> searchByUsernamePrefix(@RequestParam String username,
+                                                                @RequestParam(defaultValue = "1") int page,
+                                                                @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(sysUserService.searchByUsernamePrefix(username, page, size));
+    }
+
+    @GetMapping("/search/username/fuzzy")
+    @Operation(summary = "Search users by username fuzzy")
+    public ResponseEntity<List<SysUser>> searchByUsernameFuzzy(@RequestParam String username,
+                                                               @RequestParam(defaultValue = "1") int page,
+                                                               @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(sysUserService.searchByUsernameFuzzy(username, page, size));
+    }
+
+    @GetMapping("/search/real-name/prefix")
+    @Operation(summary = "Search users by real name prefix")
+    public ResponseEntity<List<SysUser>> searchByRealNamePrefix(@RequestParam String realName,
+                                                                @RequestParam(defaultValue = "1") int page,
+                                                                @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(sysUserService.searchByRealNamePrefix(realName, page, size));
+    }
+
+    @GetMapping("/search/real-name/fuzzy")
+    @Operation(summary = "Search users by real name fuzzy")
+    public ResponseEntity<List<SysUser>> searchByRealNameFuzzy(@RequestParam String realName,
+                                                               @RequestParam(defaultValue = "1") int page,
+                                                               @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(sysUserService.searchByRealNameFuzzy(realName, page, size));
+    }
+
+    @GetMapping("/search/id-card")
+    @Operation(summary = "Search users by ID card number")
+    public ResponseEntity<List<SysUser>> searchByIdCard(@RequestParam String idCardNumber,
+                                                        @RequestParam(defaultValue = "1") int page,
+                                                        @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(sysUserService.searchByIdCardNumber(idCardNumber, page, size));
+    }
+
+    @GetMapping("/search/contact")
+    @Operation(summary = "Search users by contact number")
+    public ResponseEntity<List<SysUser>> searchByContact(@RequestParam String contactNumber,
+                                                         @RequestParam(defaultValue = "1") int page,
+                                                         @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(sysUserService.searchByContactNumber(contactNumber, page, size));
+    }
+
     @GetMapping("/search/status")
     @Operation(summary = "按状态分页查询用户")
     public ResponseEntity<List<SysUser>> listByStatus(@RequestParam String status,
@@ -167,6 +215,31 @@ public class UserManagementController {
             LOG.log(Level.WARNING, "List users by department failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
         }
+    }
+
+    @GetMapping("/search/department/prefix")
+    @Operation(summary = "Search users by department prefix")
+    public ResponseEntity<List<SysUser>> searchByDepartmentPrefix(@RequestParam String department,
+                                                                  @RequestParam(defaultValue = "1") int page,
+                                                                  @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(sysUserService.searchByDepartmentPrefix(department, page, size));
+    }
+
+    @GetMapping("/search/employee-number")
+    @Operation(summary = "Search users by employee number")
+    public ResponseEntity<List<SysUser>> searchByEmployeeNumber(@RequestParam String employeeNumber,
+                                                                @RequestParam(defaultValue = "1") int page,
+                                                                @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(sysUserService.searchByEmployeeNumber(employeeNumber, page, size));
+    }
+
+    @GetMapping("/search/last-login-range")
+    @Operation(summary = "Search users by last login time range")
+    public ResponseEntity<List<SysUser>> searchByLastLoginRange(@RequestParam String startTime,
+                                                                @RequestParam String endTime,
+                                                                @RequestParam(defaultValue = "1") int page,
+                                                                @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(sysUserService.searchByLastLoginTimeRange(startTime, endTime, page, size));
     }
 
     @PostMapping("/{userId}/roles")
@@ -269,6 +342,15 @@ public class UserManagementController {
                                                                 @RequestParam(defaultValue = "1") int page,
                                                                 @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(sysUserRoleService.findByRoleId(roleId, page, size));
+    }
+
+    @GetMapping("/role-bindings/search")
+    @Operation(summary = "Search user role bindings by userId and roleId")
+    public ResponseEntity<List<SysUserRole>> searchBindings(@RequestParam Long userId,
+                                                            @RequestParam Integer roleId,
+                                                            @RequestParam(defaultValue = "1") int page,
+                                                            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(sysUserRoleService.findByUserIdAndRoleId(userId, roleId, page, size));
     }
 
     private boolean hasKey(String value) {

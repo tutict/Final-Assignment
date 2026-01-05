@@ -136,6 +136,10 @@ public class SysUserRoleService {
     public List<SysUserRole> findByUserId(Long userId, int page, int size) {
         requirePositive(userId, "User ID");
         validatePagination(page, size);
+        List<SysUserRole> index = mapHits(sysUserRoleSearchRepository.findByUserId(userId, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
         QueryWrapper<SysUserRole> wrapper = new QueryWrapper<>();
         wrapper.eq("user_id", userId)
                 .orderByDesc("created_at");
@@ -147,8 +151,30 @@ public class SysUserRoleService {
     public List<SysUserRole> findByRoleId(Integer roleId, int page, int size) {
         requirePositive(roleId, "Role ID");
         validatePagination(page, size);
+        List<SysUserRole> index = mapHits(sysUserRoleSearchRepository.findByRoleId(roleId, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
         QueryWrapper<SysUserRole> wrapper = new QueryWrapper<>();
         wrapper.eq("role_id", roleId)
+                .orderByDesc("created_at");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Transactional(readOnly = true)
+    @Cacheable(cacheNames = CACHE_NAME, key = "'userRole:' + #userId + ':' + #roleId + ':' + #page + ':' + #size",
+            unless = "#result == null || #result.isEmpty()")
+    public List<SysUserRole> findByUserIdAndRoleId(Long userId, Integer roleId, int page, int size) {
+        requirePositive(userId, "User ID");
+        requirePositive(roleId, "Role ID");
+        validatePagination(page, size);
+        List<SysUserRole> index = mapHits(sysUserRoleSearchRepository.findByUserIdAndRoleId(userId, roleId, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<SysUserRole> wrapper = new QueryWrapper<>();
+        wrapper.eq("user_id", userId)
+                .eq("role_id", roleId)
                 .orderByDesc("created_at");
         return fetchFromDatabase(wrapper, page, size);
     }
@@ -246,6 +272,20 @@ public class SysUserRoleService {
         List<SysUserRole> records = mpPage.getRecords();
         syncBatchToIndexAfterCommit(records);
         return records;
+    }
+
+    private List<SysUserRole> mapHits(org.springframework.data.elasticsearch.core.SearchHits<SysUserRoleDocument> hits) {
+        if (hits == null || !hits.hasSearchHits()) {
+            return List.of();
+        }
+        return hits.getSearchHits().stream()
+                .map(org.springframework.data.elasticsearch.core.SearchHit::getContent)
+                .map(SysUserRoleDocument::toEntity)
+                .collect(Collectors.toList());
+    }
+
+    private org.springframework.data.domain.Pageable pageable(int page, int size) {
+        return org.springframework.data.domain.PageRequest.of(Math.max(page - 1, 0), Math.max(size, 1));
     }
 
     private void validateRelation(SysUserRole relation) {

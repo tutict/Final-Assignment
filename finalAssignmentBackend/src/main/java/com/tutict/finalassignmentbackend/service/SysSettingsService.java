@@ -155,8 +155,86 @@ public class SysSettingsService {
             return List.of();
         }
         validatePagination(page, size);
+        List<SysSettings> index = mapHits(sysSettingsSearchRepository.searchByCategory(category, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
         QueryWrapper<SysSettings> wrapper = new QueryWrapper<>();
         wrapper.eq("category", category)
+                .orderByAsc("sort_order");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'keyPrefix:' + #settingKey + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<SysSettings> searchBySettingKeyPrefix(String settingKey, int page, int size) {
+        if (isBlank(settingKey)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<SysSettings> index = mapHits(sysSettingsSearchRepository.searchBySettingKeyPrefix(settingKey, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<SysSettings> wrapper = new QueryWrapper<>();
+        wrapper.likeRight("setting_key", settingKey)
+                .orderByAsc("sort_order");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'keyFuzzy:' + #settingKey + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<SysSettings> searchBySettingKeyFuzzy(String settingKey, int page, int size) {
+        if (isBlank(settingKey)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<SysSettings> index = mapHits(sysSettingsSearchRepository.searchBySettingKeyFuzzy(settingKey, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<SysSettings> wrapper = new QueryWrapper<>();
+        wrapper.like("setting_key", settingKey)
+                .orderByAsc("sort_order");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'type:' + #settingType + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<SysSettings> searchBySettingType(String settingType, int page, int size) {
+        if (isBlank(settingType)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<SysSettings> index = mapHits(sysSettingsSearchRepository.searchBySettingType(settingType, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<SysSettings> wrapper = new QueryWrapper<>();
+        wrapper.eq("setting_type", settingType)
+                .orderByAsc("sort_order");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'editable:' + #isEditable + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<SysSettings> searchByIsEditable(boolean isEditable, int page, int size) {
+        validatePagination(page, size);
+        List<SysSettings> index = mapHits(sysSettingsSearchRepository.searchByIsEditable(isEditable, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<SysSettings> wrapper = new QueryWrapper<>();
+        wrapper.eq("is_editable", isEditable)
+                .orderByAsc("sort_order");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'encrypted:' + #isEncrypted + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<SysSettings> searchByIsEncrypted(boolean isEncrypted, int page, int size) {
+        validatePagination(page, size);
+        List<SysSettings> index = mapHits(sysSettingsSearchRepository.searchByIsEncrypted(isEncrypted, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<SysSettings> wrapper = new QueryWrapper<>();
+        wrapper.eq("is_encrypted", isEncrypted)
                 .orderByAsc("sort_order");
         return fetchFromDatabase(wrapper, page, size);
     }
@@ -257,6 +335,20 @@ public class SysSettingsService {
         List<SysSettings> records = mpPage.getRecords();
         syncBatchToIndexAfterCommit(records);
         return records;
+    }
+
+    private List<SysSettings> mapHits(org.springframework.data.elasticsearch.core.SearchHits<SysSettingsDocument> hits) {
+        if (hits == null || !hits.hasSearchHits()) {
+            return List.of();
+        }
+        return hits.getSearchHits().stream()
+                .map(org.springframework.data.elasticsearch.core.SearchHit::getContent)
+                .map(SysSettingsDocument::toEntity)
+                .collect(Collectors.toList());
+    }
+
+    private org.springframework.data.domain.Pageable pageable(int page, int size) {
+        return org.springframework.data.domain.PageRequest.of(Math.max(page - 1, 0), Math.max(size, 1));
     }
 
     private void validateSettings(SysSettings settings) {

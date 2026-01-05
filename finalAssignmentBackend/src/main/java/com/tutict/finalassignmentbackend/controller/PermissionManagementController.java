@@ -139,6 +139,86 @@ public class PermissionManagementController {
         }
     }
 
+    @GetMapping("/search/code/prefix")
+    @Operation(summary = "Search permissions by code prefix")
+    public ResponseEntity<List<SysPermission>> searchByCodePrefix(@RequestParam String permissionCode,
+                                                                  @RequestParam(defaultValue = "1") int page,
+                                                                  @RequestParam(defaultValue = "50") int size) {
+        return ResponseEntity.ok(sysPermissionService.searchByPermissionCodePrefix(permissionCode, page, size));
+    }
+
+    @GetMapping("/search/code/fuzzy")
+    @Operation(summary = "Search permissions by code fuzzy")
+    public ResponseEntity<List<SysPermission>> searchByCodeFuzzy(@RequestParam String permissionCode,
+                                                                 @RequestParam(defaultValue = "1") int page,
+                                                                 @RequestParam(defaultValue = "50") int size) {
+        return ResponseEntity.ok(sysPermissionService.searchByPermissionCodeFuzzy(permissionCode, page, size));
+    }
+
+    @GetMapping("/search/name/prefix")
+    @Operation(summary = "Search permissions by name prefix")
+    public ResponseEntity<List<SysPermission>> searchByNamePrefix(@RequestParam String permissionName,
+                                                                  @RequestParam(defaultValue = "1") int page,
+                                                                  @RequestParam(defaultValue = "50") int size) {
+        return ResponseEntity.ok(sysPermissionService.searchByPermissionNamePrefix(permissionName, page, size));
+    }
+
+    @GetMapping("/search/name/fuzzy")
+    @Operation(summary = "Search permissions by name fuzzy")
+    public ResponseEntity<List<SysPermission>> searchByNameFuzzy(@RequestParam String permissionName,
+                                                                 @RequestParam(defaultValue = "1") int page,
+                                                                 @RequestParam(defaultValue = "50") int size) {
+        return ResponseEntity.ok(sysPermissionService.searchByPermissionNameFuzzy(permissionName, page, size));
+    }
+
+    @GetMapping("/search/type")
+    @Operation(summary = "Search permissions by type")
+    public ResponseEntity<List<SysPermission>> searchByType(@RequestParam String permissionType,
+                                                            @RequestParam(defaultValue = "1") int page,
+                                                            @RequestParam(defaultValue = "50") int size) {
+        return ResponseEntity.ok(sysPermissionService.searchByPermissionType(permissionType, page, size));
+    }
+
+    @GetMapping("/search/api-path")
+    @Operation(summary = "Search permissions by API path prefix")
+    public ResponseEntity<List<SysPermission>> searchByApiPath(@RequestParam String apiPath,
+                                                               @RequestParam(defaultValue = "1") int page,
+                                                               @RequestParam(defaultValue = "50") int size) {
+        return ResponseEntity.ok(sysPermissionService.searchByApiPathPrefix(apiPath, page, size));
+    }
+
+    @GetMapping("/search/menu-path")
+    @Operation(summary = "Search permissions by menu path prefix")
+    public ResponseEntity<List<SysPermission>> searchByMenuPath(@RequestParam String menuPath,
+                                                                @RequestParam(defaultValue = "1") int page,
+                                                                @RequestParam(defaultValue = "50") int size) {
+        return ResponseEntity.ok(sysPermissionService.searchByMenuPathPrefix(menuPath, page, size));
+    }
+
+    @GetMapping("/search/visible")
+    @Operation(summary = "Search permissions by visibility")
+    public ResponseEntity<List<SysPermission>> searchByVisible(@RequestParam boolean isVisible,
+                                                               @RequestParam(defaultValue = "1") int page,
+                                                               @RequestParam(defaultValue = "50") int size) {
+        return ResponseEntity.ok(sysPermissionService.searchByIsVisible(isVisible, page, size));
+    }
+
+    @GetMapping("/search/external")
+    @Operation(summary = "Search permissions by external flag")
+    public ResponseEntity<List<SysPermission>> searchByExternal(@RequestParam boolean isExternal,
+                                                                @RequestParam(defaultValue = "1") int page,
+                                                                @RequestParam(defaultValue = "50") int size) {
+        return ResponseEntity.ok(sysPermissionService.searchByIsExternal(isExternal, page, size));
+    }
+
+    @GetMapping("/search/status")
+    @Operation(summary = "Search permissions by status")
+    public ResponseEntity<List<SysPermission>> searchByStatus(@RequestParam String status,
+                                                              @RequestParam(defaultValue = "1") int page,
+                                                              @RequestParam(defaultValue = "50") int size) {
+        return ResponseEntity.ok(sysPermissionService.searchByStatus(status, page, size));
+    }
+
     private boolean hasKey(String value) {
         return value != null && !value.isBlank();
     }

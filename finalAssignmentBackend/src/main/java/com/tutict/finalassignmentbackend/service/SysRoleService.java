@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.SysRequestHistory;
@@ -159,6 +160,118 @@ public class SysRoleService {
         }
         return fromDb;
     }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'roleCodePrefix:' + #roleCode + ':' + #page + ':' + #size",
+            unless = "#result == null || #result.isEmpty()")
+    public List<SysRole> searchByRoleCodePrefix(String roleCode, int page, int size) {
+        if (isBlank(roleCode)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<SysRole> index = mapHits(sysRoleSearchRepository.searchByRoleCodePrefix(roleCode, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<SysRole> wrapper = new QueryWrapper<>();
+        wrapper.likeRight("role_code", roleCode);
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'roleCodeFuzzy:' + #roleCode + ':' + #page + ':' + #size",
+            unless = "#result == null || #result.isEmpty()")
+    public List<SysRole> searchByRoleCodeFuzzy(String roleCode, int page, int size) {
+        if (isBlank(roleCode)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<SysRole> index = mapHits(sysRoleSearchRepository.searchByRoleCodeFuzzy(roleCode, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<SysRole> wrapper = new QueryWrapper<>();
+        wrapper.like("role_code", roleCode);
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'roleNamePrefix:' + #roleName + ':' + #page + ':' + #size",
+            unless = "#result == null || #result.isEmpty()")
+    public List<SysRole> searchByRoleNamePrefix(String roleName, int page, int size) {
+        if (isBlank(roleName)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<SysRole> index = mapHits(sysRoleSearchRepository.searchByRoleNamePrefix(roleName, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<SysRole> wrapper = new QueryWrapper<>();
+        wrapper.likeRight("role_name", roleName);
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'roleNameFuzzy:' + #roleName + ':' + #page + ':' + #size",
+            unless = "#result == null || #result.isEmpty()")
+    public List<SysRole> searchByRoleNameFuzzy(String roleName, int page, int size) {
+        if (isBlank(roleName)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<SysRole> index = mapHits(sysRoleSearchRepository.searchByRoleNameFuzzy(roleName, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<SysRole> wrapper = new QueryWrapper<>();
+        wrapper.like("role_name", roleName);
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'roleType:' + #roleType + ':' + #page + ':' + #size",
+            unless = "#result == null || #result.isEmpty()")
+    public List<SysRole> searchByRoleType(String roleType, int page, int size) {
+        if (isBlank(roleType)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<SysRole> index = mapHits(sysRoleSearchRepository.searchByRoleType(roleType, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<SysRole> wrapper = new QueryWrapper<>();
+        wrapper.eq("role_type", roleType);
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'dataScope:' + #dataScope + ':' + #page + ':' + #size",
+            unless = "#result == null || #result.isEmpty()")
+    public List<SysRole> searchByDataScope(String dataScope, int page, int size) {
+        if (isBlank(dataScope)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<SysRole> index = mapHits(sysRoleSearchRepository.searchByDataScope(dataScope, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<SysRole> wrapper = new QueryWrapper<>();
+        wrapper.eq("data_scope", dataScope);
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'status:' + #status + ':' + #page + ':' + #size",
+            unless = "#result == null || #result.isEmpty()")
+    public List<SysRole> searchByStatus(String status, int page, int size) {
+        if (isBlank(status)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<SysRole> index = mapHits(sysRoleSearchRepository.searchByStatus(status, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<SysRole> wrapper = new QueryWrapper<>();
+        wrapper.eq("status", status);
+        return fetchFromDatabase(wrapper, page, size);
+    }
     public boolean shouldSkipProcessing(String idempotencyKey) {
         SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
         return history != null
@@ -253,6 +366,34 @@ public class SysRoleService {
         }
         if (isBlank(sysRole.getStatus())) {
             sysRole.setStatus("Active");
+        }
+    }
+
+    private List<SysRole> fetchFromDatabase(QueryWrapper<SysRole> wrapper, int page, int size) {
+        Page<SysRole> mpPage = new Page<>(Math.max(page, 1), Math.max(size, 1));
+        sysRoleMapper.selectPage(mpPage, wrapper);
+        List<SysRole> records = mpPage.getRecords();
+        syncBatchToIndexAfterCommit(records);
+        return records;
+    }
+
+    private List<SysRole> mapHits(org.springframework.data.elasticsearch.core.SearchHits<SysRoleDocument> hits) {
+        if (hits == null || !hits.hasSearchHits()) {
+            return List.of();
+        }
+        return hits.getSearchHits().stream()
+                .map(org.springframework.data.elasticsearch.core.SearchHit::getContent)
+                .map(SysRoleDocument::toEntity)
+                .collect(Collectors.toList());
+    }
+
+    private org.springframework.data.domain.Pageable pageable(int page, int size) {
+        return org.springframework.data.domain.PageRequest.of(Math.max(page - 1, 0), Math.max(size, 1));
+    }
+
+    private void validatePagination(int page, int size) {
+        if (page < 1 || size < 1) {
+            throw new IllegalArgumentException("Page must be >= 1 and size must be >= 1");
         }
     }
 

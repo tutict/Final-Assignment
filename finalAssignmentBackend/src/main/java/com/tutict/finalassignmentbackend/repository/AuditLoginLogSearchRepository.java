@@ -73,4 +73,65 @@ public interface AuditLoginLogSearchRepository extends ElasticsearchRepository<A
     default SearchHits<AuditLoginLogDocument> searchByLoginIp(String loginIp) {
         return searchByLoginIp(loginIp, PageRequest.of(0, DEFAULT_PAGE_SIZE));
     }
+
+    @Query("""
+            {
+              "match_phrase_prefix": {
+                "loginLocation": {
+                  "query": "?0"
+                }
+              }
+            }
+            """)
+    SearchHits<AuditLoginLogDocument> searchByLoginLocation(String loginLocation, Pageable pageable);
+
+    default SearchHits<AuditLoginLogDocument> searchByLoginLocation(String loginLocation) {
+        return searchByLoginLocation(loginLocation, PageRequest.of(0, DEFAULT_PAGE_SIZE));
+    }
+
+    @Query("""
+            {
+              "match_phrase_prefix": {
+                "deviceType": {
+                  "query": "?0"
+                }
+              }
+            }
+            """)
+    SearchHits<AuditLoginLogDocument> searchByDeviceType(String deviceType, Pageable pageable);
+
+    default SearchHits<AuditLoginLogDocument> searchByDeviceType(String deviceType) {
+        return searchByDeviceType(deviceType, PageRequest.of(0, DEFAULT_PAGE_SIZE));
+    }
+
+    @Query("""
+            {
+              "match_phrase_prefix": {
+                "browserType": {
+                  "query": "?0"
+                }
+              }
+            }
+            """)
+    SearchHits<AuditLoginLogDocument> searchByBrowserType(String browserType, Pageable pageable);
+
+    default SearchHits<AuditLoginLogDocument> searchByBrowserType(String browserType) {
+        return searchByBrowserType(browserType, PageRequest.of(0, DEFAULT_PAGE_SIZE));
+    }
+
+    @Query("""
+            {
+              "range": {
+                "logoutTime": {
+                  "gte": "?0",
+                  "lte": "?1"
+                }
+              }
+            }
+            """)
+    SearchHits<AuditLoginLogDocument> searchByLogoutTimeRange(String startTime, String endTime, Pageable pageable);
+
+    default SearchHits<AuditLoginLogDocument> searchByLogoutTimeRange(String startTime, String endTime) {
+        return searchByLogoutTimeRange(startTime, endTime, PageRequest.of(0, DEFAULT_PAGE_SIZE));
+    }
 }

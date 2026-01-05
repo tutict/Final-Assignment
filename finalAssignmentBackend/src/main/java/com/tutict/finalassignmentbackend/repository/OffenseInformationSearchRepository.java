@@ -103,4 +103,95 @@ public interface OffenseInformationSearchRepository extends ElasticsearchReposit
     default SearchHits<OffenseRecordDocument> searchByOffenseNumber(String offenseNumber) {
         return searchByOffenseNumber(offenseNumber, PageRequest.of(0, DEFAULT_PAGE_SIZE));
     }
+
+    @Query("""
+    {
+      "match_phrase_prefix": {
+        "offenseLocation": {
+          "query": "?0"
+        }
+      }
+    }
+    """)
+    SearchHits<OffenseRecordDocument> searchByOffenseLocation(String offenseLocation, Pageable pageable);
+
+    default SearchHits<OffenseRecordDocument> searchByOffenseLocation(String offenseLocation) {
+        return searchByOffenseLocation(offenseLocation, PageRequest.of(0, DEFAULT_PAGE_SIZE));
+    }
+
+    @Query("""
+    {
+      "term": {
+        "offenseProvince.keyword": {
+          "value": "?0"
+        }
+      }
+    }
+    """)
+    SearchHits<OffenseRecordDocument> searchByOffenseProvince(String offenseProvince, Pageable pageable);
+
+    default SearchHits<OffenseRecordDocument> searchByOffenseProvince(String offenseProvince) {
+        return searchByOffenseProvince(offenseProvince, PageRequest.of(0, DEFAULT_PAGE_SIZE));
+    }
+
+    @Query("""
+    {
+      "term": {
+        "offenseCity.keyword": {
+          "value": "?0"
+        }
+      }
+    }
+    """)
+    SearchHits<OffenseRecordDocument> searchByOffenseCity(String offenseCity, Pageable pageable);
+
+    default SearchHits<OffenseRecordDocument> searchByOffenseCity(String offenseCity) {
+        return searchByOffenseCity(offenseCity, PageRequest.of(0, DEFAULT_PAGE_SIZE));
+    }
+
+    @Query("""
+    {
+      "term": {
+        "notificationStatus.keyword": {
+          "value": "?0"
+        }
+      }
+    }
+    """)
+    SearchHits<OffenseRecordDocument> searchByNotificationStatus(String notificationStatus, Pageable pageable);
+
+    default SearchHits<OffenseRecordDocument> searchByNotificationStatus(String notificationStatus) {
+        return searchByNotificationStatus(notificationStatus, PageRequest.of(0, DEFAULT_PAGE_SIZE));
+    }
+
+    @Query("""
+    {
+      "match_phrase_prefix": {
+        "enforcementAgency": {
+          "query": "?0"
+        }
+      }
+    }
+    """)
+    SearchHits<OffenseRecordDocument> searchByEnforcementAgency(String enforcementAgency, Pageable pageable);
+
+    default SearchHits<OffenseRecordDocument> searchByEnforcementAgency(String enforcementAgency) {
+        return searchByEnforcementAgency(enforcementAgency, PageRequest.of(0, DEFAULT_PAGE_SIZE));
+    }
+
+    @Query("""
+    {
+      "range": {
+        "fineAmount": {
+          "gte": ?0,
+          "lte": ?1
+        }
+      }
+    }
+    """)
+    SearchHits<OffenseRecordDocument> searchByFineAmountRange(double minAmount, double maxAmount, Pageable pageable);
+
+    default SearchHits<OffenseRecordDocument> searchByFineAmountRange(double minAmount, double maxAmount) {
+        return searchByFineAmountRange(minAmount, maxAmount, PageRequest.of(0, DEFAULT_PAGE_SIZE));
+    }
 }

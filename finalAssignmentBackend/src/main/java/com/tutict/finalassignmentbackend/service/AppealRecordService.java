@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.config.statemachine.states.AppealProcessState;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
@@ -24,6 +25,7 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Objects;
 import java.util.logging.Level;
@@ -144,22 +146,161 @@ public class AppealRecordService {
 
     @Cacheable(cacheNames = CACHE, key = "'offense:' + #offenseId", unless = "#result.isEmpty()")
     public List<AppealRecord> findByOffenseId(Long offenseId, int page, int size) {
-        Pageable pageable = PageRequest.of(Math.max(page - 1, 0), Math.max(size, 1));
-        SearchHits<AppealRecordDocument> hits = appealRecordSearchRepository.findByOffenseId(offenseId, pageable);
-        if (hits != null && hits.hasSearchHits()) {
-            return hits.getSearchHits().stream()
-                    .map(SearchHit::getContent)
-                    .map(AppealRecordDocument::toEntity)
-                    .collect(Collectors.toList());
+        validatePagination(page, size);
+        List<AppealRecord> index = mapHits(appealRecordSearchRepository.findByOffenseId(offenseId, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
         }
         QueryWrapper<AppealRecord> wrapper = new QueryWrapper<>();
-        wrapper.eq("offense_id", offenseId);
-        List<AppealRecord> db = appealRecordMapper.selectList(wrapper);
-        db.stream()
-                .map(AppealRecordDocument::fromEntity)
-                .filter(Objects::nonNull)
-                .forEach(appealRecordSearchRepository::save);
-        return db;
+        wrapper.eq("offense_id", offenseId)
+                .orderByDesc("appeal_time");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE, key = "'appealNumberPrefix:' + #appealNumber + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<AppealRecord> searchByAppealNumberPrefix(String appealNumber, int page, int size) {
+        if (isBlank(appealNumber)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<AppealRecord> index = mapHits(appealRecordSearchRepository.searchByAppealNumberPrefix(appealNumber, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<AppealRecord> wrapper = new QueryWrapper<>();
+        wrapper.likeRight("appeal_number", appealNumber)
+                .orderByDesc("appeal_time");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE, key = "'appealNumberFuzzy:' + #appealNumber + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<AppealRecord> searchByAppealNumberFuzzy(String appealNumber, int page, int size) {
+        if (isBlank(appealNumber)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<AppealRecord> index = mapHits(appealRecordSearchRepository.searchByAppealNumberFuzzy(appealNumber, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<AppealRecord> wrapper = new QueryWrapper<>();
+        wrapper.like("appeal_number", appealNumber)
+                .orderByDesc("appeal_time");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE, key = "'appellantNamePrefix:' + #appellantName + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<AppealRecord> searchByAppellantNamePrefix(String appellantName, int page, int size) {
+        if (isBlank(appellantName)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<AppealRecord> index = mapHits(appealRecordSearchRepository.searchByAppellantNamePrefix(appellantName, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<AppealRecord> wrapper = new QueryWrapper<>();
+        wrapper.likeRight("appellant_name", appellantName)
+                .orderByDesc("appeal_time");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE, key = "'appellantNameFuzzy:' + #appellantName + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<AppealRecord> searchByAppellantNameFuzzy(String appellantName, int page, int size) {
+        if (isBlank(appellantName)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<AppealRecord> index = mapHits(appealRecordSearchRepository.searchByAppellantNameFuzzy(appellantName, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<AppealRecord> wrapper = new QueryWrapper<>();
+        wrapper.like("appellant_name", appellantName)
+                .orderByDesc("appeal_time");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE, key = "'appellantIdCard:' + #appellantIdCard + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<AppealRecord> searchByAppellantIdCard(String appellantIdCard, int page, int size) {
+        if (isBlank(appellantIdCard)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<AppealRecord> index = mapHits(appealRecordSearchRepository.searchByAppellantIdCard(appellantIdCard, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<AppealRecord> wrapper = new QueryWrapper<>();
+        wrapper.likeRight("appellant_id_card", appellantIdCard)
+                .orderByDesc("appeal_time");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE, key = "'acceptanceStatus:' + #acceptanceStatus + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<AppealRecord> searchByAcceptanceStatus(String acceptanceStatus, int page, int size) {
+        if (isBlank(acceptanceStatus)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<AppealRecord> index = mapHits(appealRecordSearchRepository.searchByAcceptanceStatus(acceptanceStatus, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<AppealRecord> wrapper = new QueryWrapper<>();
+        wrapper.eq("acceptance_status", acceptanceStatus)
+                .orderByDesc("appeal_time");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE, key = "'processStatus:' + #processStatus + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<AppealRecord> searchByProcessStatus(String processStatus, int page, int size) {
+        if (isBlank(processStatus)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<AppealRecord> index = mapHits(appealRecordSearchRepository.searchByProcessStatus(processStatus, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<AppealRecord> wrapper = new QueryWrapper<>();
+        wrapper.eq("process_status", processStatus)
+                .orderByDesc("appeal_time");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE, key = "'appealTimeRange:' + #startTime + ':' + #endTime + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<AppealRecord> searchByAppealTimeRange(String startTime, String endTime, int page, int size) {
+        validatePagination(page, size);
+        LocalDateTime start = parseDateTime(startTime, "startTime");
+        LocalDateTime end = parseDateTime(endTime, "endTime");
+        if (start == null || end == null) {
+            return List.of();
+        }
+        List<AppealRecord> index = mapHits(appealRecordSearchRepository.searchByAppealTimeRange(startTime, endTime, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<AppealRecord> wrapper = new QueryWrapper<>();
+        wrapper.between("appeal_time", start, end)
+                .orderByDesc("appeal_time");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE, key = "'acceptanceHandler:' + #acceptanceHandler + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<AppealRecord> searchByAcceptanceHandler(String acceptanceHandler, int page, int size) {
+        if (isBlank(acceptanceHandler)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<AppealRecord> index = mapHits(appealRecordSearchRepository.searchByAcceptanceHandler(acceptanceHandler, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<AppealRecord> wrapper = new QueryWrapper<>();
+        wrapper.likeRight("acceptance_handler", acceptanceHandler)
+                .orderByDesc("appeal_time");
+        return fetchFromDatabase(wrapper, page, size);
     }
 
     private SysRequestHistory buildHistory(String key) {
@@ -223,6 +364,53 @@ public class AppealRecordService {
                 }
             }
         });
+    }
+
+    private List<AppealRecord> fetchFromDatabase(QueryWrapper<AppealRecord> wrapper, int page, int size) {
+        Page<AppealRecord> mpPage = new Page<>(Math.max(page, 1), Math.max(size, 1));
+        appealRecordMapper.selectPage(mpPage, wrapper);
+        List<AppealRecord> records = mpPage.getRecords();
+        records.stream()
+                .map(AppealRecordDocument::fromEntity)
+                .filter(Objects::nonNull)
+                .forEach(appealRecordSearchRepository::save);
+        return records;
+    }
+
+    private List<AppealRecord> mapHits(SearchHits<AppealRecordDocument> hits) {
+        if (hits == null || !hits.hasSearchHits()) {
+            return List.of();
+        }
+        return hits.getSearchHits().stream()
+                .map(SearchHit::getContent)
+                .map(AppealRecordDocument::toEntity)
+                .collect(Collectors.toList());
+    }
+
+    private Pageable pageable(int page, int size) {
+        return PageRequest.of(Math.max(page - 1, 0), Math.max(size, 1));
+    }
+
+    private void validatePagination(int page, int size) {
+        if (page < 1 || size < 1) {
+            throw new IllegalArgumentException("Page must be >= 1 and size must be >= 1");
+        }
+    }
+
+    private LocalDateTime parseDateTime(String value, String fieldName) {
+        if (isBlank(value)) {
+            return null;
+        }
+        try {
+            return LocalDateTime.parse(value);
+        } catch (DateTimeParseException ex) {
+            log.log(Level.WARNING, "Failed to parse " + fieldName + ": " + value, ex);
+            return null;
+        }
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
     }
 
     private void validateAppeal(AppealRecord appealRecord) {

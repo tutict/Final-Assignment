@@ -135,6 +135,79 @@ public class AppealManagementController {
         }
     }
 
+    @GetMapping("/search/number/prefix")
+    @Operation(summary = "Search appeals by number prefix")
+    public ResponseEntity<List<AppealRecord>> searchByNumberPrefix(@RequestParam String appealNumber,
+                                                                   @RequestParam(defaultValue = "1") int page,
+                                                                   @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(appealRecordService.searchByAppealNumberPrefix(appealNumber, page, size));
+    }
+
+    @GetMapping("/search/number/fuzzy")
+    @Operation(summary = "Search appeals by number fuzzy")
+    public ResponseEntity<List<AppealRecord>> searchByNumberFuzzy(@RequestParam String appealNumber,
+                                                                  @RequestParam(defaultValue = "1") int page,
+                                                                  @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(appealRecordService.searchByAppealNumberFuzzy(appealNumber, page, size));
+    }
+
+    @GetMapping("/search/appellant/name/prefix")
+    @Operation(summary = "Search appeals by appellant name prefix")
+    public ResponseEntity<List<AppealRecord>> searchByAppellantNamePrefix(@RequestParam String appellantName,
+                                                                          @RequestParam(defaultValue = "1") int page,
+                                                                          @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(appealRecordService.searchByAppellantNamePrefix(appellantName, page, size));
+    }
+
+    @GetMapping("/search/appellant/name/fuzzy")
+    @Operation(summary = "Search appeals by appellant name fuzzy")
+    public ResponseEntity<List<AppealRecord>> searchByAppellantNameFuzzy(@RequestParam String appellantName,
+                                                                         @RequestParam(defaultValue = "1") int page,
+                                                                         @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(appealRecordService.searchByAppellantNameFuzzy(appellantName, page, size));
+    }
+
+    @GetMapping("/search/appellant/id-card")
+    @Operation(summary = "Search appeals by appellant ID card")
+    public ResponseEntity<List<AppealRecord>> searchByAppellantIdCard(@RequestParam String appellantIdCard,
+                                                                      @RequestParam(defaultValue = "1") int page,
+                                                                      @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(appealRecordService.searchByAppellantIdCard(appellantIdCard, page, size));
+    }
+
+    @GetMapping("/search/acceptance-status")
+    @Operation(summary = "Search appeals by acceptance status")
+    public ResponseEntity<List<AppealRecord>> searchByAcceptanceStatus(@RequestParam String acceptanceStatus,
+                                                                       @RequestParam(defaultValue = "1") int page,
+                                                                       @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(appealRecordService.searchByAcceptanceStatus(acceptanceStatus, page, size));
+    }
+
+    @GetMapping("/search/process-status")
+    @Operation(summary = "Search appeals by process status")
+    public ResponseEntity<List<AppealRecord>> searchByProcessStatus(@RequestParam String processStatus,
+                                                                    @RequestParam(defaultValue = "1") int page,
+                                                                    @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(appealRecordService.searchByProcessStatus(processStatus, page, size));
+    }
+
+    @GetMapping("/search/time-range")
+    @Operation(summary = "Search appeals by appeal time range")
+    public ResponseEntity<List<AppealRecord>> searchByTimeRange(@RequestParam String startTime,
+                                                                @RequestParam String endTime,
+                                                                @RequestParam(defaultValue = "1") int page,
+                                                                @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(appealRecordService.searchByAppealTimeRange(startTime, endTime, page, size));
+    }
+
+    @GetMapping("/search/handler")
+    @Operation(summary = "Search appeals by acceptance handler")
+    public ResponseEntity<List<AppealRecord>> searchByHandler(@RequestParam String acceptanceHandler,
+                                                              @RequestParam(defaultValue = "1") int page,
+                                                              @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(appealRecordService.searchByAcceptanceHandler(acceptanceHandler, page, size));
+    }
+
     @PostMapping("/{appealId}/reviews")
     @Operation(summary = "创建复核记录")
     public ResponseEntity<AppealReview> createReview(@PathVariable Long appealId,
@@ -224,6 +297,31 @@ public class AppealManagementController {
             LOG.log(Level.WARNING, "List appeal reviews failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();
         }
+    }
+
+    @GetMapping("/reviews/search/reviewer")
+    @Operation(summary = "Search appeal reviews by reviewer")
+    public ResponseEntity<List<AppealReview>> searchReviewsByReviewer(@RequestParam String reviewer,
+                                                                      @RequestParam(defaultValue = "1") int page,
+                                                                      @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(appealReviewService.searchByReviewer(reviewer, page, size));
+    }
+
+    @GetMapping("/reviews/search/reviewer-dept")
+    @Operation(summary = "Search appeal reviews by reviewer department")
+    public ResponseEntity<List<AppealReview>> searchReviewsByReviewerDept(@RequestParam String reviewerDept,
+                                                                          @RequestParam(defaultValue = "1") int page,
+                                                                          @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(appealReviewService.searchByReviewerDept(reviewerDept, page, size));
+    }
+
+    @GetMapping("/reviews/search/time-range")
+    @Operation(summary = "Search appeal reviews by review time range")
+    public ResponseEntity<List<AppealReview>> searchReviewsByTimeRange(@RequestParam String startTime,
+                                                                       @RequestParam String endTime,
+                                                                       @RequestParam(defaultValue = "1") int page,
+                                                                       @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(appealReviewService.searchByReviewTimeRange(startTime, endTime, page, size));
     }
 
     @GetMapping("/reviews/count")

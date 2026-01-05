@@ -214,5 +214,108 @@ class OperationLogControllerApi {
     final List<dynamic> data = jsonDecode(_decode(r));
     return data.map((e) => OperationLog.fromJson(e as Map<String, dynamic>)).toList();
   }
-}
 
+  // GET /api/logs/operation/search/username?username=&page=&size=
+  Future<List<OperationLog>> apiLogsOperationSearchUsernameGet({
+    required String username,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final r = await _apiClient.invokeAPI(
+      '/api/logs/operation/search/username',
+      'GET',
+      [
+        QueryParam('username', username),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      {},
+      {},
+      null,
+      const ['bearerAuth'],
+    );
+    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.body.isEmpty) return [];
+    final List<dynamic> data = jsonDecode(_decode(r));
+    return data.map((e) => OperationLog.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  // GET /api/logs/operation/search/request-url?requestUrl=&page=&size=
+  Future<List<OperationLog>> apiLogsOperationSearchRequestUrlGet({
+    required String requestUrl,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final r = await _apiClient.invokeAPI(
+      '/api/logs/operation/search/request-url',
+      'GET',
+      [
+        QueryParam('requestUrl', requestUrl),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      {},
+      {},
+      null,
+      const ['bearerAuth'],
+    );
+    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.body.isEmpty) return [];
+    final List<dynamic> data = jsonDecode(_decode(r));
+    return data.map((e) => OperationLog.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  // GET /api/logs/operation/search/request-method?requestMethod=&page=&size=
+  Future<List<OperationLog>> apiLogsOperationSearchRequestMethodGet({
+    required String requestMethod,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final r = await _apiClient.invokeAPI(
+      '/api/logs/operation/search/request-method',
+      'GET',
+      [
+        QueryParam('requestMethod', requestMethod),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      {},
+      {},
+      null,
+      const ['bearerAuth'],
+    );
+    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.body.isEmpty) return [];
+    final List<dynamic> data = jsonDecode(_decode(r));
+    return data.map((e) => OperationLog.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  // GET /api/logs/operation/search/result?operationResult=&page=&size=
+  Future<List<OperationLog>> apiLogsOperationSearchResultGet({
+    required String operationResult,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final r = await _apiClient.invokeAPI(
+      '/api/logs/operation/search/result',
+      'GET',
+      [
+        QueryParam('operationResult', operationResult),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      {},
+      {},
+      null,
+      const ['bearerAuth'],
+    );
+    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.body.isEmpty) return [];
+    final List<dynamic> data = jsonDecode(_decode(r));
+    return data.map((e) => OperationLog.fromJson(e as Map<String, dynamic>)).toList();
+  }
+}

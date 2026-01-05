@@ -103,6 +103,260 @@ class SystemLogsControllerApi {
     return SysRequestHistoryModel.fromJson(jsonDecode(_decode(r)));
   }
 
+  // GET /api/system/logs/requests/search/idempotency
+  Future<List<SysRequestHistoryModel>> apiSystemLogsRequestsSearchIdempotencyGet({
+    required String key,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final r = await _apiClient.invokeAPI(
+      '/api/system/logs/requests/search/idempotency',
+      'GET',
+      [
+        QueryParam('key', key),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      {},
+      {},
+      null,
+      const ['bearerAuth'],
+    );
+    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.body.isEmpty) return [];
+    final List<dynamic> data = jsonDecode(_decode(r));
+    return data
+        .map((e) => SysRequestHistoryModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  // GET /api/system/logs/requests/search/method
+  Future<List<SysRequestHistoryModel>> apiSystemLogsRequestsSearchMethodGet({
+    required String requestMethod,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final r = await _apiClient.invokeAPI(
+      '/api/system/logs/requests/search/method',
+      'GET',
+      [
+        QueryParam('requestMethod', requestMethod),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      {},
+      {},
+      null,
+      const ['bearerAuth'],
+    );
+    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.body.isEmpty) return [];
+    final List<dynamic> data = jsonDecode(_decode(r));
+    return data
+        .map((e) => SysRequestHistoryModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  // GET /api/system/logs/requests/search/url
+  Future<List<SysRequestHistoryModel>> apiSystemLogsRequestsSearchUrlGet({
+    required String requestUrl,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final r = await _apiClient.invokeAPI(
+      '/api/system/logs/requests/search/url',
+      'GET',
+      [
+        QueryParam('requestUrl', requestUrl),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      {},
+      {},
+      null,
+      const ['bearerAuth'],
+    );
+    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.body.isEmpty) return [];
+    final List<dynamic> data = jsonDecode(_decode(r));
+    return data
+        .map((e) => SysRequestHistoryModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  // GET /api/system/logs/requests/search/business-type
+  Future<List<SysRequestHistoryModel>> apiSystemLogsRequestsSearchBusinessTypeGet({
+    required String businessType,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final r = await _apiClient.invokeAPI(
+      '/api/system/logs/requests/search/business-type',
+      'GET',
+      [
+        QueryParam('businessType', businessType),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      {},
+      {},
+      null,
+      const ['bearerAuth'],
+    );
+    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.body.isEmpty) return [];
+    final List<dynamic> data = jsonDecode(_decode(r));
+    return data
+        .map((e) => SysRequestHistoryModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  // GET /api/system/logs/requests/search/business-id
+  Future<List<SysRequestHistoryModel>> apiSystemLogsRequestsSearchBusinessIdGet({
+    required int businessId,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final r = await _apiClient.invokeAPI(
+      '/api/system/logs/requests/search/business-id',
+      'GET',
+      [
+        QueryParam('businessId', '$businessId'),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      {},
+      {},
+      null,
+      const ['bearerAuth'],
+    );
+    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.body.isEmpty) return [];
+    final List<dynamic> data = jsonDecode(_decode(r));
+    return data
+        .map((e) => SysRequestHistoryModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  // GET /api/system/logs/requests/search/status
+  Future<List<SysRequestHistoryModel>> apiSystemLogsRequestsSearchStatusGet({
+    required String status,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final r = await _apiClient.invokeAPI(
+      '/api/system/logs/requests/search/status',
+      'GET',
+      [
+        QueryParam('status', status),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      {},
+      {},
+      null,
+      const ['bearerAuth'],
+    );
+    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.body.isEmpty) return [];
+    final List<dynamic> data = jsonDecode(_decode(r));
+    return data
+        .map((e) => SysRequestHistoryModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  // GET /api/system/logs/requests/search/user
+  Future<List<SysRequestHistoryModel>> apiSystemLogsRequestsSearchUserGet({
+    required int userId,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final r = await _apiClient.invokeAPI(
+      '/api/system/logs/requests/search/user',
+      'GET',
+      [
+        QueryParam('userId', '$userId'),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      {},
+      {},
+      null,
+      const ['bearerAuth'],
+    );
+    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.body.isEmpty) return [];
+    final List<dynamic> data = jsonDecode(_decode(r));
+    return data
+        .map((e) => SysRequestHistoryModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  // GET /api/system/logs/requests/search/ip
+  Future<List<SysRequestHistoryModel>> apiSystemLogsRequestsSearchIpGet({
+    required String requestIp,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final r = await _apiClient.invokeAPI(
+      '/api/system/logs/requests/search/ip',
+      'GET',
+      [
+        QueryParam('requestIp', requestIp),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      {},
+      {},
+      null,
+      const ['bearerAuth'],
+    );
+    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.body.isEmpty) return [];
+    final List<dynamic> data = jsonDecode(_decode(r));
+    return data
+        .map((e) => SysRequestHistoryModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  // GET /api/system/logs/requests/search/time-range
+  Future<List<SysRequestHistoryModel>> apiSystemLogsRequestsSearchTimeRangeGet({
+    required String startTime,
+    required String endTime,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final r = await _apiClient.invokeAPI(
+      '/api/system/logs/requests/search/time-range',
+      'GET',
+      [
+        QueryParam('startTime', startTime),
+        QueryParam('endTime', endTime),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      {},
+      {},
+      null,
+      const ['bearerAuth'],
+    );
+    if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
+    if (r.body.isEmpty) return [];
+    final List<dynamic> data = jsonDecode(_decode(r));
+    return data
+        .map((e) => SysRequestHistoryModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
   // 以下 WebSocket 示例保留
   Future<List<SystemLogs>> eventbusSystemLogsGet() async {
     final msg = {
@@ -119,4 +373,3 @@ class SystemLogsControllerApi {
     return SystemLogs.listFromJson(result);
   }
 }
-

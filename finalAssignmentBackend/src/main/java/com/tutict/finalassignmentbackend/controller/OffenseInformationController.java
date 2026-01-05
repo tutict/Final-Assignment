@@ -205,6 +205,85 @@ public class OffenseInformationController {
         }
     }
 
+    @GetMapping("/search/location")
+    @Operation(summary = "Search offenses by location")
+    public ResponseEntity<List<OffenseRecord>> searchByLocation(@RequestParam String offenseLocation,
+                                                                 @RequestParam(defaultValue = "1") int page,
+                                                                 @RequestParam(defaultValue = "20") int size) {
+        try {
+            return ResponseEntity.ok(offenseRecordService.searchByOffenseLocation(offenseLocation, page, size));
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Search offense by location failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @GetMapping("/search/province")
+    @Operation(summary = "Search offenses by province")
+    public ResponseEntity<List<OffenseRecord>> searchByProvince(@RequestParam String offenseProvince,
+                                                                 @RequestParam(defaultValue = "1") int page,
+                                                                 @RequestParam(defaultValue = "20") int size) {
+        try {
+            return ResponseEntity.ok(offenseRecordService.searchByOffenseProvince(offenseProvince, page, size));
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Search offense by province failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @GetMapping("/search/city")
+    @Operation(summary = "Search offenses by city")
+    public ResponseEntity<List<OffenseRecord>> searchByCity(@RequestParam String offenseCity,
+                                                            @RequestParam(defaultValue = "1") int page,
+                                                            @RequestParam(defaultValue = "20") int size) {
+        try {
+            return ResponseEntity.ok(offenseRecordService.searchByOffenseCity(offenseCity, page, size));
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Search offense by city failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @GetMapping("/search/notification")
+    @Operation(summary = "Search offenses by notification status")
+    public ResponseEntity<List<OffenseRecord>> searchByNotification(@RequestParam String notificationStatus,
+                                                                    @RequestParam(defaultValue = "1") int page,
+                                                                    @RequestParam(defaultValue = "20") int size) {
+        try {
+            return ResponseEntity.ok(offenseRecordService.searchByNotificationStatus(notificationStatus, page, size));
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Search offense by notification status failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @GetMapping("/search/agency")
+    @Operation(summary = "Search offenses by enforcement agency")
+    public ResponseEntity<List<OffenseRecord>> searchByAgency(@RequestParam String enforcementAgency,
+                                                              @RequestParam(defaultValue = "1") int page,
+                                                              @RequestParam(defaultValue = "20") int size) {
+        try {
+            return ResponseEntity.ok(offenseRecordService.searchByEnforcementAgency(enforcementAgency, page, size));
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Search offense by enforcement agency failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @GetMapping("/search/fine-range")
+    @Operation(summary = "Search offenses by fine amount range")
+    public ResponseEntity<List<OffenseRecord>> searchByFineRange(@RequestParam double minAmount,
+                                                                 @RequestParam double maxAmount,
+                                                                 @RequestParam(defaultValue = "1") int page,
+                                                                 @RequestParam(defaultValue = "20") int size) {
+        try {
+            return ResponseEntity.ok(offenseRecordService.searchByFineAmountRange(minAmount, maxAmount, page, size));
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Search offense by fine amount range failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
+        }
+    }
+
     private boolean hasKey(String value) {
         return value != null && !value.isBlank();
     }

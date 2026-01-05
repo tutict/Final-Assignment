@@ -57,4 +57,50 @@ public interface AppealReviewSearchRepository extends ElasticsearchRepository<Ap
     default SearchHits<AppealReviewDocument> findByReviewResult(String reviewResult) {
         return findByReviewResult(reviewResult, PageRequest.of(0, DEFAULT_PAGE_SIZE));
     }
+
+    @Query("""
+            {
+              "match_phrase_prefix": {
+                "reviewer": {
+                  "query": "?0"
+                }
+              }
+            }
+            """)
+    SearchHits<AppealReviewDocument> searchByReviewer(String reviewer, Pageable pageable);
+
+    default SearchHits<AppealReviewDocument> searchByReviewer(String reviewer) {
+        return searchByReviewer(reviewer, PageRequest.of(0, DEFAULT_PAGE_SIZE));
+    }
+
+    @Query("""
+            {
+              "match_phrase_prefix": {
+                "reviewerDept": {
+                  "query": "?0"
+                }
+              }
+            }
+            """)
+    SearchHits<AppealReviewDocument> searchByReviewerDept(String reviewerDept, Pageable pageable);
+
+    default SearchHits<AppealReviewDocument> searchByReviewerDept(String reviewerDept) {
+        return searchByReviewerDept(reviewerDept, PageRequest.of(0, DEFAULT_PAGE_SIZE));
+    }
+
+    @Query("""
+            {
+              "range": {
+                "reviewTime": {
+                  "gte": "?0",
+                  "lte": "?1"
+                }
+              }
+            }
+            """)
+    SearchHits<AppealReviewDocument> searchByReviewTimeRange(String startTime, String endTime, Pageable pageable);
+
+    default SearchHits<AppealReviewDocument> searchByReviewTimeRange(String startTime, String endTime) {
+        return searchByReviewTimeRange(startTime, endTime, PageRequest.of(0, DEFAULT_PAGE_SIZE));
+    }
 }

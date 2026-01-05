@@ -431,6 +431,194 @@ const path = '/api/offenses/search/code';
     final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
     return jsonList.map((json) => OffenseInformation.fromJson(json)).toList();
   }
+
+  /// GET /api/offenses/search/location?offenseLocation=...
+  Future<List<OffenseInformation>> apiOffensesSearchLocationGet({
+    required String offenseLocation,
+    int page = 1,
+    int size = 20,
+  }) async {
+    const path = '/api/offenses/search/location';
+    final headerParams = await _getHeaders();
+    final response = await apiClient.invokeAPI(
+      path,
+      'GET',
+      [
+        QueryParam('offenseLocation', offenseLocation),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      if (response.statusCode == 204) return [];
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    if (response.body.isEmpty) return [];
+    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+    return jsonList.map((json) => OffenseInformation.fromJson(json)).toList();
+  }
+
+  /// GET /api/offenses/search/province?offenseProvince=...
+  Future<List<OffenseInformation>> apiOffensesSearchProvinceGet({
+    required String offenseProvince,
+    int page = 1,
+    int size = 20,
+  }) async {
+    const path = '/api/offenses/search/province';
+    final headerParams = await _getHeaders();
+    final response = await apiClient.invokeAPI(
+      path,
+      'GET',
+      [
+        QueryParam('offenseProvince', offenseProvince),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      if (response.statusCode == 204) return [];
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    if (response.body.isEmpty) return [];
+    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+    return jsonList.map((json) => OffenseInformation.fromJson(json)).toList();
+  }
+
+  /// GET /api/offenses/search/city?offenseCity=...
+  Future<List<OffenseInformation>> apiOffensesSearchCityGet({
+    required String offenseCity,
+    int page = 1,
+    int size = 20,
+  }) async {
+    const path = '/api/offenses/search/city';
+    final headerParams = await _getHeaders();
+    final response = await apiClient.invokeAPI(
+      path,
+      'GET',
+      [
+        QueryParam('offenseCity', offenseCity),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      if (response.statusCode == 204) return [];
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    if (response.body.isEmpty) return [];
+    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+    return jsonList.map((json) => OffenseInformation.fromJson(json)).toList();
+  }
+
+  /// GET /api/offenses/search/notification?notificationStatus=...
+  Future<List<OffenseInformation>> apiOffensesSearchNotificationGet({
+    required String notificationStatus,
+    int page = 1,
+    int size = 20,
+  }) async {
+    const path = '/api/offenses/search/notification';
+    final headerParams = await _getHeaders();
+    final response = await apiClient.invokeAPI(
+      path,
+      'GET',
+      [
+        QueryParam('notificationStatus', notificationStatus),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      if (response.statusCode == 204) return [];
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    if (response.body.isEmpty) return [];
+    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+    return jsonList.map((json) => OffenseInformation.fromJson(json)).toList();
+  }
+
+  /// GET /api/offenses/search/agency?enforcementAgency=...
+  Future<List<OffenseInformation>> apiOffensesSearchAgencyGet({
+    required String enforcementAgency,
+    int page = 1,
+    int size = 20,
+  }) async {
+    const path = '/api/offenses/search/agency';
+    final headerParams = await _getHeaders();
+    final response = await apiClient.invokeAPI(
+      path,
+      'GET',
+      [
+        QueryParam('enforcementAgency', enforcementAgency),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      if (response.statusCode == 204) return [];
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    if (response.body.isEmpty) return [];
+    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+    return jsonList.map((json) => OffenseInformation.fromJson(json)).toList();
+  }
+
+  /// GET /api/offenses/search/fine-range?minAmount=&maxAmount=&page=&size=
+  Future<List<OffenseInformation>> apiOffensesSearchFineRangeGet({
+    required double minAmount,
+    required double maxAmount,
+    int page = 1,
+    int size = 20,
+  }) async {
+    const path = '/api/offenses/search/fine-range';
+    final headerParams = await _getHeaders();
+    final response = await apiClient.invokeAPI(
+      path,
+      'GET',
+      [
+        QueryParam('minAmount', '$minAmount'),
+        QueryParam('maxAmount', '$maxAmount'),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      if (response.statusCode == 204) return [];
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    if (response.body.isEmpty) return [];
+    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+    return jsonList.map((json) => OffenseInformation.fromJson(json)).toList();
+  }
   /// GET /api/offenses/by-license-plate - 搜索违法行为按车牌号 (用户及管理员)
   Future<List<OffenseInformation>> apiOffensesByLicensePlateGet({
     required String query,

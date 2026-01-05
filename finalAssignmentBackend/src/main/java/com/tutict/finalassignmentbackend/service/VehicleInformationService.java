@@ -218,6 +218,51 @@ public class VehicleInformationService {
         return vehicleInformationMapper.selectList(wrapper);
     }
 
+    @Cacheable(cacheNames = CACHE_NAME, key = "'ownerNameSearch:' + #ownerName + ':' + #page + ':' + #size")
+    public List<VehicleInformation> searchByOwnerName(String ownerName, int page, int size) {
+        validateInput(ownerName, "Invalid owner name");
+        validatePagination(page, size);
+        SearchHits<VehicleInformationDocument> hits = vehicleInformationSearchRepository
+                .searchByOwnerName(ownerName, pageable(page, size));
+        List<VehicleInformation> fromIndex = mapVehicleHits(hits);
+        if (!fromIndex.isEmpty()) {
+            return fromIndex;
+        }
+        QueryWrapper<VehicleInformation> wrapper = new QueryWrapper<>();
+        wrapper.likeRight("owner_name", ownerName);
+        return vehicleInformationMapper.selectList(wrapper);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'ownerIdCardSearch:' + #ownerIdCard + ':' + #page + ':' + #size")
+    public List<VehicleInformation> searchByOwnerIdCard(String ownerIdCard, int page, int size) {
+        validateInput(ownerIdCard, "Invalid owner id card");
+        validatePagination(page, size);
+        SearchHits<VehicleInformationDocument> hits = vehicleInformationSearchRepository
+                .searchByOwnerIdCard(ownerIdCard, pageable(page, size));
+        List<VehicleInformation> fromIndex = mapVehicleHits(hits);
+        if (!fromIndex.isEmpty()) {
+            return fromIndex;
+        }
+        QueryWrapper<VehicleInformation> wrapper = new QueryWrapper<>();
+        wrapper.likeRight("owner_id_card", ownerIdCard);
+        return vehicleInformationMapper.selectList(wrapper);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'statusSearch:' + #status + ':' + #page + ':' + #size")
+    public List<VehicleInformation> searchByStatus(String status, int page, int size) {
+        validateInput(status, "Invalid status");
+        validatePagination(page, size);
+        SearchHits<VehicleInformationDocument> hits = vehicleInformationSearchRepository
+                .searchByStatus(status, pageable(page, size));
+        List<VehicleInformation> fromIndex = mapVehicleHits(hits);
+        if (!fromIndex.isEmpty()) {
+            return fromIndex;
+        }
+        QueryWrapper<VehicleInformation> wrapper = new QueryWrapper<>();
+        wrapper.eq("status", status);
+        return vehicleInformationMapper.selectList(wrapper);
+    }
+
     @Cacheable(cacheNames = CACHE_NAME, key = "'search:' + #query + ':' + #page + ':' + #size")
     public List<VehicleInformation> searchVehicles(String query, int page, int size) {
         validatePagination(page, size);
@@ -305,6 +350,20 @@ public class VehicleInformationService {
                 .map(type -> URLDecoder.decode(type, StandardCharsets.UTF_8))
                 .distinct()
                 .collect(Collectors.toList());
+    }
+
+    private List<VehicleInformation> mapVehicleHits(SearchHits<VehicleInformationDocument> hits) {
+        if (hits == null || !hits.hasSearchHits()) {
+            return Collections.emptyList();
+        }
+        return hits.getSearchHits().stream()
+                .map(SearchHit::getContent)
+                .map(VehicleInformationDocument::toEntity)
+                .collect(Collectors.toList());
+    }
+
+    private Pageable pageable(int page, int size) {
+        return PageRequest.of(Math.max(page - 1, 0), Math.max(size, 1));
     }
 
     private void syncToIndexAfterCommit(VehicleInformation vehicleInformation) {

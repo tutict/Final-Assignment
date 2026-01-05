@@ -179,4 +179,49 @@ public interface VehicleInformationSearchRepository extends ElasticsearchReposit
     default SearchHits<VehicleInformationDocument> findCompletionSuggestionsGlobally(String prefix, int maxSuggestions) {
         return findCompletionSuggestionsGlobally(prefix, PageRequest.of(0, Math.max(1, maxSuggestions)));
     }
+
+    @Query("""
+    {
+      "match_phrase_prefix": {
+        "ownerName": {
+          "query": "?0"
+        }
+      }
+    }
+    """)
+    SearchHits<VehicleInformationDocument> searchByOwnerName(String ownerName, Pageable pageable);
+
+    default SearchHits<VehicleInformationDocument> searchByOwnerName(String ownerName) {
+        return searchByOwnerName(ownerName, PageRequest.of(0, DEFAULT_PAGE_SIZE));
+    }
+
+    @Query("""
+    {
+      "match_phrase_prefix": {
+        "ownerIdCard": {
+          "query": "?0"
+        }
+      }
+    }
+    """)
+    SearchHits<VehicleInformationDocument> searchByOwnerIdCard(String ownerIdCard, Pageable pageable);
+
+    default SearchHits<VehicleInformationDocument> searchByOwnerIdCard(String ownerIdCard) {
+        return searchByOwnerIdCard(ownerIdCard, PageRequest.of(0, DEFAULT_PAGE_SIZE));
+    }
+
+    @Query("""
+    {
+      "term": {
+        "status.keyword": {
+          "value": "?0"
+        }
+      }
+    }
+    """)
+    SearchHits<VehicleInformationDocument> searchByStatus(String status, Pageable pageable);
+
+    default SearchHits<VehicleInformationDocument> searchByStatus(String status) {
+        return searchByStatus(status, PageRequest.of(0, DEFAULT_PAGE_SIZE));
+    }
 }

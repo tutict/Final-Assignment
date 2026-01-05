@@ -375,6 +375,195 @@ class RoleManagementControllerApi {
     return RoleManagement.fromJson(data);
   }
 
+  // HTTP: GET /api/roles/search/code/prefix?roleCode=&page=&size=
+  Future<List<RoleManagement>> apiRolesSearchCodePrefixGet({
+    required String roleCode,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/roles/search/code/prefix',
+      'GET',
+      [
+        QueryParam('roleCode', roleCode),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    final List<dynamic> data = apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    return RoleManagement.listFromJson(data);
+  }
+
+  // HTTP: GET /api/roles/search/code/fuzzy?roleCode=&page=&size=
+  Future<List<RoleManagement>> apiRolesSearchCodeFuzzyGet({
+    required String roleCode,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/roles/search/code/fuzzy',
+      'GET',
+      [
+        QueryParam('roleCode', roleCode),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    final List<dynamic> data = apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    return RoleManagement.listFromJson(data);
+  }
+
+  // HTTP: GET /api/roles/search/name/prefix?roleName=&page=&size=
+  Future<List<RoleManagement>> apiRolesSearchNamePrefixGet({
+    required String roleName,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/roles/search/name/prefix',
+      'GET',
+      [
+        QueryParam('roleName', roleName),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    final List<dynamic> data = apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    return RoleManagement.listFromJson(data);
+  }
+
+  // HTTP: GET /api/roles/search/name/fuzzy?roleName=&page=&size=
+  Future<List<RoleManagement>> apiRolesSearchNameFuzzyGet({
+    required String roleName,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/roles/search/name/fuzzy',
+      'GET',
+      [
+        QueryParam('roleName', roleName),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    final List<dynamic> data = apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    return RoleManagement.listFromJson(data);
+  }
+
+  // HTTP: GET /api/roles/search/type?roleType=&page=&size=
+  Future<List<RoleManagement>> apiRolesSearchTypeGet({
+    required String roleType,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/roles/search/type',
+      'GET',
+      [
+        QueryParam('roleType', roleType),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    final List<dynamic> data = apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    return RoleManagement.listFromJson(data);
+  }
+
+  // HTTP: GET /api/roles/search/data-scope?dataScope=&page=&size=
+  Future<List<RoleManagement>> apiRolesSearchDataScopeGet({
+    required String dataScope,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/roles/search/data-scope',
+      'GET',
+      [
+        QueryParam('dataScope', dataScope),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    final List<dynamic> data = apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    return RoleManagement.listFromJson(data);
+  }
+
+  // HTTP: GET /api/roles/search/status?status=&page=&size=
+  Future<List<RoleManagement>> apiRolesSearchStatusGet({
+    required String status,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/roles/search/status',
+      'GET',
+      [
+        QueryParam('status', status),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    final List<dynamic> data = apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    return RoleManagement.listFromJson(data);
+  }
+
   // HTTP: GET /api/roles/{roleId}/permissions - 查询角色拥有的权限
   Future<List<dynamic>> apiRolesRoleIdPermissionsGet({
     required int roleId,
@@ -385,6 +574,34 @@ class RoleManagementControllerApi {
       '/api/roles/$roleId/permissions',
       'GET',
       [
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    return apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+  }
+
+  // HTTP: GET /api/roles/permissions/search?roleId=&permissionId=&page=&size=
+  Future<List<dynamic>> apiRolesPermissionsSearchGet({
+    required int roleId,
+    required int permissionId,
+    int page = 1,
+    int size = 50,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/roles/permissions/search',
+      'GET',
+      [
+        QueryParam('roleId', '$roleId'),
+        QueryParam('permissionId', '$permissionId'),
         QueryParam('page', '$page'),
         QueryParam('size', '$size'),
       ],

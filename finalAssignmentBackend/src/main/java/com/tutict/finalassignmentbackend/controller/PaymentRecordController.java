@@ -149,6 +149,47 @@ public class PaymentRecordController {
         return ResponseEntity.ok(paymentRecordService.searchByTransactionId(transactionId, page, size));
     }
 
+    @GetMapping("/search/payment-number")
+    @Operation(summary = "Search payment records by payment number")
+    public ResponseEntity<List<PaymentRecord>> searchByPaymentNumber(@RequestParam String paymentNumber,
+                                                                     @RequestParam(defaultValue = "1") int page,
+                                                                     @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(paymentRecordService.searchByPaymentNumber(paymentNumber, page, size));
+    }
+
+    @GetMapping("/search/payer-name")
+    @Operation(summary = "Search payment records by payer name")
+    public ResponseEntity<List<PaymentRecord>> searchByPayerName(@RequestParam String payerName,
+                                                                 @RequestParam(defaultValue = "1") int page,
+                                                                 @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(paymentRecordService.searchByPayerName(payerName, page, size));
+    }
+
+    @GetMapping("/search/payment-method")
+    @Operation(summary = "Search payment records by payment method")
+    public ResponseEntity<List<PaymentRecord>> searchByPaymentMethod(@RequestParam String paymentMethod,
+                                                                     @RequestParam(defaultValue = "1") int page,
+                                                                     @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(paymentRecordService.searchByPaymentMethod(paymentMethod, page, size));
+    }
+
+    @GetMapping("/search/payment-channel")
+    @Operation(summary = "Search payment records by payment channel")
+    public ResponseEntity<List<PaymentRecord>> searchByPaymentChannel(@RequestParam String paymentChannel,
+                                                                      @RequestParam(defaultValue = "1") int page,
+                                                                      @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(paymentRecordService.searchByPaymentChannel(paymentChannel, page, size));
+    }
+
+    @GetMapping("/search/time-range")
+    @Operation(summary = "Search payment records by payment time range")
+    public ResponseEntity<List<PaymentRecord>> searchByTimeRange(@RequestParam String startTime,
+                                                                 @RequestParam String endTime,
+                                                                 @RequestParam(defaultValue = "1") int page,
+                                                                 @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(paymentRecordService.searchByPaymentTimeRange(startTime, endTime, page, size));
+    }
+
     @PutMapping("/{paymentId}/status/{state}")
     @Operation(summary = "更新支付记录状态")
     public ResponseEntity<PaymentRecord> updatePaymentStatus(@PathVariable Long paymentId,
@@ -172,4 +213,3 @@ public class PaymentRecordController {
                 : HttpStatus.INTERNAL_SERVER_ERROR;
     }
 }
-

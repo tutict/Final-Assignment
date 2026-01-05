@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -123,6 +124,80 @@ public class OffenseTypeController {
             LOG.log(Level.WARNING, "List offense types failed", ex);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
+    }
+
+    @GetMapping("/search/code/prefix")
+    @Operation(summary = "Search offense types by code prefix")
+    public ResponseEntity<List<OffenseTypeDict>> searchByCodePrefix(@RequestParam String offenseCode,
+                                                                     @RequestParam(defaultValue = "1") int page,
+                                                                     @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(offenseTypeDictService.searchByOffenseCodePrefix(offenseCode, page, size));
+    }
+
+    @GetMapping("/search/code/fuzzy")
+    @Operation(summary = "Search offense types by code fuzzy")
+    public ResponseEntity<List<OffenseTypeDict>> searchByCodeFuzzy(@RequestParam String offenseCode,
+                                                                    @RequestParam(defaultValue = "1") int page,
+                                                                    @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(offenseTypeDictService.searchByOffenseCodeFuzzy(offenseCode, page, size));
+    }
+
+    @GetMapping("/search/name/prefix")
+    @Operation(summary = "Search offense types by name prefix")
+    public ResponseEntity<List<OffenseTypeDict>> searchByNamePrefix(@RequestParam String offenseName,
+                                                                     @RequestParam(defaultValue = "1") int page,
+                                                                     @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(offenseTypeDictService.searchByOffenseNamePrefix(offenseName, page, size));
+    }
+
+    @GetMapping("/search/name/fuzzy")
+    @Operation(summary = "Search offense types by name fuzzy")
+    public ResponseEntity<List<OffenseTypeDict>> searchByNameFuzzy(@RequestParam String offenseName,
+                                                                    @RequestParam(defaultValue = "1") int page,
+                                                                    @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(offenseTypeDictService.searchByOffenseNameFuzzy(offenseName, page, size));
+    }
+
+    @GetMapping("/search/category")
+    @Operation(summary = "Search offense types by category")
+    public ResponseEntity<List<OffenseTypeDict>> searchByCategory(@RequestParam String category,
+                                                                   @RequestParam(defaultValue = "1") int page,
+                                                                   @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(offenseTypeDictService.searchByCategory(category, page, size));
+    }
+
+    @GetMapping("/search/severity")
+    @Operation(summary = "Search offense types by severity level")
+    public ResponseEntity<List<OffenseTypeDict>> searchBySeverity(@RequestParam String severityLevel,
+                                                                   @RequestParam(defaultValue = "1") int page,
+                                                                   @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(offenseTypeDictService.searchBySeverityLevel(severityLevel, page, size));
+    }
+
+    @GetMapping("/search/status")
+    @Operation(summary = "Search offense types by status")
+    public ResponseEntity<List<OffenseTypeDict>> searchByStatus(@RequestParam String status,
+                                                                 @RequestParam(defaultValue = "1") int page,
+                                                                 @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(offenseTypeDictService.searchByStatus(status, page, size));
+    }
+
+    @GetMapping("/search/fine-range")
+    @Operation(summary = "Search offense types by standard fine amount range")
+    public ResponseEntity<List<OffenseTypeDict>> searchByFineRange(@RequestParam double minAmount,
+                                                                    @RequestParam double maxAmount,
+                                                                    @RequestParam(defaultValue = "1") int page,
+                                                                    @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(offenseTypeDictService.searchByStandardFineAmountRange(minAmount, maxAmount, page, size));
+    }
+
+    @GetMapping("/search/points-range")
+    @Operation(summary = "Search offense types by deducted points range")
+    public ResponseEntity<List<OffenseTypeDict>> searchByPointsRange(@RequestParam int minPoints,
+                                                                      @RequestParam int maxPoints,
+                                                                      @RequestParam(defaultValue = "1") int page,
+                                                                      @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(offenseTypeDictService.searchByDeductedPointsRange(minPoints, maxPoints, page, size));
     }
 
     private boolean hasKey(String value) {

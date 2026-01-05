@@ -221,6 +221,192 @@ class UserManagementControllerApi {
     }
   }
 
+  // --- GET /api/users/search/username/prefix?username=&page=&size= ---
+  Future<List<UserManagement>> apiUsersSearchUsernamePrefixGet({
+    required String username,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/users/search/username/prefix',
+      'GET',
+      [
+        QueryParam('username', username),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      await _getHeaders(),
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      final errorMessage = response.body.isNotEmpty
+          ? _decodeBodyBytes(response)
+          : 'Unknown error';
+      throw ApiException(response.statusCode, errorMessage);
+    }
+    if (response.body.isEmpty) return [];
+    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+    return jsonList.map((json) => UserManagement.fromJson(json)).toList();
+  }
+
+  // --- GET /api/users/search/username/fuzzy?username=&page=&size= ---
+  Future<List<UserManagement>> apiUsersSearchUsernameFuzzyGet({
+    required String username,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/users/search/username/fuzzy',
+      'GET',
+      [
+        QueryParam('username', username),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      await _getHeaders(),
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      final errorMessage = response.body.isNotEmpty
+          ? _decodeBodyBytes(response)
+          : 'Unknown error';
+      throw ApiException(response.statusCode, errorMessage);
+    }
+    if (response.body.isEmpty) return [];
+    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+    return jsonList.map((json) => UserManagement.fromJson(json)).toList();
+  }
+
+  // --- GET /api/users/search/real-name/prefix?realName=&page=&size= ---
+  Future<List<UserManagement>> apiUsersSearchRealNamePrefixGet({
+    required String realName,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/users/search/real-name/prefix',
+      'GET',
+      [
+        QueryParam('realName', realName),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      await _getHeaders(),
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      final errorMessage = response.body.isNotEmpty
+          ? _decodeBodyBytes(response)
+          : 'Unknown error';
+      throw ApiException(response.statusCode, errorMessage);
+    }
+    if (response.body.isEmpty) return [];
+    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+    return jsonList.map((json) => UserManagement.fromJson(json)).toList();
+  }
+
+  // --- GET /api/users/search/real-name/fuzzy?realName=&page=&size= ---
+  Future<List<UserManagement>> apiUsersSearchRealNameFuzzyGet({
+    required String realName,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/users/search/real-name/fuzzy',
+      'GET',
+      [
+        QueryParam('realName', realName),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      await _getHeaders(),
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      final errorMessage = response.body.isNotEmpty
+          ? _decodeBodyBytes(response)
+          : 'Unknown error';
+      throw ApiException(response.statusCode, errorMessage);
+    }
+    if (response.body.isEmpty) return [];
+    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+    return jsonList.map((json) => UserManagement.fromJson(json)).toList();
+  }
+
+  // --- GET /api/users/search/id-card?idCardNumber=&page=&size= ---
+  Future<List<UserManagement>> apiUsersSearchIdCardGet({
+    required String idCardNumber,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/users/search/id-card',
+      'GET',
+      [
+        QueryParam('idCardNumber', idCardNumber),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      await _getHeaders(),
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      final errorMessage = response.body.isNotEmpty
+          ? _decodeBodyBytes(response)
+          : 'Unknown error';
+      throw ApiException(response.statusCode, errorMessage);
+    }
+    if (response.body.isEmpty) return [];
+    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+    return jsonList.map((json) => UserManagement.fromJson(json)).toList();
+  }
+
+  // --- GET /api/users/search/contact?contactNumber=&page=&size= ---
+  Future<List<UserManagement>> apiUsersSearchContactGet({
+    required String contactNumber,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/users/search/contact',
+      'GET',
+      [
+        QueryParam('contactNumber', contactNumber),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      await _getHeaders(),
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      final errorMessage = response.body.isNotEmpty
+          ? _decodeBodyBytes(response)
+          : 'Unknown error';
+      throw ApiException(response.statusCode, errorMessage);
+    }
+    if (response.body.isEmpty) return [];
+    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+    return jsonList.map((json) => UserManagement.fromJson(json)).toList();
+  }
+
   // --- POST /api/users/{userId}/roles --- bind user role
   Future<http.Response> apiUsersUserIdRolesPostWithHttpInfo({
     required int userId,
@@ -421,6 +607,134 @@ class UserManagementControllerApi {
       [QueryParam("page", "$page"), QueryParam("size", "$size")],
       null,
       headerParams,
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      final errorMessage = response.body.isNotEmpty
+          ? _decodeBodyBytes(response)
+          : 'Unknown error';
+      throw ApiException(response.statusCode, errorMessage);
+    }
+    if (response.body.isEmpty) return [];
+    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+    return jsonList.cast<Map<String, dynamic>>();
+  }
+
+  // --- GET /api/users/search/department/prefix?department=&page=&size= ---
+  Future<List<UserManagement>> apiUsersSearchDepartmentPrefixGet({
+    required String department,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/users/search/department/prefix',
+      'GET',
+      [
+        QueryParam('department', department),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      await _getHeaders(),
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      final errorMessage = response.body.isNotEmpty
+          ? _decodeBodyBytes(response)
+          : 'Unknown error';
+      throw ApiException(response.statusCode, errorMessage);
+    }
+    if (response.body.isEmpty) return [];
+    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+    return jsonList.map((json) => UserManagement.fromJson(json)).toList();
+  }
+
+  // --- GET /api/users/search/employee-number?employeeNumber=&page=&size= ---
+  Future<List<UserManagement>> apiUsersSearchEmployeeNumberGet({
+    required String employeeNumber,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/users/search/employee-number',
+      'GET',
+      [
+        QueryParam('employeeNumber', employeeNumber),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      await _getHeaders(),
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      final errorMessage = response.body.isNotEmpty
+          ? _decodeBodyBytes(response)
+          : 'Unknown error';
+      throw ApiException(response.statusCode, errorMessage);
+    }
+    if (response.body.isEmpty) return [];
+    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+    return jsonList.map((json) => UserManagement.fromJson(json)).toList();
+  }
+
+  // --- GET /api/users/search/last-login-range?startTime=&endTime=&page=&size= ---
+  Future<List<UserManagement>> apiUsersSearchLastLoginRangeGet({
+    required String startTime,
+    required String endTime,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/users/search/last-login-range',
+      'GET',
+      [
+        QueryParam('startTime', startTime),
+        QueryParam('endTime', endTime),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      await _getHeaders(),
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      final errorMessage = response.body.isNotEmpty
+          ? _decodeBodyBytes(response)
+          : 'Unknown error';
+      throw ApiException(response.statusCode, errorMessage);
+    }
+    if (response.body.isEmpty) return [];
+    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
+    return jsonList.map((json) => UserManagement.fromJson(json)).toList();
+  }
+
+  // --- GET /api/users/role-bindings/search?userId=&roleId=&page=&size= ---
+  Future<List<Map<String, dynamic>>> apiUsersRoleBindingsSearchGet({
+    required int userId,
+    required int roleId,
+    int page = 1,
+    int size = 20,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/users/role-bindings/search',
+      'GET',
+      [
+        QueryParam('userId', '$userId'),
+        QueryParam('roleId', '$roleId'),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      null,
+      await _getHeaders(),
       {},
       null,
       ['bearerAuth'],

@@ -73,4 +73,80 @@ public interface PaymentRecordSearchRepository extends ElasticsearchRepository<P
     default SearchHits<PaymentRecordDocument> searchByTransactionId(String transactionId) {
         return searchByTransactionId(transactionId, PageRequest.of(0, DEFAULT_PAGE_SIZE));
     }
+
+    @Query("""
+    {
+      "match_phrase_prefix": {
+        "paymentNumber": {
+          "query": "?0"
+        }
+      }
+    }
+    """)
+    SearchHits<PaymentRecordDocument> searchByPaymentNumber(String paymentNumber, Pageable pageable);
+
+    default SearchHits<PaymentRecordDocument> searchByPaymentNumber(String paymentNumber) {
+        return searchByPaymentNumber(paymentNumber, PageRequest.of(0, DEFAULT_PAGE_SIZE));
+    }
+
+    @Query("""
+    {
+      "match_phrase_prefix": {
+        "payerName": {
+          "query": "?0"
+        }
+      }
+    }
+    """)
+    SearchHits<PaymentRecordDocument> searchByPayerName(String payerName, Pageable pageable);
+
+    default SearchHits<PaymentRecordDocument> searchByPayerName(String payerName) {
+        return searchByPayerName(payerName, PageRequest.of(0, DEFAULT_PAGE_SIZE));
+    }
+
+    @Query("""
+    {
+      "term": {
+        "paymentMethod.keyword": {
+          "value": "?0"
+        }
+      }
+    }
+    """)
+    SearchHits<PaymentRecordDocument> searchByPaymentMethod(String paymentMethod, Pageable pageable);
+
+    default SearchHits<PaymentRecordDocument> searchByPaymentMethod(String paymentMethod) {
+        return searchByPaymentMethod(paymentMethod, PageRequest.of(0, DEFAULT_PAGE_SIZE));
+    }
+
+    @Query("""
+    {
+      "term": {
+        "paymentChannel.keyword": {
+          "value": "?0"
+        }
+      }
+    }
+    """)
+    SearchHits<PaymentRecordDocument> searchByPaymentChannel(String paymentChannel, Pageable pageable);
+
+    default SearchHits<PaymentRecordDocument> searchByPaymentChannel(String paymentChannel) {
+        return searchByPaymentChannel(paymentChannel, PageRequest.of(0, DEFAULT_PAGE_SIZE));
+    }
+
+    @Query("""
+    {
+      "range": {
+        "paymentTime": {
+          "gte": "?0",
+          "lte": "?1"
+        }
+      }
+    }
+    """)
+    SearchHits<PaymentRecordDocument> searchByPaymentTimeRange(String startTime, String endTime, Pageable pageable);
+
+    default SearchHits<PaymentRecordDocument> searchByPaymentTimeRange(String startTime, String endTime) {
+        return searchByPaymentTimeRange(startTime, endTime, PageRequest.of(0, DEFAULT_PAGE_SIZE));
+    }
 }

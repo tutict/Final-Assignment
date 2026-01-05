@@ -255,6 +255,102 @@ public class OffenseRecordService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
+    @Cacheable(cacheNames = CACHE_NAME, key = "'location:' + #offenseLocation + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<OffenseRecord> searchByOffenseLocation(String offenseLocation, int page, int size) {
+        if (isBlank(offenseLocation)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<OffenseRecord> index = mapHits(offenseInformationSearchRepository.searchByOffenseLocation(offenseLocation, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<OffenseRecord> wrapper = new QueryWrapper<>();
+        wrapper.like("offense_location", offenseLocation)
+                .orderByDesc("offense_time");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'province:' + #offenseProvince + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<OffenseRecord> searchByOffenseProvince(String offenseProvince, int page, int size) {
+        if (isBlank(offenseProvince)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<OffenseRecord> index = mapHits(offenseInformationSearchRepository.searchByOffenseProvince(offenseProvince, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<OffenseRecord> wrapper = new QueryWrapper<>();
+        wrapper.eq("offense_province", offenseProvince)
+                .orderByDesc("offense_time");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'city:' + #offenseCity + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<OffenseRecord> searchByOffenseCity(String offenseCity, int page, int size) {
+        if (isBlank(offenseCity)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<OffenseRecord> index = mapHits(offenseInformationSearchRepository.searchByOffenseCity(offenseCity, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<OffenseRecord> wrapper = new QueryWrapper<>();
+        wrapper.eq("offense_city", offenseCity)
+                .orderByDesc("offense_time");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'notification:' + #notificationStatus + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<OffenseRecord> searchByNotificationStatus(String notificationStatus, int page, int size) {
+        if (isBlank(notificationStatus)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<OffenseRecord> index = mapHits(offenseInformationSearchRepository.searchByNotificationStatus(notificationStatus, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<OffenseRecord> wrapper = new QueryWrapper<>();
+        wrapper.eq("notification_status", notificationStatus)
+                .orderByDesc("offense_time");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'agency:' + #enforcementAgency + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<OffenseRecord> searchByEnforcementAgency(String enforcementAgency, int page, int size) {
+        if (isBlank(enforcementAgency)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<OffenseRecord> index = mapHits(offenseInformationSearchRepository.searchByEnforcementAgency(enforcementAgency, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<OffenseRecord> wrapper = new QueryWrapper<>();
+        wrapper.like("enforcement_agency", enforcementAgency)
+                .orderByDesc("offense_time");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'fineRange:' + #minAmount + ':' + #maxAmount + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<OffenseRecord> searchByFineAmountRange(double minAmount, double maxAmount, int page, int size) {
+        validatePagination(page, size);
+        if (minAmount > maxAmount) {
+            return List.of();
+        }
+        List<OffenseRecord> index = mapHits(offenseInformationSearchRepository.searchByFineAmountRange(minAmount, maxAmount, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<OffenseRecord> wrapper = new QueryWrapper<>();
+        wrapper.between("fine_amount", minAmount, maxAmount)
+                .orderByDesc("offense_time");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
     public boolean shouldSkipProcessing(String idempotencyKey) {
         SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
         return history != null

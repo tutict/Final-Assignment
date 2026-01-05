@@ -179,6 +179,58 @@ public class OperationLogController {
         }
     }
 
+    @GetMapping("/search/username")
+    @Operation(summary = "Search operation logs by username")
+    public ResponseEntity<List<AuditOperationLog>> searchByUsername(@RequestParam String username,
+                                                                    @RequestParam(defaultValue = "1") int page,
+                                                                    @RequestParam(defaultValue = "20") int size) {
+        try {
+            return ResponseEntity.ok(auditOperationLogService.searchByUsername(username, page, size));
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Search operation log by username failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @GetMapping("/search/request-url")
+    @Operation(summary = "Search operation logs by request URL")
+    public ResponseEntity<List<AuditOperationLog>> searchByRequestUrl(@RequestParam String requestUrl,
+                                                                      @RequestParam(defaultValue = "1") int page,
+                                                                      @RequestParam(defaultValue = "20") int size) {
+        try {
+            return ResponseEntity.ok(auditOperationLogService.searchByRequestUrl(requestUrl, page, size));
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Search operation log by request URL failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @GetMapping("/search/request-method")
+    @Operation(summary = "Search operation logs by request method")
+    public ResponseEntity<List<AuditOperationLog>> searchByRequestMethod(@RequestParam String requestMethod,
+                                                                         @RequestParam(defaultValue = "1") int page,
+                                                                         @RequestParam(defaultValue = "20") int size) {
+        try {
+            return ResponseEntity.ok(auditOperationLogService.searchByRequestMethod(requestMethod, page, size));
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Search operation log by request method failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @GetMapping("/search/result")
+    @Operation(summary = "Search operation logs by operation result")
+    public ResponseEntity<List<AuditOperationLog>> searchByResult(@RequestParam String operationResult,
+                                                                  @RequestParam(defaultValue = "1") int page,
+                                                                  @RequestParam(defaultValue = "20") int size) {
+        try {
+            return ResponseEntity.ok(auditOperationLogService.searchByOperationResult(operationResult, page, size));
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Search operation log by result failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
+        }
+    }
+
     private boolean hasKey(String value) {
         return value != null && !value.isBlank();
     }

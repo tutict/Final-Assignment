@@ -136,6 +136,10 @@ public class SysRolePermissionService {
     public List<SysRolePermission> findByRoleId(Integer roleId, int page, int size) {
         requirePositive(roleId, "Role ID");
         validatePagination(page, size);
+        List<SysRolePermission> index = mapHits(sysRolePermissionSearchRepository.findByRoleId(roleId, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
         QueryWrapper<SysRolePermission> wrapper = new QueryWrapper<>();
         wrapper.eq("role_id", roleId);
         return fetchFromDatabase(wrapper, page, size);
@@ -146,8 +150,29 @@ public class SysRolePermissionService {
     public List<SysRolePermission> findByPermissionId(Integer permissionId, int page, int size) {
         requirePositive(permissionId, "Permission ID");
         validatePagination(page, size);
+        List<SysRolePermission> index = mapHits(sysRolePermissionSearchRepository.findByPermissionId(permissionId, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
         QueryWrapper<SysRolePermission> wrapper = new QueryWrapper<>();
         wrapper.eq("permission_id", permissionId);
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Transactional(readOnly = true)
+    @Cacheable(cacheNames = CACHE_NAME, key = "'rolePermission:' + #roleId + ':' + #permissionId + ':' + #page + ':' + #size",
+            unless = "#result == null || #result.isEmpty()")
+    public List<SysRolePermission> findByRoleIdAndPermissionId(Integer roleId, Integer permissionId, int page, int size) {
+        requirePositive(roleId, "Role ID");
+        requirePositive(permissionId, "Permission ID");
+        validatePagination(page, size);
+        List<SysRolePermission> index = mapHits(sysRolePermissionSearchRepository.findByRoleIdAndPermissionId(roleId, permissionId, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<SysRolePermission> wrapper = new QueryWrapper<>();
+        wrapper.eq("role_id", roleId)
+                .eq("permission_id", permissionId);
         return fetchFromDatabase(wrapper, page, size);
     }
 
@@ -244,6 +269,20 @@ public class SysRolePermissionService {
         List<SysRolePermission> records = mpPage.getRecords();
         syncBatchToIndexAfterCommit(records);
         return records;
+    }
+
+    private List<SysRolePermission> mapHits(org.springframework.data.elasticsearch.core.SearchHits<SysRolePermissionDocument> hits) {
+        if (hits == null || !hits.hasSearchHits()) {
+            return List.of();
+        }
+        return hits.getSearchHits().stream()
+                .map(org.springframework.data.elasticsearch.core.SearchHit::getContent)
+                .map(SysRolePermissionDocument::toEntity)
+                .collect(Collectors.toList());
+    }
+
+    private org.springframework.data.domain.Pageable pageable(int page, int size) {
+        return org.springframework.data.domain.PageRequest.of(Math.max(page - 1, 0), Math.max(size, 1));
     }
 
     private void validateRelation(SysRolePermission relation) {

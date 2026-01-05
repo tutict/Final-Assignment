@@ -21,6 +21,7 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Objects;
 import java.util.logging.Level;
@@ -225,6 +226,88 @@ public class PaymentRecordService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
+    @Cacheable(cacheNames = CACHE_NAME, key = "'number:' + #paymentNumber + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<PaymentRecord> searchByPaymentNumber(String paymentNumber, int page, int size) {
+        if (isBlank(paymentNumber)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<PaymentRecord> index = mapHits(paymentRecordSearchRepository.searchByPaymentNumber(paymentNumber, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<PaymentRecord> wrapper = new QueryWrapper<>();
+        wrapper.likeRight("payment_number", paymentNumber)
+                .orderByDesc("payment_time");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'payerName:' + #payerName + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<PaymentRecord> searchByPayerName(String payerName, int page, int size) {
+        if (isBlank(payerName)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<PaymentRecord> index = mapHits(paymentRecordSearchRepository.searchByPayerName(payerName, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<PaymentRecord> wrapper = new QueryWrapper<>();
+        wrapper.likeRight("payer_name", payerName)
+                .orderByDesc("payment_time");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'method:' + #paymentMethod + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<PaymentRecord> searchByPaymentMethod(String paymentMethod, int page, int size) {
+        if (isBlank(paymentMethod)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<PaymentRecord> index = mapHits(paymentRecordSearchRepository.searchByPaymentMethod(paymentMethod, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<PaymentRecord> wrapper = new QueryWrapper<>();
+        wrapper.eq("payment_method", paymentMethod)
+                .orderByDesc("payment_time");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'channel:' + #paymentChannel + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<PaymentRecord> searchByPaymentChannel(String paymentChannel, int page, int size) {
+        if (isBlank(paymentChannel)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<PaymentRecord> index = mapHits(paymentRecordSearchRepository.searchByPaymentChannel(paymentChannel, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<PaymentRecord> wrapper = new QueryWrapper<>();
+        wrapper.eq("payment_channel", paymentChannel)
+                .orderByDesc("payment_time");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'timeRange:' + #startTime + ':' + #endTime + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<PaymentRecord> searchByPaymentTimeRange(String startTime, String endTime, int page, int size) {
+        validatePagination(page, size);
+        LocalDateTime start = parseDateTime(startTime, "startTime");
+        LocalDateTime end = parseDateTime(endTime, "endTime");
+        if (start == null || end == null) {
+            return List.of();
+        }
+        List<PaymentRecord> index = mapHits(paymentRecordSearchRepository.searchByPaymentTimeRange(startTime, endTime, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<PaymentRecord> wrapper = new QueryWrapper<>();
+        wrapper.between("payment_time", start, end)
+                .orderByDesc("payment_time");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
     public boolean shouldSkipProcessing(String idempotencyKey) {
         SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
         return history != null
@@ -313,6 +396,18 @@ public class PaymentRecordService {
     private void requirePositive(Number number, String fieldName) {
         if (number == null || number.longValue() <= 0) {
             throw new IllegalArgumentException(fieldName + " must be greater than zero");
+        }
+    }
+
+    private LocalDateTime parseDateTime(String value, String fieldName) {
+        if (isBlank(value)) {
+            return null;
+        }
+        try {
+            return LocalDateTime.parse(value);
+        } catch (DateTimeParseException ex) {
+            log.log(Level.WARNING, "Failed to parse " + fieldName + ": " + value, ex);
+            return null;
         }
     }
 

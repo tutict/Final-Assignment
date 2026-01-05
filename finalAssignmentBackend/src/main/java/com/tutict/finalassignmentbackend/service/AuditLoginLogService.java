@@ -215,6 +215,72 @@ public class AuditLoginLogService {
         return fetchFromDatabase(wrapper, page, size);
     }
 
+    @Cacheable(cacheNames = CACHE_NAME, key = "'location:' + #loginLocation + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<AuditLoginLog> searchByLoginLocation(String loginLocation, int page, int size) {
+        if (isBlank(loginLocation)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<AuditLoginLog> index = mapHits(auditLoginLogSearchRepository.searchByLoginLocation(loginLocation, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<AuditLoginLog> wrapper = new QueryWrapper<>();
+        wrapper.like("login_location", loginLocation)
+                .orderByDesc("login_time");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'device:' + #deviceType + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<AuditLoginLog> searchByDeviceType(String deviceType, int page, int size) {
+        if (isBlank(deviceType)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<AuditLoginLog> index = mapHits(auditLoginLogSearchRepository.searchByDeviceType(deviceType, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<AuditLoginLog> wrapper = new QueryWrapper<>();
+        wrapper.like("device_type", deviceType)
+                .orderByDesc("login_time");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'browser:' + #browserType + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<AuditLoginLog> searchByBrowserType(String browserType, int page, int size) {
+        if (isBlank(browserType)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<AuditLoginLog> index = mapHits(auditLoginLogSearchRepository.searchByBrowserType(browserType, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<AuditLoginLog> wrapper = new QueryWrapper<>();
+        wrapper.like("browser_type", browserType)
+                .orderByDesc("login_time");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'logoutRange:' + #startTime + ':' + #endTime + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<AuditLoginLog> searchByLogoutTimeRange(String startTime, String endTime, int page, int size) {
+        validatePagination(page, size);
+        LocalDateTime start = parseDateTime(startTime, "startTime");
+        LocalDateTime end = parseDateTime(endTime, "endTime");
+        if (start == null || end == null) {
+            return List.of();
+        }
+        List<AuditLoginLog> index = mapHits(auditLoginLogSearchRepository.searchByLogoutTimeRange(startTime, endTime, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<AuditLoginLog> wrapper = new QueryWrapper<>();
+        wrapper.between("logout_time", start, end)
+                .orderByDesc("logout_time");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
     public boolean shouldSkipProcessing(String idempotencyKey) {
         SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
         return history != null

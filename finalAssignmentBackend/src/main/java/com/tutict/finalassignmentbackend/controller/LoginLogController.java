@@ -179,6 +179,59 @@ public class LoginLogController {
         }
     }
 
+    @GetMapping("/search/location")
+    @Operation(summary = "Search login logs by location")
+    public ResponseEntity<List<AuditLoginLog>> searchByLocation(@RequestParam String loginLocation,
+                                                                @RequestParam(defaultValue = "1") int page,
+                                                                @RequestParam(defaultValue = "20") int size) {
+        try {
+            return ResponseEntity.ok(auditLoginLogService.searchByLoginLocation(loginLocation, page, size));
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Search login log by location failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @GetMapping("/search/device-type")
+    @Operation(summary = "Search login logs by device type")
+    public ResponseEntity<List<AuditLoginLog>> searchByDeviceType(@RequestParam String deviceType,
+                                                                  @RequestParam(defaultValue = "1") int page,
+                                                                  @RequestParam(defaultValue = "20") int size) {
+        try {
+            return ResponseEntity.ok(auditLoginLogService.searchByDeviceType(deviceType, page, size));
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Search login log by device type failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @GetMapping("/search/browser-type")
+    @Operation(summary = "Search login logs by browser type")
+    public ResponseEntity<List<AuditLoginLog>> searchByBrowserType(@RequestParam String browserType,
+                                                                   @RequestParam(defaultValue = "1") int page,
+                                                                   @RequestParam(defaultValue = "20") int size) {
+        try {
+            return ResponseEntity.ok(auditLoginLogService.searchByBrowserType(browserType, page, size));
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Search login log by browser type failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @GetMapping("/search/logout-time-range")
+    @Operation(summary = "Search login logs by logout time range")
+    public ResponseEntity<List<AuditLoginLog>> searchByLogoutTimeRange(@RequestParam String startTime,
+                                                                       @RequestParam String endTime,
+                                                                       @RequestParam(defaultValue = "1") int page,
+                                                                       @RequestParam(defaultValue = "20") int size) {
+        try {
+            return ResponseEntity.ok(auditLoginLogService.searchByLogoutTimeRange(startTime, endTime, page, size));
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Search login log by logout time range failed", ex);
+            return ResponseEntity.status(resolveStatus(ex)).build();
+        }
+    }
+
     private boolean hasKey(String value) {
         return value != null && !value.isBlank();
     }

@@ -1,5 +1,7 @@
 package com.tutict.finalassignmentbackend.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.OffenseTypeDict;
@@ -142,6 +144,141 @@ public class OffenseTypeDictService {
         return fromDb;
     }
 
+    @Cacheable(cacheNames = CACHE_NAME, key = "'codePrefix:' + #offenseCode + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<OffenseTypeDict> searchByOffenseCodePrefix(String offenseCode, int page, int size) {
+        if (isBlank(offenseCode)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<OffenseTypeDict> index = mapHits(offenseTypeDictSearchRepository.searchByOffenseCodePrefix(offenseCode, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<OffenseTypeDict> wrapper = new QueryWrapper<>();
+        wrapper.likeRight("offense_code", offenseCode);
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'codeFuzzy:' + #offenseCode + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<OffenseTypeDict> searchByOffenseCodeFuzzy(String offenseCode, int page, int size) {
+        if (isBlank(offenseCode)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<OffenseTypeDict> index = mapHits(offenseTypeDictSearchRepository.searchByOffenseCodeFuzzy(offenseCode, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<OffenseTypeDict> wrapper = new QueryWrapper<>();
+        wrapper.like("offense_code", offenseCode);
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'namePrefix:' + #offenseName + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<OffenseTypeDict> searchByOffenseNamePrefix(String offenseName, int page, int size) {
+        if (isBlank(offenseName)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<OffenseTypeDict> index = mapHits(offenseTypeDictSearchRepository.searchByOffenseNamePrefix(offenseName, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<OffenseTypeDict> wrapper = new QueryWrapper<>();
+        wrapper.likeRight("offense_name", offenseName);
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'nameFuzzy:' + #offenseName + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<OffenseTypeDict> searchByOffenseNameFuzzy(String offenseName, int page, int size) {
+        if (isBlank(offenseName)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<OffenseTypeDict> index = mapHits(offenseTypeDictSearchRepository.searchByOffenseNameFuzzy(offenseName, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<OffenseTypeDict> wrapper = new QueryWrapper<>();
+        wrapper.like("offense_name", offenseName);
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'category:' + #category + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<OffenseTypeDict> searchByCategory(String category, int page, int size) {
+        if (isBlank(category)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<OffenseTypeDict> index = mapHits(offenseTypeDictSearchRepository.searchByCategory(category, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<OffenseTypeDict> wrapper = new QueryWrapper<>();
+        wrapper.eq("category", category);
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'severity:' + #severityLevel + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<OffenseTypeDict> searchBySeverityLevel(String severityLevel, int page, int size) {
+        if (isBlank(severityLevel)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<OffenseTypeDict> index = mapHits(offenseTypeDictSearchRepository.searchBySeverityLevel(severityLevel, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<OffenseTypeDict> wrapper = new QueryWrapper<>();
+        wrapper.eq("severity_level", severityLevel);
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'status:' + #status + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<OffenseTypeDict> searchByStatus(String status, int page, int size) {
+        if (isBlank(status)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<OffenseTypeDict> index = mapHits(offenseTypeDictSearchRepository.searchByStatus(status, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<OffenseTypeDict> wrapper = new QueryWrapper<>();
+        wrapper.eq("status", status);
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'fineRange:' + #minAmount + ':' + #maxAmount + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<OffenseTypeDict> searchByStandardFineAmountRange(double minAmount, double maxAmount, int page, int size) {
+        validatePagination(page, size);
+        if (minAmount > maxAmount) {
+            return List.of();
+        }
+        List<OffenseTypeDict> index = mapHits(offenseTypeDictSearchRepository.searchByStandardFineAmountRange(minAmount, maxAmount, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<OffenseTypeDict> wrapper = new QueryWrapper<>();
+        wrapper.between("standard_fine_amount", minAmount, maxAmount);
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'pointsRange:' + #minPoints + ':' + #maxPoints + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<OffenseTypeDict> searchByDeductedPointsRange(int minPoints, int maxPoints, int page, int size) {
+        validatePagination(page, size);
+        if (minPoints > maxPoints) {
+            return List.of();
+        }
+        List<OffenseTypeDict> index = mapHits(offenseTypeDictSearchRepository.searchByDeductedPointsRange(minPoints, maxPoints, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<OffenseTypeDict> wrapper = new QueryWrapper<>();
+        wrapper.between("deducted_points", minPoints, maxPoints);
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
     public boolean shouldSkipProcessing(String idempotencyKey) {
         SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
         return history != null
@@ -237,10 +374,42 @@ public class OffenseTypeDictService {
         }
     }
 
+    private List<OffenseTypeDict> fetchFromDatabase(QueryWrapper<OffenseTypeDict> wrapper, int page, int size) {
+        Page<OffenseTypeDict> mpPage = new Page<>(Math.max(page, 1), Math.max(size, 1));
+        offenseTypeDictMapper.selectPage(mpPage, wrapper);
+        List<OffenseTypeDict> records = mpPage.getRecords();
+        syncBatchToIndexAfterCommit(records);
+        return records;
+    }
+
+    private List<OffenseTypeDict> mapHits(org.springframework.data.elasticsearch.core.SearchHits<OffenseTypeDictDocument> hits) {
+        if (hits == null || !hits.hasSearchHits()) {
+            return List.of();
+        }
+        return hits.getSearchHits().stream()
+                .map(org.springframework.data.elasticsearch.core.SearchHit::getContent)
+                .map(OffenseTypeDictDocument::toEntity)
+                .collect(Collectors.toList());
+    }
+
+    private org.springframework.data.domain.Pageable pageable(int page, int size) {
+        return org.springframework.data.domain.PageRequest.of(Math.max(page - 1, 0), Math.max(size, 1));
+    }
+
+    private void validatePagination(int page, int size) {
+        if (page < 1 || size < 1) {
+            throw new IllegalArgumentException("Page must be >= 1 and size must be >= 1");
+        }
+    }
+
     private void requirePositive(Number number) {
         if (number == null || number.longValue() <= 0) {
             throw new IllegalArgumentException("Type ID" + " must be greater than zero");
         }
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
     }
 
     private String truncate(String value) {

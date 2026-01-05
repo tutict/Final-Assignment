@@ -151,8 +151,176 @@ public class SysPermissionService {
     public List<SysPermission> findByParentId(Integer parentId, int page, int size) {
         requireNonNegative(parentId);
         validatePagination(page, size);
+        List<SysPermission> index = mapHits(sysPermissionSearchRepository.findByParentId(parentId, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
         QueryWrapper<SysPermission> wrapper = new QueryWrapper<>();
         wrapper.eq("parent_id", parentId)
+                .orderByAsc("sort_order");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'codePrefix:' + #permissionCode + ':' + #page + ':' + #size",
+            unless = "#result == null || #result.isEmpty()")
+    public List<SysPermission> searchByPermissionCodePrefix(String permissionCode, int page, int size) {
+        if (isBlank(permissionCode)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<SysPermission> index = mapHits(sysPermissionSearchRepository.searchByPermissionCodePrefix(permissionCode, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<SysPermission> wrapper = new QueryWrapper<>();
+        wrapper.likeRight("permission_code", permissionCode)
+                .orderByAsc("sort_order");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'codeFuzzy:' + #permissionCode + ':' + #page + ':' + #size",
+            unless = "#result == null || #result.isEmpty()")
+    public List<SysPermission> searchByPermissionCodeFuzzy(String permissionCode, int page, int size) {
+        if (isBlank(permissionCode)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<SysPermission> index = mapHits(sysPermissionSearchRepository.searchByPermissionCodeFuzzy(permissionCode, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<SysPermission> wrapper = new QueryWrapper<>();
+        wrapper.like("permission_code", permissionCode)
+                .orderByAsc("sort_order");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'namePrefix:' + #permissionName + ':' + #page + ':' + #size",
+            unless = "#result == null || #result.isEmpty()")
+    public List<SysPermission> searchByPermissionNamePrefix(String permissionName, int page, int size) {
+        if (isBlank(permissionName)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<SysPermission> index = mapHits(sysPermissionSearchRepository.searchByPermissionNamePrefix(permissionName, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<SysPermission> wrapper = new QueryWrapper<>();
+        wrapper.likeRight("permission_name", permissionName)
+                .orderByAsc("sort_order");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'nameFuzzy:' + #permissionName + ':' + #page + ':' + #size",
+            unless = "#result == null || #result.isEmpty()")
+    public List<SysPermission> searchByPermissionNameFuzzy(String permissionName, int page, int size) {
+        if (isBlank(permissionName)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<SysPermission> index = mapHits(sysPermissionSearchRepository.searchByPermissionNameFuzzy(permissionName, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<SysPermission> wrapper = new QueryWrapper<>();
+        wrapper.like("permission_name", permissionName)
+                .orderByAsc("sort_order");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'type:' + #permissionType + ':' + #page + ':' + #size",
+            unless = "#result == null || #result.isEmpty()")
+    public List<SysPermission> searchByPermissionType(String permissionType, int page, int size) {
+        if (isBlank(permissionType)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<SysPermission> index = mapHits(sysPermissionSearchRepository.searchByPermissionType(permissionType, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<SysPermission> wrapper = new QueryWrapper<>();
+        wrapper.eq("permission_type", permissionType)
+                .orderByAsc("sort_order");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'apiPath:' + #apiPath + ':' + #page + ':' + #size",
+            unless = "#result == null || #result.isEmpty()")
+    public List<SysPermission> searchByApiPathPrefix(String apiPath, int page, int size) {
+        if (isBlank(apiPath)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<SysPermission> index = mapHits(sysPermissionSearchRepository.searchByApiPathPrefix(apiPath, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<SysPermission> wrapper = new QueryWrapper<>();
+        wrapper.likeRight("api_path", apiPath)
+                .orderByAsc("sort_order");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'menuPath:' + #menuPath + ':' + #page + ':' + #size",
+            unless = "#result == null || #result.isEmpty()")
+    public List<SysPermission> searchByMenuPathPrefix(String menuPath, int page, int size) {
+        if (isBlank(menuPath)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<SysPermission> index = mapHits(sysPermissionSearchRepository.searchByMenuPathPrefix(menuPath, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<SysPermission> wrapper = new QueryWrapper<>();
+        wrapper.likeRight("menu_path", menuPath)
+                .orderByAsc("sort_order");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'visible:' + #isVisible + ':' + #page + ':' + #size",
+            unless = "#result == null || #result.isEmpty()")
+    public List<SysPermission> searchByIsVisible(boolean isVisible, int page, int size) {
+        validatePagination(page, size);
+        List<SysPermission> index = mapHits(sysPermissionSearchRepository.searchByIsVisible(isVisible, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<SysPermission> wrapper = new QueryWrapper<>();
+        wrapper.eq("is_visible", isVisible)
+                .orderByAsc("sort_order");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'external:' + #isExternal + ':' + #page + ':' + #size",
+            unless = "#result == null || #result.isEmpty()")
+    public List<SysPermission> searchByIsExternal(boolean isExternal, int page, int size) {
+        validatePagination(page, size);
+        List<SysPermission> index = mapHits(sysPermissionSearchRepository.searchByIsExternal(isExternal, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<SysPermission> wrapper = new QueryWrapper<>();
+        wrapper.eq("is_external", isExternal)
+                .orderByAsc("sort_order");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'status:' + #status + ':' + #page + ':' + #size",
+            unless = "#result == null || #result.isEmpty()")
+    public List<SysPermission> searchByStatus(String status, int page, int size) {
+        if (isBlank(status)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<SysPermission> index = mapHits(sysPermissionSearchRepository.searchByStatus(status, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<SysPermission> wrapper = new QueryWrapper<>();
+        wrapper.eq("status", status)
                 .orderByAsc("sort_order");
         return fetchFromDatabase(wrapper, page, size);
     }
@@ -241,6 +409,20 @@ public class SysPermissionService {
         return records;
     }
 
+    private List<SysPermission> mapHits(org.springframework.data.elasticsearch.core.SearchHits<SysPermissionDocument> hits) {
+        if (hits == null || !hits.hasSearchHits()) {
+            return List.of();
+        }
+        return hits.getSearchHits().stream()
+                .map(org.springframework.data.elasticsearch.core.SearchHit::getContent)
+                .map(SysPermissionDocument::toEntity)
+                .collect(Collectors.toList());
+    }
+
+    private org.springframework.data.domain.Pageable pageable(int page, int size) {
+        return org.springframework.data.domain.PageRequest.of(Math.max(page - 1, 0), Math.max(size, 1));
+    }
+
     private void validatePermission(SysPermission permission) {
         if (permission == null) {
             throw new IllegalArgumentException("SysPermission must not be null");
@@ -278,6 +460,10 @@ public class SysPermissionService {
         if (number != null && number.intValue() < 0) {
             throw new IllegalArgumentException("Parent ID" + " must be >= 0");
         }
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
     }
 
     private String truncate(String value) {

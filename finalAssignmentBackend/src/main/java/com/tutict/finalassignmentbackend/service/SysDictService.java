@@ -1,5 +1,7 @@
 package com.tutict.finalassignmentbackend.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.SysDict;
@@ -146,6 +148,119 @@ public class SysDictService {
         return fromDb;
     }
 
+    @Cacheable(cacheNames = CACHE_NAME, key = "'type:' + #dictType + ':' + #page + ':' + #size",
+            unless = "#result == null || #result.isEmpty()")
+    public List<SysDict> searchByDictType(String dictType, int page, int size) {
+        if (isBlank(dictType)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<SysDict> index = mapHits(sysDictSearchRepository.searchByDictType(dictType, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<SysDict> wrapper = new QueryWrapper<>();
+        wrapper.eq("dict_type", dictType)
+                .orderByAsc("sort_order");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'codePrefix:' + #dictCode + ':' + #page + ':' + #size",
+            unless = "#result == null || #result.isEmpty()")
+    public List<SysDict> searchByDictCodePrefix(String dictCode, int page, int size) {
+        if (isBlank(dictCode)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<SysDict> index = mapHits(sysDictSearchRepository.searchByDictCodePrefix(dictCode, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<SysDict> wrapper = new QueryWrapper<>();
+        wrapper.likeRight("dict_code", dictCode)
+                .orderByAsc("sort_order");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'labelPrefix:' + #dictLabel + ':' + #page + ':' + #size",
+            unless = "#result == null || #result.isEmpty()")
+    public List<SysDict> searchByDictLabelPrefix(String dictLabel, int page, int size) {
+        if (isBlank(dictLabel)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<SysDict> index = mapHits(sysDictSearchRepository.searchByDictLabelPrefix(dictLabel, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<SysDict> wrapper = new QueryWrapper<>();
+        wrapper.likeRight("dict_label", dictLabel)
+                .orderByAsc("sort_order");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'labelFuzzy:' + #dictLabel + ':' + #page + ':' + #size",
+            unless = "#result == null || #result.isEmpty()")
+    public List<SysDict> searchByDictLabelFuzzy(String dictLabel, int page, int size) {
+        if (isBlank(dictLabel)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<SysDict> index = mapHits(sysDictSearchRepository.searchByDictLabelFuzzy(dictLabel, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<SysDict> wrapper = new QueryWrapper<>();
+        wrapper.like("dict_label", dictLabel)
+                .orderByAsc("sort_order");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'parent:' + #parentId + ':' + #page + ':' + #size",
+            unless = "#result == null || #result.isEmpty()")
+    public List<SysDict> findByParentId(Integer parentId, int page, int size) {
+        validatePagination(page, size);
+        List<SysDict> index = mapHits(sysDictSearchRepository.findByParentId(parentId, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<SysDict> wrapper = new QueryWrapper<>();
+        wrapper.eq("parent_id", parentId)
+                .orderByAsc("sort_order");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'default:' + #isDefault + ':' + #page + ':' + #size",
+            unless = "#result == null || #result.isEmpty()")
+    public List<SysDict> searchByIsDefault(boolean isDefault, int page, int size) {
+        validatePagination(page, size);
+        List<SysDict> index = mapHits(sysDictSearchRepository.searchByIsDefault(isDefault, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<SysDict> wrapper = new QueryWrapper<>();
+        wrapper.eq("is_default", isDefault)
+                .orderByAsc("sort_order");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'status:' + #status + ':' + #page + ':' + #size",
+            unless = "#result == null || #result.isEmpty()")
+    public List<SysDict> searchByStatus(String status, int page, int size) {
+        if (isBlank(status)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<SysDict> index = mapHits(sysDictSearchRepository.searchByStatus(status, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<SysDict> wrapper = new QueryWrapper<>();
+        wrapper.eq("status", status)
+                .orderByAsc("sort_order");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
     public boolean shouldSkipProcessing(String idempotencyKey) {
         SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
         return history != null
@@ -213,10 +328,45 @@ public class SysDictService {
         }
     }
 
+    private List<SysDict> fetchFromDatabase(QueryWrapper<SysDict> wrapper, int page, int size) {
+        Page<SysDict> mpPage = new Page<>(Math.max(page, 1), Math.max(size, 1));
+        sysDictMapper.selectPage(mpPage, wrapper);
+        List<SysDict> records = mpPage.getRecords();
+        records.stream()
+                .map(SysDictDocument::fromEntity)
+                .filter(Objects::nonNull)
+                .forEach(sysDictSearchRepository::save);
+        return records;
+    }
+
+    private List<SysDict> mapHits(org.springframework.data.elasticsearch.core.SearchHits<SysDictDocument> hits) {
+        if (hits == null || !hits.hasSearchHits()) {
+            return List.of();
+        }
+        return hits.getSearchHits().stream()
+                .map(org.springframework.data.elasticsearch.core.SearchHit::getContent)
+                .map(SysDictDocument::toEntity)
+                .collect(Collectors.toList());
+    }
+
+    private org.springframework.data.domain.Pageable pageable(int page, int size) {
+        return org.springframework.data.domain.PageRequest.of(Math.max(page - 1, 0), Math.max(size, 1));
+    }
+
+    private void validatePagination(int page, int size) {
+        if (page < 1 || size < 1) {
+            throw new IllegalArgumentException("Page must be >= 1 and size must be >= 1");
+        }
+    }
+
     private void requirePositive(Number number) {
         if (number == null || number.longValue() <= 0) {
             throw new IllegalArgumentException("Dictionary ID" + " must be greater than zero");
         }
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
     }
 
     private String truncate(String value) {

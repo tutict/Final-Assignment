@@ -1,5 +1,7 @@
 package com.tutict.finalassignmentbackend.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.AppealReview;
@@ -18,6 +20,7 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Objects;
 import java.util.logging.Level;
@@ -139,6 +142,56 @@ public class AppealReviewService {
         return fromDb;
     }
 
+    @Cacheable(cacheNames = CACHE_NAME, key = "'reviewer:' + #reviewer + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<AppealReview> searchByReviewer(String reviewer, int page, int size) {
+        if (isBlank(reviewer)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<AppealReview> index = mapHits(appealReviewSearchRepository.searchByReviewer(reviewer, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<AppealReview> wrapper = new QueryWrapper<>();
+        wrapper.likeRight("reviewer", reviewer)
+                .orderByDesc("review_time");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'reviewerDept:' + #reviewerDept + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<AppealReview> searchByReviewerDept(String reviewerDept, int page, int size) {
+        if (isBlank(reviewerDept)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        List<AppealReview> index = mapHits(appealReviewSearchRepository.searchByReviewerDept(reviewerDept, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<AppealReview> wrapper = new QueryWrapper<>();
+        wrapper.likeRight("reviewer_dept", reviewerDept)
+                .orderByDesc("review_time");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
+    @Cacheable(cacheNames = CACHE_NAME, key = "'reviewTimeRange:' + #startTime + ':' + #endTime + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
+    public List<AppealReview> searchByReviewTimeRange(String startTime, String endTime, int page, int size) {
+        validatePagination(page, size);
+        LocalDateTime start = parseDateTime(startTime, "startTime");
+        LocalDateTime end = parseDateTime(endTime, "endTime");
+        if (start == null || end == null) {
+            return List.of();
+        }
+        List<AppealReview> index = mapHits(appealReviewSearchRepository.searchByReviewTimeRange(startTime, endTime, pageable(page, size)));
+        if (!index.isEmpty()) {
+            return index;
+        }
+        QueryWrapper<AppealReview> wrapper = new QueryWrapper<>();
+        wrapper.between("review_time", start, end)
+                .orderByDesc("review_time");
+        return fetchFromDatabase(wrapper, page, size);
+    }
+
     public long countByReviewLevel(String reviewLevel) {
         return appealReviewSearchRepository.findByReviewLevel(reviewLevel, org.springframework.data.domain.PageRequest.of(0, 1))
                 .getTotalHits();
@@ -220,6 +273,28 @@ public class AppealReviewService {
         });
     }
 
+    private List<AppealReview> fetchFromDatabase(QueryWrapper<AppealReview> wrapper, int page, int size) {
+        Page<AppealReview> mpPage = new Page<>(Math.max(page, 1), Math.max(size, 1));
+        appealReviewMapper.selectPage(mpPage, wrapper);
+        List<AppealReview> records = mpPage.getRecords();
+        syncBatchToIndexAfterCommit(records);
+        return records;
+    }
+
+    private List<AppealReview> mapHits(org.springframework.data.elasticsearch.core.SearchHits<AppealReviewDocument> hits) {
+        if (hits == null || !hits.hasSearchHits()) {
+            return List.of();
+        }
+        return hits.getSearchHits().stream()
+                .map(org.springframework.data.elasticsearch.core.SearchHit::getContent)
+                .map(AppealReviewDocument::toEntity)
+                .collect(Collectors.toList());
+    }
+
+    private org.springframework.data.domain.Pageable pageable(int page, int size) {
+        return org.springframework.data.domain.PageRequest.of(Math.max(page - 1, 0), Math.max(size, 1));
+    }
+
     private void validateAppealReview(AppealReview appealReview) {
         Objects.requireNonNull(appealReview, "AppealReview must not be null");
         if (appealReview.getReviewLevel() == null || appealReview.getReviewLevel().isBlank()) {
@@ -227,10 +302,32 @@ public class AppealReviewService {
         }
     }
 
+    private void validatePagination(int page, int size) {
+        if (page < 1 || size < 1) {
+            throw new IllegalArgumentException("Page must be >= 1 and size must be >= 1");
+        }
+    }
+
     private void requirePositive(Number number) {
         if (number == null || number.longValue() <= 0) {
             throw new IllegalArgumentException("Review ID" + " must be greater than zero");
         }
+    }
+
+    private LocalDateTime parseDateTime(String value, String fieldName) {
+        if (isBlank(value)) {
+            return null;
+        }
+        try {
+            return LocalDateTime.parse(value);
+        } catch (DateTimeParseException ex) {
+            log.log(Level.WARNING, "Failed to parse " + fieldName + ": " + value, ex);
+            return null;
+        }
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
     }
 
     private String truncate(String value) {

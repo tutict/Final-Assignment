@@ -394,4 +394,284 @@ class PermissionManagementControllerApi {
         apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
     return PermissionManagement.listFromJson(data);
   }
+
+  // HTTP: GET /api/permissions/search/code/prefix
+  Future<List<PermissionManagement>> apiPermissionsSearchCodePrefixGet({
+    required String permissionCode,
+    int page = 1,
+    int size = 50,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/permissions/search/code/prefix',
+      'GET',
+      [
+        QueryParam('permissionCode', permissionCode),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    final List<dynamic> data =
+        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    return PermissionManagement.listFromJson(data);
+  }
+
+  // HTTP: GET /api/permissions/search/code/fuzzy
+  Future<List<PermissionManagement>> apiPermissionsSearchCodeFuzzyGet({
+    required String permissionCode,
+    int page = 1,
+    int size = 50,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/permissions/search/code/fuzzy',
+      'GET',
+      [
+        QueryParam('permissionCode', permissionCode),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    final List<dynamic> data =
+        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    return PermissionManagement.listFromJson(data);
+  }
+
+  // HTTP: GET /api/permissions/search/name/prefix
+  Future<List<PermissionManagement>> apiPermissionsSearchNamePrefixGet({
+    required String permissionName,
+    int page = 1,
+    int size = 50,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/permissions/search/name/prefix',
+      'GET',
+      [
+        QueryParam('permissionName', permissionName),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    final List<dynamic> data =
+        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    return PermissionManagement.listFromJson(data);
+  }
+
+  // HTTP: GET /api/permissions/search/name/fuzzy
+  Future<List<PermissionManagement>> apiPermissionsSearchNameFuzzyGet({
+    required String permissionName,
+    int page = 1,
+    int size = 50,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/permissions/search/name/fuzzy',
+      'GET',
+      [
+        QueryParam('permissionName', permissionName),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    final List<dynamic> data =
+        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    return PermissionManagement.listFromJson(data);
+  }
+
+  // HTTP: GET /api/permissions/search/type
+  Future<List<PermissionManagement>> apiPermissionsSearchTypeGet({
+    required String permissionType,
+    int page = 1,
+    int size = 50,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/permissions/search/type',
+      'GET',
+      [
+        QueryParam('permissionType', permissionType),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    final List<dynamic> data =
+        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    return PermissionManagement.listFromJson(data);
+  }
+
+  // HTTP: GET /api/permissions/search/api-path
+  Future<List<PermissionManagement>> apiPermissionsSearchApiPathGet({
+    required String apiPath,
+    int page = 1,
+    int size = 50,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/permissions/search/api-path',
+      'GET',
+      [
+        QueryParam('apiPath', apiPath),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    final List<dynamic> data =
+        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    return PermissionManagement.listFromJson(data);
+  }
+
+  // HTTP: GET /api/permissions/search/menu-path
+  Future<List<PermissionManagement>> apiPermissionsSearchMenuPathGet({
+    required String menuPath,
+    int page = 1,
+    int size = 50,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/permissions/search/menu-path',
+      'GET',
+      [
+        QueryParam('menuPath', menuPath),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    final List<dynamic> data =
+        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    return PermissionManagement.listFromJson(data);
+  }
+
+  // HTTP: GET /api/permissions/search/visible
+  Future<List<PermissionManagement>> apiPermissionsSearchVisibleGet({
+    required bool isVisible,
+    int page = 1,
+    int size = 50,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/permissions/search/visible',
+      'GET',
+      [
+        QueryParam('isVisible', isVisible.toString()),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    final List<dynamic> data =
+        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    return PermissionManagement.listFromJson(data);
+  }
+
+  // HTTP: GET /api/permissions/search/external
+  Future<List<PermissionManagement>> apiPermissionsSearchExternalGet({
+    required bool isExternal,
+    int page = 1,
+    int size = 50,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/permissions/search/external',
+      'GET',
+      [
+        QueryParam('isExternal', isExternal.toString()),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    final List<dynamic> data =
+        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    return PermissionManagement.listFromJson(data);
+  }
+
+  // HTTP: GET /api/permissions/search/status
+  Future<List<PermissionManagement>> apiPermissionsSearchStatusGet({
+    required String status,
+    int page = 1,
+    int size = 50,
+  }) async {
+    final response = await apiClient.invokeAPI(
+      '/api/permissions/search/status',
+      'GET',
+      [
+        QueryParam('status', status),
+        QueryParam('page', '$page'),
+        QueryParam('size', '$size'),
+      ],
+      '',
+      {},
+      {},
+      null,
+      ['bearerAuth'],
+    );
+    if (response.statusCode >= 400) {
+      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    }
+    final List<dynamic> data =
+        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    return PermissionManagement.listFromJson(data);
+  }
 }
