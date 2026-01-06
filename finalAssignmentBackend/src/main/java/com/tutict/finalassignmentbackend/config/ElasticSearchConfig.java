@@ -1,9 +1,5 @@
 package com.tutict.finalassignmentbackend.config;
 
-import co.elastic.clients.elasticsearch.ElasticsearchClient;
-import co.elastic.clients.json.jackson.JacksonJsonpMapper;
-import co.elastic.clients.transport.ElasticsearchTransport;
-import co.elastic.clients.transport.rest_client.RestClientTransport;
 import com.tutict.finalassignmentbackend.entity.AppealRecord;
 import com.tutict.finalassignmentbackend.entity.AppealReview;
 import com.tutict.finalassignmentbackend.entity.AuditLoginLog;
@@ -89,14 +85,8 @@ import com.tutict.finalassignmentbackend.repository.SysUserRoleSearchRepository;
 import com.tutict.finalassignmentbackend.repository.SysUserSearchRepository;
 import com.tutict.finalassignmentbackend.repository.VehicleInformationSearchRepository;
 import jakarta.annotation.PostConstruct;
-import org.apache.http.HttpHost;
-import org.elasticsearch.client.RestClient;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
-import org.springframework.data.elasticsearch.client.elc.ElasticsearchTemplate;
-import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
 import org.springframework.data.elasticsearch.repository.ElasticsearchRepository;
 import org.springframework.data.elasticsearch.repository.config.EnableElasticsearchRepositories;
 
@@ -110,10 +100,6 @@ import java.util.logging.Logger;
 public class ElasticSearchConfig {
 
     private static final Logger LOG = Logger.getLogger(ElasticSearchConfig.class.getName());
-
-    @Value("${spring-elasticsearch-uris}")
-    private String springElasticsearchUris;
-
     private final VehicleInformationMapper vehicleInformationMapper;
     private final DriverInformationMapper driverInformationMapper;
     private final DriverVehicleMapper driverVehicleMapper;
@@ -243,26 +229,6 @@ public class ElasticSearchConfig {
         this.sysRolePermissionSearchRepository = sysRolePermissionSearchRepository;
         this.auditLoginLogSearchRepository = auditLoginLogSearchRepository;
         this.auditOperationLogSearchRepository = auditOperationLogSearchRepository;
-    }
-
-    @Bean
-    public RestClient restClient() {
-        return RestClient.builder(HttpHost.create(springElasticsearchUris)).build();
-    }
-
-    @Bean
-    public ElasticsearchTransport elasticsearchTransport(RestClient restClient) {
-        return new RestClientTransport(restClient, new JacksonJsonpMapper());
-    }
-
-    @Bean
-    public ElasticsearchClient elasticsearchClient(ElasticsearchTransport transport) {
-        return new ElasticsearchClient(transport);
-    }
-
-    @Bean
-    public ElasticsearchOperations elasticsearchTemplate(ElasticsearchClient client) {
-        return new ElasticsearchTemplate(client);
     }
 
     @PostConstruct
@@ -424,4 +390,3 @@ public class ElasticSearchConfig {
         LOG.log(Level.INFO, "完成 {0} 条 {1} 的同步", new Object[]{entities.size(), entityType});
     }
 }
-

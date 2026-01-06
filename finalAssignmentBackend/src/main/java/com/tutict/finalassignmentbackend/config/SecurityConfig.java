@@ -26,7 +26,7 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable) // 禁用 CSRF，因为使用 JWT 无状态认证
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // 无状态会话
                 .authorizeHttpRequests(authz -> authz
-                        .requestMatchers("/api/auth/register", "/api/auth/login", "/api/ai/chat", "/api/auth/refresh", "/api/users/me/password", "/actuator/health").permitAll() // 公开端点
+                        .requestMatchers("/api/auth/register", "/api/auth/login", "/api/ai/chat", "/api/ai/chat/actions", "/api/auth/refresh", "/api/users/me/password", "/actuator/health").permitAll() // 公开端点
                         .anyRequest().authenticated()) // 其他所有请求需要认证
                 .addFilterBefore(jwtAuthenticationFilter(), AnonymousAuthenticationFilter.class); // JWT 过滤器在匿名过滤器之前
 

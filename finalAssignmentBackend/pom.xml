@@ -300,7 +300,7 @@
             <plugin>
                 <groupId>org.graalvm.python</groupId>
                 <artifactId>graalpy-maven-plugin</artifactId>
-                <version>24.2.0</version>
+                <version>25.0.1</version>
                 <executions>
                     <execution>
                         <configuration>

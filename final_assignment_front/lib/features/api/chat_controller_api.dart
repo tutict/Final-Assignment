@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 
 import 'package:final_assignment_front/features/model/chat_response.dart';
+import 'package:final_assignment_front/features/model/chat_action_response.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:http/http.dart' as http;
@@ -66,6 +67,61 @@ class ChatControllerApi {
     } catch (e) {
       developer.log("Error in apiAiChatGet: $e", name: 'ChatControllerApi');
       throw Exception("Failed to process AI response: $e");
+    }
+  }
+
+  Future<http.Response> apiAiChatActionsGetWithHttpInfo(
+      String message, bool webSearch) async {
+    Object postBody = '';
+    String path = "/api/ai/chat/actions".replaceAll("{format}", "json");
+    List<QueryParam> queryParams = [
+      QueryParam("message", message),
+      QueryParam("webSearch", webSearch.toString())
+    ];
+    Map<String, String> headerParams = {};
+
+    final prefs = await SharedPreferences.getInstance();
+    String? jwtToken = prefs.getString('jwtToken');
+    if (jwtToken != null) {
+      headerParams['Authorization'] = 'Bearer $jwtToken';
+      developer.log("JWT Token: $jwtToken", name: 'ChatControllerApi');
+    } else {
+      developer.log("No JWT token found in SharedPreferences",
+          name: 'ChatControllerApi');
+    }
+
+    return await apiClient.invokeAPI(
+        path, 'GET', queryParams, postBody, headerParams, {}, null, []);
+  }
+
+  Future<ChatActionResponse?> apiAiChatActionsGet(
+      String message, bool webSearch) async {
+    try {
+      http.Response response =
+          await apiAiChatActionsGetWithHttpInfo(message, webSearch);
+      String decodedBody =
+          utf8.decode(response.bodyBytes, allowMalformed: true);
+      developer.log("Decoded response body: $decodedBody",
+          name: 'ChatControllerApi');
+
+      if (response.statusCode >= 400) {
+        throw Exception("API request failed: $decodedBody");
+      }
+      if (decodedBody.isNotEmpty) {
+        final jsonResponse = jsonDecode(decodedBody);
+        if (jsonResponse is Map<String, dynamic>) {
+          return ChatActionResponse.fromJson(jsonResponse);
+        }
+        developer.log("No valid JSON object in response: $decodedBody",
+            name: 'ChatControllerApi');
+        return null;
+      }
+      developer.log("Empty response body", name: 'ChatControllerApi');
+      return null;
+    } catch (e) {
+      developer.log("Error in apiAiChatActionsGet: $e",
+          name: 'ChatControllerApi');
+      throw Exception("Failed to process AI actions response: $e");
     }
   }
 

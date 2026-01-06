@@ -6,7 +6,7 @@ import re
 import sys
 import os
 from io import TextIOWrapper
-from urllib.parse import quote, urljoin
+from urllib.parse import quote
 
 # Suppress SSL warnings
 import warnings
@@ -37,25 +37,52 @@ BAIDU_HOME = "http://www.baidu.com"
 SEARCH_URL = "http://www.baidu.com/s?ie=gbk&tn=baidu&wd="
 RESULT_COUNT = 15
 ABSTRACT_LEN = 200
+REQUEST_TIMEOUT = (5, 15)
+RETRIES = 2
 HEADERS_LIST = [
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0',
     'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Safari/605.1.15',
 ]
 
+_CLEAN_RE = re.compile(r'[\u200b\u200e\u200f\ufeff\ue62b]+')
+
+
 def _decode(content: bytes) -> str:
     return content.decode(_RESPONSE_ENCODING, errors="replace")
 
+
 def _clean(text: str) -> str:
-    return re.sub(r'[\ue62b\s]+$', '', text.strip())
+    if not text:
+        return ""
+    text = _CLEAN_RE.sub("", text)
+    text = text.replace("\xa0", " ")
+    text = re.sub(r'\s+', ' ', text)
+    return text.strip()
+
 
 def _resolve_url(u: str, sess: requests.Session) -> str:
     if "link?url=" not in u:
         return u
     try:
-        return sess.get(u, timeout=5, allow_redirects=True).url
+        return sess.get(u, timeout=REQUEST_TIMEOUT, allow_redirects=True, verify=False).url
     except:
         return u
+
+
+def _request_with_retry(sess: requests.Session, url: str):
+    last_exc = None
+    for attempt in range(RETRIES + 1):
+        try:
+            resp = sess.get(url, timeout=REQUEST_TIMEOUT, verify=False)
+            resp.raise_for_status()
+            resp.encoding = _RESPONSE_ENCODING
+            return resp
+        except Exception as exc:
+            last_exc = exc
+            time.sleep(0.5 + attempt * 0.5)
+    raise last_exc
+
 
 def search(query: str, num_results: int = RESULT_COUNT, debug: bool = False):
     sess = requests.Session()
@@ -74,7 +101,7 @@ def search(query: str, num_results: int = RESULT_COUNT, debug: bool = False):
         print(f"[DEBUG] use_lxml={_USE_LXML}, query={query!r}, want={num_results}")
 
     try:
-        sess.get(BAIDU_HOME, timeout=10, verify=False)
+        sess.get(BAIDU_HOME, timeout=REQUEST_TIMEOUT, verify=False)
     except:
         pass
 
@@ -83,14 +110,14 @@ def search(query: str, num_results: int = RESULT_COUNT, debug: bool = False):
             break
 
         pn = page * 10
-        url = f"{SEARCH_URL}{quote(query.encode(_QUERY_ENCODING))}&pn={pn}&rn=10"
+        encoded_query = quote(query, encoding=_QUERY_ENCODING, errors="ignore")
+        url = f"{SEARCH_URL}{encoded_query}&pn={pn}&rn=10"
         if debug:
             print(f"[DEBUG] fetching page {pn}")
 
         try:
             time.sleep(random.uniform(0.5, 1.0))
-            resp = sess.get(url, timeout=15, verify=False)
-            resp.raise_for_status()
+            resp = _request_with_retry(sess, url)
             content = resp.content
             if resp.headers.get("Content-Encoding") == "gzip":
                 try:
@@ -98,6 +125,8 @@ def search(query: str, num_results: int = RESULT_COUNT, debug: bool = False):
                 except:
                     pass
             text = _decode(content)
+            if not text:
+                continue
             if debug:
                 with open(f"page_{pn}.html", "w", encoding="utf-8") as f:
                     f.write(text)
@@ -126,6 +155,8 @@ def search(query: str, num_results: int = RESULT_COUNT, debug: bool = False):
                 continue
             raw_title = title_nodes[0].text_content() if _USE_LXML else title_nodes[0].get_text()
             title = _clean(raw_title)
+            if not title:
+                continue
             if debug:
                 print(f"[DEBUG] raw title: {repr(raw_title)}")
 
@@ -177,7 +208,8 @@ def search(query: str, num_results: int = RESULT_COUNT, debug: bool = False):
             if summary.startswith(title):
                 summary = summary[len(title):].strip()
             if len(summary) > ABSTRACT_LEN:
-                summary = summary[:ABSTRACT_LEN].rsplit(" ", 1)[0] + "……"
+                clipped = summary[:ABSTRACT_LEN].rsplit(" ", 1)[0]
+                summary = clipped + "..."
 
             if title in seen:
                 continue
@@ -195,6 +227,7 @@ def search(query: str, num_results: int = RESULT_COUNT, debug: bool = False):
     if debug:
         print(f"[DEBUG] total fetched: {len(results)}")
     return results
+
 
 if __name__ == "__main__":
     out = search("如何查询我的交通违法记录？", debug=True)
