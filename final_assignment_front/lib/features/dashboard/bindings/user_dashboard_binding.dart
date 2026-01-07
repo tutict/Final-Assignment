@@ -1,4 +1,4 @@
-part of '../views/user_screens/user_dashboard.dart';
+part of '../views/user/user_dashboard.dart';
 
 /// 用户仪表盘绑定类，用于管理用户仪表盘屏幕的控制器依赖。
 class UserDashboardBinding extends Bindings {

@@ -51,7 +51,7 @@ extension PaymentStatusExtension on PaymentStatus {
     }
   }
 
-  Color get backgroundColor => color.withOpacity(0.12);
+  Color get backgroundColor => color.withValues(alpha: 0.12);
 }
 
 extension OffenseProcessStatusExtension on OffenseProcessStatus {
@@ -74,7 +74,7 @@ extension OffenseProcessStatusExtension on OffenseProcessStatus {
     }
   }
 
-  Color get backgroundColor => color.withOpacity(0.12);
+  Color get backgroundColor => color.withValues(alpha: 0.12);
 }
 
 extension DeductionStatusExtension on DeductionStatus {
@@ -89,7 +89,7 @@ extension DeductionStatusExtension on DeductionStatus {
     }
   }
 
-  Color get backgroundColor => color.withOpacity(0.12);
+  Color get backgroundColor => color.withValues(alpha: 0.12);
 }
 
 extension AppealAcceptanceStatusExtension on AppealAcceptanceStatus {
@@ -106,7 +106,7 @@ extension AppealAcceptanceStatusExtension on AppealAcceptanceStatus {
     }
   }
 
-  Color get backgroundColor => color.withOpacity(0.12);
+  Color get backgroundColor => color.withValues(alpha: 0.12);
 }
 
 extension AppealProcessStatusExtension on AppealProcessStatus {
@@ -125,5 +125,5 @@ extension AppealProcessStatusExtension on AppealProcessStatus {
     }
   }
 
-  Color get backgroundColor => color.withOpacity(0.12);
+  Color get backgroundColor => color.withValues(alpha: 0.12);
 }

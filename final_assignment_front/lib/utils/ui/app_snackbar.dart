@@ -77,8 +77,7 @@ class AppSnackbar {
         onColor = colorScheme.onError;
         break;
       case _SnackbarVariant.info:
-      default:
-        backgroundColor = colorScheme.surfaceVariant;
+        backgroundColor = colorScheme.surfaceContainerHighest;
         onColor = colorScheme.onSurface;
         break;
     }

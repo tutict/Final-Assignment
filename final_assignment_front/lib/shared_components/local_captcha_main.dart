@@ -1,6 +1,7 @@
+// ignore_for_file: use_build_context_synchronously
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:final_assignment_front/features/dashboard/views/user_screens/user_dashboard.dart';
+import 'package:final_assignment_front/features/dashboard/views/user/user_dashboard.dart';
 import 'package:get/get.dart';
 import 'package:local_captcha/local_captcha.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -100,7 +101,7 @@ class _LocalCaptchaMainState extends State<LocalCaptchaMain> {
               fontWeight: FontWeight.bold,
               color: isLight
                   ? themeData.colorScheme.onSurface
-                  : themeData.colorScheme.onSurface.withOpacity(0.95),
+                  : themeData.colorScheme.onSurface.withValues(alpha: 0.95),
             ),
           ),
           content: SingleChildScrollView(
@@ -140,7 +141,7 @@ class _LocalCaptchaMainState extends State<LocalCaptchaMain> {
                           borderRadius: BorderRadius.circular(12.0),
                           borderSide: BorderSide(
                               color: themeData.colorScheme.outline
-                                  .withOpacity(0.3)),
+                                  .withValues(alpha: 0.3)),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12.0),
@@ -156,22 +157,22 @@ class _LocalCaptchaMainState extends State<LocalCaptchaMain> {
                           color: isLight
                               ? themeData.colorScheme.onSurfaceVariant
                               : themeData.colorScheme.onSurfaceVariant
-                                  .withOpacity(0.85),
+                                  .withValues(alpha: 0.85),
                         ),
                         hintStyle: GoogleFonts.roboto(
                           fontSize: 16,
                           color: isLight
                               ? themeData.colorScheme.onSurfaceVariant
-                                  .withOpacity(0.6)
+                                  .withValues(alpha: 0.6)
                               : themeData.colorScheme.onSurfaceVariant
-                                  .withOpacity(0.5),
+                                  .withValues(alpha: 0.5),
                         ),
                       ),
                       style: GoogleFonts.roboto(
                         fontSize: 16,
                         color: isLight
                             ? themeData.colorScheme.onSurface
-                            : themeData.colorScheme.onSurface.withOpacity(0.95),
+                            : themeData.colorScheme.onSurface.withValues(alpha: 0.95),
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
@@ -230,7 +231,7 @@ class _LocalCaptchaMainState extends State<LocalCaptchaMain> {
                   color: isLight
                       ? themeData.colorScheme.onSurfaceVariant
                       : themeData.colorScheme.onSurfaceVariant
-                          .withOpacity(0.85),
+                          .withValues(alpha: 0.85),
                 ),
               ),
             ),

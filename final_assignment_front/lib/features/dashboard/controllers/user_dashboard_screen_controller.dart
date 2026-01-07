@@ -1,4 +1,4 @@
-part of '../views/user_screens/user_dashboard.dart';
+part of '../views/user/user_dashboard.dart';
 
 /// UserDashboardController 管理用户主页的主线控制器，包含主要的进入流程、数据处理和界面的控制。
 
@@ -149,7 +149,7 @@ class UserDashboardController extends GetxController with NavigationMixin {
       '错误',
       message,
       snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: Colors.red.withOpacity(0.9),
+      backgroundColor: Colors.red.withValues(alpha: 0.9),
       colorText: Colors.white,
       duration: const Duration(seconds: 3),
     );
@@ -244,7 +244,7 @@ class UserDashboardController extends GetxController with NavigationMixin {
         bodyMedium: baseTheme.textTheme.bodyMedium?.copyWith(
           fontFamily: fontFamily,
           fontSize: 14.0,
-          color: baseTheme.colorScheme.onSurface.withOpacity(0.7),
+          color: baseTheme.colorScheme.onSurface.withValues(alpha: 0.7),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(

@@ -1,4 +1,4 @@
-part of '../views/manager_screens/manager_dashboard_screen.dart';
+part of '../views/manager/manager_dashboard_screen.dart';
 
 class DashboardController extends GetxController with NavigationMixin {
   final scaffoldKey = GlobalKey<ScaffoldState>();
@@ -165,7 +165,7 @@ class DashboardController extends GetxController with NavigationMixin {
         bodyMedium: baseTheme.textTheme.bodyMedium?.copyWith(
           fontFamily: fontFamily,
           fontSize: 14.0,
-          color: baseTheme.colorScheme.onSurface.withOpacity(0.7),
+          color: baseTheme.colorScheme.onSurface.withValues(alpha: 0.7),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
@@ -276,7 +276,7 @@ class DashboardController extends GetxController with NavigationMixin {
       '错误',
       message,
       snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: Colors.red.withOpacity(0.9),
+      backgroundColor: Colors.red.withValues(alpha: 0.9),
       colorText: Colors.white,
       duration: const Duration(seconds: 3),
     );

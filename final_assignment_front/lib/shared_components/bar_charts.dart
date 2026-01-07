@@ -129,7 +129,7 @@ class TrafficViolationBarChart extends StatelessWidget {
                   ? (typeCountMap.values.reduce((a, b) => a > b ? a : b) * 1.2)
                       .toDouble()
                   : 100.0,
-              color: Colors.grey.withOpacity(0.1),
+              color: Colors.grey.withValues(alpha: 0.1),
             ),
           ),
         ],

@@ -21,7 +21,7 @@ class PostCard extends StatelessWidget {
       color: backgroundColor ?? Theme.of(context).cardColor,
       elevation: 4.0,
       // 降低阴影高度，更柔和
-      shadowColor: Colors.black.withOpacity(0.2),
+      shadowColor: Colors.black.withValues(alpha: 0.2),
       // 阴影颜色更自然
       child: InkWell(
         borderRadius: BorderRadius.circular(kBorderRadius + 4),
@@ -38,14 +38,14 @@ class PostCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(kBorderRadius + 4),
             gradient: LinearGradient(
               colors: [
-                Colors.lightBlueAccent.withOpacity(0.2), // 渐变更柔和
-                Colors.blue.withOpacity(0.1),
+                Colors.lightBlueAccent.withValues(alpha: 0.2), // 渐变更柔和
+                Colors.blue.withValues(alpha: 0.1),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             border: Border.all(
-              color: Colors.blueAccent.withOpacity(0.1), // 添加微边框
+              color: Colors.blueAccent.withValues(alpha: 0.1), // 添加微边框
               width: 1,
             ),
           ),
@@ -60,7 +60,7 @@ class PostCard extends StatelessWidget {
                   width: 80, // 缩小图标尺寸
                   height: 80,
                   colorFilter: ColorFilter.mode(
-                    Colors.blueAccent.withOpacity(0.3), // 更淡的颜色
+                    Colors.blueAccent.withValues(alpha: 0.3), // 更淡的颜色
                     BlendMode.srcIn,
                   ),
                   fit: BoxFit.contain,
@@ -115,7 +115,7 @@ class _Info extends StatelessWidget {
       "幸福生活天天拥有",
       style: Theme.of(context).textTheme.bodyMedium!.copyWith(
             fontSize: 16,
-            color: Colors.black.withOpacity(0.7), // 稍微加深颜色
+            color: Colors.black.withValues(alpha: 0.7), // 稍微加深颜色
             height: 1.5, // 增加行高
           ),
     );

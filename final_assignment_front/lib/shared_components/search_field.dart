@@ -22,15 +22,15 @@ class SearchField extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           gradient: LinearGradient(
             colors: [
-              Colors.white.withOpacity(0.98),
-              Colors.grey.shade100.withOpacity(0.9),
+              Colors.white.withValues(alpha: 0.98),
+              Colors.grey.shade100.withValues(alpha: 0.9),
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               offset: const Offset(0, 6),
               blurRadius: 12,
               spreadRadius: 1,
@@ -49,14 +49,14 @@ class SearchField extends StatelessWidget {
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(
-                color: Colors.grey.withOpacity(0.4),
+                color: Colors.grey.withValues(alpha: 0.4),
                 width: 1.2,
               ),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(
-                color: Theme.of(context).colorScheme.primary.withOpacity(0.8),
+                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.8),
                 width: 2,
               ),
             ),

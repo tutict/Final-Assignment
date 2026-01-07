@@ -21,11 +21,11 @@ class PoliceCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(18),
       color: backgroundColor ?? Colors.transparent,
       elevation: 4.0,
-      shadowColor: Colors.black.withOpacity(0.2),
+      shadowColor: Colors.black.withValues(alpha: 0.2),
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
         onTap: onPressed,
-        splashColor: Theme.of(context).primaryColor.withOpacity(0.3),
+        splashColor: Theme.of(context).primaryColor.withValues(alpha: 0.3),
         highlightColor: Colors.transparent,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
@@ -42,11 +42,11 @@ class PoliceCard extends StatelessWidget {
             gradient: LinearGradient(
               colors: [
                 isLight
-                    ? Colors.blue.shade50.withOpacity(0.9)
-                    : Theme.of(context).canvasColor.withOpacity(0.8),
+                    ? Colors.blue.shade50.withValues(alpha: 0.9)
+                    : Theme.of(context).canvasColor.withValues(alpha: 0.8),
                 isLight
-                    ? Colors.white.withOpacity(0.95)
-                    : Theme.of(context).cardColor.withOpacity(0.9),
+                    ? Colors.white.withValues(alpha: 0.95)
+                    : Theme.of(context).cardColor.withValues(alpha: 0.9),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -54,7 +54,7 @@ class PoliceCard extends StatelessWidget {
             border: Border.all(
               color: isLight
                   ? Colors.blue.shade100
-                  : Colors.white.withOpacity(0.3),
+                  : Colors.white.withValues(alpha: 0.3),
               width: 1,
             ),
           ),
@@ -71,7 +71,7 @@ class PoliceCard extends StatelessWidget {
                     height: 130,
                     fit: BoxFit.contain,
                     colorFilter: ColorFilter.mode(
-                      Theme.of(context).primaryColor.withOpacity(0.25),
+                      Theme.of(context).primaryColor.withValues(alpha: 0.25),
                       BlendMode.srcIn,
                     ),
                   ),
@@ -108,14 +108,14 @@ class _Info extends StatelessWidget {
               // 减小字体以适应空间
               fontWeight: FontWeight.w700,
               color: Theme.of(context).brightness == Brightness.light
-                  ? Colors.black.withOpacity(0.9)
-                  : Colors.white.withOpacity(0.9),
+                  ? Colors.black.withValues(alpha: 0.9)
+                  : Colors.white.withValues(alpha: 0.9),
               height: 1.4,
               // 减小行高
               letterSpacing: 0.6,
               shadows: [
                 Shadow(
-                  color: Colors.black.withOpacity(0.1),
+                  color: Colors.black.withValues(alpha: 0.1),
                   offset: const Offset(0, 1),
                   blurRadius: 2,
                 ),
@@ -131,8 +131,8 @@ class _Info extends StatelessWidget {
             style: Theme.of(context).textTheme.bodyMedium!.copyWith(
                   fontSize: 14, // 减小字体以适应空间
                   color: Theme.of(context).brightness == Brightness.light
-                      ? Colors.black.withOpacity(0.8)
-                      : Colors.white.withOpacity(0.8),
+                      ? Colors.black.withValues(alpha: 0.8)
+                      : Colors.white.withValues(alpha: 0.8),
                   height: 1.3, // 减小行高
                   fontWeight: FontWeight.w500,
                 ),

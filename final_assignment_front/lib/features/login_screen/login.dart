@@ -1,3 +1,4 @@
+// ignore_for_file: use_build_context_synchronously
 import 'dart:convert';
 import 'dart:math';
 import 'package:final_assignment_front/config/routes/app_pages.dart';
@@ -325,13 +326,13 @@ class _LoginScreenState extends State<LoginScreen>
                   hintText: '新密码',
                   hintStyle: themeData.textTheme.bodyMedium?.copyWith(
                       color: themeData.colorScheme.onSurfaceVariant
-                          .withOpacity(0.6)),
+                          .withValues(alpha: 0.6)),
                   filled: true,
                   fillColor: themeData.colorScheme.surfaceContainerLowest,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8.0),
                     borderSide: BorderSide(
-                        color: themeData.colorScheme.outline.withOpacity(0.3)),
+                        color: themeData.colorScheme.outline.withValues(alpha: 0.3)),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8.0),
@@ -472,8 +473,8 @@ class _LoginScreenState extends State<LoginScreen>
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    themeData.colorScheme.primary.withOpacity(0.1),
-                    themeData.colorScheme.secondary.withOpacity(0.3),
+                    themeData.colorScheme.primary.withValues(alpha: 0.1),
+                    themeData.colorScheme.secondary.withValues(alpha: 0.3),
                     themeData.colorScheme.surface,
                   ],
                 ),
@@ -481,8 +482,8 @@ class _LoginScreenState extends State<LoginScreen>
             ),
             // Particle Effect with Connections
             ConnectedParticleSystem(
-              particleColor: themeData.colorScheme.primary.withOpacity(0.3),
-              lineColor: themeData.colorScheme.primary.withOpacity(0.2),
+              particleColor: themeData.colorScheme.primary.withValues(alpha: 0.3),
+              lineColor: themeData.colorScheme.primary.withValues(alpha: 0.2),
               vsync: this,
             ),
             // Login UI
@@ -509,7 +510,7 @@ class _LoginScreenState extends State<LoginScreen>
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20.0),
                   ),
-                  shadowColor: themeData.colorScheme.shadow.withOpacity(0.3),
+                  shadowColor: themeData.colorScheme.shadow.withValues(alpha: 0.3),
                 ),
                 titleStyle: themeData.textTheme.headlineMedium?.copyWith(
                   color: themeData.colorScheme.onSurface,
@@ -533,7 +534,7 @@ class _LoginScreenState extends State<LoginScreen>
                 buttonTheme: LoginButtonTheme(
                   splashColor: themeData.colorScheme.primaryContainer,
                   backgroundColor: themeData.colorScheme.primary,
-                  highlightColor: themeData.colorScheme.primary.withOpacity(0.9),
+                  highlightColor: themeData.colorScheme.primary.withValues(alpha: 0.9),
                   elevation: 8.0,
                   highlightElevation: 10.0,
                   shape: RoundedRectangleBorder(
@@ -548,7 +549,7 @@ class _LoginScreenState extends State<LoginScreen>
                   prefixIconColor: themeData.colorScheme.onSurfaceVariant,
                   errorStyle: themeData.textTheme.bodySmall?.copyWith(
                     color: themeData.colorScheme.onErrorContainer,
-                    backgroundColor: themeData.colorScheme.error.withOpacity(0.9),
+                    backgroundColor: themeData.colorScheme.error.withValues(alpha: 0.9),
                   ),
                   labelStyle: themeData.textTheme.bodyMedium?.copyWith(
                     color: themeData.colorScheme.onSurfaceVariant,
@@ -556,19 +557,19 @@ class _LoginScreenState extends State<LoginScreen>
                   ),
                   hintStyle: themeData.textTheme.bodyMedium?.copyWith(
                     color:
-                    themeData.colorScheme.onSurfaceVariant.withOpacity(0.6),
+                    themeData.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
                     fontSize: 14.0,
                   ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12.0),
                     borderSide: BorderSide(
-                      color: themeData.colorScheme.outline.withOpacity(0.4),
+                      color: themeData.colorScheme.outline.withValues(alpha: 0.4),
                     ),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12.0),
                     borderSide: BorderSide(
-                      color: themeData.colorScheme.outline.withOpacity(0.4),
+                      color: themeData.colorScheme.outline.withValues(alpha: 0.4),
                     ),
                   ),
                   focusedBorder: OutlineInputBorder(
@@ -788,7 +789,7 @@ class ParticlePainter extends CustomPainter {
         if (distance < ConnectedParticleSystem.maxDistance) {
           final opacity = 1 - (distance / ConnectedParticleSystem.maxDistance);
           final linePaint = Paint()
-            ..color = lineColor.withOpacity(opacity * lineColor.opacity)
+            ..color = lineColor.withValues(alpha: opacity * lineColor.a)
             ..strokeWidth = 1.0;
           canvas.drawLine(p1.position, p2.position, linePaint);
         }

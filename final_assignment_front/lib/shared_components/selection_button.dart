@@ -95,12 +95,12 @@ class _Button extends StatelessWidget {
 
     // 未选中时背景色为透明，选中时使用 primaryColor 的浅透明效果
     final Color backgroundColor = selected
-        ? Theme.of(context).primaryColor.withOpacity(isLight ? 0.15 : 0.25)
+        ? Theme.of(context).primaryColor.withValues(alpha: isLight ? 0.15 : 0.25)
         : Colors.transparent;
 
     // 阴影颜色，根据选中状态调整
     final Color shadowColor =
-        isLight ? Colors.black.withOpacity(0.1) : Colors.black.withOpacity(0.3);
+        isLight ? Colors.black.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.3);
 
     // 图标和文字颜色
     final Color defaultIconColor = selected
@@ -119,9 +119,9 @@ class _Button extends StatelessWidget {
       child: InkWell(
         onTap: onPressed,
         borderRadius: BorderRadius.circular(12),
-        splashColor: Theme.of(context).primaryColor.withOpacity(0.3),
+        splashColor: Theme.of(context).primaryColor.withValues(alpha: 0.3),
         // 增强涟漪效果
-        highlightColor: Theme.of(context).primaryColor.withOpacity(0.1),
+        highlightColor: Theme.of(context).primaryColor.withValues(alpha: 0.1),
         // 添加高亮反馈
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
@@ -132,7 +132,7 @@ class _Button extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: selected
-                  ? Theme.of(context).primaryColor.withOpacity(0.5)
+                  ? Theme.of(context).primaryColor.withValues(alpha: 0.5)
                   : Colors.transparent,
               width: 1.5,
             ),

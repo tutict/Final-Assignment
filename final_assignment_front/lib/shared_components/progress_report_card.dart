@@ -52,7 +52,7 @@ class ProgressReportCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isLight ? 0.1 : 0.2),
+            color: Colors.black.withValues(alpha: isLight ? 0.1 : 0.2),
             offset: const Offset(0, 4),
             blurRadius: 8,
             spreadRadius: 1,

@@ -32,7 +32,7 @@ class UserPredefinedQuestions extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             offset: const Offset(0, 1),
             blurRadius: 4,
           ),
@@ -45,10 +45,10 @@ class UserPredefinedQuestions extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(6.0),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surface.withOpacity(0.6),
+              color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.6),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.1),
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1),
                 width: 0.5,
               ),
             ),
@@ -144,7 +144,7 @@ class UserPredefinedQuestions extends StatelessWidget {
         },
         style: ElevatedButton.styleFrom(
           backgroundColor:
-              Theme.of(context).colorScheme.primary.withOpacity(0.8),
+              Theme.of(context).colorScheme.primary.withValues(alpha: 0.8),
           foregroundColor: Theme.of(context).colorScheme.onPrimary,
           elevation: 2,
           shape: RoundedRectangleBorder(

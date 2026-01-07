@@ -1,6 +1,6 @@
 part of 'app_helpers.dart';
 
-typedef _CodeSelector<T extends Enum> = String Function(T value);
+typedef CodeSelector<T extends Enum> = String Function(T value);
 
 class StringHelper {
   const StringHelper._();
@@ -14,7 +14,7 @@ class StringHelper {
   static T? enumFromCode<T extends Enum>(
     Iterable<T> values,
     String? code,
-    _CodeSelector<T> codeSelector,
+    CodeSelector<T> codeSelector,
   ) {
     if (isNullOrBlank(code)) {
       return null;
@@ -32,7 +32,7 @@ class StringHelper {
   static String labelFromCode<T extends Enum>(
     Iterable<T> values,
     String? code, {
-    required _CodeSelector<T> codeSelector,
+    required CodeSelector<T> codeSelector,
     required String Function(T value) labelSelector,
     String placeholder = '未知',
   }) {

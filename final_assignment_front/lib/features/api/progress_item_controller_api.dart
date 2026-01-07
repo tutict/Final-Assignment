@@ -32,12 +32,6 @@ class ProgressControllerApi {
     return response.body;
   }
 
-  // 辅助方法：转换查询参数
-  List<QueryParam> _convertParametersForCollectionFormat(
-      String collectionFormat, String name, dynamic value) {
-    return [QueryParam(name, value.toString())];
-  }
-
   /// 创建新的进度记录。 with HTTP info returned
   Future<http.Response> apiProgressPostWithHttpInfo({
     required ProgressItem progressItem,

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:final_assignment_front/features/api/chat_controller_api.dart';
+import 'package:final_assignment_front/utils/ui/ui_utils.dart';
 
 class ChatMessage {
   final String thinkContent;
@@ -212,6 +213,7 @@ class ChatController extends GetxController {
       debugPrint('AI 流完成: $text');
     } catch (e) {
       debugPrint('流式 AI 响应错误: $e');
+      _showFriendlyError('AI 响应失败，请稍后重试。', details: e.toString());
 // Remove "Thinking..." message on error
       if (messages.isNotEmpty &&
           messages.last.formalContent.startsWith('THINKING:')) {
@@ -225,7 +227,7 @@ class ChatController extends GetxController {
     String thinkContent = '';
     String formalContent = text;
 
-    RegExp thinkRegex = RegExp(r'\[THINK\](.*?)\[\/THINK\]', dotAll: true);
+    RegExp thinkRegex = RegExp(r'\[THINK\](.*?)\[/THINK\]', dotAll: true);
     Iterable<Match> matches = thinkRegex.allMatches(text);
     for (Match match in matches) {
       thinkContent += match.group(1)!.trim();
@@ -254,6 +256,28 @@ class ChatController extends GetxController {
     messages.clear();
     searchResults.clear();
     textController.clear();
+  }
+
+  void _showFriendlyError(String title, {String? details}) {
+    final context = Get.context;
+    if (context == null) {
+      debugPrint('No context available for error dialog. $title $details');
+      return;
+    }
+    final detailText = details == null || details.trim().isEmpty
+        ? '请检查网络或稍后再试。'
+        : '详情：${details.trim()}';
+    AppDialog.showCustomDialog(
+      context: context,
+      title: title,
+      content: Text(detailText),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('知道了'),
+        ),
+      ],
+    );
   }
 
   @override

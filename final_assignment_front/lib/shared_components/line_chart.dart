@@ -199,7 +199,7 @@ class _LineChartState extends State<LineChart> {
         barRods: [
           BarChartRodData(
             toY: value,
-            color: Colors.yellow.withOpacity(0.5), // 半透明以避免遮挡折线
+            color: Colors.yellow.withValues(alpha: 0.5), // 半透明以避免遮挡折线
             width: 8,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(2)),
           ),

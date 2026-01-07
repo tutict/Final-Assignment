@@ -63,7 +63,7 @@ class AppTheme {
         bodyMedium: TextStyle(
           fontSize: 14,
           fontFamily: 'SimSunExtG',
-          color: baseColor.withOpacity(0.9),
+          color: baseColor.withValues(alpha: 0.9),
         ),
         labelLarge: TextStyle(
           fontSize: 15,
@@ -130,7 +130,7 @@ class AppTheme {
           ),
         ),
         hintStyle: TextStyle(
-          color: colorScheme.onSurfaceVariant.withOpacity(0.7),
+          color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
           fontFamily: 'SimSunExtG',
         ),
       );
@@ -148,7 +148,7 @@ class AppTheme {
     );
     final bool isLight = brightness == Brightness.light;
     final Color baseTextColor =
-        isLight ? Colors.black87 : Colors.white.withOpacity(0.95);
+        isLight ? Colors.black87 : Colors.white.withValues(alpha: 0.95);
 
     return ThemeData(
       useMaterial3: true,
@@ -164,7 +164,7 @@ class AppTheme {
       outlinedButtonTheme: outlinedButtonTheme(colorScheme),
       inputDecorationTheme: inputDecorationTheme(
         colorScheme,
-        isLight ? cardColor : cardColor.withOpacity(0.9),
+        isLight ? cardColor : cardColor.withValues(alpha: 0.9),
       ),
       appBarTheme: AppBarTheme(
         backgroundColor: canvasColor,
@@ -193,7 +193,7 @@ class AppTheme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(24),
         ),
-        backgroundColor: colorScheme.primaryContainer.withOpacity(0.5),
+        backgroundColor: colorScheme.primaryContainer.withValues(alpha: 0.5),
         selectedColor: colorScheme.primary,
         labelStyle: TextStyle(
           fontFamily: 'SimSunExtG',
@@ -201,7 +201,7 @@ class AppTheme {
         ),
       ),
       dividerTheme: DividerThemeData(
-        color: colorScheme.outlineVariant.withOpacity(0.4),
+        color: colorScheme.outlineVariant.withValues(alpha: 0.4),
         thickness: 0.8,
         space: 32,
       ),

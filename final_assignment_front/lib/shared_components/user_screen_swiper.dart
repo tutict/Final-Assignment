@@ -63,7 +63,7 @@ class UserScreenSwiper extends StatelessWidget {
                   borderRadius: BorderRadius.circular(16.0),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
+                      color: Colors.black.withValues(alpha: 0.2),
                       offset: const Offset(0, 4),
                       blurRadius: 8,
                       spreadRadius: 2,
@@ -85,7 +85,7 @@ class UserScreenSwiper extends StatelessWidget {
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [
-                              Colors.black.withOpacity(0.5),
+                              Colors.black.withValues(alpha: 0.5),
                               Colors.transparent,
                             ],
                             begin: Alignment.bottomCenter,
@@ -102,7 +102,7 @@ class UserScreenSwiper extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 12.0, vertical: 8.0),
                           decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.6),
+                            color: Colors.black.withValues(alpha: 0.6),
                             borderRadius: BorderRadius.circular(8.0),
                           ),
                           child: Text(
