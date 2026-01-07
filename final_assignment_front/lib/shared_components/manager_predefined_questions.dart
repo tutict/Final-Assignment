@@ -1,5 +1,4 @@
 import 'dart:ui';
-import 'package:chinese_font_library/chinese_font_library.dart';
 import 'package:flutter/material.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/chat_controller.dart';
 import 'package:get/get.dart';
@@ -71,7 +70,7 @@ class ManagerPredefinedQuestions extends StatelessWidget {
                                 color: Theme.of(context).colorScheme.onSurface,
                                 fontSize: 14,
                               )
-                              .useSystemChineseFont(),
+                              ,
                           overflow: TextOverflow.ellipsis,
                           maxLines: 1,
                         ),

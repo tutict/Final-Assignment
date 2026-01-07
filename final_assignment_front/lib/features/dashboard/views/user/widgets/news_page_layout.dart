@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 typedef NewsContentBuilder = Widget Function(
     BuildContext context, ThemeData theme);
@@ -73,7 +72,7 @@ class NewsPageLayout extends StatelessWidget {
           Expanded(
             child: Text(
               title,
-              style: GoogleFonts.roboto(
+              style: TextStyle(
                 fontSize: 26,
                 fontWeight: FontWeight.bold,
                 color: textColor,

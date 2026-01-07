@@ -14,15 +14,18 @@ import 'package:get/get.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
+import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
-/// 唯一标识生成工具
+/// å¯ä¸æ è¯çæå·¥å
+·
 String generateIdempotencyKey() {
   return DateTime.now().millisecondsSinceEpoch.toString();
 }
 
-/// 格式化日期的全局方法
+/// æ ¼å¼åæ¥æçå
+¨å±æ¹æ³
 String formatDate(DateTime? date) {
-  if (date == null) return '无';
+  if (date == null) return 'æ ';
   return "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
 }
 
@@ -35,7 +38,7 @@ DateTime _comparableFineDate(FineInformation fine) {
   return _resolvedFineDate(fine) ?? DateTime.fromMillisecondsSinceEpoch(0);
 }
 
-/// FineList 页面：管理员才能访问
+/// FineList é¡µé¢ï¼ç®¡çåæè½è®¿é®
 class FineList extends StatefulWidget {
   const FineList({super.key});
 
@@ -79,28 +82,28 @@ class _FineListState extends State<FineList> {
 
   Future<bool> _validateJwtToken() async {
     final prefs = await SharedPreferences.getInstance();
-    String? jwtToken = prefs.getString('jwtToken');
+    String? jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null || jwtToken.isEmpty) {
-      setState(() => _errorMessage = '未授权，请重新登录');
+      setState(() => _errorMessage = 'æªææï¼è¯·éæ°ç»å½');
       return false;
     }
     try {
       if (JwtDecoder.isExpired(jwtToken)) {
         jwtToken = await _refreshJwtToken();
         if (jwtToken == null) {
-          setState(() => _errorMessage = '登录已过期，请重新登录');
+          setState(() => _errorMessage = 'ç»å½å·²è¿æï¼è¯·éæ°ç»å½');
           return false;
         }
-        await prefs.setString('jwtToken', jwtToken);
+        await AuthTokenStore.instance.setJwtToken(jwtToken);
         if (JwtDecoder.isExpired(jwtToken)) {
-          setState(() => _errorMessage = '新登录信息已过期，请重新登录');
+          setState(() => _errorMessage = 'æ°ç»å½ä¿¡æ¯å·²è¿æï¼è¯·éæ°ç»å½');
           return false;
         }
         await fineApi.initializeWithJwt();
       }
       return true;
     } catch (e) {
-      setState(() => _errorMessage = '无效的登录信息，请重新登录');
+      setState(() => _errorMessage = 'æ æçç»å½ä¿¡æ¯ï¼è¯·éæ°ç»å½');
       return false;
     }
   }
@@ -117,7 +120,7 @@ class _FineListState extends State<FineList> {
       );
       if (response.statusCode == 200) {
         final newJwt = jsonDecode(response.body)['jwtToken'];
-        await prefs.setString('jwtToken', newJwt);
+        await AuthTokenStore.instance.setJwtToken(newJwt);
         return newJwt;
       }
       return null;
@@ -135,18 +138,19 @@ class _FineListState extends State<FineList> {
       }
       await fineApi.initializeWithJwt();
       final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken')!;
+      final jwtToken = (await AuthTokenStore.instance.getJwtToken())!;
       final decodedToken = JwtDecoder.decode(jwtToken);
       _isAdmin = decodedToken['roles'] == 'ADMIN' ||
           (decodedToken['roles'] is List &&
               decodedToken['roles'].contains('ADMIN'));
       if (!_isAdmin) {
-        setState(() => _errorMessage = '权限不足：仅管理员可访问此页面');
+        setState(() => _errorMessage = 'æéä¸è¶³ï¼ä»
+ç®¡çåå¯è®¿é®æ­¤é¡µé¢');
         return;
       }
       await _fetchFines(reset: true);
     } catch (e) {
-      setState(() => _errorMessage = '初始化失败: $e');
+      setState(() => _errorMessage = 'åå§åå¤±è´¥: $e');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -160,7 +164,7 @@ class _FineListState extends State<FineList> {
         return;
       }
       final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken')!;
+      final jwtToken = (await AuthTokenStore.instance.getJwtToken())!;
       final response = await http.get(
         Uri.parse('http://localhost:8081/api/users/me'),
         headers: {
@@ -176,13 +180,14 @@ class _FineListState extends State<FineList> {
             [];
         setState(() => _isAdmin = roles.contains('ADMIN'));
         if (!_isAdmin) {
-          setState(() => _errorMessage = '权限不足：仅管理员可访问此页面');
+          setState(() => _errorMessage = 'æéä¸è¶³ï¼ä»
+ç®¡çåå¯è®¿é®æ­¤é¡µé¢');
         }
       } else {
-        throw Exception('验证失败：${response.statusCode}');
+        throw Exception('éªè¯å¤±è´¥ï¼${response.statusCode}');
       }
     } catch (e) {
-      setState(() => _errorMessage = '验证角色失败: $e');
+      setState(() => _errorMessage = 'éªè¯è§è²å¤±è´¥: $e');
     }
   }
 
@@ -246,8 +251,8 @@ class _FineListState extends State<FineList> {
         if (_filteredFineList.isEmpty) {
           _errorMessage =
           searchQuery.isNotEmpty || (_startDate != null && _endDate != null)
-              ? '未找到符合条件的罚款信息'
-              : '当前没有罚款记录';
+              ? 'æªæ¾å°ç¬¦åæ¡ä»¶çç½æ¬¾ä¿¡æ¯'
+              : 'å½åæ²¡æç½æ¬¾è®°å½';
         }
         _currentPage++;
         if (reset && _scrollController.hasClients) {
@@ -261,18 +266,18 @@ class _FineListState extends State<FineList> {
     } catch (e) {
       setState(() {
         if (e.toString().contains('403')) {
-          _errorMessage = '未授权，请重新登录';
+          _errorMessage = 'æªææï¼è¯·éæ°ç»å½';
           Navigator.pushReplacementNamed(context, AppPages.login);
         } else if (e.toString().contains('404')) {
-          _errorMessage = '未找到罚款记录';
+          _errorMessage = 'æªæ¾å°ç½æ¬¾è®°å½';
           _hasMore = false;
         } else {
-          _errorMessage = '获取罚款信息失败: $e';
+          _errorMessage = 'è·åç½æ¬¾ä¿¡æ¯å¤±è´¥: $e';
         }
         if (_cachedFineList.isNotEmpty) {
           _fineList.addAll(_cachedFineList);
           _applyFilters(query ?? _searchController.text);
-          _errorMessage = '获取最新罚款失败，显示缓存数据';
+          _errorMessage = 'è·åææ°ç½æ¬¾å¤±è´¥ï¼æ¾ç¤ºç¼å­æ°æ®';
         }
       });
     } finally {
@@ -297,7 +302,7 @@ class _FineListState extends State<FineList> {
       }
       return [];
     } catch (e) {
-      setState(() => _errorMessage = '获取建议失败: $e');
+      setState(() => _errorMessage = 'è·åå»ºè®®å¤±è´¥: $e');
       return [];
     }
   }
@@ -330,10 +335,10 @@ class _FineListState extends State<FineList> {
       }).toList();
 
       if (_filteredFineList.isEmpty && _fineList.isNotEmpty) {
-        _errorMessage = '未找到符合条件的罚款信息';
+        _errorMessage = 'æªæ¾å°ç¬¦åæ¡ä»¶çç½æ¬¾ä¿¡æ¯';
       } else {
         _errorMessage =
-        _filteredFineList.isEmpty && _fineList.isEmpty ? '当前没有罚款记录' : '';
+        _filteredFineList.isEmpty && _fineList.isEmpty ? 'å½åæ²¡æç½æ¬¾è®°å½' : '';
       }
     });
   }
@@ -360,7 +365,7 @@ class _FineListState extends State<FineList> {
     });
     await _fetchFines(reset: true, query: query);
     if (_errorMessage.isEmpty && _fineList.isNotEmpty) {
-      _showSnackBar('罚款列表已刷新');
+      _showSnackBar('ç½æ¬¾åè¡¨å·²å·æ°');
     }
   }
 
@@ -408,16 +413,16 @@ class _FineListState extends State<FineList> {
     bool? confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('确认删除'),
-        content: const Text('确定要删除此罚款信息吗？此操作不可撤销。'),
+        title: const Text('ç¡®è®¤å é¤'),
+        content: const Text('ç¡®å®è¦å é¤æ­¤ç½æ¬¾ä¿¡æ¯åï¼æ­¤æä½ä¸å¯æ¤éã'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
+            child: const Text('åæ¶'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('删除', style: TextStyle(color: Colors.red)),
+            child: const Text('å é¤', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -431,10 +436,10 @@ class _FineListState extends State<FineList> {
           return;
         }
         await fineApi.apiFinesFineIdDelete(fineId: fineId);
-        _showSnackBar('删除罚款成功！');
+        _showSnackBar('å é¤ç½æ¬¾æåï¼');
         await _refreshFines();
       } catch (e) {
-        _showSnackBar('删除罚款失败: $e', isError: true);
+        _showSnackBar('å é¤ç½æ¬¾å¤±è´¥: $e', isError: true);
       } finally {
         setState(() => _isLoading = false);
       }
@@ -494,7 +499,7 @@ class _FineListState extends State<FineList> {
                       style: TextStyle(color: themeData.colorScheme.onSurface),
                       decoration: InputDecoration(
                         hintText:
-                        _searchType == 'payee' ? '搜索缴款人' : '搜索时间范围（已选择）',
+                        _searchType == 'payee' ? 'æç´¢ç¼´æ¬¾äºº' : 'æç´¢æ¶é´èå´ï¼å·²éæ©ï¼',
                         hintStyle: TextStyle(
                             color: themeData.colorScheme.onSurface
                                 .withValues(alpha: 0.6)),
@@ -558,7 +563,7 @@ class _FineListState extends State<FineList> {
                   return DropdownMenuItem<String>(
                     value: value,
                     child: Text(
-                      value == 'payee' ? '按缴款人' : '按时间范围',
+                      value == 'payee' ? 'æç¼´æ¬¾äºº' : 'ææ¶é´èå´',
                       style: TextStyle(color: themeData.colorScheme.onSurface),
                     ),
                   );
@@ -575,8 +580,8 @@ class _FineListState extends State<FineList> {
               Expanded(
                 child: Text(
                   _startDate != null && _endDate != null
-                      ? '罚款日期范围: ${formatDate(_startDate)} 至 ${formatDate(_endDate)}'
-                      : '选择罚款日期范围',
+                      ? 'ç½æ¬¾æ¥æèå´: ${formatDate(_startDate)} è³ ${formatDate(_endDate)}'
+                      : 'éæ©ç½æ¬¾æ¥æèå´',
                   style: themeData.textTheme.bodyMedium?.copyWith(
                     color: _startDate != null && _endDate != null
                         ? themeData.colorScheme.onSurface
@@ -587,18 +592,18 @@ class _FineListState extends State<FineList> {
               IconButton(
                 icon: Icon(Icons.date_range,
                     color: themeData.colorScheme.primary),
-                tooltip: '按罚款日期范围搜索',
+                tooltip: 'æç½æ¬¾æ¥æèå´æç´¢',
                 onPressed: () async {
                   final range = await showDateRangePicker(
                     context: context,
                     firstDate: DateTime(1900),
                     lastDate: DateTime.now(),
                     locale: const Locale('zh', 'CN'),
-                    helpText: '选择罚款日期范围',
-                    cancelText: '取消',
-                    confirmText: '确定',
-                    fieldStartHintText: '开始日期',
-                    fieldEndHintText: '结束日期',
+                    helpText: 'éæ©ç½æ¬¾æ¥æèå´',
+                    cancelText: 'åæ¶',
+                    confirmText: 'ç¡®å®',
+                    fieldStartHintText: 'å¼å§æ¥æ',
+                    fieldEndHintText: 'ç»ææ¥æ',
                     builder: (BuildContext context, Widget? child) {
                       return Theme(
                         data: themeData.copyWith(
@@ -630,7 +635,8 @@ class _FineListState extends State<FineList> {
                 IconButton(
                   icon: Icon(Icons.clear,
                       color: themeData.colorScheme.onSurfaceVariant),
-                  tooltip: '清除日期范围',
+                  tooltip: 'æ¸
+é¤æ¥æèå´',
                   onPressed: () {
                     setState(() {
                       _startDate = null;
@@ -653,7 +659,7 @@ class _FineListState extends State<FineList> {
       final themeData = controller.currentBodyTheme.value;
       return DashboardPageTemplate(
         theme: themeData,
-        title: '罚款管理',
+        title: 'ç½æ¬¾ç®¡ç',
         pageType: DashboardPageType.manager,
         bodyIsScrollable: true,
         padding: EdgeInsets.zero,
@@ -662,12 +668,12 @@ class _FineListState extends State<FineList> {
             DashboardPageBarAction(
               icon: Icons.add,
               onPressed: _createFine,
-              tooltip: '添加罚款信息',
+              tooltip: 'æ·»å ç½æ¬¾ä¿¡æ¯',
             ),
             DashboardPageBarAction(
               icon: Icons.refresh,
               onPressed: () => _refreshFines(),
-              tooltip: '刷新列表',
+              tooltip: 'å·æ°åè¡¨',
             ),
           ],
         ],
@@ -714,7 +720,7 @@ class _FineListState extends State<FineList> {
                             ),
                             textAlign: TextAlign.center,
                           ),
-                          if (_errorMessage.contains('获取罚款信息失败'))
+                          if (_errorMessage.contains('è·åç½æ¬¾ä¿¡æ¯å¤±è´¥'))
                             Padding(
                               padding:
                               const EdgeInsets.only(top: 16.0),
@@ -726,10 +732,10 @@ class _FineListState extends State<FineList> {
                                   foregroundColor:
                                   themeData.colorScheme.onPrimary,
                                 ),
-                                child: const Text('重试'),
+                                child: const Text('éè¯'),
                               ),
                             ),
-                          if (_errorMessage.contains('获取罚款信息失败') &&
+                          if (_errorMessage.contains('è·åç½æ¬¾ä¿¡æ¯å¤±è´¥') &&
                               _cachedFineList.isNotEmpty)
                             Padding(
                               padding:
@@ -750,11 +756,11 @@ class _FineListState extends State<FineList> {
                                   foregroundColor: themeData
                                       .colorScheme.onSecondary,
                                 ),
-                                child: const Text('恢复缓存数据'),
+                                child: const Text('æ¢å¤ç¼å­æ°æ®'),
                               ),
                             ),
-                          if (_errorMessage.contains('未授权') ||
-                              _errorMessage.contains('登录'))
+                          if (_errorMessage.contains('æªææ') ||
+                              _errorMessage.contains('ç»å½'))
                             Padding(
                               padding:
                               const EdgeInsets.only(top: 16.0),
@@ -768,7 +774,7 @@ class _FineListState extends State<FineList> {
                                   foregroundColor:
                                   themeData.colorScheme.onPrimary,
                                 ),
-                                child: const Text('重新登录'),
+                                child: const Text('éæ°ç»å½'),
                               ),
                             ),
                         ],
@@ -802,7 +808,8 @@ class _FineListState extends State<FineList> {
                             const EdgeInsets.symmetric(
                                 horizontal: 16.0, vertical: 12.0),
                             title: Text(
-                              '金额: ${fijne.fineAmount ?? 0} 元',
+                              'éé¢: ${fijne.fineAmount ?? 0} å
+',
                               style: themeData.textTheme.titleMedium
                                   ?.copyWith(
                                 color:
@@ -816,7 +823,7 @@ class _FineListState extends State<FineList> {
                               children: [
                                 const SizedBox(height: 4),
                                 Text(
-                                  '缴款人: ${fijne.payee ?? '未知'}',
+                                  'ç¼´æ¬¾äºº: ${fijne.payee ?? 'æªç¥'}',
                                   style: themeData
                                       .textTheme.bodyMedium
                                       ?.copyWith(
@@ -825,7 +832,7 @@ class _FineListState extends State<FineList> {
                                   ),
                                 ),
                                 Text(
-                                  '时间: ${formatDate(_resolvedFineDate(fijne))}',
+                                  'æ¶é´: ${formatDate(_resolvedFineDate(fijne))}',
                                   style: themeData
                                       .textTheme.bodyMedium
                                       ?.copyWith(
@@ -834,7 +841,7 @@ class _FineListState extends State<FineList> {
                                   ),
                                 ),
                                 Text(
-                                  '状态: ${fijne.status ?? '正在处理'}',
+                                  'ç¶æ: ${fijne.status ?? 'æ­£å¨å¤ç'}',
                                   style: themeData
                                       .textTheme.bodyMedium
                                       ?.copyWith(
@@ -853,7 +860,7 @@ class _FineListState extends State<FineList> {
                                       color: themeData
                                           .colorScheme.primary),
                                   onPressed: () => _editFine(fijne),
-                                  tooltip: '编辑罚款',
+                                  tooltip: 'ç¼è¾ç½æ¬¾',
                                 ),
                                 IconButton(
                                   icon: Icon(Icons.delete,
@@ -862,7 +869,7 @@ class _FineListState extends State<FineList> {
                                           .colorScheme.error),
                                   onPressed: () =>
                                       _deleteFine(fijne.fineId ?? 0),
-                                  tooltip: '删除罚款',
+                                  tooltip: 'å é¤ç½æ¬¾',
                                 ),
                                 Icon(
                                   Icons.arrow_forward_ios,
@@ -942,19 +949,19 @@ class _AddFinePageState extends State<AddFinePage> {
 
   Future<bool> _validateJwtToken() async {
     final prefs = await SharedPreferences.getInstance();
-    final jwtToken = prefs.getString('jwtToken');
+    final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null || jwtToken.isEmpty) {
-      _showSnackBar('未授权，请重新登录', isError: true);
+      _showSnackBar('æªææï¼è¯·éæ°ç»å½', isError: true);
       return false;
     }
     try {
       if (JwtDecoder.isExpired(jwtToken)) {
-        _showSnackBar('登录已过期，请重新登录', isError: true);
+        _showSnackBar('ç»å½å·²è¿æï¼è¯·éæ°ç»å½', isError: true);
         return false;
       }
       return true;
     } catch (e) {
-      _showSnackBar('无效的登录信息，请重新登录', isError: true);
+      _showSnackBar('æ æçç»å½ä¿¡æ¯ï¼è¯·éæ°ç»å½', isError: true);
       return false;
     }
   }
@@ -970,7 +977,7 @@ class _AddFinePageState extends State<AddFinePage> {
       await offenseApi.initializeWithJwt();
       await vehicleApi.initializeWithJwt();
     } catch (e) {
-      _showSnackBar('初始化失败: $e', isError: true);
+      _showSnackBar('åå§åå¤±è´¥: $e', isError: true);
     } finally {
       setState(() => _isLoading = false);
     }
@@ -1000,7 +1007,7 @@ class _AddFinePageState extends State<AddFinePage> {
         size: 10,
       );
     } catch (e) {
-      _showSnackBar('获取车牌号建议失败: $e', isError: true);
+      _showSnackBar('è·åè½¦çå·å»ºè®®å¤±è´¥: $e', isError: true);
       return [];
     }
   }
@@ -1033,7 +1040,7 @@ class _AddFinePageState extends State<AddFinePage> {
       if (e is ApiException && e.code == 400 && prefix.trim().isEmpty) {
         return [];
       }
-      _showSnackBar('获取缴款人建议失败: $e', isError: true);
+      _showSnackBar('è·åç¼´æ¬¾äººå»ºè®®å¤±è´¥: $e', isError: true);
       return [];
     }
   }
@@ -1058,7 +1065,8 @@ class _AddFinePageState extends State<AddFinePage> {
               latestOffense.fineAmount?.toString() ?? '';
         });
       } else {
-        _showSnackBar('未找到与此车牌相关的违法记录', isError: true);
+        _showSnackBar('æªæ¾å°ä¸æ­¤è½¦çç¸å
+³çè¿æ³è®°å½', isError: true);
         setState(() {
           _selectedOffenseId = null;
           _payeeController.clear();
@@ -1066,7 +1074,7 @@ class _AddFinePageState extends State<AddFinePage> {
         });
       }
     } catch (e) {
-      _showSnackBar('获取违法信息失败: $e', isError: true);
+      _showSnackBar('è·åè¿æ³ä¿¡æ¯å¤±è´¥: $e', isError: true);
     }
   }
 
@@ -1077,7 +1085,7 @@ class _AddFinePageState extends State<AddFinePage> {
         return;
       }
       if (payeeData['offenseId'] == 0) {
-        _showSnackBar('无效的违法记录', isError: true);
+        _showSnackBar('æ æçè¿æ³è®°å½', isError: true);
         return;
       }
       setState(() {
@@ -1089,14 +1097,15 @@ class _AddFinePageState extends State<AddFinePage> {
             : _plateNumberController.text;
       });
     } catch (e) {
-      _showSnackBar('加载缴款人信息失败: $e', isError: true);
+      _showSnackBar('å è½½ç¼´æ¬¾äººä¿¡æ¯å¤±è´¥: $e', isError: true);
     }
   }
 
   Future<void> _submitFine() async {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedOffenseId == null) {
-      _showSnackBar('请先选择有效的违法记录', isError: true);
+      _showSnackBar('è¯·å
+éæ©ææçè¿æ³è®°å½', isError: true);
       return;
     }
     if (!await _validateJwtToken()) {
@@ -1127,7 +1136,7 @@ class _AddFinePageState extends State<AddFinePage> {
             ? DateTime.parse("${_dateController.text.trim()}T00:00:00.000")
             .toIso8601String()
             : null,
-        status: widget.isEditMode ? widget.fine?.status : '正在处理',
+        status: widget.isEditMode ? widget.fine?.status : 'æ­£å¨å¤ç',
         idempotencyKey: idempotencyKey,
       );
       if (widget.isEditMode) {
@@ -1136,22 +1145,22 @@ class _AddFinePageState extends State<AddFinePage> {
           fineInformation: finePayload,
           idempotencyKey: idempotencyKey,
         );
-        _showSnackBar('更新罚款成功！');
+        _showSnackBar('æ´æ°ç½æ¬¾æåï¼');
       } else {
         await fineApi.apiFinesPost(
           fineInformation: finePayload,
           idempotencyKey: idempotencyKey,
         );
-        _showSnackBar('创建罚款成功！');
+        _showSnackBar('åå»ºç½æ¬¾æåï¼');
       }
       if (mounted) Navigator.pop(context, true);
     } on ApiException catch (e) {
       _showSnackBar(
-          '${widget.isEditMode ? '更新' : '创建'}罚款失败: ${e.message}',
+          '${widget.isEditMode ? 'æ´æ°' : 'åå»º'}ç½æ¬¾å¤±è´¥: ${e.message}',
           isError: true);
     } catch (e) {
       _showSnackBar(
-          '${widget.isEditMode ? '更新' : '创建'}罚款失败: $e',
+          '${widget.isEditMode ? 'æ´æ°' : 'åå»º'}ç½æ¬¾å¤±è´¥: $e',
           isError: true);
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -1212,7 +1221,7 @@ class _AddFinePageState extends State<AddFinePage> {
         bool required = false,
         int? maxLength,
         String? Function(String?)? validator}) {
-    if (label == '车牌号' || label == '缴款人') {
+    if (label == 'è½¦çå·' || label == 'ç¼´æ¬¾äºº') {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 6.0),
         child: Autocomplete<Map<String, dynamic>>(
@@ -1220,7 +1229,7 @@ class _AddFinePageState extends State<AddFinePage> {
             if (textEditingValue.text.isEmpty) {
               return const Iterable<Map<String, dynamic>>.empty();
             }
-            final suggestions = label == '车牌号'
+            final suggestions = label == 'è½¦çå·'
                 ? (await _fetchLicensePlateSuggestions(textEditingValue.text))
                 .map((s) => {'value': s})
                 .toList()
@@ -1228,9 +1237,9 @@ class _AddFinePageState extends State<AddFinePage> {
             return suggestions;
           },
           displayStringForOption: (Map<String, dynamic> option) =>
-          label == '车牌号' ? option['value'] : option['payee'],
+          label == 'è½¦çå·' ? option['value'] : option['payee'],
           onSelected: (Map<String, dynamic> selection) async {
-            if (label == '车牌号') {
+            if (label == 'è½¦çå·') {
               controller.text = selection['value'];
               await _onLicensePlateSelected(selection['value']);
             } else {
@@ -1248,7 +1257,8 @@ class _AddFinePageState extends State<AddFinePage> {
                 labelText: label,
                 labelStyle:
                 TextStyle(color: themeData.colorScheme.onSurfaceVariant),
-                helperText: label == '车牌号' ? '请输入车牌号，例如：黑AWS34' : null,
+                helperText: label == 'è½¦çå·' ? 'è¯·è¾å
+¥è½¦çå·ï¼ä¾å¦ï¼é»AWS34' : null,
                 helperStyle: TextStyle(
                     color: themeData.colorScheme.onSurfaceVariant
                         .withValues(alpha: 0.6)),
@@ -1269,10 +1279,10 @@ class _AddFinePageState extends State<AddFinePage> {
                   onPressed: () {
                     textEditingController.clear();
                     controller.clear();
-                    if (label == '车牌号' || label == '缴款人') {
+                    if (label == 'è½¦çå·' || label == 'ç¼´æ¬¾äºº') {
                       setState(() {
                         _selectedOffenseId = null;
-                        if (label == '车牌号') {
+                        if (label == 'è½¦çå·') {
                           _payeeController.clear();
                           _fineAmountController.clear();
                         }
@@ -1287,17 +1297,20 @@ class _AddFinePageState extends State<AddFinePage> {
               validator: validator ??
                       (value) {
                     final trimmedValue = value?.trim() ?? '';
-                    if (required && trimmedValue.isEmpty) return '$label不能为空';
-                    if (label == '车牌号') {
-                      if (trimmedValue.isEmpty) return '车牌号不能为空';
-                      if (trimmedValue.length > 20) return '车牌号不能超过20个字符';
+                    if (required && trimmedValue.isEmpty) return '$labelä¸è½ä¸ºç©º';
+                    if (label == 'è½¦çå·') {
+                      if (trimmedValue.isEmpty) return 'è½¦çå·ä¸è½ä¸ºç©º';
+                      if (trimmedValue.length > 20) return 'è½¦çå·ä¸è½è¶
+è¿20ä¸ªå­ç¬¦';
                       if (!RegExp(r'^[\u4e00-\u9fa5][A-Za-z0-9]{5,7}$')
                           .hasMatch(trimmedValue)) {
-                        return '请输入有效车牌号，例如：黑AWS34';
+                        return 'è¯·è¾å
+¥ææè½¦çå·ï¼ä¾å¦ï¼é»AWS34';
                       }
                     }
-                    if (label == '缴款人' && trimmedValue.length > 100) {
-                      return '缴款人姓名不能超过100个字符';
+                    if (label == 'ç¼´æ¬¾äºº' && trimmedValue.length > 100) {
+                      return 'ç¼´æ¬¾äººå§åä¸è½è¶
+è¿100ä¸ªå­ç¬¦';
                     }
                     return null;
                   },
@@ -1317,7 +1330,8 @@ class _AddFinePageState extends State<AddFinePage> {
         decoration: InputDecoration(
           labelText: label,
           labelStyle: TextStyle(color: themeData.colorScheme.onSurfaceVariant),
-          helperText: label == '银行账号' ? '请输入银行账号（选填）' : null,
+          helperText: label == 'é¶è¡è´¦å·' ? 'è¯·è¾å
+¥é¶è¡è´¦å·ï¼éå¡«ï¼' : null,
           helperStyle: TextStyle(
               color: themeData.colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
@@ -1343,33 +1357,39 @@ class _AddFinePageState extends State<AddFinePage> {
         validator: validator ??
                 (value) {
               final trimmedValue = value?.trim() ?? '';
-              if (required && trimmedValue.isEmpty) return '$label不能为空';
-              if (label == '罚款金额' && trimmedValue.isNotEmpty) {
+              if (required && trimmedValue.isEmpty) return '$labelä¸è½ä¸ºç©º';
+              if (label == 'ç½æ¬¾éé¢' && trimmedValue.isNotEmpty) {
                 final amount = num.tryParse(trimmedValue);
-                if (amount == null) return '罚款金额必须是数字';
-                if (amount < 0) return '罚款金额不能为负数';
-                if (amount > 99999999.99) return '罚款金额不能超过99999999.99';
+                if (amount == null) return 'ç½æ¬¾éé¢å¿
+é¡»æ¯æ°å­';
+                if (amount < 0) return 'ç½æ¬¾éé¢ä¸è½ä¸ºè´æ°';
+                if (amount > 99999999.99) return 'ç½æ¬¾éé¢ä¸è½è¶
+è¿99999999.99';
                 if (!RegExp(r'^\d+(\.\d{1,2})?$').hasMatch(trimmedValue)) {
-                  return '罚款金额最多保留两位小数';
+                  return 'ç½æ¬¾éé¢æå¤ä¿çä¸¤ä½å°æ°';
                 }
               }
-              if (label == '银行账号' && trimmedValue.length > 50) {
-                return '银行账号不能超过50个字符';
+              if (label == 'é¶è¡è´¦å·' && trimmedValue.length > 50) {
+                return 'é¶è¡è´¦å·ä¸è½è¶
+è¿50ä¸ªå­ç¬¦';
               }
-              if (label == '银行名称' && trimmedValue.length > 100) {
-                return '银行名称不能超过100个字符';
+              if (label == 'é¶è¡åç§°' && trimmedValue.length > 100) {
+                return 'é¶è¡åç§°ä¸è½è¶
+è¿100ä¸ªå­ç¬¦';
               }
-              if (label == '收据编号' && trimmedValue.length > 50) {
-                return '收据编号不能超过50个字符';
+              if (label == 'æ¶æ®ç¼å·' && trimmedValue.length > 50) {
+                return 'æ¶æ®ç¼å·ä¸è½è¶
+è¿50ä¸ªå­ç¬¦';
               }
-              if (label == '备注' && trimmedValue.length > 255) {
-                return '备注不能超过255个字符';
+              if (label == 'å¤æ³¨' && trimmedValue.length > 255) {
+                return 'å¤æ³¨ä¸è½è¶
+è¿255ä¸ªå­ç¬¦';
               }
-              if (label == '罚款日期' && trimmedValue.isNotEmpty) {
+              if (label == 'ç½æ¬¾æ¥æ' && trimmedValue.isNotEmpty) {
                 final date = DateTime.tryParse('$trimmedValue 00:00:00.000');
-                if (date == null) return '无效的日期格式';
+                if (date == null) return 'æ æçæ¥ææ ¼å¼';
                 if (date.isAfter(DateTime.now())) {
-                  return '罚款日期不能晚于当前日期';
+                  return 'ç½æ¬¾æ¥æä¸è½æäºå½åæ¥æ';
                 }
               }
               return null;
@@ -1384,7 +1404,7 @@ class _AddFinePageState extends State<AddFinePage> {
       final themeData = controller.currentBodyTheme.value;
       return DashboardPageTemplate(
         theme: themeData,
-        title: widget.isEditMode ? '编辑罚款' : '添加新罚款',
+        title: widget.isEditMode ? 'ç¼è¾ç½æ¬¾' : 'æ·»å æ°ç½æ¬¾',
         pageType: DashboardPageType.manager,
         bodyIsScrollable: true,
         padding: EdgeInsets.zero,
@@ -1407,31 +1427,31 @@ class _AddFinePageState extends State<AddFinePage> {
                       child: Column(
                         children: [
                           _buildTextField(
-                              '车牌号', _plateNumberController, themeData,
+                              'è½¦çå·', _plateNumberController, themeData,
                               required: true, maxLength: 20),
                           _buildTextField(
-                              '罚款金额', _fineAmountController, themeData,
+                              'ç½æ¬¾éé¢', _fineAmountController, themeData,
                               keyboardType:
                               const TextInputType.numberWithOptions(
                                   decimal: true),
                               required: true),
                           _buildTextField(
-                              '缴款人', _payeeController, themeData,
+                              'ç¼´æ¬¾äºº', _payeeController, themeData,
                               required: true, maxLength: 100),
                           _buildTextField(
-                              '银行账号', _accountNumberController, themeData,
+                              'é¶è¡è´¦å·', _accountNumberController, themeData,
                               maxLength: 50),
                           _buildTextField(
-                              '银行名称', _bankController, themeData,
+                              'é¶è¡åç§°', _bankController, themeData,
                               maxLength: 100),
                           _buildTextField(
-                              '收据编号', _receiptNumberController, themeData,
+                              'æ¶æ®ç¼å·', _receiptNumberController, themeData,
                               maxLength: 50),
                           _buildTextField(
-                              '备注', _remarksController, themeData,
+                              'å¤æ³¨', _remarksController, themeData,
                               maxLength: 255),
                           _buildTextField(
-                              '罚款日期', _dateController, themeData,
+                              'ç½æ¬¾æ¥æ', _dateController, themeData,
                               readOnly: true,
                               onTap: _pickDate,
                               required: true),
@@ -1452,7 +1472,7 @@ class _AddFinePageState extends State<AddFinePage> {
                       textStyle: themeData.textTheme.labelLarge
                           ?.copyWith(fontWeight: FontWeight.bold),
                     ),
-                    child: Text(widget.isEditMode ? '保存' : '提交'),
+                    child: Text(widget.isEditMode ? 'ä¿å­' : 'æäº¤'),
                   ),
                 ],
               ),
@@ -1491,19 +1511,19 @@ class _FineDetailPageState extends State<FineDetailPage> {
 
   Future<bool> _validateJwtToken() async {
     final prefs = await SharedPreferences.getInstance();
-    final jwtToken = prefs.getString('jwtToken');
+    final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null || jwtToken.isEmpty) {
-      setState(() => _errorMessage = '未授权，请重新登录');
+      setState(() => _errorMessage = 'æªææï¼è¯·éæ°ç»å½');
       return false;
     }
     try {
       if (JwtDecoder.isExpired(jwtToken)) {
-        setState(() => _errorMessage = '登录已过期，请重新登录');
+        setState(() => _errorMessage = 'ç»å½å·²è¿æï¼è¯·éæ°ç»å½');
         return false;
       }
       return true;
     } catch (e) {
-      setState(() => _errorMessage = '无效的登录信息，请重新登录');
+      setState(() => _errorMessage = 'æ æçç»å½ä¿¡æ¯ï¼è¯·éæ°ç»å½');
       return false;
     }
   }
@@ -1518,7 +1538,7 @@ class _FineDetailPageState extends State<FineDetailPage> {
       await fineApi.initializeWithJwt();
       await _checkUserRole();
     } catch (e) {
-      setState(() => _errorMessage = '初始化失败: $e');
+      setState(() => _errorMessage = 'åå§åå¤±è´¥: $e');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -1531,8 +1551,8 @@ class _FineDetailPageState extends State<FineDetailPage> {
         return;
       }
       final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken');
-      if (jwtToken == null) throw Exception('未找到 JWT，请重新登录');
+      final jwtToken = (await AuthTokenStore.instance.getJwtToken());
+      if (jwtToken == null) throw Exception('æªæ¾å° JWTï¼è¯·éæ°ç»å½');
       final response = await http.get(
         Uri.parse('http://localhost:8081/api/users/me'),
         headers: {
@@ -1548,10 +1568,10 @@ class _FineDetailPageState extends State<FineDetailPage> {
             [];
         setState(() => _isAdmin = roles.contains('ADMIN'));
       } else {
-        throw Exception('验证失败：${response.statusCode}');
+        throw Exception('éªè¯å¤±è´¥ï¼${response.statusCode}');
       }
     } catch (e) {
-      setState(() => _errorMessage = '加载权限失败: $e');
+      setState(() => _errorMessage = 'å è½½æéå¤±è´¥: $e');
     }
   }
 
@@ -1582,12 +1602,12 @@ class _FineDetailPageState extends State<FineDetailPage> {
         idempotencyKey: idempotencyKey,
       );
       setState(() => _currentFine = result);
-      _showSnackBar('罚款记录已${status == 'Approved' ? '批准' : '拒绝'}');
+      _showSnackBar('ç½æ¬¾è®°å½å·²${status == 'Approved' ? 'æ¹å' : 'æç»'}');
       if (mounted) Navigator.pop(context, true);
     } on ApiException catch (e) {
-      _showSnackBar('更新状态失败: ${e.message}', isError: true);
+      _showSnackBar('æ´æ°ç¶æå¤±è´¥: ${e.message}', isError: true);
     } catch (e) {
-      _showSnackBar('更新状态失败: $e', isError: true);
+      _showSnackBar('æ´æ°ç¶æå¤±è´¥: $e', isError: true);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -1597,16 +1617,16 @@ class _FineDetailPageState extends State<FineDetailPage> {
     bool? confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('确认删除'),
-        content: const Text('确定要删除此罚款信息吗？此操作不可撤销。'),
+        title: const Text('ç¡®è®¤å é¤'),
+        content: const Text('ç¡®å®è¦å é¤æ­¤ç½æ¬¾ä¿¡æ¯åï¼æ­¤æä½ä¸å¯æ¤éã'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
+            child: const Text('åæ¶'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('删除', style: TextStyle(color: Colors.red)),
+            child: const Text('å é¤', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -1620,12 +1640,12 @@ class _FineDetailPageState extends State<FineDetailPage> {
           return;
         }
         await fineApi.apiFinesFineIdDelete(fineId: fineId);
-        _showSnackBar('罚款删除成功！');
+        _showSnackBar('ç½æ¬¾å é¤æåï¼');
         if (mounted) Navigator.pop(context, true);
       } on ApiException catch (e) {
-        _showSnackBar('删除失败: ${e.message}', isError: true);
+        _showSnackBar('å é¤å¤±è´¥: ${e.message}', isError: true);
       } catch (e) {
-        _showSnackBar('删除失败: $e', isError: true);
+        _showSnackBar('å é¤å¤±è´¥: $e', isError: true);
       } finally {
         if (mounted) setState(() => _isLoading = false);
       }
@@ -1698,7 +1718,7 @@ class _FineDetailPageState extends State<FineDetailPage> {
   }
 
   String formatDate(DateTime? date) {
-    if (date == null) return '未知';
+    if (date == null) return 'æªç¥';
     return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
 
@@ -1709,7 +1729,8 @@ class _FineDetailPageState extends State<FineDetailPage> {
       if (_errorMessage.isNotEmpty) {
         return DashboardPageTemplate(
           theme: themeData,
-          title: '罚款详情',
+          title: 'ç½æ¬¾è¯¦æ
+',
           pageType: DashboardPageType.manager,
           bodyIsScrollable: true,
           padding: EdgeInsets.zero,
@@ -1725,8 +1746,8 @@ class _FineDetailPageState extends State<FineDetailPage> {
                   ),
                   textAlign: TextAlign.center,
                 ),
-                if (_errorMessage.contains('未授权') ||
-                    _errorMessage.contains('登录'))
+                if (_errorMessage.contains('æªææ') ||
+                    _errorMessage.contains('ç»å½'))
                   Padding(
                     padding: const EdgeInsets.only(top: 16.0),
                     child: ElevatedButton(
@@ -1736,7 +1757,7 @@ class _FineDetailPageState extends State<FineDetailPage> {
                         backgroundColor: themeData.colorScheme.primary,
                         foregroundColor: themeData.colorScheme.onPrimary,
                       ),
-                      child: const Text('重新登录'),
+                      child: const Text('éæ°ç»å½'),
                     ),
                   ),
               ],
@@ -1747,7 +1768,8 @@ class _FineDetailPageState extends State<FineDetailPage> {
 
       return DashboardPageTemplate(
         theme: themeData,
-        title: '罚款详情',
+        title: 'ç½æ¬¾è¯¦æ
+',
         pageType: DashboardPageType.manager,
         bodyIsScrollable: true,
         padding: EdgeInsets.zero,
@@ -1756,27 +1778,27 @@ class _FineDetailPageState extends State<FineDetailPage> {
             DashboardPageBarAction(
               icon: Icons.edit,
               onPressed: _editFine,
-              tooltip: '编辑罚款',
+              tooltip: 'ç¼è¾ç½æ¬¾',
             ),
-            if (_currentFine.status == '正在处理') ...[
+            if (_currentFine.status == 'æ­£å¨å¤ç') ...[
               DashboardPageBarAction(
                 icon: Icons.check,
                 onPressed: () => _updateFineStatus(
-                    _currentFine.fineId ?? 0, '批准'),
-                tooltip: '批准罚款',
+                    _currentFine.fineId ?? 0, 'æ¹å'),
+                tooltip: 'æ¹åç½æ¬¾',
               ),
               DashboardPageBarAction(
                 icon: Icons.close,
                 onPressed: () => _updateFineStatus(
-                    _currentFine.fineId ?? 0, '驳回'),
-                tooltip: '拒绝罚款',
+                    _currentFine.fineId ?? 0, 'é©³å'),
+                tooltip: 'æç»ç½æ¬¾',
               ),
             ],
             DashboardPageBarAction(
               icon: Icons.delete,
               color: themeData.colorScheme.error,
               onPressed: () => _deleteFine(_currentFine.fineId ?? 0),
-              tooltip: '删除罚款',
+              tooltip: 'å é¤ç½æ¬¾',
             ),
           ],
         ],
@@ -1802,43 +1824,44 @@ class _FineDetailPageState extends State<FineDetailPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildDetailRow(
-                      '罚款金额',
-                      '${_currentFine.fineAmount ?? 0} 元',
+                      'ç½æ¬¾éé¢',
+                      '${_currentFine.fineAmount ?? 0} å
+',
                       themeData,
                     ),
                     _buildDetailRow(
-                      '缴款人',
-                      _currentFine.payee ?? '未知',
+                      'ç¼´æ¬¾äºº',
+                      _currentFine.payee ?? 'æªç¥',
                       themeData,
                     ),
                     _buildDetailRow(
-                      '罚款时间',
+                      'ç½æ¬¾æ¶é´',
                       formatDate(_resolvedFineDate(_currentFine)),
                       themeData,
                     ),
                     _buildDetailRow(
-                      '状态',
-                      _currentFine.status ?? '正在处理',
+                      'ç¶æ',
+                      _currentFine.status ?? 'æ­£å¨å¤ç',
                       themeData,
                     ),
                     _buildDetailRow(
-                      '银行账号',
-                      _currentFine.accountNumber ?? '无',
+                      'é¶è¡è´¦å·',
+                      _currentFine.accountNumber ?? 'æ ',
                       themeData,
                     ),
                     _buildDetailRow(
-                      '银行名称',
-                      _currentFine.bank ?? '无',
+                      'é¶è¡åç§°',
+                      _currentFine.bank ?? 'æ ',
                       themeData,
                     ),
                     _buildDetailRow(
-                      '收据编号',
-                      _currentFine.receiptNumber ?? '无',
+                      'æ¶æ®ç¼å·',
+                      _currentFine.receiptNumber ?? 'æ ',
                       themeData,
                     ),
                     _buildDetailRow(
-                      '备注',
-                      _currentFine.remarks ?? '无',
+                      'å¤æ³¨',
+                      _currentFine.remarks ?? 'æ ',
                       themeData,
                     ),
                   ],

@@ -17,13 +17,14 @@ import 'package:intl/intl.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
+import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
 String generateIdempotencyKey() {
   return const Uuid().v4();
 }
 
 String formatDateTime(DateTime? dateTime) {
-  if (dateTime == null) return '未提供';
+  if (dateTime == null) return 'æªæä¾';
   return DateFormat('yyyy-MM-dd HH:mm').format(dateTime);
 }
 
@@ -31,13 +32,14 @@ String formatDateTime(DateTime? dateTime) {
 String getDisplayStatus(String? status) {
   switch (status) {
     case 'Pending':
-      return '待处理';
+      return 'å¾
+å¤ç';
     case 'Approved':
-      return '已通过';
+      return 'å·²éè¿';
     case 'Rejected':
-      return '已驳回';
+      return 'å·²é©³å';
     default:
-      return status ?? '未知';
+      return status ?? 'æªç¥';
   }
 }
 
@@ -82,9 +84,9 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
 
   Future<bool> _validateJwtToken() async {
     final prefs = await SharedPreferences.getInstance();
-    String? jwtToken = prefs.getString('jwtToken');
+    String? jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null || jwtToken.isEmpty) {
-      setState(() => _errorMessage = '未授权：未找到登录信息，请重新登录');
+      setState(() => _errorMessage = 'æªææï¼æªæ¾å°ç»å½ä¿¡æ¯ï¼è¯·éæ°ç»å½');
       return false;
     }
     try {
@@ -92,12 +94,12 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
       if (JwtDecoder.isExpired(jwtToken)) {
         jwtToken = await _refreshJwtToken();
         if (jwtToken == null) {
-          setState(() => _errorMessage = '登录已过期，请重新登录');
+          setState(() => _errorMessage = 'ç»å½å·²è¿æï¼è¯·éæ°ç»å½');
           return false;
         }
-        await prefs.setString('jwtToken', jwtToken);
+        await AuthTokenStore.instance.setJwtToken(jwtToken);
         if (JwtDecoder.isExpired(jwtToken)) {
-          setState(() => _errorMessage = '新登录信息已过期，请重新登录');
+          setState(() => _errorMessage = 'æ°ç»å½ä¿¡æ¯å·²è¿æï¼è¯·éæ°ç»å½');
           return false;
         }
         await appealApi.initializeWithJwt();
@@ -106,7 +108,7 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
           .log('JWT Token validated successfully: sub=${decodedToken['sub']}');
       return true;
     } catch (e) {
-      setState(() => _errorMessage = '无效的登录信息：$e，请重新登录');
+      setState(() => _errorMessage = 'æ æçç»å½ä¿¡æ¯ï¼$eï¼è¯·éæ°ç»å½');
       developer.log('JWT validation failed: $e',
           stackTrace: StackTrace.current);
       return false;
@@ -128,7 +130,7 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
       );
       if (response.statusCode == 200) {
         final newJwt = jsonDecode(response.body)['jwtToken'];
-        await prefs.setString('jwtToken', newJwt);
+        await AuthTokenStore.instance.setJwtToken(newJwt);
         developer.log('JWT token refreshed successfully');
         return newJwt;
       }
@@ -155,10 +157,11 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
       if (_isAdmin) {
         await _loadAppeals(reset: true);
       } else {
-        setState(() => _errorMessage = '权限不足：仅管理员可访问此页面');
+        setState(() => _errorMessage = 'æéä¸è¶³ï¼ä»
+ç®¡çåå¯è®¿é®æ­¤é¡µé¢');
       }
     } catch (e) {
-      setState(() => _errorMessage = '初始化失败: $e');
+      setState(() => _errorMessage = 'åå§åå¤±è´¥: $e');
       developer.log('Initialization failed: $e',
           stackTrace: StackTrace.current);
     } finally {
@@ -173,7 +176,7 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
         return;
       }
       final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken')!;
+      final jwtToken = (await AuthTokenStore.instance.getJwtToken())!;
 
       // Try backend API first
       try {
@@ -207,7 +210,7 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
       // Fallback to JWTSwe token roles
       await _checkRolesFromJwt();
     } catch (e) {
-      setState(() => _errorMessage = '验证角色失败: $e');
+      setState(() => _errorMessage = 'éªè¯è§è²å¤±è´¥: $e');
       developer.log('Role check failed: $e', stackTrace: StackTrace.current);
     }
   }
@@ -215,7 +218,7 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
   Future<void> _checkRolesFromJwt() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken')!;
+      final jwtToken = (await AuthTokenStore.instance.getJwtToken())!;
       final decodedToken = JwtDecoder.decode(jwtToken);
       developer.log('JWT decoded: $decodedToken');
       final rawRoles = decodedToken['roles'];
@@ -232,11 +235,11 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
       }
       setState(() => _isAdmin = roles.contains('ADMIN'));
       if (!_isAdmin) {
-        setState(() => _errorMessage = '权限不足：JWT角色为 $roles，非管理员');
+        setState(() => _errorMessage = 'æéä¸è¶³ï¼JWTè§è²ä¸º $rolesï¼éç®¡çå');
       }
       developer.log('Roles from JWT: $roles, isAdmin: $_isAdmin');
     } catch (e) {
-      setState(() => _errorMessage = '从JWT验证角色失败: $e');
+      setState(() => _errorMessage = 'ä»JWTéªè¯è§è²å¤±è´¥: $e');
       developer.log('JWT role check failed: $e',
           stackTrace: StackTrace.current);
     }
@@ -316,8 +319,8 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
         if (_filteredAppeals.isEmpty) {
           _errorMessage = (_searchController.text.isNotEmpty ||
                   (_startTime != null && _endTime != null))
-              ? '未找到符合条件的申诉记录'
-              : '暂无申诉记录';
+              ? 'æªæ¾å°ç¬¦åæ¡ä»¶çç³è¯è®°å½'
+              : 'ææ ç³è¯è®°å½';
         }
       });
       developer.log('Loaded appeals: ${_appeals.length}');
@@ -328,10 +331,10 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
         _appeals.clear();
         _filteredAppeals.clear();
         if (e is ApiException && e.code == 403) {
-          _errorMessage = '未授权，请重新登录';
+          _errorMessage = 'æªææï¼è¯·éæ°ç»å½';
           Get.offAllNamed(AppPages.login);
         } else {
-          _errorMessage = '加载申诉信息失败: ${_formatErrorMessage(e)}';
+          _errorMessage = 'å è½½ç³è¯ä¿¡æ¯å¤±è´¥: ${_formatErrorMessage(e)}';
         }
       });
     } finally {
@@ -374,10 +377,10 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
       }).toList();
 
       if (_filteredAppeals.isEmpty && _appeals.isNotEmpty) {
-        _errorMessage = '未找到符合条件的申诉记录';
+        _errorMessage = 'æªæ¾å°ç¬¦åæ¡ä»¶çç³è¯è®°å½';
       } else {
         _errorMessage =
-            _filteredAppeals.isEmpty && _appeals.isEmpty ? '暂无申诉记录' : '';
+            _filteredAppeals.isEmpty && _appeals.isEmpty ? 'ææ ç³è¯è®°å½' : '';
       }
     });
   }
@@ -443,18 +446,18 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
     if (error is ApiException) {
       switch (error.code) {
         case 400:
-          return '请求错误: ${error.message}';
+          return 'è¯·æ±éè¯¯: ${error.message}';
         case 403:
-          return '无权限: ${error.message}';
+          return 'æ æé: ${error.message}';
         case 404:
-          return '未找到: ${error.message}';
+          return 'æªæ¾å°: ${error.message}';
         case 409:
-          return '重复请求: ${error.message}';
+          return 'éå¤è¯·æ±: ${error.message}';
         default:
-          return '服务器错误: ${error.message}';
+          return 'æå¡å¨éè¯¯: ${error.message}';
       }
     }
-    return '操作失败: $error';
+    return 'æä½å¤±è´¥: $error';
   }
 
   Widget _buildSearchBar(ThemeData themeData) {
@@ -492,12 +495,12 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
                             ?.copyWith(color: themeData.colorScheme.onSurface),
                         decoration: InputDecoration(
                           hintText: _searchType == 'appealReason'
-                              ? '搜索申诉原因'
+                              ? 'æç´¢ç³è¯åå '
                               : _searchType == 'appellantName'
-                                  ? '搜索申诉人姓名'
+                                  ? 'æç´¢ç³è¯äººå§å'
                                   : _searchType == 'processStatus'
-                                      ? '搜索处理状态' // Updated to Chinese
-                                      : '搜索时间范围（已选择）',
+                                      ? 'æç´¢å¤çç¶æ' // Updated to Chinese
+                                      : 'æç´¢æ¶é´èå´ï¼å·²éæ©ï¼',
                           hintStyle: themeData.textTheme.bodyMedium?.copyWith(
                             color: themeData.colorScheme.onSurface
                                 .withValues(alpha: 0.6),
@@ -559,12 +562,12 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
                       value: value,
                       child: Text(
                         value == 'appealReason'
-                            ? '按申诉原因'
+                            ? 'æç³è¯åå '
                             : value == 'appellantName'
-                                ? '按申诉人姓名'
+                                ? 'æç³è¯äººå§å'
                                 : value == 'processStatus'
-                                    ? '按处理状态' // Updated to Chinese
-                                    : '按时间范围',
+                                    ? 'æå¤çç¶æ' // Updated to Chinese
+                                    : 'ææ¶é´èå´',
                         style:
                             TextStyle(color: themeData.colorScheme.onSurface),
                       ),
@@ -582,8 +585,8 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
                 Expanded(
                   child: Text(
                     _startTime != null && _endTime != null
-                        ? '日期范围: ${formatDateTime(_startTime)} 至 ${formatDateTime(_endTime)}'
-                        : '选择日期范围',
+                        ? 'æ¥æèå´: ${formatDateTime(_startTime)} è³ ${formatDateTime(_endTime)}'
+                        : 'éæ©æ¥æèå´',
                     style: themeData.textTheme.bodyMedium?.copyWith(
                       color: _startTime != null && _endTime != null
                           ? themeData.colorScheme.onSurface
@@ -594,18 +597,18 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
                 IconButton(
                   icon: Icon(Icons.date_range,
                       color: themeData.colorScheme.primary),
-                  tooltip: '按日期范围搜索',
+                  tooltip: 'ææ¥æèå´æç´¢',
                   onPressed: () async {
                     final range = await showDateRangePicker(
                       context: context,
                       firstDate: DateTime(2000),
                       lastDate: DateTime.now(),
                       locale: const Locale('zh', 'CN'),
-                      helpText: '选择日期范围',
-                      cancelText: '取消',
-                      confirmText: '确定',
-                      fieldStartHintText: '开始日期',
-                      fieldEndHintText: '结束日期',
+                      helpText: 'éæ©æ¥æèå´',
+                      cancelText: 'åæ¶',
+                      confirmText: 'ç¡®å®',
+                      fieldStartHintText: 'å¼å§æ¥æ',
+                      fieldEndHintText: 'ç»ææ¥æ',
                       builder: (BuildContext context, Widget? child) {
                         return Theme(
                           data: themeData.copyWith(
@@ -638,7 +641,8 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
                   IconButton(
                     icon: Icon(Icons.clear,
                         color: themeData.colorScheme.onSurfaceVariant),
-                    tooltip: '清除日期范围',
+                    tooltip: 'æ¸
+é¤æ¥æèå´',
                     onPressed: () {
                       setState(() {
                         _startTime = null;
@@ -667,7 +671,7 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
         title: Text(
-          '申诉人: ${appeal.appellantName ?? "未知"} (ID: ${appeal.appealId ?? "无"})',
+          'ç³è¯äºº: ${appeal.appellantName ?? "æªç¥"} (ID: ${appeal.appealId ?? "æ "})',
           style: themeData.textTheme.titleMedium?.copyWith(
             color: themeData.colorScheme.onSurface,
             fontWeight: FontWeight.bold,
@@ -679,13 +683,13 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '原因: ${appeal.appealReason ?? "无"}',
+                'åå : ${appeal.appealReason ?? "æ "}',
                 style: themeData.textTheme.bodyMedium?.copyWith(
                   color: themeData.colorScheme.onSurfaceVariant,
                 ),
               ),
               Text(
-                '状态: ${getDisplayStatus(appeal.processStatus)}',
+                'ç¶æ: ${getDisplayStatus(appeal.processStatus)}',
                 // Use Chinese status
                 style: themeData.textTheme.bodyMedium?.copyWith(
                   color: appeal.processStatus == 'Approved'
@@ -696,7 +700,7 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
                 ),
               ),
               Text(
-                '时间: ${formatDateTime(appeal.appealTime)}',
+                'æ¶é´: ${formatDateTime(appeal.appealTime)}',
                 style: themeData.textTheme.bodyMedium?.copyWith(
                   color: themeData.colorScheme.onSurfaceVariant,
                 ),
@@ -721,7 +725,7 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
 
       return DashboardPageTemplate(
         theme: themeData,
-        title: '申诉审批管理',
+        title: 'ç³è¯å®¡æ¹ç®¡ç',
         pageType: DashboardPageType.manager,
         bodyIsScrollable: true,
         padding: EdgeInsets.zero,
@@ -729,7 +733,7 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
           DashboardPageBarAction(
             icon: Icons.refresh,
             onPressed: () => _refreshAppeals(),
-            tooltip: '刷新列表',
+            tooltip: 'å·æ°åè¡¨',
           ),
         ],
         onThemeToggle: controller.toggleBodyTheme,
@@ -768,9 +772,9 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
                                   ),
                                   textAlign: TextAlign.center,
                                 ),
-                                if (_errorMessage.contains('未授权') ||
-                                    _errorMessage.contains('登录') ||
-                                    _errorMessage.contains('权限不足'))
+                                if (_errorMessage.contains('æªææ') ||
+                                    _errorMessage.contains('ç»å½') ||
+                                    _errorMessage.contains('æéä¸è¶³'))
                                   Padding(
                                     padding:
                                         const EdgeInsets.only(top: 20.0),
@@ -788,7 +792,7 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
                                         padding: const EdgeInsets.symmetric(
                                             horizontal: 24.0, vertical: 12.0),
                                       ),
-                                      child: const Text('重新登录'),
+                                      child: const Text('éæ°ç»å½'),
                                     ),
                                   ),
                               ],
@@ -809,7 +813,7 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
                                     Text(
                                       _errorMessage.isNotEmpty
                                           ? _errorMessage
-                                          : '暂无申诉记录',
+                                          : 'ææ ç³è¯è®°å½',
                                       style: themeData.textTheme.titleMedium
                                           ?.copyWith(
                                         color: themeData
@@ -877,9 +881,9 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
 
   Future<bool> _validateJwtToken() async {
     final prefs = await SharedPreferences.getInstance();
-    String? jwtToken = prefs.getString('jwtToken');
+    String? jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null || jwtToken.isEmpty) {
-      setState(() => _errorMessage = '未授权：未找到登录信息，请重新登录');
+      setState(() => _errorMessage = 'æªææï¼æªæ¾å°ç»å½ä¿¡æ¯ï¼è¯·éæ°ç»å½');
       return false;
     }
     try {
@@ -887,12 +891,12 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
       if (JwtDecoder.isExpired(jwtToken)) {
         jwtToken = await _refreshJwtToken();
         if (jwtToken == null) {
-          setState(() => _errorMessage = '登录已过期，请重新登录');
+          setState(() => _errorMessage = 'ç»å½å·²è¿æï¼è¯·éæ°ç»å½');
           return false;
         }
-        await prefs.setString('jwtToken', jwtToken);
+        await AuthTokenStore.instance.setJwtToken(jwtToken);
         if (JwtDecoder.isExpired(jwtToken)) {
-          setState(() => _errorMessage = '新登录信息已过期，请重新登录');
+          setState(() => _errorMessage = 'æ°ç»å½ä¿¡æ¯å·²è¿æï¼è¯·éæ°ç»å½');
           return false;
         }
         await appealApi.initializeWithJwt();
@@ -901,7 +905,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
           .log('JWT Token validated successfully: sub=${decodedToken['sub']}');
       return true;
     } catch (e) {
-      setState(() => _errorMessage = '无效的登录信息：$e，请重新登录');
+      setState(() => _errorMessage = 'æ æçç»å½ä¿¡æ¯ï¼$eï¼è¯·éæ°ç»å½');
       developer.log('JWT validation failed: $e',
           stackTrace: StackTrace.current);
       return false;
@@ -923,7 +927,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
       );
       if (response.statusCode == 200) {
         final newJwt = jsonDecode(response.body)['jwtToken'];
-        await prefs.setString('jwtToken', newJwt);
+        await AuthTokenStore.instance.setJwtToken(newJwt);
         developer.log('JWT token refreshed successfully');
         return newJwt;
       }
@@ -947,7 +951,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
       await appealApi.initializeWithJwt();
       await _checkUserRole();
     } catch (e) {
-      setState(() => _errorMessage = '初始化失败: $e');
+      setState(() => _errorMessage = 'åå§åå¤±è´¥: $e');
       developer.log('Initialization failed: $e',
           stackTrace: StackTrace.current);
     } finally {
@@ -962,7 +966,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
         return;
       }
       final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken')!;
+      final jwtToken = (await AuthTokenStore.instance.getJwtToken())!;
 
       // Try backend API first
       try {
@@ -996,7 +1000,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
       // Fallback to JWT token roles
       await _checkRolesFromJwt();
     } catch (e) {
-      setState(() => _errorMessage = '验证角色失败: $e');
+      setState(() => _errorMessage = 'éªè¯è§è²å¤±è´¥: $e');
       developer.log('Role check failed: $e', stackTrace: StackTrace.current);
     }
   }
@@ -1004,7 +1008,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
   Future<void> _checkRolesFromJwt() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken')!;
+      final jwtToken = (await AuthTokenStore.instance.getJwtToken())!;
       final decodedToken = JwtDecoder.decode(jwtToken);
       developer.log('JWT decoded: $decodedToken');
       final rawRoles = decodedToken['roles'];
@@ -1021,11 +1025,11 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
       }
       setState(() => _isAdmin = roles.contains('ADMIN'));
       if (!_isAdmin) {
-        setState(() => _errorMessage = '权限不足：JWT角色为 $roles，非管理员');
+        setState(() => _errorMessage = 'æéä¸è¶³ï¼JWTè§è²ä¸º $rolesï¼éç®¡çå');
       }
       developer.log('Roles from JWT: $roles, isAdmin: $_isAdmin');
     } catch (e) {
-      setState(() => _errorMessage = '从JWT验证角色失败: $e');
+      setState(() => _errorMessage = 'ä»JWTéªè¯è§è²å¤±è´¥: $e');
       developer.log('JWT role check failed: $e',
           stackTrace: StackTrace.current);
     }
@@ -1033,14 +1037,14 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
 
   Future<void> _approveAppeal(int appealId) async {
     if (widget.appeal.appealId == null) {
-      _showSnackBar('申诉ID无效', isError: true);
+      _showSnackBar('ç³è¯IDæ æ', isError: true);
       return;
     }
     setState(() => _isLoading = true);
     try {
       final updatedAppeal = widget.appeal.copyWith(
         processStatus: 'Approved', // Keep English for backend
-        processResult: '申诉已通过',
+        processResult: 'ç³è¯å·²éè¿',
       );
       developer.log(
           'Approving appeal ID: $appealId, Payload: ${updatedAppeal.toJson()}');
@@ -1051,7 +1055,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
             idempotencyKey: generateIdempotencyKey(),
           )
           .timeout(const Duration(seconds: 5));
-      _showSnackBar('申诉已审批通过！');
+      _showSnackBar('ç³è¯å·²å®¡æ¹éè¿ï¼');
       widget.onAppealUpdated?.call(updatedAppeal);
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
@@ -1080,7 +1084,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  '驳回申诉',
+                  'é©³åç³è¯',
                   style: themeData.textTheme.titleLarge?.copyWith(
                     color: themeData.colorScheme.onSurface,
                     fontWeight: FontWeight.bold,
@@ -1091,7 +1095,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
                 TextField(
                   controller: _rejectionReasonController,
                   decoration: InputDecoration(
-                    labelText: '驳回原因',
+                    labelText: 'é©³ååå ',
                     labelStyle: themeData.textTheme.bodyMedium?.copyWith(
                       color: themeData.colorScheme.onSurfaceVariant,
                     ),
@@ -1121,7 +1125,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
                     TextButton(
                       onPressed: () => Navigator.pop(ctx),
                       child: Text(
-                        '取消',
+                        'åæ¶',
                         style: themeData.textTheme.labelLarge?.copyWith(
                           color: themeData.colorScheme.onSurfaceVariant,
                           fontWeight: FontWeight.w600,
@@ -1132,11 +1136,11 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
                       onPressed: () async {
                         final reason = _rejectionReasonController.text.trim();
                         if (reason.isEmpty) {
-                          _showSnackBar('请填写驳回原因', isError: true);
+                          _showSnackBar('è¯·å¡«åé©³ååå ', isError: true);
                           return;
                         }
                         if (widget.appeal.appealId == null) {
-                          _showSnackBar('申诉ID无效', isError: true);
+                          _showSnackBar('ç³è¯IDæ æ', isError: true);
                           Navigator.pop(ctx);
                           return;
                         }
@@ -1156,7 +1160,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
                                 idempotencyKey: generateIdempotencyKey(),
                               )
                               .timeout(const Duration(seconds: 5));
-                          _showSnackBar('申诉已驳回，用户可重新提交');
+                          _showSnackBar('ç³è¯å·²é©³åï¼ç¨æ·å¯éæ°æäº¤');
                           widget.onAppealUpdated?.call(updatedAppeal);
                           Navigator.pop(ctx);
                           if (mounted) Navigator.pop(context, true);
@@ -1177,7 +1181,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
                             horizontal: 20.0, vertical: 12.0),
                       ),
                       child: Text(
-                        '确认驳回',
+                        'ç¡®è®¤é©³å',
                         style: themeData.textTheme.labelLarge?.copyWith(
                           color: themeData.colorScheme.onError,
                           fontWeight: FontWeight.bold,
@@ -1221,18 +1225,18 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
     if (error is ApiException) {
       switch (error.code) {
         case 400:
-          return '请求错误: ${error.message}';
+          return 'è¯·æ±éè¯¯: ${error.message}';
         case 403:
-          return '无权限: ${error.message}';
+          return 'æ æé: ${error.message}';
         case 404:
-          return '未找到: ${error.message}';
+          return 'æªæ¾å°: ${error.message}';
         case 409:
-          return '重复请求: ${error.message}';
+          return 'éå¤è¯·æ±: ${error.message}';
         default:
-          return '服务器错误: ${error.message}';
+          return 'æå¡å¨éè¯¯: ${error.message}';
       }
     }
-    return '操作失败: $error';
+    return 'æä½å¤±è´¥: $error';
   }
 
   Widget _buildDetailRow(String label, String value, ThemeData themeData,
@@ -1251,7 +1255,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
           ),
           Expanded(
             child: Text(
-              label == '处理状态' ? getDisplayStatus(value) : value,
+              label == 'å¤çç¶æ' ? getDisplayStatus(value) : value,
               // Use Chinese status for display
               style: themeData.textTheme.bodyLarge?.copyWith(
                 color: valueColor ?? themeData.colorScheme.onSurfaceVariant,
@@ -1267,19 +1271,20 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
   Widget build(BuildContext context) {
     return Obx(() {
       final themeData = controller.currentBodyTheme.value;
-      final appealId = widget.appeal.appealId?.toString() ?? '未提供';
-      final offenseId = widget.appeal.offenseId?.toString() ?? '未提供';
-      final name = widget.appeal.appellantName ?? '未提供';
-      final idCard = widget.appeal.appellantIdCard ?? '未提供';
-      final contact = widget.appeal.appellantContact ?? '未提供';
-      final reason = widget.appeal.appealReason ?? '未提供';
+      final appealId = widget.appeal.appealId?.toString() ?? 'æªæä¾';
+      final offenseId = widget.appeal.offenseId?.toString() ?? 'æªæä¾';
+      final name = widget.appeal.appellantName ?? 'æªæä¾';
+      final idCard = widget.appeal.appellantIdCard ?? 'æªæä¾';
+      final contact = widget.appeal.appellantContact ?? 'æªæä¾';
+      final reason = widget.appeal.appealReason ?? 'æªæä¾';
       final time = formatDateTime(widget.appeal.appealTime);
-      final status = widget.appeal.processStatus ?? '未提供';
-      final result = widget.appeal.processResult ?? '未提供';
+      final status = widget.appeal.processStatus ?? 'æªæä¾';
+      final result = widget.appeal.processResult ?? 'æªæä¾';
 
       return DashboardPageTemplate(
         theme: themeData,
-        title: '申诉详情',
+        title: 'ç³è¯è¯¦æ
+',
         pageType: DashboardPageType.manager,
         bodyIsScrollable: true,
         padding: EdgeInsets.zero,
@@ -1310,9 +1315,9 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
                           ),
                           textAlign: TextAlign.center,
                         ),
-                        if (_errorMessage.contains('未授权') ||
-                            _errorMessage.contains('登录') ||
-                            _errorMessage.contains('权限不足'))
+                        if (_errorMessage.contains('æªææ') ||
+                            _errorMessage.contains('ç»å½') ||
+                            _errorMessage.contains('æéä¸è¶³'))
                           Padding(
                             padding: const EdgeInsets.only(top: 20.0),
                             child: ElevatedButton(
@@ -1326,7 +1331,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 24.0, vertical: 12.0),
                               ),
-                              child: const Text('重新登录'),
+                              child: const Text('éæ°ç»å½'),
                             ),
                           ),
                       ],
@@ -1351,23 +1356,23 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    _buildDetailRow('申诉ID', appealId, themeData),
+                                    _buildDetailRow('ç³è¯ID', appealId, themeData),
                                     _buildDetailRow(
-                                        '违法记录ID', offenseId, themeData),
-                                    _buildDetailRow('上诉人姓名', name, themeData),
+                                        'è¿æ³è®°å½ID', offenseId, themeData),
+                                    _buildDetailRow('ä¸è¯äººå§å', name, themeData),
                                     _buildDetailRow(
-                                        '身份证号码', idCard, themeData),
-                                    _buildDetailRow('联系电话', contact, themeData),
-                                    _buildDetailRow('上诉原因', reason, themeData),
-                                    _buildDetailRow('上诉时间', time, themeData),
-                                    _buildDetailRow('处理状态', status, themeData,
+                                        'èº«ä»½è¯å·ç ', idCard, themeData),
+                                    _buildDetailRow('èç³»çµè¯', contact, themeData),
+                                    _buildDetailRow('ä¸è¯åå ', reason, themeData),
+                                    _buildDetailRow('ä¸è¯æ¶é´', time, themeData),
+                                    _buildDetailRow('å¤çç¶æ', status, themeData,
                                         valueColor: status == 'Approved'
                                             ? Colors.green
                                             : status == 'Rejected'
                                                 ? Colors.red
                                                 : themeData.colorScheme
                                                     .onSurfaceVariant),
-                                    _buildDetailRow('处理结果', result, themeData),
+                                    _buildDetailRow('å¤çç»æ', result, themeData),
                                   ],
                                 ),
                               ),
@@ -1383,7 +1388,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
                                         widget.appeal.appealId ?? 0),
                                     icon: const Icon(CupertinoIcons.checkmark,
                                         size: 20),
-                                    label: const Text('通过'),
+                                    label: const Text('éè¿'),
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: Colors.green,
                                       foregroundColor: Colors.white,
@@ -1400,7 +1405,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
                                         widget.appeal.appealId ?? 0),
                                     icon: const Icon(CupertinoIcons.xmark,
                                         size: 20),
-                                    label: const Text('驳回'),
+                                    label: const Text('é©³å'),
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor:
                                           themeData.colorScheme.error,
@@ -1428,8 +1433,9 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
                                   ),
                                   child: Text(
                                     _isAdmin
-                                        ? '此申诉已处理，无法再次审批'
-                                        : '权限不足，仅管理员可审批申诉',
+                                        ? 'æ­¤ç³è¯å·²å¤çï¼æ æ³åæ¬¡å®¡æ¹'
+                                        : 'æéä¸è¶³ï¼ä»
+ç®¡çåå¯å®¡æ¹ç³è¯',
                                     style: themeData.textTheme.bodyLarge
                                         ?.copyWith(
                                       color: themeData

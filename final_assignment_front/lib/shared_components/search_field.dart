@@ -1,4 +1,3 @@
-import 'package:chinese_font_library/chinese_font_library.dart';
 import 'package:eva_icons_flutter/eva_icons_flutter.dart';
 import 'package:flutter/material.dart';
 
@@ -92,7 +91,7 @@ class SearchField extends StatelessWidget {
             fontSize: 17,
             fontWeight: FontWeight.w400,
             letterSpacing: 0.2,
-          ).useSystemChineseFont(),
+          ),
         ),
       ),
     );

@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:get/Get.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
 class SettingPage extends StatefulWidget {
   const SettingPage({super.key});
@@ -69,12 +69,12 @@ class _SettingPageState extends State<SettingPage> {
   Future<void> _clearCache() async {
     await DefaultCacheManager().emptyCache();
     await _calculateCacheSize();
-    _showSuccessDialog('缓存已清除');
+    _showSuccessDialog('ç¼å­å·²æ¸
+é¤');
   }
 
   Future<void> _logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('jwtToken');
+    await AuthTokenStore.instance.clearJwtToken();
     if (Get.isRegistered<ChatController>()) {
       final chatController = Get.find<ChatController>();
       chatController.clearMessages();
@@ -88,18 +88,18 @@ class _SettingPageState extends State<SettingPage> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('操作成功'),
+          title: const Text('æä½æå'),
           content: Text('$message\n'
-              '深色模式: ${controller.currentTheme.value == "Dark" ? "已启用" : "已禁用"}\n'
-              '当前主题: ${_themeController.text}\n'
-              '缓存大小: ${_cacheSize.toStringAsFixed(2)} MB'),
+              'æ·±è²æ¨¡å¼: ${controller.currentTheme.value == "Dark" ? "å·²å¯ç¨" : "å·²ç¦ç¨"}\n'
+              'å½åä¸»é¢: ${_themeController.text}\n'
+              'ç¼å­å¤§å°: ${_cacheSize.toStringAsFixed(2)} MB'),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
                 controller.exitSidebarContent();
               },
-              child: const Text('确定'),
+              child: const Text('ç¡®å®'),
             ),
           ],
         );
@@ -108,7 +108,7 @@ class _SettingPageState extends State<SettingPage> {
   }
 
   void _saveSettings() {
-    _showSuccessDialog('设置已保存');
+    _showSuccessDialog('è®¾ç½®å·²ä¿å­');
   }
 
   void _showThemeDialog() {
@@ -116,7 +116,7 @@ class _SettingPageState extends State<SettingPage> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('选择显示主题'),
+          title: const Text('éæ©æ¾ç¤ºä¸»é¢'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -199,7 +199,7 @@ class _SettingPageState extends State<SettingPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('取消'),
+              child: const Text('åæ¶'),
             ),
           ],
         );
@@ -211,7 +211,7 @@ class _SettingPageState extends State<SettingPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('设置管理'),
+        title: const Text('è®¾ç½®ç®¡ç'),
       ),
       body: Obx(
         () => Theme(
@@ -223,7 +223,7 @@ class _SettingPageState extends State<SettingPage> {
                 ListTile(
                   leading: const Icon(Icons.palette, color: Colors.blue),
                   title: Text(
-                    '选择显示主题',
+                    'éæ©æ¾ç¤ºä¸»é¢',
                     style: TextStyle(
                         color: Theme.of(context).colorScheme.onSurface),
                   ),
@@ -243,12 +243,13 @@ class _SettingPageState extends State<SettingPage> {
                 ListTile(
                   leading: const Icon(Icons.storage, color: Colors.blue),
                   title: Text(
-                    '清除缓存',
+                    'æ¸
+é¤ç¼å­',
                     style: TextStyle(
                         color: Theme.of(context).colorScheme.onSurface),
                   ),
                   subtitle: Text(
-                    '${_cacheSize >= 0 ? _cacheSize.toStringAsFixed(2) : "计算中..."} MB',
+                    '${_cacheSize >= 0 ? _cacheSize.toStringAsFixed(2) : "è®¡ç®ä¸­..."} MB',
                     style: TextStyle(
                         color: Theme.of(context)
                             .colorScheme
@@ -263,7 +264,7 @@ class _SettingPageState extends State<SettingPage> {
                 ListTile(
                   leading: const Icon(Icons.save, color: Colors.blue),
                   title: Text(
-                    '保存设置',
+                    'ä¿å­è®¾ç½®',
                     style: TextStyle(
                         color: Theme.of(context).colorScheme.onSurface),
                   ),
@@ -275,7 +276,7 @@ class _SettingPageState extends State<SettingPage> {
                 ListTile(
                   leading: const Icon(Icons.home, color: Colors.blue),
                   title: Text(
-                    '返回首页',
+                    'è¿åé¦é¡µ',
                     style: TextStyle(
                         color: Theme.of(context).colorScheme.onSurface),
                   ),
@@ -289,7 +290,7 @@ class _SettingPageState extends State<SettingPage> {
                 ListTile(
                   leading: const Icon(Icons.home, color: Colors.blue),
                   title: Text(
-                    '反馈',
+                    'åé¦',
                     style: TextStyle(
                         color: Theme.of(context).colorScheme.onSurface),
                   ),
@@ -303,7 +304,7 @@ class _SettingPageState extends State<SettingPage> {
                 ListTile(
                   leading: const Icon(Icons.logout, color: Colors.blue),
                   title: Text(
-                    '登出',
+                    'ç»åº',
                     style: TextStyle(
                         color: Theme.of(context).colorScheme.onSurface),
                   ),
@@ -314,19 +315,19 @@ class _SettingPageState extends State<SettingPage> {
                       context: context,
                       builder: (BuildContext context) {
                         return AlertDialog(
-                          title: const Text('登出'),
-                          content: const Text('确定要登出吗？'),
+                          title: const Text('ç»åº'),
+                          content: const Text('ç¡®å®è¦ç»åºåï¼'),
                           actions: [
                             TextButton(
                               onPressed: () => Navigator.pop(context),
-                              child: const Text('取消'),
+                              child: const Text('åæ¶'),
                             ),
                             TextButton(
                               onPressed: () {
                                 _logout();
                                 Navigator.pop(context);
                               },
-                              child: const Text('确定'),
+                              child: const Text('ç¡®å®'),
                             ),
                           ],
                         );

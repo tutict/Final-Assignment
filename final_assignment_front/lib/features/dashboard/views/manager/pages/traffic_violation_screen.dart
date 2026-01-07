@@ -1,4 +1,3 @@
-import 'package:chinese_font_library/chinese_font_library.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/components/active_project_card.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -170,7 +169,7 @@ class _TrafficViolationScreenState extends State<TrafficViolationScreen> {
                 fontWeight: FontWeight.bold,
                 fontSize: 20,
               )
-              .useSystemChineseFont(),
+              ,
         ),
         const SizedBox(height: 12),
         Card(
@@ -262,7 +261,7 @@ class _TrafficViolationScreenState extends State<TrafficViolationScreen> {
                     style: TextStyle(
                       color: theme.colorScheme.onSurfaceVariant,
                       fontSize: 14,
-                    ).useSystemChineseFont(),
+                    ),
                   ),
                 ),
               ),
@@ -279,7 +278,7 @@ class _TrafficViolationScreenState extends State<TrafficViolationScreen> {
                       style: TextStyle(
                         color: theme.colorScheme.onSurfaceVariant,
                         fontSize: 14,
-                      ).useSystemChineseFont(),
+                      ),
                     );
                   },
                 ),
@@ -324,7 +323,7 @@ class _TrafficViolationScreenState extends State<TrafficViolationScreen> {
                       color: theme.colorScheme.onPrimaryContainer,
                       fontWeight: FontWeight.bold,
                       fontSize: 14,
-                    ).useSystemChineseFont(),
+                    ),
                   );
                 },
               ),
@@ -386,7 +385,7 @@ class _TrafficViolationScreenState extends State<TrafficViolationScreen> {
                       color: theme.colorScheme.onSecondaryContainer,
                       fontWeight: FontWeight.bold,
                       fontSize: 14,
-                    ).useSystemChineseFont(),
+                    ),
                   );
                 }).toList(),
               ),
@@ -479,7 +478,7 @@ class TrafficViolationPieChart extends StatelessWidget {
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: theme.colorScheme.onSurface,
-                  ).useSystemChineseFont(),
+                  ),
                 ),
                 Text(
                   totalCount.toString(),
@@ -487,7 +486,7 @@ class TrafficViolationPieChart extends StatelessWidget {
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: theme.colorScheme.onSurface,
-                  ).useSystemChineseFont(),
+                  ),
                 ),
               ],
             ),
@@ -517,7 +516,7 @@ class TrafficViolationPieChart extends StatelessWidget {
           fontSize: 14,
           fontWeight: FontWeight.bold,
           color: theme.colorScheme.onPrimary,
-        ).useSystemChineseFont(),
+        ),
         badgeWidget: _buildBadgeWidget(entry.key, colors[index], theme),
         badgePositionPercentageOffset: 1.2,
       );
@@ -544,7 +543,7 @@ class TrafficViolationPieChart extends StatelessWidget {
           fontSize: 12,
           color: theme.colorScheme.onPrimary,
           fontWeight: FontWeight.bold,
-        ).useSystemChineseFont(),
+        ),
       ),
     );
   }
@@ -595,7 +594,7 @@ class TrafficViolationBarChart extends StatelessWidget {
                     color: theme.colorScheme.onPrimaryContainer,
                     fontWeight: FontWeight.bold,
                     fontSize: 14,
-                  ).useSystemChineseFont(),
+                  ),
                 );
               },
             ),
@@ -616,7 +615,7 @@ class TrafficViolationBarChart extends StatelessWidget {
                         style: TextStyle(
                           color: theme.colorScheme.onSurfaceVariant,
                           fontSize: 14,
-                        ).useSystemChineseFont(),
+                        ),
                       ),
                     );
                   }
@@ -636,7 +635,7 @@ class TrafficViolationBarChart extends StatelessWidget {
                     style: TextStyle(
                       color: theme.colorScheme.onSurfaceVariant,
                       fontSize: 14,
-                    ).useSystemChineseFont(),
+                    ),
                   );
                 },
               ),

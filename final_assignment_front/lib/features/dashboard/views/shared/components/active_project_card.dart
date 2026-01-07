@@ -1,4 +1,3 @@
-import 'package:chinese_font_library/chinese_font_library.dart';
 import 'package:flutter/material.dart';
 
 // Define constants
@@ -75,7 +74,7 @@ class ActiveProjectCard extends StatelessWidget {
             color: theme.colorScheme.onSurface,
             fontSize: 18, // Increased for better visibility
           )
-          .useSystemChineseFont(),
+          ,
     );
   }
 
@@ -99,7 +98,7 @@ class ActiveProjectCard extends StatelessWidget {
                 color: theme.colorScheme.primary,
                 fontWeight: FontWeight.w600,
                 fontSize: 14,
-              ).useSystemChineseFont(),
+              ),
             ),
             const SizedBox(width: 4),
             Icon(

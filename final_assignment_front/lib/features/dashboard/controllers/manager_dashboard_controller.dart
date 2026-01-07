@@ -147,7 +147,7 @@ class DashboardController extends GetxController with NavigationMixin {
                 ? AppTheme.basicLight
                 : AppTheme.basicDark));
 
-    String fontFamily = theme == 'Basic' ? Font.poppins : 'Helvetica';
+    String? fontFamily;
 
     currentBodyTheme.value = baseTheme.copyWith(
       textTheme: baseTheme.textTheme.copyWith(

@@ -6,9 +6,9 @@ import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
-/// 定义一个全局的 defaultApiClient
+/// å®ä¹ä¸ä¸ªå¨å±ç?defaultApiClient
 final ApiClient defaultApiClient = ApiClient();
 
 class OffenseInformationControllerApi {
@@ -17,41 +17,39 @@ class OffenseInformationControllerApi {
   OffenseInformationControllerApi([ApiClient? apiClient])
       : apiClient = apiClient ?? defaultApiClient;
 
-  /// 从 SharedPreferences 中读取 jwtToken 并设置到 ApiClient 中
+  /// ä»?SharedPreferences ä¸­è¯»å?jwtToken å¹¶è®¾ç½®å° ApiClient ä¸?
   Future<void> initializeWithJwt() async {
-    final prefs = await SharedPreferences.getInstance();
-    final jwtToken = prefs.getString('jwtToken');
+      final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null || jwtToken.isEmpty) {
-      throw Exception('未登录，请重新登录');
+      throw Exception('æªç»å½ï¼è¯·éæ°ç»å½?);
     }
     apiClient.setJwtToken(jwtToken);
     debugPrint(
         'Initialized OffenseInformationControllerApi with token: $jwtToken');
   }
 
-  /// 解码响应体字节到字符串，使用 UTF-8 解码
+  /// è§£ç ååºä½å­èå°å­ç¬¦ä¸²ï¼ä½¿ç¨ UTF-8 è§£ç 
   String _decodeBodyBytes(http.Response response) {
     return utf8.decode(response.bodyBytes); // Properly decode UTF-8
   }
 
-  /// 获取带有 JWT 的请求头
+  /// è·åå¸¦æ JWT çè¯·æ±å¤´
   Future<Map<String, String>> _getHeaders() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('jwtToken') ?? '';
+      final token = (await AuthTokenStore.instance.getJwtToken()) ?? '';
     return {
       'Content-Type': 'application/json; charset=utf-8',
       if (token.isNotEmpty) 'Authorization': 'Bearer $token',
     };
   }
 
-  /// 添加 idempotencyKey 作为查询参数
+  /// æ·»å  idempotencyKey ä½ä¸ºæ¥è¯¢åæ°
   List<QueryParam> _addIdempotencyKey(String idempotencyKey) {
     return [QueryParam('idempotencyKey', idempotencyKey)];
   }
 
   // HTTP Methods
 
-  /// POST /api/offenses - 创建违法行为 (仅管理员)
+  /// POST /api/offenses - åå»ºè¿æ³è¡ä¸º (ä»ç®¡çå)
   Future<void> apiOffensesPost({
     required OffenseInformation offenseInformation,
     required String idempotencyKey,
@@ -79,7 +77,7 @@ class OffenseInformationControllerApi {
     }
   }
 
-  /// GET /api/offenses/{offenseId} - 根据ID获取违法行为信息 (用户及管理员)
+  /// GET /api/offenses/{offenseId} - æ ¹æ®IDè·åè¿æ³è¡ä¸ºä¿¡æ¯ (ç¨æ·åç®¡çå)
   Future<OffenseInformation?> apiOffensesOffenseIdGet({
     required int offenseId,
   }) async {
@@ -107,7 +105,7 @@ class OffenseInformationControllerApi {
     return OffenseInformation.fromJson(data);
   }
 
-  /// GET /api/offenses - 获取所有违法行为信息 (用户及管理员)
+  /// GET /api/offenses - è·åææè¿æ³è¡ä¸ºä¿¡æ?(ç¨æ·åç®¡çå)
   Future<List<OffenseInformation>> apiOffensesGet() async {
     const path = '/api/offenses';
     final headerParams = await _getHeaders();
@@ -129,7 +127,7 @@ class OffenseInformationControllerApi {
     return jsonList.map((json) => OffenseInformation.fromJson(json)).toList();
   }
 
-  /// PUT /api/offenses/{offenseId} - 更新违法行为信息 (仅管理员)
+  /// PUT /api/offenses/{offenseId} - æ´æ°è¿æ³è¡ä¸ºä¿¡æ¯ (ä»ç®¡çå)
   Future<OffenseInformation> apiOffensesOffenseIdPut({
     required int offenseId,
     required OffenseInformation offenseInformation,
@@ -161,7 +159,7 @@ class OffenseInformationControllerApi {
     return OffenseInformation.fromJson(data);
   }
 
-  /// DELETE /api/offenses/{offenseId} - 删除违法行为信息 (仅管理员)
+  /// DELETE /api/offenses/{offenseId} - å é¤è¿æ³è¡ä¸ºä¿¡æ¯ (ä»ç®¡çå)
   Future<void> apiOffensesOffenseIdDelete({
     required int offenseId,
   }) async {
@@ -187,7 +185,7 @@ class OffenseInformationControllerApi {
     }
   }
 
-  /// GET /api/offenses/timeRange - 根据时间范围获取违法行为信息 (用户及管理员)
+  /// GET /api/offenses/timeRange - æ ¹æ®æ¶é´èå´è·åè¿æ³è¡ä¸ºä¿¡æ¯ (ç¨æ·åç®¡çå)
   Future<List<OffenseInformation>> apiOffensesTimeRangeGet({
     String startTime = '1970-01-01', // Default matches backend
     String endTime = '2100-01-01', // Default matches backend
@@ -216,7 +214,7 @@ class OffenseInformationControllerApi {
     return jsonList.map((json) => OffenseInformation.fromJson(json)).toList();
   }
 
-  /// GET /api/offenses/by-offense-type - 搜索违法行为按类型 (用户及管理员)
+  /// GET /api/offenses/by-offense-type - æç´¢è¿æ³è¡ä¸ºæç±»å?(ç¨æ·åç®¡çå)
   Future<List<OffenseInformation>> apiOffensesByOffenseTypeGet({
     required String query,
     int page = 1,
@@ -253,7 +251,7 @@ const path = '/api/offenses/search/code';
     return jsonList.map((json) => OffenseInformation.fromJson(json)).toList();
   }
 
-  /// GET /api/offenses/by-driver-name - 搜索违法行为按司机姓名 (用户及管理员)
+  /// GET /api/offenses/by-driver-name - æç´¢è¿æ³è¡ä¸ºæå¸æºå§å?(ç¨æ·åç®¡çå)
   Future<List<OffenseInformation>> apiOffensesByDriverNameGet({
     required String query,
     int page = 1,
@@ -316,7 +314,7 @@ const path = '/api/offenses/search/code';
     return merged.values.toList();
   }
 
-  /// GET /api/offenses/driver/{driverId} - 按驾驶员ID查询
+  /// GET /api/offenses/driver/{driverId} - æé©¾é©¶åIDæ¥è¯¢
   Future<List<OffenseInformation>> apiOffensesDriverDriverIdGet({
     required int driverId,
     int page = 1,
@@ -343,7 +341,7 @@ const path = '/api/offenses/search/code';
     return jsonList.map((json) => OffenseInformation.fromJson(json)).toList();
   }
 
-  /// GET /api/offenses/vehicle/{vehicleId} - 按车辆ID查询
+  /// GET /api/offenses/vehicle/{vehicleId} - æè½¦è¾IDæ¥è¯¢
   Future<List<OffenseInformation>> apiOffensesVehicleVehicleIdGet({
     required int vehicleId,
     int page = 1,
@@ -370,8 +368,7 @@ const path = '/api/offenses/search/code';
     return jsonList.map((json) => OffenseInformation.fromJson(json)).toList();
   }
 
-  /// GET /api/offenses/search/status?processStatus=... - 按处理状态查询
-  Future<List<OffenseInformation>> apiOffensesSearchStatusGet({
+  /// GET /api/offenses/search/status?processStatus=... - æå¤çç¶ææ¥è¯?  Future<List<OffenseInformation>> apiOffensesSearchStatusGet({
     required String processStatus,
     int page = 1,
     int size = 20,
@@ -401,8 +398,7 @@ const path = '/api/offenses/search/code';
     return jsonList.map((json) => OffenseInformation.fromJson(json)).toList();
   }
 
-  /// GET /api/offenses/search/number?offenseNumber=... - 按违法编号查询
-  Future<List<OffenseInformation>> apiOffensesSearchNumberGet({
+  /// GET /api/offenses/search/number?offenseNumber=... - æè¿æ³ç¼å·æ¥è¯?  Future<List<OffenseInformation>> apiOffensesSearchNumberGet({
     required String offenseNumber,
     int page = 1,
     int size = 20,
@@ -619,7 +615,7 @@ const path = '/api/offenses/search/code';
     final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
     return jsonList.map((json) => OffenseInformation.fromJson(json)).toList();
   }
-  /// GET /api/offenses/by-license-plate - 搜索违法行为按车牌号 (用户及管理员)
+  /// GET /api/offenses/by-license-plate - æç´¢è¿æ³è¡ä¸ºæè½¦çå· (ç¨æ·åç®¡çå)
   Future<List<OffenseInformation>> apiOffensesByLicensePlateGet({
     required String query,
     int page = 1,

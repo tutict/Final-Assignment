@@ -4,7 +4,7 @@ import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/chat_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/manager_dashboard_screen.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
 class ManagerSetting extends StatefulWidget {
   const ManagerSetting({super.key});
@@ -32,8 +32,7 @@ class _ManageSettingPage extends State<ManagerSetting> {
   }
 
   Future<void> _logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('jwtToken');
+    await AuthTokenStore.instance.clearJwtToken();
     if (Get.isRegistered<ChatController>()) {
       final chatController = Get.find<ChatController>();
       chatController.clearMessages();

@@ -15,17 +15,25 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'config/routes/app_pages.dart';
 import 'config/themes/app_theme.dart';
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-
-  try {
-    await initializeDateFormatting('zh_CN', null);
-    debugPrint('Date formatting initialized for zh_CN');
-  } catch (e) {
-    debugPrint('Failed to initialize date formatting: $e');
-  }
-
+  _configureImageCache();
   runApp(const MainApp());
+  _warmUpIntl();
+}
+
+void _warmUpIntl() {
+  initializeDateFormatting('zh_CN', null).then((_) {
+    debugPrint('Date formatting initialized for zh_CN');
+  }).catchError((e) {
+    debugPrint('Failed to initialize date formatting: $e');
+  });
+}
+
+void _configureImageCache() {
+  final imageCache = PaintingBinding.instance.imageCache;
+  imageCache.maximumSizeBytes = 50 << 20;
+  imageCache.maximumSize = 200;
 }
 
 class MainApp extends StatelessWidget {
@@ -66,11 +74,11 @@ class MainApp extends StatelessWidget {
 class AppBindings extends Bindings {
   @override
   void dependencies() {
-    // Use Get.put() for immediate instantiation of critical controllers
-    Get.put<DashboardController>(DashboardController());
-    Get.put<ChatController>(ChatController());
-    Get.put<UserDashboardController>(UserDashboardController());
-    Get.put<ProgressController>(ProgressController());
-    Get.lazyPut<LogController>(() => LogController());
+    Get.lazyPut<DashboardController>(() => DashboardController(), fenix: true);
+    Get.lazyPut<ChatController>(() => ChatController(), fenix: true);
+    Get.lazyPut<UserDashboardController>(() => UserDashboardController(),
+        fenix: true);
+    Get.lazyPut<ProgressController>(() => ProgressController(), fenix: true);
+    Get.lazyPut<LogController>(() => LogController(), fenix: true);
   }
 }

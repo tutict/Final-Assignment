@@ -34,7 +34,7 @@ class _TeamMember extends StatelessWidget {
                   fontSize: 16, // 增大字体大小，确保清晰可见
                   color: primaryTextColor, // 动态调整为主文本颜色
                 )
-                .useSystemChineseFont(),
+                ,
             children: [
               const TextSpan(text: "其他管理员"),
               TextSpan(
@@ -47,7 +47,7 @@ class _TeamMember extends StatelessWidget {
                       fontSize: 14, // 略小字体，用于辅助信息
                       color: secondaryTextColor, // 动态调整为辅助文本颜色
                     )
-                    .useSystemChineseFont(),
+                    ,
               ),
             ],
           ),

@@ -3,15 +3,14 @@ import 'package:final_assignment_front/features/model/operation_log.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
 class OperationLogControllerApi {
   final ApiClient _apiClient;
   OperationLogControllerApi() : _apiClient = ApiClient();
 
   Future<void> initializeWithJwt() async {
-    final prefs = await SharedPreferences.getInstance();
-    final jwtToken = prefs.getString('jwtToken');
+      final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
       throw Exception('JWT token not found in SharedPreferences');
     }

@@ -1,6 +1,5 @@
 import 'dart:math';
 import 'dart:ui';
-import 'package:chinese_font_library/chinese_font_library.dart';
 import 'package:eva_icons_flutter/eva_icons_flutter.dart';
 import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/config/themes/app_theme.dart';

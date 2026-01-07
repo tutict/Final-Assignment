@@ -3,41 +3,40 @@ import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
-/// 定义一个全局的 defaultApiClient
+/// å®ä¹ä¸ä¸ªå¨å±ç?defaultApiClient
 final ApiClient defaultApiClient = ApiClient();
 
 class PermissionManagementControllerApi {
   final ApiClient apiClient;
 
-  /// 构造函数，可传入 ApiClient，否则使用全局默认实例
+  /// æé å½æ°ï¼å¯ä¼ å?ApiClientï¼å¦åä½¿ç¨å¨å±é»è®¤å®ä¾
   PermissionManagementControllerApi([ApiClient? apiClient])
       : apiClient = apiClient ?? defaultApiClient;
 
-  /// 从 SharedPreferences 中读取 jwtToken 并设置到 ApiClient 中
+  /// ä»?SharedPreferences ä¸­è¯»å?jwtToken å¹¶è®¾ç½®å° ApiClient ä¸?
   Future<void> initializeWithJwt() async {
-    final prefs = await SharedPreferences.getInstance();
-    final jwtToken = prefs.getString('jwtToken');
+      final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
-      throw Exception('未登录，请重新登录');
+      throw Exception('æªç»å½ï¼è¯·éæ°ç»å½?);
     }
     apiClient.setJwtToken(jwtToken);
     debugPrint(
         'Initialized PermissionManagementControllerApi with token: $jwtToken');
   }
 
-  /// 解码响应体字节到字符串
+  /// è§£ç ååºä½å­èå°å­ç¬¦ä¸?
   String _decodeBodyBytes(Response response) => response.body;
 
-  /// 辅助方法：添加查询参数（如名称搜索）
+  /// è¾å©æ¹æ³ï¼æ·»å æ¥è¯¢åæ°ï¼å¦åç§°æç´¢ï¼
   List<QueryParam> _addQueryParams({String? name}) {
     final queryParams = <QueryParam>[];
     if (name != null) queryParams.add(QueryParam('name', name));
     return queryParams;
   }
 
-  /// GET /api/permissions - 获取所有权限
+  /// GET /api/permissions - è·åæææé?
   Future<List<PermissionManagement>> apiPermissionsGet() async {
     final response = await apiClient.invokeAPI(
       '/api/permissions',
@@ -57,7 +56,7 @@ class PermissionManagementControllerApi {
     return PermissionManagement.listFromJson(data);
   }
 
-  /// DELETE /api/permissions/name/{permissionName} - 根据名称删除权限 (仅管理员)
+  /// DELETE /api/permissions/name/{permissionName} - æ ¹æ®åç§°å é¤æé (ä»ç®¡çå)
   Future<void> apiPermissionsNamePermissionNameDelete(
       {required String permissionName}) async {
     if (permissionName.isEmpty) {
@@ -78,7 +77,7 @@ class PermissionManagementControllerApi {
     }
   }
 
-  /// GET /api/permissions/name/{permissionName} - 根据名称获取权限
+  /// GET /api/permissions/name/{permissionName} - æ ¹æ®åç§°è·åæé
   Future<PermissionManagement?> apiPermissionsNamePermissionNameGet(
       {required String permissionName}) async {
     if (permissionName.isEmpty) {
@@ -103,7 +102,7 @@ class PermissionManagementControllerApi {
     return PermissionManagement.fromJson(data);
   }
 
-  /// DELETE /api/permissions/{permissionId} - 根据ID删除权限 (仅管理员)
+  /// DELETE /api/permissions/{permissionId} - æ ¹æ®IDå é¤æé (ä»ç®¡çå)
   Future<void> apiPermissionsPermissionIdDelete(
       {required String permissionId}) async {
     if (permissionId.isEmpty) {
@@ -124,7 +123,7 @@ class PermissionManagementControllerApi {
     }
   }
 
-  /// GET /api/permissions/{permissionId} - 根据ID获取权限
+  /// GET /api/permissions/{permissionId} - æ ¹æ®IDè·åæé
   Future<PermissionManagement?> apiPermissionsPermissionIdGet(
       {required String permissionId}) async {
     if (permissionId.isEmpty) {
@@ -149,7 +148,7 @@ class PermissionManagementControllerApi {
     return PermissionManagement.fromJson(data);
   }
 
-  /// PUT /api/permissions/{permissionId} - 更新权限 (仅管理员)
+  /// PUT /api/permissions/{permissionId} - æ´æ°æé (ä»ç®¡çå)
   Future<PermissionManagement> apiPermissionsPermissionIdPut({
     required String permissionId,
     required PermissionManagement permissionManagement,
@@ -175,7 +174,7 @@ class PermissionManagementControllerApi {
     return PermissionManagement.fromJson(data);
   }
 
-  /// POST /api/permissions - 创建权限 (仅管理员)
+  /// POST /api/permissions - åå»ºæé (ä»ç®¡çå)
   Future<PermissionManagement> apiPermissionsPost(
       {required PermissionManagement permissionManagement}) async {
     final response = await apiClient.invokeAPI(
@@ -196,7 +195,7 @@ class PermissionManagementControllerApi {
     return PermissionManagement.fromJson(data);
   }
 
-  /// GET /api/permissions/search - 根据名称模糊搜索权限
+  /// GET /api/permissions/search - æ ¹æ®åç§°æ¨¡ç³æç´¢æé
   Future<List<PermissionManagement>> apiPermissionsSearchGet(
       {String? name}) async {
     final response = await apiClient.invokeAPI(
@@ -220,7 +219,7 @@ class PermissionManagementControllerApi {
   // WebSocket Methods (Aligned with HTTP Endpoints)
 
   /// GET /api/permissions (WebSocket)
-  /// 对应后端: @WsAction(service="PermissionManagement", action="getAllPermissions")
+  /// å¯¹åºåç«¯: @WsAction(service="PermissionManagement", action="getAllPermissions")
   Future<List<Object>?> eventbusPermissionsGet() async {
     final msg = {
       "service": "PermissionManagement",
@@ -238,7 +237,7 @@ class PermissionManagementControllerApi {
   }
 
   /// DELETE /api/permissions/name/{permissionName} (WebSocket)
-  /// 对应后端: @WsAction(service="PermissionManagement", action="deletePermissionByName")
+  /// å¯¹åºåç«¯: @WsAction(service="PermissionManagement", action="deletePermissionByName")
   Future<bool> eventbusPermissionsNamePermissionNameDelete(
       {required String permissionName}) async {
     if (permissionName.isEmpty) {
@@ -257,7 +256,7 @@ class PermissionManagementControllerApi {
   }
 
   /// GET /api/permissions/name/{permissionName} (WebSocket)
-  /// 对应后端: @WsAction(service="PermissionManagement", action="getPermissionByName")
+  /// å¯¹åºåç«¯: @WsAction(service="PermissionManagement", action="getPermissionByName")
   Future<Object?> eventbusPermissionsNamePermissionNameGet(
       {required String permissionName}) async {
     if (permissionName.isEmpty) {
@@ -276,7 +275,7 @@ class PermissionManagementControllerApi {
   }
 
   /// DELETE /api/permissions/{permissionId} (WebSocket)
-  /// 对应后端: @WsAction(service="PermissionManagement", action="deletePermission")
+  /// å¯¹åºåç«¯: @WsAction(service="PermissionManagement", action="deletePermission")
   Future<bool> eventbusPermissionsPermissionIdDelete(
       {required String permissionId}) async {
     if (permissionId.isEmpty) {
@@ -295,7 +294,7 @@ class PermissionManagementControllerApi {
   }
 
   /// GET /api/permissions/{permissionId} (WebSocket)
-  /// 对应后端: @WsAction(service="PermissionManagement", action="getPermissionById")
+  /// å¯¹åºåç«¯: @WsAction(service="PermissionManagement", action="getPermissionById")
   Future<Object?> eventbusPermissionsPermissionIdGet(
       {required String permissionId}) async {
     if (permissionId.isEmpty) {
@@ -314,7 +313,7 @@ class PermissionManagementControllerApi {
   }
 
   /// PUT /api/permissions/{permissionId} (WebSocket)
-  /// 对应后端: @WsAction(service="PermissionManagement", action="updatePermission")
+  /// å¯¹åºåç«¯: @WsAction(service="PermissionManagement", action="updatePermission")
   Future<Object?> eventbusPermissionsPermissionIdPut({
     required String permissionId,
     required PermissionManagement permissionManagement,
@@ -335,7 +334,7 @@ class PermissionManagementControllerApi {
   }
 
   /// POST /api/permissions (WebSocket)
-  /// 对应后端: @WsAction(service="PermissionManagement", action="createPermission")
+  /// å¯¹åºåç«¯: @WsAction(service="PermissionManagement", action="createPermission")
   Future<Object?> eventbusPermissionsPost(
       {required PermissionManagement permissionManagement}) async {
     final msg = {
@@ -351,7 +350,7 @@ class PermissionManagementControllerApi {
   }
 
   /// GET /api/permissions/search (WebSocket)
-  /// 对应后端: @WsAction(service="PermissionManagement", action="getPermissionsByNameLike")
+  /// å¯¹åºåç«¯: @WsAction(service="PermissionManagement", action="getPermissionsByNameLike")
   Future<List<Object>?> eventbusPermissionsSearchGet({String? name}) async {
     final msg = {
       "service": "PermissionManagement",
@@ -368,7 +367,7 @@ class PermissionManagementControllerApi {
     return null;
   }
 
-  // HTTP: GET /api/permissions/parent/{parentId} - 按父节点查询权限
+  // HTTP: GET /api/permissions/parent/{parentId} - æç¶èç¹æ¥è¯¢æé
   Future<List<PermissionManagement>> apiPermissionsParentParentIdGet({
     required int parentId,
     int page = 1,

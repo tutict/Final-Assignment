@@ -4,51 +4,49 @@ import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
-// 定义一个全局的 defaultApiClient
+// å®ä¹ä¸ä¸ªå¨å±ç?defaultApiClient
 final ApiClient defaultApiClient = ApiClient();
 
 class ProgressControllerApi {
   final ApiClient apiClient;
 
-  // 更新后的构造函数，apiClient 参数可为空
+  // æ´æ°åçæé å½æ°ï¼apiClient åæ°å¯ä¸ºç©?
   ProgressControllerApi([ApiClient? apiClient])
       : apiClient = apiClient ?? defaultApiClient;
 
-  /// 从 SharedPreferences 中读取 jwtToken 并设置到 ApiClient 中
+  /// ä»?SharedPreferences ä¸­è¯»å?jwtToken å¹¶è®¾ç½®å° ApiClient ä¸?
   Future<void> initializeWithJwt() async {
-    final prefs = await SharedPreferences.getInstance();
-    final jwtToken = prefs.getString('jwtToken');
+      final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
-      throw Exception('未登录，请重新登录');
+      throw Exception('æªç»å½ï¼è¯·éæ°ç»å½?);
     }
     apiClient.setJwtToken(jwtToken);
     debugPrint('Initialized ProgressControllerApi with token: $jwtToken');
   }
 
-  // 解码响应体的辅助方法
+  // è§£ç ååºä½çè¾å©æ¹æ³
   String _decodeBodyBytes(http.Response response) {
     return response.body;
   }
 
-  /// 创建新的进度记录。 with HTTP info returned
+  /// åå»ºæ°çè¿åº¦è®°å½ã?with HTTP info returned
   Future<http.Response> apiProgressPostWithHttpInfo({
     required ProgressItem progressItem,
     Map<String, String>? headers,
   }) async {
-    final prefs = await SharedPreferences.getInstance();
-    final jwtToken = prefs.getString('jwtToken');
+      final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
       throw ApiException(401, 'No JWT token found');
     }
 
     Object postBody = progressItem.toJson();
 
-    // 创建路径和映射变量
+    // åå»ºè·¯å¾åæ å°åé?
     String path = "/api/progress".replaceAll("{format}", "json");
 
-    // 查询参数
+    // æ¥è¯¢åæ°
     List<QueryParam> queryParams = [];
     Map<String, String> headerParams = {
       ...?headers,
@@ -68,7 +66,7 @@ class ProgressControllerApi {
     return response;
   }
 
-  /// 创建新的进度记录。
+  /// åå»ºæ°çè¿åº¦è®°å½ã?
   Future<ProgressItem> apiProgressPost({
     required ProgressItem progressItem,
     Map<String, String>? headers,
@@ -81,22 +79,21 @@ class ProgressControllerApi {
     throw ApiException(response.statusCode, _decodeBodyBytes(response));
   }
 
-  /// 获取所有进度记录。 with HTTP info returned
+  /// è·åææè¿åº¦è®°å½ã?with HTTP info returned
   Future<http.Response> apiProgressGetWithHttpInfo({
     Map<String, String>? headers,
   }) async {
-    final prefs = await SharedPreferences.getInstance();
-    final jwtToken = prefs.getString('jwtToken');
+      final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
       throw ApiException(401, 'No JWT token found');
     }
 
-    Object postBody = ''; // GET 请求通常没有 body
+    Object postBody = ''; // GET è¯·æ±éå¸¸æ²¡æ body
 
-    // 创建路径和映射变量
+    // åå»ºè·¯å¾åæ å°åé?
     String path = "/api/progress".replaceAll("{format}", "json");
 
-    // 查询参数
+    // æ¥è¯¢åæ°
     List<QueryParam> queryParams = [];
     Map<String, String> headerParams = {
       ...?headers,
@@ -116,7 +113,7 @@ class ProgressControllerApi {
     return response;
   }
 
-  /// 获取所有进度记录。
+  /// è·åææè¿åº¦è®°å½ã?
   Future<List<ProgressItem>> apiProgressGet({
     Map<String, String>? headers,
   }) async {
@@ -128,23 +125,22 @@ class ProgressControllerApi {
     throw ApiException(response.statusCode, _decodeBodyBytes(response));
   }
 
-  /// 根据用户名获取进度记录。 with HTTP info returned
+  /// æ ¹æ®ç¨æ·åè·åè¿åº¦è®°å½ã?with HTTP info returned
   Future<http.Response> apiProgressUsernameGetWithHttpInfo({
     required String username,
     Map<String, String>? headers,
   }) async {
-    final prefs = await SharedPreferences.getInstance();
-    final jwtToken = prefs.getString('jwtToken');
+      final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
       throw ApiException(401, 'No JWT token found');
     }
 
-    Object postBody = ''; // GET 请求通常没有 body
+    Object postBody = ''; // GET è¯·æ±éå¸¸æ²¡æ body
 
-    // 创建路径和映射变量
+    // åå»ºè·¯å¾åæ å°åé?
     String path = "/api/progress".replaceAll("{format}", "json");
 
-    // 查询参数
+    // æ¥è¯¢åæ°
     List<QueryParam> queryParams = [
       QueryParam('username', username),
     ];
@@ -166,7 +162,7 @@ class ProgressControllerApi {
     return response;
   }
 
-  /// 根据用户名获取进度记录。
+  /// æ ¹æ®ç¨æ·åè·åè¿åº¦è®°å½ã?
   Future<List<ProgressItem>> apiProgressUsernameGet({
     required String username,
     Map<String, String>? headers,
@@ -180,25 +176,24 @@ class ProgressControllerApi {
     throw ApiException(response.statusCode, _decodeBodyBytes(response));
   }
 
-  /// 根据进度ID更新进度状态。 with HTTP info returned
+  /// æ ¹æ®è¿åº¦IDæ´æ°è¿åº¦ç¶æã?with HTTP info returned
   Future<http.Response> apiProgressProgressIdStatusPutWithHttpInfo({
     required int progressId,
     required String newStatus,
     Map<String, String>? headers,
   }) async {
-    final prefs = await SharedPreferences.getInstance();
-    final jwtToken = prefs.getString('jwtToken');
+      final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
       throw ApiException(401, 'No JWT token found');
     }
 
-    Object postBody = ''; // PUT 请求这里不需要 body，因为参数在查询字符串中
+    Object postBody = ''; // PUT è¯·æ±è¿éä¸éè¦?bodyï¼å ä¸ºåæ°å¨æ¥è¯¢å­ç¬¦ä¸²ä¸­
 
-    // 创建路径和映射变量
+    // åå»ºè·¯å¾åæ å°åé?
     String path =
         "/api/progress/$progressId/status".replaceAll("{format}", "json");
 
-    // 查询参数
+    // æ¥è¯¢åæ°
     List<QueryParam> queryParams = [
       QueryParam('newStatus', newStatus),
     ];
@@ -220,7 +215,7 @@ class ProgressControllerApi {
     return response;
   }
 
-  /// 根据进度ID更新进度状态。
+  /// æ ¹æ®è¿åº¦IDæ´æ°è¿åº¦ç¶æã?
   Future<ProgressItem> apiProgressProgressIdStatusPut({
     required int progressId,
     required String newStatus,
@@ -234,23 +229,22 @@ class ProgressControllerApi {
     throw ApiException(response.statusCode, _decodeBodyBytes(response));
   }
 
-  /// 删除指定进度记录。 with HTTP info returned
+  /// å é¤æå®è¿åº¦è®°å½ã?with HTTP info returned
   Future<http.Response> apiProgressProgressIdDeleteWithHttpInfo({
     required int progressId,
     Map<String, String>? headers,
   }) async {
-    final prefs = await SharedPreferences.getInstance();
-    final jwtToken = prefs.getString('jwtToken');
+      final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
       throw ApiException(401, 'No JWT token found');
     }
 
-    Object postBody = ''; // DELETE 请求通常没有 body
+    Object postBody = ''; // DELETE è¯·æ±éå¸¸æ²¡æ body
 
-    // 创建路径和映射变量
+    // åå»ºè·¯å¾åæ å°åé?
     String path = "/api/progress/$progressId".replaceAll("{format}", "json");
 
-    // 查询参数
+    // æ¥è¯¢åæ°
     List<QueryParam> queryParams = [];
     Map<String, String> headerParams = {
       ...?headers,
@@ -270,7 +264,7 @@ class ProgressControllerApi {
     return response;
   }
 
-  /// 删除指定进度记录。
+  /// å é¤æå®è¿åº¦è®°å½ã?
   Future<void> apiProgressProgressIdDelete({
     required int progressId,
     Map<String, String>? headers,
@@ -282,23 +276,22 @@ class ProgressControllerApi {
     }
   }
 
-  /// 根据状态获取进度记录。 with HTTP info returned
+  /// æ ¹æ®ç¶æè·åè¿åº¦è®°å½ã?with HTTP info returned
   Future<http.Response> apiProgressStatusStatusGetWithHttpInfo({
     required String status,
     Map<String, String>? headers,
   }) async {
-    final prefs = await SharedPreferences.getInstance();
-    final jwtToken = prefs.getString('jwtToken');
+      final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
       throw ApiException(401, 'No JWT token found');
     }
 
-    Object postBody = ''; // GET 请求通常没有 body
+    Object postBody = ''; // GET è¯·æ±éå¸¸æ²¡æ body
 
-    // 创建路径和映射变量
+    // åå»ºè·¯å¾åæ å°åé?
     String path = "/api/progress/status/$status".replaceAll("{format}", "json");
 
-    // 查询参数
+    // æ¥è¯¢åæ°
     List<QueryParam> queryParams = [];
     Map<String, String> headerParams = {
       ...?headers,
@@ -318,7 +311,7 @@ class ProgressControllerApi {
     return response;
   }
 
-  /// 根据状态获取进度记录。
+  /// æ ¹æ®ç¶æè·åè¿åº¦è®°å½ã?
   Future<List<ProgressItem>> apiProgressStatusStatusGet({
     required String status,
     Map<String, String>? headers,
@@ -332,24 +325,23 @@ class ProgressControllerApi {
     throw ApiException(response.statusCode, _decodeBodyBytes(response));
   }
 
-  /// 根据时间范围获取进度记录。 with HTTP info returned
+  /// æ ¹æ®æ¶é´èå´è·åè¿åº¦è®°å½ã?with HTTP info returned
   Future<http.Response> apiProgressTimeRangeGetWithHttpInfo({
     required String startTime,
     required String endTime,
     Map<String, String>? headers,
   }) async {
-    final prefs = await SharedPreferences.getInstance();
-    final jwtToken = prefs.getString('jwtToken');
+      final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
       throw ApiException(401, 'No JWT token found');
     }
 
-    Object postBody = ''; // GET 请求通常没有 body
+    Object postBody = ''; // GET è¯·æ±éå¸¸æ²¡æ body
 
-    // 创建路径和映射变量
+    // åå»ºè·¯å¾åæ å°åé?
     String path = "/api/progress/timeRange".replaceAll("{format}", "json");
 
-    // 查询参数
+    // æ¥è¯¢åæ°
     List<QueryParam> queryParams = [
       QueryParam('startTime', startTime),
       QueryParam('endTime', endTime),
@@ -372,7 +364,7 @@ class ProgressControllerApi {
     return response;
   }
 
-  /// 根据时间范围获取进度记录。
+  /// æ ¹æ®æ¶é´èå´è·åè¿åº¦è®°å½ã?
   Future<List<ProgressItem>> apiProgressTimeRangeGet({
     required String startTime,
     required String endTime,
@@ -387,8 +379,8 @@ class ProgressControllerApi {
     throw ApiException(response.statusCode, _decodeBodyBytes(response));
   }
 
-  /// 根据用户名获取进度记录 (WebSocket)
-  /// 对应后端: @WsAction(service="ProgressItemService", action="getProgressByUsername")
+  /// æ ¹æ®ç¨æ·åè·åè¿åº¦è®°å½?(WebSocket)
+  /// å¯¹åºåç«¯: @WsAction(service="ProgressItemService", action="getProgressByUsername")
   Future<List<Object>?> eventbusProgressUsernameGet({
     required String username,
   }) async {
@@ -408,8 +400,8 @@ class ProgressControllerApi {
     return null;
   }
 
-  /// 获取所有进度记录 (WebSocket)
-  /// 对应 @WsAction(service="ProgressItemService", action="getAllProgress")
+  /// è·åææè¿åº¦è®°å½?(WebSocket)
+  /// å¯¹åº @WsAction(service="ProgressItemService", action="getAllProgress")
   Future<List<Object>?> eventbusProgressGet() async {
     final msg = {
       "service": "ProgressItemService",
@@ -427,8 +419,8 @@ class ProgressControllerApi {
     return null;
   }
 
-  /// 根据状态获取进度记录 (WebSocket)
-  /// 对应 @WsAction(service="ProgressItemService", action="getProgressByStatus")
+  /// æ ¹æ®ç¶æè·åè¿åº¦è®°å½?(WebSocket)
+  /// å¯¹åº @WsAction(service="ProgressItemService", action="getProgressByStatus")
   Future<List<Object>?> eventbusProgressStatusStatusGet({
     required String status,
   }) async {
@@ -448,8 +440,8 @@ class ProgressControllerApi {
     return null;
   }
 
-  /// 根据时间范围获取进度记录 (WebSocket)
-  /// 对应 @WsAction(service="ProgressItemService", action="getProgressByTimeRange")
+  /// æ ¹æ®æ¶é´èå´è·åè¿åº¦è®°å½ (WebSocket)
+  /// å¯¹åº @WsAction(service="ProgressItemService", action="getProgressByTimeRange")
   Future<List<Object>?> eventbusProgressTimeRangeGet({
     required String startTime,
     required String endTime,
@@ -470,8 +462,8 @@ class ProgressControllerApi {
     return null;
   }
 
-  /// 根据进度ID删除进度记录 (WebSocket)
-  /// 对应 @WsAction(service="ProgressItemService", action="deleteProgress")
+  /// æ ¹æ®è¿åº¦IDå é¤è¿åº¦è®°å½ (WebSocket)
+  /// å¯¹åº @WsAction(service="ProgressItemService", action="deleteProgress")
   Future<Object?> eventbusProgressProgressIdDelete({
     required int progressId,
   }) async {
@@ -488,8 +480,8 @@ class ProgressControllerApi {
     return respMap["result"];
   }
 
-  /// 根据进度ID更新进度状态 (WebSocket)
-  /// 对应 @WsAction(service="ProgressItemService", action="updateProgressStatus")
+  /// æ ¹æ®è¿åº¦IDæ´æ°è¿åº¦ç¶æ?(WebSocket)
+  /// å¯¹åº @WsAction(service="ProgressItemService", action="updateProgressStatus")
   Future<Object?> eventbusProgressProgressIdStatusPut({
     required int progressId,
     required String newStatus,
@@ -507,8 +499,8 @@ class ProgressControllerApi {
     return respMap["result"];
   }
 
-  /// 创建新的进度记录 (WebSocket)
-  /// 对应 @WsAction(service="ProgressItemService", action="createProgress")
+  /// åå»ºæ°çè¿åº¦è®°å½ (WebSocket)
+  /// å¯¹åº @WsAction(service="ProgressItemService", action="createProgress")
   Future<Object?> eventbusProgressPost({
     required ProgressItem progressItem,
   }) async {

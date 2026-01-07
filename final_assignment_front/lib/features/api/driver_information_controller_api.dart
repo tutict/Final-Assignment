@@ -4,53 +4,51 @@ import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
-/// 定义一个全局的 defaultApiClient
+/// å®ä¹ä¸ä¸ªå¨å±ç?defaultApiClient
 final ApiClient defaultApiClient = ApiClient();
 
 class DriverInformationControllerApi {
   final ApiClient apiClient;
 
-  /// 构造函数，可传入 ApiClient，否则使用全局默认实例
+  /// æé å½æ°ï¼å¯ä¼ å?ApiClientï¼å¦åä½¿ç¨å¨å±é»è®¤å®ä¾
   DriverInformationControllerApi([ApiClient? apiClient])
       : apiClient = apiClient ?? defaultApiClient;
 
-  /// 从 SharedPreferences 中读取 jwtToken 并设置到 ApiClient 中
+  /// ä»?SharedPreferences ä¸­è¯»å?jwtToken å¹¶è®¾ç½®å° ApiClient ä¸?
   Future<void> initializeWithJwt() async {
-    final prefs = await SharedPreferences.getInstance();
-    final jwtToken = prefs.getString('jwtToken');
+      final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
-      throw Exception('未登录，请重新登录');
+      throw Exception('æªç»å½ï¼è¯·éæ°ç»å½?);
     }
     apiClient.setJwtToken(jwtToken);
     debugPrint(
         'Initialized DriverInformationControllerApi with token: $jwtToken');
   }
 
-  /// 解码响应体字节到字符串，使用 UTF-8 解码
+  /// è§£ç ååºä½å­èå°å­ç¬¦ä¸²ï¼ä½¿ç¨ UTF-8 è§£ç 
   String _decodeBodyBytes(http.Response response) {
     return utf8.decode(response.bodyBytes); // Properly decode UTF-8
   }
 
-  /// 获取带有 JWT 的请求头
+  /// è·åå¸¦æ JWT çè¯·æ±å¤´
   Future<Map<String, String>> _getHeaders() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('jwtToken') ?? '';
+      final token = (await AuthTokenStore.instance.getJwtToken()) ?? '';
     return {
       'Content-Type': 'application/json; charset=utf-8',
       if (token.isNotEmpty) 'Authorization': 'Bearer $token',
     };
   }
 
-  /// 添加 idempotencyKey 作为查询参数
+  /// æ·»å  idempotencyKey ä½ä¸ºæ¥è¯¢åæ°
   List<QueryParam> _addIdempotencyKey(String idempotencyKey) {
     return [QueryParam('idempotencyKey', idempotencyKey)];
   }
 
   // HTTP Methods
 
-  /// POST /api/drivers - 创建司机信息
+  /// POST /api/drivers - åå»ºå¸æºä¿¡æ¯
   Future<void> apiDriversPost({
     required DriverInformation driverInformation,
     required String idempotencyKey,
@@ -76,7 +74,7 @@ class DriverInformationControllerApi {
     }
   }
 
-  /// GET /api/drivers/{driverId} - 根据ID获取司机信息
+  /// GET /api/drivers/{driverId} - æ ¹æ®IDè·åå¸æºä¿¡æ¯
   Future<DriverInformation?> apiDriversDriverIdGet({
     required int driverId,
   }) async {
@@ -104,7 +102,7 @@ class DriverInformationControllerApi {
     return DriverInformation.fromJson(data);
   }
 
-  /// GET /api/drivers - 获取所有司机信息
+  /// GET /api/drivers - è·åææå¸æºä¿¡æ?
   Future<List<DriverInformation>> apiDriversGet() async {
     const path = '/api/drivers';
     final headerParams = await _getHeaders();
@@ -126,7 +124,7 @@ class DriverInformationControllerApi {
     return jsonList.map((json) => DriverInformation.fromJson(json)).toList();
   }
 
-  /// PUT /api/drivers/{driverId}/name - 更新司机姓名
+  /// PUT /api/drivers/{driverId}/name - æ´æ°å¸æºå§å
   Future<void> apiDriversDriverIdNamePut({
     required int driverId,
     required String name,
@@ -156,7 +154,7 @@ class DriverInformationControllerApi {
     }
   }
 
-  /// PUT /api/drivers/{driverId}/contactNumber - 更新司机联系电话
+  /// PUT /api/drivers/{driverId}/contactNumber - æ´æ°å¸æºèç³»çµè¯
   Future<void> apiDriversDriverIdContactNumberPut({
     required int driverId,
     required String contactNumber,
@@ -186,7 +184,7 @@ class DriverInformationControllerApi {
     }
   }
 
-  /// PUT /api/drivers/{driverId}/idCardNumber - 更新司机身份证号码
+  /// PUT /api/drivers/{driverId}/idCardNumber - æ´æ°å¸æºèº«ä»½è¯å·ç ?
   Future<void> apiDriversDriverIdIdCardNumberPut({
     required int driverId,
     required String idCardNumber,
@@ -216,7 +214,7 @@ class DriverInformationControllerApi {
     }
   }
 
-  /// PUT /api/drivers/{driverId} - 更新司机完整信息
+  /// PUT /api/drivers/{driverId} - æ´æ°å¸æºå®æ´ä¿¡æ¯
   Future<void> apiDriversDriverIdPut({
     required int driverId,
     required DriverInformation driverInformation,
@@ -245,7 +243,7 @@ class DriverInformationControllerApi {
     }
   }
 
-  /// DELETE /api/drivers/{driverId} - 删除司机信息 (仅管理员)
+  /// DELETE /api/drivers/{driverId} - å é¤å¸æºä¿¡æ¯ (ä»ç®¡çå)
   Future<void> apiDriversDriverIdDelete({
     required int driverId,
   }) async {
@@ -271,7 +269,7 @@ class DriverInformationControllerApi {
     }
   }
 
-  /// GET /api/drivers/by-id-card - 搜索司机信息按身份证号码
+  /// GET /api/drivers/by-id-card - æç´¢å¸æºä¿¡æ¯æèº«ä»½è¯å·ç 
   Future<List<DriverInformation>> apiDriversByIdCardGet({
     required String query,
     int page = 1,
@@ -308,7 +306,7 @@ class DriverInformationControllerApi {
     return jsonList.map((json) => DriverInformation.fromJson(json)).toList();
   }
 
-  /// GET /api/drivers/by-license-number - 搜索司机信息按驾驶证号
+  /// GET /api/drivers/by-license-number - æç´¢å¸æºä¿¡æ¯æé©¾é©¶è¯å?
   Future<List<DriverInformation>> apiDriversByLicenseNumberGet({
     required String query,
     int page = 1,
@@ -345,7 +343,7 @@ class DriverInformationControllerApi {
     return jsonList.map((json) => DriverInformation.fromJson(json)).toList();
   }
 
-  /// GET /api/drivers/by-name - 搜索司机信息按姓名
+  /// GET /api/drivers/by-name - æç´¢å¸æºä¿¡æ¯æå§å?
   Future<List<DriverInformation>> apiDriversByNameGet({
     required String query,
     int page = 1,

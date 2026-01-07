@@ -4,7 +4,7 @@ import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
 final ApiClient defaultApiClient = ApiClient();
 
@@ -14,8 +14,7 @@ class DeductionInformationControllerApi {
       : apiClient = client ?? defaultApiClient;
 
   Future<void> initializeWithJwt() async {
-    final prefs = await SharedPreferences.getInstance();
-    final jwtToken = prefs.getString('jwtToken');
+      final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
       throw Exception('Not logged in, please login again.');
     }
@@ -26,8 +25,7 @@ class DeductionInformationControllerApi {
   String _decode(http.Response r) => r.body;
 
   Future<Map<String, String>> _headers() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('jwtToken') ?? '';
+      final token = (await AuthTokenStore.instance.getJwtToken()) ?? '';
     return {
       'Content-Type': 'application/json; charset=utf-8',
       if (token.isNotEmpty) 'Authorization': 'Bearer $token',

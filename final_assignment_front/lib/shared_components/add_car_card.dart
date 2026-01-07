@@ -1,5 +1,4 @@
 // 导入必要的包
-import 'package:chinese_font_library/chinese_font_library.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
@@ -75,7 +74,7 @@ class ProgressCard extends StatelessWidget {
                     Text(
                       "机动车",
                       style: const TextStyle(fontWeight: FontWeight.w700)
-                          .useSystemChineseFont(),
+                          ,
                     ),
                   ],
                 ),
@@ -91,7 +90,7 @@ class ProgressCard extends StatelessWidget {
                       const SizedBox(width: 8.0),
                       Text("备案机动车信息",
                           style: const TextStyle(fontSize: 16.0)
-                              .useSystemChineseFont()),
+                              ),
                     ],
                   ),
                 ),

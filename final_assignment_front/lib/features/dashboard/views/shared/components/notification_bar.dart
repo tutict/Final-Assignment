@@ -108,7 +108,6 @@ class NotificationBar extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                     color: textColor,
                     letterSpacing: 0.2,
-                    fontFamily: 'SimsunExtG',
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,

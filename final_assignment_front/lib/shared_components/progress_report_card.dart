@@ -1,4 +1,3 @@
-import 'package:chinese_font_library/chinese_font_library.dart';
 import 'package:flutter/material.dart';
 import 'package:percent_indicator/percent_indicator.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
@@ -79,7 +78,7 @@ class ProgressReportCard extends StatelessWidget {
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       )
-                      .useSystemChineseFont(),
+                      ,
                 ),
                 const SizedBox(height: 8), // 减少间距
                 _RichText(value1: "${data.task}", value2: " 申诉"),
@@ -166,7 +165,7 @@ class _Indicator extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
                 )
-                .useSystemChineseFont(),
+                ,
           ),
           Text(
             "完成度",
@@ -178,7 +177,7 @@ class _Indicator extends StatelessWidget {
                   fontWeight: FontWeight.normal,
                   color: Colors.white70,
                 )
-                .useSystemChineseFont(),
+                ,
           ),
         ],
       ),

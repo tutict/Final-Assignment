@@ -1,6 +1,5 @@
 import 'package:final_assignment_front/features/dashboard/views/user/widgets/news_page_layout.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class LatestTrafficViolationNewsPage extends StatelessWidget {
   const LatestTrafficViolationNewsPage({super.key});
@@ -50,7 +49,7 @@ class LatestTrafficViolationNewsPage extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Text(
         title,
-        style: GoogleFonts.roboto(
+        style: TextStyle(
           fontSize: 20,
           fontWeight: FontWeight.bold,
           color: theme.colorScheme.onSurface,

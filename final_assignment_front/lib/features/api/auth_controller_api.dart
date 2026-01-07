@@ -3,27 +3,26 @@ import 'package:final_assignment_front/features/model/login_request.dart';
 import 'package:final_assignment_front/features/model/register_request.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http; // 用于 Response 和 MultipartRequest
+import 'package:http/http.dart' as http; // ç¨äº Response å?MultipartRequest
 import 'package:final_assignment_front/utils/services/api_client.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
-// 定义一个全局的 defaultApiClient
+// å®ä¹ä¸ä¸ªå¨å±ç?defaultApiClient
 final ApiClient defaultApiClient = ApiClient();
 
 class AuthControllerApi {
   final ApiClient apiClient;
 
-  // 更新后的构造函数，apiClient 参数可为空
+  // æ´æ°åçæé å½æ°ï¼apiClient åæ°å¯ä¸ºç©?
   AuthControllerApi([ApiClient? apiClient])
       : apiClient = apiClient ?? defaultApiClient;
 
-  // 解码响应体的辅助方法
+  // è§£ç ååºä½çè¾å©æ¹æ³
   String _decodeBodyBytes(http.Response response) => response.body;
 
-  // 获取通用请求头，包含 JWT
+  // è·åéç¨è¯·æ±å¤´ï¼åå« JWT
   Future<Map<String, String>> _getHeaders() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('jwtToken') ?? '';
+      final token = (await AuthTokenStore.instance.getJwtToken()) ?? '';
     debugPrint('Using JWT for request: $token');
     return {
       'Content-Type': 'application/json; charset=utf-8',
@@ -31,7 +30,7 @@ class AuthControllerApi {
     };
   }
 
-  /// 使用 HTTP 信息进行登录
+  /// ä½¿ç¨ HTTP ä¿¡æ¯è¿è¡ç»å½
   Future<http.Response> apiAuthLoginPostWithHttpInfo(
       {required LoginRequest loginRequest}) async {
     Object postBody = loginRequest;
@@ -59,7 +58,7 @@ class AuthControllerApi {
     return response;
   }
 
-  /// 登录
+  /// ç»å½
   Future<Map<String, dynamic>> apiAuthLoginPost(
       {required LoginRequest loginRequest}) async {
     try {
@@ -84,7 +83,7 @@ class AuthControllerApi {
     }
   }
 
-  /// 使用 HTTP 信息进行用户注册
+  /// ä½¿ç¨ HTTP ä¿¡æ¯è¿è¡ç¨æ·æ³¨å
   Future<http.Response> apiAuthRegisterPostWithHttpInfo(
       {required RegisterRequest registerRequest}) async {
     Object postBody = registerRequest;
@@ -112,7 +111,7 @@ class AuthControllerApi {
     return response;
   }
 
-  /// 用户注册
+  /// ç¨æ·æ³¨å
   Future<Map<String, dynamic>> apiAuthRegisterPost(
       {required RegisterRequest registerRequest}) async {
     try {
@@ -139,7 +138,7 @@ class AuthControllerApi {
     }
   }
 
-  /// 使用 HTTP 信息获取所有用户
+  /// ä½¿ç¨ HTTP ä¿¡æ¯è·åææç¨æ?
   Future<http.Response> apiAuthUsersGetWithHttpInfo() async {
     String path = "/api/auth/users".replaceAll("{format}", "json");
 
@@ -164,7 +163,7 @@ class AuthControllerApi {
     return response;
   }
 
-  /// 获取所有用户
+  /// è·åææç¨æ?
   Future<Map<String, dynamic>> apiAuthUsersGet() async {
     try {
       http.Response response = await apiAuthUsersGetWithHttpInfo();
@@ -187,7 +186,7 @@ class AuthControllerApi {
     }
   }
 
-  /// 获取角色列表（新增）
+  /// è·åè§è²åè¡¨ï¼æ°å¢ï¼
   Future<http.Response> apiRolesGetWithHttpInfo() async {
     String path = "/api/roles".replaceAll("{format}", "json");
 
@@ -212,7 +211,7 @@ class AuthControllerApi {
     return response;
   }
 
-  /// 获取角色列表
+  /// è·åè§è²åè¡¨
   Future<Map<String, dynamic>> apiRolesGet() async {
     try {
       http.Response response = await apiRolesGetWithHttpInfo();
@@ -235,7 +234,7 @@ class AuthControllerApi {
     }
   }
 
-  /// 登录（WebSocket）
+  /// ç»å½ï¼WebSocketï¼?
   Future<Object?> eventbusAuthLoginPost(
       {required LoginRequest loginRequest}) async {
     final msg = <String, dynamic>{
@@ -257,7 +256,7 @@ class AuthControllerApi {
     return null;
   }
 
-  /// 用户注册（WebSocket）
+  /// ç¨æ·æ³¨åï¼WebSocketï¼?
   Future<Object?> eventbusAuthRegisterPost(
       {required RegisterRequest registerRequest}) async {
     final msg = <String, dynamic>{
@@ -284,7 +283,7 @@ class AuthControllerApi {
     return null;
   }
 
-  /// 获取所有用户（WebSocket）
+  /// è·åææç¨æ·ï¼WebSocketï¼?
   Future<Object?> eventbusAuthUsersGet() async {
     final msg = <String, dynamic>{
       "service": "Auth",

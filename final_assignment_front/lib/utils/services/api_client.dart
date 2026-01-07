@@ -1,11 +1,14 @@
 import 'dart:convert';
-import 'package:flutter/material.dart';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:http/io_client.dart';
 import 'package:web_socket_channel/io.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:final_assignment_front/utils/services/authentication.dart';
+import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 import 'package:final_assignment_front/utils/services/http_bearer_auth.dart';
 
 /// Simple query param holder
@@ -18,6 +21,16 @@ class QueryParam {
 
 /// Generic API client for HTTP/WebSocket
 class ApiClient {
+  static final http.Client _sharedClient = IOClient(_buildHttpClient());
+
+  static HttpClient _buildHttpClient() {
+    final client = HttpClient();
+    client.idleTimeout = const Duration(seconds: 30);
+    client.connectionTimeout = const Duration(seconds: 10);
+    client.maxConnectionsPerHost = 6;
+    return client;
+  }
+
   /// Base URL (defaults to the Vert.x gateway 8081)
   String basePath;
 
@@ -40,7 +53,8 @@ class ApiClient {
   WebSocketChannel? _wsChannel;
   String? _wsUrl;
 
-  ApiClient({this.basePath = "http://localhost:8081"}) : client = http.Client();
+  ApiClient({this.basePath = "http://localhost:8081", http.Client? client})
+      : client = client ?? _sharedClient;
 
   void addDefaultHeader(String key, String value) {
     _defaultHeaderMap[key] = value;
@@ -49,7 +63,9 @@ class ApiClient {
   void setJwtToken(String token) {
     final bearerAuth = _authentications['bearerAuth'] as HttpBearerAuth;
     bearerAuth.setAccessToken(token);
-    debugPrint('JWT Token set in ApiClient: $token');
+    if (kDebugMode) {
+      debugPrint('JWT Token set in ApiClient: $token');
+    }
   }
 
   String? get jwtToken {
@@ -147,6 +163,15 @@ class ApiClient {
 
     // HTTP
     final queryParamsList = queryParams.toList();
+    if (authNames.contains('bearerAuth')) {
+      final cachedToken = jwtToken;
+      if (cachedToken == null || cachedToken.isEmpty) {
+        final token = await AuthTokenStore.instance.getJwtToken();
+        if (token != null && token.isNotEmpty) {
+          setJwtToken(token);
+        }
+      }
+    }
     _updateParamsForAuth(authNames, queryParamsList, headerParams);
 
     var ps = queryParamsList
@@ -162,8 +187,10 @@ class ApiClient {
     headerParams['Content-Type'] = contentType;
 
     final uri = Uri.parse(url);
-    debugPrint('Request URL: $url');
-    debugPrint('Final Request Headers: $headerParams');
+    if (kDebugMode) {
+      debugPrint('Request URL: $url');
+      debugPrint('Final Request Headers: $headerParams');
+    }
 
     final msgBody =
         (contentType == "application/x-www-form-urlencoded") ? formParams : serialize(body ?? {});
@@ -192,7 +219,9 @@ class ApiClient {
         break;
     }
 
-    debugPrint('Response: ${response.statusCode} - ${response.body}');
+    if (kDebugMode) {
+      debugPrint('Response: ${response.statusCode} - ${response.body}');
+    }
     return response;
   }
 
@@ -235,15 +264,27 @@ class ApiClient {
     _wsUrl = wsUrl;
 
     _wsChannel?.stream.listen(
-      (message) => debugPrint('[WebSocket recv] $message'),
+      (message) {
+        if (kDebugMode) {
+          debugPrint('[WebSocket recv] $message');
+        }
+      },
       onDone: () {
-        debugPrint('[WebSocket closed]');
+        if (kDebugMode) {
+          debugPrint('[WebSocket closed]');
+        }
         _wsChannel = null;
       },
-      onError: (error) => debugPrint('[WebSocket error] $error'),
+      onError: (error) {
+        if (kDebugMode) {
+          debugPrint('[WebSocket error] $error');
+        }
+      },
     );
 
-    debugPrint('[WebSocket connected] $_wsUrl');
+    if (kDebugMode) {
+      debugPrint('[WebSocket connected] $_wsUrl');
+    }
   }
 
   /// Send a WebSocket message and wait for first JSON response map
@@ -274,13 +315,16 @@ class ApiClient {
   /// Close WebSocket connection
   void closeWebSocket() {
     if (_wsChannel == null) {
-      debugPrint('[WebSocket] no active connection');
+      if (kDebugMode) {
+        debugPrint('[WebSocket] no active connection');
+      }
       return;
     }
     _wsChannel?.sink.close();
-    debugPrint('[WebSocket closed] ${_wsUrl ?? ''}');
+    if (kDebugMode) {
+      debugPrint('[WebSocket closed] ${_wsUrl ?? ''}');
+    }
     _wsChannel = null;
     _wsUrl = null;
   }
 }
-

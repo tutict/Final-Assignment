@@ -33,7 +33,7 @@ class _OverviewHeaderState extends State<OverviewHeader> {
               child: Text(
                 "当前工作",
                 style: const TextStyle(fontWeight: FontWeight.w600)
-                    .useSystemChineseFont(),
+                    ,
               ),
             ),
             const SizedBox(width: 8),
@@ -65,7 +65,7 @@ class _OverviewHeaderState extends State<OverviewHeader> {
             Text(
               "当前工作",
               style: const TextStyle(fontWeight: FontWeight.w600)
-                  .useSystemChineseFont(),
+                  ,
             ),
             const SizedBox(height: 10),
             SingleChildScrollView(

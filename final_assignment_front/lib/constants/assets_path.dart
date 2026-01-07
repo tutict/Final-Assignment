@@ -2,10 +2,6 @@
 part of 'app_constants.dart';
 
 // 定义字体常量的类
-class Font {
-  // Poppins字体常量
-  static const poppins = "Poppins";
-}
 
 // 定义图像动画路径常量的类
 // 请注意，目前没有定义任何动画路径常量

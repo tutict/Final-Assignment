@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
 String generateIdempotencyKey() {
   return DateTime.now().millisecondsSinceEpoch.toString();
@@ -79,7 +80,7 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
 
     try {
       final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken');
+      final jwtToken = (await AuthTokenStore.instance.getJwtToken());
       debugPrint('JWT Token: $jwtToken');
       if (jwtToken == null || jwtToken.isEmpty) {
         throw Exception('JWT Token not found in SharedPreferences');
@@ -92,13 +93,13 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
       final decodedToken = JwtDecoder.decode(jwtToken);
       final username = decodedToken['sub']?.toString();
       if (username == null || username.isEmpty) {
-        throw Exception('未能从凭证中解析当前用户');
+        throw Exception('æªè½ä»å­è¯ä¸­è§£æå½åç¨æ·');
       }
 
       final manager =
           await userApi.apiUsersUsernameUsernameGet(username: username);
       if (manager == null || manager.userId == null) {
-        throw Exception('未找到当前用户信息');
+        throw Exception('æªæ¾å°å½åç¨æ·ä¿¡æ¯');
       }
 
       DriverInformation? driverInfo =
@@ -107,7 +108,7 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
         final idempotencyKey = generateIdempotencyKey();
         final newDriver = DriverInformation(
           driverId: manager.userId,
-          name: manager.username ?? '未知用户',
+          name: manager.username ?? 'æªç¥ç¨æ·',
           contactNumber: manager.contactNumber ?? '',
           idCardNumber: '',
         );
@@ -161,7 +162,7 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
     try {
       final currentManager = _currentManager ?? await _managerFuture;
       if (currentManager == null || currentManager.userId == null) {
-        throw Exception('未找到当前用户信息');
+        throw Exception('æªæ¾å°å½åç¨æ·ä¿¡æ¯');
       }
       final userId = currentManager.userId!;
       final idempotencyKey = generateIdempotencyKey();
@@ -206,7 +207,7 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
           );
           break;
         default:
-          throw Exception('未知字段: $field');
+          throw Exception('æªç¥å­æ®µ: $field');
       }
 
       await _loadCurrentManager();
@@ -214,7 +215,7 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
       if (mounted) {
         scaffoldMessenger.showSnackBar(
           SnackBar(
-            content: Text('$field 更新成功！',
+            content: Text('$field æ´æ°æåï¼',
                 style: TextStyle(
                     color: controller?.currentBodyTheme.value.colorScheme
                             .onPrimaryContainer ??
@@ -242,11 +243,10 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
   }
 
   Future<void> _logout() async {
-    final confirmed = await _showConfirmationDialog('确认退出', '您确定要退出登录吗？');
+    final confirmed = await _showConfirmationDialog('ç¡®è®¤éåº', 'æ¨ç¡®å®è¦éåºç»å½åï¼');
     if (!confirmed) return;
 
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('jwtToken');
+    await AuthTokenStore.instance.clearJwtToken();
     if (Get.isRegistered<ChatController>()) {
       Get.find<ChatController>().clearMessages();
     }
@@ -257,18 +257,18 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
     if (error is ApiException) {
       switch (error.code) {
         case 400:
-          return '请求错误: ${error.message}';
+          return 'è¯·æ±éè¯¯: ${error.message}';
         case 403:
-          return '无权限: ${error.message}';
+          return 'æ æé: ${error.message}';
         case 404:
-          return '未找到: ${error.message}';
+          return 'æªæ¾å°: ${error.message}';
         case 409:
-          return '重复请求: ${error.message}';
+          return 'éå¤è¯·æ±: ${error.message}';
         default:
-          return '服务器错误: ${error.message}';
+          return 'æå¡å¨éè¯¯: ${error.message}';
       }
     }
-    return '操作失败: $error';
+    return 'æä½å¤±è´¥: $error';
   }
 
   Future<bool> _showConfirmationDialog(String title, String content) async {
@@ -291,14 +291,14 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context, false),
-                  child: Text('取消',
+                  child: Text('åæ¶',
                       style: TextStyle(
                           color: controller
                               ?.currentBodyTheme.value.colorScheme.onSurface)),
                 ),
                 TextButton(
                   onPressed: () => Navigator.pop(context, true),
-                  child: Text('确定',
+                  child: Text('ç¡®å®',
                       style: TextStyle(
                           color: controller
                               ?.currentBodyTheme.value.colorScheme.primary)),
@@ -331,7 +331,7 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    '编辑 $field',
+                    'ç¼è¾ $field',
                     style: themeData.textTheme.titleMedium?.copyWith(
                       color: themeData.colorScheme.onSurface,
                       fontWeight: FontWeight.bold,
@@ -344,7 +344,8 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
                     style: themeData.textTheme.bodyMedium
                         ?.copyWith(color: themeData.colorScheme.onSurface),
                     decoration: InputDecoration(
-                      hintText: '输入新的 $field',
+                      hintText: 'è¾å
+¥æ°ç $field',
                       hintStyle: themeData.textTheme.bodyMedium?.copyWith(
                           color: themeData.colorScheme.onSurfaceVariant
                               .withValues(alpha: 0.6)),
@@ -372,7 +373,7 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
                       TextButton(
                         onPressed: () => Navigator.pop(context),
                         child: Text(
-                          '取消',
+                          'åæ¶',
                           style: themeData.textTheme.labelMedium?.copyWith(
                               color: themeData.colorScheme.onSurface,
                               fontSize: 14),
@@ -390,7 +391,7 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
                               borderRadius: BorderRadius.circular(8.0)),
                         ),
                         child: Text(
-                          '保存',
+                          'ä¿å­',
                           style: themeData.textTheme.labelMedium?.copyWith(
                             color: themeData.colorScheme.onPrimary,
                             fontSize: 14,
@@ -415,7 +416,7 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
       final themeData = controller?.currentBodyTheme.value ?? ThemeData.light();
       return DashboardPageTemplate(
         theme: themeData,
-        title: '个人信息管理',
+        title: 'ä¸ªäººä¿¡æ¯ç®¡ç',
         pageType: DashboardPageType.manager,
         bodyIsScrollable: true,
         padding: EdgeInsets.zero,
@@ -424,7 +425,7 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
           DashboardPageBarAction(
             icon: Icons.logout,
             onPressed: _logout,
-            tooltip: '退出登录',
+            tooltip: 'éåºç»å½',
           ),
         ],
         body: _buildBody(themeData),
@@ -470,7 +471,7 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
             snapshot.data == null) {
           return Center(
             child: Text(
-              _errorMessage.isNotEmpty ? _errorMessage : '未找到用户信息',
+              _errorMessage.isNotEmpty ? _errorMessage : 'æªæ¾å°ç¨æ·ä¿¡æ¯',
               style: themeData.textTheme.bodyLarge?.copyWith(
                 color: themeData.colorScheme.error,
                 fontSize: 18,
@@ -489,77 +490,77 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
               padding: const EdgeInsets.all(16.0),
               children: [
                 _buildListTile(
-                  title: '姓名',
-                  subtitle: _driverInfo?.name ?? '无数据',
+                  title: 'å§å',
+                  subtitle: _driverInfo?.name ?? 'æ æ°æ®',
                   themeData: themeData,
                   onTap: () {
                     _nameController.text = _driverInfo?.name ?? '';
-                    _showEditDialog('姓名', _nameController,
+                    _showEditDialog('å§å', _nameController,
                         (value) => _updateField('name', value));
                   },
                 ),
                 _buildListTile(
-                  title: '用户名',
-                  subtitle: manager.username ?? '无数据',
+                  title: 'ç¨æ·å',
+                  subtitle: manager.username ?? 'æ æ°æ®',
                   themeData: themeData,
                 ),
                 _buildListTile(
-                  title: '密码',
-                  subtitle: '点击修改密码',
+                  title: 'å¯ç ',
+                  subtitle: 'ç¹å»ä¿®æ¹å¯ç ',
                   themeData: themeData,
                   onTap: () {
                     _passwordController.clear();
-                    _showEditDialog('密码', _passwordController,
+                    _showEditDialog('å¯ç ', _passwordController,
                         (value) => _updateField('password', value));
                   },
                 ),
                 _buildListTile(
-                  title: '联系电话',
+                  title: 'èç³»çµè¯',
                   subtitle: _driverInfo?.contactNumber ??
                       manager.contactNumber ??
-                      '无数据',
+                      'æ æ°æ®',
                   themeData: themeData,
                   onTap: () {
                     _contactNumberController.text =
                         _driverInfo?.contactNumber ??
                             manager.contactNumber ??
                             '';
-                    _showEditDialog('联系电话', _contactNumberController,
+                    _showEditDialog('èç³»çµè¯', _contactNumberController,
                         (value) => _updateField('contactNumber', value));
                   },
                 ),
                 _buildListTile(
-                  title: '邮箱地址',
-                  subtitle: manager.email ?? '无数据',
+                  title: 'é®ç®±å°å',
+                  subtitle: manager.email ?? 'æ æ°æ®',
                   themeData: themeData,
                   onTap: () {
                     _emailController.text = manager.email ?? '';
-                    _showEditDialog('邮箱地址', _emailController,
+                    _showEditDialog('é®ç®±å°å', _emailController,
                         (value) => _updateField('email', value));
                   },
                 ),
                 _buildListTile(
-                  title: '状态',
-                  subtitle: manager.status ?? '无数据',
+                  title: 'ç¶æ',
+                  subtitle: manager.status ?? 'æ æ°æ®',
                   themeData: themeData,
                 ),
                 _buildListTile(
-                  title: '创建时间',
-                  subtitle: manager.createdTime?.toString() ?? '无数据',
+                  title: 'åå»ºæ¶é´',
+                  subtitle: manager.createdTime?.toString() ?? 'æ æ°æ®',
                   themeData: themeData,
                 ),
                 _buildListTile(
-                  title: '修改时间',
-                  subtitle: manager.modifiedTime?.toString() ?? '无数据',
+                  title: 'ä¿®æ¹æ¶é´',
+                  subtitle: manager.modifiedTime?.toString() ?? 'æ æ°æ®',
                   themeData: themeData,
                 ),
                 _buildListTile(
-                  title: '备注',
-                  subtitle: manager.remarks ?? '无数据',
+                  title: 'å¤æ³¨',
+                  subtitle: manager.remarks ?? 'æ æ°æ®',
                   themeData: themeData,
                   onTap: () {
                     _remarksController.text = manager.remarks ?? '';
-                    _showEditDialog('备注', _remarksController,
+                    _showEditDialog('å¤æ³¨', _remarksController,
                         (value) => _updateField('remarks', value));
                   },
                 ),

@@ -117,7 +117,7 @@ class UserHeader extends StatelessWidget {
                       fontSize: 17,
                       fontWeight: FontWeight.w400,
                       letterSpacing: 0.2,
-                    ).useSystemChineseFont(),
+                    ),
                   ),
                 ),
               ),

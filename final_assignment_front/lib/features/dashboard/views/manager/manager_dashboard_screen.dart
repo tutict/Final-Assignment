@@ -1,6 +1,5 @@
 import 'dart:developer';
 import 'dart:ui';
-import 'package:chinese_font_library/chinese_font_library.dart';
 import 'package:eva_icons_flutter/eva_icons_flutter.dart';
 import 'package:final_assignment_front/config/routes/app_pages.dart';
 import 'package:final_assignment_front/config/themes/app_theme.dart';
@@ -497,7 +496,7 @@ class DashboardScreen extends GetView<DashboardController>
                                     fontWeight: FontWeight.bold,
                                     fontSize: 14, // Reduced for fit
                                   )
-                                  .useSystemChineseFont(),
+                                  ,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -607,7 +606,7 @@ class DashboardScreen extends GetView<DashboardController>
                           style: TextStyle(
                             color: theme.colorScheme.onSurfaceVariant,
                             fontSize: 12, // Reduced for fit
-                          ).useSystemChineseFont(),
+                          ),
                         ),
                       ),
                     ),
@@ -624,7 +623,7 @@ class DashboardScreen extends GetView<DashboardController>
                             style: TextStyle(
                               color: theme.colorScheme.onSurfaceVariant,
                               fontSize: 12, // Reduced for fit
-                            ).useSystemChineseFont(),
+                            ),
                           );
                         },
                       ),
@@ -669,7 +668,7 @@ class DashboardScreen extends GetView<DashboardController>
                             color: theme.colorScheme.onPrimaryContainer,
                             fontWeight: FontWeight.bold,
                             fontSize: 12, // Reduced for fit
-                          ).useSystemChineseFont(),
+                          ),
                         );
                       },
                     ),
@@ -733,7 +732,7 @@ class DashboardScreen extends GetView<DashboardController>
                             color: theme.colorScheme.onSecondaryContainer,
                             fontWeight: FontWeight.bold,
                             fontSize: 12, // Reduced for fit
-                          ).useSystemChineseFont(),
+                          ),
                         );
                       }).toList(),
                     ),

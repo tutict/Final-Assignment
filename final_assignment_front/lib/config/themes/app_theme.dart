@@ -41,34 +41,41 @@ class MaterialThemeColors {
 
 /// AppTheme 类包含了应用的所有自定义主题样式。
 class AppTheme {
+  static const List<String> chineseFontFallback = [
+    'PingFang SC',
+    'Hiragino Sans GB',
+    'Microsoft YaHei UI',
+    'Microsoft YaHei',
+    'Noto Sans CJK SC',
+    'Source Han Sans SC',
+    'WenQuanYi Micro Hei',
+    'SimHei',
+    'SimSun',
+  ];
+
   /// 通用文本主题，颜色由 colorScheme 决定
   static TextTheme textTheme(Color baseColor) => TextTheme(
         displayLarge: TextStyle(
           fontSize: 34,
           fontWeight: FontWeight.bold,
-          fontFamily: 'SimSunExtG',
           color: baseColor,
         ),
         titleLarge: TextStyle(
           fontSize: 20,
           fontWeight: FontWeight.w600,
-          fontFamily: 'SimSunExtG',
           color: baseColor,
         ),
         bodyLarge: TextStyle(
           fontSize: 16,
-          fontFamily: 'SimSunExtG',
           color: baseColor,
         ),
         bodyMedium: TextStyle(
           fontSize: 14,
-          fontFamily: 'SimSunExtG',
           color: baseColor.withValues(alpha: 0.9),
         ),
         labelLarge: TextStyle(
           fontSize: 15,
           fontWeight: FontWeight.w500,
-          fontFamily: 'SimSunExtG',
           color: baseColor,
         ),
       );
@@ -84,7 +91,6 @@ class AppTheme {
             borderRadius: BorderRadius.circular(ThemeStyles.buttonBorderRadius),
           ),
           textStyle: const TextStyle(
-            fontFamily: 'SimSunExtG',
             fontSize: ThemeStyles.defaultFontSize,
             fontWeight: FontWeight.w600,
           ),
@@ -100,7 +106,6 @@ class AppTheme {
             borderRadius: BorderRadius.circular(ThemeStyles.buttonBorderRadius),
           ),
           textStyle: TextStyle(
-            fontFamily: 'SimSunExtG',
             fontSize: ThemeStyles.defaultFontSize,
             color: colorScheme.primary,
           ),
@@ -131,7 +136,6 @@ class AppTheme {
         ),
         hintStyle: TextStyle(
           color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-          fontFamily: 'SimSunExtG',
         ),
       );
 
@@ -152,9 +156,9 @@ class AppTheme {
 
     return ThemeData(
       useMaterial3: true,
-      fontFamily: 'SimSunExtG',
       brightness: brightness,
       colorScheme: colorScheme,
+      fontFamilyFallback: chineseFontFallback,
       scaffoldBackgroundColor: canvasColor,
       canvasColor: canvasColor,
       cardColor: cardColor,
@@ -196,7 +200,6 @@ class AppTheme {
         backgroundColor: colorScheme.primaryContainer.withValues(alpha: 0.5),
         selectedColor: colorScheme.primary,
         labelStyle: TextStyle(
-          fontFamily: 'SimSunExtG',
           color: colorScheme.onPrimary,
         ),
       ),

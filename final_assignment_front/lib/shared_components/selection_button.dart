@@ -1,5 +1,4 @@
 // 导入所需包和库
-import 'package:chinese_font_library/chinese_font_library.dart';
 import 'package:flutter/material.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
 import 'package:get/get.dart';
@@ -174,7 +173,7 @@ class _Button extends StatelessWidget {
         fontWeight: selected ? FontWeight.w700 : FontWeight.w500, // 选中时加粗
         letterSpacing: 0.5, // 减小字符间距
         fontSize: 16, // 增大字体
-      ).useSystemChineseFont(),
+      ),
     );
   }
 
@@ -202,7 +201,7 @@ class _Button extends StatelessWidget {
           color: Colors.white,
           fontSize: 12,
           fontWeight: FontWeight.w700,
-        ).useSystemChineseFont(),
+        ),
         textAlign: TextAlign.center,
       ),
     );

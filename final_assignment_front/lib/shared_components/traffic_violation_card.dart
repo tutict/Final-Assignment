@@ -1,4 +1,3 @@
-import 'package:chinese_font_library/chinese_font_library.dart';
 import 'package:flutter/material.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
 import 'package:percent_indicator/circular_percent_indicator.dart';
@@ -62,7 +61,7 @@ class TrafficViolationCard extends StatelessWidget {
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       )
-                      .useSystemChineseFont(),
+                      ,
                 ),
                 const SizedBox(height: 8), // 减少间距
                 _ViolationRichText(
@@ -163,7 +162,7 @@ class _ViolationIndicator extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
                 )
-                .useSystemChineseFont(),
+                ,
           ),
           Text(
             "处理率",
@@ -175,7 +174,7 @@ class _ViolationIndicator extends StatelessWidget {
                   fontWeight: FontWeight.normal,
                   color: Colors.white70,
                 )
-                .useSystemChineseFont(),
+                ,
           ),
         ],
       ),

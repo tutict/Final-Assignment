@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:final_assignment_front/features/dashboard/views/user/user_dashboard.dart';
 import 'package:get/get.dart';
 import 'package:local_captcha/local_captcha.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class LocalCaptchaMain extends StatefulWidget {
   const LocalCaptchaMain({super.key});
@@ -96,7 +95,7 @@ class _LocalCaptchaMainState extends State<LocalCaptchaMain> {
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
           title: Text(
             '验证码验证',
-            style: GoogleFonts.roboto(
+            style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
               color: isLight
@@ -152,14 +151,14 @@ class _LocalCaptchaMainState extends State<LocalCaptchaMain> {
                         fillColor: isLight
                             ? themeData.colorScheme.surfaceContainerLowest
                             : themeData.colorScheme.surfaceContainerLow,
-                        labelStyle: GoogleFonts.roboto(
+                        labelStyle: TextStyle(
                           fontSize: 16,
                           color: isLight
                               ? themeData.colorScheme.onSurfaceVariant
                               : themeData.colorScheme.onSurfaceVariant
                                   .withValues(alpha: 0.85),
                         ),
-                        hintStyle: GoogleFonts.roboto(
+                        hintStyle: TextStyle(
                           fontSize: 16,
                           color: isLight
                               ? themeData.colorScheme.onSurfaceVariant
@@ -168,7 +167,7 @@ class _LocalCaptchaMainState extends State<LocalCaptchaMain> {
                                   .withValues(alpha: 0.5),
                         ),
                       ),
-                      style: GoogleFonts.roboto(
+                      style: TextStyle(
                         fontSize: 16,
                         color: isLight
                             ? themeData.colorScheme.onSurface
@@ -205,7 +204,7 @@ class _LocalCaptchaMainState extends State<LocalCaptchaMain> {
                       ),
                       child: Text(
                         '验证',
-                        style: GoogleFonts.roboto(
+                        style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                           color: themeData.colorScheme.onPrimary,
@@ -226,7 +225,7 @@ class _LocalCaptchaMainState extends State<LocalCaptchaMain> {
               },
               child: Text(
                 '取消',
-                style: GoogleFonts.roboto(
+                style: TextStyle(
                   fontSize: 16,
                   color: isLight
                       ? themeData.colorScheme.onSurfaceVariant

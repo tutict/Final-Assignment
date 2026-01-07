@@ -146,7 +146,6 @@ class _AiChatState extends State<AiChat> with SingleTickerProviderStateMixin {
                                   Text(
                                     '搜索结果',
                                     style: TextStyle(
-                                      fontFamily: 'SimsunExtG',
                                       fontSize: 16,
                                       fontWeight: FontWeight.w600,
                                       color: Theme.of(context)
@@ -198,8 +197,6 @@ class _AiChatState extends State<AiChat> with SingleTickerProviderStateMixin {
                                                       title: SelectableText(
                                                         result,
                                                         style: TextStyle(
-                                                          fontFamily:
-                                                              'SimsunExtG',
                                                           fontSize: 14,
                                                           color:
                                                               Theme.of(context)
@@ -296,7 +293,6 @@ class _AiChatState extends State<AiChat> with SingleTickerProviderStateMixin {
                                     Text(
                                       '思考中...',
                                       style: TextStyle(
-                                        fontFamily: 'SimsunExtG',
                                         fontSize: 14,
                                         fontWeight: FontWeight.w400,
                                         height: 1.3,
@@ -380,7 +376,6 @@ class _AiChatState extends State<AiChat> with SingleTickerProviderStateMixin {
                                     SelectableText(
                                       msg.thinkContent,
                                       style: TextStyle(
-                                        fontFamily: 'SimsunExtG',
                                         fontSize: 14,
                                         fontWeight: FontWeight.w400,
                                         height: 1.3,
@@ -405,7 +400,6 @@ class _AiChatState extends State<AiChat> with SingleTickerProviderStateMixin {
                                     SelectableText(
                                       msg.formalContent,
                                       style: TextStyle(
-                                        fontFamily: 'SimsunExtG',
                                         fontSize: 14,
                                         fontWeight: FontWeight.w400,
                                         height: 1.3,
@@ -507,7 +501,6 @@ class _AiChatState extends State<AiChat> with SingleTickerProviderStateMixin {
                                 Text(
                                   '有问题可以问问DeepSeek',
                                   style: TextStyle(
-                                    fontFamily: 'SimsunExtG',
                                     fontSize: 14,
                                     fontWeight: FontWeight.w500,
                                     color: Theme.of(context)
@@ -546,7 +539,6 @@ class _AiChatState extends State<AiChat> with SingleTickerProviderStateMixin {
                             decoration: InputDecoration(
                               hintText: "请输入你的问题...",
                               hintStyle: TextStyle(
-                                fontFamily: 'SimsunExtG',
                                 fontSize: 14,
                                 color: Theme.of(context)
                                     .colorScheme
@@ -596,7 +588,6 @@ class _AiChatState extends State<AiChat> with SingleTickerProviderStateMixin {
                               isDense: true,
                             ),
                             style: TextStyle(
-                              fontFamily: 'SimsunExtG',
                               fontSize: 14,
                               fontWeight: FontWeight.w400,
                               height: 1.3,

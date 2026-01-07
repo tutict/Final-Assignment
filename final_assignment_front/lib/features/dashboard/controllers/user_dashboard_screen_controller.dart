@@ -226,7 +226,7 @@ class UserDashboardController extends GetxController with NavigationMixin {
           : AppTheme.basicDark;
     }
 
-    String fontFamily = theme == 'Basic' ? Font.poppins : 'Helvetica';
+    String? fontFamily;
 
     currentBodyTheme.value = baseTheme.copyWith(
       textTheme: baseTheme.textTheme.copyWith(

@@ -4,7 +4,7 @@ import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
 // Global default client
 final ApiClient defaultApiClient = ApiClient();
@@ -17,10 +17,9 @@ class TrafficViolationControllerApi {
 
   // Read jwt and configure client
   Future<void> initializeWithJwt() async {
-    final prefs = await SharedPreferences.getInstance();
-    final jwtToken = prefs.getString('jwtToken');
+      final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
-      throw Exception('未登录，请重新登录');
+      throw Exception('æªç»å½ï¼è¯·éæ°ç»å½?);
     }
     apiClient.setJwtToken(jwtToken);
     debugPrint('Initialized TrafficViolationControllerApi with token: $jwtToken');
@@ -31,8 +30,7 @@ class TrafficViolationControllerApi {
 
   // Auth headers
   Future<Map<String, String>> _getHeaders() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('jwtToken') ?? '';
+      final token = (await AuthTokenStore.instance.getJwtToken()) ?? '';
     return {
       'Content-Type': 'application/json; charset=utf-8',
       if (token.isNotEmpty) 'Authorization': 'Bearer $token',

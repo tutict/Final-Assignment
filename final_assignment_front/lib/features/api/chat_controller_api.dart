@@ -6,7 +6,7 @@ import 'package:final_assignment_front/features/model/chat_action_response.dart'
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
 final ApiClient defaultApiClient = ApiClient();
 
@@ -23,8 +23,7 @@ class ChatControllerApi {
     List<QueryParam> queryParams = [QueryParam("message", message)];
     Map<String, String> headerParams = {};
 
-    final prefs = await SharedPreferences.getInstance();
-    String? jwtToken = prefs.getString('jwtToken');
+      String? jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken != null) {
       headerParams['Authorization'] = 'Bearer $jwtToken';
       developer.log("JWT Token: $jwtToken", name: 'ChatControllerApi');
@@ -80,8 +79,7 @@ class ChatControllerApi {
     ];
     Map<String, String> headerParams = {};
 
-    final prefs = await SharedPreferences.getInstance();
-    String? jwtToken = prefs.getString('jwtToken');
+      String? jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken != null) {
       headerParams['Authorization'] = 'Bearer $jwtToken';
       developer.log("JWT Token: $jwtToken", name: 'ChatControllerApi');
@@ -126,8 +124,7 @@ class ChatControllerApi {
   }
 
   Stream<String> apiAiChatStream(String message, bool webSearch) async* {
-    final prefs = await SharedPreferences.getInstance();
-    String? jwtToken = prefs.getString('jwtToken');
+      String? jwtToken = (await AuthTokenStore.instance.getJwtToken());
     Map<String, String> headers = {
       'Accept': 'text/event-stream',
       'Cache-Control': 'no-cache',

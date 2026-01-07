@@ -1,4 +1,3 @@
-import 'package:chinese_font_library/chinese_font_library.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
@@ -120,7 +119,7 @@ class _Info extends StatelessWidget {
                   blurRadius: 2,
                 ),
               ],
-            ).useSystemChineseFont(),
+            ),
           ),
         ),
         const SizedBox(height: 10), // 减小间距

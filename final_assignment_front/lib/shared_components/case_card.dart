@@ -1,4 +1,3 @@
-import 'package:chinese_font_library/chinese_font_library.dart';
 import 'package:eva_icons_flutter/eva_icons_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -251,7 +250,7 @@ class _IconButton extends StatelessWidget {
       style: const TextStyle(
         color: Colors.white54, // 文字颜色
         fontSize: 10, // 字体大小
-      ).useSystemChineseFont(), // 使用系统中文字体
+      ), // 使用系统中文字体
     );
   }
 

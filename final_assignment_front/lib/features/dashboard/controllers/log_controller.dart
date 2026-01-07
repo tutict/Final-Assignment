@@ -15,6 +15,7 @@ import 'package:http/http.dart' as http;
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
+import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
 class LogController extends GetxController with WidgetsBindingObserver {
   static const String _backendBaseUrl = 'http://localhost:8081';
@@ -376,7 +377,7 @@ class LogController extends GetxController with WidgetsBindingObserver {
           await _clearTokens(prefs);
           return false;
         }
-        await prefs.setString('jwtToken', jwtToken);
+        await AuthTokenStore.instance.setJwtToken(jwtToken);
         if (JwtDecoder.isExpired(jwtToken)) {
           developer.log('New JWT token is expired');
           _currentUsername = 'Unknown';
@@ -401,7 +402,7 @@ class LogController extends GetxController with WidgetsBindingObserver {
   }
 
   Future<void> _clearTokens(SharedPreferences prefs) async {
-    await prefs.remove('jwtToken');
+    await AuthTokenStore.instance.clearJwtToken();
     await prefs.remove('refreshToken');
     developer.log('Cleared invalid tokens');
   }
@@ -423,7 +424,7 @@ class LogController extends GetxController with WidgetsBindingObserver {
           .timeout(const Duration(seconds: 5));
       if (response.statusCode == 200) {
         final newJwt = jsonDecode(response.body)['jwtToken'];
-        await prefs.setString('jwtToken', newJwt);
+        await AuthTokenStore.instance.setJwtToken(newJwt);
         developer.log('JWT token refreshed successfully');
         return newJwt;
       }

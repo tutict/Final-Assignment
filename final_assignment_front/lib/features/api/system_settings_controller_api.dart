@@ -4,35 +4,32 @@ import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
-/// 定义一个全局的 defaultApiClient
+/// å®ä¹ä¸ä¸ªå¨å±ç?defaultApiClient
 final ApiClient defaultApiClient = ApiClient();
 
 class SystemSettingsControllerApi {
   final ApiClient apiClient;
 
-  /// 构造函数，可传入 ApiClient，否则使用全局默认实例
+  /// æé å½æ°ï¼å¯ä¼ å?ApiClientï¼å¦åä½¿ç¨å¨å±é»è®¤å®ä¾
   SystemSettingsControllerApi([ApiClient? apiClient])
       : apiClient = apiClient ?? defaultApiClient;
 
-  /// 从 SharedPreferences 中读取 jwtToken 并设置到 ApiClient 中
+  /// ä»?SharedPreferences ä¸­è¯»å?jwtToken å¹¶è®¾ç½®å° ApiClient ä¸?
   Future<void> initializeWithJwt() async {
-    final prefs = await SharedPreferences.getInstance();
-    final jwtToken = prefs.getString('jwtToken');
+      final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
-      throw Exception('未登录，请重新登录');
+      throw Exception('æªç»å½ï¼è¯·éæ°ç»å½?);
     }
     apiClient.setJwtToken(jwtToken);
     debugPrint('Initialized SystemSettingsControllerApi with token: $jwtToken');
   }
 
-  /// 解码响应体字节到字符串
-  String _decodeBodyBytes(Response response) => response.body;
+  /// è§£ç ååºä½å­èå°å­ç¬¦ä¸?  String _decodeBodyBytes(Response response) => response.body;
 
   Future<Map<String, String>> _getHeaders({String? idempotencyKey}) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('jwtToken') ?? '';
+      final token = (await AuthTokenStore.instance.getJwtToken()) ?? '';
     final headers = <String, String>{
       'Content-Type': 'application/json; charset=utf-8',
     };
@@ -45,7 +42,7 @@ class SystemSettingsControllerApi {
     return headers;
   }
 
-  /// GET /api/systemSettings/copyrightInfo - 获取版权信息
+  /// GET /api/systemSettings/copyrightInfo - è·åçæä¿¡æ¯
   Future<String?> apiSystemSettingsCopyrightInfoGet() async {
     final response = await apiClient.invokeAPI(
       '/api/systemSettings/copyrightInfo',
@@ -65,7 +62,7 @@ class SystemSettingsControllerApi {
         as String?;
   }
 
-  /// GET /api/systemSettings/dateFormat - 获取日期格式
+  /// GET /api/systemSettings/dateFormat - è·åæ¥ææ ¼å¼
   Future<String?> apiSystemSettingsDateFormatGet() async {
     final response = await apiClient.invokeAPI(
       '/api/systemSettings/dateFormat',
@@ -85,7 +82,7 @@ class SystemSettingsControllerApi {
         as String?;
   }
 
-  /// GET /api/systemSettings/emailAccount - 获取邮箱账户
+  /// GET /api/systemSettings/emailAccount - è·åé®ç®±è´¦æ·
   Future<String?> apiSystemSettingsEmailAccountGet() async {
     final response = await apiClient.invokeAPI(
       '/api/systemSettings/emailAccount',
@@ -105,7 +102,7 @@ class SystemSettingsControllerApi {
         as String?;
   }
 
-  /// GET /api/systemSettings/emailPassword - 获取邮箱密码
+  /// GET /api/systemSettings/emailPassword - è·åé®ç®±å¯ç 
   Future<String?> apiSystemSettingsEmailPasswordGet() async {
     final response = await apiClient.invokeAPI(
       '/api/systemSettings/emailPassword',
@@ -125,7 +122,7 @@ class SystemSettingsControllerApi {
         as String?;
   }
 
-  /// GET /api/systemSettings - 获取所有系统设置
+  /// GET /api/systemSettings - è·åææç³»ç»è®¾ç½?
   Future<SystemSettings?> apiSystemSettingsGet() async {
     final response = await apiClient.invokeAPI(
       '/api/systemSettings',
@@ -146,7 +143,7 @@ class SystemSettingsControllerApi {
     return SystemSettings.fromJson(data);
   }
 
-  /// GET /api/systemSettings/loginTimeout - 获取登录超时时间
+  /// GET /api/systemSettings/loginTimeout - è·åç»å½è¶æ¶æ¶é´
   Future<int?> apiSystemSettingsLoginTimeoutGet() async {
     final response = await apiClient.invokeAPI(
       '/api/systemSettings/loginTimeout',
@@ -165,7 +162,7 @@ class SystemSettingsControllerApi {
     return apiClient.deserialize(_decodeBodyBytes(response), 'int') as int?;
   }
 
-  /// GET /api/systemSettings/pageSize - 获取分页大小
+  /// GET /api/systemSettings/pageSize - è·ååé¡µå¤§å°
   Future<int?> apiSystemSettingsPageSizeGet() async {
     final response = await apiClient.invokeAPI(
       '/api/systemSettings/pageSize',
@@ -184,7 +181,7 @@ class SystemSettingsControllerApi {
     return apiClient.deserialize(_decodeBodyBytes(response), 'int') as int?;
   }
 
-  /// PUT /api/systemSettings - 更新系统设置 (仅管理员)
+  /// PUT /api/systemSettings - æ´æ°ç³»ç»è®¾ç½® (ä»ç®¡çå)
   Future<SystemSettings> apiSystemSettingsPut(
       {required SystemSettings systemSettings}) async {
     final response = await apiClient.invokeAPI(
@@ -205,7 +202,7 @@ class SystemSettingsControllerApi {
     return SystemSettings.fromJson(data);
   }
 
-  /// GET /api/systemSettings/sessionTimeout - 获取会话超时时间
+  /// GET /api/systemSettings/sessionTimeout - è·åä¼è¯è¶æ¶æ¶é´
   Future<int?> apiSystemSettingsSessionTimeoutGet() async {
     final response = await apiClient.invokeAPI(
       '/api/systemSettings/sessionTimeout',
@@ -224,7 +221,7 @@ class SystemSettingsControllerApi {
     return apiClient.deserialize(_decodeBodyBytes(response), 'int') as int?;
   }
 
-  /// GET /api/systemSettings/smtpServer - 获取SMTP服务器
+  /// GET /api/systemSettings/smtpServer - è·åSMTPæå¡å?
   Future<String?> apiSystemSettingsSmtpServerGet() async {
     final response = await apiClient.invokeAPI(
       '/api/systemSettings/smtpServer',
@@ -244,7 +241,7 @@ class SystemSettingsControllerApi {
         as String?;
   }
 
-  /// GET /api/systemSettings/storagePath - 获取存储路径
+  /// GET /api/systemSettings/storagePath - è·åå­å¨è·¯å¾
   Future<String?> apiSystemSettingsStoragePathGet() async {
     final response = await apiClient.invokeAPI(
       '/api/systemSettings/storagePath',
@@ -264,7 +261,7 @@ class SystemSettingsControllerApi {
         as String?;
   }
 
-  /// GET /api/systemSettings/systemDescription - 获取系统描述
+  /// GET /api/systemSettings/systemDescription - è·åç³»ç»æè¿°
   Future<String?> apiSystemSettingsSystemDescriptionGet() async {
     final response = await apiClient.invokeAPI(
       '/api/systemSettings/systemDescription',
@@ -284,7 +281,7 @@ class SystemSettingsControllerApi {
         as String?;
   }
 
-  /// GET /api/systemSettings/systemName - 获取系统名称
+  /// GET /api/systemSettings/systemName - è·åç³»ç»åç§°
   Future<String?> apiSystemSettingsSystemNameGet() async {
     final response = await apiClient.invokeAPI(
       '/api/systemSettings/systemName',
@@ -304,7 +301,7 @@ class SystemSettingsControllerApi {
         as String?;
   }
 
-  /// GET /api/systemSettings/systemVersion - 获取系统版本
+  /// GET /api/systemSettings/systemVersion - è·åç³»ç»çæ¬
   Future<String?> apiSystemSettingsSystemVersionGet() async {
     final response = await apiClient.invokeAPI(
       '/api/systemSettings/systemVersion',
@@ -938,7 +935,7 @@ class SystemSettingsControllerApi {
   // WebSocket Methods (Aligned with HTTP Endpoints)
 
   /// GET /api/systemSettings/copyrightInfo (WebSocket)
-  /// 对应后端: @WsAction(service="SystemSettingsService", action="getCopyrightInfo")
+  /// å¯¹åºåç«¯: @WsAction(service="SystemSettingsService", action="getCopyrightInfo")
   Future<Object?> eventbusSystemSettingsCopyrightInfoGet() async {
     final msg = {
       "service": "SystemSettingsService",
@@ -953,7 +950,7 @@ class SystemSettingsControllerApi {
   }
 
   /// GET /api/systemSettings/dateFormat (WebSocket)
-  /// 对应后端: @WsAction(service="SystemSettingsService", action="getDateFormat")
+  /// å¯¹åºåç«¯: @WsAction(service="SystemSettingsService", action="getDateFormat")
   Future<Object?> eventbusSystemSettingsDateFormatGet() async {
     final msg = {
       "service": "SystemSettingsService",
@@ -968,7 +965,7 @@ class SystemSettingsControllerApi {
   }
 
   /// GET /api/systemSettings/emailAccount (WebSocket)
-  /// 对应后端: @WsAction(service="SystemSettingsService", action="getEmailAccount")
+  /// å¯¹åºåç«¯: @WsAction(service="SystemSettingsService", action="getEmailAccount")
   Future<Object?> eventbusSystemSettingsEmailAccountGet() async {
     final msg = {
       "service": "SystemSettingsService",
@@ -983,7 +980,7 @@ class SystemSettingsControllerApi {
   }
 
   /// GET /api/systemSettings/emailPassword (WebSocket)
-  /// 对应后端: @WsAction(service="SystemSettingsService", action="getEmailPassword")
+  /// å¯¹åºåç«¯: @WsAction(service="SystemSettingsService", action="getEmailPassword")
   Future<Object?> eventbusSystemSettingsEmailPasswordGet() async {
     final msg = {
       "service": "SystemSettingsService",
@@ -998,7 +995,7 @@ class SystemSettingsControllerApi {
   }
 
   /// GET /api/systemSettings (WebSocket)
-  /// 对应后端: @WsAction(service="SystemSettingsService", action="getSystemSettings")
+  /// å¯¹åºåç«¯: @WsAction(service="SystemSettingsService", action="getSystemSettings")
   Future<Object?> eventbusSystemSettingsGet() async {
     final msg = {
       "service": "SystemSettingsService",
@@ -1013,7 +1010,7 @@ class SystemSettingsControllerApi {
   }
 
   /// GET /api/systemSettings/loginTimeout (WebSocket)
-  /// 对应后端: @WsAction(service="SystemSettingsService", action="getLoginTimeout")
+  /// å¯¹åºåç«¯: @WsAction(service="SystemSettingsService", action="getLoginTimeout")
   Future<Object?> eventbusSystemSettingsLoginTimeoutGet() async {
     final msg = {
       "service": "SystemSettingsService",
@@ -1028,7 +1025,7 @@ class SystemSettingsControllerApi {
   }
 
   /// GET /api/systemSettings/pageSize (WebSocket)
-  /// 对应后端: @WsAction(service="SystemSettingsService", action="getPageSize")
+  /// å¯¹åºåç«¯: @WsAction(service="SystemSettingsService", action="getPageSize")
   Future<Object?> eventbusSystemSettingsPageSizeGet() async {
     final msg = {
       "service": "SystemSettingsService",
@@ -1043,7 +1040,7 @@ class SystemSettingsControllerApi {
   }
 
   /// PUT /api/systemSettings (WebSocket)
-  /// 对应后端: @WsAction(service="SystemSettingsService", action="updateSystemSettings")
+  /// å¯¹åºåç«¯: @WsAction(service="SystemSettingsService", action="updateSystemSettings")
   Future<Object?> eventbusSystemSettingsPut(
       {required SystemSettings systemSettings}) async {
     final msg = {
@@ -1059,7 +1056,7 @@ class SystemSettingsControllerApi {
   }
 
   /// GET /api/systemSettings/sessionTimeout (WebSocket)
-  /// 对应后端: @WsAction(service="SystemSettingsService", action="getSessionTimeout")
+  /// å¯¹åºåç«¯: @WsAction(service="SystemSettingsService", action="getSessionTimeout")
   Future<Object?> eventbusSystemSettingsSessionTimeoutGet() async {
     final msg = {
       "service": "SystemSettingsService",
@@ -1074,7 +1071,7 @@ class SystemSettingsControllerApi {
   }
 
   /// GET /api/systemSettings/smtpServer (WebSocket)
-  /// 对应后端: @WsAction(service="SystemSettingsService", action="getSmtpServer")
+  /// å¯¹åºåç«¯: @WsAction(service="SystemSettingsService", action="getSmtpServer")
   Future<Object?> eventbusSystemSettingsSmtpServerGet() async {
     final msg = {
       "service": "SystemSettingsService",
@@ -1089,7 +1086,7 @@ class SystemSettingsControllerApi {
   }
 
   /// GET /api/systemSettings/storagePath (WebSocket)
-  /// 对应后端: @WsAction(service="SystemSettingsService", action="getStoragePath")
+  /// å¯¹åºåç«¯: @WsAction(service="SystemSettingsService", action="getStoragePath")
   Future<Object?> eventbusSystemSettingsStoragePathGet() async {
     final msg = {
       "service": "SystemSettingsService",
@@ -1104,7 +1101,7 @@ class SystemSettingsControllerApi {
   }
 
   /// GET /api/systemSettings/systemDescription (WebSocket)
-  /// 对应后端: @WsAction(service="SystemSettingsService", action="getSystemDescription")
+  /// å¯¹åºåç«¯: @WsAction(service="SystemSettingsService", action="getSystemDescription")
   Future<Object?> eventbusSystemSettingsSystemDescriptionGet() async {
     final msg = {
       "service": "SystemSettingsService",
@@ -1119,7 +1116,7 @@ class SystemSettingsControllerApi {
   }
 
   /// GET /api/systemSettings/systemName (WebSocket)
-  /// 对应后端: @WsAction(service="SystemSettingsService", action="getSystemName")
+  /// å¯¹åºåç«¯: @WsAction(service="SystemSettingsService", action="getSystemName")
   Future<Object?> eventbusSystemSettingsSystemNameGet() async {
     final msg = {
       "service": "SystemSettingsService",
@@ -1134,7 +1131,7 @@ class SystemSettingsControllerApi {
   }
 
   /// GET /api/systemSettings/systemVersion (WebSocket)
-  /// 对应后端: @WsAction(service="SystemSettingsService", action="getSystemVersion")
+  /// å¯¹åºåç«¯: @WsAction(service="SystemSettingsService", action="getSystemVersion")
   Future<Object?> eventbusSystemSettingsSystemVersionGet() async {
     final msg = {
       "service": "SystemSettingsService",

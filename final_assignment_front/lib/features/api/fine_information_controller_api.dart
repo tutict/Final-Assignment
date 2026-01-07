@@ -4,7 +4,7 @@ import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
 final ApiClient defaultApiClient = ApiClient();
 
@@ -14,40 +14,38 @@ class FineInformationControllerApi {
   FineInformationControllerApi([ApiClient? apiClient])
       : apiClient = apiClient ?? defaultApiClient;
 
-  /// 从 SharedPreferences 中读取 jwtToken 并设置到 ApiClient 中
+  /// ä»?SharedPreferences ä¸­è¯»å?jwtToken å¹¶è®¾ç½®å° ApiClient ä¸?
   Future<void> initializeWithJwt() async {
-    final prefs = await SharedPreferences.getInstance();
-    final jwtToken = prefs.getString('jwtToken');
+      final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
-      throw Exception('未登录，请重新登录');
+      throw Exception('æªç»å½ï¼è¯·éæ°ç»å½?);
     }
     apiClient.setJwtToken(jwtToken);
     debugPrint('Initialized FineInformationControllerApi with token: $jwtToken');
   }
 
-  /// 解码响应体字节到字符串，使用 UTF-8 解码
+  /// è§£ç ååºä½å­èå°å­ç¬¦ä¸²ï¼ä½¿ç¨ UTF-8 è§£ç 
   String _decodeBodyBytes(http.Response response) {
     return utf8.decode(response.bodyBytes); // Properly decode UTF-8
   }
 
-  /// 获取带有 JWT 的请求头
+  /// è·åå¸¦æ JWT çè¯·æ±å¤´
   Future<Map<String, String>> _getHeaders() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('jwtToken') ?? '';
+      final token = (await AuthTokenStore.instance.getJwtToken()) ?? '';
     return {
       'Content-Type': 'application/json; charset=utf-8',
       if (token.isNotEmpty) 'Authorization': 'Bearer $token',
     };
   }
 
-  /// 添加 idempotencyKey 作为查询参数
+  /// æ·»å  idempotencyKey ä½ä¸ºæ¥è¯¢åæ°
   List<QueryParam> _addIdempotencyKey(String idempotencyKey) {
     return [QueryParam('idempotencyKey', idempotencyKey)];
   }
 
   // HTTP Methods
 
-  /// POST /api/fines - 创建罚款 (仅管理员)
+  /// POST /api/fines - åå»ºç½æ¬¾ (ä»ç®¡çå)
   Future<void> apiFinesPost({
     required FineInformation fineInformation,
     required String idempotencyKey,
@@ -69,7 +67,7 @@ class FineInformationControllerApi {
     }
   }
 
-  /// GET /api/fines/{fineId} - 获取罚款信息 (用户及管理员)
+  /// GET /api/fines/{fineId} - è·åç½æ¬¾ä¿¡æ¯ (ç¨æ·åç®¡çå)
   Future<FineInformation?> apiFinesFineIdGet({
     required int fineId,
   }) async {
@@ -96,7 +94,7 @@ class FineInformationControllerApi {
     return FineInformation.fromJson(data);
   }
 
-  /// GET /api/fines - 获取所有罚款 (用户及管理员)
+  /// GET /api/fines - è·åææç½æ¬?(ç¨æ·åç®¡çå)
   Future<List<FineInformation>> apiFinesGet() async {
     const path = '/api/fines';
     final headerParams = await _getHeaders();
@@ -118,7 +116,7 @@ class FineInformationControllerApi {
     return jsonList.map((json) => FineInformation.fromJson(json)).toList();
   }
 
-  /// PUT /api/fines/{fineId} - 更新罚款 (仅管理员)
+  /// PUT /api/fines/{fineId} - æ´æ°ç½æ¬¾ (ä»ç®¡çå)
   Future<FineInformation> apiFinesFineIdPut({
     required int fineId,
     required FineInformation fineInformation,
@@ -146,7 +144,7 @@ class FineInformationControllerApi {
     return FineInformation.fromJson(data);
   }
 
-  /// DELETE /api/fines/{fineId} - 删除罚款 (仅管理员)
+  /// DELETE /api/fines/{fineId} - å é¤ç½æ¬¾ (ä»ç®¡çå)
   Future<void> apiFinesFineIdDelete({
     required int fineId,
   }) async {
@@ -172,7 +170,7 @@ class FineInformationControllerApi {
     }
   }
 
-  /// GET /api/fines/payee/{payee} - 根据缴款人获取罚款 (用户及管理员)
+  /// GET /api/fines/payee/{payee} - æ ¹æ®ç¼´æ¬¾äººè·åç½æ¬?(ç¨æ·åç®¡çå)
   Future<List<FineInformation>> apiFinesPayeePayeeGet({
     required String payee,
   }) async {
@@ -199,7 +197,7 @@ class FineInformationControllerApi {
     return jsonList.map((json) => FineInformation.fromJson(json)).toList();
   }
 
-  /// GET /api/fines/search/date-range - 根据时间范围获取罚款 (用户及管理员)
+  /// GET /api/fines/search/date-range - æ ¹æ®æ¶é´èå´è·åç½æ¬¾ (ç¨æ·åç®¡çå)
   Future<List<FineInformation>> apiFinesTimeRangeGet({
     String startDate = '1970-01-01', // Default matches backend
     String endDate = '2100-01-01',   // Default matches backend
@@ -228,7 +226,7 @@ class FineInformationControllerApi {
     return jsonList.map((json) => FineInformation.fromJson(json)).toList();
   }
 
-  /// GET /api/fines/receiptNumber/{receiptNumber} - 根据收据编号获取罚款 (用户及管理员)
+  /// GET /api/fines/receiptNumber/{receiptNumber} - æ ¹æ®æ¶æ®ç¼å·è·åç½æ¬¾ (ç¨æ·åç®¡çå)
   Future<FineInformation?> apiFinesReceiptNumberReceiptNumberGet({
     required String receiptNumber,
   }) async {
@@ -258,8 +256,7 @@ class FineInformationControllerApi {
     return FineInformation.fromJson(data);
   }
 
-  /// GET /api/fines/offense/{offenseId} - 按违法记录分页查询罚款
-  Future<List<FineInformation>> apiFinesOffenseOffenseIdGet({
+  /// GET /api/fines/offense/{offenseId} - æè¿æ³è®°å½åé¡µæ¥è¯¢ç½æ¬?  Future<List<FineInformation>> apiFinesOffenseOffenseIdGet({
     required int offenseId,
     int page = 1,
     int size = 20,
@@ -284,7 +281,7 @@ class FineInformationControllerApi {
     return jsonList.map((json) => FineInformation.fromJson(json)).toList();
   }
 
-  /// GET /api/fines/search/handler - 按处理人搜索罚款记录
+  /// GET /api/fines/search/handler - æå¤çäººæç´¢ç½æ¬¾è®°å½
   Future<List<FineInformation>> apiFinesSearchHandlerGet({
     required String handler,
     String mode = 'prefix', // or 'fuzzy'
@@ -316,8 +313,7 @@ class FineInformationControllerApi {
     return jsonList.map((json) => FineInformation.fromJson(json)).toList();
   }
 
-  /// GET /api/fines/search/status - 按支付状态搜索罚款记录
-  Future<List<FineInformation>> apiFinesSearchStatusGet({
+  /// GET /api/fines/search/status - ææ¯ä»ç¶ææç´¢ç½æ¬¾è®°å½?  Future<List<FineInformation>> apiFinesSearchStatusGet({
     required String status,
     int page = 1,
     int size = 20,
@@ -346,7 +342,7 @@ class FineInformationControllerApi {
     return jsonList.map((json) => FineInformation.fromJson(json)).toList();
   }
 
-  /// GET /api/fines/by-time-range - 搜索罚款按时间范围 (用户及管理员)
+  /// GET /api/fines/by-time-range - æç´¢ç½æ¬¾ææ¶é´èå?(ç¨æ·åç®¡çå)
   Future<List<FineInformation>> apiFinesByTimeRangeGet({
     required String startTime,
     required String endTime,
