@@ -1,27 +1,23 @@
 package finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import finalassignmentbackend.config.websocket.WsAction;
 import finalassignmentbackend.entity.DriverInformation;
-import finalassignmentbackend.entity.RequestHistory;
+import finalassignmentbackend.entity.SysRequestHistory;
 import finalassignmentbackend.mapper.DriverInformationMapper;
-import finalassignmentbackend.mapper.RequestHistoryMapper;
+import finalassignmentbackend.mapper.SysRequestHistoryMapper;
 import io.quarkus.cache.CacheInvalidate;
 import io.quarkus.cache.CacheResult;
 import io.quarkus.runtime.annotations.RegisterForReflection;
-import io.smallrye.reactive.messaging.MutinyEmitter;
-import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.enterprise.event.Event;
-import jakarta.enterprise.event.Observes;
-import jakarta.enterprise.event.TransactionPhase;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
-import lombok.Getter;
-import org.eclipse.microprofile.reactive.messaging.Channel;
-import org.eclipse.microprofile.reactive.messaging.Message;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 @ApplicationScoped
@@ -34,102 +30,63 @@ public class DriverInformationService {
     DriverInformationMapper driverInformationMapper;
 
     @Inject
-    RequestHistoryMapper requestHistoryMapper;
-
-    @Inject
-    Event<DriverEvent> driverEvent;
-
-    @Inject
-    @Channel("driver-events-out")
-    MutinyEmitter<DriverInformation> driverEmitter;
-
-    @Getter
-    public static class DriverEvent {
-        private final DriverInformation driverInformation;
-        private final String action; // "create" or "update"
-
-        public DriverEvent(DriverInformation driverInformation, String action) {
-            this.driverInformation = driverInformation;
-            this.action = action;
-        }
-    }
+    SysRequestHistoryMapper sysRequestHistoryMapper;
 
     @Transactional
     @CacheInvalidate(cacheName = "driverCache")
     @WsAction(service = "DriverInformationService", action = "checkAndInsertIdempotency")
     public void checkAndInsertIdempotency(String idempotencyKey, DriverInformation driverInformation, String action) {
-        // 查询 request_history
-        RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
-        if (existingRequest != null) {
-            // 已有此 key -> 重复请求
-            log.warning(String.format("Duplicate request detected (idempotencyKey=%s)", idempotencyKey));
-            throw new RuntimeException("Duplicate request detected");
+        Objects.requireNonNull(driverInformation, "Driver information must not be null");
+        if (isBlank(idempotencyKey)) {
+            throw new IllegalArgumentException("Idempotency key must not be blank");
         }
-
-        // 不存在 -> 插入一条 PROCESSING
-        RequestHistory newRequest = new RequestHistory();
-        newRequest.setIdempotentKey(idempotencyKey);
-        newRequest.setBusinessStatus("PROCESSING");
-
-        try {
-            requestHistoryMapper.insert(newRequest);
-        } catch (Exception e) {
-            // 若并发下同 key 导致唯一索引冲突
-            log.severe("Failed to insert requestHistory for idempotencyKey=" + idempotencyKey + ", " + e.getMessage());
-            throw new RuntimeException("Duplicate request or DB insert error", e);
+        SysRequestHistory existing = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
+        if (existing != null) {
+            throw new RuntimeException("Duplicate driver request detected");
         }
-
-        driverEvent.fire(new DriverInformationService.DriverEvent(driverInformation, action));
-
-        Integer driverId = driverInformation.getDriverId();
-        newRequest.setBusinessStatus("SUCCESS");
-        newRequest.setBusinessId(driverId);
-        requestHistoryMapper.updateById(newRequest);
+        SysRequestHistory history = buildHistory(idempotencyKey);
+        sysRequestHistoryMapper.insert(history);
+        history.setBusinessStatus("SUCCESS");
+        history.setBusinessId(driverInformation.getDriverId());
+        history.setRequestParams("PENDING");
+        history.setUpdatedAt(LocalDateTime.now());
+        sysRequestHistoryMapper.updateById(history);
     }
 
     @Transactional
     @CacheInvalidate(cacheName = "driverCache")
-    public void createDriver(DriverInformation driverInformation) {
-        DriverInformation existingDriver = driverInformationMapper.selectById(driverInformation.getDriverId());
-        if (existingDriver == null) {
-            driverInformationMapper.insert(driverInformation);
-        } else {
-            driverInformationMapper.updateById(driverInformation);
-        }
+    public DriverInformation createDriver(DriverInformation driverInformation) {
+        validateDriver(driverInformation);
+        driverInformationMapper.insert(driverInformation);
+        return driverInformation;
     }
 
     @Transactional
     @CacheInvalidate(cacheName = "driverCache")
-    public void updateDriver(DriverInformation driverInformation) {
-        DriverInformation existingDriver = driverInformationMapper.selectById(driverInformation.getDriverId());
-        if (existingDriver == null) {
-            driverInformationMapper.insert(driverInformation);
-        } else {
-            driverInformationMapper.updateById(driverInformation);
+    public DriverInformation updateDriver(DriverInformation driverInformation) {
+        validateDriverId(driverInformation);
+        int rows = driverInformationMapper.updateById(driverInformation);
+        if (rows == 0) {
+            throw new IllegalStateException("Driver not found: " + driverInformation.getDriverId());
         }
+        return driverInformation;
     }
 
     @Transactional
     @CacheInvalidate(cacheName = "driverCache")
     @WsAction(service = "DriverInformationService", action = "deleteDriver")
-    public void deleteDriver(int driverId) {
-        if (driverId <= 0) {
-            throw new IllegalArgumentException("Invalid driver ID");
-        }
-        int result = driverInformationMapper.deleteById(driverId);
-        if (result > 0) {
-            log.info(String.format("Driver with ID %s deleted successfully", driverId));
-        } else {
-            log.severe(String.format("Failed to delete driver with ID %s", driverId));
+    public void deleteDriver(Long driverId) {
+        validateDriverId(driverId);
+        int rows = driverInformationMapper.deleteById(driverId);
+        if (rows == 0) {
+            throw new IllegalStateException("Driver not found: " + driverId);
         }
     }
 
     @CacheResult(cacheName = "driverCache")
     @WsAction(service = "DriverInformationService", action = "getDriverById")
-    public DriverInformation getDriverById(Integer driverId) {
-        if (driverId == null || driverId <= 0 || driverId >= Integer.MAX_VALUE) {
-            throw new IllegalArgumentException("Invalid driver ID" + driverId);
-        }
+    public DriverInformation getDriverById(Long driverId) {
+        validateDriverId(driverId);
         return driverInformationMapper.selectById(driverId);
     }
 
@@ -140,53 +97,125 @@ public class DriverInformationService {
     }
 
     @CacheResult(cacheName = "driverCache")
-    @WsAction(service = "DriverInformationService", action = "getDriversByIdCardNumber")
-    public List<DriverInformation> getDriversByIdCardNumber(String idCardNumber) {
-        if (idCardNumber == null || idCardNumber.trim().isEmpty()) {
-            throw new IllegalArgumentException("Invalid ID card number");
+    public List<DriverInformation> searchByIdCardNumber(String keywords, int page, int size) {
+        if (isBlank(keywords)) {
+            return List.of();
         }
-        QueryWrapper<DriverInformation> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("id_card_number", idCardNumber);
-        return driverInformationMapper.selectList(queryWrapper);
+        validatePagination(page, size);
+        QueryWrapper<DriverInformation> wrapper = new QueryWrapper<>();
+        wrapper.likeRight("id_card_number", keywords)
+                .orderByDesc("updated_at");
+        return fetchFromDatabase(wrapper, page, size);
     }
 
     @CacheResult(cacheName = "driverCache")
-    @WsAction(service = "DriverInformationService", action = "getDriverByDriverLicenseNumber")
-    public DriverInformation getDriverByDriverLicenseNumber(String driverLicenseNumber) {
-        if (driverLicenseNumber == null || driverLicenseNumber.trim().isEmpty()) {
-            throw new IllegalArgumentException("Invalid driver license number");
+    public List<DriverInformation> searchByDriverLicenseNumber(String keywords, int page, int size) {
+        if (isBlank(keywords)) {
+            return List.of();
         }
-        QueryWrapper<DriverInformation> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("driver_license_number", driverLicenseNumber);
-        return driverInformationMapper.selectOne(queryWrapper);
+        validatePagination(page, size);
+        QueryWrapper<DriverInformation> wrapper = new QueryWrapper<>();
+        wrapper.likeRight("driver_license_number", keywords)
+                .orderByDesc("updated_at");
+        return fetchFromDatabase(wrapper, page, size);
     }
 
     @CacheResult(cacheName = "driverCache")
-    @WsAction(service = "DriverInformationService", action = "getDriversByName")
-    public List<DriverInformation> getDriversByName(String name) {
-        if (name == null || name.trim().isEmpty()) {
-            throw new IllegalArgumentException("Invalid name");
+    public List<DriverInformation> searchByName(String keywords, int page, int size) {
+        if (isBlank(keywords)) {
+            return List.of();
         }
-        QueryWrapper<DriverInformation> queryWrapper = new QueryWrapper<>();
-        queryWrapper.like("name", name);
-        return driverInformationMapper.selectList(queryWrapper);
+        validatePagination(page, size);
+        QueryWrapper<DriverInformation> wrapper = new QueryWrapper<>();
+        wrapper.like("name", keywords)
+                .orderByDesc("updated_at");
+        return fetchFromDatabase(wrapper, page, size);
     }
 
-    public void onDriverEvent(@Observes(during = TransactionPhase.AFTER_SUCCESS) DriverEvent event) {
-        String topic = event.getAction().equals("create") ? "driver_processed_create" : "driver_processed_update";
-        sendKafkaMessage(topic, event.getDriverInformation());
+    public boolean shouldSkipProcessing(String idempotencyKey) {
+        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
+        return history != null
+                && "SUCCESS".equalsIgnoreCase(history.getBusinessStatus())
+                && "DONE".equalsIgnoreCase(history.getRequestParams());
     }
 
-    private void sendKafkaMessage(String topic, DriverInformation driverInformation) {
-        OutgoingKafkaRecordMetadata<String> metadata = OutgoingKafkaRecordMetadata.<String>builder()
-                .withTopic(topic)
-                .build();
+    public void markHistorySuccess(String idempotencyKey, Long driverId) {
+        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
+        if (history == null) {
+            log.log(Level.WARNING, "Cannot mark success for missing idempotency key {0}", idempotencyKey);
+            return;
+        }
+        history.setBusinessStatus("SUCCESS");
+        history.setBusinessId(driverId);
+        history.setRequestParams("DONE");
+        history.setUpdatedAt(LocalDateTime.now());
+        sysRequestHistoryMapper.updateById(history);
+    }
 
-        Message<DriverInformation> message = Message.of(driverInformation).addMetadata(metadata);
+    public void markHistoryFailure(String idempotencyKey, String reason) {
+        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
+        if (history == null) {
+            log.log(Level.WARNING, "Cannot mark failure for missing idempotency key {0}", idempotencyKey);
+            return;
+        }
+        history.setBusinessStatus("FAILED");
+        history.setRequestParams(truncate(reason));
+        history.setUpdatedAt(LocalDateTime.now());
+        sysRequestHistoryMapper.updateById(history);
+    }
 
-        driverEmitter.sendMessage(message)
-                .await().indefinitely();
+    private SysRequestHistory buildHistory(String key) {
+        SysRequestHistory history = new SysRequestHistory();
+        history.setIdempotencyKey(key);
+        history.setBusinessStatus("PROCESSING");
+        history.setCreatedAt(LocalDateTime.now());
+        history.setUpdatedAt(LocalDateTime.now());
+        return history;
+    }
 
-        log.info(String.format("Message sent to Kafka topic %s successfully", topic));
+    private List<DriverInformation> fetchFromDatabase(QueryWrapper<DriverInformation> wrapper, int page, int size) {
+        Page<DriverInformation> mpPage = new Page<>(Math.max(page, 1), Math.max(size, 1));
+        driverInformationMapper.selectPage(mpPage, wrapper);
+        return mpPage.getRecords();
+    }
+
+    private void validatePagination(int page, int size) {
+        if (page < 1 || size < 1) {
+            throw new IllegalArgumentException("Page must be >= 1 and size must be >= 1");
+        }
+    }
+
+    private void validateDriver(DriverInformation driverInformation) {
+        if (driverInformation == null) {
+            throw new IllegalArgumentException("Driver information must not be null");
+        }
+        if (isBlank(driverInformation.getName())) {
+            throw new IllegalArgumentException("Driver name must not be blank");
+        }
+        if (isBlank(driverInformation.getIdCardNumber())) {
+            throw new IllegalArgumentException("Driver id card must not be blank");
+        }
+    }
+
+    private void validateDriverId(DriverInformation driverInformation) {
+        validateDriver(driverInformation);
+        validateDriverId(driverInformation.getDriverId());
+    }
+
+    private void validateDriverId(Long driverId) {
+        if (driverId == null || driverId <= 0) {
+            throw new IllegalArgumentException("Invalid driver ID: " + driverId);
+        }
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
+    }
+
+    private String truncate(String value) {
+        if (value == null) {
+            return null;
+        }
+        return value.length() <= 500 ? value : value.substring(0, 500);
     }
 }

@@ -1,8 +1,8 @@
 package finalassignmentbackend.kafkaListener;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import finalassignmentbackend.entity.OperationLog;
-import finalassignmentbackend.service.OperationLogService;
+import finalassignmentbackend.entity.AuditOperationLog;
+import finalassignmentbackend.service.AuditOperationLogService;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -12,71 +12,57 @@ import org.eclipse.microprofile.reactive.messaging.Incoming;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-// Kafka监听器类，用于处理操作日志的消息
+// Kafka listener for operation audit messages (new schema)
 @ApplicationScoped
 public class OperationLogKafkaListener {
 
-    // 日志记录器，用于记录处理过程中的信息
     private static final Logger log = Logger.getLogger(OperationLogKafkaListener.class.getName());
 
-    // 注入操作日志服务
     @Inject
-    OperationLogService operationLogService;
+    AuditOperationLogService auditOperationLogService;
 
-    // 注入JSON对象映射器
     @Inject
     ObjectMapper objectMapper;
 
-    // 监听"operation_create"主题的消息，处理操作日志创建
     @Incoming("operation_create")
     @Transactional
     @RunOnVirtualThread
     public void onOperationLogCreateReceived(String message) {
-        log.log(Level.INFO, "收到Kafka创建消息: {0}", message);
-        processMessage(message, "create", operationLogService::createOperationLog);
+        log.log(Level.INFO, "Received Kafka create message: {0}", message);
+        processMessage(message, "create", auditOperationLogService::createAuditOperationLog);
     }
 
-    // 监听"operation_update"主题的消息，处理操作日志更新
     @Incoming("operation_update")
     @Transactional
     @RunOnVirtualThread
     public void onOperationLogUpdateReceived(String message) {
-        log.log(Level.INFO, "收到Kafka更新消息: {0}", message);
-        processMessage(message, "update", operationLogService::updateOperationLog);
+        log.log(Level.INFO, "Received Kafka update message: {0}", message);
+        processMessage(message, "update", auditOperationLogService::updateAuditOperationLog);
     }
 
-    // 处理Kafka消息的通用方法
-    private void processMessage(String message, String action, MessageProcessor<OperationLog> processor) {
+    private void processMessage(String message, String action, MessageProcessor<AuditOperationLog> processor) {
         try {
-            // 反序列化消息为操作日志对象
-            OperationLog operationLog = deserializeMessage(message);
-            log.log(Level.INFO, "反序列化操作日志对象: {0}", operationLog);
-            // 对于创建操作，重置日志ID
+            AuditOperationLog logRecord = deserializeMessage(message);
             if ("create".equals(action)) {
-                operationLog.setLogId(null);
+                logRecord.setLogId(null);
             }
-            // 执行消息处理逻辑
-            processor.process(operationLog);
-            log.info(String.format("操作日志%s操作处理成功: %s", action, operationLog));
+            processor.process(logRecord);
+            log.info(String.format("Operation audit %s processed: %s", action, logRecord));
         } catch (Exception e) {
-            // 记录处理错误日志
-            log.log(Level.SEVERE, String.format("处理%s操作日志消息时出错: %s", action, message), e);
-            throw new RuntimeException(String.format("无法处理%s操作日志消息", action), e);
+            log.log(Level.SEVERE, String.format("Failed to process operation audit %s message: %s", action, message), e);
+            throw new RuntimeException(String.format("Failed to process operation audit %s message", action), e);
         }
     }
 
-    // 将消息反序列化为操作日志对象
-    private OperationLog deserializeMessage(String message) {
+    private AuditOperationLog deserializeMessage(String message) {
         try {
-            return objectMapper.readValue(message, OperationLog.class);
+            return objectMapper.readValue(message, AuditOperationLog.class);
         } catch (Exception e) {
-            // 记录反序列化错误日志
-            log.log(Level.SEVERE, "反序列化消息失败: {0}", message);
-            throw new RuntimeException("反序列化消息失败", e);
+            log.log(Level.SEVERE, "Failed to deserialize message: {0}", message);
+            throw new RuntimeException("Failed to deserialize message", e);
         }
     }
 
-    // 函数式接口，用于定义消息处理逻辑
     @FunctionalInterface
     private interface MessageProcessor<T> {
         void process(T t) throws Exception;

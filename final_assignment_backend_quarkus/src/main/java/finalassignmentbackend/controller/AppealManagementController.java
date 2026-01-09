@@ -1,8 +1,9 @@
 package finalassignmentbackend.controller;
 
-import finalassignmentbackend.entity.AppealManagement;
-import finalassignmentbackend.entity.OffenseInformation;
+import finalassignmentbackend.entity.AppealRecord;
+import finalassignmentbackend.entity.AppealReview;
 import finalassignmentbackend.service.AppealManagementService;
+import finalassignmentbackend.service.AppealReviewService;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
@@ -14,123 +15,370 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import java.util.List;
+import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
-// 控制器类，处理与申诉管理相关的HTTP请求
 @Path("/api/appeals")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Tag(name = "Appeal Management", description = "Appeal Management Controller for managing appeals")
 public class AppealManagementController {
 
-    // 申诉管理服务的接口实例，用于处理申诉的业务逻辑
+    private static final Logger LOG = Logger.getLogger(AppealManagementController.class.getName());
+
     @Inject
     AppealManagementService appealManagementService;
 
-    // 创建新的申诉
-    // [POST] 请求，创建并存储新的申诉信息
+    @Inject
+    AppealReviewService appealReviewService;
+
     @POST
     @RunOnVirtualThread
-    public Response
-    createAppeal(AppealManagement appeal, @QueryParam("idempotencyKey") String idempotencyKey) {
-        appealManagementService.checkAndInsertIdempotency(idempotencyKey, appeal, "create");
-        return Response.status(Response.Status.CREATED).build();
-    }
-
-    // 根据ID获取申诉
-    // [GET] 请求，通过申诉ID检索申诉信息
-    @GET
-    @Path("/{appealId}")
-    @RunOnVirtualThread
-    public Response getAppealById(@PathParam("appealId") Integer appealId) {
-        AppealManagement appeal = appealManagementService.getAppealById(appealId);
-        if (appeal != null) {
-            return Response.ok(appeal).build();
-        } else {
-            return Response.status(Response.Status.NOT_FOUND).build();
+    public Response createAppeal(AppealRecord request,
+                                 @HeaderParam("Idempotency-Key") String idempotencyKey) {
+        boolean useKey = hasKey(idempotencyKey);
+        try {
+            if (useKey) {
+                if (appealManagementService.shouldSkipProcessing(idempotencyKey)) {
+                    return Response.status(208).build();
+                }
+                appealManagementService.checkAndInsertIdempotency(idempotencyKey, request, "create");
+            }
+            AppealRecord saved = appealManagementService.createAppeal(request);
+            if (useKey && saved.getAppealId() != null) {
+                appealManagementService.markHistorySuccess(idempotencyKey, saved.getAppealId());
+            }
+            return Response.status(Response.Status.CREATED).entity(saved).build();
+        } catch (Exception ex) {
+            if (useKey) {
+                appealManagementService.markHistoryFailure(idempotencyKey, ex.getMessage());
+            }
+            LOG.log(Level.SEVERE, "Create appeal failed", ex);
+            return Response.status(resolveStatus(ex)).build();
         }
     }
 
-    // 获取所有申诉
-    // [GET] 请求，检索并返回所有申诉的列表
-    @GET
-    @RunOnVirtualThread
-    public Response getAllAppeals() {
-        List<AppealManagement> appeals = appealManagementService.getAllAppeals();
-        return Response.ok(appeals).build();
-    }
-
-    // 更新申诉信息
-    // [PUT] 请求，根据ID检索并更新现有申诉的信息
     @PUT
     @Path("/{appealId}")
     @RunOnVirtualThread
-    public Response updateAppeal(@PathParam("appealId") Integer appealId, AppealManagement updatedAppeal, @QueryParam("idempotencyKey") String idempotencyKey) {
-        AppealManagement existingAppeal = appealManagementService.getAppealById(appealId);
-        if (existingAppeal != null) {
-            // 更新现有申诉的属性
-            existingAppeal.setOffenseId(updatedAppeal.getOffenseId());
-            existingAppeal.setAppellantName(updatedAppeal.getAppellantName());
-            existingAppeal.setIdCardNumber(updatedAppeal.getIdCardNumber());
-            existingAppeal.setContactNumber(updatedAppeal.getContactNumber());
-            existingAppeal.setAppealReason(updatedAppeal.getAppealReason());
-            existingAppeal.setAppealTime(updatedAppeal.getAppealTime());
-            existingAppeal.setProcessStatus(updatedAppeal.getProcessStatus());
-            existingAppeal.setProcessResult(updatedAppeal.getProcessResult());
-
-            // 更新申诉
-            appealManagementService.checkAndInsertIdempotency(idempotencyKey, existingAppeal, "update");
-            return Response.ok().build();
-        } else {
-            return Response.status(Response.Status.NOT_FOUND).build();
+    public Response updateAppeal(@PathParam("appealId") Long appealId,
+                                 AppealRecord request,
+                                 @HeaderParam("Idempotency-Key") String idempotencyKey) {
+        boolean useKey = hasKey(idempotencyKey);
+        try {
+            request.setAppealId(appealId);
+            if (useKey) {
+                appealManagementService.checkAndInsertIdempotency(idempotencyKey, request, "update");
+            }
+            AppealRecord updated = appealManagementService.updateAppeal(request);
+            if (useKey && updated.getAppealId() != null) {
+                appealManagementService.markHistorySuccess(idempotencyKey, updated.getAppealId());
+            }
+            return Response.ok(updated).build();
+        } catch (Exception ex) {
+            if (useKey) {
+                appealManagementService.markHistoryFailure(idempotencyKey, ex.getMessage());
+            }
+            LOG.log(Level.SEVERE, "Update appeal failed", ex);
+            return Response.status(resolveStatus(ex)).build();
         }
     }
 
-    // 删除申诉
-    // [DELETE] 请求，根据ID删除申诉信息
     @DELETE
     @Path("/{appealId}")
     @RunOnVirtualThread
-    public Response deleteAppeal(@PathParam("appealId") Integer appealId) {
-        appealManagementService.deleteAppeal(appealId);
-        return Response.noContent().build();
-    }
-
-    // 根据处理状态获取申诉
-    // [GET] 请求，通过处理状态检索申诉列表
-    @GET
-    @Path("/status/{processStatus}")
-    @RunOnVirtualThread
-    public Response getAppealsByProcessStatus(@PathParam("processStatus") String processStatus) {
-        List<AppealManagement> appeals = appealManagementService.getAppealsByProcessStatus(processStatus);
-        return Response.ok(appeals).build();
-    }
-
-    // 根据申诉人姓名获取申诉
-    // [GET] 请求，通过申诉人姓名检索申诉列表
-    @GET
-    @Path("/name/{appealName}")
-    @RunOnVirtualThread
-    public Response getAppealsByAppealName(@PathParam("appealName") String appealName) {
-        List<AppealManagement> appeals = appealManagementService.getAppealsByAppealName(appealName);
-        return Response.ok(appeals).build();
-    }
-
-    // 根据申诉ID获取违规信息
-    // [GET] 请求，通过申诉ID检索关联的违规信息
-    @GET
-    @Path("/{appealId}/offense")
-    @RunOnVirtualThread
-    public Response getOffenseByAppealId(@PathParam("appealId") Integer appealId) {
-        OffenseInformation offense = appealManagementService.getOffenseByAppealId(appealId);
-        if (offense != null) {
-            return Response.ok(offense).build();
-        } else {
-            return Response.status(Response.Status.NOT_FOUND).build();
+    public Response deleteAppeal(@PathParam("appealId") Long appealId) {
+        try {
+            appealManagementService.deleteAppeal(appealId);
+            return Response.noContent().build();
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Delete appeal failed", ex);
+            return Response.status(resolveStatus(ex)).build();
         }
+    }
+
+    @GET
+    @Path("/{appealId}")
+    @RunOnVirtualThread
+    public Response getAppeal(@PathParam("appealId") Long appealId) {
+        try {
+            AppealRecord record = appealManagementService.getAppealById(appealId);
+            return record == null ? Response.status(Response.Status.NOT_FOUND).build() : Response.ok(record).build();
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Get appeal failed", ex);
+            return Response.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @GET
+    @RunOnVirtualThread
+    public Response listAppeals(@QueryParam("offenseId") Long offenseId,
+                                @QueryParam("page") Integer page,
+                                @QueryParam("size") Integer size) {
+        try {
+            int resolvedPage = page == null ? 1 : page;
+            int resolvedSize = size == null ? 20 : size;
+            return Response.ok(appealManagementService.findByOffenseId(offenseId, resolvedPage, resolvedSize)).build();
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "List appeals failed", ex);
+            return Response.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @GET
+    @Path("/search/number/prefix")
+    @RunOnVirtualThread
+    public Response searchByNumberPrefix(@QueryParam("appealNumber") String appealNumber,
+                                         @QueryParam("page") Integer page,
+                                         @QueryParam("size") Integer size) {
+        int resolvedPage = page == null ? 1 : page;
+        int resolvedSize = size == null ? 20 : size;
+        return Response.ok(appealManagementService.searchByAppealNumberPrefix(appealNumber, resolvedPage, resolvedSize)).build();
+    }
+
+    @GET
+    @Path("/search/number/fuzzy")
+    @RunOnVirtualThread
+    public Response searchByNumberFuzzy(@QueryParam("appealNumber") String appealNumber,
+                                        @QueryParam("page") Integer page,
+                                        @QueryParam("size") Integer size) {
+        int resolvedPage = page == null ? 1 : page;
+        int resolvedSize = size == null ? 20 : size;
+        return Response.ok(appealManagementService.searchByAppealNumberFuzzy(appealNumber, resolvedPage, resolvedSize)).build();
+    }
+
+    @GET
+    @Path("/search/appellant/name/prefix")
+    @RunOnVirtualThread
+    public Response searchByAppellantNamePrefix(@QueryParam("appellantName") String appellantName,
+                                                @QueryParam("page") Integer page,
+                                                @QueryParam("size") Integer size) {
+        int resolvedPage = page == null ? 1 : page;
+        int resolvedSize = size == null ? 20 : size;
+        return Response.ok(appealManagementService.searchByAppellantNamePrefix(appellantName, resolvedPage, resolvedSize)).build();
+    }
+
+    @GET
+    @Path("/search/appellant/name/fuzzy")
+    @RunOnVirtualThread
+    public Response searchByAppellantNameFuzzy(@QueryParam("appellantName") String appellantName,
+                                               @QueryParam("page") Integer page,
+                                               @QueryParam("size") Integer size) {
+        int resolvedPage = page == null ? 1 : page;
+        int resolvedSize = size == null ? 20 : size;
+        return Response.ok(appealManagementService.searchByAppellantNameFuzzy(appellantName, resolvedPage, resolvedSize)).build();
+    }
+
+    @GET
+    @Path("/search/appellant/id-card")
+    @RunOnVirtualThread
+    public Response searchByAppellantIdCard(@QueryParam("appellantIdCard") String appellantIdCard,
+                                            @QueryParam("page") Integer page,
+                                            @QueryParam("size") Integer size) {
+        int resolvedPage = page == null ? 1 : page;
+        int resolvedSize = size == null ? 20 : size;
+        return Response.ok(appealManagementService.searchByAppellantIdCard(appellantIdCard, resolvedPage, resolvedSize)).build();
+    }
+
+    @GET
+    @Path("/search/acceptance-status")
+    @RunOnVirtualThread
+    public Response searchByAcceptanceStatus(@QueryParam("acceptanceStatus") String acceptanceStatus,
+                                             @QueryParam("page") Integer page,
+                                             @QueryParam("size") Integer size) {
+        int resolvedPage = page == null ? 1 : page;
+        int resolvedSize = size == null ? 20 : size;
+        return Response.ok(appealManagementService.searchByAcceptanceStatus(acceptanceStatus, resolvedPage, resolvedSize)).build();
+    }
+
+    @GET
+    @Path("/search/process-status")
+    @RunOnVirtualThread
+    public Response searchByProcessStatus(@QueryParam("processStatus") String processStatus,
+                                          @QueryParam("page") Integer page,
+                                          @QueryParam("size") Integer size) {
+        int resolvedPage = page == null ? 1 : page;
+        int resolvedSize = size == null ? 20 : size;
+        return Response.ok(appealManagementService.searchByProcessStatus(processStatus, resolvedPage, resolvedSize)).build();
+    }
+
+    @GET
+    @Path("/search/time-range")
+    @RunOnVirtualThread
+    public Response searchByTimeRange(@QueryParam("startTime") String startTime,
+                                      @QueryParam("endTime") String endTime,
+                                      @QueryParam("page") Integer page,
+                                      @QueryParam("size") Integer size) {
+        int resolvedPage = page == null ? 1 : page;
+        int resolvedSize = size == null ? 20 : size;
+        return Response.ok(appealManagementService.searchByAppealTimeRange(startTime, endTime, resolvedPage, resolvedSize)).build();
+    }
+
+    @GET
+    @Path("/search/handler")
+    @RunOnVirtualThread
+    public Response searchByHandler(@QueryParam("acceptanceHandler") String acceptanceHandler,
+                                    @QueryParam("page") Integer page,
+                                    @QueryParam("size") Integer size) {
+        int resolvedPage = page == null ? 1 : page;
+        int resolvedSize = size == null ? 20 : size;
+        return Response.ok(appealManagementService.searchByAcceptanceHandler(acceptanceHandler, resolvedPage, resolvedSize)).build();
+    }
+
+    @POST
+    @Path("/{appealId}/reviews")
+    @RunOnVirtualThread
+    public Response createReview(@PathParam("appealId") Long appealId,
+                                 AppealReview review,
+                                 @HeaderParam("Idempotency-Key") String idempotencyKey) {
+        boolean useKey = hasKey(idempotencyKey);
+        try {
+            review.setAppealId(appealId);
+            if (useKey) {
+                if (appealReviewService.shouldSkipProcessing(idempotencyKey)) {
+                    return Response.status(208).build();
+                }
+                appealReviewService.checkAndInsertIdempotency(idempotencyKey, review, "create");
+            }
+            AppealReview saved = appealReviewService.createReview(review);
+            if (useKey && saved.getReviewId() != null) {
+                appealReviewService.markHistorySuccess(idempotencyKey, saved.getReviewId());
+            }
+            return Response.status(Response.Status.CREATED).entity(saved).build();
+        } catch (Exception ex) {
+            if (useKey) {
+                appealReviewService.markHistoryFailure(idempotencyKey, ex.getMessage());
+            }
+            LOG.log(Level.SEVERE, "Create appeal review failed", ex);
+            return Response.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @PUT
+    @Path("/reviews/{reviewId}")
+    @RunOnVirtualThread
+    public Response updateReview(@PathParam("reviewId") Long reviewId,
+                                 AppealReview review,
+                                 @HeaderParam("Idempotency-Key") String idempotencyKey) {
+        boolean useKey = hasKey(idempotencyKey);
+        try {
+            review.setReviewId(reviewId);
+            if (useKey) {
+                appealReviewService.checkAndInsertIdempotency(idempotencyKey, review, "update");
+            }
+            AppealReview updated = appealReviewService.updateReview(review);
+            if (useKey && updated.getReviewId() != null) {
+                appealReviewService.markHistorySuccess(idempotencyKey, updated.getReviewId());
+            }
+            return Response.ok(updated).build();
+        } catch (Exception ex) {
+            if (useKey) {
+                appealReviewService.markHistoryFailure(idempotencyKey, ex.getMessage());
+            }
+            LOG.log(Level.SEVERE, "Update appeal review failed", ex);
+            return Response.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @DELETE
+    @Path("/reviews/{reviewId}")
+    @RunOnVirtualThread
+    public Response deleteReview(@PathParam("reviewId") Long reviewId) {
+        try {
+            appealReviewService.deleteReview(reviewId);
+            return Response.noContent().build();
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Delete appeal review failed", ex);
+            return Response.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @GET
+    @Path("/reviews/{reviewId}")
+    @RunOnVirtualThread
+    public Response getReview(@PathParam("reviewId") Long reviewId) {
+        try {
+            AppealReview review = appealReviewService.findById(reviewId);
+            return review == null ? Response.status(Response.Status.NOT_FOUND).build() : Response.ok(review).build();
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Get appeal review failed", ex);
+            return Response.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @GET
+    @Path("/reviews")
+    @RunOnVirtualThread
+    public Response listReviews() {
+        try {
+            return Response.ok(appealReviewService.findAll()).build();
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "List appeal reviews failed", ex);
+            return Response.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @GET
+    @Path("/reviews/search/reviewer")
+    @RunOnVirtualThread
+    public Response searchReviewsByReviewer(@QueryParam("reviewer") String reviewer,
+                                            @QueryParam("page") Integer page,
+                                            @QueryParam("size") Integer size) {
+        int resolvedPage = page == null ? 1 : page;
+        int resolvedSize = size == null ? 20 : size;
+        return Response.ok(appealReviewService.searchByReviewer(reviewer, resolvedPage, resolvedSize)).build();
+    }
+
+    @GET
+    @Path("/reviews/search/reviewer-dept")
+    @RunOnVirtualThread
+    public Response searchReviewsByReviewerDept(@QueryParam("reviewerDept") String reviewerDept,
+                                                @QueryParam("page") Integer page,
+                                                @QueryParam("size") Integer size) {
+        int resolvedPage = page == null ? 1 : page;
+        int resolvedSize = size == null ? 20 : size;
+        return Response.ok(appealReviewService.searchByReviewerDept(reviewerDept, resolvedPage, resolvedSize)).build();
+    }
+
+    @GET
+    @Path("/reviews/search/time-range")
+    @RunOnVirtualThread
+    public Response searchReviewsByTimeRange(@QueryParam("startTime") String startTime,
+                                             @QueryParam("endTime") String endTime,
+                                             @QueryParam("page") Integer page,
+                                             @QueryParam("size") Integer size) {
+        int resolvedPage = page == null ? 1 : page;
+        int resolvedSize = size == null ? 20 : size;
+        return Response.ok(appealReviewService.searchByReviewTimeRange(startTime, endTime, resolvedPage, resolvedSize)).build();
+    }
+
+    @GET
+    @Path("/reviews/count")
+    @RunOnVirtualThread
+    public Response countReviews(@QueryParam("level") String reviewLevel) {
+        try {
+            long total = appealReviewService.countByReviewLevel(reviewLevel);
+            return Response.ok(Map.of("reviewLevel", reviewLevel, "count", total)).build();
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Count appeal reviews failed", ex);
+            return Response.status(resolveStatus(ex)).build();
+        }
+    }
+
+    private boolean hasKey(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private Response.Status resolveStatus(Exception ex) {
+        return (ex instanceof IllegalArgumentException || ex instanceof IllegalStateException)
+                ? Response.Status.BAD_REQUEST
+                : Response.Status.INTERNAL_SERVER_ERROR;
     }
 }

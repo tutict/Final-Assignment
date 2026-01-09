@@ -1,14 +1,14 @@
 package finalassignmentbackend.controller;
 
-import finalassignmentbackend.entity.SystemLogs;
-import finalassignmentbackend.service.SystemLogsService;
+import finalassignmentbackend.entity.AuditLoginLog;
+import finalassignmentbackend.entity.AuditOperationLog;
+import finalassignmentbackend.entity.SysRequestHistory;
+import finalassignmentbackend.service.AuditLoginLogService;
+import finalassignmentbackend.service.AuditOperationLogService;
+import finalassignmentbackend.service.SysRequestHistoryService;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.inject.Inject;
-import jakarta.ws.rs.Consumes;
-import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
-import jakarta.ws.rs.POST;
-import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
@@ -17,89 +17,189 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
-import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
-@Path("/api/systemLogs")
+@Path("/api/system/logs")
 @Produces(MediaType.APPLICATION_JSON)
-@Consumes(MediaType.APPLICATION_JSON)
-@Tag(name = "System Logs", description = "System Logs Controller for managing system logs")
+@Tag(name = "System Logs", description = "System log aggregation endpoints")
 public class SystemLogsController {
 
+    private static final Logger LOG = Logger.getLogger(SystemLogsController.class.getName());
+
     @Inject
-    SystemLogsService systemLogsService;
+    AuditLoginLogService auditLoginLogService;
 
-    @POST
-    @RunOnVirtualThread
-    public Response createSystemLog(SystemLogs systemLog, @QueryParam("idempotencyKey") String idempotencyKey) {
-        systemLogsService.checkAndInsertIdempotency(idempotencyKey, systemLog, "create");
-        return Response.status(Response.Status.CREATED).build();
-    }
+    @Inject
+    AuditOperationLogService auditOperationLogService;
+
+    @Inject
+    SysRequestHistoryService sysRequestHistoryService;
 
     @GET
-    @Path("/{logId}")
+    @Path("/overview")
     @RunOnVirtualThread
-    public Response getSystemLogById(@PathParam("logId") int logId) {
-        SystemLogs systemLog = systemLogsService.getSystemLogById(logId);
-        if (systemLog != null) {
-            return Response.ok(systemLog).build();
-        } else {
-            return Response.status(Response.Status.NOT_FOUND).build();
+    public Response overview() {
+        try {
+            Map<String, Object> result = new HashMap<>();
+            result.put("loginLogCount", auditLoginLogService.findAll().size());
+            result.put("operationLogCount", auditOperationLogService.findAll().size());
+            result.put("requestHistoryCount", sysRequestHistoryService.findAll().size());
+            return Response.ok(result).build();
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Fetch log overview failed", ex);
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
         }
     }
 
     @GET
+    @Path("/login/recent")
     @RunOnVirtualThread
-    public Response getAllSystemLogs() {
-        List<SystemLogs> systemLogs = systemLogsService.getAllSystemLogs();
-        return Response.ok(systemLogs).build();
-    }
-
-    @GET
-    @Path("/type/{logType}")
-    @RunOnVirtualThread
-    public Response getSystemLogsByType(@PathParam("logType") String logType) {
-        List<SystemLogs> systemLogs = systemLogsService.getSystemLogsByType(logType);
-        return Response.ok(systemLogs).build();
-    }
-
-    @GET
-    @Path("/timeRange")
-    @RunOnVirtualThread
-    public Response getSystemLogsByTimeRange(
-            @QueryParam("startTime") Date startTime,
-            @QueryParam("endTime") Date endTime) {
-        List<SystemLogs> systemLogs = systemLogsService.getSystemLogsByTimeRange(startTime, endTime);
-        return Response.ok(systemLogs).build();
-    }
-
-    @GET
-    @Path("/operationUser/{operationUser}")
-    @RunOnVirtualThread
-    public Response getSystemLogsByOperationUser(@PathParam("operationUser") String operationUser) {
-        List<SystemLogs> systemLogs = systemLogsService.getSystemLogsByOperationUser(operationUser);
-        return Response.ok(systemLogs).build();
-    }
-
-    @PUT
-    @Path("/{logId}")
-    @RunOnVirtualThread
-    public Response updateSystemLog(@PathParam("logId") int logId, SystemLogs updatedSystemLog, @QueryParam("idempotencyKey") String idempotencyKey) {
-        SystemLogs existingSystemLog = systemLogsService.getSystemLogById(logId);
-        if (existingSystemLog != null) {
-            updatedSystemLog.setLogId(logId);
-            systemLogsService.checkAndInsertIdempotency(idempotencyKey, updatedSystemLog, "update");
-            return Response.ok(Response.Status.OK).entity(updatedSystemLog).build();
-        } else {
-            return Response.status(Response.Status.NOT_FOUND).build();
+    public Response recentLoginLogs(@QueryParam("limit") Integer limit) {
+        try {
+            int resolved = limit == null ? 10 : Math.max(limit, 1);
+            List<AuditLoginLog> recent = auditLoginLogService.findAll().stream()
+                    .limit(resolved)
+                    .collect(Collectors.toList());
+            return Response.ok(recent).build();
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Fetch recent login logs failed", ex);
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
         }
     }
 
-    @DELETE
-    @Path("/{logId}")
+    @GET
+    @Path("/operation/recent")
     @RunOnVirtualThread
-    public Response deleteSystemLog(@PathParam("logId") int logId) {
-        systemLogsService.deleteSystemLog(logId);
-        return Response.noContent().build();
+    public Response recentOperationLogs(@QueryParam("limit") Integer limit) {
+        try {
+            int resolved = limit == null ? 10 : Math.max(limit, 1);
+            List<AuditOperationLog> recent = auditOperationLogService.findAll().stream()
+                    .limit(resolved)
+                    .collect(Collectors.toList());
+            return Response.ok(recent).build();
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Fetch recent operation logs failed", ex);
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @GET
+    @Path("/requests/{historyId}")
+    @RunOnVirtualThread
+    public Response requestHistory(@PathParam("historyId") Long historyId) {
+        try {
+            SysRequestHistory history = sysRequestHistoryService.findById(historyId);
+            return history == null
+                    ? Response.status(Response.Status.NOT_FOUND).build()
+                    : Response.ok(history).build();
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Fetch request history failed", ex);
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @GET
+    @Path("/requests/search/idempotency")
+    @RunOnVirtualThread
+    public Response searchByIdempotency(@QueryParam("key") String key,
+                                        @QueryParam("page") Integer page,
+                                        @QueryParam("size") Integer size) {
+        int resolvedPage = page == null ? 1 : page;
+        int resolvedSize = size == null ? 20 : size;
+        return Response.ok(sysRequestHistoryService.searchByIdempotencyKey(key, resolvedPage, resolvedSize)).build();
+    }
+
+    @GET
+    @Path("/requests/search/method")
+    @RunOnVirtualThread
+    public Response searchByRequestMethod(@QueryParam("requestMethod") String requestMethod,
+                                          @QueryParam("page") Integer page,
+                                          @QueryParam("size") Integer size) {
+        int resolvedPage = page == null ? 1 : page;
+        int resolvedSize = size == null ? 20 : size;
+        return Response.ok(sysRequestHistoryService.searchByRequestMethod(requestMethod, resolvedPage, resolvedSize)).build();
+    }
+
+    @GET
+    @Path("/requests/search/url")
+    @RunOnVirtualThread
+    public Response searchByRequestUrl(@QueryParam("requestUrl") String requestUrl,
+                                       @QueryParam("page") Integer page,
+                                       @QueryParam("size") Integer size) {
+        int resolvedPage = page == null ? 1 : page;
+        int resolvedSize = size == null ? 20 : size;
+        return Response.ok(sysRequestHistoryService.searchByRequestUrlPrefix(requestUrl, resolvedPage, resolvedSize)).build();
+    }
+
+    @GET
+    @Path("/requests/search/business-type")
+    @RunOnVirtualThread
+    public Response searchByBusinessType(@QueryParam("businessType") String businessType,
+                                         @QueryParam("page") Integer page,
+                                         @QueryParam("size") Integer size) {
+        int resolvedPage = page == null ? 1 : page;
+        int resolvedSize = size == null ? 20 : size;
+        return Response.ok(sysRequestHistoryService.searchByBusinessType(businessType, resolvedPage, resolvedSize)).build();
+    }
+
+    @GET
+    @Path("/requests/search/business-id")
+    @RunOnVirtualThread
+    public Response searchByBusinessId(@QueryParam("businessId") Long businessId,
+                                       @QueryParam("page") Integer page,
+                                       @QueryParam("size") Integer size) {
+        int resolvedPage = page == null ? 1 : page;
+        int resolvedSize = size == null ? 20 : size;
+        return Response.ok(sysRequestHistoryService.findByBusinessId(businessId, resolvedPage, resolvedSize)).build();
+    }
+
+    @GET
+    @Path("/requests/search/status")
+    @RunOnVirtualThread
+    public Response searchByBusinessStatus(@QueryParam("status") String status,
+                                           @QueryParam("page") Integer page,
+                                           @QueryParam("size") Integer size) {
+        int resolvedPage = page == null ? 1 : page;
+        int resolvedSize = size == null ? 20 : size;
+        return Response.ok(sysRequestHistoryService.findByBusinessStatus(status, resolvedPage, resolvedSize)).build();
+    }
+
+    @GET
+    @Path("/requests/search/user")
+    @RunOnVirtualThread
+    public Response searchByUser(@QueryParam("userId") Long userId,
+                                 @QueryParam("page") Integer page,
+                                 @QueryParam("size") Integer size) {
+        int resolvedPage = page == null ? 1 : page;
+        int resolvedSize = size == null ? 20 : size;
+        return Response.ok(sysRequestHistoryService.findByUserId(userId, resolvedPage, resolvedSize)).build();
+    }
+
+    @GET
+    @Path("/requests/search/ip")
+    @RunOnVirtualThread
+    public Response searchByRequestIp(@QueryParam("requestIp") String requestIp,
+                                      @QueryParam("page") Integer page,
+                                      @QueryParam("size") Integer size) {
+        int resolvedPage = page == null ? 1 : page;
+        int resolvedSize = size == null ? 20 : size;
+        return Response.ok(sysRequestHistoryService.searchByRequestIp(requestIp, resolvedPage, resolvedSize)).build();
+    }
+
+    @GET
+    @Path("/requests/search/time-range")
+    @RunOnVirtualThread
+    public Response searchByCreatedTimeRange(@QueryParam("startTime") String startTime,
+                                             @QueryParam("endTime") String endTime,
+                                             @QueryParam("page") Integer page,
+                                             @QueryParam("size") Integer size) {
+        int resolvedPage = page == null ? 1 : page;
+        int resolvedSize = size == null ? 20 : size;
+        return Response.ok(sysRequestHistoryService.searchByCreatedAtRange(startTime, endTime, resolvedPage, resolvedSize)).build();
     }
 }

@@ -1,28 +1,27 @@
 package finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import finalassignmentbackend.config.websocket.WsAction;
-import finalassignmentbackend.entity.RequestHistory;
+import finalassignmentbackend.entity.SysRequestHistory;
 import finalassignmentbackend.entity.VehicleInformation;
-import finalassignmentbackend.mapper.RequestHistoryMapper;
+import finalassignmentbackend.mapper.SysRequestHistoryMapper;
 import finalassignmentbackend.mapper.VehicleInformationMapper;
 import io.quarkus.cache.CacheInvalidate;
 import io.quarkus.cache.CacheResult;
 import io.quarkus.runtime.annotations.RegisterForReflection;
-import io.smallrye.reactive.messaging.MutinyEmitter;
-import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.enterprise.event.Event;
-import jakarta.enterprise.event.Observes;
-import jakarta.enterprise.event.TransactionPhase;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
-import lombok.Getter;
-import org.eclipse.microprofile.reactive.messaging.Channel;
-import org.eclipse.microprofile.reactive.messaging.Message;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
+import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 @ApplicationScoped
 @RegisterForReflection
@@ -34,76 +33,80 @@ public class VehicleInformationService {
     VehicleInformationMapper vehicleInformationMapper;
 
     @Inject
-    RequestHistoryMapper requestHistoryMapper;
-
-    @Inject
-    Event<VehicleEvent> vehicleEvent;
-
-    @Inject
-    @Channel("vehicle-events-out")
-    MutinyEmitter<VehicleInformation> vehicleEmitter;
-
-    @Getter
-    public static class VehicleEvent {
-        private final VehicleInformation vehicleInformation;
-        private final String action; // "create" or "update"
-
-        public VehicleEvent(VehicleInformation vehicleInformation, String action) {
-            this.vehicleInformation = vehicleInformation;
-            this.action = action;
-        }
-    }
+    SysRequestHistoryMapper sysRequestHistoryMapper;
 
     @Transactional
     @CacheInvalidate(cacheName = "vehicleCache")
     @WsAction(service = "VehicleInformationService", action = "checkAndInsertIdempotency")
     public void checkAndInsertIdempotency(String idempotencyKey, VehicleInformation vehicleInformation, String action) {
-        // 查询 request_history
-        RequestHistory existingRequest = requestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
-        if (existingRequest != null) {
-            // 已有此 key -> 重复请求
-            log.warning(String.format("Duplicate request detected (idempotencyKey=%s)", idempotencyKey));
-            throw new RuntimeException("Duplicate request detected");
+        Objects.requireNonNull(vehicleInformation, "Vehicle information must not be null");
+        if (isBlank(idempotencyKey)) {
+            throw new IllegalArgumentException("Idempotency key must not be blank");
         }
-
-        // 不存在 -> 插入一条 PROCESSING
-        RequestHistory newRequest = new RequestHistory();
-        newRequest.setIdempotentKey(idempotencyKey);
-        newRequest.setBusinessStatus("PROCESSING");
-
-        try {
-            requestHistoryMapper.insert(newRequest);
-        } catch (Exception e) {
-            log.severe("Failed to insert requestHistory for idempotencyKey=" + idempotencyKey + ", " + e.getMessage());
-            throw new RuntimeException("Duplicate request or DB insert error", e);
+        SysRequestHistory existing = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
+        if (existing != null) {
+            throw new RuntimeException("Duplicate vehicle request detected");
         }
-
-        vehicleEvent.fire(new VehicleInformationService.VehicleEvent(vehicleInformation, action));
-
-        Integer vehicleId = vehicleInformation.getVehicleId();
-        newRequest.setBusinessStatus("SUCCESS");
-        newRequest.setBusinessId(vehicleId);
-        requestHistoryMapper.updateById(newRequest);
+        SysRequestHistory history = buildHistory(idempotencyKey);
+        sysRequestHistoryMapper.insert(history);
+        history.setBusinessStatus("SUCCESS");
+        history.setBusinessId(vehicleInformation.getVehicleId());
+        history.setRequestParams("PENDING");
+        history.setUpdatedAt(LocalDateTime.now());
+        sysRequestHistoryMapper.updateById(history);
     }
 
     @Transactional
     @CacheInvalidate(cacheName = "vehicleCache")
-    public void createVehicleInformation(VehicleInformation vehicleInformation) {
-        try {
-            vehicleInformationMapper.insert(vehicleInformation);
-        } catch (Exception e) {
-            log.warning("Exception occurred while creating vehicle information or firing event");
-            throw new RuntimeException("Failed to create vehicle information", e);
+    public VehicleInformation createVehicleInformation(VehicleInformation vehicleInformation) {
+        validateVehicle(vehicleInformation);
+        vehicleInformationMapper.insert(vehicleInformation);
+        return vehicleInformation;
+    }
+
+    @Transactional
+    @CacheInvalidate(cacheName = "vehicleCache")
+    public VehicleInformation updateVehicleInformation(VehicleInformation vehicleInformation) {
+        validateVehicleId(vehicleInformation);
+        int rows = vehicleInformationMapper.updateById(vehicleInformation);
+        if (rows == 0) {
+            throw new IllegalStateException("Vehicle not found: " + vehicleInformation.getVehicleId());
         }
+        return vehicleInformation;
+    }
+
+    @Transactional
+    @CacheInvalidate(cacheName = "vehicleCache")
+    @WsAction(service = "VehicleInformationService", action = "deleteVehicleInformation")
+    public void deleteVehicleInformation(Long vehicleId) {
+        validateVehicleId(vehicleId);
+        int rows = vehicleInformationMapper.deleteById(vehicleId);
+        if (rows == 0) {
+            throw new IllegalStateException("Vehicle not found: " + vehicleId);
+        }
+    }
+
+    @Transactional
+    @CacheInvalidate(cacheName = "vehicleCache")
+    @WsAction(service = "VehicleInformationService", action = "deleteVehicleInformationByLicensePlate")
+    public void deleteVehicleInformationByLicensePlate(String licensePlate) {
+        validateInput(licensePlate, "Invalid license plate number");
+        QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("license_plate", licensePlate);
+        vehicleInformationMapper.delete(queryWrapper);
     }
 
     @CacheResult(cacheName = "vehicleCache")
     @WsAction(service = "VehicleInformationService", action = "getVehicleInformationById")
-    public VehicleInformation getVehicleInformationById(Integer vehicleId) {
-        if (vehicleId == null || vehicleId == 0 || vehicleId >= Integer.MAX_VALUE) {
-            throw new IllegalArgumentException("Invalid vehicle ID" + vehicleId);
-        }
+    public VehicleInformation getVehicleInformationById(Long vehicleId) {
+        validateVehicleId(vehicleId);
         return vehicleInformationMapper.selectById(vehicleId);
+    }
+
+    @CacheResult(cacheName = "vehicleCache")
+    @WsAction(service = "VehicleInformationService", action = "getAllVehicleInformation")
+    public List<VehicleInformation> getAllVehicleInformation() {
+        return vehicleInformationMapper.selectList(null);
     }
 
     @CacheResult(cacheName = "vehicleCache")
@@ -116,9 +119,12 @@ public class VehicleInformationService {
     }
 
     @CacheResult(cacheName = "vehicleCache")
-    @WsAction(service = "VehicleInformationService", action = "getAllVehicleInformation")
-    public List<VehicleInformation> getAllVehicleInformation() {
-        return vehicleInformationMapper.selectList(null);
+    @WsAction(service = "VehicleInformationService", action = "getVehicleInformationByIdCardNumber")
+    public List<VehicleInformation> getVehicleInformationByIdCardNumber(String idCardNumber) {
+        validateInput(idCardNumber, "Invalid id card number");
+        QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("owner_id_card", idCardNumber);
+        return vehicleInformationMapper.selectList(queryWrapper);
     }
 
     @CacheResult(cacheName = "vehicleCache")
@@ -139,40 +145,94 @@ public class VehicleInformationService {
         return vehicleInformationMapper.selectList(queryWrapper);
     }
 
-    @Transactional
-    @CacheInvalidate(cacheName = "vehicleCache")
-    public void updateVehicleInformation(VehicleInformation vehicleInformation) {
-        try {
-            vehicleInformationMapper.updateById(vehicleInformation);
-        } catch (Exception e) {
-            log.warning("Exception occurred while updating vehicle information or firing event");
-            throw new RuntimeException("Failed to update vehicle information", e);
-        }
-    }
-
-    @Transactional
-    @CacheInvalidate(cacheName = "vehicleCache")
-    @WsAction(service = "VehicleInformationService", action = "deleteVehicleInformation")
-    public void deleteVehicleInformation(int vehicleId) {
-        try {
-            VehicleInformation vehicleToDelete = vehicleInformationMapper.selectById(vehicleId);
-            if (vehicleToDelete != null) {
-                vehicleInformationMapper.deleteById(vehicleId);
-            }
-        } catch (Exception e) {
-            log.warning("Exception occurred while deleting vehicle information");
-            throw new RuntimeException("Failed to delete vehicle information", e);
-        }
-    }
-
-    @Transactional
-    @CacheInvalidate(cacheName = "vehicleCache")
-    @WsAction(service = "VehicleInformationService", action = "deleteVehicleInformationByLicensePlate")
-    public void deleteVehicleInformationByLicensePlate(String licensePlate) {
-        validateInput(licensePlate, "Invalid license plate number");
+    @CacheResult(cacheName = "vehicleCache")
+    @WsAction(service = "VehicleInformationService", action = "getVehicleInformationByStatus")
+    public List<VehicleInformation> getVehicleInformationByStatus(String status) {
+        validateInput(status, "Invalid status");
         QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("license_plate", licensePlate);
-        vehicleInformationMapper.delete(queryWrapper);
+        queryWrapper.eq("status", status);
+        return vehicleInformationMapper.selectList(queryWrapper);
+    }
+
+    @CacheResult(cacheName = "vehicleCache")
+    @WsAction(service = "VehicleInformationService", action = "searchVehicles")
+    public List<VehicleInformation> searchVehicles(String keywords, int page, int size) {
+        if (isBlank(keywords)) {
+            return List.of();
+        }
+        validatePagination(page, size);
+        QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
+        queryWrapper.like("license_plate", keywords)
+                .or().like("owner_name", keywords)
+                .or().like("owner_id_card", keywords)
+                .orderByDesc("updated_at");
+        return fetchFromDatabase(queryWrapper, page, size);
+    }
+
+    @CacheResult(cacheName = "vehicleCache")
+    @WsAction(service = "VehicleInformationService", action = "getVehicleInformationByLicensePlateGlobally")
+    public List<String> getVehicleInformationByLicensePlateGlobally(String prefix, int size) {
+        if (isBlank(prefix)) {
+            return List.of();
+        }
+        QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
+        queryWrapper.likeRight("license_plate", prefix)
+                .last("LIMIT " + Math.max(size, 1));
+        return vehicleInformationMapper.selectList(queryWrapper).stream()
+                .map(VehicleInformation::getLicensePlate)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+    }
+
+    @CacheResult(cacheName = "vehicleCache")
+    @WsAction(service = "VehicleInformationService", action = "getLicensePlateAutocompleteSuggestions")
+    public List<String> getLicensePlateAutocompleteSuggestions(String prefix, int size, String idCard) {
+        if (isBlank(prefix) || isBlank(idCard)) {
+            return List.of();
+        }
+        QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("owner_id_card", idCard)
+                .likeRight("license_plate", prefix)
+                .last("LIMIT " + Math.max(size, 1));
+        return vehicleInformationMapper.selectList(queryWrapper).stream()
+                .map(VehicleInformation::getLicensePlate)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+    }
+
+    @CacheResult(cacheName = "vehicleCache")
+    @WsAction(service = "VehicleInformationService", action = "getVehicleTypeAutocompleteSuggestions")
+    public List<String> getVehicleTypeAutocompleteSuggestions(String idCard, String prefix, int size) {
+        if (isBlank(idCard) || isBlank(prefix)) {
+            return List.of();
+        }
+        QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("owner_id_card", idCard)
+                .likeRight("vehicle_type", prefix)
+                .last("LIMIT " + Math.max(size, 1));
+        return vehicleInformationMapper.selectList(queryWrapper).stream()
+                .map(VehicleInformation::getVehicleType)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+    }
+
+    @CacheResult(cacheName = "vehicleCache")
+    @WsAction(service = "VehicleInformationService", action = "getVehicleTypesByPrefixGlobally")
+    public List<String> getVehicleTypesByPrefixGlobally(String prefix, int size) {
+        if (isBlank(prefix)) {
+            return List.of();
+        }
+        QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
+        queryWrapper.likeRight("vehicle_type", prefix)
+                .last("LIMIT " + Math.max(size, 1));
+        return vehicleInformationMapper.selectList(queryWrapper).stream()
+                .map(VehicleInformation::getVehicleType)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
     }
 
     @CacheResult(cacheName = "vehicleCache")
@@ -184,36 +244,93 @@ public class VehicleInformationService {
         return vehicleInformationMapper.selectCount(queryWrapper) > 0;
     }
 
-    @CacheResult(cacheName = "vehicleCache")
-    @WsAction(service = "VehicleInformationService", action = "getVehicleInformationByStatus")
-    public List<VehicleInformation> getVehicleInformationByStatus(String currentStatus) {
-        validateInput(currentStatus, "Invalid current status");
-        QueryWrapper<VehicleInformation> queryWrapper = new QueryWrapper<>();
-        queryWrapper.eq("current_status", currentStatus);
-        return vehicleInformationMapper.selectList(queryWrapper);
+    public boolean shouldSkipProcessing(String idempotencyKey) {
+        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
+        return history != null
+                && "SUCCESS".equalsIgnoreCase(history.getBusinessStatus())
+                && "DONE".equalsIgnoreCase(history.getRequestParams());
     }
 
-    public void onVehicleEvent(@Observes(during = TransactionPhase.AFTER_SUCCESS) VehicleEvent event) {
-        String topic = event.getAction().equals("create") ? "vehicle_create" : "vehicle_update";
-        sendKafkaMessage(topic, event.getVehicleInformation());
+    public void markHistorySuccess(String idempotencyKey, Long vehicleId) {
+        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
+        if (history == null) {
+            log.log(Level.WARNING, "Cannot mark success for missing idempotency key {0}", idempotencyKey);
+            return;
+        }
+        history.setBusinessStatus("SUCCESS");
+        history.setBusinessId(vehicleId);
+        history.setRequestParams("DONE");
+        history.setUpdatedAt(LocalDateTime.now());
+        sysRequestHistoryMapper.updateById(history);
     }
 
-    private void sendKafkaMessage(String topic, VehicleInformation vehicleInformation) {
-        var metadata = OutgoingKafkaRecordMetadata.<String>builder()
-                .withTopic(topic)
-                .build();
+    public void markHistoryFailure(String idempotencyKey, String reason) {
+        SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
+        if (history == null) {
+            log.log(Level.WARNING, "Cannot mark failure for missing idempotency key {0}", idempotencyKey);
+            return;
+        }
+        history.setBusinessStatus("FAILED");
+        history.setRequestParams(truncate(reason));
+        history.setUpdatedAt(LocalDateTime.now());
+        sysRequestHistoryMapper.updateById(history);
+    }
 
-        Message<VehicleInformation> message = Message.of(vehicleInformation).addMetadata(metadata);
+    private SysRequestHistory buildHistory(String key) {
+        SysRequestHistory history = new SysRequestHistory();
+        history.setIdempotencyKey(key);
+        history.setBusinessStatus("PROCESSING");
+        history.setCreatedAt(LocalDateTime.now());
+        history.setUpdatedAt(LocalDateTime.now());
+        return history;
+    }
 
-        vehicleEmitter.sendMessage(message)
-                .await().indefinitely();
+    private List<VehicleInformation> fetchFromDatabase(QueryWrapper<VehicleInformation> wrapper, int page, int size) {
+        Page<VehicleInformation> mpPage = new Page<>(Math.max(page, 1), Math.max(size, 1));
+        vehicleInformationMapper.selectPage(mpPage, wrapper);
+        return mpPage.getRecords();
+    }
 
-        log.info(String.format("Message sent to Kafka topic %s successfully", topic));
+    private void validatePagination(int page, int size) {
+        if (page < 1 || size < 1) {
+            throw new IllegalArgumentException("Page must be >= 1 and size must be >= 1");
+        }
+    }
+
+    private void validateVehicle(VehicleInformation vehicleInformation) {
+        if (vehicleInformation == null) {
+            throw new IllegalArgumentException("Vehicle information must not be null");
+        }
+        if (isBlank(vehicleInformation.getLicensePlate())) {
+            throw new IllegalArgumentException("License plate must not be blank");
+        }
+    }
+
+    private void validateVehicleId(VehicleInformation vehicleInformation) {
+        validateVehicle(vehicleInformation);
+        validateVehicleId(vehicleInformation.getVehicleId());
+    }
+
+    private void validateVehicleId(Long vehicleId) {
+        if (vehicleId == null || vehicleId <= 0) {
+            throw new IllegalArgumentException("Invalid vehicle ID: " + vehicleId);
+        }
     }
 
     private void validateInput(String input, String errorMessage) {
         if (input == null || input.trim().isEmpty()) {
             throw new IllegalArgumentException(errorMessage);
         }
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
+    }
+
+    private String truncate(String value) {
+        if (value == null) {
+            return null;
+        }
+        return value.length() <= 500 ? value : value.substring(0, 500);
     }
 }

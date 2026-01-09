@@ -1,7 +1,7 @@
 package finalassignmentbackend.controller;
 
-import finalassignmentbackend.entity.OffenseInformation;
-import finalassignmentbackend.service.OffenseInformationService;
+import finalassignmentbackend.entity.OffenseRecord;
+import finalassignmentbackend.service.OffenseRecordService;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
@@ -13,127 +13,316 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
-import java.util.Date;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 @Path("/api/offenses")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
-@Tag(name = "Offense Information", description = "Offense Information Controller for managing offense information")
+@Tag(name = "Offense Management", description = "Offense Management Controller for managing offense records")
 public class OffenseInformationController {
 
-    @Inject
-    OffenseInformationService offenseInformationService;
+    private static final Logger LOG = Logger.getLogger(OffenseInformationController.class.getName());
 
-    /**
-     * 创建新的违法行为信息。
-     */
+    @Inject
+    OffenseRecordService offenseRecordService;
+
     @POST
     @RunOnVirtualThread
-    public Response createOffense(OffenseInformation offenseInformation, @QueryParam("idempotencyKey") String idempotencyKey) {
-        offenseInformationService.checkAndInsertIdempotency(idempotencyKey, offenseInformation, "create");
-        return Response.status(Response.Status.CREATED).build();
-    }
-
-    /**
-     * 根据违法行为ID获取违法行为信息。
-     */
-    @GET
-    @Path("/{offenseId}")
-    @RunOnVirtualThread
-    public Response getOffenseByOffenseId(@PathParam("offenseId") int offenseId) {
-        OffenseInformation offenseInformation = offenseInformationService.getOffenseByOffenseId(offenseId);
-        if (offenseInformation != null) {
-            return Response.ok(offenseInformation).build();
-        } else {
-            return Response.status(Response.Status.NOT_FOUND).build();
+    public Response create(OffenseRecord request,
+                           @HeaderParam("Idempotency-Key") String idempotencyKey) {
+        boolean useKey = hasKey(idempotencyKey);
+        try {
+            if (useKey) {
+                if (offenseRecordService.shouldSkipProcessing(idempotencyKey)) {
+                    return Response.status(208).build();
+                }
+                offenseRecordService.checkAndInsertIdempotency(idempotencyKey, request, "create");
+            }
+            OffenseRecord saved = offenseRecordService.createOffenseRecord(request);
+            if (useKey && saved.getOffenseId() != null) {
+                offenseRecordService.markHistorySuccess(idempotencyKey, saved.getOffenseId());
+            }
+            return Response.status(Response.Status.CREATED).entity(saved).build();
+        } catch (Exception ex) {
+            if (useKey) {
+                offenseRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
+            }
+            LOG.log(Level.SEVERE, "Create offense failed", ex);
+            return Response.status(resolveStatus(ex)).build();
         }
     }
 
-    /**
-     * 获取所有违法行为的信息。
-     */
-    @GET
-    @RunOnVirtualThread
-    public Response getOffensesInformation() {
-        List<OffenseInformation> offensesInformation = offenseInformationService.getOffensesInformation();
-        return Response.ok(offensesInformation).build();
-    }
-
-    /**
-     * 更新指定违法行为的信息。
-     */
     @PUT
     @Path("/{offenseId}")
     @RunOnVirtualThread
-    public Response updateOffense(@PathParam("offenseId") int offenseId, OffenseInformation updatedOffenseInformation, @QueryParam("idempotencyKey") String idempotencyKey) {
-        OffenseInformation existingOffenseInformation = offenseInformationService.getOffenseByOffenseId(offenseId);
-        if (existingOffenseInformation != null) {
-            updatedOffenseInformation.setOffenseId(offenseId);
-            offenseInformationService.checkAndInsertIdempotency(idempotencyKey, updatedOffenseInformation, "update");
-            return Response.ok(Response.Status.OK).entity(updatedOffenseInformation).build();
-        } else {
-            return Response.status(Response.Status.NOT_FOUND).build();
+    public Response update(@PathParam("offenseId") Long offenseId,
+                           OffenseRecord request,
+                           @HeaderParam("Idempotency-Key") String idempotencyKey) {
+        boolean useKey = hasKey(idempotencyKey);
+        try {
+            request.setOffenseId(offenseId);
+            if (useKey) {
+                offenseRecordService.checkAndInsertIdempotency(idempotencyKey, request, "update");
+            }
+            OffenseRecord updated = offenseRecordService.updateOffenseRecord(request);
+            if (useKey && updated.getOffenseId() != null) {
+                offenseRecordService.markHistorySuccess(idempotencyKey, updated.getOffenseId());
+            }
+            return Response.ok(updated).build();
+        } catch (Exception ex) {
+            if (useKey) {
+                offenseRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
+            }
+            LOG.log(Level.SEVERE, "Update offense failed", ex);
+            return Response.status(resolveStatus(ex)).build();
         }
     }
 
-    /**
-     * 删除指定违法行为的信息。
-     */
     @DELETE
     @Path("/{offenseId}")
     @RunOnVirtualThread
-    public Response deleteOffense(@PathParam("offenseId") int offenseId) {
-        offenseInformationService.deleteOffense(offenseId);
-        return Response.noContent().build();
+    public Response delete(@PathParam("offenseId") Long offenseId) {
+        try {
+            offenseRecordService.deleteOffenseRecord(offenseId);
+            return Response.noContent().build();
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Delete offense failed", ex);
+            return Response.status(resolveStatus(ex)).build();
+        }
     }
 
-    /**
-     * 根据时间范围获取违法行为信息。
-     */
     @GET
-    @Path("/timeRange")
+    @Path("/{offenseId}")
     @RunOnVirtualThread
-    public Response getOffensesByTimeRange(@QueryParam("startTime") Date startTime,
-                                           @QueryParam("endTime") Date endTime) {
-        List<OffenseInformation> offenses = offenseInformationService.getOffensesByTimeRange(startTime, endTime);
-        return Response.ok(offenses).build();
+    public Response get(@PathParam("offenseId") Long offenseId) {
+        try {
+            OffenseRecord record = offenseRecordService.findById(offenseId);
+            return record == null ? Response.status(Response.Status.NOT_FOUND).build() : Response.ok(record).build();
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Get offense failed", ex);
+            return Response.status(resolveStatus(ex)).build();
+        }
     }
 
-    /**
-     * 根据处理状态获取违法行为信息。
-     */
     @GET
-    @Path("/processState/{processState}")
     @RunOnVirtualThread
-    public Response getOffensesByProcessState(@PathParam("processState") String processState) {
-        List<OffenseInformation> offenses = offenseInformationService.getOffensesByProcessState(processState);
-        return Response.ok(offenses).build();
+    public Response list() {
+        try {
+            return Response.ok(offenseRecordService.findAll()).build();
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "List offenses failed", ex);
+            return Response.status(resolveStatus(ex)).build();
+        }
     }
 
-    /**
-     * 根据司机姓名获取违法行为信息。
-     */
     @GET
-    @Path("/driverName/{driverName}")
+    @Path("/driver/{driverId}")
     @RunOnVirtualThread
-    public Response getOffensesByDriverName(@PathParam("driverName") String driverName) {
-        List<OffenseInformation> offenses = offenseInformationService.getOffensesByDriverName(driverName);
-        return Response.ok(offenses).build();
+    public Response byDriver(@PathParam("driverId") Long driverId,
+                             @QueryParam("page") Integer page,
+                             @QueryParam("size") Integer size) {
+        try {
+            int resolvedPage = page == null ? 1 : page;
+            int resolvedSize = size == null ? 20 : size;
+            return Response.ok(offenseRecordService.findByDriverId(driverId, resolvedPage, resolvedSize)).build();
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "List offenses by driver failed", ex);
+            return Response.status(resolveStatus(ex)).build();
+        }
     }
 
-    /**
-     * 根据车牌号获取违法行为信息。
-     */
     @GET
-    @Path("/licensePlate/{licensePlate}")
+    @Path("/vehicle/{vehicleId}")
     @RunOnVirtualThread
-    public Response getOffensesByLicensePlate(@PathParam("licensePlate") String licensePlate) {
-        List<OffenseInformation> offenses = offenseInformationService.getOffensesByLicensePlate(licensePlate);
-        return Response.ok(offenses).build();
+    public Response byVehicle(@PathParam("vehicleId") Long vehicleId,
+                              @QueryParam("page") Integer page,
+                              @QueryParam("size") Integer size) {
+        try {
+            int resolvedPage = page == null ? 1 : page;
+            int resolvedSize = size == null ? 20 : size;
+            return Response.ok(offenseRecordService.findByVehicleId(vehicleId, resolvedPage, resolvedSize)).build();
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "List offenses by vehicle failed", ex);
+            return Response.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @GET
+    @Path("/search/code")
+    @RunOnVirtualThread
+    public Response searchByCode(@QueryParam("offenseCode") String offenseCode,
+                                 @QueryParam("page") Integer page,
+                                 @QueryParam("size") Integer size) {
+        try {
+            int resolvedPage = page == null ? 1 : page;
+            int resolvedSize = size == null ? 20 : size;
+            return Response.ok(offenseRecordService.searchByOffenseCode(offenseCode, resolvedPage, resolvedSize)).build();
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Search offense by code failed", ex);
+            return Response.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @GET
+    @Path("/search/status")
+    @RunOnVirtualThread
+    public Response searchByStatus(@QueryParam("status") String status,
+                                   @QueryParam("page") Integer page,
+                                   @QueryParam("size") Integer size) {
+        try {
+            int resolvedPage = page == null ? 1 : page;
+            int resolvedSize = size == null ? 20 : size;
+            return Response.ok(offenseRecordService.searchByProcessStatus(status, resolvedPage, resolvedSize)).build();
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Search offense by status failed", ex);
+            return Response.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @GET
+    @Path("/search/time-range")
+    @RunOnVirtualThread
+    public Response searchByTimeRange(@QueryParam("startTime") String startTime,
+                                      @QueryParam("endTime") String endTime,
+                                      @QueryParam("page") Integer page,
+                                      @QueryParam("size") Integer size) {
+        try {
+            int resolvedPage = page == null ? 1 : page;
+            int resolvedSize = size == null ? 20 : size;
+            return Response.ok(offenseRecordService.searchByOffenseTimeRange(startTime, endTime, resolvedPage, resolvedSize)).build();
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Search offense by time range failed", ex);
+            return Response.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @GET
+    @Path("/search/number")
+    @RunOnVirtualThread
+    public Response searchByNumber(@QueryParam("offenseNumber") String offenseNumber,
+                                   @QueryParam("page") Integer page,
+                                   @QueryParam("size") Integer size) {
+        try {
+            int resolvedPage = page == null ? 1 : page;
+            int resolvedSize = size == null ? 20 : size;
+            return Response.ok(offenseRecordService.searchByOffenseNumber(offenseNumber, resolvedPage, resolvedSize)).build();
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Search offense by number failed", ex);
+            return Response.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @GET
+    @Path("/search/location")
+    @RunOnVirtualThread
+    public Response searchByLocation(@QueryParam("offenseLocation") String offenseLocation,
+                                     @QueryParam("page") Integer page,
+                                     @QueryParam("size") Integer size) {
+        try {
+            int resolvedPage = page == null ? 1 : page;
+            int resolvedSize = size == null ? 20 : size;
+            return Response.ok(offenseRecordService.searchByOffenseLocation(offenseLocation, resolvedPage, resolvedSize)).build();
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Search offense by location failed", ex);
+            return Response.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @GET
+    @Path("/search/province")
+    @RunOnVirtualThread
+    public Response searchByProvince(@QueryParam("offenseProvince") String offenseProvince,
+                                     @QueryParam("page") Integer page,
+                                     @QueryParam("size") Integer size) {
+        try {
+            int resolvedPage = page == null ? 1 : page;
+            int resolvedSize = size == null ? 20 : size;
+            return Response.ok(offenseRecordService.searchByOffenseProvince(offenseProvince, resolvedPage, resolvedSize)).build();
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Search offense by province failed", ex);
+            return Response.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @GET
+    @Path("/search/city")
+    @RunOnVirtualThread
+    public Response searchByCity(@QueryParam("offenseCity") String offenseCity,
+                                 @QueryParam("page") Integer page,
+                                 @QueryParam("size") Integer size) {
+        try {
+            int resolvedPage = page == null ? 1 : page;
+            int resolvedSize = size == null ? 20 : size;
+            return Response.ok(offenseRecordService.searchByOffenseCity(offenseCity, resolvedPage, resolvedSize)).build();
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Search offense by city failed", ex);
+            return Response.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @GET
+    @Path("/search/notification")
+    @RunOnVirtualThread
+    public Response searchByNotification(@QueryParam("notificationStatus") String notificationStatus,
+                                         @QueryParam("page") Integer page,
+                                         @QueryParam("size") Integer size) {
+        try {
+            int resolvedPage = page == null ? 1 : page;
+            int resolvedSize = size == null ? 20 : size;
+            return Response.ok(offenseRecordService.searchByNotificationStatus(notificationStatus, resolvedPage, resolvedSize)).build();
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Search offense by notification status failed", ex);
+            return Response.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @GET
+    @Path("/search/agency")
+    @RunOnVirtualThread
+    public Response searchByAgency(@QueryParam("enforcementAgency") String enforcementAgency,
+                                   @QueryParam("page") Integer page,
+                                   @QueryParam("size") Integer size) {
+        try {
+            int resolvedPage = page == null ? 1 : page;
+            int resolvedSize = size == null ? 20 : size;
+            return Response.ok(offenseRecordService.searchByEnforcementAgency(enforcementAgency, resolvedPage, resolvedSize)).build();
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Search offense by enforcement agency failed", ex);
+            return Response.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @GET
+    @Path("/search/fine-range")
+    @RunOnVirtualThread
+    public Response searchByFineRange(@QueryParam("minAmount") double minAmount,
+                                      @QueryParam("maxAmount") double maxAmount,
+                                      @QueryParam("page") Integer page,
+                                      @QueryParam("size") Integer size) {
+        try {
+            int resolvedPage = page == null ? 1 : page;
+            int resolvedSize = size == null ? 20 : size;
+            return Response.ok(offenseRecordService.searchByFineAmountRange(minAmount, maxAmount, resolvedPage, resolvedSize)).build();
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Search offense by fine amount range failed", ex);
+            return Response.status(resolveStatus(ex)).build();
+        }
+    }
+
+    private boolean hasKey(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private Response.Status resolveStatus(Exception ex) {
+        return (ex instanceof IllegalArgumentException || ex instanceof IllegalStateException)
+                ? Response.Status.BAD_REQUEST
+                : Response.Status.INTERNAL_SERVER_ERROR;
     }
 }

@@ -1,175 +1,391 @@
 package finalassignmentbackend.controller;
 
-import finalassignmentbackend.entity.SystemSettings;
-import finalassignmentbackend.service.SystemSettingsService;
+import finalassignmentbackend.entity.SysDict;
+import finalassignmentbackend.entity.SysSettings;
+import finalassignmentbackend.service.SysDictService;
+import finalassignmentbackend.service.SysSettingsService;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
 import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
-@Path("/api/systemSettings")
+import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+@Path("/api/system/settings")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
-@Tag(name = "System Settings", description = "System Settings Controller for managing system settings")
+@Tag(name = "System Settings", description = "System settings and dict management")
 public class SystemSettingsController {
 
-    @Inject
-    SystemSettingsService systemSettingsService;
+    private static final Logger LOG = Logger.getLogger(SystemSettingsController.class.getName());
 
-    @GET
+    @Inject
+    SysSettingsService sysSettingsService;
+
+    @Inject
+    SysDictService sysDictService;
+
+    @POST
     @RunOnVirtualThread
-    public Response getSystemSettings() {
-        SystemSettings systemSettings = systemSettingsService.getSystemSettings();
-        if (systemSettings != null) {
-            return Response.ok(systemSettings).build();
-        } else {
-            return Response.status(Response.Status.NOT_FOUND).build();
+    public Response createSetting(SysSettings request,
+                                  @HeaderParam("Idempotency-Key") String idempotencyKey) {
+        boolean useKey = hasKey(idempotencyKey);
+        try {
+            if (useKey) {
+                if (sysSettingsService.shouldSkipProcessing(idempotencyKey)) {
+                    return Response.status(208).build();
+                }
+                sysSettingsService.checkAndInsertIdempotency(idempotencyKey, request, "create");
+            }
+            SysSettings saved = sysSettingsService.createSysSettings(request);
+            if (useKey && saved.getSettingId() != null) {
+                sysSettingsService.markHistorySuccess(idempotencyKey, saved.getSettingId());
+            }
+            return Response.status(Response.Status.CREATED).entity(saved).build();
+        } catch (Exception ex) {
+            if (useKey) {
+                sysSettingsService.markHistoryFailure(idempotencyKey, ex.getMessage());
+            }
+            LOG.log(Level.SEVERE, "Create setting failed", ex);
+            return Response.status(resolveStatus(ex)).build();
         }
     }
 
     @PUT
+    @Path("/{settingId}")
     @RunOnVirtualThread
-    public Response updateSystemSettings(SystemSettings systemSettings, @QueryParam("idempotencyKey") String idempotencyKey) {
-        systemSettingsService.checkAndInsertIdempotency(idempotencyKey, systemSettings);
-        return Response.ok(systemSettings).build();
+    public Response updateSetting(@PathParam("settingId") Integer settingId,
+                                  SysSettings request,
+                                  @HeaderParam("Idempotency-Key") String idempotencyKey) {
+        boolean useKey = hasKey(idempotencyKey);
+        try {
+            request.setSettingId(settingId);
+            if (useKey) {
+                sysSettingsService.checkAndInsertIdempotency(idempotencyKey, request, "update");
+            }
+            SysSettings updated = sysSettingsService.updateSysSettings(request);
+            if (useKey && updated.getSettingId() != null) {
+                sysSettingsService.markHistorySuccess(idempotencyKey, updated.getSettingId());
+            }
+            return Response.ok(updated).build();
+        } catch (Exception ex) {
+            if (useKey) {
+                sysSettingsService.markHistoryFailure(idempotencyKey, ex.getMessage());
+            }
+            LOG.log(Level.SEVERE, "Update setting failed", ex);
+            return Response.status(resolveStatus(ex)).build();
+        }
     }
 
-    @GET
-    @Path("/systemName")
+    @DELETE
+    @Path("/{settingId}")
     @RunOnVirtualThread
-    public Response getSystemName() {
-        String systemName = systemSettingsService.getSystemName();
-        if (systemName != null) {
-            return Response.ok(systemName).build();
-        } else {
-            return Response.status(Response.Status.NOT_FOUND).build();
+    public Response deleteSetting(@PathParam("settingId") Integer settingId) {
+        try {
+            sysSettingsService.deleteSysSettings(settingId);
+            return Response.noContent().build();
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Delete setting failed", ex);
+            return Response.status(resolveStatus(ex)).build();
         }
     }
 
     @GET
-    @Path("/systemVersion")
+    @Path("/{settingId}")
     @RunOnVirtualThread
-    public Response getSystemVersion() {
-        String systemVersion = systemSettingsService.getSystemVersion();
-        if (systemVersion != null) {
-            return Response.ok(systemVersion).build();
-        } else {
-            return Response.status(Response.Status.NOT_FOUND).build();
+    public Response getSetting(@PathParam("settingId") Integer settingId) {
+        try {
+            SysSettings settings = sysSettingsService.findById(settingId);
+            return settings == null ? Response.status(Response.Status.NOT_FOUND).build() : Response.ok(settings).build();
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Get setting failed", ex);
+            return Response.status(resolveStatus(ex)).build();
         }
     }
 
     @GET
-    @Path("/systemDescription")
     @RunOnVirtualThread
-    public Response getSystemDescription() {
-        String systemDescription = systemSettingsService.getSystemDescription();
-        if (systemDescription != null) {
-            return Response.ok(systemDescription).build();
-        } else {
-            return Response.status(Response.Status.NOT_FOUND).build();
+    public Response listSettings() {
+        try {
+            return Response.ok(sysSettingsService.findAll()).build();
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "List settings failed", ex);
+            return Response.status(resolveStatus(ex)).build();
         }
     }
 
     @GET
-    @Path("/copyrightInfo")
+    @Path("/key/{settingKey}")
     @RunOnVirtualThread
-    public Response getCopyrightInfo() {
-        String copyrightInfo = systemSettingsService.getCopyrightInfo();
-        if (copyrightInfo != null) {
-            return Response.ok(copyrightInfo).build();
-        } else {
-            return Response.status(Response.Status.NOT_FOUND).build();
+    public Response getByKey(@PathParam("settingKey") String settingKey) {
+        try {
+            SysSettings settings = sysSettingsService.findByKey(settingKey);
+            return settings == null ? Response.status(Response.Status.NOT_FOUND).build() : Response.ok(settings).build();
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Get setting by key failed", ex);
+            return Response.status(resolveStatus(ex)).build();
         }
     }
 
     @GET
-    @Path("/storagePath")
+    @Path("/category/{category}")
     @RunOnVirtualThread
-    public Response getStoragePath() {
-        String storagePath = systemSettingsService.getStoragePath();
-        if (storagePath != null) {
-            return Response.ok(storagePath).build();
-        } else {
-            return Response.status(Response.Status.NOT_FOUND).build();
+    public Response getByCategory(@PathParam("category") String category,
+                                  @QueryParam("page") Integer page,
+                                  @QueryParam("size") Integer size) {
+        try {
+            int resolvedPage = page == null ? 1 : page;
+            int resolvedSize = size == null ? 50 : size;
+            return Response.ok(sysSettingsService.findByCategory(category, resolvedPage, resolvedSize)).build();
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "List settings by category failed", ex);
+            return Response.status(resolveStatus(ex)).build();
         }
     }
 
     @GET
-    @Path("/loginTimeout")
+    @Path("/search/key/prefix")
     @RunOnVirtualThread
-    public Response getLoginTimeout() {
-        int loginTimeout = systemSettingsService.getLoginTimeout();
-        return Response.ok(loginTimeout).build();
+    public Response searchByKeyPrefix(@QueryParam("settingKey") String settingKey,
+                                      @QueryParam("page") Integer page,
+                                      @QueryParam("size") Integer size) {
+        int resolvedPage = page == null ? 1 : page;
+        int resolvedSize = size == null ? 50 : size;
+        return Response.ok(sysSettingsService.searchBySettingKeyPrefix(settingKey, resolvedPage, resolvedSize)).build();
     }
 
     @GET
-    @Path("/sessionTimeout")
+    @Path("/search/key/fuzzy")
     @RunOnVirtualThread
-    public Response getSessionTimeout() {
-        int sessionTimeout = systemSettingsService.getSessionTimeout();
-        return Response.ok(sessionTimeout).build();
+    public Response searchByKeyFuzzy(@QueryParam("settingKey") String settingKey,
+                                     @QueryParam("page") Integer page,
+                                     @QueryParam("size") Integer size) {
+        int resolvedPage = page == null ? 1 : page;
+        int resolvedSize = size == null ? 50 : size;
+        return Response.ok(sysSettingsService.searchBySettingKeyFuzzy(settingKey, resolvedPage, resolvedSize)).build();
     }
 
     @GET
-    @Path("/dateFormat")
+    @Path("/search/type")
     @RunOnVirtualThread
-    public Response getDateFormat() {
-        String dateFormat = systemSettingsService.getDateFormat();
-        if (dateFormat != null) {
-            return Response.ok(dateFormat).build();
-        } else {
-            return Response.status(Response.Status.NOT_FOUND).build();
+    public Response searchByType(@QueryParam("settingType") String settingType,
+                                 @QueryParam("page") Integer page,
+                                 @QueryParam("size") Integer size) {
+        int resolvedPage = page == null ? 1 : page;
+        int resolvedSize = size == null ? 50 : size;
+        return Response.ok(sysSettingsService.searchBySettingType(settingType, resolvedPage, resolvedSize)).build();
+    }
+
+    @GET
+    @Path("/search/editable")
+    @RunOnVirtualThread
+    public Response searchByEditable(@QueryParam("isEditable") boolean isEditable,
+                                     @QueryParam("page") Integer page,
+                                     @QueryParam("size") Integer size) {
+        int resolvedPage = page == null ? 1 : page;
+        int resolvedSize = size == null ? 50 : size;
+        return Response.ok(sysSettingsService.searchByIsEditable(isEditable, resolvedPage, resolvedSize)).build();
+    }
+
+    @GET
+    @Path("/search/encrypted")
+    @RunOnVirtualThread
+    public Response searchByEncrypted(@QueryParam("isEncrypted") boolean isEncrypted,
+                                      @QueryParam("page") Integer page,
+                                      @QueryParam("size") Integer size) {
+        int resolvedPage = page == null ? 1 : page;
+        int resolvedSize = size == null ? 50 : size;
+        return Response.ok(sysSettingsService.searchByIsEncrypted(isEncrypted, resolvedPage, resolvedSize)).build();
+    }
+
+    @POST
+    @Path("/dicts")
+    @RunOnVirtualThread
+    public Response createDict(SysDict request,
+                               @HeaderParam("Idempotency-Key") String idempotencyKey) {
+        boolean useKey = hasKey(idempotencyKey);
+        try {
+            if (useKey) {
+                if (sysDictService.shouldSkipProcessing(idempotencyKey)) {
+                    return Response.status(208).build();
+                }
+                sysDictService.checkAndInsertIdempotency(idempotencyKey, request, "create");
+            }
+            SysDict saved = sysDictService.createSysDict(request);
+            if (useKey && saved.getDictId() != null) {
+                sysDictService.markHistorySuccess(idempotencyKey, saved.getDictId());
+            }
+            return Response.status(Response.Status.CREATED).entity(saved).build();
+        } catch (Exception ex) {
+            if (useKey) {
+                sysDictService.markHistoryFailure(idempotencyKey, ex.getMessage());
+            }
+            LOG.log(Level.SEVERE, "Create dict failed", ex);
+            return Response.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @PUT
+    @Path("/dicts/{dictId}")
+    @RunOnVirtualThread
+    public Response updateDict(@PathParam("dictId") Integer dictId,
+                               SysDict request,
+                               @HeaderParam("Idempotency-Key") String idempotencyKey) {
+        boolean useKey = hasKey(idempotencyKey);
+        try {
+            request.setDictId(dictId);
+            if (useKey) {
+                sysDictService.checkAndInsertIdempotency(idempotencyKey, request, "update");
+            }
+            SysDict updated = sysDictService.updateSysDict(request);
+            if (useKey && updated.getDictId() != null) {
+                sysDictService.markHistorySuccess(idempotencyKey, updated.getDictId());
+            }
+            return Response.ok(updated).build();
+        } catch (Exception ex) {
+            if (useKey) {
+                sysDictService.markHistoryFailure(idempotencyKey, ex.getMessage());
+            }
+            LOG.log(Level.SEVERE, "Update dict failed", ex);
+            return Response.status(resolveStatus(ex)).build();
+        }
+    }
+
+    @DELETE
+    @Path("/dicts/{dictId}")
+    @RunOnVirtualThread
+    public Response deleteDict(@PathParam("dictId") Integer dictId) {
+        try {
+            sysDictService.deleteSysDict(dictId);
+            return Response.noContent().build();
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Delete dict failed", ex);
+            return Response.status(resolveStatus(ex)).build();
         }
     }
 
     @GET
-    @Path("/pageSize")
+    @Path("/dicts/{dictId}")
     @RunOnVirtualThread
-    public Response getPageSize() {
-        int pageSize = systemSettingsService.getPageSize();
-        return Response.ok(pageSize).build();
-    }
-
-    @GET
-    @Path("/smtpServer")
-    @RunOnVirtualThread
-    public Response getSmtpServer() {
-        String smtpServer = systemSettingsService.getSmtpServer();
-        if (smtpServer != null) {
-            return Response.ok(smtpServer).build();
-        } else {
-            return Response.status(Response.Status.NOT_FOUND).build();
+    public Response getDict(@PathParam("dictId") Integer dictId) {
+        try {
+            SysDict dict = sysDictService.findById(dictId);
+            return dict == null ? Response.status(Response.Status.NOT_FOUND).build() : Response.ok(dict).build();
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Get dict failed", ex);
+            return Response.status(resolveStatus(ex)).build();
         }
     }
 
     @GET
-    @Path("/emailAccount")
+    @Path("/dicts/search/type")
     @RunOnVirtualThread
-    public Response getEmailAccount() {
-        String emailAccount = systemSettingsService.getEmailAccount();
-        if (emailAccount != null) {
-            return Response.ok(emailAccount).build();
-        } else {
-            return Response.status(Response.Status.NOT_FOUND).build();
-        }
+    public Response searchDictByType(@QueryParam("dictType") String dictType,
+                                     @QueryParam("page") Integer page,
+                                     @QueryParam("size") Integer size) {
+        int resolvedPage = page == null ? 1 : page;
+        int resolvedSize = size == null ? 50 : size;
+        return Response.ok(sysDictService.searchByDictType(dictType, resolvedPage, resolvedSize)).build();
     }
 
     @GET
-    @Path("/emailPassword")
+    @Path("/dicts/search/code")
     @RunOnVirtualThread
-    public Response getEmailPassword() {
-        String emailPassword = systemSettingsService.getEmailPassword();
-        if (emailPassword != null) {
-            return Response.ok(emailPassword).build();
-        } else {
-            return Response.status(Response.Status.NOT_FOUND).build();
+    public Response searchDictByCode(@QueryParam("dictCode") String dictCode,
+                                     @QueryParam("page") Integer page,
+                                     @QueryParam("size") Integer size) {
+        int resolvedPage = page == null ? 1 : page;
+        int resolvedSize = size == null ? 50 : size;
+        return Response.ok(sysDictService.searchByDictCodePrefix(dictCode, resolvedPage, resolvedSize)).build();
+    }
+
+    @GET
+    @Path("/dicts/search/label/prefix")
+    @RunOnVirtualThread
+    public Response searchDictByLabelPrefix(@QueryParam("dictLabel") String dictLabel,
+                                            @QueryParam("page") Integer page,
+                                            @QueryParam("size") Integer size) {
+        int resolvedPage = page == null ? 1 : page;
+        int resolvedSize = size == null ? 50 : size;
+        return Response.ok(sysDictService.searchByDictLabelPrefix(dictLabel, resolvedPage, resolvedSize)).build();
+    }
+
+    @GET
+    @Path("/dicts/search/label/fuzzy")
+    @RunOnVirtualThread
+    public Response searchDictByLabelFuzzy(@QueryParam("dictLabel") String dictLabel,
+                                           @QueryParam("page") Integer page,
+                                           @QueryParam("size") Integer size) {
+        int resolvedPage = page == null ? 1 : page;
+        int resolvedSize = size == null ? 50 : size;
+        return Response.ok(sysDictService.searchByDictLabelFuzzy(dictLabel, resolvedPage, resolvedSize)).build();
+    }
+
+    @GET
+    @Path("/dicts/search/parent")
+    @RunOnVirtualThread
+    public Response searchDictByParent(@QueryParam("parentId") Integer parentId,
+                                       @QueryParam("page") Integer page,
+                                       @QueryParam("size") Integer size) {
+        int resolvedPage = page == null ? 1 : page;
+        int resolvedSize = size == null ? 50 : size;
+        return Response.ok(sysDictService.findByParentId(parentId, resolvedPage, resolvedSize)).build();
+    }
+
+    @GET
+    @Path("/dicts/search/default")
+    @RunOnVirtualThread
+    public Response searchDictByDefault(@QueryParam("isDefault") boolean isDefault,
+                                        @QueryParam("page") Integer page,
+                                        @QueryParam("size") Integer size) {
+        int resolvedPage = page == null ? 1 : page;
+        int resolvedSize = size == null ? 50 : size;
+        return Response.ok(sysDictService.searchByIsDefault(isDefault, resolvedPage, resolvedSize)).build();
+    }
+
+    @GET
+    @Path("/dicts/search/status")
+    @RunOnVirtualThread
+    public Response searchDictByStatus(@QueryParam("status") String status,
+                                       @QueryParam("page") Integer page,
+                                       @QueryParam("size") Integer size) {
+        int resolvedPage = page == null ? 1 : page;
+        int resolvedSize = size == null ? 50 : size;
+        return Response.ok(sysDictService.searchByStatus(status, resolvedPage, resolvedSize)).build();
+    }
+
+    @GET
+    @Path("/dicts")
+    @RunOnVirtualThread
+    public Response listDicts() {
+        try {
+            return Response.ok(sysDictService.findAll()).build();
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "List dicts failed", ex);
+            return Response.status(resolveStatus(ex)).build();
         }
+    }
+
+    private boolean hasKey(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private Response.Status resolveStatus(Exception ex) {
+        return (ex instanceof IllegalArgumentException || ex instanceof IllegalStateException)
+                ? Response.Status.BAD_REQUEST
+                : Response.Status.INTERNAL_SERVER_ERROR;
     }
 }

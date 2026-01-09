@@ -9,23 +9,23 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
- * 驾驶员信息实体类，对应数据库表 "driver_information"
- * 包含驾驶员的基本信息以及驾驶证相关信息
+ * 驾驶员信息实体类，对应数据库??"driver_information"
+ * 包含驾驶员的基本信息以及驾驶证相关信??
  */
 @Data
 @TableName("driver_information")
 public class DriverInformation implements Serializable {
     /**
-     * 序列化版本 UID，用于对象序列化
+     * 序列化版??UID，用于对象序列化
      */
     @Serial
     private static final long serialVersionUID = 1L;
 
     /**
-     * 驾驶员 ID，主键，自动生成
+     * 驾驶??ID，主键，自动生成
      */
     @TableId(value = "driver_id", type = IdType.AUTO)
-    private Integer driverId;
+    private Long driverId;
 
     /**
      * 姓名
@@ -34,25 +34,13 @@ public class DriverInformation implements Serializable {
     private String name;
 
     /**
-     * 身份证号码
+     * 身份证号??
      */
     @TableField("id_card_number")
     private String idCardNumber;
 
     /**
-     * 联系电话
-     */
-    @TableField("contact_number")
-    private String contactNumber;
-
-    /**
-     * 驾驶证号码
-     */
-    @TableField("driver_license_number")
-    private String driverLicenseNumber;
-
-    /**
-     * 性别
+     * 性别 (Male, Female)
      */
     @TableField("gender")
     private String gender;
@@ -64,19 +52,43 @@ public class DriverInformation implements Serializable {
     private LocalDate birthdate;
 
     /**
-     * 首次领取驾驶证日期
+     * 联系电话
+     */
+    @TableField("contact_number")
+    private String contactNumber;
+
+    /**
+     * 电子邮箱
+     */
+    @TableField("email")
+    private String email;
+
+    /**
+     * 联系地址
+     */
+    @TableField("address")
+    private String address;
+
+    /**
+     * 驾驶证号??
+     */
+    @TableField("driver_license_number")
+    private String driverLicenseNumber;
+
+    /**
+     * 准驾车型 (A1, A2, B1, B2, C1, C2??
+     */
+    @TableField("license_type")
+    private String licenseType;
+
+    /**
+     * 首次领取驾驶证日??
      */
     @TableField("first_license_date")
     private LocalDate firstLicenseDate;
 
     /**
-     * 允许驾驶的车辆类型
-     */
-    @TableField("allowed_vehicle_type")
-    private String allowedVehicleType;
-
-    /**
-     * 驾驶证发证日期
+     * 驾驶证签发日??
      */
     @TableField("issue_date")
     private LocalDate issueDate;
@@ -88,9 +100,64 @@ public class DriverInformation implements Serializable {
     private LocalDate expiryDate;
 
     /**
+     * 发证机关
+     */
+    @TableField("issuing_authority")
+    private String issuingAuthority;
+
+    /**
+     * 当前积分 (满分12??
+     */
+    @TableField("current_points")
+    private Integer currentPoints;
+
+    /**
+     * 累计扣分
+     */
+    @TableField("total_deducted_points")
+    private Integer totalDeductedPoints;
+
+    /**
+     * 驾驶证状??(Active, Suspended, Revoked, Expired)
+     */
+    @TableField("status")
+    private String status;
+
+    /**
+     * 创建时间
+     */
+    @TableField(value = "created_at", fill = FieldFill.INSERT)
+    private LocalDateTime createdAt;
+
+    /**
+     * 更新时间
+     */
+    @TableField(value = "updated_at", fill = FieldFill.INSERT_UPDATE)
+    private LocalDateTime updatedAt;
+
+    /**
+     * 创建??
+     */
+    @TableField("created_by")
+    private String createdBy;
+
+    /**
+     * 更新??
+     */
+    @TableField("updated_by")
+    private String updatedBy;
+
+    /**
      * 软删除时间戳
      */
     @TableField("deleted_at")
     @TableLogic(value = "null", delval = "now()")
     private LocalDateTime deletedAt;
+
+    /**
+     * 备注
+     */
+    @TableField("remarks")
+    private String remarks;
 }
+

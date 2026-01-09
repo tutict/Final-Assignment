@@ -1,126 +1,277 @@
 package finalassignmentbackend.config.login.jwt;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.JwtException;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
+import finalassignmentbackend.enums.DataScope;
+import finalassignmentbackend.enums.RoleType;
+import io.smallrye.jwt.auth.principal.JWTParser;
+import io.smallrye.jwt.auth.principal.ParseException;
+import io.smallrye.jwt.build.Jwt;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.eclipse.microprofile.jwt.JsonWebToken;
 
 import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 import java.util.Arrays;
 import java.util.Base64;
-import java.util.Date;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
-// Quarkus服务类，用于处理JWT的创建、验证和解析
 @ApplicationScoped
 public class TokenProvider {
 
-    // 日志记录器，用于记录JWT处理过程中的信息
     private static final Logger LOG = Logger.getLogger(TokenProvider.class.getName());
 
-    // 注入配置属性：JWT密钥（Base64编码）
     @ConfigProperty(name = "jwt.secret.key")
     String base64Secret;
 
-    // JWT签名使用的密钥
+    @Inject
+    JWTParser jwtParser;
+
     private SecretKey secretKey;
 
-    // 初始化方法，解码Base64密钥并生成SecretKey
+    private static final Map<String, RoleMetadata> ROLE_SCHEMA;
+
+    static {
+        Map<String, RoleMetadata> schema = new LinkedHashMap<>();
+        schema.put("SUPER_ADMIN", new RoleMetadata(RoleType.SYSTEM, DataScope.ALL));
+        schema.put("ADMIN", new RoleMetadata(RoleType.SYSTEM, DataScope.ALL));
+        schema.put("TRAFFIC_POLICE", new RoleMetadata(RoleType.BUSINESS, DataScope.DEPARTMENT));
+        schema.put("FINANCE", new RoleMetadata(RoleType.BUSINESS, DataScope.DEPARTMENT));
+        schema.put("APPEAL_REVIEWER", new RoleMetadata(RoleType.BUSINESS, DataScope.DEPARTMENT));
+        ROLE_SCHEMA = Collections.unmodifiableMap(schema);
+    }
+
     @PostConstruct
     public void init() {
-        // 将Base64编码的密钥解码为字节数组
         byte[] keyBytes = Base64.getDecoder().decode(base64Secret);
-        // 使用Keys工具类生成HMAC-SHA256的SecretKey
-        this.secretKey = Keys.hmacShaKeyFor(keyBytes);
-        LOG.info("TokenProvider已初始化，使用HS256密钥");
+        this.secretKey = new SecretKeySpec(keyBytes, "HmacSHA256");
+        LOG.info("TokenProvider initialized with HS256 secret key");
     }
 
-    /**
-     * 创建JWT令牌，并将角色作为claim存入
-     *
-     * @param username 用户名（主体）
-     * @param roles    用户角色，如 "USER" 或 "ADMIN"，多个角色以逗号分隔
-     * @return 生成的JWT令牌
-     */
     public String createToken(String username, String roles) {
-        long now = System.currentTimeMillis();
-        Date expirationDate = new Date(now + 86400000L); // 令牌有效期24小时
-
-        return Jwts.builder()
+        if (!validateRoleCodes(roles)) {
+            throw new IllegalArgumentException("Invalid role codes provided for token creation");
+        }
+        String normalizedRoles = String.join(",", normalizeRoleCodes(roles));
+        Instant now = Instant.now();
+        return Jwt.claims()
                 .subject(username)
-                .claim("roles", roles) // 将角色加入到token中
-                .issuedAt(new Date(now))
-                .expiration(expirationDate)
-                .signWith(secretKey)
-                .compact();
+                .claim("roles", normalizedRoles)
+                .issuedAt(now)
+                .expiresAt(now.plus(Duration.ofDays(1)))
+                .sign(secretKey);
     }
 
-    /**
-     * 验证JWT令牌
-     *
-     * @param token 令牌字符串
-     * @return 若令牌有效返回true，否则返回false
-     */
+    public String createEnhancedToken(String username, String roleCodes, String roleTypes, String dataScope) {
+        if (!validateRoleClaims(roleCodes, roleTypes, dataScope)) {
+            throw new IllegalArgumentException("Role claims do not match the schema");
+        }
+        String normalizedRoles = String.join(",", normalizeRoleCodes(roleCodes));
+        Instant now = Instant.now();
+        return Jwt.claims()
+                .subject(username)
+                .claim("roles", normalizedRoles)
+                .claim("roleTypes", roleTypes)
+                .claim("dataScope", dataScope)
+                .issuedAt(now)
+                .expiresAt(now.plus(Duration.ofDays(1)))
+                .sign(secretKey);
+    }
+
     public boolean validateToken(String token) {
         try {
-            Jwts.parser()
-                    .verifyWith(secretKey)
-                    .build()
-                    .parseSignedClaims(token);
-            LOG.log(Level.INFO, "令牌验证成功: {0}", token);
+            jwtParser.verify(token, secretKey);
+            LOG.log(Level.INFO, "Token validated successfully: {0}", token);
             return true;
-        } catch (JwtException e) {
-            LOG.log(Level.WARNING, "无效的令牌: {0}", e.getMessage());
+        } catch (ParseException e) {
+            LOG.log(Level.WARNING, "Invalid token: {0}", e.getMessage());
             return false;
         }
     }
 
-    /**
-     * 从JWT中提取角色列表
-     *
-     * @param token 令牌字符串
-     * @return 角色列表，例如 ["ROLE_USER", "ROLE_ADMIN"]
-     */
     public List<String> extractRoles(String token) {
         try {
-            Claims claims = Jwts.parser()
-                    .verifyWith(secretKey)
-                    .build()
-                    .parseSignedClaims(token)
-                    .getPayload();
-            String roles = claims.get("roles", String.class);
+            JsonWebToken jwt = jwtParser.verify(token, secretKey);
+            String roles = jwt.getClaim("roles");
             if (roles != null && !roles.isEmpty()) {
-                return Arrays.stream(roles.split(","))
-                        .map(String::trim)
+                return normalizeRoleCodes(roles).stream()
+                        .filter(this::isRoleDefined)
                         .map(role -> "ROLE_" + role)
                         .collect(Collectors.toList());
             }
             return List.of();
-        } catch (JwtException e) {
-            LOG.log(Level.WARNING, "从令牌提取角色失败: {0}", e.getMessage());
+        } catch (ParseException e) {
+            LOG.log(Level.WARNING, "Failed to extract roles from token: {0}", e.getMessage());
             return List.of();
         }
     }
 
-    /**
-     * 从JWT中提取用户名
-     *
-     * @param token 令牌字符串
-     * @return 用户名
-     */
     public String getUsernameFromToken(String token) {
-        Claims claims = Jwts.parser()
-                .verifyWith(secretKey)
-                .build()
-                .parseSignedClaims(token)
-                .getPayload();
-        return claims.getSubject();
+        try {
+            return jwtParser.verify(token, secretKey).getSubject();
+        } catch (ParseException e) {
+            LOG.log(Level.WARNING, "Failed to extract subject from token: {0}", e.getMessage());
+            return null;
+        }
+    }
+
+    public List<RoleType> extractRoleTypes(String token) {
+        try {
+            JsonWebToken jwt = jwtParser.verify(token, secretKey);
+            String roleTypes = jwt.getClaim("roleTypes");
+            if (roleTypes != null && !roleTypes.isEmpty()) {
+                return Arrays.stream(roleTypes.split(","))
+                        .map(String::trim)
+                        .map(RoleType::fromCode)
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toList());
+            }
+            return List.of();
+        } catch (ParseException e) {
+            LOG.log(Level.WARNING, "Failed to extract role types from token: {0}", e.getMessage());
+            return List.of();
+        }
+    }
+
+    public DataScope extractDataScope(String token) {
+        try {
+            JsonWebToken jwt = jwtParser.verify(token, secretKey);
+            String dataScope = jwt.getClaim("dataScope");
+            return DataScope.fromCode(dataScope);
+        } catch (ParseException e) {
+            LOG.log(Level.WARNING, "Failed to extract data scope from token: {0}", e.getMessage());
+            return null;
+        }
+    }
+
+    public boolean hasRoleType(String token, RoleType roleType) {
+        return extractRoleTypes(token).contains(roleType);
+    }
+
+    public boolean hasSystemRole(String token) {
+        return hasRoleType(token, RoleType.SYSTEM);
+    }
+
+    public boolean hasBusinessRole(String token) {
+        return hasRoleType(token, RoleType.BUSINESS);
+    }
+
+    public boolean hasDataScopePermission(String token, DataScope requiredDataScope) {
+        DataScope userScope = extractDataScope(token);
+        if (userScope == null) {
+            return false;
+        }
+        return userScope.includes(requiredDataScope);
+    }
+
+    public boolean validateRoleCodes(String roleCodes) {
+        List<String> normalized = normalizeRoleCodes(roleCodes);
+        if (normalized.isEmpty()) {
+            return false;
+        }
+        boolean valid = normalized.stream().allMatch(this::isRoleDefined);
+        if (!valid) {
+            LOG.log(Level.WARNING, "Detected undefined role codes: {0}", normalized);
+        }
+        return valid;
+    }
+
+    public boolean validateRoleClaims(String roleCodes, String roleTypes, String dataScope) {
+        if (!validateRoleCodes(roleCodes)) {
+            return false;
+        }
+        if (!validateRoleTypes(roleTypes) || !validateDataScope(dataScope)) {
+            return false;
+        }
+
+        DataScope requestedScope = DataScope.fromCode(dataScope);
+        if (requestedScope == null) {
+            return false;
+        }
+
+        Set<RoleType> requestedTypes = Arrays.stream(roleTypes.split(","))
+                .map(String::trim)
+                .map(RoleType::fromCode)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        for (String roleCode : normalizeRoleCodes(roleCodes)) {
+            RoleMetadata metadata = ROLE_SCHEMA.get(roleCode);
+            if (metadata == null) {
+                LOG.log(Level.WARNING, "Role {0} not defined in schema", roleCode);
+                return false;
+            }
+            if (!requestedTypes.contains(metadata.getRoleType())) {
+                LOG.log(Level.WARNING,
+                        "Role type {0} missing from claim for role {1}",
+                        new Object[]{metadata.getRoleType().getCode(), roleCode});
+                return false;
+            }
+            if (!requestedScope.includes(metadata.getDataScope())) {
+                LOG.log(Level.WARNING,
+                        "Data scope {0} does not cover required scope {1} for role {2}",
+                        new Object[]{requestedScope.getCode(), metadata.getDataScope().getCode(), roleCode});
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public boolean validateRoleTypes(String roleTypes) {
+        if (roleTypes == null || roleTypes.trim().isEmpty()) {
+            return false;
+        }
+        return Arrays.stream(roleTypes.split(","))
+                .map(String::trim)
+                .allMatch(RoleType::isValid);
+    }
+
+    public boolean validateDataScope(String dataScope) {
+        return DataScope.isValid(dataScope);
+    }
+
+    private List<String> normalizeRoleCodes(String roleCodes) {
+        if (roleCodes == null) {
+            return List.of();
+        }
+        return Arrays.stream(roleCodes.split(","))
+                .map(code -> code.trim().toUpperCase(Locale.ROOT))
+                .filter(code -> !code.isEmpty())
+                .collect(Collectors.toList());
+    }
+
+    private boolean isRoleDefined(String roleCode) {
+        return ROLE_SCHEMA.containsKey(roleCode);
+    }
+
+    private static final class RoleMetadata {
+        private final RoleType roleType;
+        private final DataScope dataScope;
+
+        private RoleMetadata(RoleType roleType, DataScope dataScope) {
+            this.roleType = roleType;
+            this.dataScope = dataScope;
+        }
+
+        RoleType getRoleType() {
+            return roleType;
+        }
+
+        DataScope getDataScope() {
+            return dataScope;
+        }
     }
 }

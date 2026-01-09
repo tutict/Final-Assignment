@@ -7,3 +7,5 @@ import org.apache.ibatis.annotations.Mapper;
 @Mapper
 public interface DriverInformationMapper extends BaseMapper<DriverInformation> {
 }
+
+

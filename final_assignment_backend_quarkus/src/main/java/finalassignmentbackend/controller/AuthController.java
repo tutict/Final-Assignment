@@ -1,9 +1,9 @@
 package finalassignmentbackend.controller;
 
+import finalassignmentbackend.entity.SysUser;
 import finalassignmentbackend.service.AuthWsService;
 import finalassignmentbackend.service.AuthWsService.LoginRequest;
 import finalassignmentbackend.service.AuthWsService.RegisterRequest;
-import finalassignmentbackend.entity.UserManagement;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.annotation.security.PermitAll;
 import jakarta.annotation.security.RolesAllowed;
@@ -20,15 +20,16 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 @Path("/api/auth")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
-@Tag(name = "Authentication", description = "Authentication Controller for user authentication and registration")
+@Tag(name = "Authentication", description = "Authentication endpoints for login and registration")
 public class AuthController {
 
-    private static final Logger logger = Logger.getLogger(AuthController.class.getName());
+    private static final Logger LOG = Logger.getLogger(AuthController.class.getName());
 
     @Inject
     AuthWsService authWsService;
@@ -38,16 +39,19 @@ public class AuthController {
     @PermitAll
     @RunOnVirtualThread
     public Response login(LoginRequest loginRequest) {
+        if (loginRequest == null || loginRequest.getUsername() == null || loginRequest.getPassword() == null) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(Map.of("error", "Username and password are required"))
+                    .build();
+        }
         try {
             Map<String, Object> result = authWsService.login(loginRequest);
-            if (result.containsKey("jwtToken")) {
-                return Response.ok(result).build();
-            } else {
-                return Response.status(Response.Status.UNAUTHORIZED).entity(result).build();
-            }
+            return Response.ok(result).build();
         } catch (Exception e) {
-            logger.warning("Login failed: " + e.getMessage());
-            return Response.status(Response.Status.UNAUTHORIZED).entity(Map.of("error", e.getMessage())).build();
+            LOG.log(Level.WARNING, "Login failed: {0}", e.getMessage());
+            return Response.status(Response.Status.UNAUTHORIZED)
+                    .entity(Map.of("error", e.getMessage()))
+                    .build();
         }
     }
 
@@ -59,24 +63,34 @@ public class AuthController {
     public Response registerUser(RegisterRequest registerRequest) {
         try {
             String res = authWsService.registerUser(registerRequest);
-            return Response.status(Response.Status.CREATED).entity(Map.of("status", res)).build();
+            return Response.status(Response.Status.CREATED)
+                    .entity(Map.of("status", res))
+                    .build();
+        } catch (IllegalArgumentException e) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(Map.of("error", e.getMessage()))
+                    .build();
         } catch (Exception e) {
-            logger.warning("Register failed: " + e.getMessage());
-            return Response.status(Response.Status.CONFLICT).entity(Map.of("error", e.getMessage())).build();
+            LOG.log(Level.WARNING, "Register failed: {0}", e.getMessage());
+            return Response.status(Response.Status.CONFLICT)
+                    .entity(Map.of("error", e.getMessage()))
+                    .build();
         }
     }
 
     @GET
     @Path("/users")
-    @RolesAllowed("ADMIN")
+    @RolesAllowed({"SUPER_ADMIN", "ADMIN"})
     @RunOnVirtualThread
     public Response getAllUsers() {
         try {
-            List<UserManagement> users = authWsService.getAllUsers();
+            List<SysUser> users = authWsService.getAllUsers();
             return Response.ok(users).build();
         } catch (Exception e) {
-            logger.warning("GetAllUsers failed: " + e.getMessage());
-            return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity(Map.of("error", e.getMessage())).build();
+            LOG.log(Level.SEVERE, "GetAllUsers failed: {0}", e.getMessage());
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                    .entity(Map.of("error", e.getMessage()))
+                    .build();
         }
     }
 }

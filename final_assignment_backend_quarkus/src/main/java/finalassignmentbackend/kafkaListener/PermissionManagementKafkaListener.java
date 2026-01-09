@@ -1,8 +1,8 @@
 package finalassignmentbackend.kafkaListener;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import finalassignmentbackend.entity.PermissionManagement;
-import finalassignmentbackend.service.PermissionManagementService;
+import finalassignmentbackend.entity.SysPermission;
+import finalassignmentbackend.service.SysPermissionService;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -12,71 +12,57 @@ import org.eclipse.microprofile.reactive.messaging.Incoming;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-// Kafka监听器类，用于处理权限管理的消息
+// Kafka listener for permission messages (new schema)
 @ApplicationScoped
 public class PermissionManagementKafkaListener {
 
-    // 日志记录器，用于记录处理过程中的信息
     private static final Logger log = Logger.getLogger(PermissionManagementKafkaListener.class.getName());
 
-    // 注入权限管理服务
     @Inject
-    PermissionManagementService permissionManagementService;
+    SysPermissionService sysPermissionService;
 
-    // 注入JSON对象映射器
     @Inject
     ObjectMapper objectMapper;
 
-    // 监听"permission_create"主题的消息，处理权限创建
     @Incoming("permission_create")
     @Transactional
     @RunOnVirtualThread
     public void onPermissionCreateReceived(String message) {
-        log.log(Level.INFO, "收到Kafka创建消息: {0}", message);
-        processMessage(message, "create", permissionManagementService::createPermission);
+        log.log(Level.INFO, "Received Kafka create message: {0}", message);
+        processMessage(message, "create", sysPermissionService::createSysPermission);
     }
 
-    // 监听"permission_update"主题的消息，处理权限更新
     @Incoming("permission_update")
     @Transactional
     @RunOnVirtualThread
     public void onPermissionUpdateReceived(String message) {
-        log.log(Level.INFO, "收到Kafka更新消息: {0}", message);
-        processMessage(message, "update", permissionManagementService::updatePermission);
+        log.log(Level.INFO, "Received Kafka update message: {0}", message);
+        processMessage(message, "update", sysPermissionService::updateSysPermission);
     }
 
-    // 处理Kafka消息的通用方法
-    private void processMessage(String message, String action, MessageProcessor<PermissionManagement> processor) {
+    private void processMessage(String message, String action, MessageProcessor<SysPermission> processor) {
         try {
-            // 反序列化消息为权限管理对象
-            PermissionManagement permission = deserializeMessage(message);
-            log.log(Level.INFO, "反序列化权限管理对象: {0}", permission);
-            // 对于创建操作，重置权限ID
+            SysPermission permission = deserializeMessage(message);
             if ("create".equals(action)) {
                 permission.setPermissionId(null);
             }
-            // 执行消息处理逻辑
             processor.process(permission);
-            log.info(String.format("权限%s操作处理成功: %s", action, permission));
+            log.info(String.format("Permission %s processed: %s", action, permission));
         } catch (Exception e) {
-            // 记录处理错误日志
-            log.log(Level.SEVERE, String.format("处理%s权限消息时出错: %s", action, message), e);
-            throw new RuntimeException(String.format("无法处理%s权限消息", action), e);
+            log.log(Level.SEVERE, String.format("Failed to process permission %s message: %s", action, message), e);
+            throw new RuntimeException(String.format("Failed to process permission %s message", action), e);
         }
     }
 
-    // 将消息反序列化为权限管理对象
-    private PermissionManagement deserializeMessage(String message) {
+    private SysPermission deserializeMessage(String message) {
         try {
-            return objectMapper.readValue(message, PermissionManagement.class);
+            return objectMapper.readValue(message, SysPermission.class);
         } catch (Exception e) {
-            // 记录反序列化错误日志
-            log.log(Level.SEVERE, "反序列化消息失败: {0}", message);
-            throw new RuntimeException("反序列化消息失败", e);
+            log.log(Level.SEVERE, "Failed to deserialize message: {0}", message);
+            throw new RuntimeException("Failed to deserialize message", e);
         }
     }
 
-    // 函数式接口，用于定义消息处理逻辑
     @FunctionalInterface
     private interface MessageProcessor<T> {
         void process(T t) throws Exception;
