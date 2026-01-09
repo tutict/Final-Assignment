@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'dart:developer' as developer;
 
-import 'package:final_assignment_front/config/routes/app_pages.dart';
+import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/features/api/system_logs_controller_api.dart';
-import 'package:final_assignment_front/features/dashboard/views/manager/manager_dashboard_screen.dart';
+import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/model/login_log.dart';
 import 'package:final_assignment_front/features/model/operation_log.dart';
@@ -18,7 +18,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
 String formatDateTime(DateTime? dateTime) {
-  if (dateTime == null) return 'æªæä¾';
+  if (dateTime == null) return '未提供';
   return DateFormat('yyyy-MM-dd HH:mm:ss').format(dateTime);
 }
 
@@ -54,10 +54,9 @@ class _SystemLogPageState extends State<SystemLogPage> {
   }
 
   Future<bool> _validateJwtToken() async {
-    final prefs = await SharedPreferences.getInstance();
     String? jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null || jwtToken.isEmpty) {
-      setState(() => _errorMessage = 'æªææï¼è¯·éæ°ç»å½');
+      setState(() => _errorMessage = '未授权，请重新登录');
       return false;
     }
     try {
@@ -65,7 +64,7 @@ class _SystemLogPageState extends State<SystemLogPage> {
       if (JwtDecoder.isExpired(jwtToken)) {
         jwtToken = await _refreshJwtToken();
         if (jwtToken == null || JwtDecoder.isExpired(jwtToken)) {
-          setState(() => _errorMessage = 'ç»å½å·²è¿æï¼è¯·éæ°ç»å½');
+          setState(() => _errorMessage = '登录已过期，请重新登录');
           return false;
         }
         await AuthTokenStore.instance.setJwtToken(jwtToken);
@@ -73,7 +72,7 @@ class _SystemLogPageState extends State<SystemLogPage> {
       }
       return true;
     } catch (_) {
-      setState(() => _errorMessage = 'æ æçç»å½ä¿¡æ¯ï¼è¯·éæ°ç»å½');
+      setState(() => _errorMessage = '无效的登录信息，请重新登录');
       return false;
     }
   }
@@ -109,7 +108,7 @@ class _SystemLogPageState extends State<SystemLogPage> {
     });
     try {
       if (!await _validateJwtToken()) {
-        Get.offAllNamed(AppPages.login);
+        Get.offAllNamed(Routes.login);
         return;
       }
       await logApi.initializeWithJwt();
@@ -117,11 +116,10 @@ class _SystemLogPageState extends State<SystemLogPage> {
       if (_isAdmin) {
         await _fetchSystemLogData(showLoader: false);
       } else {
-        setState(() => _errorMessage = 'æéä¸è¶³ï¼ä»
-ç®¡çåå¯è®¿é®æ­¤é¡µé¢');
+        setState(() => _errorMessage = '权限不足：仅管理员可访问此页面');
       }
     } catch (e) {
-      setState(() => _errorMessage = 'åå§åå¤±è´¥: $e');
+      setState(() => _errorMessage = '初始化失败: $e');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -129,7 +127,6 @@ class _SystemLogPageState extends State<SystemLogPage> {
 
   Future<void> _checkUserRole() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
       final jwtToken = (await AuthTokenStore.instance.getJwtToken());
       if (jwtToken == null) {
         setState(() => _isAdmin = false);
@@ -143,11 +140,10 @@ class _SystemLogPageState extends State<SystemLogPage> {
               : [];
       setState(() => _isAdmin = roles.contains('ADMIN'));
       if (!_isAdmin) {
-        _errorMessage = 'æéä¸è¶³ï¼ä»
-ç®¡çåå¯è®¿é®æ­¤é¡µé¢';
+        _errorMessage = '权限不足：仅管理员可访问此页面';
       }
     } catch (e) {
-      setState(() => _errorMessage = 'éªè¯è§è²å¤±è´¥: $e');
+      setState(() => _errorMessage = '验证角色失败: $e');
       developer.log('Error checking user role: $e',
           stackTrace: StackTrace.current);
     }
@@ -163,7 +159,7 @@ class _SystemLogPageState extends State<SystemLogPage> {
     }
     try {
       if (!await _validateJwtToken()) {
-        Get.offAllNamed(AppPages.login);
+        Get.offAllNamed(Routes.login);
         return;
       }
       await logApi.initializeWithJwt();
@@ -182,10 +178,10 @@ class _SystemLogPageState extends State<SystemLogPage> {
           stackTrace: StackTrace.current);
       setState(() {
         if (e is ApiException && e.code == 403) {
-          _errorMessage = 'æªææï¼è¯·éæ°ç»å½';
-          Get.offAllNamed(AppPages.login);
+          _errorMessage = '未授权，请重新登录';
+          Get.offAllNamed(Routes.login);
         } else {
-          _errorMessage = 'å è½½ç³»ç»æ¥å¿å¤±è´¥: ${_formatErrorMessage(e)}';
+          _errorMessage = '加载系统日志失败: ${_formatErrorMessage(e)}';
         }
       });
     } finally {
@@ -218,25 +214,25 @@ class _SystemLogPageState extends State<SystemLogPage> {
     if (log.deviceType != null && log.deviceType!.isNotEmpty) {
       parts.add(log.deviceType!);
     }
-    return parts.isEmpty ? 'æªç¥' : parts.join(' / ');
+    return parts.isEmpty ? '未知' : parts.join(' / ');
   }
 
   String _formatErrorMessage(dynamic error) {
     if (error is ApiException) {
       switch (error.code) {
         case 400:
-          return 'è¯·æ±éè¯¯: ${error.message}';
+          return '请求错误: ${error.message}';
         case 403:
-          return 'æ æé: ${error.message}';
+          return '无权限: ${error.message}';
         case 404:
-          return 'æªæ¾å°æ°æ®: ${error.message}';
+          return '未找到数据: ${error.message}';
         case 409:
-          return 'éå¤è¯·æ±: ${error.message}';
+          return '重复请求: ${error.message}';
         default:
-          return 'æå¡å¨éè¯¯: ${error.message}';
+          return '服务器错误: ${error.message}';
       }
     }
-    return 'æä½å¤±è´¥: $error';
+    return '操作失败: $error';
   }
 
   Widget _buildWarningCard(ThemeData themeData) {
@@ -276,7 +272,7 @@ class _SystemLogPageState extends State<SystemLogPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'ç³»ç»æ¦è§',
+              '系统概览',
               style: themeData.textTheme.titleMedium?.copyWith(
                 color: themeData.colorScheme.onSurface,
                 fontWeight: FontWeight.bold,
@@ -284,7 +280,7 @@ class _SystemLogPageState extends State<SystemLogPage> {
             ),
             const SizedBox(height: 12),
             if (_overviewData.isEmpty)
-              _buildEmptySection(themeData, 'ææ ç³»ç»æ¦è§æ°æ®')
+              _buildEmptySection(themeData, '暂无系统概览数据')
             else
               Wrap(
                 spacing: 12,
@@ -363,7 +359,7 @@ class _SystemLogPageState extends State<SystemLogPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'è¿æç»å½æ¥å¿',
+              '近期登录日志',
               style: themeData.textTheme.titleMedium?.copyWith(
                 color: themeData.colorScheme.onSurface,
                 fontWeight: FontWeight.bold,
@@ -371,7 +367,7 @@ class _SystemLogPageState extends State<SystemLogPage> {
             ),
             const SizedBox(height: 12),
             if (_recentLoginLogs.isEmpty)
-              _buildEmptySection(themeData, 'ææ ç»å½æ¥å¿')
+              _buildEmptySection(themeData, '暂无登录日志')
             else
               ..._recentLoginLogs.asMap().entries.map((entry) {
                 return Column(
@@ -398,7 +394,7 @@ class _SystemLogPageState extends State<SystemLogPage> {
     return ListTile(
       contentPadding: EdgeInsets.zero,
       title: Text(
-        log.username ?? 'æªç¥ç¨æ·',
+        log.username ?? '未知用户',
         style: themeData.textTheme.titleMedium?.copyWith(
           color: themeData.colorScheme.onSurface,
           fontWeight: FontWeight.w600,
@@ -407,13 +403,13 @@ class _SystemLogPageState extends State<SystemLogPage> {
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('ç»æ: ${log.loginResult ?? "æªç¥"}', style: subtitleStyle),
-          Text('IP: ${log.loginIp ?? "æªç¥"}', style: subtitleStyle),
+          Text('结果: ${log.loginResult ?? "未知"}', style: subtitleStyle),
+          Text('IP: ${log.loginIp ?? "未知"}', style: subtitleStyle),
           if (log.loginLocation != null && log.loginLocation!.isNotEmpty)
-            Text('ä½ç½®: ${log.loginLocation}', style: subtitleStyle),
-          Text('ç»ç«¯: ${_buildDeviceInfo(log)}', style: subtitleStyle),
+            Text('位置: ${log.loginLocation}', style: subtitleStyle),
+          Text('终端: ${_buildDeviceInfo(log)}', style: subtitleStyle),
           if (log.remarks != null && log.remarks!.isNotEmpty)
-            Text('å¤æ³¨: ${log.remarks}', style: subtitleStyle),
+            Text('备注: ${log.remarks}', style: subtitleStyle),
         ],
       ),
       trailing: Text(
@@ -437,7 +433,7 @@ class _SystemLogPageState extends State<SystemLogPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'è¿ææä½æ¥å¿',
+              '近期操作日志',
               style: themeData.textTheme.titleMedium?.copyWith(
                 color: themeData.colorScheme.onSurface,
                 fontWeight: FontWeight.bold,
@@ -445,7 +441,7 @@ class _SystemLogPageState extends State<SystemLogPage> {
             ),
             const SizedBox(height: 12),
             if (_recentOperationLogs.isEmpty)
-              _buildEmptySection(themeData, 'ææ æä½æ¥å¿')
+              _buildEmptySection(themeData, '暂无操作日志')
             else
               ..._recentOperationLogs.asMap().entries.map((entry) {
                 return Column(
@@ -470,11 +466,11 @@ class _SystemLogPageState extends State<SystemLogPage> {
       color: themeData.colorScheme.onSurfaceVariant,
     );
     final userLabel =
-        log.username ?? log.realName ?? log.userId?.toString() ?? 'æªç¥ç¨æ·';
+        log.username ?? log.realName ?? log.userId?.toString() ?? '未知用户';
     return ListTile(
       contentPadding: EdgeInsets.zero,
       title: Text(
-        log.operationModule ?? log.operationFunction ?? 'æªç¥æ¨¡å',
+        log.operationModule ?? log.operationFunction ?? '未知模块',
         style: themeData.textTheme.titleMedium?.copyWith(
           color: themeData.colorScheme.onSurface,
           fontWeight: FontWeight.w600,
@@ -483,20 +479,19 @@ class _SystemLogPageState extends State<SystemLogPage> {
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('ç±»å: ${log.operationType ?? "æªç¥"}', style: subtitleStyle),
-          Text('ç¨æ·: $userLabel', style: subtitleStyle),
-          Text('ç»æ: ${log.operationResult ?? "æªç¥"}', style: subtitleStyle),
+          Text('类型: ${log.operationType ?? "未知"}', style: subtitleStyle),
+          Text('用户: $userLabel', style: subtitleStyle),
+          Text('结果: ${log.operationResult ?? "未知"}', style: subtitleStyle),
           if (log.operationContent != null && log.operationContent!.isNotEmpty)
             Text(
-              'å
-å®¹: ${log.operationContent}',
+              '内容: ${log.operationContent}',
               style: subtitleStyle,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
-          Text('IP: ${log.requestIp ?? "æªç¥"}', style: subtitleStyle),
+          Text('IP: ${log.requestIp ?? "未知"}', style: subtitleStyle),
           if (log.remarks != null && log.remarks!.isNotEmpty)
-            Text('å¤æ³¨: ${log.remarks}', style: subtitleStyle),
+            Text('备注: ${log.remarks}', style: subtitleStyle),
         ],
       ),
       trailing: Text(
@@ -532,7 +527,7 @@ class _SystemLogPageState extends State<SystemLogPage> {
             ),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: () => Get.offAllNamed(AppPages.login),
+              onPressed: () => Get.offAllNamed(Routes.login),
               style: ElevatedButton.styleFrom(
                 backgroundColor: themeData.colorScheme.primary,
                 foregroundColor: themeData.colorScheme.onPrimary,
@@ -540,7 +535,7 @@ class _SystemLogPageState extends State<SystemLogPage> {
                   borderRadius: BorderRadius.circular(12.0),
                 ),
               ),
-              child: const Text('éæ°ç»å½'),
+              child: const Text('重新登录'),
             ),
           ],
         ),
@@ -561,7 +556,7 @@ class _SystemLogPageState extends State<SystemLogPage> {
       final showBlockingError = _errorMessage.isNotEmpty && !_hasData();
       return DashboardPageTemplate(
         theme: themeData,
-        title: 'ç³»ç»æ¥å¿',
+        title: '系统日志',
         pageType: DashboardPageType.manager,
         bodyIsScrollable: true,
         padding: EdgeInsets.zero,

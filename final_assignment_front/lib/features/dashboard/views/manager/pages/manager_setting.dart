@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/Get.dart';
-import 'package:final_assignment_front/config/routes/app_pages.dart';
+import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/chat_controller.dart';
-import 'package:final_assignment_front/features/dashboard/views/manager/manager_dashboard_screen.dart';
+import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
@@ -37,7 +37,7 @@ class _ManageSettingPage extends State<ManagerSetting> {
       final chatController = Get.find<ChatController>();
       chatController.clearMessages();
     }
-    Get.offAllNamed(AppPages.login);
+    Get.offAllNamed(Routes.login);
   }
 
   void _saveSettings() {

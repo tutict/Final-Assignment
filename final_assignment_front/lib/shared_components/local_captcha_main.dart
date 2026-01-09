@@ -1,7 +1,7 @@
 // ignore_for_file: use_build_context_synchronously
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:final_assignment_front/features/dashboard/views/user/user_dashboard.dart';
+import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
 import 'package:get/get.dart';
 import 'package:local_captcha/local_captcha.dart';
 

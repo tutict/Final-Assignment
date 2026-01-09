@@ -1,7 +1,7 @@
 import 'package:final_assignment_front/features/dashboard/views/user/pages/main_process/user_offense_list_page.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:final_assignment_front/features/dashboard/views/user/user_dashboard.dart';
+import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/user/pages/main_process/fine_information.dart';
 import 'package:final_assignment_front/features/dashboard/views/user/pages/main_process/user_appeal.dart';
 import 'package:final_assignment_front/features/dashboard/views/user/pages/main_process/vehicle_management.dart';

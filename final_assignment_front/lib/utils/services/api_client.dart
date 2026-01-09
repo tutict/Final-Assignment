@@ -10,14 +10,9 @@ import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:final_assignment_front/utils/services/authentication.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 import 'package:final_assignment_front/utils/services/http_bearer_auth.dart';
+import 'package:final_assignment_front/utils/services/query_param.dart';
 
-/// Simple query param holder
-class QueryParam {
-  String name;
-  String value;
-
-  QueryParam(this.name, this.value);
-}
+export 'package:final_assignment_front/utils/services/query_param.dart';
 
 /// Generic API client for HTTP/WebSocket
 class ApiClient {

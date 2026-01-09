@@ -5,13 +5,16 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
-/// å®ä¹ä¸ä¸ªå¨å±ç?defaultApiClient
+/// å®ä¹ä¸ä¸ªå
+// ¨å±ç?defaultApiClient
 final ApiClient defaultApiClient = ApiClient();
 
 class RoleManagementControllerApi {
   final ApiClient apiClient;
 
-  /// æé å½æ°ï¼å¯ä¼ å?ApiClientï¼å¦åä½¿ç¨å¨å±é»è®¤å®ä¾
+  /// æé å½æ°ï¼å¯ä¼ å
+// ?ApiClientï¼å¦åä½¿ç¨å
+// ¨å±é»è®¤å®ä¾
   RoleManagementControllerApi([ApiClient? apiClient])
       : apiClient = apiClient ?? defaultApiClient;
 
@@ -19,7 +22,7 @@ class RoleManagementControllerApi {
   Future<void> initializeWithJwt() async {
       final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
-      throw Exception('æªç»å½ï¼è¯·éæ°ç»å½?);
+      throw Exception('Not authenticated. Please log in again.');
     }
     apiClient.setJwtToken(jwtToken);
     debugPrint('Initialized RoleManagementControllerApi with token: $jwtToken');
@@ -28,7 +31,8 @@ class RoleManagementControllerApi {
   /// è§£ç ååºä½å­èå°å­ç¬¦ä¸?
   String _decodeBodyBytes(http.Response response) => response.body;
 
-  /// è¾å©æ¹æ³ï¼æ·»å æ¥è¯¢åæ°ï¼å¦åç§°æç´¢ï¼
+  /// è¾
+// å©æ¹æ³ï¼æ·»å æ¥è¯¢åæ°ï¼å¦åç§°æç´¢ï¼
   List<QueryParam> _addQueryParams({String? name, String? idempotencyKey}) {
     final queryParams = <QueryParam>[];
     if (name != null) queryParams.add(QueryParam('name', name));
@@ -117,7 +121,8 @@ class RoleManagementControllerApi {
     return RoleManagement.fromJson(data);
   }
 
-  /// GET /api/roles/search - æ ¹æ®è§è²åç§°æ¨¡ç³å¹éè·åè§è²ä¿¡æ¯ (USER å?ADMIN)
+  /// GET /api/roles/search - æ ¹æ®è§è²åç§°æ¨¡ç³å¹é
+// è·åè§è²ä¿¡æ¯ (USER å?ADMIN)
   Future<List<RoleManagement>> apiRolesSearchGet({String? name}) async {
     final response = await apiClient.invokeAPI(
       '/api/roles/search',
@@ -563,7 +568,8 @@ class RoleManagementControllerApi {
     return RoleManagement.listFromJson(data);
   }
 
-  // HTTP: GET /api/roles/{roleId}/permissions - æ¥è¯¢è§è²æ¥æçæé?  Future<List<dynamic>> apiRolesRoleIdPermissionsGet({
+  // HTTP: GET /api/roles/{roleId}/permissions - æ¥è¯¢è§è²æ¥æçæé?
+  Future<List<dynamic>> apiRolesRoleIdPermissionsGet({
     required int roleId,
     int page = 1,
     int size = 50,

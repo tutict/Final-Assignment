@@ -1,6 +1,6 @@
-import 'package:final_assignment_front/config/routes/app_pages.dart';
+import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/progress_controller.dart';
-import 'package:final_assignment_front/features/dashboard/views/manager/manager_dashboard_screen.dart';
+import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/model/appeal_record.dart';
 import 'package:final_assignment_front/utils/ui/ui_utils.dart';
@@ -181,7 +181,7 @@ class ProgressManagementPage extends StatelessWidget {
                                                   onSelected: (value) {
                                                     if (value == 'edit') {
                                                       Get.toNamed(
-                                                              AppPages
+                                                              Routes
                                                                   .progressDetailPage,
                                                               arguments: item)
                                                           ?.then((result) {
@@ -297,7 +297,7 @@ class ProgressManagementPage extends StatelessWidget {
                                                 )
                                               : null,
                                           onTap: () => Get.toNamed(
-                                                  AppPages.progressDetailPage,
+                                                  Routes.progressDetailPage,
                                                   arguments: item)
                                               ?.then((result) {
                                             if (result == true) {
@@ -357,7 +357,7 @@ class ProgressManagementPage extends StatelessWidget {
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8)),
                   ),
-                  value: selectedAppeal,
+                  initialValue: selectedAppeal,
                   items: controller.appeals.map((appeal) {
                     return DropdownMenuItem(
                       value: appeal,

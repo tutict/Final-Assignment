@@ -16,7 +16,7 @@ class VehicleInformationControllerApi {
   Future<void> initializeWithJwt() async {
       final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
-      throw Exception('æªç»å½ï¼è¯·éæ°ç»å½?);
+      throw Exception('Not authenticated. Please log in again.');
     }
     apiClient.setJwtToken(jwtToken);
     debugPrint('Initialized VehicleInformationControllerApi with token: $jwtToken');

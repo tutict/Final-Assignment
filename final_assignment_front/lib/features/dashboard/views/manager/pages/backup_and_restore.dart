@@ -1,5 +1,5 @@
 import 'package:final_assignment_front/features/api/backup_restore_controller_api.dart';
-import 'package:final_assignment_front/features/dashboard/views/manager/manager_dashboard_screen.dart';
+import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/model/backup_restore.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';

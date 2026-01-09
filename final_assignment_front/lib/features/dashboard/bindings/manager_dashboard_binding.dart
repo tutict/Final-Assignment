@@ -1,5 +1,6 @@
-// 导航到'../views/screens/manager_dashboard_screen.dart'文件以获取更多信息
-part of '../views/manager/manager_dashboard_screen.dart';
+import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
+import 'package:get/get.dart';
+
 
 /// [DashboardBinding]类负责管理[DashboardController]控制器的依赖注入
 class DashboardBinding extends Bindings {

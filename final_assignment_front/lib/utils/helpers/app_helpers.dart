@@ -1,4 +1,3 @@
-library app_helpers;
 
 import 'package:flutter/material.dart';
 

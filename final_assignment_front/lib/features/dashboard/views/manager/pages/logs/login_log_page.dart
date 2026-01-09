@@ -1,9 +1,9 @@
 // ignore_for_file: use_build_context_synchronously
 import 'dart:developer' as developer;
 
-import 'package:final_assignment_front/config/routes/app_pages.dart';
+import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/features/api/login_log_controller_api.dart';
-import 'package:final_assignment_front/features/dashboard/views/manager/manager_dashboard_screen.dart';
+import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/model/login_log.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
@@ -99,7 +99,7 @@ class _LoginLogPageState extends State<LoginLogPage> {
     setState(() => _isLoading = true);
     try {
       if (!await _validateJwtToken()) {
-        Get.offAllNamed(AppPages.login);
+        Get.offAllNamed(Routes.login);
         return;
       }
       await logApi.initializeWithJwt();
@@ -119,7 +119,7 @@ class _LoginLogPageState extends State<LoginLogPage> {
   Future<void> _checkUserRole() async {
     try {
       if (!await _validateJwtToken()) {
-        Get.offAllNamed(AppPages.login);
+        Get.offAllNamed(Routes.login);
         return;
       }
       final prefs = await SharedPreferences.getInstance();
@@ -159,7 +159,7 @@ class _LoginLogPageState extends State<LoginLogPage> {
 
     try {
       if (!await _validateJwtToken()) {
-        Get.offAllNamed(AppPages.login);
+        Get.offAllNamed(Routes.login);
         return;
       }
       final logs = await logApi.apiLogsLoginGet();
@@ -186,7 +186,7 @@ class _LoginLogPageState extends State<LoginLogPage> {
           _hasMore = false;
         } else if (e.toString().contains('403')) {
           _errorMessage = '未授权，请重新登录';
-          Get.offAllNamed(AppPages.login);
+          Get.offAllNamed(Routes.login);
         } else {
           _errorMessage = '加载日志信息失败: ${_formatErrorMessage(e)}';
         }
@@ -382,7 +382,7 @@ class _LoginLogPageState extends State<LoginLogPage> {
                 onPressed: () async {
                   if (formKey.currentState!.validate()) {
                     if (!await _validateJwtToken()) {
-                      Get.offAllNamed(AppPages.login);
+                      Get.offAllNamed(Routes.login);
                       return;
                     }
                     try {
@@ -544,7 +544,7 @@ class _LoginLogPageState extends State<LoginLogPage> {
                 onPressed: () async {
                   if (formKey.currentState!.validate()) {
                     if (!await _validateJwtToken()) {
-                      Get.offAllNamed(AppPages.login);
+                      Get.offAllNamed(Routes.login);
                       return;
                     }
                     try {
@@ -627,7 +627,7 @@ class _LoginLogPageState extends State<LoginLogPage> {
 
     if (confirmed == true) {
       if (!await _validateJwtToken()) {
-        Get.offAllNamed(AppPages.login);
+        Get.offAllNamed(Routes.login);
         return;
       }
       try {
@@ -1025,7 +1025,7 @@ class _LoginLogPageState extends State<LoginLogPage> {
                                                     const EdgeInsets.only(top: 20.0),
                                                 child: ElevatedButton(
                                                   onPressed: () =>
-                                                      Get.offAllNamed(AppPages.login),
+                                                      Get.offAllNamed(Routes.login),
                                                   style: ElevatedButton.styleFrom(
                                                     backgroundColor:
                                                         themeData.colorScheme.primary,

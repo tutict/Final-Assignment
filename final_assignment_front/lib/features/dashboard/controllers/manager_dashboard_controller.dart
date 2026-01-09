@@ -1,6 +1,19 @@
-part of '../views/manager/manager_dashboard_screen.dart';
+import 'package:final_assignment_front/config/routes/app_routes.dart';
+import 'package:final_assignment_front/config/themes/app_theme.dart';
+import 'package:final_assignment_front/constants/app_constants.dart';
+import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
+import 'package:final_assignment_front/features/api/role_management_controller_api.dart';
+import 'package:final_assignment_front/features/dashboard/models/profile.dart';
+import 'package:final_assignment_front/features/model/offense_information.dart';
+import 'package:final_assignment_front/shared_components/case_card.dart';
+import 'package:final_assignment_front/shared_components/project_card.dart';
+import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:get/get.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-class DashboardController extends GetxController with NavigationMixin {
+class DashboardController extends GetxController {
   final scaffoldKey = GlobalKey<ScaffoldState>();
   final caseCardDataList = <CaseCardData>[].obs;
   var selectedStyle = 'Basic'.obs;
@@ -20,6 +33,7 @@ class DashboardController extends GetxController with NavigationMixin {
   final RxBool _refreshPersonalPage = false.obs;
   final offenseApi = OffenseInformationControllerApi();
   final roleApi = RoleManagementControllerApi();
+  Widget? Function(String routeName)? pageResolver;
 
   @override
   void onInit() {
@@ -214,7 +228,7 @@ class DashboardController extends GetxController with NavigationMixin {
 
   void navigateToPage(String routeName) {
     debugPrint('导航至: $routeName');
-    selectedPage.value = getPageForRoute(routeName);
+    selectedPage.value = pageResolver?.call(routeName);
     isShowingSidebarContent.value = true;
   }
 

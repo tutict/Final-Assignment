@@ -1,5 +1,4 @@
 // 定义一个包含UI相关实用工具的库
-library ui_utils;
 
 import 'package:flutter/material.dart';
 

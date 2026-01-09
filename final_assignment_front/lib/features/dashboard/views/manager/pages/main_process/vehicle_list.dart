@@ -3,7 +3,7 @@ import 'dart:convert';
 
 import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/vehicle_information_controller_api.dart';
-import 'package:final_assignment_front/features/dashboard/views/manager/manager_dashboard_screen.dart';
+import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/model/driver_information.dart';
 import 'package:final_assignment_front/features/model/user_management.dart';
@@ -36,7 +36,7 @@ String generateIdempotencyKey() {
 }
 
 String formatDate(DateTime? date) {
-  if (date == null) return 'æªè®¾ç½®';
+  if (date == null) return '未设置';
   return "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
 }
 
@@ -81,12 +81,11 @@ class _VehicleListState extends State<VehicleList> {
   }
 
   Future<bool> _validateJwtToken() async {
-    final prefs = await SharedPreferences.getInstance();
     String? jwtToken = (await AuthTokenStore.instance.getJwtToken());
     debugPrint('Retrieved JWT: $jwtToken');
     if (jwtToken == null || jwtToken.isEmpty) {
       debugPrint('JWT token not found or empty');
-      setState(() => _errorMessage = 'æªææï¼è¯·éæ°ç»å½');
+      setState(() => _errorMessage = '未授权，请重新登录');
       return false;
     }
     try {
@@ -96,14 +95,14 @@ class _VehicleListState extends State<VehicleList> {
         debugPrint('JWT token is expired: ${decodedToken['exp']}');
         jwtToken = await _refreshJwtToken();
         if (jwtToken == null) {
-          setState(() => _errorMessage = 'ç»å½å·²è¿æï¼è¯·éæ°ç»å½');
+          setState(() => _errorMessage = '登录已过期，请重新登录');
           return false;
         }
         await AuthTokenStore.instance.setJwtToken(jwtToken);
         final newDecodedToken = JwtDecoder.decode(jwtToken);
         debugPrint('New JWT decoded: $newDecodedToken');
         if (JwtDecoder.isExpired(jwtToken)) {
-          setState(() => _errorMessage = 'æ°ç»å½ä¿¡æ¯å·²è¿æï¼è¯·éæ°ç»å½');
+          setState(() => _errorMessage = '新登录信息已过期，请重新登录');
           return false;
         }
         await vehicleApi.initializeWithJwt();
@@ -112,7 +111,7 @@ class _VehicleListState extends State<VehicleList> {
       return true;
     } catch (e) {
       debugPrint('JWT decode error: $e');
-      setState(() => _errorMessage = 'æ æçç»å½ä¿¡æ¯ï¼è¯·éæ°ç»å½');
+      setState(() => _errorMessage = '无效的登录信息，请重新登录');
       return false;
     }
   }
@@ -152,16 +151,15 @@ class _VehicleListState extends State<VehicleList> {
         Navigator.pushReplacementNamed(context, '/login');
         return;
       }
-      await vehicleApi.initializeWithJwt(); // ç¡®ä¿åå§å JWT
-      final prefs = await SharedPreferences.getInstance();
+      await vehicleApi.initializeWithJwt(); // 确保初始化 JWT
       final jwtToken = (await AuthTokenStore.instance.getJwtToken())!;
       final decodedToken = JwtDecoder.decode(jwtToken);
-      _isAdmin = decodedToken['roles'] == 'ADMIN'; // ä¿®æ­£å­æ®µå
+      _isAdmin = decodedToken['roles'] == 'ADMIN'; // 修正字段名
       await _checkUserRole();
       await _fetchVehicles(reset: true);
     } catch (e) {
       setState(() {
-        _errorMessage = 'åå§åå¤±è´¥: $e';
+        _errorMessage = '初始化失败: $e';
       });
     } finally {
       setState(() => _isLoading = false);
@@ -174,7 +172,6 @@ class _VehicleListState extends State<VehicleList> {
         Navigator.pushReplacementNamed(context, '/login');
         return;
       }
-      final prefs = await SharedPreferences.getInstance();
       final jwtToken = (await AuthTokenStore.instance.getJwtToken())!;
       final response = await http.get(
         Uri.parse('http://localhost:8081/api/users/me'),
@@ -197,11 +194,11 @@ class _VehicleListState extends State<VehicleList> {
       } else {
         debugPrint(
             'Role check failed: Status ${response.statusCode}, Body: ${response.body}');
-        throw Exception('éªè¯å¤±è´¥ï¼${response.statusCode}');
+        throw Exception('验证失败：${response.statusCode}');
       }
     } catch (e) {
       debugPrint('Error checking role: $e');
-      setState(() => _errorMessage = 'éªè¯è§è²å¤±è´¥: $e');
+      setState(() => _errorMessage = '验证角色失败: $e');
     }
   }
 
@@ -225,33 +222,32 @@ class _VehicleListState extends State<VehicleList> {
         return;
       }
       List<VehicleInformation> vehicles =
-          await vehicleApi.apiVehiclesGet(); // æ åé¡µåæ°
+          await vehicleApi.apiVehiclesGet(); // 无分页参数
 
       setState(() {
         _vehicleList.addAll(vehicles);
-        _hasMore = false; // åç«¯è¿åå
-¨éæ°æ®ï¼æ éåé¡µ
+        _hasMore = false; // 后端返回全量数据，无需分页
         _applyFilters(query ?? _searchController.text);
         if (_filteredVehicleList.isEmpty) {
           _errorMessage = query?.isNotEmpty ??
                   false || (_startDate != null && _endDate != null)
-              ? 'æªæ¾å°ç¬¦åæ¡ä»¶çè½¦è¾'
-              : 'å½åæ²¡æè½¦è¾è®°å½';
+              ? '未找到符合条件的车辆'
+              : '当前没有车辆记录';
         }
         _currentPage++;
       });
     } catch (e) {
       setState(() {
         if (e.toString().contains('403')) {
-          _errorMessage = 'æªææï¼è¯·éæ°ç»å½';
+          _errorMessage = '未授权，请重新登录';
           Navigator.pushReplacementNamed(context, '/login');
         } else if (e.toString().contains('404')) {
           _vehicleList.clear();
           _filteredVehicleList.clear();
-          _errorMessage = 'æªæ¾å°è½¦è¾è®°å½';
+          _errorMessage = '未找到车辆记录';
           _hasMore = false;
         } else {
-          _errorMessage = 'è·åè½¦è¾ä¿¡æ¯å¤±è´¥: $e';
+          _errorMessage = '获取车辆信息失败: $e';
         }
       });
     } finally {
@@ -282,7 +278,7 @@ class _VehicleListState extends State<VehicleList> {
             .toList();
       }
     } catch (e) {
-      setState(() => _errorMessage = 'è·åå»ºè®®å¤±è´¥: $e');
+      setState(() => _errorMessage = '获取建议失败: $e');
       return [];
     }
   }
@@ -321,10 +317,10 @@ class _VehicleListState extends State<VehicleList> {
       }).toList();
 
       if (_filteredVehicleList.isEmpty && _vehicleList.isNotEmpty) {
-        _errorMessage = 'æªæ¾å°ç¬¦åæ¡ä»¶çè½¦è¾';
+        _errorMessage = '未找到符合条件的车辆';
       } else {
         _errorMessage = _filteredVehicleList.isEmpty && _vehicleList.isEmpty
-            ? 'å½åæ²¡æè½¦è¾è®°å½'
+            ? '当前没有车辆记录'
             : '';
       }
     });
@@ -396,16 +392,16 @@ class _VehicleListState extends State<VehicleList> {
     bool? confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('ç¡®è®¤å é¤'),
-        content: const Text('ç¡®å®è¦å é¤æ­¤è½¦è¾ä¿¡æ¯åï¼æ­¤æä½ä¸å¯æ¤éã'),
+        title: const Text('确认删除'),
+        content: const Text('确定要删除此车辆信息吗？此操作不可撤销。'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('åæ¶'),
+            child: const Text('取消'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('å é¤', style: TextStyle(color: Colors.red)),
+            child: const Text('删除', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -422,7 +418,7 @@ class _VehicleListState extends State<VehicleList> {
         await _refreshVehicleList();
       } catch (e) {
         setState(() {
-          _errorMessage = 'å é¤è½¦è¾å¤±è´¥: $e';
+          _errorMessage = '删除车辆失败: $e';
         });
       } finally {
         setState(() => _isLoading = false);
@@ -459,7 +455,7 @@ class _VehicleListState extends State<VehicleList> {
                       style: TextStyle(color: themeData.colorScheme.onSurface),
                       decoration: InputDecoration(
                         hintText:
-                            _searchType == 'licensePlate' ? 'æç´¢è½¦çå·' : 'æç´¢è½¦è¾ç±»å',
+                            _searchType == 'licensePlate' ? '搜索车牌号' : '搜索车辆类型',
                         hintStyle: TextStyle(
                             color: themeData.colorScheme.onSurface
                                 .withValues(alpha: 0.6)),
@@ -516,7 +512,7 @@ class _VehicleListState extends State<VehicleList> {
                   return DropdownMenuItem<String>(
                     value: value,
                     child: Text(
-                      value == 'licensePlate' ? 'æè½¦çå·' : 'æè½¦è¾ç±»å',
+                      value == 'licensePlate' ? '按车牌号' : '按车辆类型',
                       style: TextStyle(color: themeData.colorScheme.onSurface),
                     ),
                   );
@@ -533,8 +529,8 @@ class _VehicleListState extends State<VehicleList> {
               Expanded(
                 child: Text(
                   _startDate != null && _endDate != null
-                      ? 'é¦æ¬¡æ³¨åæ¥æ: ${formatDate(_startDate)} è³ ${formatDate(_endDate)}'
-                      : 'éæ©é¦æ¬¡æ³¨åæ¥æèå´',
+                      ? '首次注册日期: ${formatDate(_startDate)} 至 ${formatDate(_endDate)}'
+                      : '选择首次注册日期范围',
                   style: themeData.textTheme.bodyMedium?.copyWith(
                     color: _startDate != null && _endDate != null
                         ? themeData.colorScheme.onSurface
@@ -545,18 +541,18 @@ class _VehicleListState extends State<VehicleList> {
               IconButton(
                 icon: Icon(Icons.date_range,
                     color: themeData.colorScheme.primary),
-                tooltip: 'æé¦æ¬¡æ³¨åæ¥æèå´æç´¢',
+                tooltip: '按首次注册日期范围搜索',
                 onPressed: () async {
                   final range = await showDateRangePicker(
                     context: context,
                     firstDate: DateTime(1900),
                     lastDate: DateTime.now(),
                     locale: const Locale('zh', 'CN'),
-                    helpText: 'éæ©é¦æ¬¡æ³¨åæ¥æèå´',
-                    cancelText: 'åæ¶',
-                    confirmText: 'ç¡®å®',
-                    fieldStartHintText: 'å¼å§æ¥æ',
-                    fieldEndHintText: 'ç»ææ¥æ',
+                    helpText: '选择首次注册日期范围',
+                    cancelText: '取消',
+                    confirmText: '确定',
+                    fieldStartHintText: '开始日期',
+                    fieldEndHintText: '结束日期',
                     builder: (BuildContext context, Widget? child) {
                       return Theme(
                         data: themeData.copyWith(
@@ -587,8 +583,7 @@ class _VehicleListState extends State<VehicleList> {
                 IconButton(
                   icon: Icon(Icons.clear,
                       color: themeData.colorScheme.onSurfaceVariant),
-                  tooltip: 'æ¸
-é¤æ¥æèå´',
+                  tooltip: '清除日期范围',
                   onPressed: () {
                     setState(() {
                       _startDate = null;
@@ -610,7 +605,7 @@ class _VehicleListState extends State<VehicleList> {
       final themeData = controller.currentBodyTheme.value;
         return DashboardPageTemplate(
         theme: themeData,
-        title: 'è½¦è¾ç®¡ç',
+        title: '车辆管理',
         pageType: DashboardPageType.manager,
         bodyIsScrollable: true,
         padding: EdgeInsets.zero,
@@ -619,12 +614,12 @@ class _VehicleListState extends State<VehicleList> {
             DashboardPageBarAction(
               icon: Icons.add,
               onPressed: _createVehicle,
-              tooltip: 'æ·»å è½¦è¾',
+              tooltip: '添加车辆',
             ),
             DashboardPageBarAction(
               icon: Icons.refresh,
               onPressed: () => _refreshVehicleList(),
-              tooltip: 'å·æ°åè¡¨',
+              tooltip: '刷新列表',
             ),
           ],
         ],
@@ -672,8 +667,8 @@ class _VehicleListState extends State<VehicleList> {
                                       ),
                                       textAlign: TextAlign.center,
                                     ),
-                                    if (_errorMessage.contains('æªææ') ||
-                                        _errorMessage.contains('ç»å½'))
+                                    if (_errorMessage.contains('未授权') ||
+                                        _errorMessage.contains('登录'))
                                       Padding(
                                         padding:
                                             const EdgeInsets.only(top: 16.0),
@@ -687,7 +682,7 @@ class _VehicleListState extends State<VehicleList> {
                                             foregroundColor:
                                                 themeData.colorScheme.onPrimary,
                                           ),
-                                          child: const Text('éæ°ç»å½'),
+                                          child: const Text('重新登录'),
                                         ),
                                       ),
                                   ],
@@ -721,7 +716,7 @@ class _VehicleListState extends State<VehicleList> {
                                           const EdgeInsets.symmetric(
                                               horizontal: 16.0, vertical: 12.0),
                                       title: Text(
-                                        'è½¦çå·: ${vehicle.licensePlate ?? 'æªç¥è½¦ç'}',
+                                        '车牌号: ${vehicle.licensePlate ?? '未知车牌'}',
                                         style: themeData.textTheme.titleMedium
                                             ?.copyWith(
                                           color:
@@ -735,7 +730,7 @@ class _VehicleListState extends State<VehicleList> {
                                         children: [
                                           const SizedBox(height: 4),
                                           Text(
-                                            'ç±»å: ${vehicle.vehicleType ?? 'æªç¥ç±»å'}',
+                                            '类型: ${vehicle.vehicleType ?? '未知类型'}',
                                             style: themeData
                                                 .textTheme.bodyMedium
                                                 ?.copyWith(
@@ -744,7 +739,7 @@ class _VehicleListState extends State<VehicleList> {
                                             ),
                                           ),
                                           Text(
-                                            'è½¦ä¸»: ${vehicle.ownerName ?? 'æªç¥è½¦ä¸»'}',
+                                            '车主: ${vehicle.ownerName ?? '未知车主'}',
                                             style: themeData
                                                 .textTheme.bodyMedium
                                                 ?.copyWith(
@@ -753,7 +748,7 @@ class _VehicleListState extends State<VehicleList> {
                                             ),
                                           ),
                                           Text(
-                                            'ç¶æ: ${vehicle.currentStatus ?? 'æ '}',
+                                            '状态: ${vehicle.currentStatus ?? '无'}',
                                             style: themeData
                                                 .textTheme.bodyMedium
                                                 ?.copyWith(
@@ -774,7 +769,7 @@ class _VehicleListState extends State<VehicleList> {
                                                       .colorScheme.primary,
                                                   onPressed: () =>
                                                       _editVehicle(vehicle),
-                                                  tooltip: 'ç¼è¾è½¦è¾',
+                                                  tooltip: '编辑车辆',
                                                 ),
                                                 IconButton(
                                                   icon: Icon(
@@ -788,13 +783,13 @@ class _VehicleListState extends State<VehicleList> {
                                                         vehicle.vehicleId;
                                                     if (vehicleId == null) {
                                                       _showSnackBar(
-                                                          'æ æ³å é¤ï¼ç¼ºå°è½¦è¾ID',
+                                                          '无法删除：缺少车辆ID',
                                                           isError: true);
                                                       return;
                                                     }
                                                     _deleteVehicle(vehicleId);
                                                   },
-                                                  tooltip: 'å é¤è½¦è¾',
+                                                  tooltip: '删除车辆',
                                                 ),
                                                 Icon(
                                                   Icons.arrow_forward_ios,
@@ -878,20 +873,19 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
   final DashboardController controller = Get.find<DashboardController>();
 
   Future<bool> _validateJwtToken() async {
-    final prefs = await SharedPreferences.getInstance();
     final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null || jwtToken.isEmpty) {
-      _showSnackBar('æªææï¼è¯·éæ°ç»å½', isError: true);
+      _showSnackBar('未授权，请重新登录', isError: true);
       return false;
     }
     try {
       if (JwtDecoder.isExpired(jwtToken)) {
-        _showSnackBar('ç»å½å·²è¿æï¼è¯·éæ°ç»å½', isError: true);
+        _showSnackBar('登录已过期，请重新登录', isError: true);
         return false;
       }
       return true;
     } catch (e) {
-      _showSnackBar('æ æçç»å½ä¿¡æ¯ï¼è¯·éæ°ç»å½', isError: true);
+      _showSnackBar('无效的登录信息，请重新登录', isError: true);
       return false;
     }
   }
@@ -909,19 +903,18 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
         Navigator.pushReplacementNamed(context, '/login');
         return;
       }
-      final prefs = await SharedPreferences.getInstance();
       final jwtToken = (await AuthTokenStore.instance.getJwtToken());
-      if (jwtToken == null) throw Exception('æªæ¾å° JWT');
+      if (jwtToken == null) throw Exception('未找到 JWT');
       final decodedToken = JwtDecoder.decode(jwtToken);
       final username = decodedToken['sub'] ?? '';
-      if (username.isEmpty) throw Exception('JWT ä¸­æªæ¾å°ç¨æ·å');
+      if (username.isEmpty) throw Exception('JWT 中未找到用户名');
       await vehicleApi.initializeWithJwt();
       await driverApi.initializeWithJwt();
       setState(() {
         _contactNumberController.text = '';
       });
     } catch (e) {
-      _showSnackBar('åå§åå¤±è´¥: $e', isError: true);
+      _showSnackBar('初始化失败: $e', isError: true);
     } finally {
       setState(() => _isLoading = false);
     }
@@ -944,10 +937,9 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
 
   Future<void> _submitVehicle() async {
     if (!_formKey.currentState!.validate()) return;
-    final licensePlate = 'é»A${_licensePlateController.text.trim()}';
+    final licensePlate = '黑A${_licensePlateController.text.trim()}';
     if (!isValidLicensePlate(licensePlate)) {
-      _showSnackBar('è½¦çå·æ ¼å¼æ æï¼è¯·è¾å
-¥ææè½¦çå·ï¼ä¾å¦ï¼é»A12345ï¼', isError: true);
+      _showSnackBar('车牌号格式无效，请输入有效车牌号（例如：黑A12345）', isError: true);
       return;
     }
     if (!await _validateJwtToken()) {
@@ -956,14 +948,12 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
     }
     if (await vehicleApi.apiVehiclesExistsLicensePlateGet(
         licensePlate: licensePlate)) {
-      _showSnackBar('è½¦çå·å·²å­å¨ï¼è¯·ä½¿ç¨å
-¶ä»è½¦çå·', isError: true);
+      _showSnackBar('车牌号已存在，请使用其他车牌号', isError: true);
       return;
     }
     final idCardNumber = _idCardNumberController.text.trim();
     if (!isValidIdCardNumber(idCardNumber)) {
-      _showSnackBar('èº«ä»½è¯å·ç æ ¼å¼æ æï¼è¯·è¾å
-¥ææç15æ18ä½èº«ä»½è¯å·ç ', isError: true);
+      _showSnackBar('身份证号码格式无效，请输入有效的15或18位身份证号码', isError: true);
       return;
     }
     setState(() => _isLoading = true);
@@ -994,7 +984,6 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
             : _currentStatusController.text.trim(),
       };
       final idempotencyKey = generateIdempotencyKey();
-      final prefs = await SharedPreferences.getInstance();
       final jwtToken = (await AuthTokenStore.instance.getJwtToken());
       final response = await http.post(
         Uri.parse(
@@ -1009,13 +998,13 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
         throw Exception(
             'Failed to create vehicle: ${response.statusCode} - ${response.body}');
       }
-      _showSnackBar('åå»ºè½¦è¾æåï¼');
+      _showSnackBar('创建车辆成功！');
       if (mounted) {
         Navigator.pop(context, true);
         widget.onVehicleAdded?.call();
       }
     } catch (e) {
-      _showSnackBar('åå»ºè½¦è¾å¤±è´¥: $e', isError: true);
+      _showSnackBar('创建车辆失败: $e', isError: true);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -1082,15 +1071,12 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
         decoration: InputDecoration(
           labelText: label,
           labelStyle: TextStyle(color: themeData.colorScheme.onSurfaceVariant),
-          helperText: label == 'è½¦çå·'
-              ? 'è¯·è¾å
-¥è½¦çå·åç¼ï¼ä¾å¦ï¼12345'
-              : label == 'èº«ä»½è¯å·ç '
-                  ? 'è¯·è¾å
-¥15æ18ä½èº«ä»½è¯å·ç '
-                  : label == 'èç³»çµè¯'
-                      ? 'è¯·è¾å
-¥11ä½ææºå·ç '
+          helperText: label == '车牌号'
+              ? '请输入车牌号后缀，例如：12345'
+              : label == '身份证号码'
+                  ? '请输入15或18位身份证号码'
+                  : label == '联系电话'
+                      ? '请输入11位手机号码'
                       : null,
           helperStyle: TextStyle(
               color: themeData.colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
@@ -1109,8 +1095,7 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
           prefixStyle: TextStyle(
               color: themeData.colorScheme.onSurface,
               fontWeight: FontWeight.bold),
-          suffixIcon: readOnly && label == 'é¦æ¬¡å½å
-¥è½¦çå·çæ¥æ'
+          suffixIcon: readOnly && label == '首次录入车牌号的日期'
               ? Icon(Icons.calendar_today,
                   size: 18, color: themeData.colorScheme.primary)
               : null,
@@ -1122,65 +1107,53 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
         validator: validator ??
             (value) {
               final trimmedValue = value?.trim() ?? '';
-              if (required && trimmedValue.isEmpty) return '$labelä¸è½ä¸ºç©º';
-              if (label == 'è½¦çå·' && trimmedValue.isNotEmpty) {
-                final fullPlate = 'é»A$trimmedValue';
-                if (fullPlate.length > 20) return 'è½¦çå·ä¸è½è¶
-è¿20ä¸ªå­ç¬¦';
+              if (required && trimmedValue.isEmpty) return '$label不能为空';
+              if (label == '车牌号' && trimmedValue.isNotEmpty) {
+                final fullPlate = '黑A$trimmedValue';
+                if (fullPlate.length > 20) return '车牌号不能超过20个字符';
                 if (!isValidLicensePlate(fullPlate)) {
-                  return 'è½¦çå·æ ¼å¼æ æï¼ä¾å¦ï¼é»A12345ï¼';
+                  return '车牌号格式无效（例如：黑A12345）';
                 }
               }
-              if (label == 'è½¦è¾ç±»å' && trimmedValue.length > 50) {
-                return 'è½¦è¾ç±»åä¸è½è¶
-è¿50ä¸ªå­ç¬¦';
+              if (label == '车辆类型' && trimmedValue.length > 50) {
+                return '车辆类型不能超过50个字符';
               }
-              if (label == 'è½¦ä¸»å§å' && trimmedValue.length > 100) {
-                return 'è½¦ä¸»å§åä¸è½è¶
-è¿100ä¸ªå­ç¬¦';
+              if (label == '车主姓名' && trimmedValue.length > 100) {
+                return '车主姓名不能超过100个字符';
               }
-              if (label == 'èº«ä»½è¯å·ç ') {
-                if (trimmedValue.isEmpty) return 'èº«ä»½è¯å·ç ä¸è½ä¸ºç©º';
+              if (label == '身份证号码') {
+                if (trimmedValue.isEmpty) return '身份证号码不能为空';
                 if (trimmedValue.length > 18) {
-                  return 'èº«ä»½è¯å·ç ä¸è½è¶
-è¿18ä¸ªå­ç¬¦';
+                  return '身份证号码不能超过18个字符';
                 }
                 if (!isValidIdCardNumber(trimmedValue)) {
-                  return 'èº«ä»½è¯å·ç æ ¼å¼æ æ';
+                  return '身份证号码格式无效';
                 }
               }
-              if (label == 'èç³»çµè¯' && trimmedValue.isNotEmpty) {
-                if (trimmedValue.length > 20) return 'èç³»çµè¯ä¸è½è¶
-è¿20ä¸ªå­ç¬¦';
+              if (label == '联系电话' && trimmedValue.isNotEmpty) {
+                if (trimmedValue.length > 20) return '联系电话不能超过20个字符';
                 if (!isValidPhoneNumber(trimmedValue)) {
-                  return 'è¯·è¾å
-¥ææç11ä½ææºå·ç ';
+                  return '请输入有效的11位手机号码';
                 }
               }
-              if (label == 'åå¨æºå·' && trimmedValue.length > 50) {
-                return 'åå¨æºå·ä¸è½è¶
-è¿50ä¸ªå­ç¬¦';
+              if (label == '发动机号' && trimmedValue.length > 50) {
+                return '发动机号不能超过50个字符';
               }
-              if (label == 'è½¦æ¶å·' && trimmedValue.length > 50) {
-                return 'è½¦æ¶å·ä¸è½è¶
-è¿50ä¸ªå­ç¬¦';
+              if (label == '车架号' && trimmedValue.length > 50) {
+                return '车架号不能超过50个字符';
               }
-              if (label == 'è½¦èº«é¢è²' && trimmedValue.length > 50) {
-                return 'è½¦èº«é¢è²ä¸è½è¶
-è¿50ä¸ªå­ç¬¦';
+              if (label == '车身颜色' && trimmedValue.length > 50) {
+                return '车身颜色不能超过50个字符';
               }
-              if (label == 'é¦æ¬¡å½å
-¥è½¦çå·çæ¥æ' && trimmedValue.isNotEmpty) {
+              if (label == '首次录入车牌号的日期' && trimmedValue.isNotEmpty) {
                 final date = DateTime.tryParse('$trimmedValue 00:00:00.000');
-                if (date == null) return 'æ æçæ¥ææ ¼å¼';
+                if (date == null) return '无效的日期格式';
                 if (date.isAfter(DateTime.now())) {
-                  return 'é¦æ¬¡å½å
-¥æ¥æä¸è½æäºå½åæ¥æ';
+                  return '首次录入日期不能晚于当前日期';
                 }
               }
-              if (label == 'å½åç¶æ' && trimmedValue.length > 50) {
-                return 'å½åç¶æä¸è½è¶
-è¿50ä¸ªå­ç¬¦';
+              if (label == '当前状态' && trimmedValue.length > 50) {
+                return '当前状态不能超过50个字符';
               }
               return null;
             },
@@ -1194,14 +1167,14 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
       final themeData = controller.currentBodyTheme.value;
         return DashboardPageTemplate(
         theme: themeData,
-        title: 'æ·»å æ°è½¦è¾',
+        title: '添加新车辆',
         pageType: widget.onVehicleAdded != null
             ? DashboardPageType.custom
             : DashboardPageType.manager,
         appBar: widget.onVehicleAdded != null
             ? null
             : AppBar(
-                title: Text('æ·»å æ°è½¦è¾',
+                title: Text('添加新车辆',
                     style: themeData.textTheme.headlineMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: themeData.colorScheme.onPrimaryContainer)),
@@ -1231,7 +1204,7 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
                               children: [
                                 if (widget.onVehicleAdded != null)
                                   Text(
-                                    'æ¨å½åæ²¡æè½¦è¾è®°å½ï¼è¯·æ·»å æ°è½¦è¾',
+                                    '您当前没有车辆记录，请添加新车辆',
                                     style: themeData.textTheme.titleMedium
                                         ?.copyWith(
                                             color:
@@ -1241,40 +1214,39 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
                                 if (widget.onVehicleAdded != null)
                                   const SizedBox(height: 16),
                                 _buildTextField(
-                                    'è½¦çå·', _licensePlateController, themeData,
+                                    '车牌号', _licensePlateController, themeData,
                                     required: true,
-                                    prefix: 'é»A',
+                                    prefix: '黑A',
                                     maxLength: 17),
                                 _buildTextField(
-                                    'è½¦è¾ç±»å', _vehicleTypeController, themeData,
+                                    '车辆类型', _vehicleTypeController, themeData,
                                     required: true, maxLength: 50),
                                 _buildTextField(
-                                    'è½¦ä¸»å§å', _ownerNameController, themeData,
+                                    '车主姓名', _ownerNameController, themeData,
                                     required: true, maxLength: 100),
                                 _buildTextField(
-                                    'èº«ä»½è¯å·ç ', _idCardNumberController, themeData,
+                                    '身份证号码', _idCardNumberController, themeData,
                                     required: true,
                                     keyboardType: TextInputType.number,
                                     maxLength: 18),
                                 _buildTextField(
-                                    'èç³»çµè¯', _contactNumberController, themeData,
+                                    '联系电话', _contactNumberController, themeData,
                                     keyboardType: TextInputType.phone,
                                     maxLength: 20),
                                 _buildTextField(
-                                    'åå¨æºå·', _engineNumberController, themeData,
+                                    '发动机号', _engineNumberController, themeData,
                                     maxLength: 50),
                                 _buildTextField(
-                                    'è½¦æ¶å·', _frameNumberController, themeData,
+                                    '车架号', _frameNumberController, themeData,
                                     maxLength: 50),
                                 _buildTextField(
-                                    'è½¦èº«é¢è²', _vehicleColorController, themeData,
+                                    '车身颜色', _vehicleColorController, themeData,
                                     maxLength: 50),
-                                _buildTextField('é¦æ¬¡å½å
-¥è½¦çå·çæ¥æ',
+                                _buildTextField('首次录入车牌号的日期',
                                     _firstRegistrationDateController, themeData,
                                     readOnly: true, onTap: _pickDate),
                                 _buildTextField(
-                                    'å½åç¶æ', _currentStatusController, themeData,
+                                    '当前状态', _currentStatusController, themeData,
                                     maxLength: 50),
                               ],
                             ),
@@ -1293,7 +1265,7 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
                             textStyle: themeData.textTheme.labelLarge
                                 ?.copyWith(fontWeight: FontWeight.bold),
                           ),
-                          child: const Text('æäº¤'),
+                          child: const Text('提交'),
                         ),
                       ],
                     ),
@@ -1334,20 +1306,19 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
   final DashboardController controller = Get.find<DashboardController>();
 
   Future<bool> _validateJwtToken() async {
-    final prefs = await SharedPreferences.getInstance();
     final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null || jwtToken.isEmpty) {
-      _showSnackBar('æªææï¼è¯·éæ°ç»å½', isError: true);
+      _showSnackBar('未授权，请重新登录', isError: true);
       return false;
     }
     try {
       if (JwtDecoder.isExpired(jwtToken)) {
-        _showSnackBar('ç»å½å·²è¿æï¼è¯·éæ°ç»å½', isError: true);
+        _showSnackBar('登录已过期，请重新登录', isError: true);
         return false;
       }
       return true;
     } catch (e) {
-      _showSnackBar('æ æçç»å½ä¿¡æ¯ï¼è¯·éæ°ç»å½', isError: true);
+      _showSnackBar('无效的登录信息，请重新登录', isError: true);
       return false;
     }
   }
@@ -1369,7 +1340,7 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
       await driverApi.initializeWithJwt();
       _initializeFields();
     } catch (e) {
-      _showSnackBar('åå§åå¤±è´¥: $e', isError: true);
+      _showSnackBar('初始化失败: $e', isError: true);
     } finally {
       setState(() => _isLoading = false);
     }
@@ -1378,7 +1349,7 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
   void _initializeFields() {
     setState(() {
       _licensePlateController.text =
-          widget.vehicle.licensePlate?.replaceFirst('é»A', '') ?? '';
+          widget.vehicle.licensePlate?.replaceFirst('黑A', '') ?? '';
       _vehicleTypeController.text = widget.vehicle.vehicleType ?? '';
       _ownerNameController.text = widget.vehicle.ownerName ?? '';
       _idCardNumberController.text = widget.vehicle.idCardNumber ?? '';
@@ -1409,10 +1380,9 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
 
   Future<void> _submitVehicle() async {
     if (!_formKey.currentState!.validate()) return;
-    final newLicensePlate = 'é»A${_licensePlateController.text.trim()}';
+    final newLicensePlate = '黑A${_licensePlateController.text.trim()}';
     if (!isValidLicensePlate(newLicensePlate)) {
-      _showSnackBar('è½¦çå·æ ¼å¼æ æï¼è¯·è¾å
-¥ææè½¦çå·ï¼ä¾å¦ï¼é»A12345ï¼', isError: true);
+      _showSnackBar('车牌号格式无效，请输入有效车牌号（例如：黑A12345）', isError: true);
       return;
     }
     if (!await _validateJwtToken()) {
@@ -1422,14 +1392,12 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
     if (newLicensePlate != widget.vehicle.licensePlate &&
         await vehicleApi.apiVehiclesExistsLicensePlateGet(
             licensePlate: newLicensePlate)) {
-      _showSnackBar('è½¦çå·å·²å­å¨ï¼è¯·ä½¿ç¨å
-¶ä»è½¦çå·', isError: true);
+      _showSnackBar('车牌号已存在，请使用其他车牌号', isError: true);
       return;
     }
     final idCardNumber = _idCardNumberController.text.trim();
     if (!isValidIdCardNumber(idCardNumber)) {
-      _showSnackBar('èº«ä»½è¯å·ç æ ¼å¼æ æï¼è¯·è¾å
-¥ææç15æ18ä½èº«ä»½è¯å·ç ', isError: true);
+      _showSnackBar('身份证号码格式无效，请输入有效的15或18位身份证号码', isError: true);
       return;
     }
     setState(() => _isLoading = true);
@@ -1460,7 +1428,6 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
             : _currentStatusController.text.trim(),
       };
       final idempotencyKey = generateIdempotencyKey();
-      final prefs = await SharedPreferences.getInstance();
       final jwtToken = (await AuthTokenStore.instance.getJwtToken());
       final response = await http.put(
         Uri.parse(
@@ -1475,10 +1442,10 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
         throw Exception(
             'Failed to update vehicle: ${response.statusCode} - ${response.body}');
       }
-      _showSnackBar('æ´æ°è½¦è¾æåï¼');
+      _showSnackBar('更新车辆成功！');
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
-      _showSnackBar('æ´æ°è½¦è¾å¤±è´¥: $e', isError: true);
+      _showSnackBar('更新车辆失败: $e', isError: true);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -1545,15 +1512,12 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
         decoration: InputDecoration(
           labelText: label,
           labelStyle: TextStyle(color: themeData.colorScheme.onSurfaceVariant),
-          helperText: label == 'è½¦çå·'
-              ? 'è¯·è¾å
-¥è½¦çå·åç¼ï¼ä¾å¦ï¼12345'
-              : label == 'èº«ä»½è¯å·ç '
-                  ? 'è¯·è¾å
-¥15æ18ä½èº«ä»½è¯å·ç '
-                  : label == 'èç³»çµè¯'
-                      ? 'è¯·è¾å
-¥11ä½ææºå·ç '
+          helperText: label == '车牌号'
+              ? '请输入车牌号后缀，例如：12345'
+              : label == '身份证号码'
+                  ? '请输入15或18位身份证号码'
+                  : label == '联系电话'
+                      ? '请输入11位手机号码'
                       : null,
           helperStyle: TextStyle(
               color: themeData.colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
@@ -1572,12 +1536,11 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
           prefixStyle: TextStyle(
               color: themeData.colorScheme.onSurface,
               fontWeight: FontWeight.bold),
-          suffixIcon: readOnly && label == 'é¦æ¬¡å½å
-¥è½¦çå·çæ¥æ'
+          suffixIcon: readOnly && label == '首次录入车牌号的日期'
               ? Icon(Icons.calendar_today,
                   size: 18, color: themeData.colorScheme.primary)
               : null,
-          hintText: readOnly && label == 'èº«ä»½è¯å·ç ' ? 'è¯·å¨ç¨æ·ä¿¡æ¯ç®¡çä¸­ä¿®æ¹èº«ä»½è¯å·ç ' : null,
+          hintText: readOnly && label == '身份证号码' ? '请在用户信息管理中修改身份证号码' : null,
           hintStyle: TextStyle(
               color: themeData.colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
         ),
@@ -1588,65 +1551,53 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
         validator: validator ??
             (value) {
               final trimmedValue = value?.trim() ?? '';
-              if (required && trimmedValue.isEmpty) return '$labelä¸è½ä¸ºç©º';
-              if (label == 'è½¦çå·' && trimmedValue.isNotEmpty) {
-                final fullPlate = 'é»A$trimmedValue';
-                if (fullPlate.length > 20) return 'è½¦çå·ä¸è½è¶
-è¿20ä¸ªå­ç¬¦';
+              if (required && trimmedValue.isEmpty) return '$label不能为空';
+              if (label == '车牌号' && trimmedValue.isNotEmpty) {
+                final fullPlate = '黑A$trimmedValue';
+                if (fullPlate.length > 20) return '车牌号不能超过20个字符';
                 if (!isValidLicensePlate(fullPlate)) {
-                  return 'è½¦çå·æ ¼å¼æ æï¼ä¾å¦ï¼é»A12345ï¼';
+                  return '车牌号格式无效（例如：黑A12345）';
                 }
               }
-              if (label == 'è½¦è¾ç±»å' && trimmedValue.length > 50) {
-                return 'è½¦è¾ç±»åä¸è½è¶
-è¿50ä¸ªå­ç¬¦';
+              if (label == '车辆类型' && trimmedValue.length > 50) {
+                return '车辆类型不能超过50个字符';
               }
-              if (label == 'è½¦ä¸»å§å' && trimmedValue.length > 100) {
-                return 'è½¦ä¸»å§åä¸è½è¶
-è¿100ä¸ªå­ç¬¦';
+              if (label == '车主姓名' && trimmedValue.length > 100) {
+                return '车主姓名不能超过100个字符';
               }
-              if (label == 'èº«ä»½è¯å·ç ') {
-                if (trimmedValue.isEmpty) return 'èº«ä»½è¯å·ç ä¸è½ä¸ºç©º';
+              if (label == '身份证号码') {
+                if (trimmedValue.isEmpty) return '身份证号码不能为空';
                 if (trimmedValue.length > 18) {
-                  return 'èº«ä»½è¯å·ç ä¸è½è¶
-è¿18ä¸ªå­ç¬¦';
+                  return '身份证号码不能超过18个字符';
                 }
                 if (!isValidIdCardNumber(trimmedValue)) {
-                  return 'èº«ä»½è¯å·ç æ ¼å¼æ æ';
+                  return '身份证号码格式无效';
                 }
               }
-              if (label == 'èç³»çµè¯' && trimmedValue.isNotEmpty) {
-                if (trimmedValue.length > 20) return 'èç³»çµè¯ä¸è½è¶
-è¿20ä¸ªå­ç¬¦';
+              if (label == '联系电话' && trimmedValue.isNotEmpty) {
+                if (trimmedValue.length > 20) return '联系电话不能超过20个字符';
                 if (!isValidPhoneNumber(trimmedValue)) {
-                  return 'è¯·è¾å
-¥ææç11ä½ææºå·ç ';
+                  return '请输入有效的11位手机号码';
                 }
               }
-              if (label == 'åå¨æºå·' && trimmedValue.length > 50) {
-                return 'åå¨æºå·ä¸è½è¶
-è¿50ä¸ªå­ç¬¦';
+              if (label == '发动机号' && trimmedValue.length > 50) {
+                return '发动机号不能超过50个字符';
               }
-              if (label == 'è½¦æ¶å·' && trimmedValue.length > 50) {
-                return 'è½¦æ¶å·ä¸è½è¶
-è¿50ä¸ªå­ç¬¦';
+              if (label == '车架号' && trimmedValue.length > 50) {
+                return '车架号不能超过50个字符';
               }
-              if (label == 'è½¦èº«é¢è²' && trimmedValue.length > 50) {
-                return 'è½¦èº«é¢è²ä¸è½è¶
-è¿50ä¸ªå­ç¬¦';
+              if (label == '车身颜色' && trimmedValue.length > 50) {
+                return '车身颜色不能超过50个字符';
               }
-              if (label == 'é¦æ¬¡å½å
-¥è½¦çå·çæ¥æ' && trimmedValue.isNotEmpty) {
+              if (label == '首次录入车牌号的日期' && trimmedValue.isNotEmpty) {
                 final date = DateTime.tryParse('$trimmedValue 00:00:00.000');
-                if (date == null) return 'æ æçæ¥ææ ¼å¼';
+                if (date == null) return '无效的日期格式';
                 if (date.isAfter(DateTime.now())) {
-                  return 'é¦æ¬¡å½å
-¥æ¥æä¸è½æäºå½åæ¥æ';
+                  return '首次录入日期不能晚于当前日期';
                 }
               }
-              if (label == 'å½åç¶æ' && trimmedValue.length > 50) {
-                return 'å½åç¶æä¸è½è¶
-è¿50ä¸ªå­ç¬¦';
+              if (label == '当前状态' && trimmedValue.length > 50) {
+                return '当前状态不能超过50个字符';
               }
               return null;
             },
@@ -1660,7 +1611,7 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
       final themeData = controller.currentBodyTheme.value;
         return DashboardPageTemplate(
         theme: themeData,
-        title: 'ç¼è¾è½¦è¾ä¿¡æ¯',
+        title: '编辑车辆信息',
         pageType: DashboardPageType.manager,
         bodyIsScrollable: true,
         padding: EdgeInsets.zero,
@@ -1683,41 +1634,40 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
                             child: Column(
                               children: [
                                 _buildTextField(
-                                    'è½¦çå·', _licensePlateController, themeData,
+                                    '车牌号', _licensePlateController, themeData,
                                     required: true,
-                                    prefix: 'é»A',
+                                    prefix: '黑A',
                                     maxLength: 17),
                                 _buildTextField(
-                                    'è½¦è¾ç±»å', _vehicleTypeController, themeData,
+                                    '车辆类型', _vehicleTypeController, themeData,
                                     required: true, maxLength: 50),
                                 _buildTextField(
-                                    'è½¦ä¸»å§å', _ownerNameController, themeData,
+                                    '车主姓名', _ownerNameController, themeData,
                                     required: true, maxLength: 100),
                                 _buildTextField(
-                                    'èº«ä»½è¯å·ç ', _idCardNumberController, themeData,
+                                    '身份证号码', _idCardNumberController, themeData,
                                     required: true,
                                     readOnly: true,
                                     keyboardType: TextInputType.number,
                                     maxLength: 18),
                                 _buildTextField(
-                                    'èç³»çµè¯', _contactNumberController, themeData,
+                                    '联系电话', _contactNumberController, themeData,
                                     keyboardType: TextInputType.phone,
                                     maxLength: 20),
                                 _buildTextField(
-                                    'åå¨æºå·', _engineNumberController, themeData,
+                                    '发动机号', _engineNumberController, themeData,
                                     maxLength: 50),
                                 _buildTextField(
-                                    'è½¦æ¶å·', _frameNumberController, themeData,
+                                    '车架号', _frameNumberController, themeData,
                                     maxLength: 50),
                                 _buildTextField(
-                                    'è½¦èº«é¢è²', _vehicleColorController, themeData,
+                                    '车身颜色', _vehicleColorController, themeData,
                                     maxLength: 50),
-                                _buildTextField('é¦æ¬¡å½å
-¥è½¦çå·çæ¥æ',
+                                _buildTextField('首次录入车牌号的日期',
                                     _firstRegistrationDateController, themeData,
                                     readOnly: true, onTap: _pickDate),
                                 _buildTextField(
-                                    'å½åç¶æ', _currentStatusController, themeData,
+                                    '当前状态', _currentStatusController, themeData,
                                     maxLength: 50),
                               ],
                             ),
@@ -1736,7 +1686,7 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
                             textStyle: themeData.textTheme.labelLarge
                                 ?.copyWith(fontWeight: FontWeight.bold),
                           ),
-                          child: const Text('ä¿å­'),
+                          child: const Text('保存'),
                         ),
                       ],
                     ),
@@ -1767,20 +1717,19 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
   final DashboardController controller = Get.find<DashboardController>();
 
   Future<bool> _validateJwtToken() async {
-    final prefs = await SharedPreferences.getInstance();
     final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null || jwtToken.isEmpty) {
-      setState(() => _errorMessage = 'æªææï¼è¯·éæ°ç»å½');
+      setState(() => _errorMessage = '未授权，请重新登录');
       return false;
     }
     try {
       if (JwtDecoder.isExpired(jwtToken)) {
-        setState(() => _errorMessage = 'ç»å½å·²è¿æï¼è¯·éæ°ç»å½');
+        setState(() => _errorMessage = '登录已过期，请重新登录');
         return false;
       }
       return true;
     } catch (e) {
-      setState(() => _errorMessage = 'æ æçç»å½ä¿¡æ¯ï¼è¯·éæ°ç»å½');
+      setState(() => _errorMessage = '无效的登录信息，请重新登录');
       return false;
     }
   }
@@ -1798,12 +1747,11 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
         Navigator.pushReplacementNamed(context, '/login');
         return;
       }
-      final prefs = await SharedPreferences.getInstance();
       final jwtToken = (await AuthTokenStore.instance.getJwtToken());
-      if (jwtToken == null) throw Exception('æªæ¾å° JWTï¼è¯·éæ°ç»å½');
+      if (jwtToken == null) throw Exception('未找到 JWT，请重新登录');
       final decodedToken = JwtDecoder.decode(jwtToken);
       final username = decodedToken['sub'] ?? '';
-      if (username.isEmpty) throw Exception('JWT ä¸­æªæ¾å°ç¨æ·å');
+      if (username.isEmpty) throw Exception('JWT 中未找到用户名');
       await vehicleApi.initializeWithJwt();
       final user = await _fetchUserManagement();
       final driverInfo = user?.userId != null
@@ -1812,7 +1760,7 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
       _currentDriverName = driverInfo?.name ?? username;
       await _checkUserRole();
     } catch (e) {
-      setState(() => _errorMessage = 'åå§åå¤±è´¥: $e');
+      setState(() => _errorMessage = '初始化失败: $e');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -1824,7 +1772,6 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
         Navigator.pushReplacementNamed(context, '/login');
         return null;
       }
-      final prefs = await SharedPreferences.getInstance();
       final jwtToken = (await AuthTokenStore.instance.getJwtToken());
       final response = await http.get(
         Uri.parse('http://localhost:8081/api/users/me'),
@@ -1839,7 +1786,7 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
       }
       return null;
     } catch (e) {
-      setState(() => _errorMessage = 'è·åç¨æ·ä¿¡æ¯å¤±è´¥: $e');
+      setState(() => _errorMessage = '获取用户信息失败: $e');
       return null;
     }
   }
@@ -1854,7 +1801,7 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
       await driverApi.initializeWithJwt();
       return await driverApi.apiDriversDriverIdGet(driverId: userId);
     } catch (e) {
-      setState(() => _errorMessage = 'è·åå¸æºä¿¡æ¯å¤±è´¥: $e');
+      setState(() => _errorMessage = '获取司机信息失败: $e');
       return null;
     }
   }
@@ -1865,9 +1812,8 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
         Navigator.pushReplacementNamed(context, '/login');
         return;
       }
-      final prefs = await SharedPreferences.getInstance();
       final jwtToken = (await AuthTokenStore.instance.getJwtToken());
-      if (jwtToken == null) throw Exception('æªæ¾å° JWTï¼è¯·éæ°ç»å½');
+      if (jwtToken == null) throw Exception('未找到 JWT，请重新登录');
       final response = await http.get(
         Uri.parse('http://localhost:8081/api/users/me'),
         headers: {
@@ -1891,11 +1837,11 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
       } else {
         debugPrint(
             'Role check failed: Status ${response.statusCode}, Body: ${response.body}');
-        throw Exception('éªè¯å¤±è´¥ï¼${response.statusCode}');
+        throw Exception('验证失败：${response.statusCode}');
       }
     } catch (e) {
       debugPrint('Error checking role: $e');
-      setState(() => _errorMessage = 'å è½½æéå¤±è´¥: $e');
+      setState(() => _errorMessage = '加载权限失败: $e');
     }
   }
 
@@ -1907,10 +1853,10 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
         return;
       }
       await vehicleApi.apiVehiclesVehicleIdDelete(vehicleId: vehicleId);
-      _showSnackBar('å é¤è½¦è¾æåï¼');
+      _showSnackBar('删除车辆成功！');
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
-      _showSnackBar('å é¤å¤±è´¥: $e', isError: true);
+      _showSnackBar('删除失败: $e', isError: true);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -1966,17 +1912,17 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
           backgroundColor: themeData.colorScheme.surfaceContainerHighest,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text('ç¡®è®¤å é¤',
+          title: Text('确认删除',
               style: themeData.textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: themeData.colorScheme.onSurface)),
-          content: Text('æ¨ç¡®å®è¦$actionæ­¤è½¦è¾åï¼æ­¤æä½ä¸å¯æ¤éã',
+          content: Text('您确定要$action此车辆吗？此操作不可撤销。',
               style: themeData.textTheme.bodyMedium
                   ?.copyWith(color: themeData.colorScheme.onSurfaceVariant)),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: Text('åæ¶',
+              child: Text('取消',
                   style: themeData.textTheme.labelLarge?.copyWith(
                       color: themeData.colorScheme.onSurfaceVariant,
                       fontWeight: FontWeight.w600)),
@@ -1994,7 +1940,7 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               ),
-              child: const Text('å é¤'),
+              child: const Text('删除'),
             ),
           ],
         );
@@ -2009,8 +1955,7 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
       if (_errorMessage.isNotEmpty) {
                 return DashboardPageTemplate(
           theme: themeData,
-          title: 'è½¦è¾è¯¦æ
-',
+          title: '车辆详情',
           pageType: DashboardPageType.manager,
           bodyIsScrollable: true,
           padding: EdgeInsets.zero,
@@ -2023,7 +1968,7 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
                         color: themeData.colorScheme.error,
                         fontWeight: FontWeight.w500),
                     textAlign: TextAlign.center),
-                if (_errorMessage.contains('ç»å½'))
+                if (_errorMessage.contains('登录'))
                   Padding(
                     padding: const EdgeInsets.only(top: 16.0),
                     child: ElevatedButton(
@@ -2032,7 +1977,7 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
                       style: ElevatedButton.styleFrom(
                           backgroundColor: themeData.colorScheme.primary,
                           foregroundColor: themeData.colorScheme.onPrimary),
-                      child: const Text('åå¾ç»å½'),
+                      child: const Text('前往登录'),
                     ),
                   ),
               ],
@@ -2043,8 +1988,7 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
 
         return DashboardPageTemplate(
         theme: themeData,
-        title: 'è½¦è¾è¯¦æ
-',
+        title: '车辆详情',
         pageType: DashboardPageType.manager,
         bodyIsScrollable: true,
         padding: EdgeInsets.zero,
@@ -2064,7 +2008,7 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
                   }
                 });
               },
-              tooltip: 'ç¼è¾è½¦è¾ä¿¡æ¯',
+              tooltip: '编辑车辆信息',
             ),
             DashboardPageBarAction(
               icon: Icons.delete,
@@ -2072,15 +2016,15 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
               onPressed: () {
                 final vehicleId = widget.vehicle.vehicleId;
                 if (vehicleId == null) {
-                  _showSnackBar('è½¦è¾IDä¸ºç©ºï¼æ æ³å é¤', isError: true);
+                  _showSnackBar('车辆ID为空，无法删除', isError: true);
                   return;
                 }
                 _showDeleteConfirmationDialog(
-                  'å é¤',
+                  '删除',
                   () => _deleteVehicle(vehicleId),
                 );
               },
-              tooltip: 'å é¤è½¦è¾',
+              tooltip: '删除车辆',
             ),
           ],
         ],
@@ -2102,27 +2046,26 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildDetailRow('è½¦è¾ç±»å',
-                              widget.vehicle.vehicleType ?? 'æªç¥ç±»å', themeData),
-                          _buildDetailRow('è½¦çå·',
-                              widget.vehicle.licensePlate ?? 'æªç¥è½¦ç', themeData),
-                          _buildDetailRow('è½¦ä¸»å§å',
-                              widget.vehicle.ownerName ?? 'æªç¥è½¦ä¸»', themeData),
-                          _buildDetailRow('è½¦è¾ç¶æ',
-                              widget.vehicle.currentStatus ?? 'æ ', themeData),
-                          _buildDetailRow('èº«ä»½è¯å·ç ',
-                              widget.vehicle.idCardNumber ?? 'æ ', themeData),
-                          _buildDetailRow('èç³»çµè¯',
-                              widget.vehicle.contactNumber ?? 'æ ', themeData),
-                          _buildDetailRow('åå¨æºå·',
-                              widget.vehicle.engineNumber ?? 'æ ', themeData),
-                          _buildDetailRow('è½¦æ¶å·',
-                              widget.vehicle.frameNumber ?? 'æ ', themeData),
-                          _buildDetailRow('è½¦èº«é¢è²',
-                              widget.vehicle.vehicleColor ?? 'æ ', themeData),
+                          _buildDetailRow('车辆类型',
+                              widget.vehicle.vehicleType ?? '未知类型', themeData),
+                          _buildDetailRow('车牌号',
+                              widget.vehicle.licensePlate ?? '未知车牌', themeData),
+                          _buildDetailRow('车主姓名',
+                              widget.vehicle.ownerName ?? '未知车主', themeData),
+                          _buildDetailRow('车辆状态',
+                              widget.vehicle.currentStatus ?? '无', themeData),
+                          _buildDetailRow('身份证号码',
+                              widget.vehicle.idCardNumber ?? '无', themeData),
+                          _buildDetailRow('联系电话',
+                              widget.vehicle.contactNumber ?? '无', themeData),
+                          _buildDetailRow('发动机号',
+                              widget.vehicle.engineNumber ?? '无', themeData),
+                          _buildDetailRow('车架号',
+                              widget.vehicle.frameNumber ?? '无', themeData),
+                          _buildDetailRow('车身颜色',
+                              widget.vehicle.vehicleColor ?? '无', themeData),
                           _buildDetailRow(
-                              'é¦æ¬¡å½å
-¥è½¦çå·çæ¥æ',
+                              '首次录入车牌号的日期',
                               formatDate(widget.vehicle.firstRegistrationDate),
                               themeData),
                         ],

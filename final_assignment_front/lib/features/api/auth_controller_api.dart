@@ -7,7 +7,8 @@ import 'package:http/http.dart' as http; // ç¨äº Response å?Multipart
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
-// å®ä¹ä¸ä¸ªå¨å±ç?defaultApiClient
+// å®ä¹ä¸ä¸ªå
+// ¨å±ç?defaultApiClient
 final ApiClient defaultApiClient = ApiClient();
 
 class AuthControllerApi {
@@ -17,10 +18,12 @@ class AuthControllerApi {
   AuthControllerApi([ApiClient? apiClient])
       : apiClient = apiClient ?? defaultApiClient;
 
-  // è§£ç ååºä½çè¾å©æ¹æ³
+  // è§£ç ååºä½çè¾
+// å©æ¹æ³
   String _decodeBodyBytes(http.Response response) => response.body;
 
-  // è·åéç¨è¯·æ±å¤´ï¼åå« JWT
+  // è·åéç¨è¯·æ±å¤´ï¼å
+// å« JWT
   Future<Map<String, String>> _getHeaders() async {
       final token = (await AuthTokenStore.instance.getJwtToken()) ?? '';
     debugPrint('Using JWT for request: $token');

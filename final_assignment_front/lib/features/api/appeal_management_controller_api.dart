@@ -19,7 +19,7 @@ class AppealManagementControllerApi {
   Future<void> initializeWithJwt() async {
       final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null || jwtToken.isEmpty) {
-      throw Exception('æªç»å½ï¼è¯·éæ°ç»å½?);
+      throw Exception('Not authenticated. Please log in again.');
     }
     apiClient.setJwtToken(jwtToken);
     debugPrint('Initialized AppealManagementControllerApi with token: $jwtToken');

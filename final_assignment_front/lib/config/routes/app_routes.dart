@@ -1,158 +1,157 @@
-part of 'app_pages.dart';
 
 /// 用于切换页面
 class Routes {
   /// 首页路由
-  static const dashboard = _Paths.dashboard;
+  static const dashboard = RoutePaths.dashboard;
 
   /// 登录页面路由
-  static const login = _Paths.login;
+  static const login = RoutePaths.login;
 
   /// 用户仪表盘页面路由
-  static const userDashboard = _Paths.userDashboard;
+  static const userDashboard = RoutePaths.userDashboard;
 
   /// AI聊天页面路由
-  static const aiChat = _Paths.aiChat;
+  static const aiChat = RoutePaths.aiChat;
 
   /// 地图页面路由
-  static const map = _Paths.map;
+  static const map = RoutePaths.map;
 
   /// 在线处理进度页面路由
-  static const onlineProcessingProgress = _Paths.onlineProcessingProgress;
+  static const onlineProcessingProgress = RoutePaths.onlineProcessingProgress;
 
   /// 账户与安全页面路由
-  static const accountAndSecurity = _Paths.accountAndSecurity;
+  static const accountAndSecurity = RoutePaths.accountAndSecurity;
 
   /// 修改密码页面路由
-  static const changePassword = _Paths.changePassword;
+  static const changePassword = RoutePaths.changePassword;
 
   /// 删除账户页面路由
-  static const deleteAccount = _Paths.deleteAccount;
+  static const deleteAccount = RoutePaths.deleteAccount;
 
   /// 信息声明页面路由
-  static const informationStatement = _Paths.informationStatement;
+  static const informationStatement = RoutePaths.informationStatement;
 
   /// 账户迁移页面路由
-  static const migrateAccount = _Paths.migrateAccount;
+  static const migrateAccount = RoutePaths.migrateAccount;
 
   /// 修改手机号码页面路由
-  static const changeMobilePhoneNumber = _Paths.changeMobilePhoneNumber;
+  static const changeMobilePhoneNumber = RoutePaths.changeMobilePhoneNumber;
 
   /// 个人信息页面路由
-  static const personalInfo = _Paths.personalInfo;
+  static const personalInfo = RoutePaths.personalInfo;
 
   /// 设置页面路由
-  static const userSetting = _Paths.userSetting;
+  static const userSetting = RoutePaths.userSetting;
 
   /// 咨询页面路由
-  static const consultation = _Paths.consultation;
+  static const consultation = RoutePaths.consultation;
 
   /// 个人主页页面路由
-  static const personalMain = _Paths.personalMain;
+  static const personalMain = RoutePaths.personalMain;
 
   /// 主扫描页面路由
-  static const mainScan = _Paths.mainScan;
+  static const mainScan = RoutePaths.mainScan;
 
   /// 新闻详情页面路由
-  static const newsDetailScreen = _Paths.newsDetailScreen;
+  static const newsDetailScreen = RoutePaths.newsDetailScreen;
 
   // 申诉管理页面路由
-  static const appealManagement = _Paths.appealManagement;
+  static const appealManagement = RoutePaths.appealManagement;
 
   // 备份与恢复页面路由
-  static const backupAndRestore = _Paths.backupAndRestore;
+  static const backupAndRestore = RoutePaths.backupAndRestore;
 
   // 驾驶证列表页面路由
-  static const driverList = _Paths.driverList;
+  static const driverList = RoutePaths.driverList;
 
   // 罚款列表页面路由
-  static const fineList = _Paths.fineList;
+  static const fineList = RoutePaths.fineList;
 
   // 管理员个人主页页面路由
-  static const managerPersonalPage = _Paths.managerPersonalPage;
+  static const managerPersonalPage = RoutePaths.managerPersonalPage;
 
   // 管理员设置页面路由
-  static const managerSetting = _Paths.managerSetting;
+  static const managerSetting = RoutePaths.managerSetting;
 
   // 违章列表页面路由
-  static const offenseList = _Paths.offenseList;
+  static const offenseList = RoutePaths.offenseList;
 
   // 车辆列表页面路由
-  static const vehicleList = _Paths.vehicleList;
+  static const vehicleList = RoutePaths.vehicleList;
 
   // 罚款信息页面路由
-  static const fineInformation = _Paths.fineInformation;
+  static const fineInformation = RoutePaths.fineInformation;
 
   // 用户申诉页面路由
-  static const userAppeal = _Paths.userAppeal;
+  static const userAppeal = RoutePaths.userAppeal;
 
   // 在线处理页面路由
-  static const onlineProcessing = _Paths.onlineProcessing;
+  static const onlineProcessing = RoutePaths.onlineProcessing;
 
   // 车辆详情页面路由
-  static const vehicleManagement = _Paths.vehicleManagement;
+  static const vehicleManagement = RoutePaths.vehicleManagement;
 
   // 切换主题
-  static const changeThemes = _Paths.changeThemes;
+  static const changeThemes = RoutePaths.changeThemes;
 
   // 用户业务办理页面
-  static const businessProgress = _Paths.businessProgress;
+  static const businessProgress = RoutePaths.businessProgress;
 
   // 管理员用户业务处理页面
-  static const managerBusinessProcessing = _Paths.managerBusinessProcessing;
+  static const managerBusinessProcessing = RoutePaths.managerBusinessProcessing;
 
   // 事故现场证据介绍页路由
-  static const accidentEvidencePage = _Paths.accidentEvidencePage;
+  static const accidentEvidencePage = RoutePaths.accidentEvidencePage;
 
   // 事故现场证据介绍页路由
-  static const accidentProgressPage = _Paths.accidentProgressPage;
+  static const accidentProgressPage = RoutePaths.accidentProgressPage;
 
   // 事故现场快速处理介绍页路由
-  static const accidentQuickGuidePage = _Paths.accidentQuickGuidePage;
+  static const accidentQuickGuidePage = RoutePaths.accidentQuickGuidePage;
 
   // 事故现场处理视频介绍页路由
-  static const accidentVideoQuickPage = _Paths.accidentVideoQuickPage;
+  static const accidentVideoQuickPage = RoutePaths.accidentVideoQuickPage;
 
   // 罚款支付介绍页路由
-  static const finePaymentNoticePage = _Paths.finePaymentNoticePage;
+  static const finePaymentNoticePage = RoutePaths.finePaymentNoticePage;
 
   // 最新交通违章新闻介绍路由
   static const latestTrafficViolationNewsPage =
-      _Paths.latestTrafficViolationNewsPage;
+      RoutePaths.latestTrafficViolationNewsPage;
 
   // 管理员管理进度页面
-  static const progressManagement = _Paths.progressManagement;
+  static const progressManagement = RoutePaths.progressManagement;
 
   // 进度详情页面路由
-  static const progressDetailPage = _Paths.progressDetailPage;
+  static const progressDetailPage = RoutePaths.progressDetailPage;
 
   // 日志管理页面路由
-  static const logManagement = _Paths.logManagement;
+  static const logManagement = RoutePaths.logManagement;
 
   // 用户管理页面路由
-  static const userManagementPage = _Paths.userManagementPage;
+  static const userManagementPage = RoutePaths.userManagementPage;
 
   // 登录日志页面路由
-  static const loginLogPage = _Paths.loginLogPage;
+  static const loginLogPage = RoutePaths.loginLogPage;
 
   // 操作日志页面路由
-  static const operationLogPage = _Paths.operationLogPage;
+  static const operationLogPage = RoutePaths.operationLogPage;
 
   // 系统日志页面路由
-  static const systemLogPage = _Paths.systemLogPage;
+  static const systemLogPage = RoutePaths.systemLogPage;
 
   // 用户违章列表页面路由
-  static const userOffenseListPage = _Paths.userOffenseListPage;
+  static const userOffenseListPage = RoutePaths.userOffenseListPage;
 
   // 违章列表页面路由
-  static const trafficViolationScreen = _Paths.trafficViolationScreen;
+  static const trafficViolationScreen = RoutePaths.trafficViolationScreen;
 
-  static const progressManagementPage  = _Paths.progressManagementPage;
+  static const progressManagementPage = RoutePaths.progressManagementPage;
 }
 
 /// 包含路由名称列表。
 /// 单独创建以方便管理路由命名。
-class _Paths {
+class RoutePaths {
   /// 首页路由
   static const dashboard = '/dashboard';
 

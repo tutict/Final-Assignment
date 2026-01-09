@@ -1,8 +1,8 @@
 // ignore_for_file: use_build_context_synchronously
 
-import 'package:final_assignment_front/config/routes/app_pages.dart';
+import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/progress_controller.dart';
-import 'package:final_assignment_front/features/dashboard/views/user/user_dashboard.dart';
+import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/model/progress_item.dart';
 import 'package:flutter/material.dart';
@@ -160,7 +160,7 @@ class OnlineProcessingProgress extends StatelessWidget {
                                         onSelected: (value) {
                                           if (value == 'view') {
                                             Get.toNamed(
-                                                    AppPages.progressDetailPage,
+                                                    Routes.progressDetailPage,
                                                     arguments: item)
                                                 ?.then((result) {
                                               if (result == true) {
@@ -222,7 +222,7 @@ class OnlineProcessingProgress extends StatelessWidget {
                                         ],
                                       ),
                                       onTap: () => Get.toNamed(
-                                              AppPages.progressDetailPage,
+                                              Routes.progressDetailPage,
                                               arguments: item)
                                           ?.then((result) {
                                         if (result == true) {
@@ -247,7 +247,7 @@ class OnlineProcessingProgress extends StatelessWidget {
       children: [
         Expanded(
           child: DropdownButtonFormField<String>(
-            value: controller.statusCategories.isNotEmpty
+            initialValue: controller.statusCategories.isNotEmpty
                 ? controller.statusCategories.first
                 : null,
             decoration: InputDecoration(
@@ -554,7 +554,7 @@ class OnlineProcessingProgress extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: selectedStatus,
+                initialValue: selectedStatus,
                 decoration: InputDecoration(
                   labelText: '状态',
                   labelStyle: themeData.textTheme.bodyMedium?.copyWith(

@@ -2,7 +2,7 @@
 import 'dart:convert';
 
 import 'package:final_assignment_front/features/dashboard/controllers/progress_controller.dart';
-import 'package:final_assignment_front/features/dashboard/views/user/user_dashboard.dart';
+import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/user/widgets/user_page_app_bar.dart';
 import 'package:final_assignment_front/utils/ui/ui_utils.dart';
 import 'package:flutter/material.dart';

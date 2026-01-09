@@ -5,13 +5,16 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
-/// å®ä¹ä¸ä¸ªå¨å±ç?defaultApiClient
+/// å®ä¹ä¸ä¸ªå
+// ¨å±ç?defaultApiClient
 final ApiClient defaultApiClient = ApiClient();
 
 class PermissionManagementControllerApi {
   final ApiClient apiClient;
 
-  /// æé å½æ°ï¼å¯ä¼ å?ApiClientï¼å¦åä½¿ç¨å¨å±é»è®¤å®ä¾
+  /// æé å½æ°ï¼å¯ä¼ å
+// ?ApiClientï¼å¦åä½¿ç¨å
+// ¨å±é»è®¤å®ä¾
   PermissionManagementControllerApi([ApiClient? apiClient])
       : apiClient = apiClient ?? defaultApiClient;
 
@@ -19,7 +22,7 @@ class PermissionManagementControllerApi {
   Future<void> initializeWithJwt() async {
       final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
-      throw Exception('æªç»å½ï¼è¯·éæ°ç»å½?);
+      throw Exception('Not authenticated. Please log in again.');
     }
     apiClient.setJwtToken(jwtToken);
     debugPrint(
@@ -29,7 +32,8 @@ class PermissionManagementControllerApi {
   /// è§£ç ååºä½å­èå°å­ç¬¦ä¸?
   String _decodeBodyBytes(Response response) => response.body;
 
-  /// è¾å©æ¹æ³ï¼æ·»å æ¥è¯¢åæ°ï¼å¦åç§°æç´¢ï¼
+  /// è¾
+// å©æ¹æ³ï¼æ·»å æ¥è¯¢åæ°ï¼å¦åç§°æç´¢ï¼
   List<QueryParam> _addQueryParams({String? name}) {
     final queryParams = <QueryParam>[];
     if (name != null) queryParams.add(QueryParam('name', name));
@@ -56,7 +60,8 @@ class PermissionManagementControllerApi {
     return PermissionManagement.listFromJson(data);
   }
 
-  /// DELETE /api/permissions/name/{permissionName} - æ ¹æ®åç§°å é¤æé (ä»ç®¡çå)
+  /// DELETE /api/permissions/name/{permissionName} - æ ¹æ®åç§°å é¤æé (ä»
+// ç®¡çå)
   Future<void> apiPermissionsNamePermissionNameDelete(
       {required String permissionName}) async {
     if (permissionName.isEmpty) {
@@ -102,7 +107,8 @@ class PermissionManagementControllerApi {
     return PermissionManagement.fromJson(data);
   }
 
-  /// DELETE /api/permissions/{permissionId} - æ ¹æ®IDå é¤æé (ä»ç®¡çå)
+  /// DELETE /api/permissions/{permissionId} - æ ¹æ®IDå é¤æé (ä»
+// ç®¡çå)
   Future<void> apiPermissionsPermissionIdDelete(
       {required String permissionId}) async {
     if (permissionId.isEmpty) {
@@ -148,7 +154,8 @@ class PermissionManagementControllerApi {
     return PermissionManagement.fromJson(data);
   }
 
-  /// PUT /api/permissions/{permissionId} - æ´æ°æé (ä»ç®¡çå)
+  /// PUT /api/permissions/{permissionId} - æ´æ°æé (ä»
+// ç®¡çå)
   Future<PermissionManagement> apiPermissionsPermissionIdPut({
     required String permissionId,
     required PermissionManagement permissionManagement,
@@ -174,7 +181,8 @@ class PermissionManagementControllerApi {
     return PermissionManagement.fromJson(data);
   }
 
-  /// POST /api/permissions - åå»ºæé (ä»ç®¡çå)
+  /// POST /api/permissions - åå»ºæé (ä»
+// ç®¡çå)
   Future<PermissionManagement> apiPermissionsPost(
       {required PermissionManagement permissionManagement}) async {
     final response = await apiClient.invokeAPI(

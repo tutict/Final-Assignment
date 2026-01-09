@@ -1,11 +1,11 @@
 // user_offense_list_page.dart
 import 'dart:developer' as developer;
 
-import 'package:final_assignment_front/config/routes/app_pages.dart';
+import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/user_management_controller_api.dart';
-import 'package:final_assignment_front/features/dashboard/views/user/user_dashboard.dart';
+import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/model/driver_information.dart';
 import 'package:final_assignment_front/features/model/offense_information.dart';
@@ -161,12 +161,12 @@ class _UserOffenseListPageState extends State<UserOffenseListPage> {
     setState(() => _isLoading = true);
     try {
       if (!await _validateJwtToken()) {
-        Get.offAllNamed(AppPages.login);
+        Get.offAllNamed(Routes.login);
         return;
       }
       if (_driverName.isEmpty) {
         setState(() => _errorMessage = '无法获取司机姓名，请重新登录');
-        Get.offAllNamed(AppPages.login);
+        Get.offAllNamed(Routes.login);
         return;
       }
       await offenseApi.initializeWithJwt();
@@ -197,7 +197,7 @@ class _UserOffenseListPageState extends State<UserOffenseListPage> {
 
     try {
       if (!await _validateJwtToken()) {
-        Get.offAllNamed(AppPages.login);
+        Get.offAllNamed(Routes.login);
         return;
       }
       final offenses = _searchController.text.isNotEmpty
@@ -237,7 +237,7 @@ class _UserOffenseListPageState extends State<UserOffenseListPage> {
           _hasMore = false;
         } else if (e.toString().contains('403')) {
           _errorMessage = '未授权，请重新登录';
-          Get.offAllNamed(AppPages.login);
+          Get.offAllNamed(Routes.login);
         } else {
           _errorMessage = '获取违法记录失败: ${_formatErrorMessage(e)}';
         }
@@ -538,7 +538,7 @@ class _UserOffenseListPageState extends State<UserOffenseListPage> {
                 Padding(
                   padding: const EdgeInsets.only(top: 16.0),
                   child: ElevatedButton(
-                    onPressed: () => Get.offAllNamed(AppPages.login),
+                    onPressed: () => Get.offAllNamed(Routes.login),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: themeData.colorScheme.primary,
                       foregroundColor: themeData.colorScheme.onPrimary,
@@ -607,7 +607,7 @@ class _UserOffenseListPageState extends State<UserOffenseListPage> {
                                             const EdgeInsets.only(top: 16.0),
                                         child: ElevatedButton(
                                           onPressed: () =>
-                                              Get.offAllNamed(AppPages.login),
+                                              Get.offAllNamed(Routes.login),
                                           style: ElevatedButton.styleFrom(
                                             backgroundColor:
                                                 themeData.colorScheme.primary,

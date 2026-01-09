@@ -47,17 +47,23 @@ class _ChangeThemes extends State<ChangeThemes> {
               style: TextStyle(fontSize: 24), // 描述文字
             ),
             const SizedBox(height: 20),
-            for (String themeKey in themes.keys)
-              RadioListTile<String>(
-                title: Text(themeKey), // 主题名称
-                value: themeKey,
-                groupValue: selectedTheme,
-                onChanged: (value) {
-                  if (value != null) {
-                    _toggleTheme(value);
-                  }
-                },
+            RadioGroup<String>(
+              groupValue: selectedTheme,
+              onChanged: (value) {
+                if (value != null) {
+                  _toggleTheme(value);
+                }
+              },
+              child: Column(
+                children: [
+                  for (String themeKey in themes.keys)
+                    RadioListTile<String>(
+                      title: Text(themeKey), // ??????
+                      value: themeKey,
+                    ),
+                ],
               ),
+            ),
           ],
         ),
       ),

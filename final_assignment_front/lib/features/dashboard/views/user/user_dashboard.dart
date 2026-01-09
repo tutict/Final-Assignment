@@ -1,18 +1,13 @@
 import 'dart:math';
 import 'dart:ui';
 import 'package:eva_icons_flutter/eva_icons_flutter.dart';
-import 'package:final_assignment_front/config/routes/app_pages.dart';
-import 'package:final_assignment_front/config/themes/app_theme.dart';
+import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
-import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
-import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
-import 'package:final_assignment_front/features/api/role_management_controller_api.dart';
-import 'package:final_assignment_front/features/api/user_management_controller_api.dart';
+import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
 import 'package:final_assignment_front/features/dashboard/models/profile.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/components/ai_chat.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/components/notification_bar.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/components/profile_tile.dart';
-import 'package:final_assignment_front/shared_components/case_card.dart';
 import 'package:final_assignment_front/shared_components/floating_window.dart';
 import 'package:final_assignment_front/shared_components/post_card.dart';
 import 'package:final_assignment_front/shared_components/project_card.dart';
@@ -21,29 +16,22 @@ import 'package:final_assignment_front/shared_components/selection_button.dart';
 import 'package:final_assignment_front/shared_components/today_text.dart';
 import 'package:final_assignment_front/shared_components/user_screen_swiper.dart';
 import 'package:final_assignment_front/shared_components/user_news_card.dart';
-import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
-import 'package:final_assignment_front/utils/mixins/app_mixins.dart';
+import 'package:final_assignment_front/utils/navigation/page_resolver.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:get/get.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:developer' as developer;
-
-part '../../bindings/user_dashboard_binding.dart';
-
-part '../../controllers/user_dashboard_screen_controller.dart';
 
 part 'components/user_header.dart';
 
 part 'components/user_sidebar.dart';
 
-class UserDashboard extends GetView<UserDashboardController>
-    with FloatingBase, NavigationMixin {
+class UserDashboard extends GetView<UserDashboardController> with FloatingBase {
   const UserDashboard({super.key});
 
   @override
   Widget build(BuildContext context) {
+    controller.pageResolver ??= resolveDashboardPage;
     final double screenWidth = MediaQuery.of(context).size.width;
     final double screenHeight = MediaQuery.of(context).size.height;
     const double kHeaderTotalHeight = 32 + 50 + 15 + 1;

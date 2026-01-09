@@ -6,13 +6,16 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
-/// å®ä¹ä¸ä¸ªå¨å±ç?defaultApiClient
+/// å®ä¹ä¸ä¸ªå
+// ¨å±ç?defaultApiClient
 final ApiClient defaultApiClient = ApiClient();
 
 class DriverInformationControllerApi {
   final ApiClient apiClient;
 
-  /// æé å½æ°ï¼å¯ä¼ å?ApiClientï¼å¦åä½¿ç¨å¨å±é»è®¤å®ä¾
+  /// æé å½æ°ï¼å¯ä¼ å
+// ?ApiClientï¼å¦åä½¿ç¨å
+// ¨å±é»è®¤å®ä¾
   DriverInformationControllerApi([ApiClient? apiClient])
       : apiClient = apiClient ?? defaultApiClient;
 
@@ -20,7 +23,7 @@ class DriverInformationControllerApi {
   Future<void> initializeWithJwt() async {
       final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
-      throw Exception('æªç»å½ï¼è¯·éæ°ç»å½?);
+      throw Exception('Not authenticated. Please log in again.');
     }
     apiClient.setJwtToken(jwtToken);
     debugPrint(
@@ -243,7 +246,8 @@ class DriverInformationControllerApi {
     }
   }
 
-  /// DELETE /api/drivers/{driverId} - å é¤å¸æºä¿¡æ¯ (ä»ç®¡çå)
+  /// DELETE /api/drivers/{driverId} - å é¤å¸æºä¿¡æ¯ (ä»
+// ç®¡çå)
   Future<void> apiDriversDriverIdDelete({
     required int driverId,
   }) async {

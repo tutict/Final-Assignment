@@ -1,4 +1,4 @@
-import 'package:final_assignment_front/features/dashboard/views/manager/manager_dashboard_screen.dart';
+import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/appeal_management.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/deduction_management.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/driver_list.dart';

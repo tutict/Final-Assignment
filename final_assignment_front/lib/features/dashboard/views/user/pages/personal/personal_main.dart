@@ -3,7 +3,7 @@ import 'dart:math';
 
 import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/user_management_controller_api.dart';
-import 'package:final_assignment_front/features/dashboard/views/user/user_dashboard.dart';
+import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/user/widgets/user_page_app_bar.dart';
 import 'package:final_assignment_front/features/model/driver_information.dart';
 import 'package:final_assignment_front/features/model/user_management.dart';

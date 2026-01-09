@@ -1,9 +1,9 @@
 // ignore_for_file: use_build_context_synchronously
 import 'dart:async';
 import 'dart:convert';
-import 'package:final_assignment_front/config/routes/app_pages.dart';
+import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/features/api/auth_controller_api.dart';
-import 'package:final_assignment_front/features/dashboard/views/manager/manager_dashboard_screen.dart';
+import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/api/user_management_controller_api.dart';
 import 'package:final_assignment_front/features/model/user_management.dart';
@@ -17,7 +17,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import 'package:logging/logging.dart';
 
-import '../../../../../model/register_request.dart';
+import 'package:final_assignment_front/features/model/register_request.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
 String generateIdempotencyKey() => const Uuid().v4();
@@ -49,14 +49,14 @@ class _UserManagementPageState extends State<UserManagementPage> {
 
   // Status mapping: English to Chinese
   static const Map<String, String> _statusDisplayMap = {
-    'Active': 'æ´»è·',
-    'Inactive': 'ç¦ç¨',
+    'Active': '活跃',
+    'Inactive': '禁用',
   };
 
   // Dropdown items for status
   static const List<Map<String, String>> _statusDropdownItems = [
-    {'value': 'Active', 'label': 'æ´»è·'},
-    {'value': 'Inactive', 'label': 'ç¦ç¨'},
+    {'value': 'Active', 'label': '活跃'},
+    {'value': 'Inactive', 'label': '禁用'},
   ];
 
   @override
@@ -85,10 +85,9 @@ class _UserManagementPageState extends State<UserManagementPage> {
   }
 
   Future<bool> _validateJwtToken() async {
-    final prefs = await SharedPreferences.getInstance();
     String? jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null || jwtToken.isEmpty) {
-      setState(() => _errorMessage = 'æªææï¼è¯·éæ°ç»å½');
+      setState(() => _errorMessage = '未授权，请重新登录');
       _logger.warning('No JWT token found');
       return false;
     }
@@ -97,13 +96,13 @@ class _UserManagementPageState extends State<UserManagementPage> {
       if (JwtDecoder.isExpired(jwtToken)) {
         jwtToken = await _refreshJwtToken();
         if (jwtToken == null) {
-          setState(() => _errorMessage = 'ç»å½å·²è¿æï¼è¯·éæ°ç»å½');
+          setState(() => _errorMessage = '登录已过期，请重新登录');
           _logger.warning('JWT token refresh failed');
           return false;
         }
         await AuthTokenStore.instance.setJwtToken(jwtToken);
         if (JwtDecoder.isExpired(jwtToken)) {
-          setState(() => _errorMessage = 'æ°ç»å½ä¿¡æ¯å·²è¿æï¼è¯·éæ°ç»å½');
+          setState(() => _errorMessage = '新登录信息已过期，请重新登录');
           _logger.warning('Refreshed JWT token is expired');
           return false;
         }
@@ -113,7 +112,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
       _logger.info('JWT Token validated: sub=$_currentUsername');
       return true;
     } catch (e) {
-      setState(() => _errorMessage = 'æ æçç»å½ä¿¡æ¯ï¼è¯·éæ°ç»å½: $e');
+      setState(() => _errorMessage = '无效的登录信息，请重新登录: $e');
       _logger.severe('JWT validation failed: $e', StackTrace.current);
       return false;
     }
@@ -158,11 +157,10 @@ class _UserManagementPageState extends State<UserManagementPage> {
     });
     try {
       if (!await _validateJwtToken()) {
-        Get.offAllNamed(AppPages.login);
+        Get.offAllNamed(Routes.login);
         return;
       }
       await userApi.initializeWithJwt();
-      final prefs = await SharedPreferences.getInstance();
       final jwtToken = (await AuthTokenStore.instance.getJwtToken())!;
       final decodedToken = JwtDecoder.decode(jwtToken);
       final roles = decodedToken['roles'] is List
@@ -176,11 +174,10 @@ class _UserManagementPageState extends State<UserManagementPage> {
       if (_isAdmin) {
         await _fetchUsers(reset: true);
       } else {
-        setState(() => _errorMessage = 'ä»
-ç®¡çåå¯è®¿é®ç¨æ·ç®¡çé¡µé¢');
+        setState(() => _errorMessage = '仅管理员可访问用户管理页面');
       }
     } catch (e) {
-      setState(() => _errorMessage = 'åå§åå¤±è´¥: $e');
+      setState(() => _errorMessage = '初始化失败: $e');
       _logger.severe('Initialization error: $e', StackTrace.current);
     } finally {
       setState(() => _isLoading = false);
@@ -192,22 +189,20 @@ class _UserManagementPageState extends State<UserManagementPage> {
       _logger.info('Checking username availability: $username');
       await userApi.apiUsersUsernameUsernameGet(username: username);
       _logger.info('Username $username already exists');
-      return false; // ç¨æ·å­å¨
+      return false; // 用户存在
     } catch (e) {
       if (e is ApiException && e.code == 404) {
         _logger.info('Username $username is available');
-        return true; // ç¨æ·ä¸å­å¨ï¼å¯ç¨
+        return true; // 用户不存在，可用
       }
       _logger.severe('Failed to check username availability: $e', StackTrace.current);
-      rethrow; // å
-¶ä»éè¯¯ï¼æåºå¼å¸¸
+      rethrow; // 其他错误，抛出异常
     }
   }
 
   Future<void> _fetchUsers({bool reset = false, String? query}) async {
     if (!_isAdmin) {
-      setState(() => _errorMessage = 'ä»
-ç®¡çåå¯è®¿é®ç¨æ·ç®¡çé¡µé¢');
+      setState(() => _errorMessage = '仅管理员可访问用户管理页面');
       return;
     }
     if (reset) {
@@ -228,7 +223,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
 
     try {
       if (!await _validateJwtToken()) {
-        Get.offAllNamed(AppPages.login);
+        Get.offAllNamed(Routes.login);
         return;
       }
       List<UserManagement> users = [];
@@ -279,7 +274,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
         _userList.addAll(users);
         _hasMore = hasMoreResults;
         if (_userList.isEmpty && _currentPage == 1) {
-          _errorMessage = searchQuery.isNotEmpty ? 'æªæ¾å°ç¬¦åæ¡ä»¶çç¨æ·' : 'å½åæ²¡æç¨æ·è®°å½';
+          _errorMessage = searchQuery.isNotEmpty ? '未找到符合条件的用户' : '当前没有用户记录';
         }
         if (users.isNotEmpty) {
           _currentPage++;
@@ -292,18 +287,18 @@ class _UserManagementPageState extends State<UserManagementPage> {
         if (e is ApiException) {
           switch (e.code) {
             case 403:
-              _errorMessage = 'æªææï¼è¯·éæ°ç»å½';
-              Get.offAllNamed(AppPages.login);
+              _errorMessage = '未授权，请重新登录';
+              Get.offAllNamed(Routes.login);
               break;
             case 404:
-              _errorMessage = 'æªæ¾å°ç¬¦åæ¡ä»¶çç¨æ·';
+              _errorMessage = '未找到符合条件的用户';
               _hasMore = false;
               break;
             default:
-              _errorMessage = 'è·åç¨æ·å¤±è´¥: ${e.message}';
+              _errorMessage = '获取用户失败: ${e.message}';
           }
         } else {
-          _errorMessage = 'è·åç¨æ·å¤±è´¥: $e';
+          _errorMessage = '获取用户失败: $e';
         }
       });
       _logger.severe('Fetch users error: $e', StackTrace.current);
@@ -315,7 +310,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
   Future<List<String>> _fetchAutocompleteSuggestions(String prefix) async {
     try {
       if (!await _validateJwtToken()) {
-        Get.offAllNamed(AppPages.login);
+        Get.offAllNamed(Routes.login);
         return [];
       }
       final lowerPrefix = prefix.toLowerCase();
@@ -429,18 +424,18 @@ class _UserManagementPageState extends State<UserManagementPage> {
     if (error is ApiException) {
       switch (error.code) {
         case 400:
-          return 'è¯·æ±éè¯¯: ${error.message}';
+          return '请求错误: ${error.message}';
         case 403:
-          return 'æ æé: ${error.message}';
+          return '无权限: ${error.message}';
         case 404:
-          return 'æªæ¾å°: ${error.message}';
+          return '未找到: ${error.message}';
         case 409:
-          return 'éå¤è¯·æ±: ${error.message}';
+          return '重复请求: ${error.message}';
         default:
-          return 'æå¡å¨éè¯¯: ${error.message}';
+          return '服务器错误: ${error.message}';
       }
     }
-    return 'æä½å¤±è´¥: $error';
+    return '操作失败: $error';
   }
 
   Future<void> _showCreateUserDialog() async {
@@ -462,7 +457,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
         return Theme(
           data: themeData,
           child: AlertDialog(
-            title: Text('åå»ºæ°ç¨æ·', style: themeData.textTheme.titleLarge),
+            title: Text('创建新用户', style: themeData.textTheme.titleLarge),
             backgroundColor: themeData.colorScheme.surfaceContainerLowest,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
             content: Form(
@@ -474,16 +469,15 @@ class _UserManagementPageState extends State<UserManagementPage> {
                     TextFormField(
                       controller: usernameController,
                       decoration: InputDecoration(
-                        labelText: 'è´¦å·',
+                        labelText: '账号',
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
                         filled: true,
                         fillColor: themeData.colorScheme.surfaceContainer,
                       ),
                       maxLength: 50,
                       validator: (value) {
-                        if (value == null || value.isEmpty) return 'è´¦å·ä¸è½ä¸ºç©º';
-                        if (value.length > 50) return 'è´¦å·ä¸è½è¶
-è¿50ä¸ªå­ç¬¦';
+                        if (value == null || value.isEmpty) return '账号不能为空';
+                        if (value.length > 50) return '账号不能超过50个字符';
                         return null;
                       },
                     ),
@@ -491,7 +485,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                     TextFormField(
                       controller: passwordController,
                       decoration: InputDecoration(
-                        labelText: 'å¯ç ',
+                        labelText: '密码',
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
                         filled: true,
                         fillColor: themeData.colorScheme.surfaceContainer,
@@ -499,9 +493,8 @@ class _UserManagementPageState extends State<UserManagementPage> {
                       obscureText: true,
                       maxLength: 255,
                       validator: (value) {
-                        if (value == null || value.isEmpty) return 'å¯ç ä¸è½ä¸ºç©º';
-                        if (value.length > 255) return 'å¯ç ä¸è½è¶
-è¿255ä¸ªå­ç¬¦';
+                        if (value == null || value.isEmpty) return '密码不能为空';
+                        if (value.length > 255) return '密码不能超过255个字符';
                         return null;
                       },
                     ),
@@ -509,7 +502,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                     TextFormField(
                       controller: contactNumberController,
                       decoration: InputDecoration(
-                        labelText: 'èç³»çµè¯',
+                        labelText: '联系电话',
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
                         filled: true,
                         fillColor: themeData.colorScheme.surfaceContainer,
@@ -518,8 +511,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                       maxLength: 20,
                       validator: (value) {
                         if (value != null && value.isNotEmpty && value.length > 20) {
-                          return 'èç³»çµè¯ä¸è½è¶
-è¿20ä¸ªå­ç¬¦';
+                          return '联系电话不能超过20个字符';
                         }
                         return null;
                       },
@@ -528,7 +520,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                     TextFormField(
                       controller: emailController,
                       decoration: InputDecoration(
-                        labelText: 'é®ç®±',
+                        labelText: '邮箱',
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
                         filled: true,
                         fillColor: themeData.colorScheme.surfaceContainer,
@@ -537,11 +529,9 @@ class _UserManagementPageState extends State<UserManagementPage> {
                       maxLength: 100,
                       validator: (value) {
                         if (value != null && value.isNotEmpty) {
-                          if (value.length > 100) return 'é®ç®±ä¸è½è¶
-è¿100ä¸ªå­ç¬¦';
+                          if (value.length > 100) return '邮箱不能超过100个字符';
                           if (!RegExp(r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-                            return 'è¯·è¾å
-¥ææçé®ç®±å°å';
+                            return '请输入有效的邮箱地址';
                           }
                         }
                         return null;
@@ -549,9 +539,9 @@ class _UserManagementPageState extends State<UserManagementPage> {
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      value: selectedStatus,
+                      initialValue: selectedStatus,
                       decoration: InputDecoration(
-                        labelText: 'ç¶æ',
+                        labelText: '状态',
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
                         filled: true,
                         fillColor: themeData.colorScheme.surfaceContainer,
@@ -563,13 +553,13 @@ class _UserManagementPageState extends State<UserManagementPage> {
                       ))
                           .toList(),
                       onChanged: (value) => selectedStatus = value,
-                      validator: (value) => value == null ? 'è¯·éæ©ç¶æ' : null,
+                      validator: (value) => value == null ? '请选择状态' : null,
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      value: selectedRole,
+                      initialValue: selectedRole,
                       decoration: InputDecoration(
-                        labelText: 'è§è²',
+                        labelText: '角色',
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
                         filled: true,
                         fillColor: themeData.colorScheme.surfaceContainer,
@@ -578,13 +568,13 @@ class _UserManagementPageState extends State<UserManagementPage> {
                           .map((role) => DropdownMenuItem(value: role, child: Text(role)))
                           .toList(),
                       onChanged: (value) => selectedRole = value,
-                      validator: (value) => value == null ? 'è¯·éæ©è§è²' : null,
+                      validator: (value) => value == null ? '请选择角色' : null,
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: remarksController,
                       decoration: InputDecoration(
-                        labelText: 'å¤æ³¨',
+                        labelText: '备注',
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
                         filled: true,
                         fillColor: themeData.colorScheme.surfaceContainer,
@@ -598,13 +588,13 @@ class _UserManagementPageState extends State<UserManagementPage> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: Text('åæ¶', style: TextStyle(color: themeData.colorScheme.error)),
+                child: Text('取消', style: TextStyle(color: themeData.colorScheme.error)),
               ),
               ElevatedButton(
                 onPressed: () async {
                   if (formKey.currentState!.validate()) {
                     if (!await _validateJwtToken()) {
-                      Get.offAllNamed(AppPages.login);
+                      Get.offAllNamed(Routes.login);
                       return;
                     }
                     final username = usernameController.text.trim();
@@ -612,8 +602,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                       _logger.info('Checking username availability: $username');
                       final isUsernameAvailable = await _checkUsernameAvailability(username);
                       if (!isUsernameAvailable) {
-                        _showSnackBar('è´¦å·å·²å­å¨ï¼è¯·éæ©å
-¶ä»è´¦å·', isError: true);
+                        _showSnackBar('账号已存在，请选择其他账号', isError: true);
                         return;
                       }
                       final registerRequest = RegisterRequest(
@@ -624,19 +613,17 @@ class _UserManagementPageState extends State<UserManagementPage> {
                       _logger.info('Registering user: $username, idempotencyKey: $idempotencyKey');
                       final response = await authApi.apiAuthRegisterPost(registerRequest: registerRequest);
                       _logger.info('User registration response: $response');
-                      _showSnackBar('ç¨æ·åå»ºæå');
+                      _showSnackBar('用户创建成功');
                       Navigator.pop(context);
                       await _refreshUserList();
                     } catch (e) {
                       _logger.severe('User creation failed: $e', StackTrace.current);
                       if (e is ApiException && e.code == 409) {
-                        _showSnackBar('è´¦å·å·²è¢«å ç¨ï¼è¯·å°è¯å
-¶ä»è´¦å·', isError: true);
+                        _showSnackBar('账号已被占用，请尝试其他账号', isError: true);
                       } else if (e is ApiException && e.code == 400) {
-                        _showSnackBar('è¯·æ±æ æï¼è¯·æ£æ¥è¾å
-¥', isError: true);
+                        _showSnackBar('请求无效，请检查输入', isError: true);
                       } else {
-                        _showSnackBar('åå»ºç¨æ·å¤±è´¥: ${_formatErrorMessage(e)}', isError: true);
+                        _showSnackBar('创建用户失败: ${_formatErrorMessage(e)}', isError: true);
                       }
                     }
                   }
@@ -646,7 +633,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                   foregroundColor: themeData.colorScheme.onPrimary,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
                 ),
-                child: const Text('åå»º'),
+                child: const Text('创建'),
               ),
             ],
           ),
@@ -672,7 +659,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
         return Theme(
           data: themeData,
           child: AlertDialog(
-            title: Text('ç¼è¾ç¨æ·', style: themeData.textTheme.titleLarge),
+            title: Text('编辑用户', style: themeData.textTheme.titleLarge),
             backgroundColor: themeData.colorScheme.surfaceContainerLowest,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
             content: Form(
@@ -684,16 +671,15 @@ class _UserManagementPageState extends State<UserManagementPage> {
                     TextFormField(
                       controller: usernameController,
                       decoration: InputDecoration(
-                        labelText: 'è´¦å·',
+                        labelText: '账号',
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
                         filled: true,
                         fillColor: themeData.colorScheme.surfaceContainer,
                       ),
                       maxLength: 50,
                       validator: (value) {
-                        if (value == null || value.isEmpty) return 'è´¦å·ä¸è½ä¸ºç©º';
-                        if (value.length > 50) return 'è´¦å·ä¸è½è¶
-è¿50ä¸ªå­ç¬¦';
+                        if (value == null || value.isEmpty) return '账号不能为空';
+                        if (value.length > 50) return '账号不能超过50个字符';
                         return null;
                       },
                     ),
@@ -701,7 +687,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                     TextFormField(
                       controller: contactNumberController,
                       decoration: InputDecoration(
-                        labelText: 'èç³»çµè¯',
+                        labelText: '联系电话',
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
                         filled: true,
                         fillColor: themeData.colorScheme.surfaceContainer,
@@ -710,8 +696,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                       maxLength: 20,
                       validator: (value) {
                         if (value != null && value.isNotEmpty && value.length > 20) {
-                          return 'èç³»çµè¯ä¸è½è¶
-è¿20ä¸ªå­ç¬¦';
+                          return '联系电话不能超过20个字符';
                         }
                         return null;
                       },
@@ -720,7 +705,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                     TextFormField(
                       controller: passwordController,
                       decoration: InputDecoration(
-                        labelText: 'å¯ç ',
+                        labelText: '密码',
                         border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12.0)),
                         filled: true,
@@ -729,9 +714,8 @@ class _UserManagementPageState extends State<UserManagementPage> {
                       obscureText: true,
                       maxLength: 255,
                       validator: (value) {
-                        if (value == null || value.isEmpty) return 'å¯ç ä¸è½ä¸ºç©º';
-                        if (value.length > 255) return 'å¯ç ä¸è½è¶
-è¿255ä¸ªå­ç¬¦';
+                        if (value == null || value.isEmpty) return '密码不能为空';
+                        if (value.length > 255) return '密码不能超过255个字符';
                         return null;
                       },
                     ),
@@ -739,7 +723,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                     TextFormField(
                       controller: emailController,
                       decoration: InputDecoration(
-                        labelText: 'é®ç®±',
+                        labelText: '邮箱',
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
                         filled: true,
                         fillColor: themeData.colorScheme.surfaceContainer,
@@ -748,11 +732,9 @@ class _UserManagementPageState extends State<UserManagementPage> {
                       maxLength: 100,
                       validator: (value) {
                         if (value != null && value.isNotEmpty) {
-                          if (value.length > 100) return 'é®ç®±ä¸è½è¶
-è¿100ä¸ªå­ç¬¦';
+                          if (value.length > 100) return '邮箱不能超过100个字符';
                           if (!RegExp(r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-                            return 'è¯·è¾å
-¥ææçé®ç®±å°å';
+                            return '请输入有效的邮箱地址';
                           }
                         }
                         return null;
@@ -760,9 +742,9 @@ class _UserManagementPageState extends State<UserManagementPage> {
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      value: selectedStatus,
+                      initialValue: selectedStatus,
                       decoration: InputDecoration(
-                        labelText: 'ç¶æ',
+                        labelText: '状态',
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
                         filled: true,
                         fillColor: themeData.colorScheme.surfaceContainer,
@@ -774,13 +756,13 @@ class _UserManagementPageState extends State<UserManagementPage> {
                       ))
                           .toList(),
                       onChanged: (value) => setState(() => selectedStatus = value),
-                      validator: (value) => value == null ? 'è¯·éæ©ç¶æ' : null,
+                      validator: (value) => value == null ? '请选择状态' : null,
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: remarksController,
                       decoration: InputDecoration(
-                        labelText: 'å¤æ³¨',
+                        labelText: '备注',
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
                         filled: true,
                         fillColor: themeData.colorScheme.surfaceContainer,
@@ -794,21 +776,20 @@ class _UserManagementPageState extends State<UserManagementPage> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: Text('åæ¶', style: TextStyle(color: themeData.colorScheme.error)),
+                child: Text('取消', style: TextStyle(color: themeData.colorScheme.error)),
               ),
               ElevatedButton(
                 onPressed: () async {
                   if (formKey.currentState!.validate()) {
                     if (!await _validateJwtToken()) {
-                      Get.offAllNamed(AppPages.login);
+                      Get.offAllNamed(Routes.login);
                       return;
                     }
                     final username = usernameController.text.trim();
                     if (username != user.username) {
                       final isUsernameAvailable = await _checkUsernameAvailability(username);
                       if (!isUsernameAvailable) {
-                        _showSnackBar('è´¦å·å·²å­å¨ï¼è¯·éæ©å
-¶ä»è´¦å·', isError: true);
+                        _showSnackBar('账号已存在，请选择其他账号', isError: true);
                         return;
                       }
                     }
@@ -829,7 +810,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                         userManagement: updatedUser,
                         idempotencyKey: idempotencyKey,
                       );
-                      _showSnackBar('ç¨æ·æ´æ°æå');
+                      _showSnackBar('用户更新成功');
                       Navigator.pop(context);
                       await _refreshUserList();
                     } catch (e) {
@@ -843,7 +824,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                   foregroundColor: themeData.colorScheme.onPrimary,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
                 ),
-                child: const Text('ä¿å­'),
+                child: const Text('保存'),
               ),
             ],
           ),
@@ -859,14 +840,14 @@ class _UserManagementPageState extends State<UserManagementPage> {
       builder: (context) => Theme(
         data: themeData,
         child: AlertDialog(
-          title: const Text('ç¡®è®¤å é¤'),
-          content: const Text('ç¡®å®è¦å é¤æ­¤ç¨æ·åï¼æ­¤æä½ä¸å¯æ¤éã'),
+          title: const Text('确认删除'),
+          content: const Text('确定要删除此用户吗？此操作不可撤销。'),
           backgroundColor: themeData.colorScheme.surfaceContainerLowest,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: Text('åæ¶', style: TextStyle(color: themeData.colorScheme.error)),
+              child: Text('取消', style: TextStyle(color: themeData.colorScheme.error)),
             ),
             ElevatedButton(
               onPressed: () => Navigator.pop(context, true),
@@ -875,7 +856,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                 foregroundColor: themeData.colorScheme.onError,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
               ),
-              child: const Text('å é¤'),
+              child: const Text('删除'),
             ),
           ],
         ),
@@ -884,13 +865,13 @@ class _UserManagementPageState extends State<UserManagementPage> {
 
     if (confirmed == true) {
       if (!await _validateJwtToken()) {
-        Get.offAllNamed(AppPages.login);
+        Get.offAllNamed(Routes.login);
         return;
       }
       try {
         _logger.info('Deleting user: $userId');
         await userApi.apiUsersUserIdDelete(userId: userId);
-        _showSnackBar('ç¨æ·å é¤æå');
+        _showSnackBar('用户删除成功');
         await _refreshUserList();
       } catch (e) {
         _logger.severe('User deletion failed: $e', StackTrace.current);
@@ -928,14 +909,14 @@ class _UserManagementPageState extends State<UserManagementPage> {
                     style: TextStyle(color: themeData.colorScheme.onSurface),
                     decoration: InputDecoration(
                       hintText: _searchType == 'username'
-                          ? 'æç´¢è´¦å·'
+                          ? '搜索账号'
                           : _searchType == 'status'
-                          ? 'æç´¢ç¶æ'
+                          ? '搜索状态'
                           : _searchType == 'department'
-                          ? 'æç´¢é¨é¨'
+                          ? '搜索部门'
                           : _searchType == 'contactNumber'
-                          ? 'æç´¢èç³»çµè¯'
-                          : 'æç´¢é®ç®±',
+                          ? '搜索联系电话'
+                          : '搜索邮箱',
                       hintStyle: TextStyle(color: themeData.colorScheme.onSurface.withValues(alpha: 0.6)),
                       prefixIcon: Icon(Icons.search, color: themeData.colorScheme.primary),
                       suffixIcon: controller.text.isNotEmpty
@@ -976,14 +957,14 @@ class _UserManagementPageState extends State<UserManagementPage> {
                   value: value,
                   child: Text(
                     value == 'username'
-                        ? 'æè´¦å·'
+                        ? '按账号'
                         : value == 'status'
-                        ? 'æç¶æ'
+                        ? '按状态'
                         : value == 'department'
-                        ? 'æé¨é¨'
+                        ? '按部门'
                         : value == 'contactNumber'
-                        ? 'æèç³»çµè¯'
-                        : 'æé®ç®±',
+                        ? '按联系电话'
+                        : '按邮箱',
                     style: TextStyle(color: themeData.colorScheme.onSurface),
                   ),
                 );
@@ -1003,7 +984,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
       final themeData = controller.currentBodyTheme.value;
       return DashboardPageTemplate(
         theme: themeData,
-        title: 'ç¨æ·ç®¡ç',
+        title: '用户管理',
         pageType: DashboardPageType.manager,
         bodyIsScrollable: true,
         padding: EdgeInsets.zero,
@@ -1044,18 +1025,18 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                   ),
                                   textAlign: TextAlign.center,
                                 ),
-                                if (_errorMessage.contains('æªææ') || _errorMessage.contains('ç»å½'))
+                                if (_errorMessage.contains('未授权') || _errorMessage.contains('登录'))
                                   Padding(
                                     padding: const EdgeInsets.only(top: 20.0),
                                     child: ElevatedButton(
-                                      onPressed: () => Get.offAllNamed(AppPages.login),
+                                      onPressed: () => Get.offAllNamed(Routes.login),
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: themeData.colorScheme.primary,
                                         foregroundColor: themeData.colorScheme.onPrimary,
                                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
                                         padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
                                       ),
-                                      child: const Text('éæ°ç»å½'),
+                                      child: const Text('重新登录'),
                                     ),
                                   ),
                               ],
@@ -1073,7 +1054,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                 ),
                                 const SizedBox(height: 16),
                                 Text(
-                                  _errorMessage.isNotEmpty ? _errorMessage : 'å½åæ²¡æç¨æ·è®°å½',
+                                  _errorMessage.isNotEmpty ? _errorMessage : '当前没有用户记录',
                                   style: themeData.textTheme.titleMedium?.copyWith(
                                     color: themeData.colorScheme.onSurfaceVariant,
                                     fontWeight: FontWeight.w500,
@@ -1111,7 +1092,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                     child: ListTile(
                                       contentPadding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
                                       title: Text(
-                                        'è´¦å·: ${user.username ?? 'æªç¥ç¨æ·'}',
+                                        '账号: ${user.username ?? '未知用户'}',
                                         style: themeData.textTheme.titleMedium?.copyWith(
                                           color: themeData.colorScheme.onSurface,
                                           fontWeight: FontWeight.bold,
@@ -1122,37 +1103,37 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                         children: [
                                           const SizedBox(height: 4),
                                           Text(
-                                            'ç¶æ: ${_statusDisplayMap[user.status] ?? 'æªç¥ç¶æ'}',
+                                            '状态: ${_statusDisplayMap[user.status] ?? '未知状态'}',
                                             style: themeData.textTheme.bodyMedium?.copyWith(
                                               color: themeData.colorScheme.onSurfaceVariant,
                                             ),
                                           ),
                                           Text(
-                                            'èç³»çµè¯: ${user.contactNumber ?? 'æ '}',
+                                            '联系电话: ${user.contactNumber ?? '无'}',
                                             style: themeData.textTheme.bodyMedium?.copyWith(
                                               color: themeData.colorScheme.onSurfaceVariant,
                                             ),
                                           ),
                                           Text(
-                                            'é®ç®±: ${user.email ?? 'æ '}',
+                                            '邮箱: ${user.email ?? '无'}',
                                             style: themeData.textTheme.bodyMedium?.copyWith(
                                               color: themeData.colorScheme.onSurfaceVariant,
                                             ),
                                           ),
                                           Text(
-                                            'åå»ºæ¶é´: ${user.createdTime?.toString() ?? 'æ '}',
+                                            '创建时间: ${user.createdTime?.toString() ?? '无'}',
                                             style: themeData.textTheme.bodyMedium?.copyWith(
                                               color: themeData.colorScheme.onSurfaceVariant,
                                             ),
                                           ),
                                           Text(
-                                            'ä¿®æ¹æ¶é´: ${user.modifiedTime?.toString() ?? 'æ '}',
+                                            '修改时间: ${user.modifiedTime?.toString() ?? '无'}',
                                             style: themeData.textTheme.bodyMedium?.copyWith(
                                               color: themeData.colorScheme.onSurfaceVariant,
                                             ),
                                           ),
                                           Text(
-                                            'å¤æ³¨: ${user.remarks ?? 'æ '}',
+                                            '备注: ${user.remarks ?? '无'}',
                                             style: themeData.textTheme.bodyMedium?.copyWith(
                                               color: themeData.colorScheme.onSurfaceVariant,
                                             ),
@@ -1166,12 +1147,12 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                           IconButton(
                                             icon: Icon(Icons.edit, color: themeData.colorScheme.primary),
                                             onPressed: () => _showEditUserDialog(user),
-                                            tooltip: 'ç¼è¾ç¨æ·',
+                                            tooltip: '编辑用户',
                                           ),
                                           IconButton(
                                             icon: Icon(Icons.delete, color: themeData.colorScheme.error),
                                             onPressed: () => _deleteUser(user.userId.toString()),
-                                            tooltip: 'å é¤ç¨æ·',
+                                            tooltip: '删除用户',
                                           ),
                                         ],
                                       )
@@ -1194,7 +1175,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
                                 padding: const EdgeInsets.symmetric(vertical: 16.0),
                               ),
-                              child: const Text('åå»ºæ°ç¨æ·', style: TextStyle(fontSize: 16)),
+                              child: const Text('创建新用户', style: TextStyle(fontSize: 16)),
                             ),
                           ),
                       ],

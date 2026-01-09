@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_floating/floating/assist/Point.dart';
-import 'package:flutter_floating/floating/assist/floating_slide_type.dart';
-import 'package:flutter_floating/floating/floating.dart';
+import 'package:flutter_floating/floating/assist/floating_edge_type.dart';
+import 'package:flutter_floating/floating/assist/fposition.dart';
+import 'package:flutter_floating/floating/floating_overlay.dart';
 
 class FloatingWindow extends StatefulWidget with FloatingBase {
   const FloatingWindow({super.key});
@@ -11,7 +11,7 @@ class FloatingWindow extends StatefulWidget with FloatingBase {
 }
 
 class _FloatingWindowState extends State<FloatingWindow> {
-  late Floating floating;
+  FloatingOverlay? floating;
   bool isFullScreen = false;
 
   @override
@@ -74,7 +74,7 @@ class _FloatingWindowState extends State<FloatingWindow> {
                           IconButton(
                             icon: const Icon(Icons.close, color: Colors.white),
                             onPressed: () {
-                              floating.close();
+                              floating?.close();
                             },
                           ),
                         ],
@@ -97,16 +97,15 @@ class _FloatingWindowState extends State<FloatingWindow> {
 
 mixin FloatingBase {
   void initializeFloating(BuildContext context, Widget content) {
-    final floating = Floating(
-      content, // 正确传入 Widget 作为位置参数
-      slideType: FloatingSlideType.onPoint,
-      point: Point(
+    final floating = FloatingOverlay(
+      content,
+      slideType: FloatingEdgeType.onPoint,
+      position: FPosition<double>(
         MediaQuery.of(context).size.width / 2 -
             (MediaQuery.of(context).size.width * 0.4),
         MediaQuery.of(context).size.height / 2 -
             (MediaQuery.of(context).size.height * 0.3),
       ),
-      isSnapToEdge: false,
     );
 
     floating.open(context);

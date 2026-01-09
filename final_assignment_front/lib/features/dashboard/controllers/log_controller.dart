@@ -3,7 +3,7 @@ import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:math';
 
-import 'package:final_assignment_front/config/routes/app_pages.dart';
+import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/features/api/operation_log_controller_api.dart';
 import 'package:final_assignment_front/features/api/user_management_controller_api.dart';
 import 'package:final_assignment_front/features/model/operation_log.dart';
@@ -115,7 +115,7 @@ class LogController extends GetxController with WidgetsBindingObserver {
   }
 
   Future<void> _deferNavigationToLogin() async {
-    if (_isRedirecting || Get.currentRoute == AppPages.login) {
+    if (_isRedirecting || Get.currentRoute == Routes.login) {
       developer
           .log('Already redirecting or on login route, skipping navigation');
       return;
@@ -123,8 +123,8 @@ class LogController extends GetxController with WidgetsBindingObserver {
     _isRedirecting = true;
 // Wait for context up to 5 seconds
     for (int i = 0; i < 50; i++) {
-      if (Get.context != null && Get.currentRoute != AppPages.login) {
-        Get.offAllNamed(AppPages.login);
+      if (Get.context != null && Get.currentRoute != Routes.login) {
+        Get.offAllNamed(Routes.login);
         developer.log('Navigated to login route');
         break;
       }
@@ -480,7 +480,7 @@ class LogController extends GetxController with WidgetsBindingObserver {
   }
 
   Future<void> _handle403Error() async {
-    if (_isRedirecting || Get.currentRoute == AppPages.login) {
+    if (_isRedirecting || Get.currentRoute == Routes.login) {
       developer
           .log('Already redirecting or on login route, skipping 403 handling');
       return;

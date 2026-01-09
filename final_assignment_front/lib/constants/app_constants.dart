@@ -1,5 +1,4 @@
 // 应用常量库定义
-library app_constants;
 
 // 导入Flutter的Cupertino组件库和Material组件库
 import 'package:flutter/material.dart';

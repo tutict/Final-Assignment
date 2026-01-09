@@ -1,4 +1,4 @@
-export 'dashboard_page_app_bar.dart';
+export 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_app_bar.dart';
 
 import 'package:final_assignment_front/features/dashboard/views/user/widgets/user_page_app_bar.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_app_bar.dart';

@@ -6,7 +6,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
-// å®ä¹ä¸ä¸ªå¨å±ç?defaultApiClient
+// å®ä¹ä¸ä¸ªå
+// ¨å±ç?defaultApiClient
 final ApiClient defaultApiClient = ApiClient();
 
 class ProgressControllerApi {
@@ -20,13 +21,14 @@ class ProgressControllerApi {
   Future<void> initializeWithJwt() async {
       final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
-      throw Exception('æªç»å½ï¼è¯·éæ°ç»å½?);
+      throw Exception('Not authenticated. Please log in again.');
     }
     apiClient.setJwtToken(jwtToken);
     debugPrint('Initialized ProgressControllerApi with token: $jwtToken');
   }
 
-  // è§£ç ååºä½çè¾å©æ¹æ³
+  // è§£ç ååºä½çè¾
+// å©æ¹æ³
   String _decodeBodyBytes(http.Response response) {
     return response.body;
   }

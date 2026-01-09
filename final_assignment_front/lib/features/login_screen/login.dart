@@ -1,7 +1,7 @@
 // ignore_for_file: use_build_context_synchronously
 import 'dart:convert';
 import 'dart:math';
-import 'package:final_assignment_front/config/routes/app_pages.dart';
+import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/features/api/auth_controller_api.dart';
 import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/user_management_controller_api.dart';
@@ -23,17 +23,16 @@ String generateIdempotencyKey() {
 
 mixin ValidatorMixin {
   String? validateUsername(String? val) {
-    if (val == null || val.isEmpty) return 'ç¨æ·é®ç®±ä¸è½ä¸ºç©º';
+    if (val == null || val.isEmpty) return '用户邮箱不能为空';
     final emailRegex =
     RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
-    if (!emailRegex.hasMatch(val)) return 'è¯·è¾å
-¥ææçé®ç®±å°å';
+    if (!emailRegex.hasMatch(val)) return '请输入有效的邮箱地址';
     return null;
   }
 
   String? validatePassword(String? val) {
-    if (val == null || val.isEmpty) return 'å¯ç ä¸è½ä¸ºç©º';
-    if (val.length < 5) return 'å¯ç å¤ªç­';
+    if (val == null || val.isEmpty) return '密码不能为空';
+    if (val.length < 5) return '密码太短';
     return null;
   }
 }
@@ -115,19 +114,19 @@ class _LoginScreenState extends State<LoginScreen>
         await prefs.setString('userName', username);
 
         final userData = result['user'] ?? {};
-        debugPrint('ç»å½è¿åçç¨æ·æ°æ®: $userData');
+        debugPrint('登录返回的用户数据: $userData');
         final int? userIdFromLogin = userData['userId'];
         String resolvedName = userData['name'] ?? username.split('@').first;
         String resolvedEmail = userData['email'] ?? username;
-        debugPrint('æåç userId: $userIdFromLogin, å§å: $resolvedName, é®ç®±: $resolvedEmail');
+        debugPrint('提取的 userId: $userIdFromLogin, 姓名: $resolvedName, 邮箱: $resolvedEmail');
 
         String driverName = resolvedName;
 
         await driverApi.initializeWithJwt();
-        debugPrint('Driver API å·²åå§å');
+        debugPrint('Driver API 已初始化');
         final userManagementApi = UserManagementControllerApi();
         await userManagementApi.initializeWithJwt();
-        debugPrint('UserManagement API å·²åå§å');
+        debugPrint('UserManagement API 已初始化');
 
         int? userId = userIdFromLogin;
         try {
@@ -138,10 +137,10 @@ class _LoginScreenState extends State<LoginScreen>
             resolvedName =
                 userInfo.realName ?? userInfo.username ?? resolvedName;
             resolvedEmail = userInfo.email ?? resolvedEmail;
-            debugPrint('éè¿ç¨æ·åæ¥è¯¢è·åç userId: $userId, å§å: $resolvedName');
+            debugPrint('通过用户名查询获取的 userId: $userId, 姓名: $resolvedName');
           }
         } catch (e) {
-          debugPrint('éè¿ç¨æ·åæ¥è¯¢ç¨æ·ä¿¡æ¯å¤±è´¥: $e');
+          debugPrint('通过用户名查询用户信息失败: $e');
         }
 
         if (userId != null) {
@@ -150,9 +149,9 @@ class _LoginScreenState extends State<LoginScreen>
             await driverApi.apiDriversDriverIdGet(driverId: userId);
             if (driverInfo != null && driverInfo.name != null) {
               driverName = driverInfo.name!;
-              debugPrint('ä»æ°æ®åºè·åç driverName: $driverName');
+              debugPrint('从数据库获取的 driverName: $driverName');
             } else {
-              debugPrint('DriverInformation æªæ¾å°æ name ä¸ºç©º');
+              debugPrint('DriverInformation 未找到或 name 为空');
             }
           } catch (e) {
             if (e is ApiException && e.code == 404) {
@@ -168,13 +167,13 @@ class _LoginScreenState extends State<LoginScreen>
                 idempotencyKey: idempotencyKey,
               );
               driverName = resolvedName;
-              debugPrint('åå»ºæ°å¸æºè®°å½ï¼driverName: $driverName');
+              debugPrint('创建新司机记录，driverName: $driverName');
             } else {
-              debugPrint('è·å DriverInformation å¤±è´¥: $e');
+              debugPrint('获取 DriverInformation 失败: $e');
             }
           }
         } else {
-          debugPrint('æ æ³è·å userIdï¼è·³è¿ DriverInformation æ¥è¯¢');
+          debugPrint('无法获取 userId，跳过 DriverInformation 查询');
         }
 
         driverName = driverName.isNotEmpty ? driverName : resolvedName;
@@ -184,15 +183,15 @@ class _LoginScreenState extends State<LoginScreen>
 
         Get.find<ChatController>().setUserRole(_userRole!);
 
-        debugPrint('ç»å½æå - è§è²: $_userRole, å§å: $driverName, é®ç®±: $resolvedEmail');
+        debugPrint('登录成功 - 角色: $_userRole, 姓名: $driverName, 邮箱: $resolvedEmail');
         return null;
       }
-      return result['message'] ?? 'ç»å½å¤±è´¥';
+      return result['message'] ?? '登录失败';
     } on ApiException catch (e) {
-      return _formatErrorMessage(e, 'ç»å½å¤±è´¥');
+      return _formatErrorMessage(e, '登录失败');
     } catch (e) {
-      debugPrint('ç»å½ä¸­çå¸¸è§å¼å¸¸: $e');
-      return 'ç»å½å¼å¸¸: $e';
+      debugPrint('登录中的常规异常: $e');
+      return '登录异常: $e';
     }
   }
 
@@ -200,9 +199,8 @@ class _LoginScreenState extends State<LoginScreen>
     final username = data.name?.trim();
     final password = data.password?.trim();
 
-    if (username == null || password == null) return 'ç¨æ·åæå¯ç ä¸è½ä¸ºç©º';
-    if (_hasSentRegisterRequest) return 'æ³¨åè¯·æ±å·²åéï¼è¯·ç­å¾
-å¤ç';
+    if (username == null || password == null) return '用户名或密码不能为空';
+    if (_hasSentRegisterRequest) return '注册请求已发送，请等待处理';
 
     final bool? isCaptchaValid = await showDialog<bool>(
       context: context,
@@ -210,7 +208,7 @@ class _LoginScreenState extends State<LoginScreen>
       builder: (context) => const LocalCaptchaMain(),
     );
 
-    if (isCaptchaValid != true) return 'ç¨æ·å·²åæ¶æ³¨åè´¦å·';
+    if (isCaptchaValid != true) return '用户已取消注册账号';
 
     final idempotencyKey = generateIdempotencyKey();
 
@@ -272,22 +270,21 @@ class _LoginScreenState extends State<LoginScreen>
               'Signup and login successful - Role: $_userRole, Name: $driverName, Email: $resolvedEmail');
           return null;
         }
-        return loginResult['message'] ?? 'æ³¨åæåï¼ä½ç»å½å¤±è´¥';
+        return loginResult['message'] ?? '注册成功，但登录失败';
       }
-      return registerResult['error'] ?? 'æ³¨åå¤±è´¥ï¼æªç¥éè¯¯';
+      return registerResult['error'] ?? '注册失败：未知错误';
     } on ApiException catch (e) {
-      return _formatErrorMessage(e, 'æ³¨åå¤±è´¥');
+      return _formatErrorMessage(e, '注册失败');
     } catch (e) {
       debugPrint('General Exception in signup: $e');
-      return 'æ³¨åå¼å¸¸: $e';
+      return '注册异常: $e';
     }
   }
 
   Future<String?> _recoverPassword(String name) async {
     final emailRegex =
     RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
-    if (!emailRegex.hasMatch(name)) return 'è¯·è¾å
-¥ææçé®ç®±å°å';
+    if (!emailRegex.hasMatch(name)) return '请输入有效的邮箱地址';
 
     final bool? isCaptchaValid = await showDialog<bool>(
       context: context,
@@ -295,7 +292,7 @@ class _LoginScreenState extends State<LoginScreen>
       builder: (context) => const LocalCaptchaMain(),
     );
 
-    if (isCaptchaValid != true) return 'å¯ç éç½®å·²åæ¶';
+    if (isCaptchaValid != true) return '密码重置已取消';
 
     final TextEditingController newPasswordController = TextEditingController();
     final themeData = _isDarkMode ? ThemeData.dark() : ThemeData.light();
@@ -309,7 +306,7 @@ class _LoginScreenState extends State<LoginScreen>
           shape:
           RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
           title: Text(
-            'éç½®å¯ç ',
+            '重置密码',
             style: themeData.textTheme.titleLarge?.copyWith(
               color: themeData.colorScheme.onSurface,
               fontWeight: FontWeight.bold,
@@ -319,8 +316,7 @@ class _LoginScreenState extends State<LoginScreen>
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'è¯·è¾å
-¥æ°å¯ç ï¼',
+                '请输入新密码：',
                 style: themeData.textTheme.bodyMedium
                     ?.copyWith(color: themeData.colorScheme.onSurfaceVariant),
               ),
@@ -328,7 +324,7 @@ class _LoginScreenState extends State<LoginScreen>
                 controller: newPasswordController,
                 obscureText: true,
                 decoration: InputDecoration(
-                  hintText: 'æ°å¯ç ',
+                  hintText: '新密码',
                   hintStyle: themeData.textTheme.bodyMedium?.copyWith(
                       color: themeData.colorScheme.onSurfaceVariant
                           .withValues(alpha: 0.6)),
@@ -354,7 +350,7 @@ class _LoginScreenState extends State<LoginScreen>
             TextButton(
               onPressed: () => Navigator.pop(context, false),
               child: Text(
-                'åæ¶',
+                '取消',
                 style: themeData.textTheme.labelMedium
                     ?.copyWith(color: themeData.colorScheme.onSurface),
               ),
@@ -364,7 +360,7 @@ class _LoginScreenState extends State<LoginScreen>
                 if (newPasswordController.text.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                        content: Text('æ°å¯ç ä¸è½ä¸ºç©º',
+                        content: Text('新密码不能为空',
                             style: TextStyle(
                                 color:
                                 themeData.colorScheme.onErrorContainer))),
@@ -372,7 +368,7 @@ class _LoginScreenState extends State<LoginScreen>
                 } else if (newPasswordController.text.length < 3) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                        content: Text('å¯ç å¤ªç­',
+                        content: Text('密码太短',
                             style: TextStyle(
                                 color:
                                 themeData.colorScheme.onErrorContainer))),
@@ -388,7 +384,7 @@ class _LoginScreenState extends State<LoginScreen>
                     borderRadius: BorderRadius.circular(10.0)),
               ),
               child: Text(
-                'ç¡®å®',
+                '确定',
                 style: themeData.textTheme.labelMedium?.copyWith(
                   color: themeData.colorScheme.onPrimary,
                   fontWeight: FontWeight.bold,
@@ -400,12 +396,10 @@ class _LoginScreenState extends State<LoginScreen>
       ),
     );
 
-    if (passwordConfirmed != true) return 'å¯ç éç½®å·²åæ¶';
+    if (passwordConfirmed != true) return '密码重置已取消';
 
-    final prefs = await SharedPreferences.getInstance();
     final String? jwtToken = (await AuthTokenStore.instance.getJwtToken());
-    if (jwtToken == null) return 'è¯·å
-ç»å½ä»¥éç½®å¯ç ';
+    if (jwtToken == null) return '请先登录以重置密码';
 
     final newPassword = newPasswordController.text.trim();
     final idempotencyKey = generateIdempotencyKey();
@@ -428,7 +422,7 @@ class _LoginScreenState extends State<LoginScreen>
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('å¯ç éç½®æåï¼è¯·ä½¿ç¨æ°å¯ç ç»å½',
+            content: Text('密码重置成功，请使用新密码登录',
                 style:
                 TextStyle(color: themeData.colorScheme.onPrimaryContainer)),
             backgroundColor: themeData.colorScheme.primary,
@@ -437,29 +431,29 @@ class _LoginScreenState extends State<LoginScreen>
         return null;
       } else {
         throw ApiException(
-            response.statusCode, 'å¯ç éç½®å¤±è´¥: ${response.statusCode}');
+            response.statusCode, '密码重置失败: ${response.statusCode}');
       }
     } on ApiException catch (e) {
       debugPrint('Reset Password Error: $e');
-      return _formatErrorMessage(e, 'å¯ç éç½®å¤±è´¥');
+      return _formatErrorMessage(e, '密码重置失败');
     } catch (e) {
       debugPrint('General Exception in reset password: $e');
-      return 'å¯ç éç½®å¼å¸¸: $e';
+      return '密码重置异常: $e';
     }
   }
 
   String _formatErrorMessage(ApiException e, String defaultMessage) {
     switch (e.code) {
       case 400:
-        return '$defaultMessage: è¯·æ±éè¯¯ - ${e.message}';
+        return '$defaultMessage: 请求错误 - ${e.message}';
       case 403:
-        return '$defaultMessage: æ æé - ${e.message}';
+        return '$defaultMessage: 无权限 - ${e.message}';
       case 404:
-        return '$defaultMessage: æªæ¾å° - ${e.message}';
+        return '$defaultMessage: 未找到 - ${e.message}';
       case 409:
-        return '$defaultMessage: éå¤è¯·æ± - ${e.message}';
+        return '$defaultMessage: 重复请求 - ${e.message}';
       default:
-        return '$defaultMessage: æå¡å¨éè¯¯ - ${e.message}';
+        return '$defaultMessage: 服务器错误 - ${e.message}';
     }
   }
 
@@ -494,7 +488,7 @@ class _LoginScreenState extends State<LoginScreen>
             ),
             // Login UI
             FlutterLogin(
-              title: 'äº¤éè¿æ³è¡ä¸ºå¤çç®¡çç³»ç»',
+              title: '交通违法行为处理管理系统',
               logo: const AssetImage('assets/images/raster/logo-5.png'),
               logoTag: 'logo',
               onLogin: _authUser,
@@ -598,30 +592,25 @@ class _LoginScreenState extends State<LoginScreen>
                 logoWidth: 140.0,
               ),
               messages: LoginMessages(
-                passwordHint: 'å¯ç ',
-                userHint: 'ç¨æ·é®ç®±',
-                forgotPasswordButton: 'å¿è®°å¯ç ï¼',
-                confirmPasswordHint: 'åæ¬¡è¾å
-¥å¯ç ',
-                loginButton: 'ç»å½',
-                signupButton: 'æ³¨å',
-                recoverPasswordButton: 'éç½®å¯ç ',
-                recoverCodePasswordDescription: 'è¯·è¾å
-¥æ¨çç¨æ·é®ç®±',
-                goBackButton: 'è¿å',
-                confirmPasswordError: 'å¯ç è¾å
-¥ä¸å¹é
-',
-                confirmSignupSuccess: 'æ³¨åæå',
-                confirmRecoverSuccess: 'å¯ç éç½®æå',
-                recoverPasswordDescription: 'è¯·è¾å
-¥æ¨çç¨æ·é®ç®±ï¼æä»¬å°ä¸ºæ¨éç½®å¯ç ',
-                recoverPasswordIntro: 'éç½®å¯ç ',
+                passwordHint: '密码',
+                userHint: '用户邮箱',
+                forgotPasswordButton: '忘记密码？',
+                confirmPasswordHint: '再次输入密码',
+                loginButton: '登录',
+                signupButton: '注册',
+                recoverPasswordButton: '重置密码',
+                recoverCodePasswordDescription: '请输入您的用户邮箱',
+                goBackButton: '返回',
+                confirmPasswordError: '密码输入不匹配',
+                confirmSignupSuccess: '注册成功',
+                confirmRecoverSuccess: '密码重置成功',
+                recoverPasswordDescription: '请输入您的用户邮箱，我们将为您重置密码',
+                recoverPasswordIntro: '重置密码',
               ),
               onSubmitAnimationCompleted: () {
                 Get.offAllNamed(_userRole == 'ADMIN'
-                    ? AppPages.initial
-                    : AppPages.userInitial);
+                    ? Routes.dashboard
+                    : Routes.userDashboard);
               },
             ),
             // Theme Toggle Button
@@ -634,7 +623,7 @@ class _LoginScreenState extends State<LoginScreen>
                 foregroundColor: themeData.colorScheme.onPrimary,
                 elevation: 6.0,
                 shape: const CircleBorder(),
-                tooltip: _isDarkMode ? 'åæ¢å°äº®è²æ¨¡å¼' : 'åæ¢å°æè²æ¨¡å¼',
+                tooltip: _isDarkMode ? '切换到亮色模式' : '切换到暗色模式',
                 child: Icon(
                   _isDarkMode ? Icons.light_mode : Icons.dark_mode,
                   size: 24.0,

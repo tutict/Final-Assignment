@@ -6,13 +6,16 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
-/// å®ä¹ä¸ä¸ªå¨å±ç?defaultApiClient
+/// å®ä¹ä¸ä¸ªå
+// ¨å±ç?defaultApiClient
 final ApiClient defaultApiClient = ApiClient();
 
 class SystemSettingsControllerApi {
   final ApiClient apiClient;
 
-  /// æé å½æ°ï¼å¯ä¼ å?ApiClientï¼å¦åä½¿ç¨å¨å±é»è®¤å®ä¾
+  /// æé å½æ°ï¼å¯ä¼ å
+// ?ApiClientï¼å¦åä½¿ç¨å
+// ¨å±é»è®¤å®ä¾
   SystemSettingsControllerApi([ApiClient? apiClient])
       : apiClient = apiClient ?? defaultApiClient;
 
@@ -20,13 +23,15 @@ class SystemSettingsControllerApi {
   Future<void> initializeWithJwt() async {
       final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
-      throw Exception('æªç»å½ï¼è¯·éæ°ç»å½?);
+      throw Exception('Not authenticated. Please log in again.');
     }
     apiClient.setJwtToken(jwtToken);
     debugPrint('Initialized SystemSettingsControllerApi with token: $jwtToken');
   }
 
-  /// è§£ç ååºä½å­èå°å­ç¬¦ä¸?  String _decodeBodyBytes(Response response) => response.body;
+  String _decodeBodyBytes(Response response) {
+    return response.body;
+  }
 
   Future<Map<String, String>> _getHeaders({String? idempotencyKey}) async {
       final token = (await AuthTokenStore.instance.getJwtToken()) ?? '';
@@ -143,7 +148,8 @@ class SystemSettingsControllerApi {
     return SystemSettings.fromJson(data);
   }
 
-  /// GET /api/systemSettings/loginTimeout - è·åç»å½è¶æ¶æ¶é´
+  /// GET /api/systemSettings/loginTimeout - è·åç»å½è¶
+// æ¶æ¶é´
   Future<int?> apiSystemSettingsLoginTimeoutGet() async {
     final response = await apiClient.invokeAPI(
       '/api/systemSettings/loginTimeout',
@@ -181,7 +187,8 @@ class SystemSettingsControllerApi {
     return apiClient.deserialize(_decodeBodyBytes(response), 'int') as int?;
   }
 
-  /// PUT /api/systemSettings - æ´æ°ç³»ç»è®¾ç½® (ä»ç®¡çå)
+  /// PUT /api/systemSettings - æ´æ°ç³»ç»è®¾ç½® (ä»
+// ç®¡çå)
   Future<SystemSettings> apiSystemSettingsPut(
       {required SystemSettings systemSettings}) async {
     final response = await apiClient.invokeAPI(
@@ -202,7 +209,8 @@ class SystemSettingsControllerApi {
     return SystemSettings.fromJson(data);
   }
 
-  /// GET /api/systemSettings/sessionTimeout - è·åä¼è¯è¶æ¶æ¶é´
+  /// GET /api/systemSettings/sessionTimeout - è·åä¼è¯è¶
+// æ¶æ¶é´
   Future<int?> apiSystemSettingsSessionTimeoutGet() async {
     final response = await apiClient.invokeAPI(
       '/api/systemSettings/sessionTimeout',

@@ -1,20 +1,16 @@
 import 'dart:developer';
 import 'dart:ui';
 import 'package:eva_icons_flutter/eva_icons_flutter.dart';
-import 'package:final_assignment_front/config/routes/app_pages.dart';
-import 'package:final_assignment_front/config/themes/app_theme.dart';
+import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
-import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
-import 'package:final_assignment_front/features/api/role_management_controller_api.dart';
+import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
 import 'package:final_assignment_front/features/dashboard/models/profile.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/components/active_project_card.dart'
     hide kSpacing, kBorderRadius;
 import 'package:final_assignment_front/features/dashboard/views/shared/components/ai_chat.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/components/profile_tile.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/traffic_violation_screen.dart';
-import 'package:final_assignment_front/features/model/offense_information.dart';
 import 'package:final_assignment_front/shared_components/traffic_violation_card.dart';
-import 'package:final_assignment_front/shared_components/case_card.dart';
 import 'package:final_assignment_front/shared_components/list_profil_image.dart';
 import 'package:final_assignment_front/shared_components/police_card.dart';
 import 'package:final_assignment_front/shared_components/progress_report_card.dart';
@@ -23,20 +19,12 @@ import 'package:final_assignment_front/shared_components/responsive_builder.dart
 import 'package:final_assignment_front/shared_components/selection_button.dart';
 import 'package:final_assignment_front/shared_components/today_text.dart';
 import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
-import 'package:final_assignment_front/utils/mixins/app_mixins.dart';
+import 'package:final_assignment_front/utils/navigation/page_resolver.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
-// binding
-part '../../bindings/manager_dashboard_binding.dart';
-
-// controller
-part '../../controllers/manager_dashboard_controller.dart';
 
 part 'components/header.dart';
 
@@ -47,8 +35,7 @@ part 'components/sidebar.dart';
 
 part 'components/team_member.dart';
 
-class DashboardScreen extends GetView<DashboardController>
-    with NavigationMixin {
+class DashboardScreen extends GetView<DashboardController> {
   const DashboardScreen({super.key});
 
 // Hardcoded traffic violation data
@@ -82,6 +69,7 @@ class DashboardScreen extends GetView<DashboardController>
 
   @override
   Widget build(BuildContext context) {
+    controller.pageResolver ??= resolveDashboardPage;
     final double screenWidth = MediaQuery.of(context).size.width;
     final double screenHeight = MediaQuery.of(context).size.height;
     const double kHeaderTotalHeight = 32 + 50 + 15 + 1;
@@ -412,7 +400,7 @@ class DashboardScreen extends GetView<DashboardController>
       padding: const EdgeInsets.symmetric(horizontal: kSpacing),
       child: ActiveProjectCard(
         onPressedSeeAll: () {
-          Get.toNamed(AppPages.trafficViolationScreen);
+          Get.toNamed(Routes.trafficViolationScreen);
         },
         child: Container(
           height: gridHeight,

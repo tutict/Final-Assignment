@@ -1,5 +1,5 @@
-import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:final_assignment_front/utils/services/authentication.dart';
+import 'package:final_assignment_front/utils/services/query_param.dart';
 import 'package:flutter/material.dart';
 
 class HttpBearerAuth implements Authentication {

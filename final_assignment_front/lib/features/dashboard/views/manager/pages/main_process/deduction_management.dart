@@ -1,7 +1,7 @@
-import 'package:final_assignment_front/config/routes/app_pages.dart';
+import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/features/api/deduction_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
-import 'package:final_assignment_front/features/dashboard/views/manager/manager_dashboard_screen.dart';
+import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/model/deduction_record.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
@@ -85,7 +85,7 @@ class _DeductionManagementState extends State<DeductionManagement> {
     setState(() => _isLoading = true);
     try {
       if (!await _validateJwtToken()) {
-        Get.offAllNamed(AppPages.login);
+        Get.offAllNamed(Routes.login);
         return;
       }
       await deductionApi.initializeWithJwt();
@@ -124,7 +124,7 @@ class _DeductionManagementState extends State<DeductionManagement> {
 
     try {
       if (!await _validateJwtToken()) {
-        Get.offAllNamed(AppPages.login);
+        Get.offAllNamed(Routes.login);
         return;
       }
       List<DeductionRecordModel> deductions = [];
@@ -181,7 +181,7 @@ class _DeductionManagementState extends State<DeductionManagement> {
           _hasMore = false;
         } else if (e.toString().contains('403')) {
           _errorMessage = '未授权，请重新登录';
-          Get.offAllNamed(AppPages.login);
+          Get.offAllNamed(Routes.login);
         } else {
           _errorMessage = '获取扣分记录失败: ${_formatErrorMessage(e)}';
         }
@@ -335,7 +335,7 @@ class _DeductionManagementState extends State<DeductionManagement> {
             Padding(
               padding: const EdgeInsets.only(top: 16.0),
               child: ElevatedButton(
-                onPressed: () => Get.offAllNamed(AppPages.login),
+                onPressed: () => Get.offAllNamed(Routes.login),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: themeData.colorScheme.primary,
                   foregroundColor: themeData.colorScheme.onPrimary,
@@ -744,7 +744,7 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
     setState(() => _isLoading = true);
     try {
       if (!await _validateJwtToken()) {
-        Get.offAllNamed(AppPages.login);
+        Get.offAllNamed(Routes.login);
         return;
       }
       await deductionApi.initializeWithJwt();
@@ -770,7 +770,7 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
   Future<void> _fetchOffenseSuggestions() async {
     try {
       if (!await _validateJwtToken()) {
-        Get.offAllNamed(AppPages.login);
+        Get.offAllNamed(Routes.login);
         return;
       }
       final offenses = await offenseApi.apiOffensesGet();
@@ -818,7 +818,7 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
       return;
     }
     if (!await _validateJwtToken()) {
-      Get.offAllNamed(AppPages.login);
+      Get.offAllNamed(Routes.login);
       return;
     }
     setState(() => _isLoading = true);
@@ -1281,7 +1281,7 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
     setState(() => _isLoading = true);
     try {
       if (!await _validateJwtToken()) {
-        Get.offAllNamed(AppPages.login);
+        Get.offAllNamed(Routes.login);
         return;
       }
       await deductionApi.initializeWithJwt();
@@ -1307,7 +1307,7 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
   Future<void> _fetchOffenseSuggestions() async {
     try {
       if (!await _validateJwtToken()) {
-        Get.offAllNamed(AppPages.login);
+        Get.offAllNamed(Routes.login);
         return;
       }
       final offenses = await offenseApi.apiOffensesGet();
@@ -1355,7 +1355,7 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
       return;
     }
     if (!await _validateJwtToken()) {
-      Get.offAllNamed(AppPages.login);
+      Get.offAllNamed(Routes.login);
       return;
     }
     setState(() => _isLoading = true);

@@ -18,7 +18,7 @@ class FineInformationControllerApi {
   Future<void> initializeWithJwt() async {
       final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
-      throw Exception('æªç»å½ï¼è¯·éæ°ç»å½?);
+      throw Exception('Not authenticated. Please log in again.');
     }
     apiClient.setJwtToken(jwtToken);
     debugPrint('Initialized FineInformationControllerApi with token: $jwtToken');
@@ -45,7 +45,8 @@ class FineInformationControllerApi {
 
   // HTTP Methods
 
-  /// POST /api/fines - åå»ºç½æ¬¾ (ä»ç®¡çå)
+  /// POST /api/fines - åå»ºç½æ¬¾ (ä»
+// ç®¡çå)
   Future<void> apiFinesPost({
     required FineInformation fineInformation,
     required String idempotencyKey,
@@ -116,7 +117,8 @@ class FineInformationControllerApi {
     return jsonList.map((json) => FineInformation.fromJson(json)).toList();
   }
 
-  /// PUT /api/fines/{fineId} - æ´æ°ç½æ¬¾ (ä»ç®¡çå)
+  /// PUT /api/fines/{fineId} - æ´æ°ç½æ¬¾ (ä»
+// ç®¡çå)
   Future<FineInformation> apiFinesFineIdPut({
     required int fineId,
     required FineInformation fineInformation,
@@ -144,7 +146,8 @@ class FineInformationControllerApi {
     return FineInformation.fromJson(data);
   }
 
-  /// DELETE /api/fines/{fineId} - å é¤ç½æ¬¾ (ä»ç®¡çå)
+  /// DELETE /api/fines/{fineId} - å é¤ç½æ¬¾ (ä»
+// ç®¡çå)
   Future<void> apiFinesFineIdDelete({
     required int fineId,
   }) async {
@@ -256,7 +259,8 @@ class FineInformationControllerApi {
     return FineInformation.fromJson(data);
   }
 
-  /// GET /api/fines/offense/{offenseId} - æè¿æ³è®°å½åé¡µæ¥è¯¢ç½æ¬?  Future<List<FineInformation>> apiFinesOffenseOffenseIdGet({
+  /// GET /api/fines/offense/{offenseId} - æè¿æ³è®°å½åé¡µæ¥è¯¢ç½æ¬?
+  Future<List<FineInformation>> apiFinesOffenseOffenseIdGet({
     required int offenseId,
     int page = 1,
     int size = 20,
@@ -313,7 +317,8 @@ class FineInformationControllerApi {
     return jsonList.map((json) => FineInformation.fromJson(json)).toList();
   }
 
-  /// GET /api/fines/search/status - ææ¯ä»ç¶ææç´¢ç½æ¬¾è®°å½?  Future<List<FineInformation>> apiFinesSearchStatusGet({
+  /// GET /api/fines/search/status - ææ¯ä»ç¶ææç´¢ç½æ¬¾è®°å½?
+  Future<List<FineInformation>> apiFinesSearchStatusGet({
     required String status,
     int page = 1,
     int size = 20,

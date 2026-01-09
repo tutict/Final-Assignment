@@ -8,7 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
-/// å®ä¹ä¸ä¸ªå¨å±ç?defaultApiClient
+/// å®ä¹ä¸ä¸ªå
+// ¨å±ç?defaultApiClient
 final ApiClient defaultApiClient = ApiClient();
 
 class OffenseInformationControllerApi {
@@ -21,7 +22,7 @@ class OffenseInformationControllerApi {
   Future<void> initializeWithJwt() async {
       final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null || jwtToken.isEmpty) {
-      throw Exception('æªç»å½ï¼è¯·éæ°ç»å½?);
+      throw Exception('Not authenticated. Please log in again.');
     }
     apiClient.setJwtToken(jwtToken);
     debugPrint(
@@ -49,7 +50,8 @@ class OffenseInformationControllerApi {
 
   // HTTP Methods
 
-  /// POST /api/offenses - åå»ºè¿æ³è¡ä¸º (ä»ç®¡çå)
+  /// POST /api/offenses - åå»ºè¿æ³è¡ä¸º (ä»
+// ç®¡çå)
   Future<void> apiOffensesPost({
     required OffenseInformation offenseInformation,
     required String idempotencyKey,
@@ -127,7 +129,8 @@ class OffenseInformationControllerApi {
     return jsonList.map((json) => OffenseInformation.fromJson(json)).toList();
   }
 
-  /// PUT /api/offenses/{offenseId} - æ´æ°è¿æ³è¡ä¸ºä¿¡æ¯ (ä»ç®¡çå)
+  /// PUT /api/offenses/{offenseId} - æ´æ°è¿æ³è¡ä¸ºä¿¡æ¯ (ä»
+// ç®¡çå)
   Future<OffenseInformation> apiOffensesOffenseIdPut({
     required int offenseId,
     required OffenseInformation offenseInformation,
@@ -159,7 +162,8 @@ class OffenseInformationControllerApi {
     return OffenseInformation.fromJson(data);
   }
 
-  /// DELETE /api/offenses/{offenseId} - å é¤è¿æ³è¡ä¸ºä¿¡æ¯ (ä»ç®¡çå)
+  /// DELETE /api/offenses/{offenseId} - å é¤è¿æ³è¡ä¸ºä¿¡æ¯ (ä»
+// ç®¡çå)
   Future<void> apiOffensesOffenseIdDelete({
     required int offenseId,
   }) async {
@@ -368,7 +372,8 @@ const path = '/api/offenses/search/code';
     return jsonList.map((json) => OffenseInformation.fromJson(json)).toList();
   }
 
-  /// GET /api/offenses/search/status?processStatus=... - æå¤çç¶ææ¥è¯?  Future<List<OffenseInformation>> apiOffensesSearchStatusGet({
+  /// GET /api/offenses/search/status?processStatus=... - æå¤çç¶ææ¥è¯?
+  Future<List<OffenseInformation>> apiOffensesSearchStatusGet({
     required String processStatus,
     int page = 1,
     int size = 20,
@@ -398,7 +403,8 @@ const path = '/api/offenses/search/code';
     return jsonList.map((json) => OffenseInformation.fromJson(json)).toList();
   }
 
-  /// GET /api/offenses/search/number?offenseNumber=... - æè¿æ³ç¼å·æ¥è¯?  Future<List<OffenseInformation>> apiOffensesSearchNumberGet({
+  /// GET /api/offenses/search/number?offenseNumber=... - æè¿æ³ç¼å·æ¥è¯?
+  Future<List<OffenseInformation>> apiOffensesSearchNumberGet({
     required String offenseNumber,
     int page = 1,
     int size = 20,
