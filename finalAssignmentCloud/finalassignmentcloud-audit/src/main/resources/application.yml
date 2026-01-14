@@ -1,0 +1,27 @@
+spring:
+  application:
+    name: finalassignmentcloud-audit
+  config:
+    import: "optional:nacos:"
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_SERVER:localhost:8848}
+        namespace: ${NACOS_NAMESPACE:}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
+        username: ${NACOS_USERNAME:}
+        password: ${NACOS_PASSWORD:}
+      config:
+        server-addr: ${NACOS_SERVER:localhost:8848}
+        namespace: ${NACOS_NAMESPACE:}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
+        file-extension: yaml
+        username: ${NACOS_USERNAME:}
+        password: ${NACOS_PASSWORD:}
+server:
+  port: 8084
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

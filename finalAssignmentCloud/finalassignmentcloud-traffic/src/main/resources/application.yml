@@ -1,0 +1,73 @@
+spring:
+  application:
+    name: finalassignmentcloud-traffic
+  config:
+    import: "optional:nacos:"
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_SERVER:localhost:8848}
+        namespace: ${NACOS_NAMESPACE:}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
+        username: ${NACOS_USERNAME:}
+        password: ${NACOS_PASSWORD:}
+      config:
+        server-addr: ${NACOS_SERVER:localhost:8848}
+        namespace: ${NACOS_NAMESPACE:}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
+        file-extension: yaml
+        username: ${NACOS_USERNAME:}
+        password: ${NACOS_PASSWORD:}
+  profiles:
+    active: sharding
+server:
+  port: 8083
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+---
+spring:
+  config:
+    activate:
+      on-profile: sharding
+  shardingsphere:
+    datasource:
+      names: ds0,ds1
+      ds0:
+        type: com.zaxxer.hikari.HikariDataSource
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        jdbc-url: jdbc:mysql://localhost:3307/traffic_0?useSSL=false&serverTimezone=Asia/Shanghai
+        username: root
+        password: root
+      ds1:
+        type: com.zaxxer.hikari.HikariDataSource
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        jdbc-url: jdbc:mysql://localhost:3308/traffic_1?useSSL=false&serverTimezone=Asia/Shanghai
+        username: root
+        password: root
+    rules:
+      sharding:
+        tables:
+          traffic_violation:
+            actual-data-nodes: ds$->{0..1}.traffic_violation_$->{0..1}
+            database-strategy:
+              standard:
+                sharding-column: id
+                sharding-algorithm-name: db-inline
+            table-strategy:
+              standard:
+                sharding-column: id
+                sharding-algorithm-name: traffic-inline
+        sharding-algorithms:
+          traffic-inline:
+            type: INLINE
+            props:
+              algorithm-expression: traffic_violation_$->{id % 2}
+          db-inline:
+            type: INLINE
+            props:
+              algorithm-expression: ds$->{id % 2}
+    props:
+      sql-show: true

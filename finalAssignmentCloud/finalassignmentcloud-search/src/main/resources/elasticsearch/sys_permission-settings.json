@@ -1,0 +1,57 @@
+{
+  "analysis": {
+    "analyzer": {
+      "ik_max_word": {
+        "type": "custom",
+        "tokenizer": "ik_max_word",
+        "filter": [
+          "lowercase",
+          "stop_filter",
+          "synonym_filter"
+        ]
+      },
+      "pinyin_analyzer": {
+        "type": "custom",
+        "tokenizer": "ik_max_word",
+        "filter": [
+          "pinyin_filter",
+          "lowercase"
+        ]
+      }
+    },
+    "filter": {
+      "stop_filter": {
+        "type": "stop",
+        "stopwords": [
+          "的",
+          "了",
+          "在",
+          "是",
+          "和",
+          "与",
+          "及",
+          "或"
+        ]
+      },
+      "synonym_filter": {
+        "type": "synonym",
+        "synonyms": [
+          "启用,开启,打开 => 开启",
+          "禁用,关闭,停用 => 停用",
+          "创建,新增,添加 => 创建",
+          "更新,修改,变更 => 更新",
+          "删除,移除,清除 => 删除"
+        ]
+      },
+      "pinyin_filter": {
+        "type": "pinyin",
+        "keep_first_letter": true,
+        "keep_separate_first_letter": false,
+        "keep_full_pinyin": true,
+        "keep_original": true,
+        "limit_first_letter_length": 16,
+        "lowercase": true
+      }
+    }
+  }
+}

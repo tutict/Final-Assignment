@@ -1,0 +1,61 @@
+spring:
+  application:
+    name: finalassignmentcloud-gateway
+  config:
+    import: "optional:nacos:"
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_SERVER:localhost:8848}
+        namespace: ${NACOS_NAMESPACE:}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
+        username: ${NACOS_USERNAME:}
+        password: ${NACOS_PASSWORD:}
+      config:
+        server-addr: ${NACOS_SERVER:localhost:8848}
+        namespace: ${NACOS_NAMESPACE:}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
+        file-extension: yaml
+        username: ${NACOS_USERNAME:}
+        password: ${NACOS_PASSWORD:}
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+      routes:
+        - id: auth-service
+          uri: lb://finalassignmentcloud-auth
+          predicates:
+            - Path=/api/auth/**
+        - id: user-service
+          uri: lb://finalassignmentcloud-user
+          predicates:
+            - Path=/api/users/**
+        - id: traffic-service
+          uri: lb://finalassignmentcloud-traffic
+          predicates:
+            - Path=/api/offenses/**,/api/offense-types/**,/api/violations/**,/api/deductions/**,/api/fines/**,/api/payments/**,/api/vehicles/**,/api/drivers/**,/api/appeals/**,/api/progress/**,/api/workflow/**,/api/view/offenses/**
+        - id: audit-service
+          uri: lb://finalassignmentcloud-audit
+          predicates:
+            - Path=/api/audit/**,/api/system/logs/**,/api/logs/**
+        - id: system-service
+          uri: lb://finalassignmentcloud-system
+          predicates:
+            - Path=/api/system/**
+        - id: ai-service
+          uri: lb://finalassignmentcloud-ai
+          predicates:
+            - Path=/api/ai/**
+        - id: search-service
+          uri: lb://finalassignmentcloud-search
+          predicates:
+            - Path=/api/search/**
+server:
+  port: 8080
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
