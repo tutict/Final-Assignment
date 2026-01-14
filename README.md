@@ -1,4 +1,4 @@
-# Final-Assignment 
+﻿# Final-Assignment 
 
 <font size=2>`四百多提交了，多少有点感悟。感觉写代码按照心法来分的话，可以分成just for money 和 just for fun（林纳斯自传名），不同心法练出不同“内功”，just for fun 心法练的就类似于小无相功。`</font>
 
@@ -229,3 +229,34 @@ spring.ai.ollama.chat.options.keep-alive=5m
 * **注1**: ES的端口由RunDocker类里的TestContainers自动配置,然后在ES配置类里直接调用,所以没有在application.properties里配置
 * **注2**: 在maven同步下载完依赖包后,需要手动再mvn install一下,Graalpy会在项目里的target文件夹里build一个虚拟环境
 * **注3**: 可以使用finalAssignmentTools/generate_secret_key文件夹下的脚本生成jwt的secret key
+
+*********************************************
+
+## FinalAssignmentCloud
+
+正在开发中
+
+基于 Spring Boot 4 + Spring Cloud 2025.1 + Spring Cloud Alibaba 2025.0.0.0 的微服务化后端版本，面向交通违法处理系统的云原生拆分实现。
+
+#### 模块与服务
+
+- **finalassignmentcloud-common**：通用能力与基础依赖
+- **finalassignmentcloud-gateway**：统一网关与路由入口
+- **finalassignmentcloud-auth**：认证授权服务（JWT/Security）
+- **finalassignmentcloud-user**：用户与权限域服务
+- **finalassignmentcloud-traffic**：交通违法业务核心服务
+- **finalassignmentcloud-audit**：审计/日志服务
+- **finalassignmentcloud-system**：系统配置与字典域服务
+- **finalassignmentcloud-search**：检索服务（Elasticsearch）
+- **finalassignmentcloud-ai**：AI 能力服务（Spring AI + Ollama + GraalVM）
+
+#### 关键特性
+
+- 🔗 **服务治理**：Nacos 注册发现 + 配置中心
+- 🚪 **网关与负载**：Spring Cloud Gateway + LoadBalancer
+- 🧩 **服务调用**：OpenFeign + 统一 common 模块
+- 🗄️ **数据与中间件**：MyBatis Plus + MySQL + Redis(Jedis/Caffeine) + Kafka
+- 🔎 **搜索与分片**：Elasticsearch + ShardingSphere(traffic 服务)
+- 🔐 **安全体系**：Spring Security + JWT
+- 📈 **可观测性**：Actuator + OpenAPI (springdoc)
+
