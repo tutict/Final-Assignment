@@ -55,6 +55,8 @@
             <groupId>org.graalvm.polyglot</groupId>
             <artifactId>python</artifactId>
             <version>25.0.1</version>
+            <type>pom</type>
+            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>org.jetbrains</groupId>
