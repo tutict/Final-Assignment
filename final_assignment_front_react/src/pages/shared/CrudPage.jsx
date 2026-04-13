@@ -1,4 +1,4 @@
-﻿import React, { useMemo, useState } from 'react';
+import React, { useDeferredValue, useMemo, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import PageLayout from '../../components/PageLayout.jsx';
 import DataTable from '../../components/DataTable.jsx';
@@ -26,6 +26,7 @@ export default function CrudPage({ config }) {
   const [editing, setEditing] = useState(null);
   const [formData, setFormData] = useState({});
   const [modalOpen, setModalOpen] = useState(false);
+  const deferredSearch = useDeferredValue(search);
 
   const fields = useMemo(() => normalizeFields(config), [config]);
 
@@ -56,12 +57,12 @@ export default function CrudPage({ config }) {
   const rows = Array.isArray(data) ? data : [];
 
   const filteredRows = useMemo(() => {
-    if (!search.trim()) return rows;
-    const query = normalizeText(search);
+    if (!deferredSearch.trim()) return rows;
+    const query = normalizeText(deferredSearch);
     return rows.filter((row) =>
       fields.some((field) => normalizeText(row?.[field.name]).includes(query))
     );
-  }, [rows, fields, search]);
+  }, [rows, fields, deferredSearch]);
 
   const columns = useMemo(() => {
     return fields.slice(0, 8).map((field) => ({
@@ -127,7 +128,12 @@ export default function CrudPage({ config }) {
         </button>
       }
     >
-      <SearchBar value={search} onChange={setSearch} placeholder={`搜索${config.label}...`} />
+      <SearchBar
+        value={search}
+        onChange={setSearch}
+        placeholder={`搜索${config.label}...`}
+        actions={search !== deferredSearch ? <span className="search-hint">筛选中...</span> : null}
+      />
       {isLoading ? <div className="placeholder">加载中...</div> : null}
       {error ? <div className="form-error">加载失败，请检查后端服务。</div> : null}
       <DataTable

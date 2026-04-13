@@ -1,4 +1,4 @@
-﻿import { defineConfig } from 'vite';
+import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath, URL } from 'node:url';
 
@@ -36,5 +36,27 @@ export default defineConfig({
     sourcemap: false,
     cssCodeSplit: true,
     chunkSizeWarningLimit: 1500,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) {
+            return undefined;
+          }
+          if (id.includes('react-router-dom')) {
+            return 'router';
+          }
+          if (id.includes('@tanstack/react-query')) {
+            return 'react-query';
+          }
+          if (id.includes('axios')) {
+            return 'http-client';
+          }
+          if (id.includes('react') || id.includes('scheduler')) {
+            return 'react-vendor';
+          }
+          return 'vendor';
+        },
+      },
+    },
   },
 });
