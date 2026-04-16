@@ -1,262 +1,218 @@
-﻿# Final-Assignment 
+﻿# 交通违法处理管理系统
 
-<font size=2>`四百多提交了，多少有点感悟。感觉写代码按照心法来分的话，可以分成just for money 和 just for fun（林纳斯自传名），不同心法练出不同“内功”，just for fun 心法练的就类似于小无相功。`</font>
+一个面向交通违法业务场景的全栈项目，覆盖违法信息管理、罚款处理、扣分管理、申诉流程、日志审计、权限控制等核心能力。该项目最初来源于毕业设计，后续持续演进为个人长期维护的工程化作品集，用于验证不同后端技术路线在同一业务域下的实现方式。
 
-这是一个交通违法行为处理管理系统项目，曾用于大学毕业设计，现在用于作为just for fun的项目，程序员这个赛道实在太卷，为谋生只能另寻出路了。
+目前仓库以 `Spring Boot + React / Flutter` 作为主要展示链路，同时保留 `Quarkus`、`Go`、`Spring Cloud` 等版本，用于架构演进和技术验证。
 
-此项目主要采用Flutter前端与Java后端架构（Quarkus / Spring Boot 4）实现，未来考虑结合Flutter，将此项目开发成鸿蒙应用以支持多端适配。【正在扩展Go与React代码。】
+## 项目定位
 
+- 项目类型：个人独立开发的全栈作品集项目
+- 业务方向：交通违法处理与后台管理
+- 展示重点：后端架构设计、权限与安全、缓存与消息、跨端前端实现、工程化能力
+- 适用场景：简历项目展示、面试项目讲解、GitHub 作品集展示
 
-毕竟下面这些“学校学的技术”上不了公司的台面，就让它们好好待在Github里吧，如果有后来的学弟翻到我这个项目，大学请一定好好地“玩”，像我一样以一个极具技术挑战的项目用来做青春的句号也是极好的。
+## 核心功能
 
+- 用户、角色、权限管理
+- 驾驶员、车辆、违法信息、罚款信息管理
+- 扣分处理与申诉处理流程
+- 登录日志、操作日志、系统日志审计
+- 数据备份与恢复
+- 检索、实时消息、WebSocket 通信能力
+- 基于本地模型的 AI 问答与辅助查询探索
 
-- **运行代码之前需要确保docker在后台运行。**
+## 个人职责
 
-*********************************************
+- 独立完成系统需求拆解、数据库设计与模块划分
+- 独立完成后端接口开发、权限认证、缓存设计、消息通信和部分状态流转建模
+- 独立完成 Flutter 与 React 两套前端界面及接口联调
+- 维护多套后端实现方案，用于对比单体、轻量化和微服务架构的实现差异
+- 完成 Docker/Testcontainers 驱动的本地依赖管理与开发环境搭建
 
-## Quarkus
+## 技术亮点
 
-现在正在开发中
+- 使用 `Spring Security + JWT + BCrypt` 构建认证与授权链路
+- 使用 `MyBatis Plus + MySQL` 实现核心业务数据访问
+- 使用 `Redis + Caffeine` 实现多级缓存，降低热点数据访问开销
+- 使用 `Kafka` 支撑日志、审计和异步消息处理场景
+- 使用 `WebSocket` 支撑实时通信能力
+- 使用 `Testcontainers` 管理 Redis、Kafka/Redpanda、Elasticsearch 等本地依赖
+- 在部分业务流程中引入状态机建模，提升流程可维护性
+- 集成 `Ollama + Spring AI / LangChain4j + GraalPy`，探索本地模型与 Python 能力协同
 
-基于Quarkus框架的交通管理系统后端实现，关键依赖特性：
+## 技术栈
 
-- 🛠 **核心架构**：Vert.x异步驱动 + Quarkus DI容器 + GraalVM原生编译支持
-- 🔐 **安全体系**：JWT令牌鉴权 + BCrypt加密 + 细粒度权限控制
-- 🚀 **核心功能**：
-    - 违法数据管理（MyBatis Plus + MySQL）
-    - Kafka实时消息处理（Vert.x集成）
-    - 多级缓存策略（Redis + Quarkus Cache）
-- 🔧 **性能优化**：
-    - GraalVM Native Image构建（启动时间<0.5s / 内存占用<100MB）
-    - 响应式消息流（Smallrye Reactive）
-    - 使用本地 DeepSeek AI 服务（langchain4j ollama）
-- 📘 **开放能力**：OpenAPI 3.0规范文档自动生成
+| 分层 | 技术方案 |
+| --- | --- |
+| 后端主线 | Spring Boot 4、Spring Security、MyBatis Plus、Redis、Kafka、WebSocket、Elasticsearch |
+| 微服务演进 | Spring Cloud、Spring Cloud Alibaba、Gateway、OpenFeign、Nacos、ShardingSphere |
+| 轻量后端探索 | Quarkus、Vert.x、MyBatis Plus、SmallRye JWT、Redis Cache、Reactive Messaging |
+| Go 版本探索 | Gin、GORM、Redis、Kafka、Elasticsearch、WebSocket |
+| 前端 | React 18、Vite、React Router、React Query、Axios |
+| 客户端 | Flutter 3、GetX、WebSocket、图表与地图相关组件 |
+| 工程能力 | Docker、Testcontainers、GraalVM、GraalPy、JMH |
 
-#### IntelliJ IDEA运行配置
+## 仓库结构
 
-![img_1.png](./img_1.png)
-
-#### application.properties参考：
-
-``` properties
-# Suppress inspection "SpringBootApplicationProperties" for whole file
-%dev.quarkus.http.port=8080
-# Database settings
-quarkus.datasource.db-kind=mysql
-quarkus.datasource.jdbc.url=jdbc:mysql://localhost:3306/cesi?useUnicode=true&characterEncoding=UTF-8&autoReconnect=true&useSSL=false&zeroDateTimeBehavior=convertToNull&serverTimezone=Asia/Shanghai
-quarkus.datasource.jdbc.driver=com.mysql.cj.jdbc.Driver
-quarkus.datasource.username=xxx
-quarkus.datasource.password=xxx
-# MyBatis Plus settings
-quarkus.mybatis.xmlconfig.enable=false
-quarkus.mybatis.environment=development
-quarkus.mybatis-plus.pagination.enabled=true
-quarkus.mybatis.map-underscore-to-camel-case=true
-# Cache settings
-quarkus.cache.enabled=true
-quarkus.cache.redis.enabled=true
-quarkus.cache.redis.serializer=jackson # Verify if 'serializer' is the correct key
-quarkus.cache.redis.codec=json # If 'codec' is required instead of 'value-encoder'
-quarkus.cache.redis.default-ttl=10M # Ensure the key is 'default-ttl' not 'default-entry-ttl'
-quarkus.cache.redis.ignore-null-values=true
-quarkus.cache.redis.allow-null-values=false
-# Cache configurations for specific services
-quarkus.cache.redis.appealCache.value-type=finalassignmentbackend.service.AppealManagementService
-quarkus.cache.redis.backupCache.value-type=finalassignmentbackend.service.BackupRestoreService
-quarkus.cache.redis.deductionCache.value-type=finalassignmentbackend.service.DeductionInformationService
-quarkus.cache.redis.driverCache.value-type=finalassignmentbackend.service.DriverInformationService
-quarkus.cache.redis.fineCache.value-type=finalassignmentbackend.service.FineInformationService
-quarkus.cache.redis.loginCache.value-type=finalassignmentbackend.service.LoginLogService
-quarkus.cache.redis.offenseCache.value-type=finalassignmentbackend.service.OffenseInformationService
-quarkus.cache.redis.operationCache.value-type=finalassignmentbackend.service.OperationLogService
-quarkus.cache.redis.permissionCache.value-type=finalassignmentbackend.service.PermissionManagementService
-quarkus.cache.redis.roleCache.value-type=finalassignmentbackend.service.RoleManagementService
-quarkus.cache.redis.systemLogCache.value-type=finalassignmentbackend.service.SystemLogsService
-quarkus.cache.redis.systemSettingsCache.value-type=finalassignmentbackend.service.SystemSettingsService
-quarkus.cache.redis.userCache.value-type=finalassignmentbackend.service.UserManagementService
-quarkus.cache.redis.vehicleCache.value-type=finalassignmentbackend.service.VehicleInformationService
-# Configure a Caffeine cache named "driverInfoCache"
-quarkus.cache.caffeine."driverInfoCache".expire-after-write=5M
-quarkus.cache.caffeine."driverInfoCache".maximum-size=100
-# Logging configurations
-quarkus.log.level=INFO
-quarkus.log.category."io.quarkus".level=INFO
-quarkus.log.category."io.vertx".level=INFO
-# Native image build
-quarkus.native.builder-image=true
-# JWT Secret Key
-quarkus.smallrye-jwt.silent=false
-jwt.secret.key=XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX=
-quarkus.smallrye-jwt.enabled=true
-mp.jwt.verify.allowed-algorithms=HS256
-mp.jwt.verify.issuer=tutict
-mp.jwt.verify.audiences=tutict_client
-# Network configurations
-network.server.port=8081
-backend.url=http://localhost
-ws.url=ws://localhost:8081
-backend.port=8080
-# CORS settings
-quarkus.http.cors=true
-quarkus.http.cors.origins=http://localhost:10086
-quarkus.http.cors.methods=GET,POST,PUT,DELETE,OPTIONS
-quarkus.http.cors.headers=Content-Type,Authorization
-quarkus.http.cors.exposed-headers=Content-Type,Authorization
-quarkus.http.cors.access-control-allow-credentials=true
-# deepseek settings
-quarkus.langchain4j.ollama.base-url=http://localhost:11434
-quarkus.langchain4j.ollama.chat-model.model-id=deepseek-r1:7b
+```text
+Final-Assignment
+├─ finalAssignmentBackend             # Spring Boot 单体后端主版本
+├─ finalAssignmentCloud               # Spring Cloud 微服务拆分版本
+├─ final_assignment_backend_quarkus   # Quarkus 后端实验版本
+├─ final_assignment_backend_go        # Go 后端实验版本
+├─ final_assignment_front             # Flutter 前端
+├─ final_assignment_front_react       # React 管理端
+├─ database                           # 数据库设计文档
+└─ finalAssignmentTools               # 工具脚本与辅助资源
 ```
 
-*********************************************
+## 主要模块说明
 
-## Go
+### 1. Spring Boot 单体后端
 
-现在正在开发中
+主线版本，适合作为项目讲解和运行演示的核心模块。
 
-#### 主要特性
+- 路径：`finalAssignmentBackend`
+- 技术关键词：`Spring Boot 4`、`Spring Security`、`MyBatis Plus`、`Redis`、`Kafka`、`Elasticsearch`
+- 工程特点：
+  - 基于 JWT 的认证鉴权
+  - 审计日志与业务日志拆分
+  - 基于 Testcontainers 的中间件依赖管理
+  - 引入状态机管理部分业务流程
+  - 集成本地 AI 服务与 GraalPy 能力
 
-- **Web 框架**  
-  使用 Gin 提供高性能 HTTP 路由。
-- **数据库集成**  
-  通过 GORM 实现 ORM，并使用 MySQL（go-sql-driver/mysql）进行数据库操作。
-- **实时通信**  
-  通过 Gorilla WebSocket 支持 WebSocket 连接。
-- **认证与安全**  
-  实现 JWT（golang-jwt/jwt）、CSRF 保护（gorilla/csrf）和安全会话（gorilla/sessions）。
-- **缓存与性能**  
-  使用 Ristretto 进行内存缓存，Redis 进行分布式缓存。
-- **消息队列**  
-  集成 Confluent Kafka 支持事件驱动架构。
-- **搜索功能**  
-  通过 Elasticsearch 实现高效搜索。
-- **API 测试与开发**  
-  使用 Testcontainers 进行容器化测试，Req 进行 HTTP 客户端请求。
-- **监控** 
-  集成 Prometheus 用于指标和监控。
-- **其他工具** 
-  支持 SOAP API（gosoap）、UUID 生成（google/uuid）和 JSON 处理（bytedance/sonic, goccy/go-json）。
+### 2. React 管理端
 
-*********************************************
+用于后台管理系统展示，覆盖登录鉴权、角色路由、数据列表、表单、统计图表等常见后台能力。
 
-## Spring Boot
+- 路径：`final_assignment_front_react`
+- 技术关键词：`React 18`、`Vite`、`React Router`、`React Query`、`Axios`
+- 页面能力：
+  - 登录与认证上下文管理
+  - 基于角色的路由访问控制
+  - 通用数据表格、检索、弹窗、表单组件
+  - 面向管理员场景的多业务页面
 
-#### 技术架构
+### 3. Flutter 前端
 
-- 🚀 **核心框架**  
-  Spring Boot 4.0.1 + Graalvm 25 
-- 🛠 **数据层**  
-  MyBatis Plus 3.5.10.1 + MySQL 8.0.41 + Redis 多级缓存
-- **docker**  
-  基于testcontainers, 使用 Redis + Redpanda(Kafka) + ElasticSearch 8
-- **AI**
-     - 使用本地 DeepSeek AI 服务（ollama），并利用Graalpy，实现本地模型通过Python爬虫脚本爬取数据来进行联网
-     - 为了此项目微调的deepseek-r1:8b模型文件，已上传HuggingFace仓库，地址：https://huggingface.co/4513P/deepseek-for-my-bishe/tree/main
-      
+用于多端客户端能力验证，适合展示跨端开发经验。
 
-#### 关键特性
+- 路径：`final_assignment_front`
+- 技术关键词：`Flutter`、`GetX`、`WebSocket`、`SharedPreferences`
+- 功能方向：
+  - 登录与本地状态存储
+  - 图表、地图、二维码等交互组件集成
+  - 面向移动端的业务流程展示
 
-- 🔐 **安全体系**  
-  JWT 鉴权 + Spring Security 6.4 + BCrypt 加密
-- 📡 **实时处理**  
-  Kafka 消息队列 + 异步 Vert.x 处理
-- ☁️ **云原生支持**  
-  Spring Actuator 监控 + Docker 集成
-- ⚡ **性能优化**  
-  Caffeine 本地缓存 + Jedis 连接池
+### 4. Spring Cloud 微服务版本
 
-#### 扩展能力(暂时未成功实现的功能)
+用于展示从单体架构向微服务架构拆分的设计思路。
 
-- 📘 OpenAPI 3 规范接口
-- 🔌 混合通信模式（HTTP/REST + WebSocket）
-- WebSocket 实时推送
-- 提升 Python 爬虫脚本性能 【目前发现Graalpy对Windows的CPython的兼容不太好, 装lxml或scrapy的时候总是提示缺少头文件, Linux下可以build成功】
+- 路径：`finalAssignmentCloud`
+- 已拆分模块：
+  - `gateway`
+  - `auth`
+  - `user`
+  - `traffic`
+  - `audit`
+  - `system`
+  - `search`
+  - `ai`
+- 技术关键词：`Spring Cloud Gateway`、`OpenFeign`、`Nacos`、`ShardingSphere`
 
-#### application.properties参考：
+### 5. Quarkus / Go 后端探索版本
 
-``` properties
-spring.application.name=finalAssignmentBackend
-server.port=8080
-spring.main.allow-circular-references=true
-management.endpoints.web.exposure.include=health,metrics
-spring.datasource.url=jdbc:mysql://localhost:3306/cesi
-spring.datasource.username=XXXX
-spring.datasource.password=XXXX
-spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
-mybatis-plus.mapper-locations=classpath*:/mapper/**/*.xml
-mybatis-plus.type-aliases-package=com.tutict.finalassignmentbackend.entity
-mybatis-plus.configuration.map-underscore-to-camel-case=true
-logging.level.root=INFO
-logging.level.org.springframework.security=TRACE
-logging.level.org.springframework.security.web.FilterChainProxy=DEBUG
-logging.level.com.tutict.finalassignmentbackend=INFO
-debug=true
-# Kafka settings
-spring.kafka.bootstrap-servers=${spring.kafka.bootstrap-servers}
-spring.kafka.consumer.group-id=my-group
-spring.kafka.consumer.auto-offset-reset=earliest
-spring.kafka.consumer.key-deserializer=org.apache.kafka.common.serialization.StringDeserializer
-spring.kafka.consumer.value-deserializer=org.apache.kafka.common.serialization.StringDeserializer
-spring.kafka.producer.acks=1
-spring.kafka.producer.key-serializer=org.apache.kafka.common.serialization.StringSerializer
-spring.kafka.producer.value-serializer=org.springframework.kafka.support.serializer.JsonSerializer
-#jwt set secret key
-jwt.secret.key=XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX=
-#redis settings
-spring.data.redis.host=${spring.data.redis.host}
-spring.data.redis.port=${spring.data.redis.port}
-# ElasticSearch settings
-spring.data.elasticsearch.repositories.enabled=true
-# Backend Service Configuration
-backend.url=http://localhost
-backend.port=8080
-# DeepSeek Configuration
-spring.ai.ollama.chat.options.temperature=0.6
-spring.ai.ollama.base-url=http://localhost:11434
-spring.ai.ollama.chat.options.mirostat=1
-spring.ai.ollama.chat.options.seed=42
-spring.ai.ollama.chat.options.model=hf.co/4513P/deepseek-for-my-bishe
-spring.ai.ollama.init.pull-model-strategy=when_missing
-spring.ai.ollama.init.chat.include=true
-spring.ai.ollama.chat.options.num-ctx=2048
-spring.ai.ollama.chat.options.num-gpu=1
-spring.ai.ollama.chat.options.low-vram=false
-spring.ai.ollama.chat.options.top-p=0.9
-spring.ai.ollama.chat.options.tfs-z=1.0
-spring.ai.ollama.chat.options.keep-alive=5m
+用于验证同一业务域在不同技术路线下的实现方式，体现对框架特性和架构取舍的理解。
+
+- Quarkus 路径：`final_assignment_backend_quarkus`
+- Go 路径：`final_assignment_backend_go`
+- 关注点：
+  - 轻量化启动与开发效率
+  - 异步处理与高性能组件组合
+  - 不同语言生态下的业务建模方式
+
+## 求职展示建议
+
+如果将该项目写入简历，建议突出以下信息：
+
+- 项目性质：个人独立完成的全栈管理系统项目
+- 业务复杂度：覆盖权限、流程、缓存、日志、消息、检索、AI 集成等多个典型后台场景
+- 技术深度：不仅实现单体系统，还进一步拆分微服务并尝试 Quarkus、Go 等技术路线
+- 工程能力：具备多端开发、后端架构设计、依赖管理、运行环境搭建和持续迭代能力
+
+可参考的简历表述：
+
+> 独立设计并实现交通违法处理管理系统，采用 Spring Boot、React、Flutter 构建完整业务闭环，覆盖权限认证、违法处理、申诉流程、日志审计、缓存优化、消息通信等场景；在主线版本之外，进一步完成 Spring Cloud 微服务拆分，并基于 Quarkus、Go 对同一业务域进行了多技术路线验证。
+
+## 运行说明
+
+### 环境准备
+
+- JDK 23 / 25
+- Maven 3.9+
+- Node.js 18+
+- Flutter 3+
+- Go 1.24+
+- Docker
+- MySQL、Redis、Kafka/Redpanda、Elasticsearch、Ollama（按所选模块启用）
+
+### 推荐演示链路
+
+优先运行 `Spring Boot 单体后端 + React 管理端`，这是最适合做项目展示和面试讲解的组合。
+
+### 常用启动方式
+
+Spring Boot 后端：
+
+```bash
+cd finalAssignmentBackend
+mvn spring-boot:run
 ```
 
-* **注1**: ES的端口由RunDocker类里的TestContainers自动配置,然后在ES配置类里直接调用,所以没有在application.properties里配置
-* **注2**: 在maven同步下载完依赖包后,需要手动再mvn install一下,Graalpy会在项目里的target文件夹里build一个虚拟环境
-* **注3**: 可以使用finalAssignmentTools/generate_secret_key文件夹下的脚本生成jwt的secret key
+React 前端：
 
-*********************************************
+```bash
+cd final_assignment_front_react
+npm install
+npm run dev
+```
 
-## FinalAssignmentCloud
+Flutter 前端：
 
-正在开发中
+```bash
+cd final_assignment_front
+flutter pub get
+flutter run
+```
 
-基于 Spring Boot 4 + Spring Cloud 2025.1 + Spring Cloud Alibaba 2025.0.0.0 的微服务化后端版本，面向交通违法处理系统的云原生拆分实现。
+Quarkus 后端：
 
-#### 模块与服务
+```bash
+cd final_assignment_backend_quarkus
+.\gradlew quarkusDev
+```
 
-- **finalassignmentcloud-common**：通用能力与基础依赖
-- **finalassignmentcloud-gateway**：统一网关与路由入口
-- **finalassignmentcloud-auth**：认证授权服务（JWT/Security）
-- **finalassignmentcloud-user**：用户与权限域服务
-- **finalassignmentcloud-traffic**：交通违法业务核心服务
-- **finalassignmentcloud-audit**：审计/日志服务
-- **finalassignmentcloud-system**：系统配置与字典域服务
-- **finalassignmentcloud-search**：检索服务（Elasticsearch）
-- **finalassignmentcloud-ai**：AI 能力服务（Spring AI + Ollama + GraalVM）
+Go 后端：
 
-#### 关键特性
+```bash
+cd final_assignment_backend_go
+go run ./project/cmd/app
+```
 
-- 🔗 **服务治理**：Nacos 注册发现 + 配置中心
-- 🚪 **网关与负载**：Spring Cloud Gateway + LoadBalancer
-- 🧩 **服务调用**：OpenFeign + 统一 common 模块
-- 🗄️ **数据与中间件**：MyBatis Plus + MySQL + Redis(Jedis/Caffeine) + Kafka
-- 🔎 **搜索与分片**：Elasticsearch + ShardingSphere(traffic 服务)
-- 🔐 **安全体系**：Spring Security + JWT
-- 📈 **可观测性**：Actuator + OpenAPI (springdoc)
+## 配置说明
+
+- 运行前请根据本地环境补充各模块中的数据库、Redis、Kafka、Elasticsearch、JWT 等配置
+- 涉及密钥和账号信息时，请使用本地配置文件或环境变量，不要将真实凭据提交到仓库
+- 部分模块依赖 Docker/Testcontainers 自动拉起中间件，因此请确保 Docker 处于可用状态
+
+## 当前状态
+
+- `finalAssignmentBackend`、`final_assignment_front_react`、`final_assignment_front` 适合作为主展示内容
+- `finalAssignmentCloud` 处于持续拆分与补充阶段
+- `final_assignment_backend_quarkus`、`final_assignment_backend_go` 主要用于技术验证与架构探索
+
+## 补充文档
+
+- 数据库设计文档：`database/DATABASE_DESIGN.md`
+
 
