@@ -26,6 +26,7 @@ public class ChatController {
         this.chatAgent = chatAgent;
     }
 
+    @Deprecated
     @GetMapping(value = "/chat", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     @Operation(
             summary = "与 AI 交通助手对话",

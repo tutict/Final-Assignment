@@ -202,8 +202,9 @@ class _AiChatState extends State<AiChat> with SingleTickerProviderStateMixin {
                                                               Theme.of(context)
                                                                   .colorScheme
                                                                   .onSurface
-                                                                  .withValues(alpha: 
-                                                                      0.85),
+                                                                  .withValues(
+                                                                      alpha:
+                                                                          0.85),
                                                           letterSpacing: 0.2,
                                                         ),
                                                       ),
@@ -259,7 +260,8 @@ class _AiChatState extends State<AiChat> with SingleTickerProviderStateMixin {
                                   borderRadius: BorderRadius.circular(16),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.1),
+                                      color:
+                                          Colors.black.withValues(alpha: 0.1),
                                       blurRadius: 6,
                                       offset: const Offset(0, 2),
                                     ),
@@ -681,38 +683,45 @@ class _AiChatState extends State<AiChat> with SingleTickerProviderStateMixin {
                               ),
                             )),
                         const SizedBox(width: 6),
-                        IconButton(
-                          icon: Icon(
-                            Icons.send,
-                            size: 18,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .primary
-                                .withValues(alpha: 0.9),
-                          ),
-                          padding: const EdgeInsets.all(6),
-                          onPressed: () {
-                            controller.sendMessage();
-                            hideHelperWidget();
-                          },
-                          style: IconButton.styleFrom(
-                            backgroundColor: Theme.of(context)
-                                .colorScheme
-                                .primary
-                                .withValues(alpha: 0.15),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            elevation: 2,
-                            shadowColor: Colors.black.withValues(alpha: 0.1),
-                          ),
-                          tooltip: '发送',
-                          highlightColor: Theme.of(context)
-                              .colorScheme
-                              .primary
-                              .withValues(alpha: 0.2),
-                          splashRadius: 18,
-                        ),
+                        Obx(() => IconButton(
+                              icon: Icon(
+                                controller.isStreaming.value
+                                    ? Icons.stop
+                                    : Icons.send,
+                                size: 18,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .primary
+                                    .withValues(alpha: 0.9),
+                              ),
+                              padding: const EdgeInsets.all(6),
+                              onPressed: () {
+                                if (controller.isStreaming.value) {
+                                  controller.stopStreaming();
+                                } else {
+                                  controller.sendMessage();
+                                  hideHelperWidget();
+                                }
+                              },
+                              style: IconButton.styleFrom(
+                                backgroundColor: Theme.of(context)
+                                    .colorScheme
+                                    .primary
+                                    .withValues(alpha: 0.15),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                elevation: 2,
+                                shadowColor:
+                                    Colors.black.withValues(alpha: 0.1),
+                              ),
+                              tooltip: '发送',
+                              highlightColor: Theme.of(context)
+                                  .colorScheme
+                                  .primary
+                                  .withValues(alpha: 0.2),
+                              splashRadius: 18,
+                            )),
                       ],
                     ),
                   ),

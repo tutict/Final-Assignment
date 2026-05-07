@@ -1,0 +1,9 @@
+ai:
+  chat:
+    streaming:
+      enabled: false
+    stream:
+      keepalive: PT15S
+      timeout: PT60S
+  provider:
+    primary: mock

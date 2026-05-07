@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:final_assignment_front/features/ai/ai_chat_api.dart';
 import 'package:final_assignment_front/features/api/chat_controller_api.dart';
 import 'package:final_assignment_front/utils/ui/ui_utils.dart';
 
@@ -28,6 +29,8 @@ class ChatController extends GetxController {
   final RxBool enableWordStreaming = true.obs;
   final RxInt wordStreamDelayMs = 150.obs;
   final RxBool webSearchEnabled = false.obs;
+  final RxBool isStreaming = false.obs;
+  CancelToken? _activeCancelToken;
 
   void setUserRole(String role) {
     userRole.value = role.toUpperCase();
@@ -41,7 +44,7 @@ class ChatController extends GetxController {
 
   Future<void> sendMessage() async {
     final String text = textController.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty || isStreaming.value) return;
 
     messages.add(ChatMessage(formalContent: text, isUser: true));
     debugPrint('添加用户消息: $text');
@@ -49,6 +52,10 @@ class ChatController extends GetxController {
     messages.add(ChatMessage(formalContent: 'THINKING:思考中...', isUser: false));
     debugPrint('添加思考中消息');
     textController.clear();
+
+    final cancelToken = CancelToken();
+    _activeCancelToken = cancelToken;
+    isStreaming.value = true;
 
     try {
       int aiMessageIndex = messages.length - 1;
@@ -59,8 +66,12 @@ class ChatController extends GetxController {
       Set<String> processedChunks = {}; // Deduplication set
       bool isFirstMessage = true;
 
-      await for (String chunk
-          in chatApi.apiAiChatStream(text, webSearchEnabled.value)) {
+      await for (String chunk in chatApi.apiAiChatStream(
+          text, webSearchEnabled.value,
+          cancelToken: cancelToken)) {
+        if (cancelToken.isCanceled) {
+          break;
+        }
 // Skip if chunk already processed
         if (processedChunks.contains(chunk)) {
           debugPrint('Skipping duplicate chunk: $chunk');
@@ -142,7 +153,7 @@ class ChatController extends GetxController {
       }
 
 // Process remaining buffer
-      if (chunkBuffer.isNotEmpty) {
+      if (!cancelToken.isCanceled && chunkBuffer.isNotEmpty) {
         String cleanChunk = chunkBuffer.toString();
         if (!processedChunks.contains(cleanChunk)) {
           processedChunks.add(cleanChunk);
@@ -186,6 +197,9 @@ class ChatController extends GetxController {
       }
 
 // Final message update
+      if (cancelToken.isCanceled) {
+        return;
+      }
       if (debounceTimer?.isActive ?? false) debounceTimer!.cancel();
       String finalThinkContent = thinkBuffer.toString();
       String finalFormalContent = formalBuffer.toString();
@@ -212,6 +226,10 @@ class ChatController extends GetxController {
 
       debugPrint('AI 流完成: $text');
     } catch (e) {
+      if (cancelToken.isCanceled) {
+        debugPrint('AI stream canceled by user.');
+        return;
+      }
       debugPrint('流式 AI 响应错误: $e');
       _showFriendlyError('AI 响应失败，请稍后重试。', details: e.toString());
 // Remove "Thinking..." message on error
@@ -220,7 +238,15 @@ class ChatController extends GetxController {
         messages.removeLast();
       }
       messages.add(ChatMessage(formalContent: "错误: $e", isUser: false));
+    } finally {
+      _activeCancelToken = null;
+      isStreaming.value = false;
     }
+  }
+
+  void stopStreaming() {
+    _activeCancelToken?.cancel();
+    isStreaming.value = false;
   }
 
   List<String> _splitThinkAndFormal(String text) {
