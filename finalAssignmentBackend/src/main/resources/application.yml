@@ -21,3 +21,17 @@ ai:
     base-url: ""
     api-key: ""
     chat-model: ""
+
+rag:
+  enabled: false
+  chunk:
+    size: 500
+    overlap: 100
+  indexing:
+    enabled: false
+    batch-size: 200
+  embedding:
+    enabled: false
+  index:
+    name: rag_chunk_v1
+    alias: rag_chunk_current

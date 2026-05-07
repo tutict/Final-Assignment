@@ -1,0 +1,9 @@
+package com.tutict.finalassignmentbackend.rag.mapper;
+
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.tutict.finalassignmentbackend.rag.entity.RagEmbeddingTask;
+import org.apache.ibatis.annotations.Mapper;
+
+@Mapper
+public interface RagEmbeddingTaskMapper extends BaseMapper<RagEmbeddingTask> {
+}
