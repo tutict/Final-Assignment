@@ -4,6 +4,20 @@ ai:
       enabled: false
     stream:
       keepalive: PT15S
-      timeout: PT60S
   provider:
     primary: mock
+    fallback: noop
+    timeout: PT60S
+    streaming-timeout: PT180S
+    retry-attempts: 1
+    circuit-breaker-failure-threshold: 3
+    health-cache-ttl: PT30S
+  ollama:
+    enabled: true
+    base-url: http://localhost:11434
+    chat-model: qwen3:8b
+  openai-compatible:
+    enabled: false
+    base-url: ""
+    api-key: ""
+    chat-model: ""

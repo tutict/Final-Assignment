@@ -1,5 +1,7 @@
 package com.tutict.finalassignmentbackend.ai.chat;
 
+import com.tutict.finalassignmentbackend.ai.provider.AiProviderRegistry;
+import com.tutict.finalassignmentbackend.ai.provider.AiToken;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -9,9 +11,9 @@ import reactor.core.publisher.Mono;
 import reactor.core.publisher.BufferOverflowStrategy;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.TimeoutException;
 
 @Service
 public class ChatStreamService {
@@ -19,17 +21,14 @@ public class ChatStreamService {
     private static final Logger logger = LoggerFactory.getLogger(ChatStreamService.class);
     private static final int BACKPRESSURE_BUFFER_SIZE = 256;
 
-    private final AiStreamProvider aiStreamProvider;
-    private final Duration streamTimeout;
+    private final AiProviderRegistry aiProviderRegistry;
     private final Duration keepAliveInterval;
 
     public ChatStreamService(
-            AiStreamProvider aiStreamProvider,
-            @Value("${ai.chat.stream.timeout:PT60S}") Duration streamTimeout,
+            AiProviderRegistry aiProviderRegistry,
             @Value("${ai.chat.stream.keepalive:PT15S}") Duration keepAliveInterval
     ) {
-        this.aiStreamProvider = aiStreamProvider;
-        this.streamTimeout = streamTimeout;
+        this.aiProviderRegistry = aiProviderRegistry;
         this.keepAliveInterval = keepAliveInterval;
     }
 
@@ -39,8 +38,12 @@ public class ChatStreamService {
                 .orElseGet(() -> UUID.randomUUID().toString());
         String messageId = UUID.randomUUID().toString();
 
-        Flux<ChatStreamEvent> providerEvents = aiStreamProvider.stream(request, sessionKey, messageId)
-                .timeout(streamTimeout)
+        Flux<ChatStreamEvent> providerEvents = aiProviderRegistry.stream(
+                        request.normalizedMessage(),
+                        request.metadata()
+                )
+                .concatMap(token -> toStreamEvents(token, sessionKey, messageId))
+                .switchIfEmpty(Flux.just(ChatStreamEvent.done(sessionKey, messageId)))
                 .onErrorResume(error -> Flux.just(toErrorEvent(sessionKey, messageId, error)))
                 .takeUntil(this::isTerminalEvent)
                 .doOnCancel(() -> logger.info(
@@ -61,6 +64,24 @@ public class ChatStreamService {
                         BufferOverflowStrategy.DROP_OLDEST
                 )
                 .limitRate(32);
+    }
+
+    private Flux<ChatStreamEvent> toStreamEvents(AiToken token, String sessionKey, String messageId) {
+        Flux<ChatStreamEvent> events = Flux.empty();
+        if (token.text() != null && !token.text().isEmpty()) {
+            events = events.concatWithValues(new ChatStreamEvent(
+                    ChatStreamEventType.TOKEN.wireName(),
+                    sessionKey,
+                    messageId,
+                    token.text(),
+                    token.metadata(),
+                    Instant.now()
+            ));
+        }
+        if (token.finished()) {
+            events = events.concatWithValues(ChatStreamEvent.done(sessionKey, messageId));
+        }
+        return events;
     }
 
     private Flux<ChatStreamEvent> withKeepAlive(
@@ -92,9 +113,7 @@ public class ChatStreamService {
     }
 
     private ChatStreamEvent toErrorEvent(String sessionKey, String messageId, Throwable error) {
-        String message = error instanceof TimeoutException
-                ? "AI stream timed out"
-                : "AI stream failed";
+        String message = "AI stream failed";
         logger.warn(
                 "AI chat stream failed. sessionKey={}, messageId={}, reason={}",
                 sessionKey,
