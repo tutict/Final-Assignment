@@ -1,6 +1,8 @@
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
+import 'package:final_assignment_front/features/offense/bindings/deduction_binding.dart';
+import 'package:final_assignment_front/features/offense/bindings/traffic_violation_binding.dart';
+import 'package:final_assignment_front/features/vehicle/bindings/vehicle_binding.dart';
 import 'package:get/get.dart';
-
 
 /// [DashboardBinding]类负责管理[DashboardController]控制器的依赖注入
 class DashboardBinding extends Bindings {
@@ -10,5 +12,8 @@ class DashboardBinding extends Bindings {
     // 使用Get.lazyPut方法懒加载[DashboardController]实例
     // 懒加载确保了控制器实例仅在第一次请求时被创建，从而优化资源使用
     Get.lazyPut(() => DashboardController());
+    DeductionBinding.registerDependencies();
+    TrafficViolationBinding.registerDependencies();
+    VehicleBinding.registerDependencies();
   }
 }

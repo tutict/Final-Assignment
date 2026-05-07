@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 
 import 'package:final_assignment_front/config/routes/app_routes.dart';
+import 'package:final_assignment_front/core/config/app_config.dart';
 import 'package:final_assignment_front/features/api/system_logs_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
@@ -83,7 +84,7 @@ class _SystemLogPageState extends State<SystemLogPage> {
     if (refreshToken == null) return null;
     try {
       final response = await http.post(
-        Uri.parse('http://localhost:8081/api/auth/refresh'),
+        Uri.parse('${AppConfig.apiBaseUrl}/api/auth/refresh'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'refreshToken': refreshToken}),
       );
@@ -562,44 +563,41 @@ class _SystemLogPageState extends State<SystemLogPage> {
         padding: EdgeInsets.zero,
         onRefresh: _fetchSystemLogData,
         onThemeToggle: controller.toggleBodyTheme,
-        body:
-        _isLoading
-                        ? Center(
-                            child: CupertinoActivityIndicator(
-                              color: themeData.colorScheme.primary,
-                              radius: 16.0,
-                            ),
-                          )
-                        : showBlockingError
-                            ? _buildErrorView(themeData)
-                            : RefreshIndicator(
-                                onRefresh: _handleRefresh,
-                                color: themeData.colorScheme.primary,
-                                backgroundColor:
-                                    themeData.colorScheme.surfaceContainer,
-                                child: CupertinoScrollbar(
-                                  controller: _scrollController,
-                                  thumbVisibility: true,
-                                  thickness: 6.0,
-                                  thicknessWhileDragging: 10.0,
-                                  child: ListView(
-                                    controller: _scrollController,
-                                    padding: const EdgeInsets.all(16.0),
-                                    children: [
-                                      if (_errorMessage.isNotEmpty && _hasData())
-                                        ...[
-                                          _buildWarningCard(themeData),
-                                          const SizedBox(height: 16),
-                                        ],
-                                      _buildOverviewSection(themeData),
-                                      const SizedBox(height: 16),
-                                      _buildLoginLogsSection(themeData),
-                                      const SizedBox(height: 16),
-                                      _buildOperationLogsSection(themeData),
-                                    ],
-                                  ),
-                                ),
-                              ),
+        body: _isLoading
+            ? Center(
+                child: CupertinoActivityIndicator(
+                  color: themeData.colorScheme.primary,
+                  radius: 16.0,
+                ),
+              )
+            : showBlockingError
+                ? _buildErrorView(themeData)
+                : RefreshIndicator(
+                    onRefresh: _handleRefresh,
+                    color: themeData.colorScheme.primary,
+                    backgroundColor: themeData.colorScheme.surfaceContainer,
+                    child: CupertinoScrollbar(
+                      controller: _scrollController,
+                      thumbVisibility: true,
+                      thickness: 6.0,
+                      thicknessWhileDragging: 10.0,
+                      child: ListView(
+                        controller: _scrollController,
+                        padding: const EdgeInsets.all(16.0),
+                        children: [
+                          if (_errorMessage.isNotEmpty && _hasData()) ...[
+                            _buildWarningCard(themeData),
+                            const SizedBox(height: 16),
+                          ],
+                          _buildOverviewSection(themeData),
+                          const SizedBox(height: 16),
+                          _buildLoginLogsSection(themeData),
+                          const SizedBox(height: 16),
+                          _buildOperationLogsSection(themeData),
+                        ],
+                      ),
+                    ),
+                  ),
       );
     });
   }

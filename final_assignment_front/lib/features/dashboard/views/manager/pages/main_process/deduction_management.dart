@@ -1,4 +1,5 @@
 import 'package:final_assignment_front/config/routes/app_routes.dart';
+import 'package:final_assignment_front/core/config/app_config.dart';
 import 'package:final_assignment_front/features/api/deduction_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
@@ -168,7 +169,7 @@ class _DeductionManagementState extends State<DeductionManagement> {
       final prefs = await SharedPreferences.getInstance();
       final jwtToken = prefs.getString('jwtToken');
       await http.post(
-        Uri.parse('http://localhost:8081/api/cache/clear'),
+        Uri.parse('${AppConfig.apiBaseUrl}/api/cache/clear'),
         headers: {'Authorization': 'Bearer $jwtToken'},
       );
     } catch (e) {
@@ -847,7 +848,7 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
       final prefs = await SharedPreferences.getInstance();
       final jwtToken = prefs.getString('jwtToken');
       await http.post(
-        Uri.parse('http://localhost:8081/api/cache/clear'),
+        Uri.parse('${AppConfig.apiBaseUrl}/api/cache/clear'),
         headers: {'Authorization': 'Bearer $jwtToken'},
       );
 
@@ -988,7 +989,8 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
                     borderRadius: BorderRadius.circular(12.0)),
                 enabledBorder: OutlineInputBorder(
                     borderSide: BorderSide(
-                        color: themeData.colorScheme.outline.withValues(alpha: 0.3))),
+                        color: themeData.colorScheme.outline
+                            .withValues(alpha: 0.3))),
                 focusedBorder: OutlineInputBorder(
                     borderSide: BorderSide(
                         color: themeData.colorScheme.primary, width: 1.5)),
@@ -1069,7 +1071,8 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
                       ? '请选择扣分日期'
                       : null,
           helperStyle: TextStyle(
-              color: themeData.colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
+              color: themeData.colorScheme.onSurfaceVariant
+                  .withValues(alpha: 0.6)),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
           enabledBorder: OutlineInputBorder(
               borderSide: BorderSide(
@@ -1079,7 +1082,8 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
                   BorderSide(color: themeData.colorScheme.primary, width: 1.5)),
           filled: true,
           fillColor: readOnly
-              ? themeData.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5)
+              ? themeData.colorScheme.surfaceContainerHighest
+                  .withValues(alpha: 0.5)
               : themeData.colorScheme.surfaceContainerLowest,
           suffixIcon: label == '扣分时间 *'
               ? Icon(Icons.calendar_today,
@@ -1388,7 +1392,7 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
       final prefs = await SharedPreferences.getInstance();
       final jwtToken = prefs.getString('jwtToken');
       await http.post(
-        Uri.parse('http://localhost:8081/api/cache/clear'),
+        Uri.parse('${AppConfig.apiBaseUrl}/api/cache/clear'),
         headers: {'Authorization': 'Bearer $jwtToken'},
       );
 
@@ -1529,7 +1533,8 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
                     borderRadius: BorderRadius.circular(12.0)),
                 enabledBorder: OutlineInputBorder(
                     borderSide: BorderSide(
-                        color: themeData.colorScheme.outline.withValues(alpha: 0.3))),
+                        color: themeData.colorScheme.outline
+                            .withValues(alpha: 0.3))),
                 focusedBorder: OutlineInputBorder(
                     borderSide: BorderSide(
                         color: themeData.colorScheme.primary, width: 1.5)),
@@ -1610,7 +1615,8 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
                       ? '请选择扣分日期'
                       : null,
           helperStyle: TextStyle(
-              color: themeData.colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
+              color: themeData.colorScheme.onSurfaceVariant
+                  .withValues(alpha: 0.6)),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
           enabledBorder: OutlineInputBorder(
               borderSide: BorderSide(
@@ -1620,7 +1626,8 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
                   BorderSide(color: themeData.colorScheme.primary, width: 1.5)),
           filled: true,
           fillColor: readOnly
-              ? themeData.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5)
+              ? themeData.colorScheme.surfaceContainerHighest
+                  .withValues(alpha: 0.5)
               : themeData.colorScheme.surfaceContainerLowest,
           suffixIcon: label == '扣分时间 *'
               ? Icon(Icons.calendar_today,

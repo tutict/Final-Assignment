@@ -1,9 +1,11 @@
 // ignore_for_file: use_build_context_synchronously
 import 'dart:convert';
 
+import 'package:final_assignment_front/core/config/app_config.dart';
 import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/vehicle_information_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
+import 'package:final_assignment_front/features/dashboard/controllers/vehicle_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/model/driver_information.dart';
 import 'package:final_assignment_front/features/model/user_management.dart';
@@ -49,6 +51,7 @@ class VehicleList extends StatefulWidget {
 
 class _VehicleListState extends State<VehicleList> {
   final DashboardController controller = Get.find<DashboardController>();
+  final VehicleController vehicleController = Get.find<VehicleController>();
   final VehicleInformationControllerApi vehicleApi =
       VehicleInformationControllerApi();
   final DriverInformationControllerApi driverApi =
@@ -125,7 +128,7 @@ class _VehicleListState extends State<VehicleList> {
     }
     try {
       final response = await http.post(
-        Uri.parse('http://localhost:8081/api/auth/refresh'),
+        Uri.parse('${AppConfig.apiBaseUrl}/api/auth/refresh'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'refreshToken': refreshToken}),
       );
@@ -174,7 +177,7 @@ class _VehicleListState extends State<VehicleList> {
       }
       final jwtToken = (await AuthTokenStore.instance.getJwtToken())!;
       final response = await http.get(
-        Uri.parse('http://localhost:8081/api/users/me'),
+        Uri.parse('${AppConfig.apiBaseUrl}/api/users/me'),
         headers: {
           'Authorization': 'Bearer $jwtToken',
           'Content-Type': 'application/json'
@@ -414,7 +417,10 @@ class _VehicleListState extends State<VehicleList> {
           Navigator.pushReplacementNamed(context, '/login');
           return;
         }
-        await vehicleApi.apiVehiclesVehicleIdDelete(vehicleId: vehicleId);
+        final deleted = await vehicleController.deleteVehicle(vehicleId);
+        if (!deleted) {
+          throw Exception(vehicleController.errorMessage.value);
+        }
         await _refreshVehicleList();
       } catch (e) {
         setState(() {
@@ -603,7 +609,7 @@ class _VehicleListState extends State<VehicleList> {
   Widget build(BuildContext context) {
     return Obx(() {
       final themeData = controller.currentBodyTheme.value;
-        return DashboardPageTemplate(
+      return DashboardPageTemplate(
         theme: themeData,
         title: '车辆管理',
         pageType: DashboardPageType.manager,
@@ -854,6 +860,7 @@ class AddVehiclePage extends StatefulWidget {
 }
 
 class _AddVehiclePageState extends State<AddVehiclePage> {
+  final VehicleController vehicleController = Get.find<VehicleController>();
   final VehicleInformationControllerApi vehicleApi =
       VehicleInformationControllerApi();
   final DriverInformationControllerApi driverApi =
@@ -946,8 +953,7 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
       Navigator.pushReplacementNamed(context, '/login');
       return;
     }
-    if (await vehicleApi.apiVehiclesExistsLicensePlateGet(
-        licensePlate: licensePlate)) {
+    if (await vehicleController.existsLicensePlate(licensePlate)) {
       _showSnackBar('车牌号已存在，请使用其他车牌号', isError: true);
       return;
     }
@@ -983,20 +989,11 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
             ? 'Active'
             : _currentStatusController.text.trim(),
       };
-      final idempotencyKey = generateIdempotencyKey();
-      final jwtToken = (await AuthTokenStore.instance.getJwtToken());
-      final response = await http.post(
-        Uri.parse(
-            'http://localhost:8081/api/vehicles?idempotencyKey=$idempotencyKey'),
-        headers: {
-          'Authorization': 'Bearer $jwtToken',
-          'Content-Type': 'application/json; charset=UTF-8',
-        },
-        body: jsonEncode(vehiclePayload),
+      final created = await vehicleController.createVehicle(
+        VehicleInformation.fromJson(vehiclePayload),
       );
-      if (response.statusCode != 201) {
-        throw Exception(
-            'Failed to create vehicle: ${response.statusCode} - ${response.body}');
+      if (!created) {
+        throw Exception(vehicleController.errorMessage.value);
       }
       _showSnackBar('创建车辆成功！');
       if (mounted) {
@@ -1079,7 +1076,8 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
                       ? '请输入11位手机号码'
                       : null,
           helperStyle: TextStyle(
-              color: themeData.colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
+              color: themeData.colorScheme.onSurfaceVariant
+                  .withValues(alpha: 0.6)),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
           enabledBorder: OutlineInputBorder(
               borderSide: BorderSide(
@@ -1089,7 +1087,8 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
                   BorderSide(color: themeData.colorScheme.primary, width: 1.5)),
           filled: true,
           fillColor: readOnly
-              ? themeData.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5)
+              ? themeData.colorScheme.surfaceContainerHighest
+                  .withValues(alpha: 0.5)
               : themeData.colorScheme.surfaceContainerLowest,
           prefixText: prefix,
           prefixStyle: TextStyle(
@@ -1165,7 +1164,7 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
   Widget build(BuildContext context) {
     return Obx(() {
       final themeData = controller.currentBodyTheme.value;
-        return DashboardPageTemplate(
+      return DashboardPageTemplate(
         theme: themeData,
         title: '添加新车辆',
         pageType: widget.onVehicleAdded != null
@@ -1287,6 +1286,7 @@ class EditVehiclePage extends StatefulWidget {
 }
 
 class _EditVehiclePageState extends State<EditVehiclePage> {
+  final VehicleController vehicleController = Get.find<VehicleController>();
   final VehicleInformationControllerApi vehicleApi =
       VehicleInformationControllerApi();
   final DriverInformationControllerApi driverApi =
@@ -1390,8 +1390,7 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
       return;
     }
     if (newLicensePlate != widget.vehicle.licensePlate &&
-        await vehicleApi.apiVehiclesExistsLicensePlateGet(
-            licensePlate: newLicensePlate)) {
+        await vehicleController.existsLicensePlate(newLicensePlate)) {
       _showSnackBar('车牌号已存在，请使用其他车牌号', isError: true);
       return;
     }
@@ -1427,20 +1426,12 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
             ? 'Active'
             : _currentStatusController.text.trim(),
       };
-      final idempotencyKey = generateIdempotencyKey();
-      final jwtToken = (await AuthTokenStore.instance.getJwtToken());
-      final response = await http.put(
-        Uri.parse(
-            'http://localhost:8081/api/vehicles/${widget.vehicle.vehicleId}?idempotencyKey=$idempotencyKey'),
-        headers: {
-          'Authorization': 'Bearer $jwtToken',
-          'Content-Type': 'application/json; charset=UTF-8',
-        },
-        body: jsonEncode(vehiclePayload),
+      final updated = await vehicleController.updateVehicle(
+        vehicleId: widget.vehicle.vehicleId!,
+        vehicle: VehicleInformation.fromJson(vehiclePayload),
       );
-      if (response.statusCode != 200) {
-        throw Exception(
-            'Failed to update vehicle: ${response.statusCode} - ${response.body}');
+      if (!updated) {
+        throw Exception(vehicleController.errorMessage.value);
       }
       _showSnackBar('更新车辆成功！');
       if (mounted) Navigator.pop(context, true);
@@ -1520,7 +1511,8 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
                       ? '请输入11位手机号码'
                       : null,
           helperStyle: TextStyle(
-              color: themeData.colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
+              color: themeData.colorScheme.onSurfaceVariant
+                  .withValues(alpha: 0.6)),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
           enabledBorder: OutlineInputBorder(
               borderSide: BorderSide(
@@ -1530,7 +1522,8 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
                   BorderSide(color: themeData.colorScheme.primary, width: 1.5)),
           filled: true,
           fillColor: readOnly
-              ? themeData.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5)
+              ? themeData.colorScheme.surfaceContainerHighest
+                  .withValues(alpha: 0.5)
               : themeData.colorScheme.surfaceContainerLowest,
           prefixText: prefix,
           prefixStyle: TextStyle(
@@ -1542,7 +1535,8 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
               : null,
           hintText: readOnly && label == '身份证号码' ? '请在用户信息管理中修改身份证号码' : null,
           hintStyle: TextStyle(
-              color: themeData.colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
+              color: themeData.colorScheme.onSurfaceVariant
+                  .withValues(alpha: 0.6)),
         ),
         keyboardType: keyboardType,
         readOnly: readOnly,
@@ -1609,7 +1603,7 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
   Widget build(BuildContext context) {
     return Obx(() {
       final themeData = controller.currentBodyTheme.value;
-        return DashboardPageTemplate(
+      return DashboardPageTemplate(
         theme: themeData,
         title: '编辑车辆信息',
         pageType: DashboardPageType.manager,
@@ -1708,6 +1702,7 @@ class VehicleDetailPage extends StatefulWidget {
 }
 
 class _VehicleDetailPageState extends State<VehicleDetailPage> {
+  final VehicleController vehicleController = Get.find<VehicleController>();
   final VehicleInformationControllerApi vehicleApi =
       VehicleInformationControllerApi();
   bool _isLoading = false;
@@ -1774,7 +1769,7 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
       }
       final jwtToken = (await AuthTokenStore.instance.getJwtToken());
       final response = await http.get(
-        Uri.parse('http://localhost:8081/api/users/me'),
+        Uri.parse('${AppConfig.apiBaseUrl}/api/users/me'),
         headers: {
           'Authorization': 'Bearer $jwtToken',
           'Content-Type': 'application/json'
@@ -1815,7 +1810,7 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
       final jwtToken = (await AuthTokenStore.instance.getJwtToken());
       if (jwtToken == null) throw Exception('未找到 JWT，请重新登录');
       final response = await http.get(
-        Uri.parse('http://localhost:8081/api/users/me'),
+        Uri.parse('${AppConfig.apiBaseUrl}/api/users/me'),
         headers: {
           'Authorization': 'Bearer $jwtToken',
           'Content-Type': 'application/json'
@@ -1852,7 +1847,10 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
         Navigator.pushReplacementNamed(context, '/login');
         return;
       }
-      await vehicleApi.apiVehiclesVehicleIdDelete(vehicleId: vehicleId);
+      final deleted = await vehicleController.deleteVehicle(vehicleId);
+      if (!deleted) {
+        throw Exception(vehicleController.errorMessage.value);
+      }
       _showSnackBar('删除车辆成功！');
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
@@ -1953,7 +1951,7 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
     return Obx(() {
       final themeData = controller.currentBodyTheme.value;
       if (_errorMessage.isNotEmpty) {
-                return DashboardPageTemplate(
+        return DashboardPageTemplate(
           theme: themeData,
           title: '车辆详情',
           pageType: DashboardPageType.manager,
@@ -1986,7 +1984,7 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
         );
       }
 
-        return DashboardPageTemplate(
+      return DashboardPageTemplate(
         theme: themeData,
         title: '车辆详情',
         pageType: DashboardPageType.manager,

@@ -14,22 +14,28 @@ class VehicleInformationControllerApi {
       : apiClient = client ?? defaultApiClient;
 
   Future<void> initializeWithJwt() async {
-      final jwtToken = (await AuthTokenStore.instance.getJwtToken());
+    final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
       throw Exception('Not authenticated. Please log in again.');
     }
     apiClient.setJwtToken(jwtToken);
-    debugPrint('Initialized VehicleInformationControllerApi with token: $jwtToken');
+    debugPrint(
+        'Initialized VehicleInformationControllerApi with token: $jwtToken');
   }
 
   String _decode(http.Response r) => r.body;
 
-  Future<Map<String, String>> _headers() async {
-      final token = (await AuthTokenStore.instance.getJwtToken()) ?? '';
-    return {
+  Future<Map<String, String>> _headers({String? idempotencyKey}) async {
+    final token = (await AuthTokenStore.instance.getJwtToken()) ?? '';
+    final headers = {
       'Content-Type': 'application/json; charset=utf-8',
       if (token.isNotEmpty) 'Authorization': 'Bearer $token',
     };
+    final trimmedKey = idempotencyKey?.trim();
+    if (trimmedKey != null && trimmedKey.isNotEmpty) {
+      headers['Idempotency-Key'] = trimmedKey;
+    }
+    return headers;
   }
 
   // GET /api/vehicles
@@ -51,7 +57,8 @@ class VehicleInformationControllerApi {
   }
 
   // GET /api/vehicles/{vehicleId}
-  Future<VehicleInformation?> apiVehiclesVehicleIdGet({required int vehicleId}) async {
+  Future<VehicleInformation?> apiVehiclesVehicleIdGet(
+      {required int vehicleId}) async {
     final r = await apiClient.invokeAPI(
       '/api/vehicles/$vehicleId',
       'GET',
@@ -76,9 +83,9 @@ class VehicleInformationControllerApi {
     final r = await apiClient.invokeAPI(
       '/api/vehicles',
       'POST',
-      [QueryParam('idempotencyKey', idempotencyKey)],
+      const [],
       vehicle.toJson(),
-      await _headers(),
+      await _headers(idempotencyKey: idempotencyKey),
       const {},
       'application/json',
       const ['bearerAuth'],
@@ -96,9 +103,9 @@ class VehicleInformationControllerApi {
     final r = await apiClient.invokeAPI(
       '/api/vehicles/$vehicleId',
       'PUT',
-      [QueryParam('idempotencyKey', idempotencyKey)],
+      const [],
       vehicle.toJson(),
-      await _headers(),
+      await _headers(idempotencyKey: idempotencyKey),
       const {},
       'application/json',
       const ['bearerAuth'],
@@ -138,7 +145,8 @@ class VehicleInformationControllerApi {
   }
 
   // GET /api/vehicles/search/license?licensePlate=
-  Future<VehicleInformation?> apiVehiclesSearchLicenseGet({required String licensePlate}) async {
+  Future<VehicleInformation?> apiVehiclesSearchLicenseGet(
+      {required String licensePlate}) async {
     final r = await apiClient.invokeAPI(
       '/api/vehicles/search/license',
       'GET',
@@ -156,7 +164,8 @@ class VehicleInformationControllerApi {
   }
 
   // GET /api/vehicles/search/owner?idCard=
-  Future<List<VehicleInformation>> apiVehiclesSearchOwnerGet({required String idCard}) async {
+  Future<List<VehicleInformation>> apiVehiclesSearchOwnerGet(
+      {required String idCard}) async {
     final r = await apiClient.invokeAPI(
       '/api/vehicles/search/owner',
       'GET',
@@ -174,7 +183,8 @@ class VehicleInformationControllerApi {
   }
 
   // GET /api/vehicles/search/type?type=
-  Future<List<VehicleInformation>> apiVehiclesSearchTypeGet({required String type}) async {
+  Future<List<VehicleInformation>> apiVehiclesSearchTypeGet(
+      {required String type}) async {
     final r = await apiClient.invokeAPI(
       '/api/vehicles/search/type',
       'GET',
@@ -192,7 +202,8 @@ class VehicleInformationControllerApi {
   }
 
   // GET /api/vehicles/search/owner/name?ownerName=
-  Future<List<VehicleInformation>> apiVehiclesSearchOwnerNameGet({required String ownerName}) async {
+  Future<List<VehicleInformation>> apiVehiclesSearchOwnerNameGet(
+      {required String ownerName}) async {
     final r = await apiClient.invokeAPI(
       '/api/vehicles/search/owner/name',
       'GET',
@@ -210,7 +221,8 @@ class VehicleInformationControllerApi {
   }
 
   // GET /api/vehicles/search/status?status=
-  Future<List<VehicleInformation>> apiVehiclesSearchStatusGet({required String status}) async {
+  Future<List<VehicleInformation>> apiVehiclesSearchStatusGet(
+      {required String status}) async {
     final r = await apiClient.invokeAPI(
       '/api/vehicles/search/status',
       'GET',
@@ -354,7 +366,8 @@ class VehicleInformationControllerApi {
   }
 
   // GET /api/vehicles/exists/{licensePlate} -> {"exists": true/false}
-  Future<bool> apiVehiclesExistsLicensePlateGet({required String licensePlate}) async {
+  Future<bool> apiVehiclesExistsLicensePlateGet(
+      {required String licensePlate}) async {
     final r = await apiClient.invokeAPI(
       '/api/vehicles/exists/$licensePlate',
       'GET',
@@ -370,4 +383,3 @@ class VehicleInformationControllerApi {
     return (data['exists'] as bool?) ?? false;
   }
 }
-

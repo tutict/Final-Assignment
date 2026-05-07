@@ -38,6 +38,7 @@ import 'package:final_assignment_front/features/login_screen/login.dart';
 import 'package:final_assignment_front/features/model/progress_item.dart';
 import 'package:final_assignment_front/features/dashboard/bindings/manager_dashboard_binding.dart';
 import 'package:final_assignment_front/features/dashboard/bindings/user_dashboard_binding.dart';
+import 'package:final_assignment_front/features/offense/bindings/traffic_violation_binding.dart';
 import 'package:get/get.dart';
 
 import 'app_routes.dart';
@@ -250,6 +251,7 @@ class AppPages {
     GetPage(
       name: RoutePaths.trafficViolationScreen,
       page: () => const TrafficViolationScreen(),
+      binding: TrafficViolationBinding(),
     ),
     GetPage(
       name: RoutePaths.progressManagementPage,

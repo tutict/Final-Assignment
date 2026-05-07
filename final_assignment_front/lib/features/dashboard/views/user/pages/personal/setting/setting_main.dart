@@ -1,11 +1,9 @@
-import 'dart:io';
 import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/chat_controller.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:get/Get.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
 class SettingPage extends StatefulWidget {
@@ -37,33 +35,14 @@ class _SettingPageState extends State<SettingPage> {
 
   Future<void> _calculateCacheSize() async {
     try {
-      Directory cacheDir = await getTemporaryDirectory();
-      double totalSize = await _getTotalSizeOfFilesInDir(cacheDir);
       if (mounted) {
         setState(() {
-          _cacheSize = totalSize;
+          _cacheSize = 0;
         });
       }
     } catch (e) {
       debugPrint('Failed to calculate cache size: $e');
     }
-  }
-
-  Future<double> _getTotalSizeOfFilesInDir(final Directory directory) async {
-    double totalSize = 0;
-    try {
-      if (directory.existsSync()) {
-        List<FileSystemEntity> files = directory.listSync(recursive: true);
-        for (FileSystemEntity file in files) {
-          if (file is File) {
-            totalSize += await file.length() / (1024 * 1024); // Size in MB
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint('Error getting size of files in directory: $e');
-    }
-    return totalSize;
   }
 
   Future<void> _clearCache() async {
@@ -293,7 +272,7 @@ class _SettingPageState extends State<SettingPage> {
                         color: Theme.of(context).colorScheme.onSurface),
                   ),
                   trailing:
-                  const Icon(Icons.arrow_forward_ios, color: Colors.grey),
+                      const Icon(Icons.arrow_forward_ios, color: Colors.grey),
                   onTap: () {
                     controller.navigateToPage(Routes.consultation);
                   },

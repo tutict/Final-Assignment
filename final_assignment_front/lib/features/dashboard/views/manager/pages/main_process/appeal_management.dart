@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 
 import 'package:final_assignment_front/config/routes/app_routes.dart';
+import 'package:final_assignment_front/core/config/app_config.dart';
 import 'package:final_assignment_front/features/api/appeal_management_controller_api.dart';
 import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
@@ -122,7 +123,7 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
     }
     try {
       final response = await http.post(
-        Uri.parse('http://localhost:8081/api/auth/refresh'),
+        Uri.parse('${AppConfig.apiBaseUrl}/api/auth/refresh'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'refreshToken': refreshToken}),
       );
@@ -177,7 +178,7 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
       // Try backend API first
       try {
         final response = await http.get(
-          Uri.parse('http://localhost:8081/api/users/me'),
+          Uri.parse('${AppConfig.apiBaseUrl}/api/users/me'),
           headers: {
             'Authorization': 'Bearer $jwtToken',
             'Content-Type': 'application/json',
@@ -759,8 +760,8 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
                                 const SizedBox(height: 16),
                                 Text(
                                   _errorMessage,
-                                  style: themeData.textTheme.titleMedium
-                                      ?.copyWith(
+                                  style:
+                                      themeData.textTheme.titleMedium?.copyWith(
                                     color: themeData.colorScheme.error,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -770,8 +771,7 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
                                     _errorMessage.contains('登录') ||
                                     _errorMessage.contains('权限不足'))
                                   Padding(
-                                    padding:
-                                        const EdgeInsets.only(top: 20.0),
+                                    padding: const EdgeInsets.only(top: 20.0),
                                     child: ElevatedButton(
                                       onPressed: () =>
                                           Get.offAllNamed(Routes.login),
@@ -832,7 +832,8 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
                                     itemCount: _filteredAppeals.length,
                                     itemBuilder: (context, index) {
                                       final appeal = _filteredAppeals[index];
-                                      return _buildAppealCard(appeal, themeData);
+                                      return _buildAppealCard(
+                                          appeal, themeData);
                                     },
                                   ),
                                 ),
@@ -914,7 +915,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
     }
     try {
       final response = await http.post(
-        Uri.parse('http://localhost:8081/api/auth/refresh'),
+        Uri.parse('${AppConfig.apiBaseUrl}/api/auth/refresh'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'refreshToken': refreshToken}),
       );
@@ -963,7 +964,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
       // Try backend API first
       try {
         final response = await http.get(
-          Uri.parse('http://localhost:8081/api/users/me'),
+          Uri.parse('${AppConfig.apiBaseUrl}/api/users/me'),
           headers: {
             'Authorization': 'Bearer $jwtToken',
             'Content-Type': 'application/json',
@@ -1337,8 +1338,8 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
                           children: [
                             Card(
                               elevation: 4,
-                              color: themeData
-                                  .colorScheme.surfaceContainerLowest,
+                              color:
+                                  themeData.colorScheme.surfaceContainerLowest,
                               shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(16.0)),
                               child: Padding(
@@ -1346,12 +1347,12 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    _buildDetailRow('申诉ID', appealId, themeData),
+                                    _buildDetailRow(
+                                        '申诉ID', appealId, themeData),
                                     _buildDetailRow(
                                         '违法记录ID', offenseId, themeData),
                                     _buildDetailRow('上诉人姓名', name, themeData),
-                                    _buildDetailRow(
-                                        '身份证号码', idCard, themeData),
+                                    _buildDetailRow('身份证号码', idCard, themeData),
                                     _buildDetailRow('联系电话', contact, themeData),
                                     _buildDetailRow('上诉原因', reason, themeData),
                                     _buildDetailRow('上诉时间', time, themeData),
@@ -1417,16 +1418,16 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
                                   padding: const EdgeInsets.symmetric(
                                       vertical: 12.0, horizontal: 20.0),
                                   decoration: BoxDecoration(
-                                    color: themeData
-                                        .colorScheme.surfaceContainer,
+                                    color:
+                                        themeData.colorScheme.surfaceContainer,
                                     borderRadius: BorderRadius.circular(12.0),
                                   ),
                                   child: Text(
                                     _isAdmin
                                         ? '此申诉已处理，无法再次审批'
                                         : '权限不足，仅管理员可审批申诉',
-                                    style: themeData.textTheme.bodyLarge
-                                        ?.copyWith(
+                                    style:
+                                        themeData.textTheme.bodyLarge?.copyWith(
                                       color: themeData
                                           .colorScheme.onSurfaceVariant,
                                       fontStyle: FontStyle.italic,

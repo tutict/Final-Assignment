@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 
 import 'package:final_assignment_front/config/routes/app_routes.dart';
+import 'package:final_assignment_front/core/config/app_config.dart';
 import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/vehicle_information_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
@@ -101,7 +102,7 @@ class _OffenseListPageState extends State<OffenseList> {
     if (refreshToken == null) return null;
     try {
       final response = await http.post(
-        Uri.parse('http://localhost:8081/api/auth/refresh'),
+        Uri.parse('${AppConfig.apiBaseUrl}/api/auth/refresh'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'refreshToken': refreshToken}),
       );
@@ -147,7 +148,7 @@ class _OffenseListPageState extends State<OffenseList> {
       // Try backend API first
       try {
         final response = await http.get(
-          Uri.parse('http://localhost:8081/api/users/me'),
+          Uri.parse('${AppConfig.apiBaseUrl}/api/users/me'),
           headers: {
             'Authorization': 'Bearer $jwtToken',
             'Content-Type': 'application/json',
@@ -629,7 +630,7 @@ class _OffenseListPageState extends State<OffenseList> {
   Widget build(BuildContext context) {
     return Obx(() {
       final themeData = controller.currentBodyTheme.value;
-        return DashboardPageTemplate(
+      return DashboardPageTemplate(
         theme: themeData,
         title: '违法行为管理',
         pageType: DashboardPageType.manager,
@@ -1081,7 +1082,8 @@ class _AddOffensePageState extends State<AddOffensePage> {
                     borderRadius: BorderRadius.circular(12.0)),
                 enabledBorder: OutlineInputBorder(
                     borderSide: BorderSide(
-                        color: themeData.colorScheme.outline.withValues(alpha: 0.3))),
+                        color: themeData.colorScheme.outline
+                            .withValues(alpha: 0.3))),
                 focusedBorder: OutlineInputBorder(
                     borderSide: BorderSide(
                         color: themeData.colorScheme.primary, width: 1.5)),
@@ -1138,7 +1140,8 @@ class _AddOffensePageState extends State<AddOffensePage> {
                   ? '请输入车牌号，例如：黑AWS34'
                   : null,
           helperStyle: TextStyle(
-              color: themeData.colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
+              color: themeData.colorScheme.onSurfaceVariant
+                  .withValues(alpha: 0.6)),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
           enabledBorder: OutlineInputBorder(
               borderSide: BorderSide(
@@ -1148,7 +1151,8 @@ class _AddOffensePageState extends State<AddOffensePage> {
                   BorderSide(color: themeData.colorScheme.primary, width: 1.5)),
           filled: true,
           fillColor: readOnly
-              ? themeData.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5)
+              ? themeData.colorScheme.surfaceContainerHighest
+                  .withValues(alpha: 0.5)
               : themeData.colorScheme.surfaceContainerLowest,
           suffixIcon: readOnly
               ? Icon(Icons.calendar_today,
@@ -1210,7 +1214,7 @@ class _AddOffensePageState extends State<AddOffensePage> {
   Widget build(BuildContext context) {
     return Obx(() {
       final themeData = controller.currentBodyTheme.value;
-        return DashboardPageTemplate(
+      return DashboardPageTemplate(
         theme: themeData,
         title: '添加新违法行为',
         pageType: DashboardPageType.manager,
@@ -1363,7 +1367,7 @@ class _OffenseDetailPageState extends State<OffenseDetailPage> {
       final jwtToken = (await AuthTokenStore.instance.getJwtToken());
       if (jwtToken == null) throw Exception('未找到 JWT，请重新登录');
       final response = await http.get(
-        Uri.parse('http://localhost:8081/api/users/me'),
+        Uri.parse('${AppConfig.apiBaseUrl}/api/users/me'),
         headers: {
           'Authorization': 'Bearer $jwtToken',
           'Content-Type': 'application/json'
@@ -1469,7 +1473,7 @@ class _OffenseDetailPageState extends State<OffenseDetailPage> {
     return Obx(() {
       final themeData = controller.currentBodyTheme.value;
       if (_errorMessage.isNotEmpty) {
-                return DashboardPageTemplate(
+        return DashboardPageTemplate(
           theme: themeData,
           title: '违法行为详情',
           pageType: DashboardPageType.manager,
@@ -1488,8 +1492,8 @@ class _OffenseDetailPageState extends State<OffenseDetailPage> {
                   Padding(
                     padding: const EdgeInsets.only(top: 16.0),
                     child: ElevatedButton(
-                      onPressed: () => Navigator.pushReplacementNamed(
-                          context, Routes.login),
+                      onPressed: () =>
+                          Navigator.pushReplacementNamed(context, Routes.login),
                       style: ElevatedButton.styleFrom(
                           backgroundColor: themeData.colorScheme.primary,
                           foregroundColor: themeData.colorScheme.onPrimary),
@@ -1502,7 +1506,7 @@ class _OffenseDetailPageState extends State<OffenseDetailPage> {
         );
       }
 
-        return DashboardPageTemplate(
+      return DashboardPageTemplate(
         theme: themeData,
         title: '违法行为详情',
         pageType: DashboardPageType.manager,
@@ -1853,7 +1857,8 @@ class _EditOffensePageState extends State<EditOffensePage> {
                     borderRadius: BorderRadius.circular(12.0)),
                 enabledBorder: OutlineInputBorder(
                     borderSide: BorderSide(
-                        color: themeData.colorScheme.outline.withValues(alpha: 0.3))),
+                        color: themeData.colorScheme.outline
+                            .withValues(alpha: 0.3))),
                 focusedBorder: OutlineInputBorder(
                     borderSide: BorderSide(
                         color: themeData.colorScheme.primary, width: 1.5)),
@@ -1910,7 +1915,8 @@ class _EditOffensePageState extends State<EditOffensePage> {
                   ? '请输入车牌号，例如：黑AWS34'
                   : null,
           helperStyle: TextStyle(
-              color: themeData.colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
+              color: themeData.colorScheme.onSurfaceVariant
+                  .withValues(alpha: 0.6)),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
           enabledBorder: OutlineInputBorder(
               borderSide: BorderSide(
@@ -1920,7 +1926,8 @@ class _EditOffensePageState extends State<EditOffensePage> {
                   BorderSide(color: themeData.colorScheme.primary, width: 1.5)),
           filled: true,
           fillColor: readOnly
-              ? themeData.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5)
+              ? themeData.colorScheme.surfaceContainerHighest
+                  .withValues(alpha: 0.5)
               : themeData.colorScheme.surfaceContainerLowest,
           suffixIcon: readOnly
               ? Icon(Icons.calendar_today,
@@ -1982,7 +1989,7 @@ class _EditOffensePageState extends State<EditOffensePage> {
   Widget build(BuildContext context) {
     return Obx(() {
       final themeData = controller.currentBodyTheme.value;
-        return DashboardPageTemplate(
+      return DashboardPageTemplate(
         theme: themeData,
         title: '编辑违法行为信息',
         pageType: DashboardPageType.manager,

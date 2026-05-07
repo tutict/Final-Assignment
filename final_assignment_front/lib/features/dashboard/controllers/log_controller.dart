@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'dart:developer' as developer;
-import 'dart:io';
 import 'dart:math';
 
 import 'package:final_assignment_front/config/routes/app_routes.dart';
+import 'package:final_assignment_front/core/config/app_config.dart';
 import 'package:final_assignment_front/features/api/operation_log_controller_api.dart';
 import 'package:final_assignment_front/features/api/user_management_controller_api.dart';
 import 'package:final_assignment_front/features/model/operation_log.dart';
@@ -18,7 +18,7 @@ import 'package:uuid/uuid.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
 class LogController extends GetxController with WidgetsBindingObserver {
-  static const String _backendBaseUrl = 'http://localhost:8081';
+  static String get _backendBaseUrl => AppConfig.apiBaseUrl;
   final OperationLogControllerApi _operationLogApi =
       OperationLogControllerApi();
   final UserManagementControllerApi _userApi = UserManagementControllerApi();
@@ -417,7 +417,7 @@ class LogController extends GetxController with WidgetsBindingObserver {
     try {
       final response = await http
           .post(
-            Uri.parse('http://localhost:8081/api/auth/refresh'),
+            Uri.parse('${AppConfig.apiBaseUrl}/api/auth/refresh'),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({'refreshToken': refreshToken}),
           )
@@ -446,20 +446,15 @@ class LogController extends GetxController with WidgetsBindingObserver {
     for (int attempt = 0; attempt < maxRetries; attempt++) {
       for (final service in services) {
         try {
-          final client = HttpClient()
-            ..badCertificateCallback =
-                (X509Certificate cert, String host, int port) =>
-                    true; // For testing only
-          final request = await client.getUrl(Uri.parse(service));
-          final response =
-              await request.close().timeout(const Duration(seconds: 5));
-          final responseBody = await response.transform(utf8.decoder).join();
+          final response = await http
+              .get(Uri.parse(service))
+              .timeout(const Duration(seconds: 5));
           if (response.statusCode == 200) {
             if (service.contains('ipify')) {
-              final data = jsonDecode(responseBody);
+              final data = jsonDecode(response.body);
               _currentIpAddress = data['ip'];
             } else {
-              _currentIpAddress = responseBody.trim();
+              _currentIpAddress = response.body.trim();
             }
             developer
                 .log('Fetched IP address: $_currentIpAddress from $service');
@@ -724,8 +719,8 @@ class LogController extends GetxController with WidgetsBindingObserver {
         .post(
           uri,
           headers: {
-            HttpHeaders.authorizationHeader: 'Bearer $jwtToken',
-            HttpHeaders.contentTypeHeader: 'application/json; charset=utf-8',
+            'Authorization': 'Bearer $jwtToken',
+            'Content-Type': 'application/json; charset=utf-8',
           },
           body: jsonEncode(logEntry.toJson()),
         )
