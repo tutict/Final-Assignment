@@ -26,7 +26,7 @@ class ChatControllerApi {
       String? jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken != null) {
       headerParams['Authorization'] = 'Bearer $jwtToken';
-      developer.log("JWT Token: $jwtToken", name: 'ChatControllerApi');
+      developer.log("JWT token loaded for AI chat request", name: 'ChatControllerApi');
     } else {
       developer.log("No JWT token found in SharedPreferences",
           name: 'ChatControllerApi');
@@ -82,7 +82,7 @@ class ChatControllerApi {
       String? jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken != null) {
       headerParams['Authorization'] = 'Bearer $jwtToken';
-      developer.log("JWT Token: $jwtToken", name: 'ChatControllerApi');
+      developer.log("JWT token loaded for AI action request", name: 'ChatControllerApi');
     } else {
       developer.log("No JWT token found in SharedPreferences",
           name: 'ChatControllerApi');
@@ -132,7 +132,7 @@ class ChatControllerApi {
 
     if (jwtToken != null) {
       headers['Authorization'] = 'Bearer $jwtToken';
-      developer.log("JWT Token for stream: $jwtToken",
+      developer.log("JWT token loaded for AI stream request",
           name: 'ChatControllerApi');
     } else {
       developer.log("No JWT token found for stream", name: 'ChatControllerApi');

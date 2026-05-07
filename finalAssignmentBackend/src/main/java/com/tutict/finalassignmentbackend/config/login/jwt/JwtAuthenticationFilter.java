@@ -31,24 +31,24 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(@NotNull HttpServletRequest request, @NotNull HttpServletResponse response, @NotNull FilterChain filterChain)
             throws ServletException, IOException {
         String jwt = getJwtFromRequest(request);
-        logger.info("Extracted JWT from request: {}", jwt);
+        logger.debug("JWT present for request {}: {}", request.getRequestURI(), jwt != null);
 
         if (jwt != null && tokenProvider.validateToken(jwt)) {
             String username = tokenProvider.getUsernameFromToken(jwt);
             List<String> roles = tokenProvider.extractRoles(jwt);
-            logger.info("JWT validated. Username: {}, Roles: {}", username, roles);
+            logger.debug("JWT validated. Username: {}, Roles: {}", username, roles);
 
             List<SimpleGrantedAuthority> authorities = roles.stream()
                     .map(SimpleGrantedAuthority::new)
                     .collect(Collectors.toList());
-            logger.info("Authorities set: {}", authorities);
+            logger.debug("Authorities set: {}", authorities);
 
             UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(username, null, authorities);
             SecurityContextHolder.getContext().setAuthentication(authentication);
-            logger.info("Authentication set for user: {}", username);
+            logger.debug("Authentication set for user: {}", username);
         } else {
-            logger.warn("Invalid or missing JWT in request: {}", request.getRequestURI());
+            logger.debug("Invalid or missing JWT in request: {}", request.getRequestURI());
         }
 
         filterChain.doFilter(request, response);

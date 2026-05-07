@@ -103,8 +103,7 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
         }
         await appealApi.initializeWithJwt();
       }
-      developer
-          .log('JWT Token validated successfully: sub=${decodedToken['sub']}');
+      developer.log('JWT token validated successfully for appeal request');
       return true;
     } catch (e) {
       setState(() => _errorMessage = '无效的登录信息：$e，请重新登录');
@@ -895,8 +894,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
         }
         await appealApi.initializeWithJwt();
       }
-      developer
-          .log('JWT Token validated successfully: sub=${decodedToken['sub']}');
+      developer.log('JWT token validated successfully for appeal request');
       return true;
     } catch (e) {
       setState(() => _errorMessage = '无效的登录信息：$e，请重新登录');

@@ -23,7 +23,7 @@ public class TokenProvider {
 
     private static final Logger LOG = Logger.getLogger(TokenProvider.class.getName());
 
-    @Value("${jwt.secret.key}")
+    @Value("${jwt.secret.key:${JWT_SECRET_KEY:}}")
     private String base64Secret;
 
     private SecretKey secretKey;
@@ -42,6 +42,9 @@ public class TokenProvider {
 
     @PostConstruct
     public void init() {
+        if (base64Secret == null || base64Secret.isBlank()) {
+            throw new IllegalStateException("jwt.secret.key must be provided through configuration or JWT_SECRET_KEY");
+        }
         // 将 Base64 编码的密钥解码为 byte 数组
         byte[] keyBytes = Base64.getDecoder().decode(base64Secret);
         // 使用 Keys 工具类生成用于 HMACSHA256 的 SecretKey
@@ -115,7 +118,7 @@ public class TokenProvider {
                     .verifyWith(secretKey)
                     .build()
                     .parseSignedClaims(token);
-            LOG.log(Level.INFO, "Token validated successfully: " + token);
+            LOG.log(Level.FINE, "Token validated successfully");
             return true;
         } catch (JwtException e) {
             LOG.log(Level.WARNING, "Invalid token: " + e.getMessage(), e);

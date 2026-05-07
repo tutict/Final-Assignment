@@ -13,6 +13,7 @@ import org.testcontainers.redpanda.RedpandaContainer;
 import org.testcontainers.utility.DockerImageName;
 
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Level;
@@ -32,11 +33,22 @@ public class RunDocker implements ApplicationContextInitializer<ConfigurableAppl
 
     @Override
     public void initialize(ConfigurableApplicationContext applicationContext) {
+        if (!isDevServicesEnabled(applicationContext.getEnvironment())) {
+            log.log(Level.INFO, "Dev services are disabled. Skipping Redis, Redpanda, and Elasticsearch Testcontainers startup.");
+            return;
+        }
         startRedis(applicationContext);
         startRedpanda(applicationContext);
         startElasticsearch(applicationContext);
         // startManticoreSearch(applicationContext);
         registerShutdownHook();
+    }
+
+    private boolean isDevServicesEnabled(ConfigurableEnvironment environment) {
+        boolean devProfileActive = Arrays.stream(environment.getActiveProfiles())
+                .anyMatch(profile -> "dev".equalsIgnoreCase(profile));
+        boolean enabled = Boolean.parseBoolean(environment.getProperty("app.dev-services.enabled", "false"));
+        return devProfileActive && enabled;
     }
 
     private void startRedis(ConfigurableApplicationContext applicationContext) {

@@ -2,9 +2,11 @@ package com.tutict.finalassignmentbackend.config.shell;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 
 import java.io.BufferedReader;
 import java.io.FileWriter;
@@ -20,6 +22,8 @@ import java.util.concurrent.TimeUnit;
  * 启动时执行脚本，用于启动 Ollama
  */
 @Configuration
+@Profile("dev")
+@ConditionalOnProperty(name = "app.ollama.startup-script.enabled", havingValue = "true")
 public class ShellScriptConfig {
 
     private static final Logger logger = LoggerFactory.getLogger(ShellScriptConfig.class);
