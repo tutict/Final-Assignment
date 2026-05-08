@@ -13,6 +13,8 @@ import com.tutict.finalassignmentbackend.mapper.SysRequestHistoryMapper;
 import com.tutict.finalassignmentbackend.offense.governance.AfterCommitBoundary;
 import com.tutict.finalassignmentbackend.offense.governance.MutationSideEffectPolicy;
 import com.tutict.finalassignmentbackend.offense.governance.OffenseSideEffectCoordinator;
+import com.tutict.finalassignmentbackend.offense.governance.OffenseStaleUpdatePolicy;
+import com.tutict.finalassignmentbackend.offense.governance.OffenseUpdateFreshnessEvaluator;
 import com.tutict.finalassignmentbackend.offense.governance.OffenseUpdateMergeCoordinator;
 import com.tutict.finalassignmentbackend.offense.governance.SemanticEventType;
 import com.tutict.finalassignmentbackend.offense.governance.SemanticIntentClassifier;
@@ -47,6 +49,7 @@ public class OffenseRecordService {
     private final SemanticIntentClassifier semanticIntentClassifier;
     private final OffenseSideEffectCoordinator sideEffectCoordinator;
     private final OffenseUpdateMergeCoordinator updateMergeCoordinator;
+    private final OffenseUpdateFreshnessEvaluator updateFreshnessEvaluator;
 
     @Autowired
     public OffenseRecordService(OffenseRecordMapper offenseRecordMapper,
@@ -62,6 +65,7 @@ public class OffenseRecordService {
         this.semanticIntentClassifier = new SemanticIntentClassifier();
         this.sideEffectCoordinator = new OffenseSideEffectCoordinator(new AfterCommitBoundary());
         this.updateMergeCoordinator = new OffenseUpdateMergeCoordinator();
+        this.updateFreshnessEvaluator = new OffenseUpdateFreshnessEvaluator();
     }
 
     @Transactional
@@ -130,6 +134,11 @@ public class OffenseRecordService {
         incoming.setOffenseId(offenseId);
         incoming.setProcessStatus(newState != null ? newState.getCode() : existing.getProcessStatus());
         incoming.setUpdatedAt(LocalDateTime.now());
+        OffenseStaleUpdatePolicy.Decision freshness =
+                updateFreshnessEvaluator.evaluate(existing, incoming, SemanticEventType.WORKFLOW);
+        if (freshness == OffenseStaleUpdatePolicy.Decision.REJECT_STALE) {
+            throw new IllegalStateException("Stale Offense workflow update rejected for id=" + offenseId);
+        }
         OffenseRecord merged = updateMergeCoordinator.merge(existing, incoming, SemanticEventType.WORKFLOW);
         offenseRecordMapper.updateById(merged);
         syncToIndexAfterCommit(policy, merged);
@@ -144,6 +153,13 @@ public class OffenseRecordService {
             OffenseRecord current = offenseRecordMapper.selectById(incoming.getOffenseId());
             if (current == null) {
                 return;
+            }
+            OffenseStaleUpdatePolicy.Decision freshness =
+                    updateFreshnessEvaluator.evaluate(current, incoming, SemanticEventType.FULL_UPDATE);
+            if (freshness == OffenseStaleUpdatePolicy.Decision.SHADOW_ONLY) {
+                log.log(Level.INFO,
+                        "Offense Kafka update stale shadow decision={0}, id={1}, currentUpdatedAt={2}, incomingUpdatedAt={3}",
+                        new Object[]{freshness, incoming.getOffenseId(), current.getUpdatedAt(), incoming.getUpdatedAt()});
             }
             OffenseRecord governed = updateMergeCoordinator.merge(current, incoming, SemanticEventType.FULL_UPDATE);
             if (!Objects.equals(governed, incoming)) {
