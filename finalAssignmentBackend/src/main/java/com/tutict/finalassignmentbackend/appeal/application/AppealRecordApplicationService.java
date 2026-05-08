@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentbackend.appeal.application;
 
 import com.tutict.finalassignmentbackend.appeal.cache.AppealCachePolicy;
+import com.tutict.finalassignmentbackend.appeal.domain.AppealFieldMergeService;
 import com.tutict.finalassignmentbackend.appeal.domain.AppealRecordDomainService;
 import com.tutict.finalassignmentbackend.appeal.domain.idempotency.AppealIdempotencyService;
 import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealWorkflowDecisionPolicy;
@@ -25,6 +26,7 @@ public class AppealRecordApplicationService {
     private final AppealCachePolicy cachePolicy;
     private final AppealIdempotencyService idempotencyService;
     private final AppealWorkflowDecisionPolicy workflowDecisionPolicy;
+    private final AppealFieldMergeService fieldMergeService;
 
     public AppealRecordApplicationService(
             AppealRecordMapper appealRecordMapper,
@@ -33,7 +35,8 @@ public class AppealRecordApplicationService {
             TransactionalDomainEventPublisher eventPublisher,
             AppealCachePolicy cachePolicy,
             AppealIdempotencyService idempotencyService,
-            AppealWorkflowDecisionPolicy workflowDecisionPolicy
+            AppealWorkflowDecisionPolicy workflowDecisionPolicy,
+            AppealFieldMergeService fieldMergeService
     ) {
         this.appealRecordMapper = appealRecordMapper;
         this.domainService = domainService;
@@ -42,6 +45,7 @@ public class AppealRecordApplicationService {
         this.cachePolicy = cachePolicy;
         this.idempotencyService = idempotencyService;
         this.workflowDecisionPolicy = workflowDecisionPolicy;
+        this.fieldMergeService = fieldMergeService;
     }
 
     @Transactional
@@ -65,13 +69,19 @@ public class AppealRecordApplicationService {
     @Transactional
     public AppealRecord updateAppeal(AppealRecord appealRecord) {
         domainService.validateAppealId(appealRecord);
-        int rows = appealRecordMapper.updateById(appealRecord);
+        AppealRecord existing = appealRecordMapper.selectById(appealRecord.getAppealId());
+        if (workflowDecisionPolicy.isMissingAppeal(existing)) {
+            throw new IllegalStateException("Appeal not found: " + appealRecord.getAppealId());
+        }
+        AppealRecord merged = fieldMergeService.merge(existing, appealRecord);
+        merged.setUpdatedAt(LocalDateTime.now());
+        int rows = appealRecordMapper.updateById(merged);
         if (workflowDecisionPolicy.isMissingMutation(rows)) {
             throw new IllegalStateException("Appeal not found: " + appealRecord.getAppealId());
         }
-        searchIndexer.indexAfterCommit(appealRecord);
+        searchIndexer.indexAfterCommit(merged);
         cachePolicy.onWrite();
-        return appealRecord;
+        return merged;
     }
 
     public AppealRecord updateProcessStatus(Long appealId, AppealProcessState newState) {
