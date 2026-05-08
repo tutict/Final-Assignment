@@ -1,6 +1,6 @@
 package com.tutict.finalassignmentbackend.service;
 
-import com.tutict.finalassignmentbackend.appeal.application.AppealRecordApplicationService;
+import com.tutict.finalassignmentbackend.appeal.application.workflow.AppealWorkflowOrchestrator;
 import com.tutict.finalassignmentbackend.appeal.query.AppealRecordQueryService;
 import com.tutict.finalassignmentbackend.config.statemachine.states.AppealProcessState;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
@@ -17,14 +17,14 @@ public class AppealRecordService {
 
     private static final String CACHE = "appealRecordCache";
 
-    private final AppealRecordApplicationService applicationService;
+    private final AppealWorkflowOrchestrator workflowOrchestrator;
     private final AppealRecordQueryService queryService;
 
     public AppealRecordService(
-            AppealRecordApplicationService applicationService,
+            AppealWorkflowOrchestrator workflowOrchestrator,
             AppealRecordQueryService queryService
     ) {
-        this.applicationService = applicationService;
+        this.workflowOrchestrator = workflowOrchestrator;
         this.queryService = queryService;
     }
 
@@ -32,32 +32,32 @@ public class AppealRecordService {
     @CacheEvict(cacheNames = CACHE, allEntries = true)
     @WsAction(service = "AppealRecordService", action = "checkAndInsertIdempotency")
     public void checkAndInsertIdempotency(String idempotencyKey, AppealRecord appealRecord, String action) {
-        applicationService.checkAndInsertIdempotency(idempotencyKey, appealRecord, action);
+        workflowOrchestrator.checkAndInsertIdempotency(idempotencyKey, appealRecord, action);
     }
 
     @Transactional
     @CacheEvict(cacheNames = CACHE, allEntries = true)
     public AppealRecord createAppeal(AppealRecord appealRecord) {
-        return applicationService.createAppeal(appealRecord);
+        return workflowOrchestrator.createAppeal(appealRecord);
     }
 
     @Transactional
     @CacheEvict(cacheNames = CACHE, allEntries = true)
     public AppealRecord updateAppeal(AppealRecord appealRecord) {
-        return applicationService.updateAppeal(appealRecord);
+        return workflowOrchestrator.updateAppeal(appealRecord);
     }
 
     /**
      * 供工作流调用的状态更新方法，只改 processStatus 字段
      */
     public AppealRecord updateProcessStatus(Long appealId, AppealProcessState newState) {
-        return applicationService.updateProcessStatus(appealId, newState);
+        return workflowOrchestrator.updateProcessStatus(appealId, newState);
     }
 
     @Transactional
     @CacheEvict(cacheNames = CACHE, allEntries = true)
     public void deleteAppeal(Long appealId) {
-        applicationService.deleteAppeal(appealId);
+        workflowOrchestrator.deleteAppeal(appealId);
     }
 
     @Cacheable(cacheNames = CACHE, key = "#appealId", unless = "#result == null")
@@ -116,15 +116,15 @@ public class AppealRecordService {
     }
 
     public boolean shouldSkipProcessing(String idempotencyKey) {
-        return applicationService.shouldSkipProcessing(idempotencyKey);
+        return workflowOrchestrator.shouldSkipProcessing(idempotencyKey);
     }
 
     public void markHistorySuccess(String idempotencyKey, Long appealId) {
-        applicationService.markHistorySuccess(idempotencyKey, appealId);
+        workflowOrchestrator.markHistorySuccess(idempotencyKey, appealId);
     }
 
     public void markHistoryFailure(String idempotencyKey, String reason) {
-        applicationService.markHistoryFailure(idempotencyKey, reason);
+        workflowOrchestrator.markHistoryFailure(idempotencyKey, reason);
     }
 
 }

@@ -2,11 +2,15 @@ package com.tutict.finalassignmentbackend.appeal;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.appeal.application.AppealRecordApplicationService;
+import com.tutict.finalassignmentbackend.appeal.application.workflow.AppealWorkflowOrchestrator;
 import com.tutict.finalassignmentbackend.appeal.domain.AppealRecordDomainService;
+import com.tutict.finalassignmentbackend.appeal.domain.idempotency.AppealIdempotencyService;
 import com.tutict.finalassignmentbackend.appeal.infrastructure.cache.AppealRecordCacheService;
 import com.tutict.finalassignmentbackend.appeal.infrastructure.messaging.AppealRecordEventPublisher;
+import com.tutict.finalassignmentbackend.appeal.infrastructure.messaging.TransactionalDomainEventPublisher;
 import com.tutict.finalassignmentbackend.appeal.infrastructure.search.AppealRecordSearchIndexer;
 import com.tutict.finalassignmentbackend.entity.AppealRecord;
+import com.tutict.finalassignmentbackend.entity.SysRequestHistory;
 import com.tutict.finalassignmentbackend.entity.elastic.AppealRecordDocument;
 import com.tutict.finalassignmentbackend.mapper.AppealRecordMapper;
 import com.tutict.finalassignmentbackend.mapper.SysRequestHistoryMapper;
@@ -22,6 +26,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 class AppealRecordApplicationServiceTest {
 
@@ -29,15 +34,16 @@ class AppealRecordApplicationServiceTest {
     void applicationServiceOrchestratesCreateWithoutChangingCrudContract() {
         AppealRecordMapper appealRecordMapper = mock(AppealRecordMapper.class);
         AppealRecordSearchIndexer searchIndexer = mock(AppealRecordSearchIndexer.class);
-        AppealRecordEventPublisher eventPublisher = mock(AppealRecordEventPublisher.class);
+        TransactionalDomainEventPublisher eventPublisher = mock(TransactionalDomainEventPublisher.class);
         AppealRecordCacheService cacheService = mock(AppealRecordCacheService.class);
+        AppealIdempotencyService idempotencyService = mock(AppealIdempotencyService.class);
         AppealRecordApplicationService service = new AppealRecordApplicationService(
                 appealRecordMapper,
-                mock(SysRequestHistoryMapper.class),
                 new AppealRecordDomainService(),
                 searchIndexer,
                 eventPublisher,
-                cacheService
+                cacheService,
+                idempotencyService
         );
         AppealRecord appeal = appealRecord();
 
@@ -48,6 +54,36 @@ class AppealRecordApplicationServiceTest {
         verify(searchIndexer).indexAfterCommit(appeal);
         verify(cacheService).evictAll();
         verifyNoInteractions(eventPublisher);
+    }
+
+    @Test
+    void workflowOrchestratorDelegatesCreateToApplicationService() {
+        AppealRecordApplicationService applicationService = mock(AppealRecordApplicationService.class);
+        AppealWorkflowOrchestrator orchestrator = new AppealWorkflowOrchestrator(applicationService);
+        AppealRecord appeal = appealRecord();
+        when(applicationService.createAppeal(appeal)).thenReturn(appeal);
+
+        AppealRecord created = orchestrator.createAppeal(appeal);
+
+        assertThat(created).isSameAs(appeal);
+        verify(applicationService).createAppeal(appeal);
+    }
+
+    @Test
+    void idempotencyServiceKeepsExistingHistorySemantics() {
+        SysRequestHistoryMapper mapper = mock(SysRequestHistoryMapper.class);
+        AppealIdempotencyService service = new AppealIdempotencyService(mapper);
+        SysRequestHistory history = new SysRequestHistory();
+        history.setBusinessStatus("SUCCESS");
+        history.setRequestParams("DONE");
+
+        when(mapper.selectByIdempotencyKey("key-1")).thenReturn(null, history);
+
+        service.checkAndInsert("key-1");
+        boolean shouldSkip = service.shouldSkipProcessing("key-1");
+
+        verify(mapper).insert(org.mockito.ArgumentMatchers.any(SysRequestHistory.class));
+        assertThat(shouldSkip).isTrue();
     }
 
     @Test
