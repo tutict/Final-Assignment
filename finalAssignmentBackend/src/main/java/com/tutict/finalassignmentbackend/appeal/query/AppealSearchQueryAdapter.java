@@ -1,5 +1,6 @@
 package com.tutict.finalassignmentbackend.appeal.query;
 
+import com.tutict.finalassignmentbackend.appeal.projection.AppealRecordProjectionAssembler;
 import com.tutict.finalassignmentbackend.appeal.query.dto.AppealPageRequest;
 import com.tutict.finalassignmentbackend.entity.AppealRecord;
 import com.tutict.finalassignmentbackend.entity.elastic.AppealRecordDocument;
@@ -18,14 +19,20 @@ import java.util.stream.Collectors;
 public class AppealSearchQueryAdapter {
 
     private final AppealRecordSearchRepository appealRecordSearchRepository;
+    private final AppealRecordProjectionAssembler projectionAssembler;
 
-    public AppealSearchQueryAdapter(AppealRecordSearchRepository appealRecordSearchRepository) {
+    public AppealSearchQueryAdapter(
+            AppealRecordSearchRepository appealRecordSearchRepository,
+            AppealRecordProjectionAssembler projectionAssembler
+    ) {
         this.appealRecordSearchRepository = appealRecordSearchRepository;
+        this.projectionAssembler = projectionAssembler;
     }
 
     public Optional<AppealRecord> findById(Long appealId) {
         return appealRecordSearchRepository.findById(appealId)
-                .map(AppealRecordDocument::toEntity);
+                .map(projectionAssembler::fromDocument)
+                .map(projectionAssembler::toLegacyEntity);
     }
 
     public List<AppealRecord> findByOffenseId(Long offenseId, AppealPageRequest pageRequest) {
@@ -72,13 +79,14 @@ public class AppealSearchQueryAdapter {
         return mapHits(appealRecordSearchRepository.searchByAcceptanceHandler(acceptanceHandler, pageable(pageRequest)));
     }
 
-    private static List<AppealRecord> mapHits(SearchHits<AppealRecordDocument> hits) {
+    private List<AppealRecord> mapHits(SearchHits<AppealRecordDocument> hits) {
         if (hits == null || !hits.hasSearchHits()) {
             return List.of();
         }
         return hits.getSearchHits().stream()
                 .map(SearchHit::getContent)
-                .map(AppealRecordDocument::toEntity)
+                .map(projectionAssembler::fromDocument)
+                .map(projectionAssembler::toLegacyEntity)
                 .collect(Collectors.toList());
     }
 
