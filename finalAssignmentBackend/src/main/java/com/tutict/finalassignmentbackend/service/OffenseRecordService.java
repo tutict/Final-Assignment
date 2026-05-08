@@ -13,6 +13,8 @@ import com.tutict.finalassignmentbackend.mapper.SysRequestHistoryMapper;
 import com.tutict.finalassignmentbackend.offense.governance.AfterCommitBoundary;
 import com.tutict.finalassignmentbackend.offense.governance.MutationSideEffectPolicy;
 import com.tutict.finalassignmentbackend.offense.governance.OffenseSideEffectCoordinator;
+import com.tutict.finalassignmentbackend.offense.governance.OffenseUpdateMergeCoordinator;
+import com.tutict.finalassignmentbackend.offense.governance.SemanticEventType;
 import com.tutict.finalassignmentbackend.offense.governance.SemanticIntentClassifier;
 import com.tutict.finalassignmentbackend.repository.OffenseInformationSearchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,6 +46,7 @@ public class OffenseRecordService {
     private final ObjectMapper objectMapper;
     private final SemanticIntentClassifier semanticIntentClassifier;
     private final OffenseSideEffectCoordinator sideEffectCoordinator;
+    private final OffenseUpdateMergeCoordinator updateMergeCoordinator;
 
     @Autowired
     public OffenseRecordService(OffenseRecordMapper offenseRecordMapper,
@@ -58,6 +61,7 @@ public class OffenseRecordService {
         this.objectMapper = objectMapper;
         this.semanticIntentClassifier = new SemanticIntentClassifier();
         this.sideEffectCoordinator = new OffenseSideEffectCoordinator(new AfterCommitBoundary());
+        this.updateMergeCoordinator = new OffenseUpdateMergeCoordinator();
     }
 
     @Transactional
@@ -122,11 +126,33 @@ public class OffenseRecordService {
             throw new IllegalStateException("OffenseRecord not found for id=" + offenseId);
         }
         // 仅允许状态机计算出的状态覆盖数据库的 process_status 字段
-        existing.setProcessStatus(newState != null ? newState.getCode() : existing.getProcessStatus());
-        existing.setUpdatedAt(LocalDateTime.now());
-        offenseRecordMapper.updateById(existing);
-        syncToIndexAfterCommit(policy, existing);
-        return existing;
+        OffenseRecord incoming = new OffenseRecord();
+        incoming.setOffenseId(offenseId);
+        incoming.setProcessStatus(newState != null ? newState.getCode() : existing.getProcessStatus());
+        incoming.setUpdatedAt(LocalDateTime.now());
+        OffenseRecord merged = updateMergeCoordinator.merge(existing, incoming, SemanticEventType.WORKFLOW);
+        offenseRecordMapper.updateById(merged);
+        syncToIndexAfterCommit(policy, merged);
+        return merged;
+    }
+
+    public void shadowCompareKafkaUpdateMerge(OffenseRecord incoming) {
+        if (incoming == null || incoming.getOffenseId() == null) {
+            return;
+        }
+        try {
+            OffenseRecord current = offenseRecordMapper.selectById(incoming.getOffenseId());
+            if (current == null) {
+                return;
+            }
+            OffenseRecord governed = updateMergeCoordinator.merge(current, incoming, SemanticEventType.FULL_UPDATE);
+            if (!Objects.equals(governed, incoming)) {
+                log.log(Level.INFO, "Offense Kafka update shadow merge differs from legacy full overwrite for id={0}",
+                        incoming.getOffenseId());
+            }
+        } catch (Exception ex) {
+            log.log(Level.WARNING, "Offense Kafka update shadow merge comparison failed", ex);
+        }
     }
 
     @Transactional

@@ -10,6 +10,7 @@ import com.tutict.finalassignmentbackend.repository.OffenseInformationSearchRepo
 import com.tutict.finalassignmentbackend.service.OffenseRecordService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -146,19 +147,55 @@ class OffenseGovernanceHardeningTest {
         );
         OffenseRecord existing = new OffenseRecord();
         existing.setOffenseId(20L);
+        existing.setOffenseCode("CURRENT-CODE");
         existing.setProcessStatus(OffenseProcessState.UNPROCESSED.getCode());
         when(offenseRecordMapper.selectById(20L)).thenReturn(existing);
 
         OffenseRecord updated = service.updateProcessStatus(20L, OffenseProcessState.PROCESSING);
 
         assertThat(updated.getProcessStatus()).isEqualTo(OffenseProcessState.PROCESSING.getCode());
-        verify(offenseRecordMapper).updateById(existing);
+        ArgumentCaptor<OffenseRecord> captor = ArgumentCaptor.forClass(OffenseRecord.class);
+        verify(offenseRecordMapper).updateById(captor.capture());
+        assertThat(captor.getValue().getOffenseId()).isEqualTo(20L);
+        assertThat(captor.getValue().getOffenseCode()).isEqualTo("CURRENT-CODE");
+        assertThat(captor.getValue().getProcessStatus()).isEqualTo(OffenseProcessState.PROCESSING.getCode());
         verifyNoInteractions(kafkaTemplate);
         verify(searchRepository, never()).save(any());
 
         runAfterCommitSynchronizations();
         verify(searchRepository).save(any());
         verifyNoInteractions(kafkaTemplate);
+    }
+
+    @Test
+    void kafkaUpdateShadowComparisonDoesNotEnforceMergeYet() {
+        OffenseRecordMapper offenseRecordMapper = mock(OffenseRecordMapper.class);
+        SysRequestHistoryMapper historyMapper = mock(SysRequestHistoryMapper.class);
+        OffenseInformationSearchRepository searchRepository = mock(OffenseInformationSearchRepository.class);
+        KafkaTemplate<String, String> kafkaTemplate = mock(KafkaTemplate.class);
+        ObjectMapper objectMapper = mock(ObjectMapper.class);
+        OffenseRecordService service = new OffenseRecordService(
+                offenseRecordMapper,
+                historyMapper,
+                searchRepository,
+                kafkaTemplate,
+                objectMapper
+        );
+        OffenseRecord current = new OffenseRecord();
+        current.setOffenseId(30L);
+        current.setOffenseNumber("OF-030");
+        current.setProcessStatus("Processed");
+        OffenseRecord incoming = new OffenseRecord();
+        incoming.setOffenseId(30L);
+        incoming.setOffenseNumber("STALE-NUMBER");
+        incoming.setProcessStatus("Unprocessed");
+        when(offenseRecordMapper.selectById(30L)).thenReturn(current);
+
+        service.shadowCompareKafkaUpdateMerge(incoming);
+
+        verify(offenseRecordMapper).selectById(30L);
+        verify(offenseRecordMapper, never()).updateById(any(OffenseRecord.class));
+        verifyNoInteractions(searchRepository, kafkaTemplate);
     }
 
     private void runAfterCommitSynchronizations() {

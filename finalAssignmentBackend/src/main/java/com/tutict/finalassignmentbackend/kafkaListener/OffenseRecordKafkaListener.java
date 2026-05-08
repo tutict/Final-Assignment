@@ -76,6 +76,7 @@ public class OffenseRecordKafkaListener {
                 payload.setOffenseId(null);
                 result = offenseRecordService.createOffenseRecord(payload);
             } else if ("update".equalsIgnoreCase(action)) {
+                offenseRecordService.shadowCompareKafkaUpdateMerge(payload);
                 result = offenseRecordService.updateOffenseRecord(payload);
             } else {
                 log.log(Level.WARNING, "Unsupported OffenseRecord action: {0}", action);
