@@ -8,8 +8,10 @@ import org.junit.jupiter.api.Test;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class AppealPolicyTest {
 
@@ -54,6 +56,85 @@ class AppealPolicyTest {
     }
 
     @Test
+    void transitionPolicyDefinesExplicitLegalityMatrix() {
+        AppealTransitionPolicy policy = new AppealTransitionPolicy();
+
+        assertThat(policy.allowedTargets("Unprocessed")).containsExactlyInAnyOrder(
+                AppealProcessState.UNDER_REVIEW,
+                AppealProcessState.APPROVED,
+                AppealProcessState.REJECTED,
+                AppealProcessState.WITHDRAWN
+        );
+        assertThat(policy.allowedTargets("Under_Review")).containsExactlyInAnyOrder(
+                AppealProcessState.UNPROCESSED,
+                AppealProcessState.APPROVED,
+                AppealProcessState.REJECTED,
+                AppealProcessState.WITHDRAWN
+        );
+        assertThat(policy.decide("Unprocessed", AppealProcessState.UNDER_REVIEW))
+                .isEqualTo(AppealTransitionPolicy.TransitionDecision.APPLY);
+        assertThat(policy.decide("Unprocessed", null))
+                .isEqualTo(AppealTransitionPolicy.TransitionDecision.NO_OP);
+    }
+
+    @Test
+    void transitionPolicyDefinesTerminalStatesAndDuplicateTransitions() {
+        AppealTransitionPolicy policy = new AppealTransitionPolicy();
+        Set<AppealProcessState> terminalStates = policy.terminalStates();
+
+        assertThat(terminalStates).containsExactlyInAnyOrder(
+                AppealProcessState.APPROVED,
+                AppealProcessState.REJECTED,
+                AppealProcessState.WITHDRAWN
+        );
+        assertThat(policy.isTerminal("Approved")).isTrue();
+        assertThat(policy.isTerminal("Under_Review")).isFalse();
+        assertThat(policy.decide("Approved", AppealProcessState.APPROVED))
+                .isEqualTo(AppealTransitionPolicy.TransitionDecision.NO_OP);
+        assertThat(policy.decide("Approved", AppealProcessState.UNDER_REVIEW))
+                .isEqualTo(AppealTransitionPolicy.TransitionDecision.INVALID);
+    }
+
+    @Test
+    void workflowPolicyRejectsInvalidTerminalTransitionThroughExistingExceptionPath() {
+        AppealWorkflowDecisionPolicy policy = new AppealWorkflowDecisionPolicy();
+
+        assertThatThrownBy(() -> policy.resolveProcessStatus(AppealProcessState.UNDER_REVIEW, "Approved"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Invalid appeal status transition");
+    }
+
+    @Test
+    void visibilityPolicyFiltersDeletedAndOffenseMismatchedRecords() {
+        AppealVisibilityPolicy policy = new AppealVisibilityPolicy();
+        AppealVisibilityPolicy.AppealVisibilityContext context =
+                AppealVisibilityPolicy.AppealVisibilityContext.forOffense(20L);
+        AppealRecord visible = appealRecord(1L, 20L, null);
+        AppealRecord deleted = appealRecord(2L, 20L, LocalDateTime.parse("2026-05-08T12:00:00"));
+        AppealRecord otherOffense = appealRecord(3L, 21L, null);
+
+        assertThat(policy.isVisible(visible, context)).isTrue();
+        assertThat(policy.isVisible(deleted, context)).isFalse();
+        assertThat(policy.isVisible(otherOffense, context)).isFalse();
+        assertThat(policy.filterVisible(List.of(visible, deleted, otherOffense), context))
+                .containsExactly(visible);
+    }
+
+    @Test
+    void queryPolicyUsesSameVisibilityForSearchAndFallbackResults() {
+        AppealQueryPolicy policy = new AppealQueryPolicy();
+        AppealVisibilityPolicy.AppealVisibilityContext context = policy.offenseVisibility(20L);
+        AppealRecord visible = appealRecord(1L, 20L, null);
+        AppealRecord deleted = appealRecord(2L, 20L, LocalDateTime.parse("2026-05-08T12:00:00"));
+        AppealRecord otherOffense = appealRecord(3L, 21L, null);
+
+        assertThat(policy.visibleRecord(Optional.of(visible), context)).contains(visible);
+        assertThat(policy.visibleRecord(Optional.of(deleted), context)).isEmpty();
+        assertThat(policy.visibleRecords(List.of(deleted, visible, otherOffense), context))
+                .containsExactly(visible);
+    }
+
+    @Test
     void queryPolicyCapturesFallbackAndBackfillRules() {
         AppealQueryPolicy policy = new AppealQueryPolicy();
         AppealRecord record = new AppealRecord();
@@ -88,5 +169,13 @@ class AppealPolicyTest {
         history.setBusinessStatus(businessStatus);
         history.setRequestParams(requestParams);
         return history;
+    }
+
+    private static AppealRecord appealRecord(Long appealId, Long offenseId, LocalDateTime deletedAt) {
+        AppealRecord record = new AppealRecord();
+        record.setAppealId(appealId);
+        record.setOffenseId(offenseId);
+        record.setDeletedAt(deletedAt);
+        return record;
     }
 }

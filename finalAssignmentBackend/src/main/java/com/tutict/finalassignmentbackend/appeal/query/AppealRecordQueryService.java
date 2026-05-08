@@ -3,6 +3,7 @@ package com.tutict.finalassignmentbackend.appeal.query;
 import com.tutict.finalassignmentbackend.appeal.cache.AppealCachePolicy;
 import com.tutict.finalassignmentbackend.appeal.domain.AppealRecordDomainService;
 import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealQueryPolicy;
+import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealVisibilityPolicy;
 import com.tutict.finalassignmentbackend.appeal.query.dto.AppealPageRequest;
 import com.tutict.finalassignmentbackend.entity.AppealRecord;
 import org.springframework.stereotype.Service;
@@ -48,11 +49,12 @@ public class AppealRecordQueryService {
 
     public AppealRecord getAppealById(Long appealId) {
         domainService.validateAppealId(appealId);
-        Optional<AppealRecord> indexed = searchQueryAdapter.findById(appealId);
+        AppealVisibilityPolicy.AppealVisibilityContext visibility = queryPolicy.defaultVisibility();
+        Optional<AppealRecord> indexed = queryPolicy.visibleRecord(searchQueryAdapter.findById(appealId), visibility);
         if (queryPolicy.hasIndexedRecord(indexed)) {
             return indexed.get();
         }
-        AppealRecord fallback = dbFallbackReader.findById(appealId);
+        AppealRecord fallback = queryPolicy.visibleRecord(dbFallbackReader.findById(appealId), visibility);
         consistencyValidator.validateFallbackRecord("getAppealById", fallback);
         cachePolicy.markFallbackRead();
         if (queryPolicy.shouldBackfill(fallback)) {
@@ -67,7 +69,8 @@ public class AppealRecordQueryService {
                 "findByOffenseId",
                 pageRequest,
                 () -> searchQueryAdapter.findByOffenseId(offenseId, pageRequest),
-                () -> dbFallbackReader.findByOffenseId(offenseId, pageRequest)
+                () -> dbFallbackReader.findByOffenseId(offenseId, pageRequest),
+                queryPolicy.offenseVisibility(offenseId)
         );
     }
 
@@ -80,7 +83,8 @@ public class AppealRecordQueryService {
                 "searchByAppealNumberPrefix",
                 pageRequest,
                 () -> searchQueryAdapter.searchByAppealNumberPrefix(appealNumber, pageRequest),
-                () -> dbFallbackReader.searchByAppealNumberPrefix(appealNumber, pageRequest)
+                () -> dbFallbackReader.searchByAppealNumberPrefix(appealNumber, pageRequest),
+                queryPolicy.defaultVisibility()
         );
     }
 
@@ -93,7 +97,8 @@ public class AppealRecordQueryService {
                 "searchByAppealNumberFuzzy",
                 pageRequest,
                 () -> searchQueryAdapter.searchByAppealNumberFuzzy(appealNumber, pageRequest),
-                () -> dbFallbackReader.searchByAppealNumberFuzzy(appealNumber, pageRequest)
+                () -> dbFallbackReader.searchByAppealNumberFuzzy(appealNumber, pageRequest),
+                queryPolicy.defaultVisibility()
         );
     }
 
@@ -106,7 +111,8 @@ public class AppealRecordQueryService {
                 "searchByAppellantNamePrefix",
                 pageRequest,
                 () -> searchQueryAdapter.searchByAppellantNamePrefix(appellantName, pageRequest),
-                () -> dbFallbackReader.searchByAppellantNamePrefix(appellantName, pageRequest)
+                () -> dbFallbackReader.searchByAppellantNamePrefix(appellantName, pageRequest),
+                queryPolicy.defaultVisibility()
         );
     }
 
@@ -119,7 +125,8 @@ public class AppealRecordQueryService {
                 "searchByAppellantNameFuzzy",
                 pageRequest,
                 () -> searchQueryAdapter.searchByAppellantNameFuzzy(appellantName, pageRequest),
-                () -> dbFallbackReader.searchByAppellantNameFuzzy(appellantName, pageRequest)
+                () -> dbFallbackReader.searchByAppellantNameFuzzy(appellantName, pageRequest),
+                queryPolicy.defaultVisibility()
         );
     }
 
@@ -132,7 +139,8 @@ public class AppealRecordQueryService {
                 "searchByAppellantIdCard",
                 pageRequest,
                 () -> searchQueryAdapter.searchByAppellantIdCard(appellantIdCard, pageRequest),
-                () -> dbFallbackReader.searchByAppellantIdCard(appellantIdCard, pageRequest)
+                () -> dbFallbackReader.searchByAppellantIdCard(appellantIdCard, pageRequest),
+                queryPolicy.defaultVisibility()
         );
     }
 
@@ -145,7 +153,8 @@ public class AppealRecordQueryService {
                 "searchByAcceptanceStatus",
                 pageRequest,
                 () -> searchQueryAdapter.searchByAcceptanceStatus(acceptanceStatus, pageRequest),
-                () -> dbFallbackReader.searchByAcceptanceStatus(acceptanceStatus, pageRequest)
+                () -> dbFallbackReader.searchByAcceptanceStatus(acceptanceStatus, pageRequest),
+                queryPolicy.defaultVisibility()
         );
     }
 
@@ -158,7 +167,8 @@ public class AppealRecordQueryService {
                 "searchByProcessStatus",
                 pageRequest,
                 () -> searchQueryAdapter.searchByProcessStatus(processStatus, pageRequest),
-                () -> dbFallbackReader.searchByProcessStatus(processStatus, pageRequest)
+                () -> dbFallbackReader.searchByProcessStatus(processStatus, pageRequest),
+                queryPolicy.defaultVisibility()
         );
     }
 
@@ -173,7 +183,8 @@ public class AppealRecordQueryService {
                 "searchByAppealTimeRange",
                 pageRequest,
                 () -> searchQueryAdapter.searchByAppealTimeRange(startTime, endTime, pageRequest),
-                () -> dbFallbackReader.searchByAppealTimeRange(start, end, pageRequest)
+                () -> dbFallbackReader.searchByAppealTimeRange(start, end, pageRequest),
+                queryPolicy.defaultVisibility()
         );
     }
 
@@ -186,7 +197,8 @@ public class AppealRecordQueryService {
                 "searchByAcceptanceHandler",
                 pageRequest,
                 () -> searchQueryAdapter.searchByAcceptanceHandler(acceptanceHandler, pageRequest),
-                () -> dbFallbackReader.searchByAcceptanceHandler(acceptanceHandler, pageRequest)
+                () -> dbFallbackReader.searchByAcceptanceHandler(acceptanceHandler, pageRequest),
+                queryPolicy.defaultVisibility()
         );
     }
 
@@ -194,14 +206,15 @@ public class AppealRecordQueryService {
             String operation,
             AppealPageRequest pageRequest,
             Supplier<List<AppealRecord>> searchQuery,
-            Supplier<List<AppealRecord>> dbFallback
+            Supplier<List<AppealRecord>> dbFallback,
+            AppealVisibilityPolicy.AppealVisibilityContext visibility
     ) {
-        List<AppealRecord> indexed = searchQuery.get();
+        List<AppealRecord> indexed = queryPolicy.visibleRecords(searchQuery.get(), visibility);
         if (!queryPolicy.shouldUseDbFallback(indexed)) {
             consistencyValidator.validateSearchResult(operation, pageRequest, indexed);
             return indexed;
         }
-        List<AppealRecord> fallback = dbFallback.get();
+        List<AppealRecord> fallback = queryPolicy.visibleRecords(dbFallback.get(), visibility);
         consistencyValidator.validateFallbackResult(operation, pageRequest, indexed, fallback);
         cachePolicy.markFallbackRead();
         if (queryPolicy.shouldBackfill(fallback)) {

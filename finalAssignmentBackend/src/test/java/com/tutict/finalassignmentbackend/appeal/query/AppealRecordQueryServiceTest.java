@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -60,6 +61,51 @@ class AppealRecordQueryServiceTest {
         assertThat(result).isSameAs(fallback);
         verify(cachePolicy).markFallbackRead();
         verify(backfillService).scheduleAll(fallback);
+    }
+
+    @Test
+    void esHitAppliesVisibilityBeforeReturningResult() {
+        AppealSearchQueryAdapter searchQueryAdapter = mock(AppealSearchQueryAdapter.class);
+        AppealDbFallbackReader dbFallbackReader = mock(AppealDbFallbackReader.class);
+        AppealSearchBackfillService backfillService = mock(AppealSearchBackfillService.class);
+        AppealCachePolicy cachePolicy = mock(AppealCachePolicy.class);
+        AppealRecordQueryService service = service(searchQueryAdapter, dbFallbackReader, backfillService, cachePolicy);
+        AppealRecord visible = appealRecord(15L);
+        AppealRecord deleted = appealRecord(16L);
+        deleted.setDeletedAt(LocalDateTime.parse("2026-05-08T12:00:00"));
+
+        when(searchQueryAdapter.findByOffenseId(eq(20L), any(AppealPageRequest.class)))
+                .thenReturn(List.of(deleted, visible));
+
+        List<AppealRecord> result = service.findByOffenseId(20L, 1, 20);
+
+        assertThat(result).containsExactly(visible);
+        verifyNoInteractions(dbFallbackReader, backfillService, cachePolicy);
+    }
+
+    @Test
+    void fallbackUsesSameVisibilityRulesBeforeBackfill() {
+        AppealSearchQueryAdapter searchQueryAdapter = mock(AppealSearchQueryAdapter.class);
+        AppealDbFallbackReader dbFallbackReader = mock(AppealDbFallbackReader.class);
+        AppealSearchBackfillService backfillService = mock(AppealSearchBackfillService.class);
+        AppealCachePolicy cachePolicy = mock(AppealCachePolicy.class);
+        AppealRecordQueryService service = service(searchQueryAdapter, dbFallbackReader, backfillService, cachePolicy);
+        AppealRecord searchDeleted = appealRecord(17L);
+        searchDeleted.setDeletedAt(LocalDateTime.parse("2026-05-08T12:00:00"));
+        AppealRecord fallbackDeleted = appealRecord(18L);
+        fallbackDeleted.setDeletedAt(LocalDateTime.parse("2026-05-08T12:00:00"));
+        AppealRecord visible = appealRecord(19L);
+
+        when(searchQueryAdapter.findByOffenseId(eq(20L), any(AppealPageRequest.class)))
+                .thenReturn(List.of(searchDeleted));
+        when(dbFallbackReader.findByOffenseId(eq(20L), any(AppealPageRequest.class)))
+                .thenReturn(List.of(fallbackDeleted, visible));
+
+        List<AppealRecord> result = service.findByOffenseId(20L, 1, 20);
+
+        assertThat(result).containsExactly(visible);
+        verify(cachePolicy).markFallbackRead();
+        verify(backfillService).scheduleAll(List.of(visible));
     }
 
     @Test

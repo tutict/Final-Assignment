@@ -55,6 +55,19 @@ class AppealRecordProjectionAssemblerTest {
     }
 
     @Test
+    void projectionOutputIsDeterministicForEquivalentSearchAndFallbackRecords() {
+        AppealRecordDocument document = document();
+        AppealRecord entity = entityMatchingDocument();
+
+        AppealRecordSearchProjection fromSearch = assembler.normalize(assembler.fromDocument(document));
+        AppealRecordSearchProjection fromFallback = assembler.normalize(assembler.fromEntity(entity));
+
+        assertThat(fromSearch).isEqualTo(fromFallback);
+        assertThat(assembler.toView(fromSearch)).isEqualTo(assembler.toView(fromFallback));
+        assertThat(assembler.normalize(fromSearch)).isEqualTo(fromSearch);
+    }
+
+    @Test
     void handlesNullInputsSafely() {
         assertThat(assembler.fromDocument(null)).isNull();
         assertThat(assembler.fromEntity(null)).isNull();
@@ -86,6 +99,21 @@ class AppealRecordProjectionAssemblerTest {
         entity.setAppellantName("Alice");
         entity.setAppealType("TYPE");
         entity.setAppealReason("reason");
+        entity.setAcceptanceStatus("ACCEPTED");
+        entity.setProcessStatus("PENDING");
+        return entity;
+    }
+
+    private static AppealRecord entityMatchingDocument() {
+        AppealRecord entity = new AppealRecord();
+        entity.setAppealId(10L);
+        entity.setOffenseId(20L);
+        entity.setAppealNumber("AP-10");
+        entity.setAppellantName("Alice");
+        entity.setAppellantIdCard("ID-10");
+        entity.setAppealType("TYPE");
+        entity.setAppealReason("reason");
+        entity.setAppealTime(LocalDateTime.parse("2026-05-08T10:15:30"));
         entity.setAcceptanceStatus("ACCEPTED");
         entity.setProcessStatus("PENDING");
         return entity;

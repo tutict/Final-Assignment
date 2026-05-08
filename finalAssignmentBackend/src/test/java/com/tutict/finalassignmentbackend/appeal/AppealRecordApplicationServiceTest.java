@@ -13,6 +13,7 @@ import com.tutict.finalassignmentbackend.appeal.infrastructure.messaging.AppealR
 import com.tutict.finalassignmentbackend.appeal.infrastructure.messaging.TransactionalDomainEventPublisher;
 import com.tutict.finalassignmentbackend.appeal.infrastructure.search.AppealRecordSearchIndexer;
 import com.tutict.finalassignmentbackend.appeal.infrastructure.transaction.AfterCommitExecutor;
+import com.tutict.finalassignmentbackend.config.statemachine.states.AppealProcessState;
 import com.tutict.finalassignmentbackend.entity.AppealRecord;
 import com.tutict.finalassignmentbackend.entity.SysRequestHistory;
 import com.tutict.finalassignmentbackend.entity.elastic.AppealRecordDocument;
@@ -26,6 +27,7 @@ import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
 import org.springframework.kafka.core.KafkaTemplate;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -72,6 +74,34 @@ class AppealRecordApplicationServiceTest {
 
         assertThat(created).isSameAs(appeal);
         verify(applicationService).createAppeal(appeal);
+    }
+
+    @Test
+    void applicationServiceRejectsInvalidTerminalStatusTransition() {
+        AppealRecordMapper appealRecordMapper = mock(AppealRecordMapper.class);
+        AppealRecordSearchIndexer searchIndexer = mock(AppealRecordSearchIndexer.class);
+        TransactionalDomainEventPublisher eventPublisher = mock(TransactionalDomainEventPublisher.class);
+        AppealCachePolicy cachePolicy = mock(AppealCachePolicy.class);
+        AppealIdempotencyService idempotencyService = mock(AppealIdempotencyService.class);
+        AppealRecordApplicationService service = new AppealRecordApplicationService(
+                appealRecordMapper,
+                new AppealRecordDomainService(),
+                searchIndexer,
+                eventPublisher,
+                cachePolicy,
+                idempotencyService,
+                new AppealWorkflowDecisionPolicy()
+        );
+        AppealRecord appeal = appealRecord();
+        appeal.setProcessStatus(AppealProcessState.APPROVED.getCode());
+        when(appealRecordMapper.selectById(10L)).thenReturn(appeal);
+
+        assertThatThrownBy(() -> service.updateProcessStatus(10L, AppealProcessState.UNDER_REVIEW))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Invalid appeal status transition");
+
+        verify(appealRecordMapper).selectById(10L);
+        verifyNoInteractions(searchIndexer, cachePolicy, eventPublisher, idempotencyService);
     }
 
     @Test

@@ -10,6 +10,8 @@ import java.util.Optional;
 @Service
 public class AppealQueryPolicy {
 
+    private final AppealVisibilityPolicy visibilityPolicy = new AppealVisibilityPolicy();
+
     public boolean shouldReturnEmptyForTextFilter(String value) {
         return value == null || value.trim().isEmpty();
     }
@@ -32,5 +34,34 @@ public class AppealQueryPolicy {
 
     public boolean shouldBackfill(List<AppealRecord> fallback) {
         return fallback != null && !fallback.isEmpty();
+    }
+
+    public AppealVisibilityPolicy.AppealVisibilityContext defaultVisibility() {
+        return AppealVisibilityPolicy.AppealVisibilityContext.unrestricted();
+    }
+
+    public AppealVisibilityPolicy.AppealVisibilityContext offenseVisibility(Long offenseId) {
+        return AppealVisibilityPolicy.AppealVisibilityContext.forOffense(offenseId);
+    }
+
+    public Optional<AppealRecord> visibleRecord(
+            Optional<AppealRecord> record,
+            AppealVisibilityPolicy.AppealVisibilityContext context
+    ) {
+        return record == null ? Optional.empty() : record.filter(value -> visibilityPolicy.isVisible(value, context));
+    }
+
+    public AppealRecord visibleRecord(
+            AppealRecord record,
+            AppealVisibilityPolicy.AppealVisibilityContext context
+    ) {
+        return visibilityPolicy.isVisible(record, context) ? record : null;
+    }
+
+    public List<AppealRecord> visibleRecords(
+            List<AppealRecord> records,
+            AppealVisibilityPolicy.AppealVisibilityContext context
+    ) {
+        return visibilityPolicy.filterVisible(records, context);
     }
 }
