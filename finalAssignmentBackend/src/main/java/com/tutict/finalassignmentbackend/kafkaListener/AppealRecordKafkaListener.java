@@ -69,9 +69,9 @@ public class AppealRecordKafkaListener {
             AppealRecord result;
             if ("create".equalsIgnoreCase(action)) {
                 payload.setAppealId(null);
-                result = appealRecordService.createAppeal(payload);
+                result = appealRecordService.applyKafkaEvent(payload, action);
             } else if ("update".equalsIgnoreCase(action)) {
-                result = appealRecordService.updateAppeal(payload);
+                result = appealRecordService.applyKafkaEvent(payload, action);
             } else {
                 log.log(Level.WARNING, "Unsupported appeal record action: {0}", action);
                 return;

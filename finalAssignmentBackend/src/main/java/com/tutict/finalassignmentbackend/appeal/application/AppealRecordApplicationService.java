@@ -5,6 +5,9 @@ import com.tutict.finalassignmentbackend.appeal.domain.AppealRecordDomainService
 import com.tutict.finalassignmentbackend.appeal.domain.AppealUpdateMergeCoordinator;
 import com.tutict.finalassignmentbackend.appeal.domain.idempotency.AppealIdempotencyService;
 import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealCallerMetadata;
+import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealEventIntentPolicy;
+import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealEventMetadata;
+import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealEventType;
 import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealUpdateIntentPolicy.UpdateIntent;
 import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealWorkflowDecisionPolicy;
 import com.tutict.finalassignmentbackend.appeal.infrastructure.messaging.TransactionalDomainEventPublisher;
@@ -25,6 +28,8 @@ public class AppealRecordApplicationService {
             AppealCallerMetadata.controller("AppealRecordApplicationService.updateAppeal");
     private static final AppealCallerMetadata WORKFLOW_UPDATE_CALLER =
             AppealCallerMetadata.workflow("AppealRecordApplicationService.updateProcessStatus");
+    private static final AppealCallerMetadata SYSTEM_EVENT_CALLER =
+            AppealCallerMetadata.system("AppealRecordApplicationService.applyKafkaEvent");
 
     private final AppealRecordMapper appealRecordMapper;
     private final AppealRecordDomainService domainService;
@@ -34,6 +39,7 @@ public class AppealRecordApplicationService {
     private final AppealIdempotencyService idempotencyService;
     private final AppealWorkflowDecisionPolicy workflowDecisionPolicy;
     private final AppealUpdateMergeCoordinator updateMergeCoordinator;
+    private final AppealEventIntentPolicy eventIntentPolicy = new AppealEventIntentPolicy();
 
     public AppealRecordApplicationService(
             AppealRecordMapper appealRecordMapper,
@@ -59,9 +65,14 @@ public class AppealRecordApplicationService {
     public void checkAndInsertIdempotency(String idempotencyKey, AppealRecord appealRecord, String action) {
         Objects.requireNonNull(appealRecord, "Appeal record cannot be null");
         idempotencyService.checkAndInsert(idempotencyKey);
-        eventPublisher.publishAppealRecordAfterCommit("appeal_" + action, idempotencyKey, appealRecord);
+        AppealEventMetadata eventMetadata = classifyOutboundEvent(appealRecord, action);
+        if (eventMetadata.republishesKafka()) {
+            eventPublisher.publishAppealRecordAfterCommit("appeal_" + action, idempotencyKey, appealRecord);
+        }
         idempotencyService.markPendingSuccess(idempotencyKey, appealRecord.getAppealId());
-        cachePolicy.onWrite();
+        if (eventMetadata.evictsCache()) {
+            cachePolicy.onWrite();
+        }
     }
 
     @Transactional
@@ -80,6 +91,9 @@ public class AppealRecordApplicationService {
         if (workflowDecisionPolicy.isMissingAppeal(existing)) {
             throw new IllegalStateException("Appeal not found: " + appealRecord.getAppealId());
         }
+        if (updateMergeCoordinator.isNoOp(existing, appealRecord, UpdateIntent.FULL_UPDATE)) {
+            return existing;
+        }
         AppealRecord merged = updateMergeCoordinator.merge(
                 existing,
                 appealRecord,
@@ -93,6 +107,44 @@ public class AppealRecordApplicationService {
         }
         searchIndexer.indexAfterCommit(merged);
         cachePolicy.onWrite();
+        return merged;
+    }
+
+    @Transactional
+    public AppealRecord applyKafkaEvent(AppealRecord appealRecord, String action) {
+        Objects.requireNonNull(appealRecord, "Appeal record cannot be null");
+        if ("create".equalsIgnoreCase(action)) {
+            return createAppeal(appealRecord);
+        }
+        if (!"update".equalsIgnoreCase(action)) {
+            throw new IllegalArgumentException("Unsupported appeal Kafka action: " + action);
+        }
+        domainService.validateAppealId(appealRecord.getAppealId());
+        AppealRecord existing = appealRecordMapper.selectById(appealRecord.getAppealId());
+        if (workflowDecisionPolicy.isMissingAppeal(existing)) {
+            throw new IllegalStateException("Appeal not found: " + appealRecord.getAppealId());
+        }
+        AppealEventMetadata eventMetadata = eventIntentPolicy.classify(action, existing, appealRecord, false);
+        if (eventMetadata.noOp()) {
+            return existing;
+        }
+        AppealRecord merged = updateMergeCoordinator.merge(
+                existing,
+                appealRecord,
+                eventMetadata.updateIntent(),
+                callerFor(eventMetadata)
+        );
+        merged.setUpdatedAt(LocalDateTime.now());
+        int rows = appealRecordMapper.updateById(merged);
+        if (workflowDecisionPolicy.isMissingMutation(rows)) {
+            throw new IllegalStateException("Appeal not found: " + appealRecord.getAppealId());
+        }
+        if (eventMetadata.reindexesSearch()) {
+            searchIndexer.indexAfterCommit(merged);
+        }
+        if (eventMetadata.evictsCache()) {
+            cachePolicy.onWrite();
+        }
         return merged;
     }
 
@@ -147,5 +199,29 @@ public class AppealRecordApplicationService {
 
     public void markHistoryFailure(String idempotencyKey, String reason) {
         idempotencyService.markHistoryFailure(idempotencyKey, reason);
+    }
+
+    private AppealEventMetadata classifyOutboundEvent(AppealRecord appealRecord, String action) {
+        if ("create".equalsIgnoreCase(action) || appealRecord.getAppealId() == null) {
+            return AppealEventMetadata.outboundFullUpdate();
+        }
+        if (!"update".equalsIgnoreCase(action)) {
+            return eventIntentPolicy.classify(action, null, appealRecord, false);
+        }
+        AppealRecord existing = appealRecordMapper.selectById(appealRecord.getAppealId());
+        if (existing != null && updateMergeCoordinator.isNoOp(existing, appealRecord, UpdateIntent.FULL_UPDATE)) {
+            return AppealEventMetadata.noOp(false);
+        }
+        return AppealEventMetadata.outboundFullUpdate();
+    }
+
+    private AppealCallerMetadata callerFor(AppealEventMetadata eventMetadata) {
+        if (eventMetadata.eventType() == AppealEventType.WORKFLOW) {
+            return WORKFLOW_UPDATE_CALLER;
+        }
+        if (eventMetadata.eventType() == AppealEventType.SYSTEM) {
+            return SYSTEM_EVENT_CALLER;
+        }
+        return FULL_UPDATE_CALLER;
     }
 }

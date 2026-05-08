@@ -5,6 +5,8 @@ import com.tutict.finalassignmentbackend.appeal.domain.AppealRecordDomainService
 import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealQueryPolicy;
 import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealVisibilityPolicy;
 import com.tutict.finalassignmentbackend.appeal.query.dto.AppealPageRequest;
+import com.tutict.finalassignmentbackend.appeal.read.AppealReadAssembler;
+import com.tutict.finalassignmentbackend.appeal.read.AppealReadModel;
 import com.tutict.finalassignmentbackend.entity.AppealRecord;
 import org.springframework.stereotype.Service;
 
@@ -28,6 +30,7 @@ public class AppealRecordQueryService {
     private final AppealCachePolicy cachePolicy;
     private final AppealQueryConsistencyValidator consistencyValidator;
     private final AppealQueryPolicy queryPolicy;
+    private final AppealReadAssembler readAssembler = new AppealReadAssembler();
 
     public AppealRecordQueryService(
             AppealSearchQueryAdapter searchQueryAdapter,
@@ -50,11 +53,11 @@ public class AppealRecordQueryService {
     public AppealRecord getAppealById(Long appealId) {
         domainService.validateAppealId(appealId);
         AppealVisibilityPolicy.AppealVisibilityContext visibility = queryPolicy.defaultVisibility();
-        Optional<AppealRecord> indexed = queryPolicy.visibleRecord(searchQueryAdapter.findById(appealId), visibility);
+        Optional<AppealRecord> indexed = queryPolicy.visibleRecord(toLegacyRecord(searchQueryAdapter.findById(appealId)), visibility);
         if (queryPolicy.hasIndexedRecord(indexed)) {
             return indexed.get();
         }
-        AppealRecord fallback = queryPolicy.visibleRecord(dbFallbackReader.findById(appealId), visibility);
+        AppealRecord fallback = queryPolicy.visibleRecord(toLegacyRecord(dbFallbackReader.findById(appealId)), visibility);
         consistencyValidator.validateFallbackRecord("getAppealById", fallback);
         cachePolicy.markFallbackRead();
         if (queryPolicy.shouldBackfill(fallback)) {
@@ -205,16 +208,16 @@ public class AppealRecordQueryService {
     private List<AppealRecord> queryWithFallback(
             String operation,
             AppealPageRequest pageRequest,
-            Supplier<List<AppealRecord>> searchQuery,
+            Supplier<List<AppealReadModel>> searchQuery,
             Supplier<List<AppealRecord>> dbFallback,
             AppealVisibilityPolicy.AppealVisibilityContext visibility
     ) {
-        List<AppealRecord> indexed = queryPolicy.visibleRecords(searchQuery.get(), visibility);
+        List<AppealRecord> indexed = queryPolicy.visibleRecords(toLegacyRecords(searchQuery.get()), visibility);
         if (!queryPolicy.shouldUseDbFallback(indexed)) {
             consistencyValidator.validateSearchResult(operation, pageRequest, indexed);
             return indexed;
         }
-        List<AppealRecord> fallback = queryPolicy.visibleRecords(dbFallback.get(), visibility);
+        List<AppealRecord> fallback = queryPolicy.visibleRecords(toLegacyRecordsFromEntities(dbFallback.get()), visibility);
         consistencyValidator.validateFallbackResult(operation, pageRequest, indexed, fallback);
         cachePolicy.markFallbackRead();
         if (queryPolicy.shouldBackfill(fallback)) {
@@ -225,6 +228,32 @@ public class AppealRecordQueryService {
 
     private AppealPageRequest pageRequest(int page, int size) {
         return new AppealPageRequest(page, size);
+    }
+
+    private Optional<AppealRecord> toLegacyRecord(Optional<AppealReadModel> model) {
+        return model == null ? Optional.empty() : model.map(readAssembler::toLegacyEntity);
+    }
+
+    private AppealRecord toLegacyRecord(AppealRecord entity) {
+        return readAssembler.toLegacyEntity(readAssembler.fromEntity(entity));
+    }
+
+    private List<AppealRecord> toLegacyRecords(List<AppealReadModel> models) {
+        if (models == null || models.isEmpty()) {
+            return List.of();
+        }
+        return models.stream()
+                .map(readAssembler::toLegacyEntity)
+                .toList();
+    }
+
+    private List<AppealRecord> toLegacyRecordsFromEntities(List<AppealRecord> entities) {
+        if (entities == null || entities.isEmpty()) {
+            return List.of();
+        }
+        return entities.stream()
+                .map(this::toLegacyRecord)
+                .toList();
     }
 
     private LocalDateTime parseDateTime(String value, String fieldName) {

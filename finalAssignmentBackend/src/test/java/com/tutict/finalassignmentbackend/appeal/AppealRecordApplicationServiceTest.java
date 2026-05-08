@@ -7,6 +7,9 @@ import com.tutict.finalassignmentbackend.appeal.cache.AppealCachePolicy;
 import com.tutict.finalassignmentbackend.appeal.domain.AppealRecordDomainService;
 import com.tutict.finalassignmentbackend.appeal.domain.AppealUpdateMergeCoordinator;
 import com.tutict.finalassignmentbackend.appeal.domain.idempotency.AppealIdempotencyService;
+import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealEventIntentPolicy;
+import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealEventMetadata;
+import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealEventType;
 import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealBusinessPolicy;
 import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealWorkflowDecisionPolicy;
 import com.tutict.finalassignmentbackend.appeal.infrastructure.cache.AppealRecordCacheService;
@@ -27,9 +30,12 @@ import org.springframework.cache.Cache;
 import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
 import org.springframework.kafka.core.KafkaTemplate;
 
+import java.time.LocalDateTime;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -211,6 +217,196 @@ class AppealRecordApplicationServiceTest {
         verify(appealRecordMapper).selectById(10L);
         verify(appealRecordMapper, org.mockito.Mockito.never()).updateById(org.mockito.ArgumentMatchers.any(AppealRecord.class));
         verifyNoInteractions(searchIndexer, cachePolicy, eventPublisher, idempotencyService);
+    }
+
+    @Test
+    void duplicateWorkflowKafkaEventIsNoOpAndSkipsDbSearchAndCache() {
+        AppealRecordMapper appealRecordMapper = mock(AppealRecordMapper.class);
+        AppealRecordSearchIndexer searchIndexer = mock(AppealRecordSearchIndexer.class);
+        TransactionalDomainEventPublisher eventPublisher = mock(TransactionalDomainEventPublisher.class);
+        AppealCachePolicy cachePolicy = mock(AppealCachePolicy.class);
+        AppealIdempotencyService idempotencyService = mock(AppealIdempotencyService.class);
+        AppealRecordApplicationService service = new AppealRecordApplicationService(
+                appealRecordMapper,
+                new AppealRecordDomainService(),
+                searchIndexer,
+                eventPublisher,
+                cachePolicy,
+                idempotencyService,
+                new AppealWorkflowDecisionPolicy(),
+                new AppealUpdateMergeCoordinator()
+        );
+        AppealRecord existing = appealRecord();
+        existing.setProcessStatus(AppealProcessState.UNDER_REVIEW.getCode());
+        AppealRecord incoming = new AppealRecord();
+        incoming.setAppealId(10L);
+        incoming.setProcessStatus(AppealProcessState.UNDER_REVIEW.getCode());
+        when(appealRecordMapper.selectById(10L)).thenReturn(existing);
+
+        AppealEventMetadata duplicateMetadata = new AppealEventIntentPolicy()
+                .classify("update", existing, incoming, true);
+        AppealRecord returned = service.applyKafkaEvent(incoming, "update");
+
+        assertThat(duplicateMetadata.eventType()).isEqualTo(AppealEventType.NO_OP);
+        assertThat(duplicateMetadata.duplicate()).isTrue();
+        assertThat(duplicateMetadata.mutatesDatabase()).isFalse();
+        assertThat(duplicateMetadata.reindexesSearch()).isFalse();
+        assertThat(duplicateMetadata.evictsCache()).isFalse();
+        assertThat(returned).isSameAs(existing);
+        verify(appealRecordMapper).selectById(10L);
+        verify(appealRecordMapper, never()).updateById(org.mockito.ArgumentMatchers.any(AppealRecord.class));
+        verifyNoInteractions(searchIndexer, cachePolicy, eventPublisher, idempotencyService);
+    }
+
+    @Test
+    void staleWorkflowKafkaEventIsRejectedBeforeDbSearchAndCacheSideEffects() {
+        AppealRecordMapper appealRecordMapper = mock(AppealRecordMapper.class);
+        AppealRecordSearchIndexer searchIndexer = mock(AppealRecordSearchIndexer.class);
+        TransactionalDomainEventPublisher eventPublisher = mock(TransactionalDomainEventPublisher.class);
+        AppealCachePolicy cachePolicy = mock(AppealCachePolicy.class);
+        AppealIdempotencyService idempotencyService = mock(AppealIdempotencyService.class);
+        AppealRecordApplicationService service = new AppealRecordApplicationService(
+                appealRecordMapper,
+                new AppealRecordDomainService(),
+                searchIndexer,
+                eventPublisher,
+                cachePolicy,
+                idempotencyService,
+                new AppealWorkflowDecisionPolicy(),
+                new AppealUpdateMergeCoordinator()
+        );
+        AppealRecord existing = appealRecord();
+        existing.setProcessStatus(AppealProcessState.UNPROCESSED.getCode());
+        existing.setUpdatedAt(LocalDateTime.parse("2026-05-08T14:00:00"));
+        AppealRecord incoming = new AppealRecord();
+        incoming.setAppealId(10L);
+        incoming.setProcessStatus(AppealProcessState.UNDER_REVIEW.getCode());
+        incoming.setUpdatedAt(LocalDateTime.parse("2026-05-08T13:59:00"));
+        when(appealRecordMapper.selectById(10L)).thenReturn(existing);
+
+        assertThatThrownBy(() -> service.applyKafkaEvent(incoming, "update"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Stale appeal update rejected");
+
+        verify(appealRecordMapper).selectById(10L);
+        verify(appealRecordMapper, never()).updateById(org.mockito.ArgumentMatchers.any(AppealRecord.class));
+        verifyNoInteractions(searchIndexer, cachePolicy, eventPublisher, idempotencyService);
+    }
+
+    @Test
+    void fullUpdateKafkaEventMutatesBusinessFieldsAndTriggersAfterCommitSideEffects() {
+        AppealRecordMapper appealRecordMapper = mock(AppealRecordMapper.class);
+        AppealRecordSearchIndexer searchIndexer = mock(AppealRecordSearchIndexer.class);
+        TransactionalDomainEventPublisher eventPublisher = mock(TransactionalDomainEventPublisher.class);
+        AppealCachePolicy cachePolicy = mock(AppealCachePolicy.class);
+        AppealIdempotencyService idempotencyService = mock(AppealIdempotencyService.class);
+        AppealRecordApplicationService service = new AppealRecordApplicationService(
+                appealRecordMapper,
+                new AppealRecordDomainService(),
+                searchIndexer,
+                eventPublisher,
+                cachePolicy,
+                idempotencyService,
+                new AppealWorkflowDecisionPolicy(),
+                new AppealUpdateMergeCoordinator()
+        );
+        AppealRecord existing = appealRecord();
+        existing.setAppellantName("Old Name");
+        existing.setProcessStatus(AppealProcessState.UNPROCESSED.getCode());
+        AppealRecord incoming = new AppealRecord();
+        incoming.setAppealId(10L);
+        incoming.setAppellantName("New Name");
+        when(appealRecordMapper.selectById(10L)).thenReturn(existing);
+        when(appealRecordMapper.updateById(org.mockito.ArgumentMatchers.any(AppealRecord.class))).thenReturn(1);
+        ArgumentCaptor<AppealRecord> merged = ArgumentCaptor.forClass(AppealRecord.class);
+
+        AppealRecord updated = service.applyKafkaEvent(incoming, "update");
+
+        verify(appealRecordMapper).updateById(merged.capture());
+        verify(searchIndexer).indexAfterCommit(merged.getValue());
+        verify(cachePolicy).onWrite();
+        verifyNoInteractions(eventPublisher, idempotencyService);
+        assertThat(updated).isSameAs(merged.getValue());
+        assertThat(merged.getValue().getAppellantName()).isEqualTo("New Name");
+        assertThat(merged.getValue().getProcessStatus()).isEqualTo(AppealProcessState.UNPROCESSED.getCode());
+    }
+
+    @Test
+    void workflowOnlyKafkaEventMutatesWorkflowFieldsWithoutBusinessOverwrite() {
+        AppealRecordMapper appealRecordMapper = mock(AppealRecordMapper.class);
+        AppealRecordSearchIndexer searchIndexer = mock(AppealRecordSearchIndexer.class);
+        TransactionalDomainEventPublisher eventPublisher = mock(TransactionalDomainEventPublisher.class);
+        AppealCachePolicy cachePolicy = mock(AppealCachePolicy.class);
+        AppealIdempotencyService idempotencyService = mock(AppealIdempotencyService.class);
+        AppealRecordApplicationService service = new AppealRecordApplicationService(
+                appealRecordMapper,
+                new AppealRecordDomainService(),
+                searchIndexer,
+                eventPublisher,
+                cachePolicy,
+                idempotencyService,
+                new AppealWorkflowDecisionPolicy(),
+                new AppealUpdateMergeCoordinator()
+        );
+        AppealRecord existing = appealRecord();
+        existing.setAppellantName("Stable Name");
+        existing.setProcessStatus(AppealProcessState.UNPROCESSED.getCode());
+        AppealRecord incoming = new AppealRecord();
+        incoming.setAppealId(10L);
+        incoming.setProcessStatus(AppealProcessState.UNDER_REVIEW.getCode());
+        when(appealRecordMapper.selectById(10L)).thenReturn(existing);
+        when(appealRecordMapper.updateById(org.mockito.ArgumentMatchers.any(AppealRecord.class))).thenReturn(1);
+        ArgumentCaptor<AppealRecord> merged = ArgumentCaptor.forClass(AppealRecord.class);
+
+        AppealRecord updated = service.applyKafkaEvent(incoming, "update");
+
+        verify(appealRecordMapper).updateById(merged.capture());
+        verify(searchIndexer).indexAfterCommit(merged.getValue());
+        verify(cachePolicy).onWrite();
+        verifyNoInteractions(eventPublisher, idempotencyService);
+        assertThat(updated).isSameAs(merged.getValue());
+        assertThat(merged.getValue().getAppellantName()).isEqualTo("Stable Name");
+        assertThat(merged.getValue().getProcessStatus()).isEqualTo(AppealProcessState.UNDER_REVIEW.getCode());
+    }
+
+    @Test
+    void noOpUpdateEventSuppressesKafkaRepublishSearchAndCacheSideEffects() {
+        AppealRecordMapper appealRecordMapper = mock(AppealRecordMapper.class);
+        AppealRecordSearchIndexer searchIndexer = mock(AppealRecordSearchIndexer.class);
+        TransactionalDomainEventPublisher eventPublisher = mock(TransactionalDomainEventPublisher.class);
+        AppealCachePolicy cachePolicy = mock(AppealCachePolicy.class);
+        AppealIdempotencyService idempotencyService = mock(AppealIdempotencyService.class);
+        AppealRecordApplicationService service = new AppealRecordApplicationService(
+                appealRecordMapper,
+                new AppealRecordDomainService(),
+                searchIndexer,
+                eventPublisher,
+                cachePolicy,
+                idempotencyService,
+                new AppealWorkflowDecisionPolicy(),
+                new AppealUpdateMergeCoordinator()
+        );
+        AppealRecord existing = appealRecord();
+        existing.setAppellantName("Same Name");
+        AppealRecord incoming = new AppealRecord();
+        incoming.setAppealId(10L);
+        incoming.setOffenseId(20L);
+        incoming.setAppellantName("Same Name");
+        when(appealRecordMapper.selectById(10L)).thenReturn(existing);
+
+        service.checkAndInsertIdempotency("key-noop", incoming, "update");
+        AppealRecord returned = service.updateAppeal(incoming);
+
+        assertThat(returned).isSameAs(existing);
+        verify(idempotencyService).checkAndInsert("key-noop");
+        verify(idempotencyService).markPendingSuccess("key-noop", 10L);
+        verify(eventPublisher, never()).publishAppealRecordAfterCommit(
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.any(AppealRecord.class)
+        );
+        verify(appealRecordMapper, never()).updateById(org.mockito.ArgumentMatchers.any(AppealRecord.class));
+        verifyNoInteractions(searchIndexer, cachePolicy);
     }
 
     @Test

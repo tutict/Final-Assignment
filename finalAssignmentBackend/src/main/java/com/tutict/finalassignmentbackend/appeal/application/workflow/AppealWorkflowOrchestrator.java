@@ -36,6 +36,11 @@ public class AppealWorkflowOrchestrator {
     }
 
     @Transactional
+    public AppealRecord applyKafkaEvent(AppealRecord appealRecord, String action) {
+        return applicationService.applyKafkaEvent(appealRecord, action);
+    }
+
+    @Transactional
     public void deleteAppeal(Long appealId) {
         applicationService.deleteAppeal(appealId);
     }

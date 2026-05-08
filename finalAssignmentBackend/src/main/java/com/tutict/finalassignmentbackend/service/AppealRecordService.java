@@ -5,7 +5,6 @@ import com.tutict.finalassignmentbackend.appeal.query.AppealRecordQueryService;
 import com.tutict.finalassignmentbackend.config.statemachine.states.AppealProcessState;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.AppealRecord;
-import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,20 +28,17 @@ public class AppealRecordService {
     }
 
     @Transactional
-    @CacheEvict(cacheNames = CACHE, allEntries = true)
     @WsAction(service = "AppealRecordService", action = "checkAndInsertIdempotency")
     public void checkAndInsertIdempotency(String idempotencyKey, AppealRecord appealRecord, String action) {
         workflowOrchestrator.checkAndInsertIdempotency(idempotencyKey, appealRecord, action);
     }
 
     @Transactional
-    @CacheEvict(cacheNames = CACHE, allEntries = true)
     public AppealRecord createAppeal(AppealRecord appealRecord) {
         return workflowOrchestrator.createAppeal(appealRecord);
     }
 
     @Transactional
-    @CacheEvict(cacheNames = CACHE, allEntries = true)
     public AppealRecord updateAppeal(AppealRecord appealRecord) {
         return workflowOrchestrator.updateAppeal(appealRecord);
     }
@@ -55,7 +51,11 @@ public class AppealRecordService {
     }
 
     @Transactional
-    @CacheEvict(cacheNames = CACHE, allEntries = true)
+    public AppealRecord applyKafkaEvent(AppealRecord appealRecord, String action) {
+        return workflowOrchestrator.applyKafkaEvent(appealRecord, action);
+    }
+
+    @Transactional
     public void deleteAppeal(Long appealId) {
         workflowOrchestrator.deleteAppeal(appealId);
     }

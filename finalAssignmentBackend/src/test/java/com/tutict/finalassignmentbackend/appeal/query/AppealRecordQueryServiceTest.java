@@ -5,6 +5,8 @@ import com.tutict.finalassignmentbackend.appeal.domain.AppealRecordDomainService
 import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealQueryPolicy;
 import com.tutict.finalassignmentbackend.appeal.infrastructure.search.AppealRecordSearchIndexer;
 import com.tutict.finalassignmentbackend.appeal.query.dto.AppealPageRequest;
+import com.tutict.finalassignmentbackend.appeal.read.AppealReadAssembler;
+import com.tutict.finalassignmentbackend.appeal.read.AppealReadModel;
 import com.tutict.finalassignmentbackend.entity.AppealRecord;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -25,6 +27,8 @@ import static org.mockito.Mockito.when;
 
 class AppealRecordQueryServiceTest {
 
+    private static final AppealReadAssembler READ_ASSEMBLER = new AppealReadAssembler();
+
     @Test
     void esHitReturnsSearchResultWithoutDbFallbackOrBackfill() {
         AppealSearchQueryAdapter searchQueryAdapter = mock(AppealSearchQueryAdapter.class);
@@ -35,7 +39,7 @@ class AppealRecordQueryServiceTest {
         AppealRecord indexed = appealRecord(10L);
 
         when(searchQueryAdapter.searchByAppealNumberPrefix(eq("AP"), any(AppealPageRequest.class)))
-                .thenReturn(List.of(indexed));
+                .thenReturn(List.of(readModel(indexed)));
 
         List<AppealRecord> result = service.searchByAppealNumberPrefix("AP", 1, 20);
 
@@ -58,7 +62,7 @@ class AppealRecordQueryServiceTest {
 
         List<AppealRecord> result = service.findByOffenseId(20L, 2, 5);
 
-        assertThat(result).isSameAs(fallback);
+        assertThat(result).containsExactlyElementsOf(fallback);
         verify(cachePolicy).markFallbackRead();
         verify(backfillService).scheduleAll(fallback);
     }
@@ -75,7 +79,7 @@ class AppealRecordQueryServiceTest {
         deleted.setDeletedAt(LocalDateTime.parse("2026-05-08T12:00:00"));
 
         when(searchQueryAdapter.findByOffenseId(eq(20L), any(AppealPageRequest.class)))
-                .thenReturn(List.of(deleted, visible));
+                .thenReturn(List.of(readModel(deleted), readModel(visible)));
 
         List<AppealRecord> result = service.findByOffenseId(20L, 1, 20);
 
@@ -97,7 +101,7 @@ class AppealRecordQueryServiceTest {
         AppealRecord visible = appealRecord(19L);
 
         when(searchQueryAdapter.findByOffenseId(eq(20L), any(AppealPageRequest.class)))
-                .thenReturn(List.of(searchDeleted));
+                .thenReturn(List.of(readModel(searchDeleted)));
         when(dbFallbackReader.findByOffenseId(eq(20L), any(AppealPageRequest.class)))
                 .thenReturn(List.of(fallbackDeleted, visible));
 
@@ -122,7 +126,7 @@ class AppealRecordQueryServiceTest {
 
         AppealRecord result = service.getAppealById(12L);
 
-        assertThat(result).isSameAs(fallback);
+        assertThat(result).isEqualTo(fallback);
         verify(cachePolicy).markFallbackRead();
         verify(backfillService).schedule(fallback);
     }
@@ -142,7 +146,7 @@ class AppealRecordQueryServiceTest {
 
         List<AppealRecord> result = service.searchByProcessStatus("PENDING", 3, 10);
 
-        assertThat(result).isSameAs(fallback);
+        assertThat(result).containsExactlyElementsOf(fallback);
         verify(searchQueryAdapter).searchByProcessStatus(eq("PENDING"), pageRequest.capture());
         assertThat(pageRequest.getValue().page()).isEqualTo(3);
         assertThat(pageRequest.getValue().size()).isEqualTo(10);
@@ -204,5 +208,9 @@ class AppealRecordQueryServiceTest {
         appealRecord.setOffenseId(20L);
         appealRecord.setAppealNumber("AP-" + appealId);
         return appealRecord;
+    }
+
+    private static AppealReadModel readModel(AppealRecord appealRecord) {
+        return READ_ASSEMBLER.fromEntity(appealRecord);
     }
 }
