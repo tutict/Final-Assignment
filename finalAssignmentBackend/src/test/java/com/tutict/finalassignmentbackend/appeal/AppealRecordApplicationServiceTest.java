@@ -185,6 +185,35 @@ class AppealRecordApplicationServiceTest {
     }
 
     @Test
+    void duplicateWorkflowUpdateSkipsDbAndAfterCommitSideEffects() {
+        AppealRecordMapper appealRecordMapper = mock(AppealRecordMapper.class);
+        AppealRecordSearchIndexer searchIndexer = mock(AppealRecordSearchIndexer.class);
+        TransactionalDomainEventPublisher eventPublisher = mock(TransactionalDomainEventPublisher.class);
+        AppealCachePolicy cachePolicy = mock(AppealCachePolicy.class);
+        AppealIdempotencyService idempotencyService = mock(AppealIdempotencyService.class);
+        AppealRecordApplicationService service = new AppealRecordApplicationService(
+                appealRecordMapper,
+                new AppealRecordDomainService(),
+                searchIndexer,
+                eventPublisher,
+                cachePolicy,
+                idempotencyService,
+                new AppealWorkflowDecisionPolicy(),
+                new AppealUpdateMergeCoordinator()
+        );
+        AppealRecord existing = appealRecord();
+        existing.setProcessStatus(AppealProcessState.UNPROCESSED.getCode());
+        when(appealRecordMapper.selectById(10L)).thenReturn(existing);
+
+        AppealRecord returned = service.updateProcessStatus(10L, AppealProcessState.UNPROCESSED);
+
+        assertThat(returned).isSameAs(existing);
+        verify(appealRecordMapper).selectById(10L);
+        verify(appealRecordMapper, org.mockito.Mockito.never()).updateById(org.mockito.ArgumentMatchers.any(AppealRecord.class));
+        verifyNoInteractions(searchIndexer, cachePolicy, eventPublisher, idempotencyService);
+    }
+
+    @Test
     void idempotencyServiceKeepsExistingHistorySemantics() {
         SysRequestHistoryMapper mapper = mock(SysRequestHistoryMapper.class);
         AppealIdempotencyService service = new AppealIdempotencyService(mapper, new AppealBusinessPolicy());

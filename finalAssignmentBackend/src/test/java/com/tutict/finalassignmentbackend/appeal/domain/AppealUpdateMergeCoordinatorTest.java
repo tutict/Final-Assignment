@@ -167,6 +167,19 @@ class AppealUpdateMergeCoordinatorTest {
     }
 
     @Test
+    void staleWorkflowUpdateIsRejectedBeforeMerge() {
+        AppealRecord existing = existing();
+        AppealRecord incoming = new AppealRecord();
+        incoming.setAppealId(existing.getAppealId());
+        incoming.setProcessStatus(AppealProcessState.UNDER_REVIEW.getCode());
+        incoming.setUpdatedAt(existing.getUpdatedAt().minusMinutes(1));
+
+        assertThatThrownBy(() -> coordinator.merge(existing, incoming, UpdateIntent.WORKFLOW_UPDATE, workflowCaller))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Stale appeal update rejected");
+    }
+
+    @Test
     void systemUpdateDoesNotApplyBusinessFields() {
         AppealRecord existing = existing();
         AppealRecord incoming = new AppealRecord();

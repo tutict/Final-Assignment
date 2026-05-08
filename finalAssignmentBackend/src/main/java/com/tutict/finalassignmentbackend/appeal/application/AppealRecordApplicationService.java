@@ -107,6 +107,9 @@ public class AppealRecordApplicationService {
         if (newState != null) {
             incoming.setProcessStatus(newState.getCode());
         }
+        if (updateMergeCoordinator.isNoOp(existing, incoming, UpdateIntent.WORKFLOW_UPDATE)) {
+            return existing;
+        }
         AppealRecord merged = updateMergeCoordinator.merge(
                 existing,
                 incoming,
