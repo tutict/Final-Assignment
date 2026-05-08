@@ -132,6 +132,7 @@ class AppealRecordApplicationServiceTest {
         incoming.setOffenseId(99L);
         incoming.setAppealNumber("ILLEGAL");
         incoming.setAppellantName("New Name");
+        incoming.setProcessStatus(AppealProcessState.APPROVED.getCode());
         when(appealRecordMapper.selectById(10L)).thenReturn(existing);
         when(appealRecordMapper.updateById(org.mockito.ArgumentMatchers.any(AppealRecord.class))).thenReturn(1);
         ArgumentCaptor<AppealRecord> merged = ArgumentCaptor.forClass(AppealRecord.class);
@@ -146,6 +147,7 @@ class AppealRecordApplicationServiceTest {
         assertThat(merged.getValue().getOffenseId()).isEqualTo(20L);
         assertThat(merged.getValue().getAppealNumber()).isEqualTo("A-10");
         assertThat(merged.getValue().getAppellantName()).isEqualTo("New Name");
+        assertThat(merged.getValue().getProcessStatus()).isEqualTo(AppealProcessState.UNPROCESSED.getCode());
     }
 
     @Test

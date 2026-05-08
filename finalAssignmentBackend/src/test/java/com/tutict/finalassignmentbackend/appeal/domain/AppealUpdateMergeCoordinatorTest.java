@@ -1,5 +1,6 @@
 package com.tutict.finalassignmentbackend.appeal.domain;
 
+import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealCallerMetadata;
 import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealUpdateIntentPolicy;
 import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealUpdateIntentPolicy.UpdateIntent;
 import com.tutict.finalassignmentbackend.config.statemachine.states.AppealProcessState;
@@ -15,6 +16,9 @@ class AppealUpdateMergeCoordinatorTest {
 
     private final AppealUpdateIntentPolicy intentPolicy = new AppealUpdateIntentPolicy();
     private final AppealUpdateMergeCoordinator coordinator = new AppealUpdateMergeCoordinator();
+    private final AppealCallerMetadata controllerCaller = AppealCallerMetadata.controller("test-controller");
+    private final AppealCallerMetadata workflowCaller = AppealCallerMetadata.workflow("test-workflow");
+    private final AppealCallerMetadata systemCaller = AppealCallerMetadata.system("test-system");
 
     @Test
     void intentPolicyDefinesAllowedFieldsPerIntent() {
@@ -36,7 +40,7 @@ class AppealUpdateMergeCoordinatorTest {
         incoming.setAppealId(existing.getAppealId());
         incoming.setProcessStatus(AppealProcessState.UNDER_REVIEW.getCode());
 
-        AppealRecord merged = coordinator.merge(existing, incoming, UpdateIntent.WORKFLOW_UPDATE);
+        AppealRecord merged = coordinator.merge(existing, incoming, UpdateIntent.WORKFLOW_UPDATE, workflowCaller);
 
         assertThat(merged.getAppellantName()).isEqualTo(existing.getAppellantName());
         assertThat(merged.getAppealReason()).isEqualTo(existing.getAppealReason());
@@ -51,9 +55,55 @@ class AppealUpdateMergeCoordinatorTest {
         incoming.setProcessStatus(AppealProcessState.UNDER_REVIEW.getCode());
         incoming.setAppellantName("Illegal Name");
 
-        assertThatThrownBy(() -> coordinator.merge(existing, incoming, UpdateIntent.WORKFLOW_UPDATE))
+        assertThatThrownBy(() -> coordinator.merge(existing, incoming, UpdateIntent.WORKFLOW_UPDATE, workflowCaller))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("WORKFLOW_UPDATE cannot change business fields");
+    }
+
+    @Test
+    void fullUpdateCallerIsAcceptedForFullUpdateOnly() {
+        AppealRecord existing = existing();
+        AppealRecord incoming = new AppealRecord();
+        incoming.setAppealId(existing.getAppealId());
+        incoming.setRemarks("controller update");
+
+        AppealRecord merged = coordinator.merge(existing, incoming, UpdateIntent.FULL_UPDATE, controllerCaller);
+
+        assertThat(merged.getRemarks()).isEqualTo("controller update");
+        assertThatThrownBy(() -> coordinator.merge(existing, incoming, UpdateIntent.WORKFLOW_UPDATE, controllerCaller))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("CONTROLLER cannot execute WORKFLOW_UPDATE");
+    }
+
+    @Test
+    void unknownCallerIsRejectedWithoutFallbackIntent() {
+        AppealRecord existing = existing();
+        AppealRecord incoming = new AppealRecord();
+        incoming.setAppealId(existing.getAppealId());
+
+        assertThatThrownBy(() -> coordinator.merge(
+                existing,
+                incoming,
+                UpdateIntent.FULL_UPDATE,
+                AppealCallerMetadata.unknown()
+        ))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Unknown appeal update caller");
+        assertThatThrownBy(() -> coordinator.merge(existing, incoming, UpdateIntent.FULL_UPDATE))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Unknown appeal update caller");
+    }
+
+    @Test
+    void workflowCallerCannotUseFullUpdateIntent() {
+        AppealRecord existing = existing();
+        AppealRecord incoming = new AppealRecord();
+        incoming.setAppealId(existing.getAppealId());
+        incoming.setAppellantName("Illegal workflow overwrite");
+
+        assertThatThrownBy(() -> coordinator.merge(existing, incoming, UpdateIntent.FULL_UPDATE, workflowCaller))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("WORKFLOW cannot execute FULL_UPDATE");
     }
 
     @Test
@@ -67,7 +117,7 @@ class AppealUpdateMergeCoordinatorTest {
         incoming.setAppealReason("New reason");
         incoming.setProcessStatus(AppealProcessState.APPROVED.getCode());
 
-        AppealRecord merged = coordinator.merge(existing, incoming, UpdateIntent.FULL_UPDATE);
+        AppealRecord merged = coordinator.merge(existing, incoming, UpdateIntent.FULL_UPDATE, controllerCaller);
 
         assertThat(merged.getOffenseId()).isEqualTo(existing.getOffenseId());
         assertThat(merged.getAppealNumber()).isEqualTo(existing.getAppealNumber());
@@ -77,7 +127,7 @@ class AppealUpdateMergeCoordinatorTest {
     }
 
     @Test
-    void partialUpdateIsNullSafeAndKeepsWorkflowIntegrity() {
+    void partialUpdateRequiresExplicitFutureCallerBeforeUse() {
         AppealRecord existing = existing();
         AppealRecord incoming = new AppealRecord();
         incoming.setAppealId(existing.getAppealId());
@@ -85,11 +135,9 @@ class AppealUpdateMergeCoordinatorTest {
         incoming.setRemarks("Patch note");
         incoming.setProcessHandler("illegal-handler");
 
-        AppealRecord merged = coordinator.merge(existing, incoming, UpdateIntent.PARTIAL_UPDATE);
-
-        assertThat(merged.getAppellantName()).isEqualTo(existing.getAppellantName());
-        assertThat(merged.getRemarks()).isEqualTo("Patch note");
-        assertThat(merged.getProcessHandler()).isEqualTo(existing.getProcessHandler());
+        assertThatThrownBy(() -> coordinator.merge(existing, incoming, UpdateIntent.PARTIAL_UPDATE, controllerCaller))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("CONTROLLER cannot execute PARTIAL_UPDATE");
     }
 
     @Test
@@ -100,7 +148,7 @@ class AppealUpdateMergeCoordinatorTest {
         incoming.setAppealId(existing.getAppealId());
         incoming.setAppealReason("Illegal terminal mutation");
 
-        assertThatThrownBy(() -> coordinator.merge(existing, incoming, UpdateIntent.FULL_UPDATE))
+        assertThatThrownBy(() -> coordinator.merge(existing, incoming, UpdateIntent.FULL_UPDATE, controllerCaller))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Cannot update terminal appeal field: appealReason");
     }
@@ -113,7 +161,7 @@ class AppealUpdateMergeCoordinatorTest {
         incoming.setUpdatedAt(existing.getUpdatedAt().minusMinutes(1));
         incoming.setRemarks("stale");
 
-        assertThatThrownBy(() -> coordinator.merge(existing, incoming, UpdateIntent.FULL_UPDATE))
+        assertThatThrownBy(() -> coordinator.merge(existing, incoming, UpdateIntent.FULL_UPDATE, controllerCaller))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Stale appeal update rejected");
     }
@@ -127,12 +175,12 @@ class AppealUpdateMergeCoordinatorTest {
         incoming.setUpdatedBy("system");
         incoming.setAppellantName("Illegal Name");
 
-        assertThatThrownBy(() -> coordinator.merge(existing, incoming, UpdateIntent.SYSTEM_UPDATE))
+        assertThatThrownBy(() -> coordinator.merge(existing, incoming, UpdateIntent.SYSTEM_UPDATE, systemCaller))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("SYSTEM_UPDATE cannot change business fields");
 
         incoming.setAppellantName(null);
-        AppealRecord merged = coordinator.merge(existing, incoming, UpdateIntent.SYSTEM_UPDATE);
+        AppealRecord merged = coordinator.merge(existing, incoming, UpdateIntent.SYSTEM_UPDATE, systemCaller);
         assertThat(merged.getAcceptanceStatus()).isEqualTo("RECHECKED");
         assertThat(merged.getUpdatedBy()).isEqualTo("system");
         assertThat(merged.getAppellantName()).isEqualTo(existing.getAppellantName());
@@ -144,8 +192,8 @@ class AppealUpdateMergeCoordinatorTest {
         AppealRecord incoming = new AppealRecord();
         incoming.setAppealId(existing.getAppealId());
 
-        AppealRecord first = coordinator.merge(existing, incoming, UpdateIntent.FULL_UPDATE);
-        AppealRecord second = coordinator.merge(existing, incoming, UpdateIntent.FULL_UPDATE);
+        AppealRecord first = coordinator.merge(existing, incoming, UpdateIntent.FULL_UPDATE, controllerCaller);
+        AppealRecord second = coordinator.merge(existing, incoming, UpdateIntent.FULL_UPDATE, controllerCaller);
 
         assertThat(coordinator.isNoOp(existing, incoming, UpdateIntent.FULL_UPDATE)).isTrue();
         assertThat(first).isEqualTo(second);

@@ -4,6 +4,7 @@ import com.tutict.finalassignmentbackend.appeal.cache.AppealCachePolicy;
 import com.tutict.finalassignmentbackend.appeal.domain.AppealRecordDomainService;
 import com.tutict.finalassignmentbackend.appeal.domain.AppealUpdateMergeCoordinator;
 import com.tutict.finalassignmentbackend.appeal.domain.idempotency.AppealIdempotencyService;
+import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealCallerMetadata;
 import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealUpdateIntentPolicy.UpdateIntent;
 import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealWorkflowDecisionPolicy;
 import com.tutict.finalassignmentbackend.appeal.infrastructure.messaging.TransactionalDomainEventPublisher;
@@ -19,6 +20,11 @@ import java.util.Objects;
 
 @Service
 public class AppealRecordApplicationService {
+
+    private static final AppealCallerMetadata FULL_UPDATE_CALLER =
+            AppealCallerMetadata.controller("AppealRecordApplicationService.updateAppeal");
+    private static final AppealCallerMetadata WORKFLOW_UPDATE_CALLER =
+            AppealCallerMetadata.workflow("AppealRecordApplicationService.updateProcessStatus");
 
     private final AppealRecordMapper appealRecordMapper;
     private final AppealRecordDomainService domainService;
@@ -74,7 +80,12 @@ public class AppealRecordApplicationService {
         if (workflowDecisionPolicy.isMissingAppeal(existing)) {
             throw new IllegalStateException("Appeal not found: " + appealRecord.getAppealId());
         }
-        AppealRecord merged = updateMergeCoordinator.merge(existing, appealRecord, UpdateIntent.FULL_UPDATE);
+        AppealRecord merged = updateMergeCoordinator.merge(
+                existing,
+                appealRecord,
+                UpdateIntent.FULL_UPDATE,
+                FULL_UPDATE_CALLER
+        );
         merged.setUpdatedAt(LocalDateTime.now());
         int rows = appealRecordMapper.updateById(merged);
         if (workflowDecisionPolicy.isMissingMutation(rows)) {
@@ -96,7 +107,12 @@ public class AppealRecordApplicationService {
         if (newState != null) {
             incoming.setProcessStatus(newState.getCode());
         }
-        AppealRecord merged = updateMergeCoordinator.merge(existing, incoming, UpdateIntent.WORKFLOW_UPDATE);
+        AppealRecord merged = updateMergeCoordinator.merge(
+                existing,
+                incoming,
+                UpdateIntent.WORKFLOW_UPDATE,
+                WORKFLOW_UPDATE_CALLER
+        );
         merged.setUpdatedAt(LocalDateTime.now());
         int rows = appealRecordMapper.updateById(merged);
         if (workflowDecisionPolicy.isMissingMutation(rows)) {

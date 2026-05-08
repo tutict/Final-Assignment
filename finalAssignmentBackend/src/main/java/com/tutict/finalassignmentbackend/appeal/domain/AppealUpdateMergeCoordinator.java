@@ -1,5 +1,7 @@
 package com.tutict.finalassignmentbackend.appeal.domain;
 
+import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealCallerIntentPolicy;
+import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealCallerMetadata;
 import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealUpdateIntentPolicy;
 import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealUpdateIntentPolicy.UpdateIntent;
 import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealWorkflowDecisionPolicy;
@@ -14,25 +16,43 @@ public class AppealUpdateMergeCoordinator {
 
     private final AppealFieldMergeService fieldMergeService;
     private final AppealUpdateIntentPolicy intentPolicy;
+    private final AppealCallerIntentPolicy callerIntentPolicy;
     private final AppealWorkflowDecisionPolicy workflowDecisionPolicy;
 
     public AppealUpdateMergeCoordinator() {
-        this(new AppealFieldMergeService(), new AppealUpdateIntentPolicy(), new AppealWorkflowDecisionPolicy());
+        this(
+                new AppealFieldMergeService(),
+                new AppealUpdateIntentPolicy(),
+                new AppealCallerIntentPolicy(),
+                new AppealWorkflowDecisionPolicy()
+        );
     }
 
     public AppealUpdateMergeCoordinator(
             AppealFieldMergeService fieldMergeService,
             AppealUpdateIntentPolicy intentPolicy,
+            AppealCallerIntentPolicy callerIntentPolicy,
             AppealWorkflowDecisionPolicy workflowDecisionPolicy
     ) {
         this.fieldMergeService = fieldMergeService;
         this.intentPolicy = intentPolicy;
+        this.callerIntentPolicy = callerIntentPolicy;
         this.workflowDecisionPolicy = workflowDecisionPolicy;
     }
 
     public AppealRecord merge(AppealRecord existing, AppealRecord incoming, UpdateIntent intent) {
+        return merge(existing, incoming, intent, AppealCallerMetadata.unknown());
+    }
+
+    public AppealRecord merge(
+            AppealRecord existing,
+            AppealRecord incoming,
+            UpdateIntent intent,
+            AppealCallerMetadata callerMetadata
+    ) {
         Objects.requireNonNull(existing, "Existing appeal record cannot be null");
         Objects.requireNonNull(incoming, "Incoming appeal record cannot be null");
+        callerIntentPolicy.validate(callerMetadata, intent);
         intentPolicy.validateIntent(existing, incoming, intent);
         return switch (intent) {
             case FULL_UPDATE, PARTIAL_UPDATE -> fieldMergeService.merge(existing, incoming);
