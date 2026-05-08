@@ -4,11 +4,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.appeal.application.AppealRecordApplicationService;
 import com.tutict.finalassignmentbackend.appeal.application.workflow.AppealWorkflowOrchestrator;
 import com.tutict.finalassignmentbackend.appeal.cache.AppealCachePolicy;
-import com.tutict.finalassignmentbackend.appeal.domain.AppealFieldMergeService;
 import com.tutict.finalassignmentbackend.appeal.domain.AppealRecordDomainService;
+import com.tutict.finalassignmentbackend.appeal.domain.AppealUpdateMergeCoordinator;
 import com.tutict.finalassignmentbackend.appeal.domain.idempotency.AppealIdempotencyService;
 import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealBusinessPolicy;
-import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealFieldMutationPolicy;
 import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealWorkflowDecisionPolicy;
 import com.tutict.finalassignmentbackend.appeal.infrastructure.cache.AppealRecordCacheService;
 import com.tutict.finalassignmentbackend.appeal.infrastructure.messaging.AppealRecordEventPublisher;
@@ -53,7 +52,7 @@ class AppealRecordApplicationServiceTest {
                 cachePolicy,
                 idempotencyService,
                 new AppealWorkflowDecisionPolicy(),
-                new AppealFieldMergeService()
+                new AppealUpdateMergeCoordinator()
         );
         AppealRecord appeal = appealRecord();
 
@@ -94,7 +93,7 @@ class AppealRecordApplicationServiceTest {
                 cachePolicy,
                 idempotencyService,
                 new AppealWorkflowDecisionPolicy(),
-                new AppealFieldMergeService()
+                new AppealUpdateMergeCoordinator()
         );
         AppealRecord appeal = appealRecord();
         appeal.setProcessStatus(AppealProcessState.APPROVED.getCode());
@@ -123,7 +122,7 @@ class AppealRecordApplicationServiceTest {
                 cachePolicy,
                 idempotencyService,
                 new AppealWorkflowDecisionPolicy(),
-                new AppealFieldMergeService(new AppealFieldMutationPolicy())
+                new AppealUpdateMergeCoordinator()
         );
         AppealRecord existing = appealRecord();
         existing.setAppellantName("Old Name");
@@ -147,6 +146,40 @@ class AppealRecordApplicationServiceTest {
         assertThat(merged.getValue().getOffenseId()).isEqualTo(20L);
         assertThat(merged.getValue().getAppealNumber()).isEqualTo("A-10");
         assertThat(merged.getValue().getAppellantName()).isEqualTo("New Name");
+    }
+
+    @Test
+    void applicationServiceUsesWorkflowIntentWithoutBusinessOverwrite() {
+        AppealRecordMapper appealRecordMapper = mock(AppealRecordMapper.class);
+        AppealRecordSearchIndexer searchIndexer = mock(AppealRecordSearchIndexer.class);
+        TransactionalDomainEventPublisher eventPublisher = mock(TransactionalDomainEventPublisher.class);
+        AppealCachePolicy cachePolicy = mock(AppealCachePolicy.class);
+        AppealIdempotencyService idempotencyService = mock(AppealIdempotencyService.class);
+        AppealRecordApplicationService service = new AppealRecordApplicationService(
+                appealRecordMapper,
+                new AppealRecordDomainService(),
+                searchIndexer,
+                eventPublisher,
+                cachePolicy,
+                idempotencyService,
+                new AppealWorkflowDecisionPolicy(),
+                new AppealUpdateMergeCoordinator()
+        );
+        AppealRecord existing = appealRecord();
+        existing.setAppellantName("Stable Name");
+        existing.setProcessStatus(AppealProcessState.UNPROCESSED.getCode());
+        when(appealRecordMapper.selectById(10L)).thenReturn(existing);
+        when(appealRecordMapper.updateById(org.mockito.ArgumentMatchers.any(AppealRecord.class))).thenReturn(1);
+        ArgumentCaptor<AppealRecord> merged = ArgumentCaptor.forClass(AppealRecord.class);
+
+        AppealRecord updated = service.updateProcessStatus(10L, AppealProcessState.UNDER_REVIEW);
+
+        verify(appealRecordMapper).updateById(merged.capture());
+        verify(searchIndexer).indexAfterCommit(merged.getValue());
+        verify(cachePolicy).onWrite();
+        assertThat(updated).isSameAs(merged.getValue());
+        assertThat(merged.getValue().getAppellantName()).isEqualTo("Stable Name");
+        assertThat(merged.getValue().getProcessStatus()).isEqualTo(AppealProcessState.UNDER_REVIEW.getCode());
     }
 
     @Test
