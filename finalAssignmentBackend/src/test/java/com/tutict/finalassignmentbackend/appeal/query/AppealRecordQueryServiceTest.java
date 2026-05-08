@@ -1,5 +1,6 @@
 package com.tutict.finalassignmentbackend.appeal.query;
 
+import com.tutict.finalassignmentbackend.appeal.cache.AppealCachePolicy;
 import com.tutict.finalassignmentbackend.appeal.domain.AppealRecordDomainService;
 import com.tutict.finalassignmentbackend.appeal.infrastructure.search.AppealRecordSearchIndexer;
 import com.tutict.finalassignmentbackend.appeal.query.dto.AppealPageRequest;
@@ -27,7 +28,8 @@ class AppealRecordQueryServiceTest {
         AppealSearchQueryAdapter searchQueryAdapter = mock(AppealSearchQueryAdapter.class);
         AppealDbFallbackReader dbFallbackReader = mock(AppealDbFallbackReader.class);
         AppealSearchBackfillService backfillService = mock(AppealSearchBackfillService.class);
-        AppealRecordQueryService service = service(searchQueryAdapter, dbFallbackReader, backfillService);
+        AppealCachePolicy cachePolicy = mock(AppealCachePolicy.class);
+        AppealRecordQueryService service = service(searchQueryAdapter, dbFallbackReader, backfillService, cachePolicy);
         AppealRecord indexed = appealRecord(10L);
 
         when(searchQueryAdapter.searchByAppealNumberPrefix(eq("AP"), any(AppealPageRequest.class)))
@@ -37,7 +39,7 @@ class AppealRecordQueryServiceTest {
 
         assertThat(result).containsExactly(indexed);
         verify(searchQueryAdapter).searchByAppealNumberPrefix(eq("AP"), any(AppealPageRequest.class));
-        verifyNoInteractions(dbFallbackReader, backfillService);
+        verifyNoInteractions(dbFallbackReader, backfillService, cachePolicy);
     }
 
     @Test
@@ -45,7 +47,8 @@ class AppealRecordQueryServiceTest {
         AppealSearchQueryAdapter searchQueryAdapter = mock(AppealSearchQueryAdapter.class);
         AppealDbFallbackReader dbFallbackReader = mock(AppealDbFallbackReader.class);
         AppealSearchBackfillService backfillService = mock(AppealSearchBackfillService.class);
-        AppealRecordQueryService service = service(searchQueryAdapter, dbFallbackReader, backfillService);
+        AppealCachePolicy cachePolicy = mock(AppealCachePolicy.class);
+        AppealRecordQueryService service = service(searchQueryAdapter, dbFallbackReader, backfillService, cachePolicy);
         List<AppealRecord> fallback = List.of(appealRecord(11L));
 
         when(searchQueryAdapter.findByOffenseId(eq(20L), any(AppealPageRequest.class))).thenReturn(List.of());
@@ -54,6 +57,7 @@ class AppealRecordQueryServiceTest {
         List<AppealRecord> result = service.findByOffenseId(20L, 2, 5);
 
         assertThat(result).isSameAs(fallback);
+        verify(cachePolicy).markFallbackRead();
         verify(backfillService).scheduleAll(fallback);
     }
 
@@ -62,7 +66,8 @@ class AppealRecordQueryServiceTest {
         AppealSearchQueryAdapter searchQueryAdapter = mock(AppealSearchQueryAdapter.class);
         AppealDbFallbackReader dbFallbackReader = mock(AppealDbFallbackReader.class);
         AppealSearchBackfillService backfillService = mock(AppealSearchBackfillService.class);
-        AppealRecordQueryService service = service(searchQueryAdapter, dbFallbackReader, backfillService);
+        AppealCachePolicy cachePolicy = mock(AppealCachePolicy.class);
+        AppealRecordQueryService service = service(searchQueryAdapter, dbFallbackReader, backfillService, cachePolicy);
         AppealRecord fallback = appealRecord(12L);
 
         when(searchQueryAdapter.findById(12L)).thenReturn(Optional.empty());
@@ -71,6 +76,7 @@ class AppealRecordQueryServiceTest {
         AppealRecord result = service.getAppealById(12L);
 
         assertThat(result).isSameAs(fallback);
+        verify(cachePolicy).markFallbackRead();
         verify(backfillService).schedule(fallback);
     }
 
@@ -79,7 +85,8 @@ class AppealRecordQueryServiceTest {
         AppealSearchQueryAdapter searchQueryAdapter = mock(AppealSearchQueryAdapter.class);
         AppealDbFallbackReader dbFallbackReader = mock(AppealDbFallbackReader.class);
         AppealSearchBackfillService backfillService = mock(AppealSearchBackfillService.class);
-        AppealRecordQueryService service = service(searchQueryAdapter, dbFallbackReader, backfillService);
+        AppealCachePolicy cachePolicy = mock(AppealCachePolicy.class);
+        AppealRecordQueryService service = service(searchQueryAdapter, dbFallbackReader, backfillService, cachePolicy);
         List<AppealRecord> fallback = List.of(appealRecord(13L));
         ArgumentCaptor<AppealPageRequest> pageRequest = ArgumentCaptor.forClass(AppealPageRequest.class);
 
@@ -93,9 +100,10 @@ class AppealRecordQueryServiceTest {
         assertThat(pageRequest.getValue().page()).isEqualTo(3);
         assertThat(pageRequest.getValue().size()).isEqualTo(10);
         assertThat(pageRequest.getValue().zeroBasedPage()).isEqualTo(2);
-        InOrder order = inOrder(searchQueryAdapter, dbFallbackReader, backfillService);
+        InOrder order = inOrder(searchQueryAdapter, dbFallbackReader, cachePolicy, backfillService);
         order.verify(searchQueryAdapter).searchByProcessStatus(eq("PENDING"), any(AppealPageRequest.class));
         order.verify(dbFallbackReader).searchByProcessStatus(eq("PENDING"), any(AppealPageRequest.class));
+        order.verify(cachePolicy).markFallbackRead();
         order.verify(backfillService).scheduleAll(fallback);
     }
 
@@ -119,7 +127,25 @@ class AppealRecordQueryServiceTest {
                 searchQueryAdapter,
                 dbFallbackReader,
                 backfillService,
-                new AppealRecordDomainService()
+                new AppealRecordDomainService(),
+                mock(AppealCachePolicy.class),
+                new AppealQueryConsistencyValidator(false)
+        );
+    }
+
+    private static AppealRecordQueryService service(
+            AppealSearchQueryAdapter searchQueryAdapter,
+            AppealDbFallbackReader dbFallbackReader,
+            AppealSearchBackfillService backfillService,
+            AppealCachePolicy cachePolicy
+    ) {
+        return new AppealRecordQueryService(
+                searchQueryAdapter,
+                dbFallbackReader,
+                backfillService,
+                new AppealRecordDomainService(),
+                cachePolicy,
+                new AppealQueryConsistencyValidator(false)
         );
     }
 

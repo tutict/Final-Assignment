@@ -3,12 +3,14 @@ package com.tutict.finalassignmentbackend.appeal;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.appeal.application.AppealRecordApplicationService;
 import com.tutict.finalassignmentbackend.appeal.application.workflow.AppealWorkflowOrchestrator;
+import com.tutict.finalassignmentbackend.appeal.cache.AppealCachePolicy;
 import com.tutict.finalassignmentbackend.appeal.domain.AppealRecordDomainService;
 import com.tutict.finalassignmentbackend.appeal.domain.idempotency.AppealIdempotencyService;
 import com.tutict.finalassignmentbackend.appeal.infrastructure.cache.AppealRecordCacheService;
 import com.tutict.finalassignmentbackend.appeal.infrastructure.messaging.AppealRecordEventPublisher;
 import com.tutict.finalassignmentbackend.appeal.infrastructure.messaging.TransactionalDomainEventPublisher;
 import com.tutict.finalassignmentbackend.appeal.infrastructure.search.AppealRecordSearchIndexer;
+import com.tutict.finalassignmentbackend.appeal.infrastructure.transaction.AfterCommitExecutor;
 import com.tutict.finalassignmentbackend.entity.AppealRecord;
 import com.tutict.finalassignmentbackend.entity.SysRequestHistory;
 import com.tutict.finalassignmentbackend.entity.elastic.AppealRecordDocument;
@@ -35,14 +37,14 @@ class AppealRecordApplicationServiceTest {
         AppealRecordMapper appealRecordMapper = mock(AppealRecordMapper.class);
         AppealRecordSearchIndexer searchIndexer = mock(AppealRecordSearchIndexer.class);
         TransactionalDomainEventPublisher eventPublisher = mock(TransactionalDomainEventPublisher.class);
-        AppealRecordCacheService cacheService = mock(AppealRecordCacheService.class);
+        AppealCachePolicy cachePolicy = mock(AppealCachePolicy.class);
         AppealIdempotencyService idempotencyService = mock(AppealIdempotencyService.class);
         AppealRecordApplicationService service = new AppealRecordApplicationService(
                 appealRecordMapper,
                 new AppealRecordDomainService(),
                 searchIndexer,
                 eventPublisher,
-                cacheService,
+                cachePolicy,
                 idempotencyService
         );
         AppealRecord appeal = appealRecord();
@@ -52,7 +54,7 @@ class AppealRecordApplicationServiceTest {
         assertThat(created).isSameAs(appeal);
         verify(appealRecordMapper).insert(appeal);
         verify(searchIndexer).indexAfterCommit(appeal);
-        verify(cacheService).evictAll();
+        verify(cachePolicy).onWrite();
         verifyNoInteractions(eventPublisher);
     }
 
@@ -126,6 +128,28 @@ class AppealRecordApplicationServiceTest {
         new AppealRecordCacheService(cacheManager).evictAll();
 
         assertThat(cache.get("appeal:10")).isNull();
+    }
+
+    @Test
+    void cachePolicyEvictsAfterWriteThroughSingleEntryPoint() {
+        AppealRecordCacheService cacheService = mock(AppealRecordCacheService.class);
+        AppealCachePolicy cachePolicy = new AppealCachePolicy(cacheService, new AfterCommitExecutor());
+
+        cachePolicy.onWrite();
+
+        verify(cacheService).evictAll();
+        assertThat(cachePolicy.writeEvictionStrategy()).isEqualTo(AppealCachePolicy.EvictionStrategy.ON_WRITE_AFTER_COMMIT);
+    }
+
+    @Test
+    void cachePolicySkipsFallbackCachePutOnce() {
+        AppealRecordCacheService cacheService = mock(AppealRecordCacheService.class);
+        AppealCachePolicy cachePolicy = new AppealCachePolicy(cacheService, new AfterCommitExecutor());
+
+        cachePolicy.markFallbackRead();
+
+        assertThat(cachePolicy.shouldSkipCache(appealRecord())).isTrue();
+        assertThat(cachePolicy.shouldSkipCache(appealRecord())).isFalse();
     }
 
     private static AppealRecord appealRecord() {

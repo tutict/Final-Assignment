@@ -1,8 +1,8 @@
 package com.tutict.finalassignmentbackend.appeal.application;
 
+import com.tutict.finalassignmentbackend.appeal.cache.AppealCachePolicy;
 import com.tutict.finalassignmentbackend.appeal.domain.AppealRecordDomainService;
 import com.tutict.finalassignmentbackend.appeal.domain.idempotency.AppealIdempotencyService;
-import com.tutict.finalassignmentbackend.appeal.infrastructure.cache.AppealRecordCacheService;
 import com.tutict.finalassignmentbackend.appeal.infrastructure.messaging.TransactionalDomainEventPublisher;
 import com.tutict.finalassignmentbackend.appeal.infrastructure.search.AppealRecordSearchIndexer;
 import com.tutict.finalassignmentbackend.config.statemachine.states.AppealProcessState;
@@ -21,7 +21,7 @@ public class AppealRecordApplicationService {
     private final AppealRecordDomainService domainService;
     private final AppealRecordSearchIndexer searchIndexer;
     private final TransactionalDomainEventPublisher eventPublisher;
-    private final AppealRecordCacheService cacheService;
+    private final AppealCachePolicy cachePolicy;
     private final AppealIdempotencyService idempotencyService;
 
     public AppealRecordApplicationService(
@@ -29,14 +29,14 @@ public class AppealRecordApplicationService {
             AppealRecordDomainService domainService,
             AppealRecordSearchIndexer searchIndexer,
             TransactionalDomainEventPublisher eventPublisher,
-            AppealRecordCacheService cacheService,
+            AppealCachePolicy cachePolicy,
             AppealIdempotencyService idempotencyService
     ) {
         this.appealRecordMapper = appealRecordMapper;
         this.domainService = domainService;
         this.searchIndexer = searchIndexer;
         this.eventPublisher = eventPublisher;
-        this.cacheService = cacheService;
+        this.cachePolicy = cachePolicy;
         this.idempotencyService = idempotencyService;
     }
 
@@ -46,7 +46,7 @@ public class AppealRecordApplicationService {
         idempotencyService.checkAndInsert(idempotencyKey);
         eventPublisher.publishAppealRecordAfterCommit("appeal_" + action, idempotencyKey, appealRecord);
         idempotencyService.markPendingSuccess(idempotencyKey, appealRecord.getAppealId());
-        cacheService.evictAll();
+        cachePolicy.onWrite();
     }
 
     @Transactional
@@ -54,7 +54,7 @@ public class AppealRecordApplicationService {
         domainService.validateAppeal(appealRecord);
         appealRecordMapper.insert(appealRecord);
         searchIndexer.indexAfterCommit(appealRecord);
-        cacheService.evictAll();
+        cachePolicy.onWrite();
         return appealRecord;
     }
 
@@ -66,7 +66,7 @@ public class AppealRecordApplicationService {
             throw new IllegalStateException("Appeal not found: " + appealRecord.getAppealId());
         }
         searchIndexer.indexAfterCommit(appealRecord);
-        cacheService.evictAll();
+        cachePolicy.onWrite();
         return appealRecord;
     }
 
@@ -80,7 +80,7 @@ public class AppealRecordApplicationService {
         existing.setUpdatedAt(LocalDateTime.now());
         appealRecordMapper.updateById(existing);
         searchIndexer.indexAfterCommit(existing);
-        cacheService.evictAll();
+        cachePolicy.onWrite();
         return existing;
     }
 
@@ -92,7 +92,7 @@ public class AppealRecordApplicationService {
             throw new IllegalStateException("Appeal not found: " + appealId);
         }
         searchIndexer.deleteAfterCommit(appealId);
-        cacheService.evictAll();
+        cachePolicy.onWrite();
     }
 
     public boolean shouldSkipProcessing(String idempotencyKey) {
