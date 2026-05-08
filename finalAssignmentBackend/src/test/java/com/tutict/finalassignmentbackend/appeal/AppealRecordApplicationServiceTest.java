@@ -6,6 +6,8 @@ import com.tutict.finalassignmentbackend.appeal.application.workflow.AppealWorkf
 import com.tutict.finalassignmentbackend.appeal.cache.AppealCachePolicy;
 import com.tutict.finalassignmentbackend.appeal.domain.AppealRecordDomainService;
 import com.tutict.finalassignmentbackend.appeal.domain.idempotency.AppealIdempotencyService;
+import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealBusinessPolicy;
+import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealWorkflowDecisionPolicy;
 import com.tutict.finalassignmentbackend.appeal.infrastructure.cache.AppealRecordCacheService;
 import com.tutict.finalassignmentbackend.appeal.infrastructure.messaging.AppealRecordEventPublisher;
 import com.tutict.finalassignmentbackend.appeal.infrastructure.messaging.TransactionalDomainEventPublisher;
@@ -45,7 +47,8 @@ class AppealRecordApplicationServiceTest {
                 searchIndexer,
                 eventPublisher,
                 cachePolicy,
-                idempotencyService
+                idempotencyService,
+                new AppealWorkflowDecisionPolicy()
         );
         AppealRecord appeal = appealRecord();
 
@@ -74,7 +77,7 @@ class AppealRecordApplicationServiceTest {
     @Test
     void idempotencyServiceKeepsExistingHistorySemantics() {
         SysRequestHistoryMapper mapper = mock(SysRequestHistoryMapper.class);
-        AppealIdempotencyService service = new AppealIdempotencyService(mapper);
+        AppealIdempotencyService service = new AppealIdempotencyService(mapper, new AppealBusinessPolicy());
         SysRequestHistory history = new SysRequestHistory();
         history.setBusinessStatus("SUCCESS");
         history.setRequestParams("DONE");

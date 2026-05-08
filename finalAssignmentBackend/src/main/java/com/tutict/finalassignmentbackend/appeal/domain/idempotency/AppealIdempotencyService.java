@@ -1,5 +1,6 @@
 package com.tutict.finalassignmentbackend.appeal.domain.idempotency;
 
+import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealBusinessPolicy;
 import com.tutict.finalassignmentbackend.entity.SysRequestHistory;
 import com.tutict.finalassignmentbackend.mapper.SysRequestHistoryMapper;
 import org.springframework.stereotype.Service;
@@ -14,14 +15,19 @@ public class AppealIdempotencyService {
     private static final Logger log = Logger.getLogger(AppealIdempotencyService.class.getName());
 
     private final SysRequestHistoryMapper sysRequestHistoryMapper;
+    private final AppealBusinessPolicy businessPolicy;
 
-    public AppealIdempotencyService(SysRequestHistoryMapper sysRequestHistoryMapper) {
+    public AppealIdempotencyService(
+            SysRequestHistoryMapper sysRequestHistoryMapper,
+            AppealBusinessPolicy businessPolicy
+    ) {
         this.sysRequestHistoryMapper = sysRequestHistoryMapper;
+        this.businessPolicy = businessPolicy;
     }
 
     public void checkAndInsert(String idempotencyKey) {
         SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
-        if (history != null) {
+        if (businessPolicy.isDuplicateRequest(history)) {
             throw new RuntimeException("Duplicate appeal request detected");
         }
         sysRequestHistoryMapper.insert(buildHistory(idempotencyKey));
@@ -29,14 +35,12 @@ public class AppealIdempotencyService {
 
     public boolean shouldSkipProcessing(String idempotencyKey) {
         SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
-        return history != null
-                && "SUCCESS".equalsIgnoreCase(history.getBusinessStatus())
-                && "DONE".equalsIgnoreCase(history.getRequestParams());
+        return businessPolicy.shouldSkipProcessedRequest(history);
     }
 
     public void markPendingSuccess(String idempotencyKey, Long appealId) {
         SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
-        if (history == null) {
+        if (!businessPolicy.canUpdateHistory(history)) {
             log.log(Level.WARNING, "Cannot mark pending success for missing idempotency key {0}", idempotencyKey);
             return;
         }
@@ -49,7 +53,7 @@ public class AppealIdempotencyService {
 
     public void markHistorySuccess(String idempotencyKey, Long appealId) {
         SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
-        if (history == null) {
+        if (!businessPolicy.canUpdateHistory(history)) {
             log.log(Level.WARNING, "Cannot mark success for missing idempotency key {0}", idempotencyKey);
             return;
         }
@@ -62,12 +66,12 @@ public class AppealIdempotencyService {
 
     public void markHistoryFailure(String idempotencyKey, String reason) {
         SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
-        if (history == null) {
+        if (!businessPolicy.canUpdateHistory(history)) {
             log.log(Level.WARNING, "Cannot mark failure for missing idempotency key {0}", idempotencyKey);
             return;
         }
         history.setBusinessStatus("FAILED");
-        history.setRequestParams(truncate(reason));
+        history.setRequestParams(businessPolicy.truncateFailureReason(reason));
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.updateById(history);
     }
@@ -81,10 +85,4 @@ public class AppealIdempotencyService {
         return history;
     }
 
-    private String truncate(String value) {
-        if (value == null) {
-            return null;
-        }
-        return value.length() <= 500 ? value : value.substring(0, 500);
-    }
 }

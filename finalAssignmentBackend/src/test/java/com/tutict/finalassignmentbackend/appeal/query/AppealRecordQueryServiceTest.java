@@ -2,6 +2,7 @@ package com.tutict.finalassignmentbackend.appeal.query;
 
 import com.tutict.finalassignmentbackend.appeal.cache.AppealCachePolicy;
 import com.tutict.finalassignmentbackend.appeal.domain.AppealRecordDomainService;
+import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealQueryPolicy;
 import com.tutict.finalassignmentbackend.appeal.infrastructure.search.AppealRecordSearchIndexer;
 import com.tutict.finalassignmentbackend.appeal.query.dto.AppealPageRequest;
 import com.tutict.finalassignmentbackend.entity.AppealRecord;
@@ -129,7 +130,8 @@ class AppealRecordQueryServiceTest {
                 backfillService,
                 new AppealRecordDomainService(),
                 mock(AppealCachePolicy.class),
-                new AppealQueryConsistencyValidator(false)
+                new AppealQueryConsistencyValidator(false),
+                new AppealQueryPolicy()
         );
     }
 
@@ -145,7 +147,8 @@ class AppealRecordQueryServiceTest {
                 backfillService,
                 new AppealRecordDomainService(),
                 cachePolicy,
-                new AppealQueryConsistencyValidator(false)
+                new AppealQueryConsistencyValidator(false),
+                new AppealQueryPolicy()
         );
     }
 

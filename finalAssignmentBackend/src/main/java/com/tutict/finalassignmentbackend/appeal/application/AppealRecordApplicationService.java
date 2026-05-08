@@ -3,6 +3,7 @@ package com.tutict.finalassignmentbackend.appeal.application;
 import com.tutict.finalassignmentbackend.appeal.cache.AppealCachePolicy;
 import com.tutict.finalassignmentbackend.appeal.domain.AppealRecordDomainService;
 import com.tutict.finalassignmentbackend.appeal.domain.idempotency.AppealIdempotencyService;
+import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealWorkflowDecisionPolicy;
 import com.tutict.finalassignmentbackend.appeal.infrastructure.messaging.TransactionalDomainEventPublisher;
 import com.tutict.finalassignmentbackend.appeal.infrastructure.search.AppealRecordSearchIndexer;
 import com.tutict.finalassignmentbackend.config.statemachine.states.AppealProcessState;
@@ -23,6 +24,7 @@ public class AppealRecordApplicationService {
     private final TransactionalDomainEventPublisher eventPublisher;
     private final AppealCachePolicy cachePolicy;
     private final AppealIdempotencyService idempotencyService;
+    private final AppealWorkflowDecisionPolicy workflowDecisionPolicy;
 
     public AppealRecordApplicationService(
             AppealRecordMapper appealRecordMapper,
@@ -30,7 +32,8 @@ public class AppealRecordApplicationService {
             AppealRecordSearchIndexer searchIndexer,
             TransactionalDomainEventPublisher eventPublisher,
             AppealCachePolicy cachePolicy,
-            AppealIdempotencyService idempotencyService
+            AppealIdempotencyService idempotencyService,
+            AppealWorkflowDecisionPolicy workflowDecisionPolicy
     ) {
         this.appealRecordMapper = appealRecordMapper;
         this.domainService = domainService;
@@ -38,6 +41,7 @@ public class AppealRecordApplicationService {
         this.eventPublisher = eventPublisher;
         this.cachePolicy = cachePolicy;
         this.idempotencyService = idempotencyService;
+        this.workflowDecisionPolicy = workflowDecisionPolicy;
     }
 
     @Transactional
@@ -62,7 +66,7 @@ public class AppealRecordApplicationService {
     public AppealRecord updateAppeal(AppealRecord appealRecord) {
         domainService.validateAppealId(appealRecord);
         int rows = appealRecordMapper.updateById(appealRecord);
-        if (rows == 0) {
+        if (workflowDecisionPolicy.isMissingMutation(rows)) {
             throw new IllegalStateException("Appeal not found: " + appealRecord.getAppealId());
         }
         searchIndexer.indexAfterCommit(appealRecord);
@@ -73,10 +77,10 @@ public class AppealRecordApplicationService {
     public AppealRecord updateProcessStatus(Long appealId, AppealProcessState newState) {
         domainService.validateAppealId(appealId);
         AppealRecord existing = appealRecordMapper.selectById(appealId);
-        if (existing == null) {
+        if (workflowDecisionPolicy.isMissingAppeal(existing)) {
             throw new IllegalStateException("Appeal not found: " + appealId);
         }
-        existing.setProcessStatus(newState != null ? newState.getCode() : existing.getProcessStatus());
+        existing.setProcessStatus(workflowDecisionPolicy.resolveProcessStatus(newState, existing.getProcessStatus()));
         existing.setUpdatedAt(LocalDateTime.now());
         appealRecordMapper.updateById(existing);
         searchIndexer.indexAfterCommit(existing);
@@ -88,7 +92,7 @@ public class AppealRecordApplicationService {
     public void deleteAppeal(Long appealId) {
         domainService.validateAppealId(appealId);
         int rows = appealRecordMapper.deleteById(appealId);
-        if (rows == 0) {
+        if (workflowDecisionPolicy.isMissingMutation(rows)) {
             throw new IllegalStateException("Appeal not found: " + appealId);
         }
         searchIndexer.deleteAfterCommit(appealId);

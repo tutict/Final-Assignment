@@ -2,6 +2,7 @@ package com.tutict.finalassignmentbackend.appeal.query;
 
 import com.tutict.finalassignmentbackend.appeal.cache.AppealCachePolicy;
 import com.tutict.finalassignmentbackend.appeal.domain.AppealRecordDomainService;
+import com.tutict.finalassignmentbackend.appeal.domain.policy.AppealQueryPolicy;
 import com.tutict.finalassignmentbackend.appeal.query.dto.AppealPageRequest;
 import com.tutict.finalassignmentbackend.entity.AppealRecord;
 import org.springframework.stereotype.Service;
@@ -25,6 +26,7 @@ public class AppealRecordQueryService {
     private final AppealRecordDomainService domainService;
     private final AppealCachePolicy cachePolicy;
     private final AppealQueryConsistencyValidator consistencyValidator;
+    private final AppealQueryPolicy queryPolicy;
 
     public AppealRecordQueryService(
             AppealSearchQueryAdapter searchQueryAdapter,
@@ -32,7 +34,8 @@ public class AppealRecordQueryService {
             AppealSearchBackfillService backfillService,
             AppealRecordDomainService domainService,
             AppealCachePolicy cachePolicy,
-            AppealQueryConsistencyValidator consistencyValidator
+            AppealQueryConsistencyValidator consistencyValidator,
+            AppealQueryPolicy queryPolicy
     ) {
         this.searchQueryAdapter = searchQueryAdapter;
         this.dbFallbackReader = dbFallbackReader;
@@ -40,18 +43,21 @@ public class AppealRecordQueryService {
         this.domainService = domainService;
         this.cachePolicy = cachePolicy;
         this.consistencyValidator = consistencyValidator;
+        this.queryPolicy = queryPolicy;
     }
 
     public AppealRecord getAppealById(Long appealId) {
         domainService.validateAppealId(appealId);
         Optional<AppealRecord> indexed = searchQueryAdapter.findById(appealId);
-        if (indexed.isPresent()) {
+        if (queryPolicy.hasIndexedRecord(indexed)) {
             return indexed.get();
         }
         AppealRecord fallback = dbFallbackReader.findById(appealId);
         consistencyValidator.validateFallbackRecord("getAppealById", fallback);
         cachePolicy.markFallbackRead();
-        backfillService.schedule(fallback);
+        if (queryPolicy.shouldBackfill(fallback)) {
+            backfillService.schedule(fallback);
+        }
         return fallback;
     }
 
@@ -66,7 +72,7 @@ public class AppealRecordQueryService {
     }
 
     public List<AppealRecord> searchByAppealNumberPrefix(String appealNumber, int page, int size) {
-        if (isBlank(appealNumber)) {
+        if (queryPolicy.shouldReturnEmptyForTextFilter(appealNumber)) {
             return List.of();
         }
         AppealPageRequest pageRequest = pageRequest(page, size);
@@ -79,7 +85,7 @@ public class AppealRecordQueryService {
     }
 
     public List<AppealRecord> searchByAppealNumberFuzzy(String appealNumber, int page, int size) {
-        if (isBlank(appealNumber)) {
+        if (queryPolicy.shouldReturnEmptyForTextFilter(appealNumber)) {
             return List.of();
         }
         AppealPageRequest pageRequest = pageRequest(page, size);
@@ -92,7 +98,7 @@ public class AppealRecordQueryService {
     }
 
     public List<AppealRecord> searchByAppellantNamePrefix(String appellantName, int page, int size) {
-        if (isBlank(appellantName)) {
+        if (queryPolicy.shouldReturnEmptyForTextFilter(appellantName)) {
             return List.of();
         }
         AppealPageRequest pageRequest = pageRequest(page, size);
@@ -105,7 +111,7 @@ public class AppealRecordQueryService {
     }
 
     public List<AppealRecord> searchByAppellantNameFuzzy(String appellantName, int page, int size) {
-        if (isBlank(appellantName)) {
+        if (queryPolicy.shouldReturnEmptyForTextFilter(appellantName)) {
             return List.of();
         }
         AppealPageRequest pageRequest = pageRequest(page, size);
@@ -118,7 +124,7 @@ public class AppealRecordQueryService {
     }
 
     public List<AppealRecord> searchByAppellantIdCard(String appellantIdCard, int page, int size) {
-        if (isBlank(appellantIdCard)) {
+        if (queryPolicy.shouldReturnEmptyForTextFilter(appellantIdCard)) {
             return List.of();
         }
         AppealPageRequest pageRequest = pageRequest(page, size);
@@ -131,7 +137,7 @@ public class AppealRecordQueryService {
     }
 
     public List<AppealRecord> searchByAcceptanceStatus(String acceptanceStatus, int page, int size) {
-        if (isBlank(acceptanceStatus)) {
+        if (queryPolicy.shouldReturnEmptyForTextFilter(acceptanceStatus)) {
             return List.of();
         }
         AppealPageRequest pageRequest = pageRequest(page, size);
@@ -144,7 +150,7 @@ public class AppealRecordQueryService {
     }
 
     public List<AppealRecord> searchByProcessStatus(String processStatus, int page, int size) {
-        if (isBlank(processStatus)) {
+        if (queryPolicy.shouldReturnEmptyForTextFilter(processStatus)) {
             return List.of();
         }
         AppealPageRequest pageRequest = pageRequest(page, size);
@@ -160,7 +166,7 @@ public class AppealRecordQueryService {
         AppealPageRequest pageRequest = pageRequest(page, size);
         LocalDateTime start = parseDateTime(startTime, "startTime");
         LocalDateTime end = parseDateTime(endTime, "endTime");
-        if (start == null || end == null) {
+        if (queryPolicy.shouldReturnEmptyForTimeRange(start, end)) {
             return List.of();
         }
         return queryWithFallback(
@@ -172,7 +178,7 @@ public class AppealRecordQueryService {
     }
 
     public List<AppealRecord> searchByAcceptanceHandler(String acceptanceHandler, int page, int size) {
-        if (isBlank(acceptanceHandler)) {
+        if (queryPolicy.shouldReturnEmptyForTextFilter(acceptanceHandler)) {
             return List.of();
         }
         AppealPageRequest pageRequest = pageRequest(page, size);
@@ -191,14 +197,16 @@ public class AppealRecordQueryService {
             Supplier<List<AppealRecord>> dbFallback
     ) {
         List<AppealRecord> indexed = searchQuery.get();
-        if (!indexed.isEmpty()) {
+        if (!queryPolicy.shouldUseDbFallback(indexed)) {
             consistencyValidator.validateSearchResult(operation, pageRequest, indexed);
             return indexed;
         }
         List<AppealRecord> fallback = dbFallback.get();
         consistencyValidator.validateFallbackResult(operation, pageRequest, indexed, fallback);
         cachePolicy.markFallbackRead();
-        backfillService.scheduleAll(fallback);
+        if (queryPolicy.shouldBackfill(fallback)) {
+            backfillService.scheduleAll(fallback);
+        }
         return fallback;
     }
 
@@ -207,7 +215,7 @@ public class AppealRecordQueryService {
     }
 
     private LocalDateTime parseDateTime(String value, String fieldName) {
-        if (isBlank(value)) {
+        if (queryPolicy.shouldReturnEmptyForTextFilter(value)) {
             return null;
         }
         try {
@@ -218,7 +226,4 @@ public class AppealRecordQueryService {
         }
     }
 
-    private boolean isBlank(String value) {
-        return value == null || value.trim().isEmpty();
-    }
 }
