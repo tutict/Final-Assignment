@@ -5,6 +5,7 @@
 
 # User-specific stuff
 .idea
+.vs/
 .idea/**/workspace.xml
 .idea/**/tasks.xml
 .idea/**/usage.statistics.xml
@@ -249,6 +250,8 @@ $RECYCLE.BIN/
 .packages
 .pub-cache/
 .pub/
+**/Flutter/ephemeral/
+**/flutter/ephemeral/
 build/
 coverage/
 lib/generated_plugin_registrant.dart

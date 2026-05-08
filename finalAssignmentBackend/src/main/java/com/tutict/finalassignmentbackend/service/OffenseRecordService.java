@@ -11,6 +11,8 @@ import com.tutict.finalassignmentbackend.entity.elastic.OffenseRecordDocument;
 import com.tutict.finalassignmentbackend.mapper.OffenseRecordMapper;
 import com.tutict.finalassignmentbackend.mapper.SysRequestHistoryMapper;
 import com.tutict.finalassignmentbackend.offense.governance.AfterCommitBoundary;
+import com.tutict.finalassignmentbackend.offense.governance.FullUpdateCompatibilityMode;
+import com.tutict.finalassignmentbackend.offense.governance.FullUpdateMergePolicy;
 import com.tutict.finalassignmentbackend.offense.governance.MutationSideEffectPolicy;
 import com.tutict.finalassignmentbackend.offense.governance.OffenseSideEffectCoordinator;
 import com.tutict.finalassignmentbackend.offense.governance.OffenseStaleUpdatePolicy;
@@ -18,6 +20,7 @@ import com.tutict.finalassignmentbackend.offense.governance.OffenseUpdateFreshne
 import com.tutict.finalassignmentbackend.offense.governance.OffenseUpdateMergeCoordinator;
 import com.tutict.finalassignmentbackend.offense.governance.SemanticEventType;
 import com.tutict.finalassignmentbackend.offense.governance.SemanticIntentClassifier;
+import com.tutict.finalassignmentbackend.offense.governance.StaleFullUpdateRejectedException;
 import com.tutict.finalassignmentbackend.repository.OffenseInformationSearchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
@@ -50,6 +53,7 @@ public class OffenseRecordService {
     private final OffenseSideEffectCoordinator sideEffectCoordinator;
     private final OffenseUpdateMergeCoordinator updateMergeCoordinator;
     private final OffenseUpdateFreshnessEvaluator updateFreshnessEvaluator;
+    private final FullUpdateMergePolicy fullUpdateMergePolicy;
 
     @Autowired
     public OffenseRecordService(OffenseRecordMapper offenseRecordMapper,
@@ -66,6 +70,7 @@ public class OffenseRecordService {
         this.sideEffectCoordinator = new OffenseSideEffectCoordinator(new AfterCommitBoundary());
         this.updateMergeCoordinator = new OffenseUpdateMergeCoordinator();
         this.updateFreshnessEvaluator = new OffenseUpdateFreshnessEvaluator();
+        this.fullUpdateMergePolicy = new FullUpdateMergePolicy();
     }
 
     @Transactional
@@ -111,6 +116,7 @@ public class OffenseRecordService {
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
     public OffenseRecord updateOffenseRecord(OffenseRecord offenseRecord) {
         MutationSideEffectPolicy policy = semanticIntentClassifier.classifyUpdate();
+        shadowCompareControllerFullUpdate(offenseRecord);
         validateOffenseRecord(offenseRecord);
         requirePositive(offenseRecord.getOffenseId(), "Offense ID");
         int rows = offenseRecordMapper.updateById(offenseRecord);
@@ -119,6 +125,45 @@ public class OffenseRecordService {
         }
         syncToIndexAfterCommit(policy, offenseRecord);
         return offenseRecord;
+    }
+
+    @Transactional
+    @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
+    public OffenseRecord updateKafkaFullUpdate(OffenseRecord incoming) {
+        MutationSideEffectPolicy policy = semanticIntentClassifier.classifyUpdate();
+        Objects.requireNonNull(incoming, "OffenseRecord must not be null");
+        requirePositive(incoming.getOffenseId(), "Offense ID");
+        OffenseRecord current = offenseRecordMapper.selectById(incoming.getOffenseId());
+        if (current == null) {
+            validateOffenseRecord(incoming);
+            int rows = offenseRecordMapper.updateById(incoming);
+            if (rows == 0) {
+                throw new IllegalStateException("No OffenseRecord updated for id=" + incoming.getOffenseId());
+            }
+            syncToIndexAfterCommit(policy, incoming);
+            return incoming;
+        }
+
+        OffenseStaleUpdatePolicy.Decision freshness =
+                updateFreshnessEvaluator.evaluate(current, incoming, SemanticEventType.FULL_UPDATE);
+        if (freshness == OffenseStaleUpdatePolicy.Decision.SHADOW_ONLY) {
+            log.log(Level.WARNING,
+                    "Offense stale kafka FULL_UPDATE rejected decision={0}, id={1}, currentUpdatedAt={2}, incomingUpdatedAt={3}",
+                    new Object[]{freshness, incoming.getOffenseId(), current.getUpdatedAt(), incoming.getUpdatedAt()});
+            throw new StaleFullUpdateRejectedException(incoming.getOffenseId());
+        }
+
+        FullUpdateMergePolicy.MergeResult merge =
+                fullUpdateMergePolicy.merge(current, incoming, FullUpdateCompatibilityMode.GUARDED_COMPATIBILITY);
+        logFullUpdateMergeGovernance("kafka", incoming.getOffenseId(), merge);
+        OffenseRecord guarded = merge.mergedRecord();
+        validateOffenseRecord(guarded);
+        int rows = offenseRecordMapper.updateById(guarded);
+        if (rows == 0) {
+            throw new IllegalStateException("No OffenseRecord updated for id=" + guarded.getOffenseId());
+        }
+        syncToIndexAfterCommit(policy, guarded);
+        return guarded;
     }
 
     @Transactional
@@ -168,6 +213,30 @@ public class OffenseRecordService {
             }
         } catch (Exception ex) {
             log.log(Level.WARNING, "Offense Kafka update shadow merge comparison failed", ex);
+        }
+    }
+
+    private void shadowCompareControllerFullUpdate(OffenseRecord incoming) {
+        if (incoming == null || incoming.getOffenseId() == null) {
+            return;
+        }
+        try {
+            OffenseRecord current = offenseRecordMapper.selectById(incoming.getOffenseId());
+            if (current == null) {
+                return;
+            }
+            OffenseStaleUpdatePolicy.Decision freshness =
+                    updateFreshnessEvaluator.evaluate(current, incoming, SemanticEventType.FULL_UPDATE);
+            if (freshness == OffenseStaleUpdatePolicy.Decision.SHADOW_ONLY) {
+                log.log(Level.INFO,
+                        "Offense controller FULL_UPDATE stale shadow decision={0}, id={1}, currentUpdatedAt={2}, incomingUpdatedAt={3}",
+                        new Object[]{freshness, incoming.getOffenseId(), current.getUpdatedAt(), incoming.getUpdatedAt()});
+            }
+            FullUpdateMergePolicy.MergeResult shadowMerge =
+                    fullUpdateMergePolicy.merge(current, incoming, FullUpdateCompatibilityMode.LEGACY_SHADOW);
+            logFullUpdateMergeGovernance("controller-shadow", incoming.getOffenseId(), shadowMerge);
+        } catch (Exception ex) {
+            log.log(Level.WARNING, "Offense controller update shadow comparison failed", ex);
         }
     }
 
@@ -465,6 +534,26 @@ public class OffenseRecordService {
             return;
         }
         sideEffectCoordinator.indexAfterCommit(policy, () -> saveBatchToIndex(records));
+    }
+
+    private void logFullUpdateMergeGovernance(String path,
+                                              Long offenseId,
+                                              FullUpdateMergePolicy.MergeResult merge) {
+        if (!merge.nullPreservedFields().isEmpty()) {
+            log.log(Level.INFO,
+                    "Offense FULL_UPDATE null fields preserved path={0}, mode={1}, id={2}, fields={3}",
+                    new Object[]{path, merge.compatibilityMode(), offenseId, merge.nullPreservedFields()});
+        }
+        if (!merge.immutablePreservedFields().isEmpty()) {
+            log.log(Level.INFO,
+                    "Offense FULL_UPDATE immutable fields preserved path={0}, mode={1}, id={2}, fields={3}",
+                    new Object[]{path, merge.compatibilityMode(), offenseId, merge.immutablePreservedFields()});
+        }
+        if (!merge.workflowSuppressedFields().isEmpty()) {
+            log.log(Level.INFO,
+                    "Offense FULL_UPDATE workflow fields suppressed path={0}, mode={1}, id={2}, fields={3}",
+                    new Object[]{path, merge.compatibilityMode(), offenseId, merge.workflowSuppressedFields()});
+        }
     }
 
     private void saveToIndex(OffenseRecord offenseRecord) {

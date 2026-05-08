@@ -3,6 +3,7 @@ package com.tutict.finalassignmentbackend.kafkaListener;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.entity.OffenseRecord;
 import com.tutict.finalassignmentbackend.offense.governance.SemanticIntentClassifier;
+import com.tutict.finalassignmentbackend.offense.governance.StaleFullUpdateRejectedException;
 import com.tutict.finalassignmentbackend.service.OffenseRecordService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -76,13 +77,16 @@ public class OffenseRecordKafkaListener {
                 payload.setOffenseId(null);
                 result = offenseRecordService.createOffenseRecord(payload);
             } else if ("update".equalsIgnoreCase(action)) {
-                offenseRecordService.shadowCompareKafkaUpdateMerge(payload);
-                result = offenseRecordService.updateOffenseRecord(payload);
+                result = offenseRecordService.updateKafkaFullUpdate(payload);
             } else {
                 log.log(Level.WARNING, "Unsupported OffenseRecord action: {0}", action);
                 return;
             }
             offenseRecordService.markHistorySuccess(idempotencyKey, result.getOffenseId());
+        } catch (StaleFullUpdateRejectedException ex) {
+            log.log(Level.WARNING,
+                    "Skipping stale OffenseRecord FULL_UPDATE event (key={0}, action={1}, reason={2})",
+                    new Object[]{idempotencyKey, action, ex.getMessage()});
         } catch (Exception ex) {
             offenseRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
             log.log(Level.SEVERE,

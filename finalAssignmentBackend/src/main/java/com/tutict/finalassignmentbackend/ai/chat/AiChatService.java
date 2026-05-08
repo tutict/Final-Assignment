@@ -4,6 +4,7 @@ import com.tutict.finalassignmentbackend.ai.rag.dto.RetrievalResult;
 import com.tutict.finalassignmentbackend.ai.rag.query.RagQueryRequest;
 import com.tutict.finalassignmentbackend.ai.rag.query.RagQueryService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 
@@ -13,16 +14,20 @@ import java.util.UUID;
 @Service
 public class AiChatService {
 
-    private final ChatStreamService chatStreamService;
+    private final ChatPipeline chatPipeline;
     private final RagQueryService ragQueryService;
 
     public AiChatService(ChatStreamService chatStreamService) {
-        this(chatStreamService, null);
+        this(new ChatPipeline(chatStreamService), (RagQueryService) null);
     }
 
     @Autowired
-    public AiChatService(ChatStreamService chatStreamService, RagQueryService ragQueryService) {
-        this.chatStreamService = chatStreamService;
+    public AiChatService(ChatPipeline chatPipeline, ObjectProvider<RagQueryService> ragQueryService) {
+        this(chatPipeline, ragQueryService.getIfAvailable());
+    }
+
+    AiChatService(ChatPipeline chatPipeline, RagQueryService ragQueryService) {
+        this.chatPipeline = chatPipeline;
         this.ragQueryService = ragQueryService;
     }
 
@@ -40,7 +45,7 @@ public class AiChatService {
                 request.sessionKey(),
                 request.metadata()
         );
-        return chatStreamService.stream(normalizedRequest);
+        return chatPipeline.stream(normalizedRequest);
     }
 
     public List<RetrievalResult> retrieve(RagQueryRequest request) {
