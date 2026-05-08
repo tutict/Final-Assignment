@@ -10,6 +10,10 @@ import com.tutict.finalassignmentbackend.entity.SysRequestHistory;
 import com.tutict.finalassignmentbackend.entity.elastic.OffenseRecordDocument;
 import com.tutict.finalassignmentbackend.mapper.OffenseRecordMapper;
 import com.tutict.finalassignmentbackend.mapper.SysRequestHistoryMapper;
+import com.tutict.finalassignmentbackend.offense.governance.AfterCommitBoundary;
+import com.tutict.finalassignmentbackend.offense.governance.MutationSideEffectPolicy;
+import com.tutict.finalassignmentbackend.offense.governance.OffenseSideEffectCoordinator;
+import com.tutict.finalassignmentbackend.offense.governance.SemanticIntentClassifier;
 import com.tutict.finalassignmentbackend.repository.OffenseInformationSearchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
@@ -17,8 +21,6 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
@@ -40,6 +42,8 @@ public class OffenseRecordService {
     private final OffenseInformationSearchRepository offenseInformationSearchRepository;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
+    private final SemanticIntentClassifier semanticIntentClassifier;
+    private final OffenseSideEffectCoordinator sideEffectCoordinator;
 
     @Autowired
     public OffenseRecordService(OffenseRecordMapper offenseRecordMapper,
@@ -52,6 +56,8 @@ public class OffenseRecordService {
         this.offenseInformationSearchRepository = offenseInformationSearchRepository;
         this.kafkaTemplate = kafkaTemplate;
         this.objectMapper = objectMapper;
+        this.semanticIntentClassifier = new SemanticIntentClassifier();
+        this.sideEffectCoordinator = new OffenseSideEffectCoordinator(new AfterCommitBoundary());
     }
 
     @Transactional
@@ -70,7 +76,8 @@ public class OffenseRecordService {
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.insert(history);
 
-        sendKafkaMessage("offense_record_" + action, idempotencyKey, offenseRecord);
+        MutationSideEffectPolicy policy = semanticIntentClassifier.classifyIdempotencyPublish(action);
+        sideEffectCoordinator.publishKafkaNow(policy, () -> sendKafkaMessage("offense_record_" + action, idempotencyKey, offenseRecord));
 
         history.setBusinessStatus("SUCCESS");
         history.setBusinessId(offenseRecord.getOffenseId());
@@ -82,27 +89,30 @@ public class OffenseRecordService {
     @Transactional
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
     public OffenseRecord createOffenseRecord(OffenseRecord offenseRecord) {
+        MutationSideEffectPolicy policy = semanticIntentClassifier.classifyCreate();
         validateOffenseRecord(offenseRecord);
         // 同步写库，成功后再异步刷新 ES
         offenseRecordMapper.insert(offenseRecord);
-        syncToIndexAfterCommit(offenseRecord);
+        syncToIndexAfterCommit(policy, offenseRecord);
         return offenseRecord;
     }
 
     @Transactional
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
     public OffenseRecord updateOffenseRecord(OffenseRecord offenseRecord) {
+        MutationSideEffectPolicy policy = semanticIntentClassifier.classifyUpdate();
         validateOffenseRecord(offenseRecord);
         requirePositive(offenseRecord.getOffenseId(), "Offense ID");
         int rows = offenseRecordMapper.updateById(offenseRecord);
         if (rows == 0) {
             throw new IllegalStateException("No OffenseRecord updated for id=" + offenseRecord.getOffenseId());
         }
-        syncToIndexAfterCommit(offenseRecord);
+        syncToIndexAfterCommit(policy, offenseRecord);
         return offenseRecord;
     }
 
     public OffenseRecord updateProcessStatus(Long offenseId, OffenseProcessState newState) {
+        MutationSideEffectPolicy policy = semanticIntentClassifier.classifyWorkflow();
         requirePositive(offenseId, "Offense ID");
         OffenseRecord existing = offenseRecordMapper.selectById(offenseId);
         if (existing == null) {
@@ -112,24 +122,20 @@ public class OffenseRecordService {
         existing.setProcessStatus(newState != null ? newState.getCode() : existing.getProcessStatus());
         existing.setUpdatedAt(LocalDateTime.now());
         offenseRecordMapper.updateById(existing);
-        syncToIndexAfterCommit(existing);
+        syncToIndexAfterCommit(policy, existing);
         return existing;
     }
 
     @Transactional
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
     public void deleteOffenseRecord(Long offenseId) {
+        MutationSideEffectPolicy policy = semanticIntentClassifier.classifyDelete();
         requirePositive(offenseId, "Offense ID");
         int rows = offenseRecordMapper.deleteById(offenseId);
         if (rows == 0) {
             throw new IllegalStateException("No OffenseRecord deleted for id=" + offenseId);
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                offenseInformationSearchRepository.deleteById(offenseId);
-            }
-        });
+        sideEffectCoordinator.indexAfterCommit(policy, () -> offenseInformationSearchRepository.deleteById(offenseId));
     }
 
     @Transactional(readOnly = true)
@@ -141,7 +147,8 @@ public class OffenseRecordService {
                 .orElseGet(() -> {
                     OffenseRecord entity = offenseRecordMapper.selectById(offenseId);
                     if (entity != null) {
-                        offenseInformationSearchRepository.save(OffenseRecordDocument.fromEntity(entity));
+                        MutationSideEffectPolicy policy = semanticIntentClassifier.classifyReadRepair();
+                        sideEffectCoordinator.readRepairNow(policy, () -> offenseInformationSearchRepository.save(OffenseRecordDocument.fromEntity(entity)));
                     }
                     return entity;
                 });
@@ -157,7 +164,7 @@ public class OffenseRecordService {
             return fromIndex;
         }
         List<OffenseRecord> fromDb = offenseRecordMapper.selectList(null);
-        syncBatchToIndexAfterCommit(fromDb);
+        syncBatchToIndexAfterCommit(semanticIntentClassifier.classifyReadRepair(), fromDb);
         return fromDb;
     }
 
@@ -393,38 +400,36 @@ public class OffenseRecordService {
         }
     }
 
-    private void syncToIndexAfterCommit(OffenseRecord offenseRecord) {
+    private void syncToIndexAfterCommit(MutationSideEffectPolicy policy, OffenseRecord offenseRecord) {
         if (offenseRecord == null) {
             return;
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                OffenseRecordDocument doc = OffenseRecordDocument.fromEntity(offenseRecord);
-                if (doc != null) {
-                    offenseInformationSearchRepository.save(doc);
-                }
-            }
-        });
+        sideEffectCoordinator.indexAfterCommit(policy, () -> saveToIndex(offenseRecord));
     }
 
-    private void syncBatchToIndexAfterCommit(List<OffenseRecord> records) {
+    private void syncBatchToIndexAfterCommit(MutationSideEffectPolicy policy, List<OffenseRecord> records) {
         if (records == null || records.isEmpty()) {
             return;
         }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                List<OffenseRecordDocument> documents = records.stream()
-                        .filter(Objects::nonNull)
-                        .map(OffenseRecordDocument::fromEntity)
-                        .filter(Objects::nonNull)
-                        .collect(Collectors.toList());
-                if (!documents.isEmpty()) {
-                    offenseInformationSearchRepository.saveAll(documents);
-                }
-            }
-        });
+        sideEffectCoordinator.indexAfterCommit(policy, () -> saveBatchToIndex(records));
+    }
+
+    private void saveToIndex(OffenseRecord offenseRecord) {
+        OffenseRecordDocument doc = OffenseRecordDocument.fromEntity(offenseRecord);
+        if (doc != null) {
+            offenseInformationSearchRepository.save(doc);
+        }
+    }
+
+    private void saveBatchToIndex(List<OffenseRecord> records) {
+        List<OffenseRecordDocument> documents = records.stream()
+                .filter(Objects::nonNull)
+                .map(OffenseRecordDocument::fromEntity)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+        if (!documents.isEmpty()) {
+            offenseInformationSearchRepository.saveAll(documents);
+        }
     }
 
     /**
@@ -444,7 +449,7 @@ public class OffenseRecordService {
         Page<OffenseRecord> mpPage = new Page<>(Math.max(page, 1), Math.max(size, 1));
         offenseRecordMapper.selectPage(mpPage, wrapper);
         List<OffenseRecord> records = mpPage.getRecords();
-        syncBatchToIndexAfterCommit(records);
+        syncBatchToIndexAfterCommit(semanticIntentClassifier.classifyReadRepair(), records);
         return records;
     }
 

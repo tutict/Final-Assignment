@@ -2,6 +2,7 @@ package com.tutict.finalassignmentbackend.kafkaListener;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.entity.OffenseRecord;
+import com.tutict.finalassignmentbackend.offense.governance.SemanticIntentClassifier;
 import com.tutict.finalassignmentbackend.service.OffenseRecordService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -21,6 +22,7 @@ public class OffenseRecordKafkaListener {
 
     private final OffenseRecordService offenseRecordService;
     private final ObjectMapper objectMapper;
+    private final SemanticIntentClassifier semanticIntentClassifier;
 
     // 构造器注入依赖
     @Autowired
@@ -28,6 +30,7 @@ public class OffenseRecordKafkaListener {
                                       ObjectMapper objectMapper) {
         this.offenseRecordService = offenseRecordService;
         this.objectMapper = objectMapper;
+        this.semanticIntentClassifier = new SemanticIntentClassifier();
     }
 
     // 监听 Kafka 消息
@@ -60,7 +63,9 @@ public class OffenseRecordKafkaListener {
             return;
         }
         try {
-            if (offenseRecordService.shouldSkipProcessing(idempotencyKey)) {
+            boolean duplicate = offenseRecordService.shouldSkipProcessing(idempotencyKey);
+            semanticIntentClassifier.classifyKafkaAction(action, duplicate);
+            if (duplicate) {
                 log.log(Level.INFO, "Skipping duplicate OffenseRecord event (key={0}, action={1})",
                         new Object[]{idempotencyKey, action});
                 return;
