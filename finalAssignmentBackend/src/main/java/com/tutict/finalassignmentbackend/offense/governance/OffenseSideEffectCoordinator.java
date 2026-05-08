@@ -11,7 +11,17 @@ public final class OffenseSideEffectCoordinator {
     }
 
     public void publishKafkaNow(MutationSideEffectPolicy policy, Runnable publisher) {
+        publishKafkaLegacy(policy, publisher);
+    }
+
+    public void publishKafkaLegacy(MutationSideEffectPolicy policy, Runnable publisher) {
         runIf(policy, MutationSideEffect.KAFKA_PUBLISH, publisher);
+    }
+
+    public void publishKafkaAfterCommit(MutationSideEffectPolicy policy, Runnable publisher) {
+        if (has(policy, MutationSideEffect.KAFKA_PUBLISH)) {
+            afterCommitBoundary.afterCommit(publisher);
+        }
     }
 
     public void indexAfterCommit(MutationSideEffectPolicy policy, Runnable indexer) {

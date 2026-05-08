@@ -54,6 +54,7 @@ public class OffenseInformationController {
             OffenseRecord saved = offenseRecordService.createOffenseRecord(request);
             if (useKey && saved.getOffenseId() != null) {
                 offenseRecordService.markHistorySuccess(idempotencyKey, saved.getOffenseId());
+                offenseRecordService.publishCreateKafkaAfterCommit(idempotencyKey, saved);
             }
             return ResponseEntity.status(HttpStatus.CREATED).body(saved);
         } catch (Exception ex) {

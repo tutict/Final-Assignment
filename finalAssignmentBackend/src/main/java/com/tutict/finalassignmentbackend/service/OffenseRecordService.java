@@ -76,8 +76,10 @@ public class OffenseRecordService {
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.insert(history);
 
-        MutationSideEffectPolicy policy = semanticIntentClassifier.classifyIdempotencyPublish(action);
-        sideEffectCoordinator.publishKafkaNow(policy, () -> sendKafkaMessage("offense_record_" + action, idempotencyKey, offenseRecord));
+        if (!"create".equalsIgnoreCase(action)) {
+            MutationSideEffectPolicy policy = semanticIntentClassifier.classifyIdempotencyPublish(action);
+            sideEffectCoordinator.publishKafkaLegacy(policy, () -> sendKafkaMessage("offense_record_" + action, idempotencyKey, offenseRecord));
+        }
 
         history.setBusinessStatus("SUCCESS");
         history.setBusinessId(offenseRecord.getOffenseId());
@@ -111,6 +113,7 @@ public class OffenseRecordService {
         return offenseRecord;
     }
 
+    @Transactional
     public OffenseRecord updateProcessStatus(Long offenseId, OffenseProcessState newState) {
         MutationSideEffectPolicy policy = semanticIntentClassifier.classifyWorkflow();
         requirePositive(offenseId, "Offense ID");
@@ -124,6 +127,14 @@ public class OffenseRecordService {
         offenseRecordMapper.updateById(existing);
         syncToIndexAfterCommit(policy, existing);
         return existing;
+    }
+
+    @Transactional
+    public void publishCreateKafkaAfterCommit(String idempotencyKey, OffenseRecord offenseRecord) {
+        Objects.requireNonNull(offenseRecord, "OffenseRecord must not be null");
+        MutationSideEffectPolicy policy = semanticIntentClassifier.classifyIdempotencyPublish("create");
+        sideEffectCoordinator.publishKafkaAfterCommit(policy,
+                () -> sendKafkaMessage("offense_record_create", idempotencyKey, offenseRecord));
     }
 
     @Transactional
