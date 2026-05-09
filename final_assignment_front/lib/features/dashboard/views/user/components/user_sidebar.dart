@@ -53,12 +53,6 @@ class UserSidebar extends StatelessWidget {
                           routeName: "homePage",
                         ),
                         SelectionButtonData(
-                          activeIcon: EvaIcons.map,
-                          icon: EvaIcons.archiveOutline,
-                          label: "业务点",
-                          routeName: Routes.map,
-                        ),
-                        SelectionButtonData(
                           activeIcon: EvaIcons.calendar,
                           icon: EvaIcons.calendarOutline,
                           label: "业务办理",
@@ -69,18 +63,6 @@ class UserSidebar extends StatelessWidget {
                           icon: EvaIcons.emailOutline,
                           label: "进度消息",
                           routeName: Routes.onlineProcessingProgress,
-                        ),
-                        SelectionButtonData(
-                          activeIcon: EvaIcons.person,
-                          icon: EvaIcons.personOutline,
-                          label: "个人",
-                          routeName: Routes.personalMain,
-                        ),
-                        SelectionButtonData(
-                          activeIcon: EvaIcons.settings,
-                          icon: EvaIcons.settingsOutline,
-                          label: "设置",
-                          routeName: Routes.userSetting,
                         ),
                       ],
                       onSelected: (index, value) {

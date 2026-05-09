@@ -1,11 +1,11 @@
-﻿import React from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageLayout from '../../components/PageLayout.jsx';
 
 const logPages = [
-  { title: '登录日志', path: '/loginLogPage', description: '用户登录登出与失败记录' },
-  { title: '操作日志', path: '/operationLogPage', description: '后台操作与审计追踪' },
-  { title: '系统日志', path: '/systemLogPage', description: '系统运行与异常信息' },
+  { title: '登录日志', path: '/admin/loginLogPage', description: '用户登录登出与失败记录' },
+  { title: '操作日志', path: '/admin/operationLogPage', description: '后台操作与审计追踪' },
+  { title: '系统日志', path: '/admin/systemLogPage', description: '系统运行与异常信息' },
 ];
 
 export default function LogManagementPage() {

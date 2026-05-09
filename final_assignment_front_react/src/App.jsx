@@ -4,6 +4,7 @@ import ProtectedRoute from './auth/ProtectedRoute.jsx';
 import LoginPage from './pages/shared/LoginPage.jsx';
 
 const ManagerLayout = lazy(() => import('./layouts/ManagerLayout.jsx'));
+const AdminLayout = lazy(() => import('./layouts/AdminLayout.jsx'));
 const UserLayout = lazy(() => import('./layouts/UserLayout.jsx'));
 const RoleAwareLayout = lazy(() => import('./layouts/RoleAwareLayout.jsx'));
 
@@ -108,22 +109,35 @@ export default function App() {
         <Route path="/fineList" element={renderLazyPage(FineListPage)} />
         <Route path="/offenseList" element={renderLazyPage(OffenseListPage)} />
         <Route path="/vehicleList" element={renderLazyPage(VehicleListPage)} />
-        <Route path="/backupAndRestore" element={renderLazyPage(BackupRestorePage)} />
-        <Route path="/managerPersonalPage" element={renderLazyPage(ManagerPersonalPage)} />
-        <Route path="/managerSetting" element={renderLazyPage(ManagerSettingPage)} />
         <Route path="/progressManagement" element={renderLazyPage(ProgressManagementPage)} />
         <Route path="/managerBusinessProcessing" element={renderLazyPage(ManagerBusinessProcessingPage)} />
-        <Route path="/logManagement" element={renderLazyPage(LogManagementPage)} />
-        <Route path="/userManagementPage" element={renderLazyPage(UserManagementPage)} />
-        <Route path="/loginLogPage" element={renderLazyPage(LoginLogPage)} />
-        <Route path="/operationLogPage" element={renderLazyPage(OperationLogPage)} />
-        <Route path="/systemLogPage" element={renderLazyPage(SystemLogPage)} />
         <Route path="/offenseType" element={renderLazyPage(OffenseTypePage)} />
         <Route path="/paymentRecord" element={renderLazyPage(PaymentRecordPage)} />
-        <Route path="/roleManagement" element={renderLazyPage(RoleManagementPage)} />
-        <Route path="/permissionManagement" element={renderLazyPage(PermissionManagementPage)} />
-        <Route path="/systemSettings" element={renderLazyPage(SystemSettingsPage)} />
         <Route path="/progressDetailPage/:id" element={renderLazyPage(ProgressDetailPage)} />
+      </Route>
+
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute allowRoles={['ADMIN', 'SUPER_ADMIN', 'APPEAL_REVIEWER']}>
+            {renderLazyPage(AdminLayout)}
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<Navigate to="/admin/logManagement" replace />} />
+        <Route path="backupAndRestore" element={renderLazyPage(BackupRestorePage)} />
+        <Route path="managerPersonalPage" element={renderLazyPage(ManagerPersonalPage)} />
+        <Route path="managerSetting" element={renderLazyPage(ManagerSettingPage)} />
+        <Route path="logManagement" element={renderLazyPage(LogManagementPage)} />
+        <Route path="userManagementPage" element={renderLazyPage(UserManagementPage)} />
+        <Route path="loginLogPage" element={renderLazyPage(LoginLogPage)} />
+        <Route path="operationLogPage" element={renderLazyPage(OperationLogPage)} />
+        <Route path="systemLogPage" element={renderLazyPage(SystemLogPage)} />
+        <Route path="roleManagement" element={renderLazyPage(RoleManagementPage)} />
+        <Route path="permissionManagement" element={renderLazyPage(PermissionManagementPage)} />
+        <Route path="systemSettings" element={renderLazyPage(SystemSettingsPage)} />
+        <Route path="aiChat" element={renderLazyPage(AiChatPage)} />
+        <Route path="map" element={renderLazyPage(MapPage)} />
       </Route>
 
       <Route
@@ -144,34 +158,6 @@ export default function App() {
         <Route path="/personalMain" element={renderLazyPage(PersonalMainPage)} />
         <Route path="/userSetting" element={renderLazyPage(UserSettingPage)} />
         <Route path="/consultation" element={renderLazyPage(ConsultationFeedbackPage)} />
-      </Route>
-
-      <Route
-        path="/aiChat"
-        element={
-          <ProtectedRoute allowRoles={['USER', 'ADMIN', 'SUPER_ADMIN']}>
-            {renderLazyPage(RoleAwareLayout, {
-              headerTitle: 'AI 智能助手',
-              headerSubtitle: '智能问答与业务指引',
-            })}
-          </ProtectedRoute>
-        }
-      >
-        <Route index element={renderLazyPage(AiChatPage)} />
-      </Route>
-
-      <Route
-        path="/map"
-        element={
-          <ProtectedRoute allowRoles={['USER', 'ADMIN', 'SUPER_ADMIN']}>
-            {renderLazyPage(RoleAwareLayout, {
-              headerTitle: '违法地图',
-              headerSubtitle: '数据分布与热点分析',
-            })}
-          </ProtectedRoute>
-        }
-      >
-        <Route index element={renderLazyPage(MapPage)} />
       </Route>
 
       <Route

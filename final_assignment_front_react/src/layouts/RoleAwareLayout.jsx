@@ -1,6 +1,6 @@
-﻿import React from 'react';
+import React from 'react';
 import AppShell from './AppShell.jsx';
-import { managerNav, userNav, utilityNav } from '../config/navigation.js';
+import { businessNav, userNav } from '../config/navigation.js';
 import { useAuth } from '../auth/AuthContext.jsx';
 
 export default function RoleAwareLayout({ headerTitle, headerSubtitle }) {
@@ -9,8 +9,7 @@ export default function RoleAwareLayout({ headerTitle, headerSubtitle }) {
   return (
     <AppShell
       navTitle={isAdmin ? '管理模块' : '用户中心'}
-      navItems={isAdmin ? managerNav : userNav}
-      footerItems={utilityNav}
+      navItems={isAdmin ? businessNav : userNav}
       headerTitle={headerTitle}
       headerSubtitle={headerSubtitle}
     />

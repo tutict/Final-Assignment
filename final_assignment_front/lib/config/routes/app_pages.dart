@@ -1,22 +1,11 @@
 import 'package:final_assignment_front/features/dashboard/views/manager/manager_dashboard_screen.dart';
-import 'package:final_assignment_front/features/dashboard/views/manager/pages/backup_and_restore.dart';
-import 'package:final_assignment_front/features/dashboard/views/manager/pages/logs/login_log_page.dart';
-import 'package:final_assignment_front/features/dashboard/views/manager/pages/logs/operation_log_page.dart';
-import 'package:final_assignment_front/features/dashboard/views/manager/pages/logs/system_log_page.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/appeal_management.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/driver_list.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/offense_list.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/vehicle_list.dart';
-import 'package:final_assignment_front/features/dashboard/views/manager/pages/manager_personal_page.dart';
-import 'package:final_assignment_front/features/dashboard/views/manager/pages/manager_setting.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/progress_management.dart';
-import 'package:final_assignment_front/features/dashboard/views/manager/pages/sidebar_management/log_management.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/sidebar_management/manager_business_processing.dart';
-import 'package:final_assignment_front/features/dashboard/views/manager/pages/sidebar_management/user_management_page.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/traffic_violation_screen.dart';
-import 'package:final_assignment_front/features/dashboard/views/shared/components/ai_chat.dart';
-import 'package:final_assignment_front/features/dashboard/views/shared/components/change_themes.dart';
-import 'package:final_assignment_front/features/dashboard/views/shared/components/map.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/components/progress_detail.dart';
 import 'package:final_assignment_front/features/dashboard/views/user/pages/main_process/business_progress.dart';
 import 'package:final_assignment_front/features/dashboard/views/user/pages/main_process/fine_information.dart';
@@ -41,6 +30,7 @@ import 'package:final_assignment_front/features/dashboard/bindings/user_dashboar
 import 'package:final_assignment_front/features/offense/bindings/traffic_violation_binding.dart';
 import 'package:get/get.dart';
 
+import 'admin_pages.dart';
 import 'app_routes.dart';
 
 class AppPages {
@@ -110,14 +100,6 @@ class AppPages {
       binding: UserDashboardBinding(),
     ),
     GetPage(
-      name: RoutePaths.aiChat,
-      page: () => const AiChat(),
-    ),
-    GetPage(
-      name: RoutePaths.map,
-      page: () => const MapPage(),
-    ),
-    GetPage(
       name: RoutePaths.onlineProcessingProgress,
       page: () => const OnlineProcessingProgress(),
     ),
@@ -142,20 +124,8 @@ class AppPages {
       page: () => const AppealManagementAdmin(),
     ),
     GetPage(
-      name: RoutePaths.backupAndRestore,
-      page: () => const BackupAndRestore(),
-    ),
-    GetPage(
       name: RoutePaths.driverList,
       page: () => const DriverList(),
-    ),
-    GetPage(
-      name: RoutePaths.managerPersonalPage,
-      page: () => const ManagerPersonalPage(),
-    ),
-    GetPage(
-      name: RoutePaths.managerSetting,
-      page: () => const ManagerSetting(),
     ),
     GetPage(
       name: RoutePaths.offenseList,
@@ -176,10 +146,6 @@ class AppPages {
     GetPage(
       name: RoutePaths.vehicleManagement,
       page: () => const VehicleManagement(),
-    ),
-    GetPage(
-      name: RoutePaths.changeThemes,
-      page: () => const ChangeThemes(),
     ),
     GetPage(
       name: RoutePaths.businessProgress,
@@ -225,26 +191,6 @@ class AppPages {
       transition: Transition.fadeIn,
     ),
     GetPage(
-      name: RoutePaths.logManagement,
-      page: () => const LogManagement(),
-    ),
-    GetPage(
-      name: RoutePaths.userManagementPage,
-      page: () => const UserManagementPage(),
-    ),
-    GetPage(
-      name: RoutePaths.loginLogPage,
-      page: () => const LoginLogPage(),
-    ),
-    GetPage(
-      name: RoutePaths.operationLogPage,
-      page: () => const OperationLogPage(),
-    ),
-    GetPage(
-      name: RoutePaths.systemLogPage,
-      page: () => const SystemLogPage(),
-    ),
-    GetPage(
       name: RoutePaths.userOffenseListPage,
       page: () => const UserOffenseListPage(),
     ),
@@ -257,5 +203,6 @@ class AppPages {
       name: RoutePaths.progressManagementPage,
       page: () => const ProgressManagementPage(),
     ),
+    ...AdminPages.routes,
   ];
 }

@@ -1,4 +1,4 @@
-﻿import {
+import {
   FiHome,
   FiUsers,
   FiShield,
@@ -6,18 +6,15 @@
   FiTruck,
   FiCreditCard,
   FiFileText,
-  FiSettings,
   FiActivity,
   FiClipboard,
-  FiMap,
-  FiMessageCircle,
   FiLayers,
   FiBookOpen,
   FiTool,
   FiLogOut,
 } from 'react-icons/fi';
 
-export const managerNav = [
+export const businessNav = [
   { label: '管理仪表盘', path: '/dashboard', icon: FiHome },
   { label: '交通违法概览', path: '/trafficViolationScreen', icon: FiActivity },
   { label: '违法记录', path: '/offenseList', icon: FiAlertTriangle },
@@ -29,17 +26,9 @@ export const managerNav = [
   { label: '驾驶员管理', path: '/driverList', icon: FiUsers },
   { label: '车辆管理', path: '/vehicleList', icon: FiTruck },
   { label: '业务进度', path: '/progressManagement', icon: FiLayers },
-  { label: '用户管理', path: '/userManagementPage', icon: FiUsers },
-  { label: '权限管理', path: '/permissionManagement', icon: FiShield },
-  { label: '角色管理', path: '/roleManagement', icon: FiShield },
-  { label: '日志管理', path: '/logManagement', icon: FiClipboard },
-  { label: '系统设置', path: '/systemSettings', icon: FiSettings },
-  { label: '备份与恢复', path: '/backupAndRestore', icon: FiTool },
-  { label: 'AI 助手', path: '/aiChat', icon: FiMessageCircle },
-  { label: '数据地图', path: '/map', icon: FiMap },
-  { label: '管理员信息', path: '/managerPersonalPage', icon: FiBookOpen },
-  { label: '管理员设置', path: '/managerSetting', icon: FiSettings },
 ];
+
+export const managerNav = businessNav;
 
 export const userNav = [
   { label: '用户仪表盘', path: '/userDashboard', icon: FiHome },
@@ -49,10 +38,6 @@ export const userNav = [
   { label: '业务进度', path: '/businessProgress', icon: FiLayers },
   { label: '在线办理进度', path: '/onlineProcessingProgress', icon: FiClipboard },
   { label: '我的申诉', path: '/userAppeal', icon: FiFileText },
-  { label: '个人中心', path: '/personalMain', icon: FiUsers },
-  { label: '个人设置', path: '/userSetting', icon: FiSettings },
-  { label: '咨询反馈', path: '/consultation', icon: FiMessageCircle },
-  { label: '新闻资讯', path: '/latestTrafficViolationNewsPage', icon: FiBookOpen },
 ];
 
 export const utilityNav = [
@@ -64,4 +49,3 @@ export const utilityNav = [
   { label: '扫一扫', path: '/mainScan', icon: FiTool },
   { label: '安全退出', path: '/login', icon: FiLogOut, isLogout: true },
 ];
-

@@ -51,46 +51,16 @@ class _Sidebar extends StatelessWidget {
                           routeName: "homePage",
                         ),
                         SelectionButtonData(
-                          activeIcon: EvaIcons.map,
-                          icon: EvaIcons.archiveOutline,
-                          label: "地图",
-                          routeName: Routes.map,
-                        ),
-                        SelectionButtonData(
                           activeIcon: EvaIcons.calendar,
                           icon: EvaIcons.calendarOutline,
                           label: "业务处理",
                           routeName: Routes.managerBusinessProcessing,
                         ),
                         SelectionButtonData(
-                          activeIcon: EvaIcons.book,
-                          icon: EvaIcons.bookOutline,
-                          label: "日志查阅",
-                          routeName: Routes.logManagement,
-                        ),
-                        SelectionButtonData(
-                          activeIcon: EvaIcons.people,
-                          icon: EvaIcons.peopleOutline,
-                          label: "用户管理",
-                          routeName: Routes.userManagementPage,
-                        ),
-                        SelectionButtonData(
                           activeIcon: EvaIcons.email,
                           icon: EvaIcons.emailOutline,
                           label: "消息",
                           routeName: Routes.progressManagement,
-                        ),
-                        SelectionButtonData(
-                          activeIcon: EvaIcons.person,
-                          icon: EvaIcons.personOutline,
-                          label: "个人信息",
-                          routeName: Routes.managerPersonalPage,
-                        ),
-                        SelectionButtonData(
-                          activeIcon: EvaIcons.settings,
-                          icon: EvaIcons.settingsOutline,
-                          label: "设置",
-                          routeName: Routes.managerSetting,
                         ),
                       ],
                       onSelected: (index, value) {

@@ -1,4 +1,3 @@
-
 /// 用于切换页面
 class Routes {
   /// 首页路由
@@ -159,10 +158,10 @@ class RoutePaths {
   static const login = '/login';
 
   /// AI聊天路由
-  static const aiChat = '/aiChat';
+  static const aiChat = '/admin/aiChat';
 
   // /// 地图路由
-  static const map = '/map';
+  static const map = '/admin/map';
 
   /// 用户仪表盘路由
   static const userDashboard = '/userDashboard';
@@ -195,7 +194,7 @@ class RoutePaths {
   static const userSetting = '/userSetting';
 
   /// 管理员设置路由
-  static const managerSetting = '/managerSetting';
+  static const managerSetting = '/admin/managerSetting';
 
   /// 咨询路由
   static const consultation = '/consultation';
@@ -213,7 +212,7 @@ class RoutePaths {
   static const appealManagement = '/appealManagement';
 
   // 备份与恢复路由
-  static const backupAndRestore = '/backupAndRestore';
+  static const backupAndRestore = '/admin/backupAndRestore';
 
   // 驾驶证列表路由
   static const driverList = '/driverList';
@@ -222,7 +221,7 @@ class RoutePaths {
   static const fineList = '/fineList';
 
   // 管理员个人主页路由
-  static const managerPersonalPage = '/managerPersonalPage';
+  static const managerPersonalPage = '/admin/managerPersonalPage';
 
   // 违章列表路由
   static const offenseList = '/offenseList';
@@ -243,7 +242,7 @@ class RoutePaths {
   static const vehicleManagement = '/vehicleManagement';
 
   // 切换主题
-  static const changeThemes = '/changeThemes';
+  static const changeThemes = '/admin/changeThemes';
 
   // 用户业务办理页面
   static const businessProgress = '/businessProgress';
@@ -277,19 +276,19 @@ class RoutePaths {
   static const progressDetailPage = '/progressDetailPage';
 
   //  日志管理页面路由
-  static const logManagement = '/logManagement';
+  static const logManagement = '/admin/logManagement';
 
   // 用户管理页面路由
-  static const userManagementPage = '/userManagementPage';
+  static const userManagementPage = '/admin/userManagementPage';
 
   // 登录日志页面路由
-  static const loginLogPage = '/loginLogPage';
+  static const loginLogPage = '/admin/loginLogPage';
 
   // 操作日志页面路由
-  static const operationLogPage = '/operationLogPage';
+  static const operationLogPage = '/admin/operationLogPage';
 
   // 系统日志页面
-  static const systemLogPage = '/systemLogPage';
+  static const systemLogPage = '/admin/systemLogPage';
 
   // 用户处罚列表页面路由
   static const userOffenseListPage = '/userOffenseListPage';
