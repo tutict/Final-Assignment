@@ -10,6 +10,8 @@ import com.tutict.finalassignmentbackend.entity.SysRequestHistory;
 import com.tutict.finalassignmentbackend.entity.elastic.PaymentRecordDocument;
 import com.tutict.finalassignmentbackend.mapper.PaymentRecordMapper;
 import com.tutict.finalassignmentbackend.mapper.SysRequestHistoryMapper;
+import com.tutict.finalassignmentbackend.payment.governance.PaymentGovernanceClassifier;
+import com.tutict.finalassignmentbackend.payment.governance.PaymentGovernanceLogFactory;
 import com.tutict.finalassignmentbackend.repository.PaymentRecordSearchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
@@ -40,6 +42,7 @@ public class PaymentRecordService {
     private final PaymentRecordSearchRepository paymentRecordSearchRepository;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
+    private final PaymentGovernanceClassifier paymentGovernanceClassifier;
 
     @Autowired
     public PaymentRecordService(PaymentRecordMapper paymentRecordMapper,
@@ -52,6 +55,7 @@ public class PaymentRecordService {
         this.paymentRecordSearchRepository = paymentRecordSearchRepository;
         this.kafkaTemplate = kafkaTemplate;
         this.objectMapper = objectMapper;
+        this.paymentGovernanceClassifier = new PaymentGovernanceClassifier();
     }
 
     @Transactional
@@ -108,6 +112,11 @@ public class PaymentRecordService {
         if (existing == null) {
             throw new IllegalStateException("PaymentRecord not found for id=" + paymentId);
         }
+        logPaymentGovernance(PaymentGovernanceLogFactory.workflowStatus(
+                paymentGovernanceClassifier.classifyWorkflowStatus(newState),
+                existing,
+                newState == null ? null : newState.getCode()
+        ));
         // 工作流只允许更新状态枚举值，其他字段由业务接口维护
         existing.setPaymentStatus(newState != null ? newState.getCode() : existing.getPaymentStatus());
         existing.setUpdatedAt(LocalDateTime.now());
@@ -141,6 +150,7 @@ public class PaymentRecordService {
                 .orElseGet(() -> {
                     PaymentRecord entity = paymentRecordMapper.selectById(paymentId);
                     if (entity != null) {
+                        logReadRepairGovernance(entity.getPaymentId(), 1);
                         paymentRecordSearchRepository.save(PaymentRecordDocument.fromEntity(entity));
                     }
                     return entity;
@@ -157,6 +167,7 @@ public class PaymentRecordService {
             return fromIndex;
         }
         List<PaymentRecord> fromDb = paymentRecordMapper.selectList(null);
+        logReadRepairGovernance(null, fromDb == null ? 0 : fromDb.size());
         fromDb.stream()
                 .map(PaymentRecordDocument::fromEntity)
                 .filter(Objects::nonNull)
@@ -360,6 +371,7 @@ public class PaymentRecordService {
         Page<PaymentRecord> mpPage = new Page<>(Math.max(page, 1), Math.max(size, 1));
         paymentRecordMapper.selectPage(mpPage, wrapper);
         List<PaymentRecord> records = mpPage.getRecords();
+        logReadRepairGovernance(null, records == null ? 0 : records.size());
         syncBatchToIndexAfterCommit(records);
         return records;
     }
@@ -423,6 +435,21 @@ public class PaymentRecordService {
     }
 
     // 批量操作时同样复用 afterCommit 钩子，降低对 ES 的写入频率
+    private void logReadRepairGovernance(Long paymentId, int recordCount) {
+        if (recordCount <= 0) {
+            return;
+        }
+        logPaymentGovernance(PaymentGovernanceLogFactory.readRepair(
+                paymentGovernanceClassifier.classifyReadRepair(),
+                paymentId,
+                recordCount
+        ));
+    }
+
+    private void logPaymentGovernance(String payload) {
+        log.log(Level.INFO, payload);
+    }
+
     private void syncBatchToIndexAfterCommit(List<PaymentRecord> records) {
         if (records == null || records.isEmpty()) {
             return;

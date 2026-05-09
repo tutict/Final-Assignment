@@ -2,6 +2,9 @@ package com.tutict.finalassignmentbackend.kafkaListener;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.entity.PaymentRecord;
+import com.tutict.finalassignmentbackend.payment.governance.PaymentGovernanceClassifier;
+import com.tutict.finalassignmentbackend.payment.governance.PaymentGovernanceLogFactory;
+import com.tutict.finalassignmentbackend.payment.governance.PaymentGovernanceSource;
 import com.tutict.finalassignmentbackend.service.PaymentRecordService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -21,6 +24,7 @@ public class PaymentRecordKafkaListener {
 
     private final PaymentRecordService paymentRecordService;
     private final ObjectMapper objectMapper;
+    private final PaymentGovernanceClassifier paymentGovernanceClassifier;
 
     // 构造器注入依赖
     @Autowired
@@ -28,6 +32,7 @@ public class PaymentRecordKafkaListener {
                                       ObjectMapper objectMapper) {
         this.paymentRecordService = paymentRecordService;
         this.objectMapper = objectMapper;
+        this.paymentGovernanceClassifier = new PaymentGovernanceClassifier();
     }
 
     // 监听 Kafka 消息
@@ -63,10 +68,21 @@ public class PaymentRecordKafkaListener {
 
         try {
             if (paymentRecordService.shouldSkipProcessing(idempotencyKey)) {
-                log.log(Level.INFO, "Skipping duplicate PaymentRecord event (key={0}, action={1})",
-                        new Object[]{idempotencyKey, action});
+                logPaymentGovernance(PaymentGovernanceLogFactory.noOpSuppressed(
+                        PaymentGovernanceSource.KAFKA,
+                        paymentGovernanceClassifier.classifyKafkaMutation(action, true),
+                        payload,
+                        action,
+                        idempotencyKey
+                ));
                 return;
             }
+            logPaymentGovernance(PaymentGovernanceLogFactory.shadowClassification(
+                    PaymentGovernanceSource.KAFKA,
+                    paymentGovernanceClassifier.classifyKafkaMutation(action, false),
+                    payload,
+                    action
+            ));
 
             PaymentRecord result;
             if ("create".equalsIgnoreCase(action)) {
@@ -107,5 +123,9 @@ public class PaymentRecordKafkaListener {
     // 判空
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
+    }
+
+    private void logPaymentGovernance(String payload) {
+        log.log(Level.INFO, payload);
     }
 }

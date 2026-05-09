@@ -2,6 +2,9 @@ package com.tutict.finalassignmentbackend.controller;
 
 import com.tutict.finalassignmentbackend.config.statemachine.states.PaymentState;
 import com.tutict.finalassignmentbackend.entity.PaymentRecord;
+import com.tutict.finalassignmentbackend.payment.governance.PaymentGovernanceClassifier;
+import com.tutict.finalassignmentbackend.payment.governance.PaymentGovernanceLogFactory;
+import com.tutict.finalassignmentbackend.payment.governance.PaymentGovernanceSource;
 import com.tutict.finalassignmentbackend.service.PaymentRecordService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -34,9 +37,11 @@ public class PaymentRecordController {
     private static final Logger LOG = Logger.getLogger(PaymentRecordController.class.getName());
 
     private final PaymentRecordService paymentRecordService;
+    private final PaymentGovernanceClassifier paymentGovernanceClassifier;
 
     public PaymentRecordController(PaymentRecordService paymentRecordService) {
         this.paymentRecordService = paymentRecordService;
+        this.paymentGovernanceClassifier = new PaymentGovernanceClassifier();
     }
 
     @PostMapping
@@ -48,10 +53,30 @@ public class PaymentRecordController {
         try {
             if (useKey) {
                 if (paymentRecordService.shouldSkipProcessing(idempotencyKey)) {
+                    logPaymentGovernance(PaymentGovernanceLogFactory.noOpSuppressed(
+                            PaymentGovernanceSource.CONTROLLER,
+                            paymentGovernanceClassifier.classifyControllerMutation("create", true),
+                            request,
+                            "create",
+                            idempotencyKey
+                    ));
                     return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
                 }
+                logPaymentGovernance(PaymentGovernanceLogFactory.preMutationKafka(
+                        PaymentGovernanceSource.CONTROLLER,
+                        paymentGovernanceClassifier.classifyPreMutationKafka("create"),
+                        request,
+                        "create",
+                        idempotencyKey
+                ));
                 paymentRecordService.checkAndInsertIdempotency(idempotencyKey, request, "create");
             }
+            logPaymentGovernance(PaymentGovernanceLogFactory.shadowClassification(
+                    PaymentGovernanceSource.CONTROLLER,
+                    paymentGovernanceClassifier.classifyControllerMutation("create", false),
+                    request,
+                    "create"
+            ));
             PaymentRecord saved = paymentRecordService.createPaymentRecord(request);
             if (useKey && saved.getPaymentId() != null) {
                 paymentRecordService.markHistorySuccess(idempotencyKey, saved.getPaymentId());
@@ -76,8 +101,21 @@ public class PaymentRecordController {
         try {
             request.setPaymentId(paymentId);
             if (useKey) {
+                logPaymentGovernance(PaymentGovernanceLogFactory.preMutationKafka(
+                        PaymentGovernanceSource.CONTROLLER,
+                        paymentGovernanceClassifier.classifyPreMutationKafka("update"),
+                        request,
+                        "update",
+                        idempotencyKey
+                ));
                 paymentRecordService.checkAndInsertIdempotency(idempotencyKey, request, "update");
             }
+            logPaymentGovernance(PaymentGovernanceLogFactory.shadowClassification(
+                    PaymentGovernanceSource.CONTROLLER,
+                    paymentGovernanceClassifier.classifyControllerMutation("update", false),
+                    request,
+                    "update"
+            ));
             PaymentRecord updated = paymentRecordService.updatePaymentRecord(request);
             if (useKey && updated.getPaymentId() != null) {
                 paymentRecordService.markHistorySuccess(idempotencyKey, updated.getPaymentId());
@@ -211,5 +249,9 @@ public class PaymentRecordController {
         return (ex instanceof IllegalArgumentException || ex instanceof IllegalStateException)
                 ? HttpStatus.BAD_REQUEST
                 : HttpStatus.INTERNAL_SERVER_ERROR;
+    }
+
+    private void logPaymentGovernance(String payload) {
+        LOG.log(Level.INFO, payload);
     }
 }
