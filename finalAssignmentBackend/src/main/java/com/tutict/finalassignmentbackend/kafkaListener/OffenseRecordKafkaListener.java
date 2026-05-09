@@ -2,6 +2,8 @@ package com.tutict.finalassignmentbackend.kafkaListener;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.entity.OffenseRecord;
+import com.tutict.finalassignmentbackend.offense.governance.OffenseGovernanceDecision;
+import com.tutict.finalassignmentbackend.offense.governance.OffenseGovernanceLogFactory;
 import com.tutict.finalassignmentbackend.offense.governance.SemanticIntentClassifier;
 import com.tutict.finalassignmentbackend.offense.governance.StaleFullUpdateRejectedException;
 import com.tutict.finalassignmentbackend.service.OffenseRecordService;
@@ -67,8 +69,13 @@ public class OffenseRecordKafkaListener {
             boolean duplicate = offenseRecordService.shouldSkipProcessing(idempotencyKey);
             semanticIntentClassifier.classifyKafkaAction(action, duplicate);
             if (duplicate) {
-                log.log(Level.INFO, "Skipping duplicate OffenseRecord event (key={0}, action={1})",
-                        new Object[]{idempotencyKey, action});
+                logGovernance(Level.INFO, OffenseGovernanceLogFactory.noOpSuppressed(
+                                OffenseGovernanceDecision.Source.KAFKA,
+                                payload.getOffenseId(),
+                                "duplicate"
+                        )
+                        .withAttribute("kafkaKey", idempotencyKey)
+                        .withAttribute("action", action));
                 return;
             }
 
@@ -84,9 +91,9 @@ public class OffenseRecordKafkaListener {
             }
             offenseRecordService.markHistorySuccess(idempotencyKey, result.getOffenseId());
         } catch (StaleFullUpdateRejectedException ex) {
-            log.log(Level.WARNING,
-                    "Skipping stale OffenseRecord FULL_UPDATE event (key={0}, action={1}, reason={2})",
-                    new Object[]{idempotencyKey, action, ex.getMessage()});
+            logGovernance(Level.WARNING, ex.decision()
+                    .withAttribute("kafkaKey", idempotencyKey)
+                    .withAttribute("action", action));
         } catch (Exception ex) {
             offenseRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
             log.log(Level.SEVERE,
@@ -114,5 +121,9 @@ public class OffenseRecordKafkaListener {
     // 判空
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
+    }
+
+    private void logGovernance(Level level, OffenseGovernanceDecision decision) {
+        log.log(level, OffenseGovernanceLogFactory.format(decision));
     }
 }

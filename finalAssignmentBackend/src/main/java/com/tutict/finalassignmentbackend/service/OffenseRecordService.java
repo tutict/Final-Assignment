@@ -14,6 +14,8 @@ import com.tutict.finalassignmentbackend.offense.governance.AfterCommitBoundary;
 import com.tutict.finalassignmentbackend.offense.governance.FullUpdateCompatibilityMode;
 import com.tutict.finalassignmentbackend.offense.governance.FullUpdateMergePolicy;
 import com.tutict.finalassignmentbackend.offense.governance.MutationSideEffectPolicy;
+import com.tutict.finalassignmentbackend.offense.governance.OffenseGovernanceDecision;
+import com.tutict.finalassignmentbackend.offense.governance.OffenseGovernanceLogFactory;
 import com.tutict.finalassignmentbackend.offense.governance.OffenseSideEffectCoordinator;
 import com.tutict.finalassignmentbackend.offense.governance.OffenseStaleUpdatePolicy;
 import com.tutict.finalassignmentbackend.offense.governance.OffenseUpdateFreshnessEvaluator;
@@ -31,6 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.logging.Level;
@@ -147,15 +150,17 @@ public class OffenseRecordService {
         OffenseStaleUpdatePolicy.Decision freshness =
                 updateFreshnessEvaluator.evaluate(current, incoming, SemanticEventType.FULL_UPDATE);
         if (freshness == OffenseStaleUpdatePolicy.Decision.SHADOW_ONLY) {
-            log.log(Level.WARNING,
-                    "Offense stale kafka FULL_UPDATE rejected decision={0}, id={1}, currentUpdatedAt={2}, incomingUpdatedAt={3}",
-                    new Object[]{freshness, incoming.getOffenseId(), current.getUpdatedAt(), incoming.getUpdatedAt()});
-            throw new StaleFullUpdateRejectedException(incoming.getOffenseId());
+            OffenseGovernanceDecision decision = OffenseGovernanceLogFactory.staleKafkaRejected(
+                    incoming.getOffenseId(),
+                    current.getUpdatedAt(),
+                    incoming.getUpdatedAt()
+            );
+            throw new StaleFullUpdateRejectedException(decision);
         }
 
         FullUpdateMergePolicy.MergeResult merge =
                 fullUpdateMergePolicy.merge(current, incoming, FullUpdateCompatibilityMode.GUARDED_COMPATIBILITY);
-        logFullUpdateMergeGovernance("kafka", incoming.getOffenseId(), merge);
+        logFullUpdateMergeGovernance(OffenseGovernanceDecision.Source.KAFKA, incoming.getOffenseId(), merge);
         OffenseRecord guarded = merge.mergedRecord();
         validateOffenseRecord(guarded);
         int rows = offenseRecordMapper.updateById(guarded);
@@ -182,6 +187,13 @@ public class OffenseRecordService {
         OffenseStaleUpdatePolicy.Decision freshness =
                 updateFreshnessEvaluator.evaluate(existing, incoming, SemanticEventType.WORKFLOW);
         if (freshness == OffenseStaleUpdatePolicy.Decision.REJECT_STALE) {
+            logGovernance(Level.WARNING, OffenseGovernanceLogFactory.workflowStaleRejected(
+                    offenseId,
+                    existing.getProcessStatus(),
+                    incoming.getProcessStatus(),
+                    existing.getProcessTime(),
+                    incoming.getProcessTime()
+            ));
             throw new IllegalStateException("Stale Offense workflow update rejected for id=" + offenseId);
         }
         OffenseRecord merged = updateMergeCoordinator.merge(existing, incoming, SemanticEventType.WORKFLOW);
@@ -202,14 +214,24 @@ public class OffenseRecordService {
             OffenseStaleUpdatePolicy.Decision freshness =
                     updateFreshnessEvaluator.evaluate(current, incoming, SemanticEventType.FULL_UPDATE);
             if (freshness == OffenseStaleUpdatePolicy.Decision.SHADOW_ONLY) {
-                log.log(Level.INFO,
-                        "Offense Kafka update stale shadow decision={0}, id={1}, currentUpdatedAt={2}, incomingUpdatedAt={3}",
-                        new Object[]{freshness, incoming.getOffenseId(), current.getUpdatedAt(), incoming.getUpdatedAt()});
+                logGovernance(Level.INFO, OffenseGovernanceLogFactory.shadowStale(
+                        OffenseGovernanceDecision.Source.KAFKA,
+                        incoming.getOffenseId(),
+                        current.getUpdatedAt(),
+                        incoming.getUpdatedAt()
+                ));
             }
-            OffenseRecord governed = updateMergeCoordinator.merge(current, incoming, SemanticEventType.FULL_UPDATE);
-            if (!Objects.equals(governed, incoming)) {
-                log.log(Level.INFO, "Offense Kafka update shadow merge differs from legacy full overwrite for id={0}",
-                        incoming.getOffenseId());
+            FullUpdateMergePolicy.MergeResult shadowMerge =
+                    fullUpdateMergePolicy.merge(current, incoming, FullUpdateCompatibilityMode.LEGACY_SHADOW);
+            logFullUpdateMergeGovernance(OffenseGovernanceDecision.Source.KAFKA, incoming.getOffenseId(), shadowMerge);
+            if (!Objects.equals(shadowMerge.mergedRecord(), incoming)) {
+                logGovernance(Level.INFO, OffenseGovernanceLogFactory.legacyCompatibilityMode(
+                        OffenseGovernanceDecision.Source.KAFKA,
+                        incoming.getOffenseId(),
+                        FullUpdateCompatibilityMode.LEGACY_SHADOW,
+                        shadowMerge.mergedRecord() == null ? null : shadowMerge.mergedRecord().getUpdatedAt(),
+                        mergedGovernanceFields(shadowMerge)
+                ));
             }
         } catch (Exception ex) {
             log.log(Level.WARNING, "Offense Kafka update shadow merge comparison failed", ex);
@@ -228,13 +250,16 @@ public class OffenseRecordService {
             OffenseStaleUpdatePolicy.Decision freshness =
                     updateFreshnessEvaluator.evaluate(current, incoming, SemanticEventType.FULL_UPDATE);
             if (freshness == OffenseStaleUpdatePolicy.Decision.SHADOW_ONLY) {
-                log.log(Level.INFO,
-                        "Offense controller FULL_UPDATE stale shadow decision={0}, id={1}, currentUpdatedAt={2}, incomingUpdatedAt={3}",
-                        new Object[]{freshness, incoming.getOffenseId(), current.getUpdatedAt(), incoming.getUpdatedAt()});
+                logGovernance(Level.INFO, OffenseGovernanceLogFactory.shadowStale(
+                        OffenseGovernanceDecision.Source.CONTROLLER,
+                        incoming.getOffenseId(),
+                        current.getUpdatedAt(),
+                        incoming.getUpdatedAt()
+                ));
             }
             FullUpdateMergePolicy.MergeResult shadowMerge =
                     fullUpdateMergePolicy.merge(current, incoming, FullUpdateCompatibilityMode.LEGACY_SHADOW);
-            logFullUpdateMergeGovernance("controller-shadow", incoming.getOffenseId(), shadowMerge);
+            logFullUpdateMergeGovernance(OffenseGovernanceDecision.Source.CONTROLLER, incoming.getOffenseId(), shadowMerge);
         } catch (Exception ex) {
             log.log(Level.WARNING, "Offense controller update shadow comparison failed", ex);
         }
@@ -270,6 +295,7 @@ public class OffenseRecordService {
                     OffenseRecord entity = offenseRecordMapper.selectById(offenseId);
                     if (entity != null) {
                         MutationSideEffectPolicy policy = semanticIntentClassifier.classifyReadRepair();
+                        logReadRepairGovernance(entity.getOffenseId(), 1);
                         sideEffectCoordinator.readRepairNow(policy, () -> offenseInformationSearchRepository.save(OffenseRecordDocument.fromEntity(entity)));
                     }
                     return entity;
@@ -286,6 +312,7 @@ public class OffenseRecordService {
             return fromIndex;
         }
         List<OffenseRecord> fromDb = offenseRecordMapper.selectList(null);
+        logReadRepairGovernance(null, fromDb == null ? 0 : fromDb.size());
         syncBatchToIndexAfterCommit(semanticIntentClassifier.classifyReadRepair(), fromDb);
         return fromDb;
     }
@@ -536,24 +563,68 @@ public class OffenseRecordService {
         sideEffectCoordinator.indexAfterCommit(policy, () -> saveBatchToIndex(records));
     }
 
-    private void logFullUpdateMergeGovernance(String path,
+    private void logFullUpdateMergeGovernance(OffenseGovernanceDecision.Source source,
                                               Long offenseId,
                                               FullUpdateMergePolicy.MergeResult merge) {
+        if (merge == null) {
+            return;
+        }
+        LocalDateTime updatedAt = merge.mergedRecord() == null ? null : merge.mergedRecord().getUpdatedAt();
+        if (source == OffenseGovernanceDecision.Source.CONTROLLER
+                && merge.compatibilityMode() == FullUpdateCompatibilityMode.LEGACY_SHADOW) {
+            logGovernance(Level.INFO, OffenseGovernanceLogFactory.legacyCompatibilityMode(
+                    offenseId,
+                    merge.compatibilityMode(),
+                    updatedAt,
+                    mergedGovernanceFields(merge)
+            ));
+        }
         if (!merge.nullPreservedFields().isEmpty()) {
-            log.log(Level.INFO,
-                    "Offense FULL_UPDATE null fields preserved path={0}, mode={1}, id={2}, fields={3}",
-                    new Object[]{path, merge.compatibilityMode(), offenseId, merge.nullPreservedFields()});
+            logGovernance(Level.INFO, OffenseGovernanceLogFactory.nullFieldPreserved(
+                    source,
+                    offenseId,
+                    merge.compatibilityMode(),
+                    updatedAt,
+                    merge.nullPreservedFields()
+            ));
         }
         if (!merge.immutablePreservedFields().isEmpty()) {
-            log.log(Level.INFO,
-                    "Offense FULL_UPDATE immutable fields preserved path={0}, mode={1}, id={2}, fields={3}",
-                    new Object[]{path, merge.compatibilityMode(), offenseId, merge.immutablePreservedFields()});
+            logGovernance(Level.INFO, OffenseGovernanceLogFactory.immutableFieldPreserved(
+                    source,
+                    offenseId,
+                    merge.compatibilityMode(),
+                    updatedAt,
+                    merge.immutablePreservedFields()
+            ));
         }
         if (!merge.workflowSuppressedFields().isEmpty()) {
-            log.log(Level.INFO,
-                    "Offense FULL_UPDATE workflow fields suppressed path={0}, mode={1}, id={2}, fields={3}",
-                    new Object[]{path, merge.compatibilityMode(), offenseId, merge.workflowSuppressedFields()});
+            logGovernance(Level.INFO, OffenseGovernanceLogFactory.workflowFieldSuppressed(
+                    source,
+                    offenseId,
+                    merge.compatibilityMode(),
+                    updatedAt,
+                    merge.workflowSuppressedFields()
+            ));
         }
+    }
+
+    private List<String> mergedGovernanceFields(FullUpdateMergePolicy.MergeResult merge) {
+        List<String> fields = new ArrayList<>();
+        fields.addAll(merge.nullPreservedFields());
+        fields.addAll(merge.immutablePreservedFields());
+        fields.addAll(merge.workflowSuppressedFields());
+        return fields.stream().distinct().collect(Collectors.toList());
+    }
+
+    private void logReadRepairGovernance(Long offenseId, int recordCount) {
+        if (recordCount <= 0) {
+            return;
+        }
+        logGovernance(Level.INFO, OffenseGovernanceLogFactory.readRepairTriggered(offenseId, recordCount));
+    }
+
+    private void logGovernance(Level level, OffenseGovernanceDecision decision) {
+        log.log(level, OffenseGovernanceLogFactory.format(decision));
     }
 
     private void saveToIndex(OffenseRecord offenseRecord) {
@@ -591,6 +662,7 @@ public class OffenseRecordService {
         Page<OffenseRecord> mpPage = new Page<>(Math.max(page, 1), Math.max(size, 1));
         offenseRecordMapper.selectPage(mpPage, wrapper);
         List<OffenseRecord> records = mpPage.getRecords();
+        logReadRepairGovernance(null, records == null ? 0 : records.size());
         syncBatchToIndexAfterCommit(semanticIntentClassifier.classifyReadRepair(), records);
         return records;
     }
