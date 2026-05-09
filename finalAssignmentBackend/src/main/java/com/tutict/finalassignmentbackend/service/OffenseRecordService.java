@@ -23,6 +23,8 @@ import com.tutict.finalassignmentbackend.offense.governance.OffenseUpdateMergeCo
 import com.tutict.finalassignmentbackend.offense.governance.SemanticEventType;
 import com.tutict.finalassignmentbackend.offense.governance.SemanticIntentClassifier;
 import com.tutict.finalassignmentbackend.offense.governance.StaleFullUpdateRejectedException;
+import com.tutict.finalassignmentbackend.offense.governance.rollout.GovernanceRolloutPolicy;
+import com.tutict.finalassignmentbackend.offense.governance.rollout.GovernanceSourceType;
 import com.tutict.finalassignmentbackend.repository.OffenseInformationSearchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
@@ -57,6 +59,7 @@ public class OffenseRecordService {
     private final OffenseUpdateMergeCoordinator updateMergeCoordinator;
     private final OffenseUpdateFreshnessEvaluator updateFreshnessEvaluator;
     private final FullUpdateMergePolicy fullUpdateMergePolicy;
+    private final GovernanceRolloutPolicy governanceRolloutPolicy;
 
     @Autowired
     public OffenseRecordService(OffenseRecordMapper offenseRecordMapper,
@@ -74,6 +77,7 @@ public class OffenseRecordService {
         this.updateMergeCoordinator = new OffenseUpdateMergeCoordinator();
         this.updateFreshnessEvaluator = new OffenseUpdateFreshnessEvaluator();
         this.fullUpdateMergePolicy = new FullUpdateMergePolicy();
+        this.governanceRolloutPolicy = new GovernanceRolloutPolicy();
     }
 
     @Transactional
@@ -150,12 +154,20 @@ public class OffenseRecordService {
         OffenseStaleUpdatePolicy.Decision freshness =
                 updateFreshnessEvaluator.evaluate(current, incoming, SemanticEventType.FULL_UPDATE);
         if (freshness == OffenseStaleUpdatePolicy.Decision.SHADOW_ONLY) {
-            OffenseGovernanceDecision decision = OffenseGovernanceLogFactory.staleKafkaRejected(
+            if (governanceRolloutPolicy.shouldRejectStale(GovernanceSourceType.KAFKA, SemanticEventType.FULL_UPDATE)) {
+                OffenseGovernanceDecision decision = OffenseGovernanceLogFactory.staleKafkaRejected(
+                        incoming.getOffenseId(),
+                        current.getUpdatedAt(),
+                        incoming.getUpdatedAt()
+                );
+                throw new StaleFullUpdateRejectedException(decision);
+            }
+            logGovernance(Level.INFO, OffenseGovernanceLogFactory.shadowStale(
+                    OffenseGovernanceDecision.Source.KAFKA,
                     incoming.getOffenseId(),
                     current.getUpdatedAt(),
                     incoming.getUpdatedAt()
-            );
-            throw new StaleFullUpdateRejectedException(decision);
+            ));
         }
 
         FullUpdateMergePolicy.MergeResult merge =
@@ -187,14 +199,18 @@ public class OffenseRecordService {
         OffenseStaleUpdatePolicy.Decision freshness =
                 updateFreshnessEvaluator.evaluate(existing, incoming, SemanticEventType.WORKFLOW);
         if (freshness == OffenseStaleUpdatePolicy.Decision.REJECT_STALE) {
-            logGovernance(Level.WARNING, OffenseGovernanceLogFactory.workflowStaleRejected(
+            OffenseGovernanceDecision decision = OffenseGovernanceLogFactory.workflowStaleRejected(
                     offenseId,
                     existing.getProcessStatus(),
                     incoming.getProcessStatus(),
                     existing.getProcessTime(),
                     incoming.getProcessTime()
-            ));
-            throw new IllegalStateException("Stale Offense workflow update rejected for id=" + offenseId);
+            );
+            if (governanceRolloutPolicy.shouldRejectStale(GovernanceSourceType.WORKFLOW, SemanticEventType.WORKFLOW)) {
+                logGovernance(Level.WARNING, decision);
+                throw new IllegalStateException("Stale Offense workflow update rejected for id=" + offenseId);
+            }
+            logGovernance(Level.INFO, decision);
         }
         OffenseRecord merged = updateMergeCoordinator.merge(existing, incoming, SemanticEventType.WORKFLOW);
         offenseRecordMapper.updateById(merged);
@@ -249,7 +265,8 @@ public class OffenseRecordService {
             }
             OffenseStaleUpdatePolicy.Decision freshness =
                     updateFreshnessEvaluator.evaluate(current, incoming, SemanticEventType.FULL_UPDATE);
-            if (freshness == OffenseStaleUpdatePolicy.Decision.SHADOW_ONLY) {
+            if (freshness == OffenseStaleUpdatePolicy.Decision.SHADOW_ONLY
+                    && governanceRolloutPolicy.shouldShadowLog(GovernanceSourceType.CONTROLLER, SemanticEventType.FULL_UPDATE)) {
                 logGovernance(Level.INFO, OffenseGovernanceLogFactory.shadowStale(
                         OffenseGovernanceDecision.Source.CONTROLLER,
                         incoming.getOffenseId(),
@@ -569,6 +586,7 @@ public class OffenseRecordService {
         if (merge == null) {
             return;
         }
+        GovernanceSourceType sourceType = sourceType(source);
         LocalDateTime updatedAt = merge.mergedRecord() == null ? null : merge.mergedRecord().getUpdatedAt();
         if (source == OffenseGovernanceDecision.Source.CONTROLLER
                 && merge.compatibilityMode() == FullUpdateCompatibilityMode.LEGACY_SHADOW) {
@@ -579,7 +597,8 @@ public class OffenseRecordService {
                     mergedGovernanceFields(merge)
             ));
         }
-        if (!merge.nullPreservedFields().isEmpty()) {
+        if (!merge.nullPreservedFields().isEmpty()
+                && governanceRolloutPolicy.shouldPreserveNulls(sourceType, SemanticEventType.FULL_UPDATE)) {
             logGovernance(Level.INFO, OffenseGovernanceLogFactory.nullFieldPreserved(
                     source,
                     offenseId,
@@ -588,7 +607,8 @@ public class OffenseRecordService {
                     merge.nullPreservedFields()
             ));
         }
-        if (!merge.immutablePreservedFields().isEmpty()) {
+        if (!merge.immutablePreservedFields().isEmpty()
+                && governanceRolloutPolicy.shouldPreserveImmutableFields(sourceType, SemanticEventType.FULL_UPDATE)) {
             logGovernance(Level.INFO, OffenseGovernanceLogFactory.immutableFieldPreserved(
                     source,
                     offenseId,
@@ -597,7 +617,8 @@ public class OffenseRecordService {
                     merge.immutablePreservedFields()
             ));
         }
-        if (!merge.workflowSuppressedFields().isEmpty()) {
+        if (!merge.workflowSuppressedFields().isEmpty()
+                && governanceRolloutPolicy.shouldSuppressWorkflowOverwrite(sourceType, SemanticEventType.FULL_UPDATE)) {
             logGovernance(Level.INFO, OffenseGovernanceLogFactory.workflowFieldSuppressed(
                     source,
                     offenseId,
@@ -625,6 +646,18 @@ public class OffenseRecordService {
 
     private void logGovernance(Level level, OffenseGovernanceDecision decision) {
         log.log(level, OffenseGovernanceLogFactory.format(decision));
+    }
+
+    private GovernanceSourceType sourceType(OffenseGovernanceDecision.Source source) {
+        if (source == null) {
+            return null;
+        }
+        return switch (source) {
+            case CONTROLLER -> GovernanceSourceType.CONTROLLER;
+            case KAFKA -> GovernanceSourceType.KAFKA;
+            case WORKFLOW -> GovernanceSourceType.WORKFLOW;
+            case QUERY_REPAIR -> GovernanceSourceType.QUERY_REPAIR;
+        };
     }
 
     private void saveToIndex(OffenseRecord offenseRecord) {

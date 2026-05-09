@@ -47,7 +47,7 @@ class OffenseGovernanceObservabilityTest {
         );
 
         assertThat(OffenseGovernanceLogFactory.format(decision)).isEqualTo(
-                "governance=NULL_FIELD_PRESERVED semantic=FULL_UPDATE enforcement=COMPATIBILITY_FALLBACK "
+                "governance=NULL_FIELD_PRESERVED rolloutMode=COMPATIBILITY semantic=FULL_UPDATE enforcement=COMPATIBILITY_FALLBACK "
                         + "source=CONTROLLER offenseId=42 updatedAt=2026-05-08T12:00 "
                         + "fields=[offenseCode,driverId] compatibilityMode=LEGACY_SHADOW"
         );
@@ -83,6 +83,7 @@ class OffenseGovernanceObservabilityTest {
         assertThat(decision.isCompatibilityFallback()).isTrue();
         assertThat(OffenseGovernanceLogFactory.format(decision))
                 .contains("governance=LEGACY_COMPATIBILITY_MODE")
+                .contains("rolloutMode=COMPATIBILITY")
                 .contains("enforcement=COMPATIBILITY_FALLBACK")
                 .contains("source=CONTROLLER");
     }
@@ -111,7 +112,7 @@ class OffenseGovernanceObservabilityTest {
         assertThat(ex.decision().source()).isEqualTo(OffenseGovernanceDecision.Source.KAFKA);
         assertThat(ex.decision().isEnforced()).isTrue();
         assertThat(OffenseGovernanceLogFactory.format(ex.decision())).isEqualTo(
-                "governance=STALE_REJECTED semantic=FULL_UPDATE enforcement=ENFORCED "
+                "governance=STALE_REJECTED rolloutMode=ENFORCED semantic=FULL_UPDATE enforcement=ENFORCED "
                         + "source=KAFKA offenseId=70 updatedAt=2026-05-08T11:00 "
                         + "currentUpdatedAt=2026-05-08T12:00 incomingUpdatedAt=2026-05-08T11:00"
         );

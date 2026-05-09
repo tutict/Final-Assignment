@@ -1,5 +1,8 @@
 package com.tutict.finalassignmentbackend.offense.governance;
 
+import com.tutict.finalassignmentbackend.offense.governance.rollout.GovernanceRolloutPolicy;
+import com.tutict.finalassignmentbackend.offense.governance.rollout.GovernanceSourceType;
+
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -7,6 +10,8 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 public final class OffenseGovernanceLogFactory {
+
+    private static final GovernanceRolloutPolicy ROLLOUT_POLICY = new GovernanceRolloutPolicy();
 
     private OffenseGovernanceLogFactory() {
     }
@@ -170,6 +175,12 @@ public final class OffenseGovernanceLogFactory {
     public static String format(OffenseGovernanceDecision decision) {
         StringBuilder payload = new StringBuilder();
         append(payload, "governance", decision.type());
+        append(payload, "rolloutMode", ROLLOUT_POLICY.rolloutModeForDecision(
+                sourceType(decision.source()),
+                decision.semanticEventType(),
+                decision.type(),
+                decision.isCompatibilityFallback()
+        ));
         append(payload, "semantic", decision.semanticEventType());
         append(payload, "enforcement", decision.enforcementMode());
         append(payload, "source", decision.source());
@@ -184,6 +195,18 @@ public final class OffenseGovernanceLogFactory {
         }
         decision.attributes().forEach((key, value) -> append(payload, key, value));
         return payload.toString();
+    }
+
+    private static GovernanceSourceType sourceType(OffenseGovernanceDecision.Source source) {
+        if (source == null) {
+            return null;
+        }
+        return switch (source) {
+            case CONTROLLER -> GovernanceSourceType.CONTROLLER;
+            case KAFKA -> GovernanceSourceType.KAFKA;
+            case WORKFLOW -> GovernanceSourceType.WORKFLOW;
+            case QUERY_REPAIR -> GovernanceSourceType.QUERY_REPAIR;
+        };
     }
 
     private static OffenseGovernanceDecision mergeDecision(OffenseGovernanceDecisionType type,
