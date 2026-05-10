@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:web_socket_channel/web_socket_channel.dart';
 
@@ -10,15 +11,17 @@ import '../../utils/services/auth_token_store.dart';
 import '../../utils/services/authentication.dart';
 import '../../utils/services/http_bearer_auth.dart';
 import '../../utils/services/query_param.dart';
+import '../auth/auth_service.dart';
 import '../config/app_config.dart';
 import 'client_factory.dart' as client_factory;
+import 'interceptor.dart';
 
 export '../../utils/services/query_param.dart';
 
 class ApiClient {
   ApiClient({String? basePath, http.Client? client})
       : basePath = basePath ?? AppConfig.apiBaseUrl,
-        client = client ?? client_factory.createHttpClient();
+        client = client ?? _createHttpClient();
 
   String basePath;
   http.Client client;
@@ -34,6 +37,14 @@ class ApiClient {
   WebSocketChannel? _wsChannel;
   Stream<dynamic>? _wsStream;
   String? _wsUrl;
+
+  static http.Client _createHttpClient() {
+    final rawClient = client_factory.createHttpClient();
+    if (Get.isRegistered<ApiRequestLoggingInterceptor>()) {
+      return Get.find<ApiRequestLoggingInterceptor>().wrap(rawClient);
+    }
+    return rawClient;
+  }
 
   void addDefaultHeader(String key, String value) {
     _defaultHeaderMap[key] = value;
@@ -137,6 +148,7 @@ class ApiClient {
     }
 
     final queryParamsList = queryParams.toList();
+    await _refreshJwtForAuth(authNames);
     await _loadJwtForAuth(authNames);
     _updateParamsForAuth(authNames, queryParamsList, headerParams);
 
@@ -168,10 +180,14 @@ class ApiClient {
     return response;
   }
 
+  Future<void> _refreshJwtForAuth(List<String> authNames) async {
+    if (!authNames.contains('bearerAuth')) return;
+    if (!Get.isRegistered<AuthService>()) return;
+    await Get.find<AuthService>().ensureValidSession(redirectIfInvalid: true);
+  }
+
   Future<void> _loadJwtForAuth(List<String> authNames) async {
     if (!authNames.contains('bearerAuth')) return;
-    final cachedToken = jwtToken;
-    if (cachedToken != null && cachedToken.isNotEmpty) return;
 
     final token = await AuthTokenStore.instance.getJwtToken();
     if (token != null && token.isNotEmpty) {

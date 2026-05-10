@@ -1,5 +1,7 @@
+import 'package:final_assignment_front/core/auth/auth_service.dart';
+import 'package:final_assignment_front/core/lifecycle/app_lifecycle_observer.dart';
+import 'package:final_assignment_front/core/network/interceptor.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/chat_controller.dart';
-import 'package:final_assignment_front/features/dashboard/controllers/log_controller.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/progress_controller.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
@@ -47,6 +49,11 @@ class MainApp extends StatelessWidget {
       initialRoute: AppPages.login,
       getPages: AppPages.routes,
       theme: AppTheme.basicLight,
+      routingCallback: (routing) {
+        if (Get.isRegistered<AppLifecycleObserver>()) {
+          Get.find<AppLifecycleObserver>().onRouteChanged(routing);
+        }
+      },
       builder: (context, child) {
         return MediaQuery(
           data: MediaQuery.of(context).copyWith(
@@ -74,11 +81,20 @@ class MainApp extends StatelessWidget {
 class AppBindings extends Bindings {
   @override
   void dependencies() {
+    final authService = Get.put<AuthService>(AuthService(), permanent: true);
+    final apiInterceptor = Get.put<ApiRequestLoggingInterceptor>(
+      ApiRequestLoggingInterceptor(authService: authService),
+      permanent: true,
+    );
+    Get.put<AppLifecycleObserver>(
+      AppLifecycleObserver(logWriter: apiInterceptor.logWriter)..start(),
+      permanent: true,
+    );
+
     Get.lazyPut<DashboardController>(() => DashboardController(), fenix: true);
     Get.lazyPut<ChatController>(() => ChatController(), fenix: true);
     Get.lazyPut<UserDashboardController>(() => UserDashboardController(),
         fenix: true);
     Get.lazyPut<ProgressController>(() => ProgressController(), fenix: true);
-    Get.lazyPut<LogController>(() => LogController(), fenix: true);
   }
 }

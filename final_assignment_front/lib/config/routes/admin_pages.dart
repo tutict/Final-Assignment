@@ -9,6 +9,7 @@ import 'package:final_assignment_front/features/dashboard/views/manager/pages/si
 import 'package:final_assignment_front/features/dashboard/views/shared/components/ai_chat.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/components/change_themes.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/components/map.dart';
+import 'package:final_assignment_front/features/dashboard/bindings/log_binding.dart';
 import 'package:get/get.dart';
 
 import 'app_routes.dart';
@@ -50,14 +51,17 @@ class AdminPages {
     GetPage(
       name: RoutePaths.loginLogPage,
       page: () => const LoginLogPage(),
+      binding: LogBinding(),
     ),
     GetPage(
       name: RoutePaths.operationLogPage,
       page: () => const OperationLogPage(),
+      binding: LogBinding(),
     ),
     GetPage(
       name: RoutePaths.systemLogPage,
       page: () => const SystemLogPage(),
+      binding: LogBinding(),
     ),
   ];
 }
