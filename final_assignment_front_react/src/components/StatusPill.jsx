@@ -1,5 +1,6 @@
 ﻿import React from 'react';
 import clsx from 'clsx';
+import { getStatusLabel } from '../utils/statusLabels.js';
 
 export default function StatusPill({ value }) {
   const normalized = String(value || '').toLowerCase();
@@ -11,7 +12,7 @@ export default function StatusPill({ value }) {
         danger: normalized.includes('fail') || normalized.includes('rejected') || normalized.includes('unpaid'),
       })}
     >
-      {value || '未知'}
+      {getStatusLabel(value)}
     </span>
   );
 }

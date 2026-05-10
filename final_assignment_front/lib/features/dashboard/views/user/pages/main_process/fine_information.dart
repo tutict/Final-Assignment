@@ -4,6 +4,8 @@ import 'package:final_assignment_front/features/api/user_management_controller_a
 import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/model/fine_information.dart';
+import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
+import 'package:final_assignment_front/utils/workflow_permissions.dart';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:get/get.dart';
@@ -25,12 +27,21 @@ class _FineInformationPageState extends State<FineInformationPage> {
       Get.find<UserDashboardController>();
   final DriverInformationControllerApi driverApi =
       DriverInformationControllerApi();
-  final UserManagementControllerApi userApi =
-      UserManagementControllerApi();
+  final UserManagementControllerApi userApi = UserManagementControllerApi();
   bool _isLoading = true;
   String _errorMessage = '';
   String? _currentDriverName;
   final Map<String, Widget> _qrCodes = {};
+
+  String? _paymentStatusOf(FineInformation fine) =>
+      fine.paymentStatus ?? fine.status;
+
+  String _paymentStatusLabel(String? status) {
+    return PaymentStatus.fromCode(status)?.label ?? status ?? '未知';
+  }
+
+  bool _isPaid(String? status) =>
+      PaymentStatus.fromCode(status) == PaymentStatus.paid;
 
   @override
   void initState() {
@@ -68,7 +79,7 @@ class _FineInformationPageState extends State<FineInformationPage> {
       final fines = await _finesFuture;
       developer.log('Loaded Fines: $fines');
       for (var fine in fines) {
-        if (fine.status != 'Paid') await _generateQRCode(fine);
+        if (canPay(_paymentStatusOf(fine))) await _generateQRCode(fine);
       }
     } catch (e) {
       developer.log('Initialization error: $e');
@@ -97,8 +108,7 @@ class _FineInformationPageState extends State<FineInformationPage> {
         throw Exception('无法确定当前用户名');
       }
 
-      final user =
-          await userApi.apiUsersSearchUsernameGet(username: username);
+      final user = await userApi.apiUsersSearchUsernameGet(username: username);
       if (user?.userId == null) {
         throw Exception('User data does not contain userId');
       }
@@ -192,7 +202,7 @@ class _FineInformationPageState extends State<FineInformationPage> {
       final fines = await _finesFuture;
       developer.log('Refreshed Fines: $fines');
       for (var fine in fines) {
-        if (fine.status != 'Paid') await _generateQRCode(fine);
+        if (canPay(_paymentStatusOf(fine))) await _generateQRCode(fine);
       }
     } catch (e) {
       developer.log('Error refreshing fines: $e');
@@ -207,7 +217,8 @@ class _FineInformationPageState extends State<FineInformationPage> {
   void _showFineDetailsDialog(FineInformation fine) {
     final themeData = controller.currentBodyTheme.value;
     final qrKey = fine.receiptNumber ?? fine.fineTime ?? 'unknown';
-    final hasQRCode = _qrCodes.containsKey(qrKey) && fine.status != 'Paid';
+    final hasQRCode =
+        _qrCodes.containsKey(qrKey) && canPay(_paymentStatusOf(fine));
 
     showDialog(
       context: context,
@@ -232,7 +243,8 @@ class _FineInformationPageState extends State<FineInformationPage> {
               _buildDetailRow('银行名称', fine.bank ?? '未知', themeData),
               _buildDetailRow('收据编号', fine.receiptNumber ?? '未知', themeData),
               _buildDetailRow('罚款时间', fine.fineTime ?? '未知', themeData),
-              _buildDetailRow('状态', fine.status ?? 'Pending', themeData),
+              _buildDetailRow(
+                  '状态', _paymentStatusLabel(_paymentStatusOf(fine)), themeData),
               _buildDetailRow('备注', fine.remarks ?? '无', themeData),
               if (hasQRCode) ...[
                 const SizedBox(height: 16),
@@ -369,7 +381,8 @@ class _FineInformationPageState extends State<FineInformationPage> {
                         final amount = record.fineAmount ?? 0.0;
                         final payee = record.payee ?? '未知';
                         final date = record.fineTime ?? '未知';
-                        final status = record.status ?? 'Pending';
+                        final status = _paymentStatusOf(record);
+                        final statusLabel = _paymentStatusLabel(status);
                         return Card(
                           elevation: 2,
                           margin: const EdgeInsets.symmetric(vertical: 8.0),
@@ -385,16 +398,16 @@ class _FineInformationPageState extends State<FineInformationPage> {
                               ),
                             ),
                             subtitle: Text(
-                              '缴款人: $payee\n时间: $date\n状态: $status',
+                              '缴款人: $payee\n时间: $date\n状态: $statusLabel',
                               style: themeData.textTheme.bodyMedium?.copyWith(
                                 color: themeData.colorScheme.onSurfaceVariant,
                               ),
                             ),
                             trailing: Icon(
-                              status == 'Paid'
+                              _isPaid(status)
                                   ? Icons.check_circle
                                   : Icons.payment,
-                              color: status == 'Paid'
+                              color: _isPaid(status)
                                   ? Colors.green
                                   : themeData.colorScheme.onSurfaceVariant,
                             ),

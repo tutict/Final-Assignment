@@ -14,6 +14,7 @@ enum CaseType {
   caseManagement, // 添加信息管理类型
 }
 
+// Source: backend PaymentState.code (fine_record.payment_status).
 enum PaymentStatus {
   unpaid(code: 'Unpaid', label: '未支付'),
   partial(code: 'Partial', label: '部分支付'),
@@ -30,6 +31,7 @@ enum PaymentStatus {
       StringHelper.enumFromCode(values, code, (value) => value.code);
 }
 
+// Source: backend OffenseProcessState.code (offense_record.process_status).
 enum OffenseProcessStatus {
   unprocessed(code: 'Unprocessed', label: '未处理'),
   processing(code: 'Processing', label: '处理中'),
@@ -48,6 +50,7 @@ enum OffenseProcessStatus {
       StringHelper.enumFromCode(values, code, (value) => value.code);
 }
 
+// Source: backend DeductionState.code (deduction_record.status).
 enum DeductionStatus {
   effective(code: 'Effective', label: '生效中'),
   cancelled(code: 'Cancelled', label: '已取消'),
@@ -62,6 +65,7 @@ enum DeductionStatus {
       StringHelper.enumFromCode(values, code, (value) => value.code);
 }
 
+// Source: backend AppealAcceptanceState.code (appeal_record.acceptance_status).
 enum AppealAcceptanceStatus {
   pending(code: 'Pending', label: '待受理'),
   accepted(code: 'Accepted', label: '已受理'),
@@ -77,6 +81,7 @@ enum AppealAcceptanceStatus {
       StringHelper.enumFromCode(values, code, (value) => value.code);
 }
 
+// Source: backend AppealProcessState.code (appeal_record.process_status).
 enum AppealProcessStatus {
   unprocessed(code: 'Unprocessed', label: '未处理'),
   underReview(code: 'Under_Review', label: '审核中'),

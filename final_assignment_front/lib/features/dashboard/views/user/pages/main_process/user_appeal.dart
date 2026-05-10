@@ -11,6 +11,7 @@ import 'package:final_assignment_front/features/api/offense_information_controll
 import 'package:final_assignment_front/features/api/user_management_controller_api.dart';
 import 'package:final_assignment_front/features/model/driver_information.dart';
 import 'package:final_assignment_front/features/model/user_management.dart';
+import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
 import 'package:get/get.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
@@ -25,6 +26,10 @@ String formatDateTime(DateTime? dateTime) {
   return '${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')} ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
 }
 
+String getAppealProcessStatusLabel(String? status) {
+  return AppealProcessStatus.fromCode(status)?.label ?? status ?? '未知';
+}
+
 class UserAppealPage extends StatefulWidget {
   const UserAppealPage({super.key});
 
@@ -37,8 +42,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
   late DriverInformationControllerApi driverApi;
   final OffenseInformationControllerApi offenseApi =
       OffenseInformationControllerApi();
-  final UserManagementControllerApi userApi =
-      UserManagementControllerApi();
+  final UserManagementControllerApi userApi = UserManagementControllerApi();
   final TextEditingController _searchController = TextEditingController();
   List<AppealRecordModel> _appeals = [];
   bool _isLoading = true;
@@ -52,9 +56,9 @@ class _UserAppealPageState extends State<UserAppealPage> {
   DateTime? _endTime;
 
   final UserDashboardController? controller =
-  Get.isRegistered<UserDashboardController>()
-      ? Get.find<UserDashboardController>()
-      : null;
+      Get.isRegistered<UserDashboardController>()
+          ? Get.find<UserDashboardController>()
+          : null;
 
   @override
   void initState() {
@@ -148,8 +152,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
       final int userId = userData.userId!;
 
       await driverApi.initializeWithJwt();
-      var driverInfo =
-          await driverApi.apiDriversDriverIdGet(driverId: userId);
+      var driverInfo = await driverApi.apiDriversDriverIdGet(driverId: userId);
       if (driverInfo == null) {
         driverInfo = DriverInformation(
           driverId: userId,
@@ -163,8 +166,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
           driverInformation: driverInfo,
           idempotencyKey: generateIdempotencyKey(),
         );
-        driverInfo =
-            await driverApi.apiDriversDriverIdGet(driverId: userId);
+        driverInfo = await driverApi.apiDriversDriverIdGet(driverId: userId);
       }
       final driverName = driverInfo?.name ?? userData.username ?? '未知用户';
       developer.log('Driver name from API: $driverName');
@@ -223,8 +225,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
       if (storedUsername == null || storedUsername.isEmpty) {
         throw Exception('未找到用户名');
       }
-      return await userApi.apiUsersSearchUsernameGet(
-          username: storedUsername);
+      return await userApi.apiUsersSearchUsernameGet(username: storedUsername);
     } catch (e) {
       developer.log('获取用户信息失败: $e');
       return null;
@@ -256,10 +257,8 @@ class _UserAppealPageState extends State<UserAppealPage> {
         _searchController.clear();
       }
 
-      final offenseIds = _offenseCache
-          .map((o) => o['offenseId'])
-          .whereType<int>()
-          .toSet();
+      final offenseIds =
+          _offenseCache.map((o) => o['offenseId']).whereType<int>().toSet();
       if (offenseIds.isEmpty) {
         setState(() {
           _appeals = [];
@@ -275,20 +274,17 @@ class _UserAppealPageState extends State<UserAppealPage> {
               await appealApi.apiAppealsGet(offenseId: id, page: 1, size: 50);
           fetched.addAll(records);
         } catch (e) {
-          developer
-              .log('Failed to fetch appeals for offense $id: $e');
+          developer.log('Failed to fetch appeals for offense $id: $e');
         }
       }
 
       final searchText = _searchController.text.trim().toLowerCase();
       final filtered = fetched.where((appeal) {
-        final matchesName =
-            appeal.appellantName == null || appeal.appellantName == _currentDriverName;
+        final matchesName = appeal.appellantName == null ||
+            appeal.appellantName == _currentDriverName;
         final matchesSearch = searchText.isEmpty
             ? true
-            : (appeal.appealReason ?? '')
-                .toLowerCase()
-                .contains(searchText);
+            : (appeal.appealReason ?? '').toLowerCase().contains(searchText);
         bool matchesRange = true;
         if (_startTime != null && _endTime != null) {
           final time = appeal.appealTime;
@@ -304,7 +300,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
         _isLoading = false;
         if (_appeals.isEmpty) {
           _errorMessage = _searchController.text.isNotEmpty ||
-              (_startTime != null && _endTime != null)
+                  (_startTime != null && _endTime != null)
               ? '未找到符合条件的申诉记录'
               : '暂无申诉记录';
         }
@@ -342,13 +338,13 @@ class _UserAppealPageState extends State<UserAppealPage> {
 
   void _showSubmitAppealDialog() async {
     final TextEditingController nameController =
-    TextEditingController(text: _currentDriverName ?? '');
+        TextEditingController(text: _currentDriverName ?? '');
     final user = await _fetchUserManagement();
     final int? userId = user?.userId;
     final driverInfo =
         userId != null ? await _fetchDriverInformation(userId) : null;
     final TextEditingController idCardController =
-    TextEditingController(text: driverInfo?.idCardNumber ?? '');
+        TextEditingController(text: driverInfo?.idCardNumber ?? '');
     final TextEditingController contactController = TextEditingController(
         text: driverInfo?.contactNumber ?? user?.contactNumber ?? '');
     final TextEditingController reasonController = TextEditingController();
@@ -373,10 +369,10 @@ class _UserAppealPageState extends State<UserAppealPage> {
         return Dialog(
           backgroundColor: themeData.colorScheme.surfaceContainer,
           shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
           child: ConstrainedBox(
             constraints:
-            const BoxConstraints(maxWidth: 300.0, minHeight: 200.0),
+                const BoxConstraints(maxWidth: 300.0, minHeight: 200.0),
             child: Padding(
               padding: const EdgeInsets.all(12.0),
               child: SingleChildScrollView(
@@ -428,7 +424,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
                         filled: true,
                         fillColor: isNameReadOnly
                             ? themeData.colorScheme.surfaceContainerHighest
-                            .withValues(alpha: 0.5)
+                                .withValues(alpha: 0.5)
                             : themeData.colorScheme.surfaceContainerLowest,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8.0),
@@ -438,7 +434,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
                         ),
                         suffixIcon: isNameReadOnly
                             ? Icon(Icons.lock,
-                            size: 18, color: themeData.colorScheme.primary)
+                                size: 18, color: themeData.colorScheme.primary)
                             : null,
                       ),
                       style: TextStyle(color: themeData.colorScheme.onSurface),
@@ -454,7 +450,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
                         filled: true,
                         fillColor: isIdCardReadOnly
                             ? themeData.colorScheme.surfaceContainerHighest
-                            .withValues(alpha: 0.5)
+                                .withValues(alpha: 0.5)
                             : themeData.colorScheme.surfaceContainerLowest,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8.0),
@@ -464,7 +460,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
                         ),
                         suffixIcon: isIdCardReadOnly
                             ? Icon(Icons.lock,
-                            size: 18, color: themeData.colorScheme.primary)
+                                size: 18, color: themeData.colorScheme.primary)
                             : null,
                       ),
                       keyboardType: TextInputType.number,
@@ -481,7 +477,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
                         filled: true,
                         fillColor: isContactReadOnly
                             ? themeData.colorScheme.surfaceContainerHighest
-                            .withValues(alpha: 0.5)
+                                .withValues(alpha: 0.5)
                             : themeData.colorScheme.surfaceContainerLowest,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8.0),
@@ -491,7 +487,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
                         ),
                         suffixIcon: isContactReadOnly
                             ? Icon(Icons.lock,
-                            size: 18, color: themeData.colorScheme.primary)
+                                size: 18, color: themeData.colorScheme.primary)
                             : null,
                       ),
                       keyboardType: TextInputType.phone,
@@ -533,53 +529,63 @@ class _UserAppealPageState extends State<UserAppealPage> {
                           onPressed: isSubmitting
                               ? null
                               : () async {
-                            setState(() => isSubmitting = true); // 禁用按钮
-                            final String name = nameController.text.trim();
-                            final String idCard = idCardController.text.trim();
-                            final String contact =
-                            contactController.text.trim();
-                            final String reason = reasonController.text.trim();
+                                  setState(() => isSubmitting = true); // 禁用按钮
+                                  final String name =
+                                      nameController.text.trim();
+                                  final String idCard =
+                                      idCardController.text.trim();
+                                  final String contact =
+                                      contactController.text.trim();
+                                  final String reason =
+                                      reasonController.text.trim();
 
-                            if (selectedOffenseId == null ||
-                                name.isEmpty ||
-                                idCard.isEmpty ||
-                                contact.isEmpty ||
-                                reason.isEmpty) {
-                              _showSnackBar('请填写所有必填字段', isError: true);
-                              setState(() => isSubmitting = false);
-                              return;
-                            }
-                            // final RegExp idCardRegExp =
-                            //     RegExp(r'^\d{15}$|^\d{17}[\dXx]$');
-                            // final RegExp contactRegExp = RegExp(r'^\d{10,15}$');
+                                  if (selectedOffenseId == null ||
+                                      name.isEmpty ||
+                                      idCard.isEmpty ||
+                                      contact.isEmpty ||
+                                      reason.isEmpty) {
+                                    _showSnackBar('请填写所有必填字段', isError: true);
+                                    setState(() => isSubmitting = false);
+                                    return;
+                                  }
+                                  // final RegExp idCardRegExp =
+                                  //     RegExp(r'^\d{15}$|^\d{17}[\dXx]$');
+                                  // final RegExp contactRegExp = RegExp(r'^\d{10,15}$');
 
-                            // if (!idCardRegExp.hasMatch(idCard)) {
-                            //   _showSnackBar('身份证号码格式不正确', isError: true);
-                            //   setState(() => isSubmitting = false);
-                            //   return;
-                            // }
-                            // if (!contactRegExp.hasMatch(contact)) {
-                            //   _showSnackBar('联系电话格式不正确', isError: true);
-                            //   setState(() => isSubmitting = false);
-                            //   return;
-                            // }
+                                  // if (!idCardRegExp.hasMatch(idCard)) {
+                                  //   _showSnackBar('身份证号码格式不正确', isError: true);
+                                  //   setState(() => isSubmitting = false);
+                                  //   return;
+                                  // }
+                                  // if (!contactRegExp.hasMatch(contact)) {
+                                  //   _showSnackBar('联系电话格式不正确', isError: true);
+                                  //   setState(() => isSubmitting = false);
+                                  //   return;
+                                  // }
 
-                            final newAppeal = AppealRecordModel(
-                              offenseId: selectedOffenseId,
-                              appellantName: name,
-                              appellantIdCard: idCard,
-                              appellantContact: contact,
-                              appealReason: reason,
-                              appealTime: DateTime.now(),
-                              processStatus: 'Pending',
-                              processResult: '',
-                            );
-                            final idempotencyKey = generateIdempotencyKey();
-                            developer.log('Preparing to submit appeal with key: $idempotencyKey');
-                            await _submitAppeal(newAppeal, idempotencyKey);
-                            setState(() => isSubmitting = false); // 重新启用按钮
-                            if (mounted) Navigator.pop(ctx);
-                          },
+                                  final newAppeal = AppealRecordModel(
+                                    offenseId: selectedOffenseId,
+                                    appellantName: name,
+                                    appellantIdCard: idCard,
+                                    appellantContact: contact,
+                                    appealReason: reason,
+                                    appealTime: DateTime.now(),
+                                    acceptanceStatus:
+                                        AppealAcceptanceStatus.pending.code,
+                                    processStatus:
+                                        AppealProcessStatus.unprocessed.code,
+                                    processResult: '',
+                                  );
+                                  final idempotencyKey =
+                                      generateIdempotencyKey();
+                                  developer.log(
+                                      'Preparing to submit appeal with key: $idempotencyKey');
+                                  await _submitAppeal(
+                                      newAppeal, idempotencyKey);
+                                  setState(
+                                      () => isSubmitting = false); // 重新启用按钮
+                                  if (mounted) Navigator.pop(ctx);
+                                },
                           style: themeData.elevatedButtonTheme.style?.copyWith(
                             backgroundColor: WidgetStateProperty.all(
                                 themeData.colorScheme.primary),
@@ -588,14 +594,14 @@ class _UserAppealPageState extends State<UserAppealPage> {
                           ),
                           child: isSubmitting
                               ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor:
-                              AlwaysStoppedAnimation<Color>(Colors.white),
-                            ),
-                          )
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.white),
+                                  ),
+                                )
                               : const Text('提交'),
                         ),
                       ],
@@ -657,7 +663,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
                         controller: controller,
                         focusNode: focusNode,
                         style:
-                        TextStyle(color: themeData.colorScheme.onSurface),
+                            TextStyle(color: themeData.colorScheme.onSurface),
                         decoration: InputDecoration(
                           hintText: '搜索申诉原因',
                           hintStyle: TextStyle(
@@ -667,15 +673,15 @@ class _UserAppealPageState extends State<UserAppealPage> {
                               color: themeData.colorScheme.primary),
                           suffixIcon: controller.text.isNotEmpty
                               ? IconButton(
-                            icon: Icon(Icons.clear,
-                                color: themeData
-                                    .colorScheme.onSurfaceVariant),
-                            onPressed: () {
-                              controller.clear();
-                              _searchController.clear();
-                              _fetchUserAppeals(resetFilters: true);
-                            },
-                          )
+                                  icon: Icon(Icons.clear,
+                                      color: themeData
+                                          .colorScheme.onSurfaceVariant),
+                                  onPressed: () {
+                                    controller.clear();
+                                    _searchController.clear();
+                                    _fetchUserAppeals(resetFilters: true);
+                                  },
+                                )
                               : null,
                           border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8.0)),
@@ -691,7 +697,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
                           ),
                           filled: true,
                           fillColor:
-                          themeData.colorScheme.surfaceContainerLowest,
+                              themeData.colorScheme.surfaceContainerLowest,
                           contentPadding: const EdgeInsets.symmetric(
                               vertical: 12.0, horizontal: 16.0),
                         ),
@@ -875,7 +881,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
                                             ),
                                           ),
                                           subtitle: Text(
-                                            '原因: ${appeal.appealReason ?? "无"}\n状态: ${appeal.processStatus == "Pending" ? "待处理" : appeal.processStatus == "Approved" ? "已通过" : "已拒绝"}\n时间: ${formatDateTime(appeal.appealTime)}',
+                                            '原因: ${appeal.appealReason ?? "无"}\n状态: ${getAppealProcessStatusLabel(appeal.processStatus)}\n时间: ${formatDateTime(appeal.appealTime)}',
                                             style: themeData
                                                 .textTheme.bodyMedium
                                                 ?.copyWith(
@@ -922,9 +928,9 @@ class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
   bool _isLoadingProgress = false;
 
   final UserDashboardController? controller =
-  Get.isRegistered<UserDashboardController>()
-      ? Get.find<UserDashboardController>()
-      : null;
+      Get.isRegistered<UserDashboardController>()
+          ? Get.find<UserDashboardController>()
+          : null;
 
   @override
   void initState() {
@@ -1002,8 +1008,8 @@ class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderSide: BorderSide(
-                          color:
-                          themeData.colorScheme.outline.withValues(alpha: 0.3)),
+                          color: themeData.colorScheme.outline
+                              .withValues(alpha: 0.3)),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderSide: BorderSide(
@@ -1026,8 +1032,8 @@ class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderSide: BorderSide(
-                          color:
-                          themeData.colorScheme.outline.withValues(alpha: 0.3)),
+                          color: themeData.colorScheme.outline
+                              .withValues(alpha: 0.3)),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderSide: BorderSide(
@@ -1072,9 +1078,9 @@ class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
               },
               style: themeData.elevatedButtonTheme.style?.copyWith(
                 backgroundColor:
-                WidgetStateProperty.all(themeData.colorScheme.primary),
+                    WidgetStateProperty.all(themeData.colorScheme.primary),
                 foregroundColor:
-                WidgetStateProperty.all(themeData.colorScheme.onPrimary),
+                    WidgetStateProperty.all(themeData.colorScheme.onPrimary),
               ),
               child: const Text('提交'),
             ),
@@ -1144,11 +1150,8 @@ class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
                             themeData),
                         _buildDetailRow(
                             '处理状态',
-                            widget.appeal.processStatus == "Pending"
-                                ? "待处理"
-                                : widget.appeal.processStatus == "Approved"
-                                    ? "已通过"
-                                    : "已拒绝",
+                            getAppealProcessStatusLabel(
+                                widget.appeal.processStatus),
                             themeData),
                         _buildDetailRow('处理结果',
                             widget.appeal.processResult ?? '无', themeData),

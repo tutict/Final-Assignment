@@ -9,6 +9,7 @@ import 'package:final_assignment_front/features/api/vehicle_information_controll
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/model/offense_information.dart';
+import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
@@ -29,6 +30,10 @@ String generateIdempotencyKey() {
 String formatDate(DateTime? date) {
   if (date == null) return '未设置';
   return "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+}
+
+String getOffenseProcessStatusLabel(String? status) {
+  return OffenseProcessStatus.fromCode(status)?.label ?? status ?? '未知';
 }
 
 class OffenseList extends StatefulWidget {
@@ -774,7 +779,7 @@ class _OffenseListPageState extends State<OffenseList> {
                                             ),
                                           ),
                                           Text(
-                                            '状态: ${offense.processStatus ?? '无'}',
+                                            '状态: ${getOffenseProcessStatusLabel(offense.processStatus)}',
                                             style: themeData
                                                 .textTheme.bodyMedium
                                                 ?.copyWith(
@@ -897,6 +902,8 @@ class _AddOffensePageState extends State<AddOffensePage> {
       }
       await offenseApi.initializeWithJwt();
       await vehicleApi.initializeWithJwt(); // Initialize vehicle API
+      _processStatusController.text =
+          getOffenseProcessStatusLabel(OffenseProcessStatus.unprocessed.code);
     } catch (e) {
       _showSnackBar('初始化失败: $e', isError: true);
     } finally {
@@ -975,9 +982,7 @@ class _AddOffensePageState extends State<AddOffensePage> {
         fineAmount: _fineAmountController.text.trim().isEmpty
             ? null
             : double.parse(_fineAmountController.text.trim()),
-        processStatus: _processStatusController.text.trim().isEmpty
-            ? 'Pending'
-            : _processStatusController.text.trim(),
+        processStatus: OffenseProcessStatus.unprocessed.code,
         processResult: _processResultController.text.trim().isEmpty
             ? null
             : _processResultController.text.trim(),
@@ -1268,7 +1273,7 @@ class _AddOffensePageState extends State<AddOffensePage> {
                                             decimal: true)),
                                 _buildTextField(
                                     '处理状态', _processStatusController, themeData,
-                                    maxLength: 50),
+                                    readOnly: true, maxLength: 50),
                                 _buildTextField(
                                     '处理结果', _processResultController, themeData,
                                     maxLength: 255),
@@ -1578,8 +1583,11 @@ class _OffenseDetailPageState extends State<OffenseDetailPage> {
                               '罚款金额',
                               widget.offense.fineAmount?.toString() ?? '无',
                               themeData),
-                          _buildDetailRow('处理状态',
-                              widget.offense.processStatus ?? '无', themeData),
+                          _buildDetailRow(
+                              '处理状态',
+                              getOffenseProcessStatusLabel(
+                                  widget.offense.processStatus),
+                              themeData),
                           _buildDetailRow('处理结果',
                               widget.offense.processResult ?? '无', themeData),
                         ],
@@ -1673,7 +1681,8 @@ class _EditOffensePageState extends State<EditOffensePage> {
       _deductedPointsController.text =
           widget.offense.deductedPoints?.toString() ?? '';
       _fineAmountController.text = widget.offense.fineAmount?.toString() ?? '';
-      _processStatusController.text = widget.offense.processStatus ?? '';
+      _processStatusController.text =
+          getOffenseProcessStatusLabel(widget.offense.processStatus);
       _processResultController.text = widget.offense.processResult ?? '';
     });
   }
@@ -1749,9 +1758,7 @@ class _EditOffensePageState extends State<EditOffensePage> {
         fineAmount: _fineAmountController.text.trim().isEmpty
             ? null
             : double.parse(_fineAmountController.text.trim()),
-        processStatus: _processStatusController.text.trim().isEmpty
-            ? 'Pending'
-            : _processStatusController.text.trim(),
+        processStatus: widget.offense.processStatus,
         processResult: _processResultController.text.trim().isEmpty
             ? null
             : _processResultController.text.trim(),
@@ -2043,7 +2050,7 @@ class _EditOffensePageState extends State<EditOffensePage> {
                                             decimal: true)),
                                 _buildTextField(
                                     '处理状态', _processStatusController, themeData,
-                                    maxLength: 50),
+                                    readOnly: true, maxLength: 50),
                                 _buildTextField(
                                     '处理结果', _processResultController, themeData,
                                     maxLength: 255),

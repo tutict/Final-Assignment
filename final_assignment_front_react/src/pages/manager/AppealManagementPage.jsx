@@ -6,8 +6,14 @@ import SearchBar from '../../components/SearchBar.jsx';
 import Modal from '../../components/Modal.jsx';
 import StatusPill from '../../components/StatusPill.jsx';
 import { entityConfigs } from '../../config/entities.js';
-import { listEntities, updateEntity } from '../../api/entities.js';
+import { listEntities, postWithIdempotency } from '../../api/entities.js';
 import { formatDateTime, normalizeText } from '../../utils/format.js';
+import {
+  APPEAL_PROCESS_EVENT,
+  canApprove,
+  canReject,
+} from '../../utils/workflowPermissions.js';
+import { getStatusLabel } from '../../utils/statusLabels.js';
 
 async function fetchAppeals() {
   const offenses = await listEntities(entityConfigs.offenses.basePath);
@@ -39,7 +45,8 @@ export default function AppealManagementPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, payload }) => updateEntity(entityConfigs.appeals.basePath, id, payload),
+    mutationFn: ({ id, event }) =>
+      postWithIdempotency(`/api/workflow/appeals/${id}/events/${event}`, {}),
     onSuccess: () => refetch(),
   });
 
@@ -67,11 +74,7 @@ export default function AppealManagementPage() {
     if (!activeAppeal?.appealId) return;
     await updateMutation.mutateAsync({
       id: activeAppeal.appealId,
-      payload: {
-        ...activeAppeal,
-        processStatus: 'Approved',
-        processResult: '申诉已通过',
-      },
+      event: APPEAL_PROCESS_EVENT.approve,
     });
     setActiveAppeal(null);
   };
@@ -80,11 +83,7 @@ export default function AppealManagementPage() {
     if (!activeAppeal?.appealId) return;
     await updateMutation.mutateAsync({
       id: activeAppeal.appealId,
-      payload: {
-        ...activeAppeal,
-        processStatus: 'Rejected',
-        processResult: rejectReason || '申诉已驳回',
-      },
+      event: APPEAL_PROCESS_EVENT.reject,
     });
     setRejectReason('');
     setActiveAppeal(null);
@@ -116,7 +115,7 @@ export default function AppealManagementPage() {
               type="button"
               className="primary"
               onClick={handleApprove}
-              disabled={activeAppeal?.processStatus && activeAppeal.processStatus !== 'Pending'}
+              disabled={!canApprove(activeAppeal?.processStatus)}
             >
               通过
             </button>
@@ -124,7 +123,7 @@ export default function AppealManagementPage() {
               type="button"
               className="danger"
               onClick={handleReject}
-              disabled={activeAppeal?.processStatus && activeAppeal.processStatus !== 'Pending'}
+              disabled={!canReject(activeAppeal?.processStatus)}
             >
               驳回
             </button>
@@ -138,7 +137,7 @@ export default function AppealManagementPage() {
             <div><strong>申诉人：</strong>{activeAppeal.appellantName}</div>
             <div><strong>联系方式：</strong>{activeAppeal.appellantContact}</div>
             <div><strong>申诉原因：</strong>{activeAppeal.appealReason}</div>
-            <div><strong>处理状态：</strong>{activeAppeal.processStatus}</div>
+            <div><strong>处理状态：</strong>{getStatusLabel(activeAppeal.processStatus)}</div>
             <div><strong>处理结果：</strong>{activeAppeal.processResult}</div>
             <label className="form-field full">
               <span>驳回原因</span>

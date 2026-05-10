@@ -11,6 +11,8 @@ import 'package:final_assignment_front/features/dashboard/views/shared/widgets/d
 import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/features/api/fine_information_controller_api.dart';
 import 'package:final_assignment_front/features/model/fine_information.dart';
+import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
+import 'package:final_assignment_front/utils/workflow_permissions.dart';
 import 'package:get/get.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -26,6 +28,14 @@ String generateIdempotencyKey() {
 String formatDate(DateTime? date) {
   if (date == null) return '无';
   return "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+}
+
+String finePaymentStatus(FineInformation fine) =>
+    fine.paymentStatus ?? fine.status ?? PaymentStatus.unpaid.code;
+
+String finePaymentStatusLabel(FineInformation fine) {
+  final status = finePaymentStatus(fine);
+  return PaymentStatus.fromCode(status)?.label ?? status;
 }
 
 DateTime? _resolvedFineDate(FineInformation fine) {
@@ -833,7 +843,7 @@ class _FineListState extends State<FineList> {
                                             ),
                                           ),
                                           Text(
-                                            '状态: ${fijne.status ?? '正在处理'}',
+                                            '状态: ${finePaymentStatusLabel(fijne)}',
                                             style: themeData
                                                 .textTheme.bodyMedium
                                                 ?.copyWith(
@@ -1125,7 +1135,11 @@ class _AddFinePageState extends State<AddFinePage> {
             ? DateTime.parse("${_dateController.text.trim()}T00:00:00.000")
                 .toIso8601String()
             : null,
-        status: widget.isEditMode ? widget.fine?.status : '正在处理',
+        paymentStatus: widget.isEditMode
+            ? widget.fine?.paymentStatus
+            : PaymentStatus.unpaid.code,
+        status:
+            widget.isEditMode ? widget.fine?.status : PaymentStatus.unpaid.code,
         idempotencyKey: idempotencyKey,
       );
       if (widget.isEditMode) {
@@ -1568,6 +1582,7 @@ class _FineDetailPageState extends State<FineDetailPage> {
         accountNumber: _currentFine.accountNumber,
         bank: _currentFine.bank,
         receiptNumber: _currentFine.receiptNumber,
+        paymentStatus: status,
         status: status,
         remarks: _currentFine.remarks,
         idempotencyKey: idempotencyKey,
@@ -1578,7 +1593,8 @@ class _FineDetailPageState extends State<FineDetailPage> {
         idempotencyKey: idempotencyKey,
       );
       setState(() => _currentFine = result);
-      _showSnackBar('罚款记录已${status == 'Approved' ? '批准' : '拒绝'}');
+      _showSnackBar(
+          '罚款记录状态已更新为${PaymentStatus.fromCode(status)?.label ?? status}');
       if (mounted) Navigator.pop(context, true);
     } on ApiException catch (e) {
       _showSnackBar('更新状态失败: ${e.message}', isError: true);
@@ -1754,18 +1770,18 @@ class _FineDetailPageState extends State<FineDetailPage> {
               onPressed: _editFine,
               tooltip: '编辑罚款',
             ),
-            if (_currentFine.status == '正在处理') ...[
+            if (canPay(finePaymentStatus(_currentFine))) ...[
               DashboardPageBarAction(
                 icon: Icons.check,
-                onPressed: () =>
-                    _updateFineStatus(_currentFine.fineId ?? 0, '批准'),
-                tooltip: '批准罚款',
+                onPressed: () => _updateFineStatus(
+                    _currentFine.fineId ?? 0, PaymentStatus.paid.code),
+                tooltip: '标记已支付',
               ),
               DashboardPageBarAction(
-                icon: Icons.close,
-                onPressed: () =>
-                    _updateFineStatus(_currentFine.fineId ?? 0, '驳回'),
-                tooltip: '拒绝罚款',
+                icon: Icons.money_off,
+                onPressed: () => _updateFineStatus(
+                    _currentFine.fineId ?? 0, PaymentStatus.waived.code),
+                tooltip: '减免罚款',
               ),
             ],
             DashboardPageBarAction(
@@ -1814,7 +1830,7 @@ class _FineDetailPageState extends State<FineDetailPage> {
                           ),
                           _buildDetailRow(
                             '状态',
-                            _currentFine.status ?? '正在处理',
+                            finePaymentStatusLabel(_currentFine),
                             themeData,
                           ),
                           _buildDetailRow(

@@ -10,6 +10,8 @@ import 'package:final_assignment_front/features/dashboard/controllers/manager_da
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/model/appeal_record.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
+import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
+import 'package:final_assignment_front/utils/workflow_permissions.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -29,18 +31,14 @@ String formatDateTime(DateTime? dateTime) {
   return DateFormat('yyyy-MM-dd HH:mm').format(dateTime);
 }
 
-// New function to map English processStatus to Chinese for display
 String getDisplayStatus(String? status) {
-  switch (status) {
-    case 'Pending':
-      return '待处理';
-    case 'Approved':
-      return '已通过';
-    case 'Rejected':
-      return '已驳回';
-    default:
-      return status ?? '未知';
-  }
+  final processStatus = AppealProcessStatus.fromCode(status);
+  return processStatus?.label ?? status ?? '未知';
+}
+
+Color getAppealProcessStatusColor(String? status, ThemeData themeData) {
+  return AppealProcessStatus.fromCode(status)?.color ??
+      themeData.colorScheme.onSurfaceVariant;
 }
 
 class AppealManagementAdmin extends StatefulWidget {
@@ -89,7 +87,6 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
       return false;
     }
     try {
-      final decodedToken = JwtDecoder.decode(jwtToken);
       if (JwtDecoder.isExpired(jwtToken)) {
         jwtToken = await _refreshJwtToken();
         if (jwtToken == null) {
@@ -686,11 +683,8 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
                 '状态: ${getDisplayStatus(appeal.processStatus)}',
                 // Use Chinese status
                 style: themeData.textTheme.bodyMedium?.copyWith(
-                  color: appeal.processStatus == 'Approved'
-                      ? Colors.green
-                      : appeal.processStatus == 'Rejected'
-                          ? Colors.red
-                          : themeData.colorScheme.onSurfaceVariant,
+                  color: getAppealProcessStatusColor(
+                      appeal.processStatus, themeData),
                 ),
               ),
               Text(
@@ -880,7 +874,6 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
       return false;
     }
     try {
-      final decodedToken = JwtDecoder.decode(jwtToken);
       if (JwtDecoder.isExpired(jwtToken)) {
         jwtToken = await _refreshJwtToken();
         if (jwtToken == null) {
@@ -1025,6 +1018,34 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
     }
   }
 
+  Future<AppealRecordModel> _triggerAppealWorkflowEvent(
+    int appealId,
+    AppealProcessEventType event,
+  ) async {
+    if (!await _validateJwtToken()) {
+      Get.offAllNamed(Routes.login);
+      throw ApiException(401, '未授权');
+    }
+    final jwtToken = await AuthTokenStore.instance.getJwtToken();
+    final response = await http.post(
+      Uri.parse(
+          '${AppConfig.apiBaseUrl}/api/workflow/appeals/$appealId/events/${event.code}'),
+      headers: {
+        'Authorization': 'Bearer $jwtToken',
+        'Idempotency-Key': generateIdempotencyKey(),
+      },
+    ).timeout(const Duration(seconds: 5));
+
+    if (response.statusCode == 200) {
+      return AppealRecordModel.fromJson(
+          jsonDecode(response.body) as Map<String, dynamic>);
+    }
+    throw ApiException(
+      response.statusCode,
+      response.body.isEmpty ? '工作流事件提交失败' : response.body,
+    );
+  }
+
   Future<void> _approveAppeal(int appealId) async {
     if (widget.appeal.appealId == null) {
       _showSnackBar('申诉ID无效', isError: true);
@@ -1032,19 +1053,9 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
     }
     setState(() => _isLoading = true);
     try {
-      final updatedAppeal = widget.appeal.copyWith(
-        processStatus: 'Approved', // Keep English for backend
-        processResult: '申诉已通过',
-      );
-      developer.log(
-          'Approving appeal ID: $appealId, Payload: ${updatedAppeal.toJson()}');
-      await appealApi
-          .apiAppealsAppealIdPut(
-            appealId: appealId,
-            appealRecord: updatedAppeal,
-            idempotencyKey: generateIdempotencyKey(),
-          )
-          .timeout(const Duration(seconds: 5));
+      final updatedAppeal = await _triggerAppealWorkflowEvent(
+          appealId, AppealProcessEventType.approve);
+      developer.log('Approving appeal ID: $appealId via workflow event');
       _showSnackBar('申诉已审批通过！');
       widget.onAppealUpdated?.call(updatedAppeal);
       if (mounted) Navigator.pop(context, true);
@@ -1136,20 +1147,11 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
                         }
                         setState(() => _isLoading = true);
                         try {
-                          final updatedAppeal = widget.appeal.copyWith(
-                            processStatus: 'Rejected',
-                            // Keep English for backend
-                            processResult: reason,
-                          );
+                          final updatedAppeal =
+                              await _triggerAppealWorkflowEvent(
+                                  appealId, AppealProcessEventType.reject);
                           developer.log(
-                              'Rejecting appeal ID: $appealId, Payload: ${updatedAppeal.toJson()}');
-                          await appealApi
-                              .apiAppealsAppealIdPut(
-                                appealId: appealId,
-                                appealRecord: updatedAppeal,
-                                idempotencyKey: generateIdempotencyKey(),
-                              )
-                              .timeout(const Duration(seconds: 5));
+                              'Rejecting appeal ID: $appealId via workflow event');
                           _showSnackBar('申诉已驳回，用户可重新提交');
                           widget.onAppealUpdated?.call(updatedAppeal);
                           Navigator.pop(ctx);
@@ -1355,19 +1357,16 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
                                     _buildDetailRow('上诉原因', reason, themeData),
                                     _buildDetailRow('上诉时间', time, themeData),
                                     _buildDetailRow('处理状态', status, themeData,
-                                        valueColor: status == 'Approved'
-                                            ? Colors.green
-                                            : status == 'Rejected'
-                                                ? Colors.red
-                                                : themeData.colorScheme
-                                                    .onSurfaceVariant),
+                                        valueColor: getAppealProcessStatusColor(
+                                            status, themeData)),
                                     _buildDetailRow('处理结果', result, themeData),
                                   ],
                                 ),
                               ),
                             ),
                             const SizedBox(height: 24),
-                            if (_isAdmin && status == 'Pending') ...[
+                            if (_isAdmin &&
+                                (canApprove(status) || canReject(status))) ...[
                               Row(
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceEvenly,
