@@ -4,6 +4,8 @@
     label: '驾驶员信息',
     basePath: '/api/drivers',
     idField: 'driverId',
+    displayFields: ['driverId', 'name', 'idCardNumber', 'contactNumber', 'driverLicenseNumber', 'licenseType', 'currentPoints', 'status'],
+    editableFields: ['name', 'idCardNumber', 'gender', 'birthdate', 'contactNumber', 'email', 'address', 'driverLicenseNumber', 'licenseType', 'allowedVehicleType', 'firstLicenseDate', 'issueDate', 'expiryDate', 'issuingAuthority', 'status', 'remarks'],
     fields: [
       { name: 'driverId', type: 'int', readOnly: true },
       { name: 'name', type: 'String' },
@@ -36,6 +38,8 @@
     label: '车辆信息',
     basePath: '/api/vehicles',
     idField: 'vehicleId',
+    displayFields: ['vehicleId', 'licensePlate', 'vehicleType', 'brand', 'model', 'ownerName', 'ownerContact', 'status'],
+    editableFields: ['licensePlate', 'plateColor', 'vehicleType', 'brand', 'model', 'vehicleColor', 'engineNumber', 'frameNumber', 'ownerName', 'ownerIdCard', 'ownerContact', 'ownerAddress', 'firstRegistrationDate', 'registrationDate', 'issuingAuthority', 'status', 'inspectionExpiryDate', 'insuranceExpiryDate', 'remarks'],
     fields: [
       { name: 'vehicleId', type: 'int', readOnly: true },
       { name: 'licensePlate', type: 'String' },
@@ -70,6 +74,8 @@
     label: '违法记录',
     basePath: '/api/offenses',
     idField: 'offenseId',
+    displayFields: ['offenseId', 'offenseNumber', 'offenseTime', 'offenseLocation', 'driverName', 'licensePlate', 'offenseType', 'fineAmount', 'deductedPoints', 'processStatus'],
+    editableFields: ['offenseCode', 'offenseNumber', 'offenseTime', 'offenseLocation', 'offenseProvince', 'offenseCity', 'driverId', 'vehicleId', 'offenseDescription', 'evidenceType', 'evidenceUrls', 'enforcementAgency', 'fineAmount', 'deductedPoints', 'detentionDays', 'remarks'],
     fields: [
       { name: 'offenseId', type: 'int', readOnly: true },
       { name: 'offenseCode', type: 'String' },
@@ -111,6 +117,8 @@
     label: '扣分记录',
     basePath: '/api/deductions',
     idField: 'deductionId',
+    displayFields: ['deductionId', 'offenseId', 'driverId', 'deductedPoints', 'deductionTime', 'scoringCycle', 'status', 'handler'],
+    editableFields: ['offenseId', 'driverId', 'deductedPoints', 'deductionTime', 'scoringCycle', 'status', 'restoreReason', 'remarks'],
     fields: [
       { name: 'deductionId', type: 'int', readOnly: true },
       { name: 'offenseId', type: 'int' },
@@ -135,6 +143,8 @@
     label: '罚款记录',
     basePath: '/api/fines',
     idField: 'fineId',
+    displayFields: ['fineId', 'offenseId', 'fineNumber', 'fineAmount', 'lateFee', 'totalAmount', 'paymentDeadline', 'paymentStatus', 'status'],
+    editableFields: ['offenseId', 'fineNumber', 'fineAmount', 'lateFee', 'totalAmount', 'fineDate', 'paymentDeadline', 'issuingAuthority', 'paymentStatus', 'status', 'remarks'],
     fields: [
       { name: 'fineId', type: 'int', readOnly: true },
       { name: 'offenseId', type: 'int' },
@@ -169,6 +179,9 @@
     label: '缴费记录',
     basePath: '/api/payments',
     idField: 'paymentId',
+    useCustomPage: true,
+    displayFields: ['paymentId', 'fineId', 'paymentNumber', 'paymentAmount', 'paymentMethod', 'paymentTime', 'payerName', 'paymentStatus', 'receiptNumber'],
+    editableFields: ['fineId', 'paymentAmount', 'paymentMethod', 'paymentChannel', 'payerName', 'payerContact', 'remarks'],
     fields: [
       { name: 'paymentId', type: 'int', readOnly: true },
       { name: 'fineId', type: 'int' },
@@ -201,6 +214,8 @@
     label: '违法类型字典',
     basePath: '/api/offense-types',
     idField: 'typeId',
+    displayFields: ['typeId', 'offenseCode', 'offenseName', 'category', 'standardFineAmount', 'deductedPoints', 'severityLevel', 'status'],
+    editableFields: ['offenseCode', 'offenseName', 'category', 'description', 'standardFineAmount', 'minFineAmount', 'maxFineAmount', 'deductedPoints', 'detentionDays', 'licenseSuspensionDays', 'severityLevel', 'legalBasis', 'status', 'remarks'],
     fields: [
       { name: 'typeId', type: 'int', readOnly: true },
       { name: 'offenseCode', type: 'String' },
@@ -227,6 +242,8 @@
     label: '申诉记录',
     basePath: '/api/appeals',
     idField: 'appealId',
+    displayFields: ['appealId', 'appealNumber', 'appellantName', 'appealType', 'appealTime', 'acceptanceStatus', 'processStatus', 'processResult'],
+    editableFields: ['offenseId', 'appealNumber', 'appellantName', 'appellantIdCard', 'appellantContact', 'appellantEmail', 'appellantAddress', 'appealType', 'appealReason', 'appealTime', 'evidenceDescription', 'evidenceUrls'],
     fields: [
       { name: 'appealId', type: 'int', readOnly: true },
       { name: 'offenseId', type: 'int' },
@@ -258,6 +275,9 @@
     label: '业务进度',
     basePath: '/api/progress',
     idField: 'id',
+    useCustomPage: true,
+    displayFields: ['id', 'businessType', 'businessId', 'businessStatus', 'userId', 'createdTime', 'modifiedTime'],
+    editableFields: [],
     fields: [
       { name: 'id', type: 'int', readOnly: true },
       { name: 'idempotencyKey', type: 'String' },
@@ -279,6 +299,9 @@
     label: '用户管理',
     basePath: '/api/users',
     idField: 'userId',
+    useCustomPage: true,
+    displayFields: ['userId', 'username', 'realName', 'contactNumber', 'email', 'department', 'position', 'status', 'lastLoginTime'],
+    editableFields: ['username', 'realName', 'gender', 'contactNumber', 'email', 'department', 'position', 'employeeNumber', 'status', 'accountExpiryDate', 'remarks'],
     fields: [
       { name: 'userId', type: 'int', readOnly: true },
       { name: 'username', type: 'String' },
@@ -311,6 +334,8 @@
     label: '角色管理',
     basePath: '/api/roles',
     idField: 'roleId',
+    displayFields: ['roleId', 'roleCode', 'roleName', 'roleType', 'dataScope', 'status', 'sortOrder'],
+    editableFields: ['roleCode', 'roleName', 'roleType', 'roleDescription', 'dataScope', 'status', 'sortOrder', 'remarks'],
     fields: [
       { name: 'roleId', type: 'int', readOnly: true },
       { name: 'roleCode', type: 'String' },
@@ -333,6 +358,8 @@
     label: '权限管理',
     basePath: '/api/permissions',
     idField: 'permissionId',
+    displayFields: ['permissionId', 'permissionCode', 'permissionName', 'permissionType', 'menuPath', 'isVisible', 'status', 'sortOrder'],
+    editableFields: ['parentId', 'permissionCode', 'permissionName', 'permissionType', 'permissionDescription', 'menuPath', 'menuIcon', 'component', 'isVisible', 'isExternal', 'sortOrder', 'status', 'remarks'],
     fields: [
       { name: 'permissionId', type: 'int', readOnly: true },
       { name: 'parentId', type: 'int' },
@@ -362,6 +389,8 @@
     label: '系统设置',
     basePath: '/api/system/settings',
     idField: 'settingId',
+    displayFields: ['settingId', 'systemName', 'systemVersion', 'systemDescription', 'dateFormat', 'pageSize', 'loginTimeout', 'sessionTimeout', 'modifiedTime'],
+    editableFields: ['systemName', 'systemDescription', 'copyrightInfo', 'loginTimeout', 'sessionTimeout', 'dateFormat', 'pageSize', 'remarks'],
     fields: [
       { name: 'settingId', type: 'int', readOnly: true },
       { name: 'settingKey', type: 'String' },
@@ -396,6 +425,8 @@
     label: '备份记录',
     basePath: '/api/system/backup',
     idField: 'backupId',
+    displayFields: ['backupId', 'backupType', 'backupFileName', 'backupFileSize', 'backupTime', 'backupDuration', 'backupHandler', 'restoreStatus', 'status'],
+    editableFields: [],
     fields: [
       { name: 'backupId', type: 'int', readOnly: true },
       { name: 'backupType', type: 'String' },
@@ -422,6 +453,8 @@
     label: '登录日志',
     basePath: '/api/logs/login',
     idField: 'logId',
+    displayFields: ['logId', 'username', 'loginTime', 'logoutTime', 'loginResult', 'failureReason', 'loginIp', 'loginLocation', 'browserType', 'osType', 'deviceType'],
+    editableFields: [],
     fields: [
       { name: 'logId', type: 'int', readOnly: true },
       { name: 'username', type: 'String' },
@@ -449,6 +482,8 @@
     label: '操作日志',
     basePath: '/api/logs/operation',
     idField: 'logId',
+    displayFields: ['logId', 'operationType', 'operationModule', 'operationFunction', 'operationContent', 'operationTime', 'username', 'requestMethod', 'requestUrl', 'requestIp', 'operationResult', 'errorMessage', 'executionTime'],
+    editableFields: [],
     fields: [
       { name: 'logId', type: 'int', readOnly: true },
       { name: 'operationType', type: 'String' },
@@ -479,7 +514,18 @@
     label: '系统日志',
     basePath: '/api/system/logs',
     idField: 'id',
-    fields: [],
+    useCustomPage: true,
+    displayFields: ['logId', 'logType', 'logContent', 'operationTime', 'operationUser', 'operationIpAddress', 'remarks'],
+    editableFields: [],
+    fields: [
+      { name: 'logId', type: 'int', readOnly: true },
+      { name: 'logType', type: 'String', readOnly: true },
+      { name: 'logContent', type: 'String', readOnly: true },
+      { name: 'operationTime', type: 'DateTime', readOnly: true },
+      { name: 'operationUser', type: 'String', readOnly: true },
+      { name: 'operationIpAddress', type: 'String', readOnly: true },
+      { name: 'remarks', type: 'String', readOnly: true },
+    ],
   },
 };
 
