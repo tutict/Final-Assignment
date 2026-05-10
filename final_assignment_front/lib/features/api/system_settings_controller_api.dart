@@ -10,7 +10,8 @@ import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 // ¨å±ç?defaultApiClient
 final ApiClient defaultApiClient = ApiClient();
 
-class SystemSettingsControllerApi {
+class SystemSettingsControllerApi with BaseApiClient {
+  @override
   final ApiClient apiClient;
 
   /// æé å½æ°ï¼å¯ä¼ å
@@ -21,7 +22,7 @@ class SystemSettingsControllerApi {
 
   /// ä»?SharedPreferences ä¸­è¯»å?jwtToken å¹¶è®¾ç½®å° ApiClient ä¸?
   Future<void> initializeWithJwt() async {
-      final jwtToken = (await AuthTokenStore.instance.getJwtToken());
+    final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
       throw Exception('Not authenticated. Please log in again.');
     }
@@ -30,21 +31,11 @@ class SystemSettingsControllerApi {
   }
 
   String _decodeBodyBytes(Response response) {
-    return response.body;
+    return decodeBodyBytes(response);
   }
 
   Future<Map<String, String>> _getHeaders({String? idempotencyKey}) async {
-      final token = (await AuthTokenStore.instance.getJwtToken()) ?? '';
-    final headers = <String, String>{
-      'Content-Type': 'application/json; charset=utf-8',
-    };
-    if (token.isNotEmpty) {
-      headers['Authorization'] = 'Bearer $token';
-    }
-    if (idempotencyKey != null && idempotencyKey.trim().isNotEmpty) {
-      headers['Idempotency-Key'] = idempotencyKey.trim();
-    }
-    return headers;
+    return getHeaders(idempotencyKey: idempotencyKey);
   }
 
   /// GET /api/systemSettings/copyrightInfo - è·åçæä¿¡æ¯
@@ -652,8 +643,8 @@ class SystemSettingsControllerApi {
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     }
-    final data =
-        apiClient.deserialize(_decodeBodyBytes(response), 'Map<String, dynamic>');
+    final data = apiClient.deserialize(
+        _decodeBodyBytes(response), 'Map<String, dynamic>');
     return SysDictModel.fromJson(data);
   }
 
@@ -676,8 +667,8 @@ class SystemSettingsControllerApi {
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     }
-    final data =
-        apiClient.deserialize(_decodeBodyBytes(response), 'Map<String, dynamic>');
+    final data = apiClient.deserialize(
+        _decodeBodyBytes(response), 'Map<String, dynamic>');
     return SysDictModel.fromJson(data);
   }
 
@@ -719,8 +710,8 @@ class SystemSettingsControllerApi {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     }
     if (response.body.isEmpty) return null;
-    final data =
-        apiClient.deserialize(_decodeBodyBytes(response), 'Map<String, dynamic>');
+    final data = apiClient.deserialize(
+        _decodeBodyBytes(response), 'Map<String, dynamic>');
     return SysDictModel.fromJson(data);
   }
 

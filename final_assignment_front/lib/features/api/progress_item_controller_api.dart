@@ -10,7 +10,8 @@ import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 // ¨å±ç?defaultApiClient
 final ApiClient defaultApiClient = ApiClient();
 
-class ProgressControllerApi {
+class ProgressControllerApi with BaseApiClient {
+  @override
   final ApiClient apiClient;
 
   // æ´æ°åçæé å½æ°ï¼apiClient åæ°å¯ä¸ºç©?
@@ -19,7 +20,7 @@ class ProgressControllerApi {
 
   /// ä»?SharedPreferences ä¸­è¯»å?jwtToken å¹¶è®¾ç½®å° ApiClient ä¸?
   Future<void> initializeWithJwt() async {
-      final jwtToken = (await AuthTokenStore.instance.getJwtToken());
+    final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
       throw Exception('Not authenticated. Please log in again.');
     }
@@ -30,7 +31,7 @@ class ProgressControllerApi {
   // è§£ç ååºä½çè¾
 // å©æ¹æ³
   String _decodeBodyBytes(http.Response response) {
-    return response.body;
+    return decodeBodyBytes(response);
   }
 
   /// åå»ºæ°çè¿åº¦è®°å½ã?with HTTP info returned
@@ -38,7 +39,7 @@ class ProgressControllerApi {
     required ProgressItem progressItem,
     Map<String, String>? headers,
   }) async {
-      final jwtToken = (await AuthTokenStore.instance.getJwtToken());
+    final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
       throw ApiException(401, 'No JWT token found');
     }
@@ -85,7 +86,7 @@ class ProgressControllerApi {
   Future<http.Response> apiProgressGetWithHttpInfo({
     Map<String, String>? headers,
   }) async {
-      final jwtToken = (await AuthTokenStore.instance.getJwtToken());
+    final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
       throw ApiException(401, 'No JWT token found');
     }
@@ -132,7 +133,7 @@ class ProgressControllerApi {
     required String username,
     Map<String, String>? headers,
   }) async {
-      final jwtToken = (await AuthTokenStore.instance.getJwtToken());
+    final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
       throw ApiException(401, 'No JWT token found');
     }
@@ -184,12 +185,13 @@ class ProgressControllerApi {
     required String newStatus,
     Map<String, String>? headers,
   }) async {
-      final jwtToken = (await AuthTokenStore.instance.getJwtToken());
+    final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
       throw ApiException(401, 'No JWT token found');
     }
 
-    Object postBody = ''; // PUT è¯·æ±è¿éä¸éè¦?bodyï¼å ä¸ºåæ°å¨æ¥è¯¢å­ç¬¦ä¸²ä¸­
+    Object postBody =
+        ''; // PUT è¯·æ±è¿éä¸éè¦?bodyï¼å ä¸ºåæ°å¨æ¥è¯¢å­ç¬¦ä¸²ä¸­
 
     // åå»ºè·¯å¾åæ å°åé?
     String path =
@@ -236,7 +238,7 @@ class ProgressControllerApi {
     required int progressId,
     Map<String, String>? headers,
   }) async {
-      final jwtToken = (await AuthTokenStore.instance.getJwtToken());
+    final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
       throw ApiException(401, 'No JWT token found');
     }
@@ -283,7 +285,7 @@ class ProgressControllerApi {
     required String status,
     Map<String, String>? headers,
   }) async {
-      final jwtToken = (await AuthTokenStore.instance.getJwtToken());
+    final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
       throw ApiException(401, 'No JWT token found');
     }
@@ -333,7 +335,7 @@ class ProgressControllerApi {
     required String endTime,
     Map<String, String>? headers,
   }) async {
-      final jwtToken = (await AuthTokenStore.instance.getJwtToken());
+    final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
       throw ApiException(401, 'No JWT token found');
     }

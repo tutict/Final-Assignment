@@ -5,13 +5,13 @@ import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http; // ç¨äº Response å?MultipartRequest
 import 'package:final_assignment_front/utils/services/api_client.dart';
-import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
 // å®ä¹ä¸ä¸ªå
 // ¨å±ç?defaultApiClient
 final ApiClient defaultApiClient = ApiClient();
 
-class AuthControllerApi {
+class AuthControllerApi with BaseApiClient {
+  @override
   final ApiClient apiClient;
 
   // æ´æ°åçæé å½æ°ï¼apiClient åæ°å¯ä¸ºç©?
@@ -20,17 +20,12 @@ class AuthControllerApi {
 
   // è§£ç ååºä½çè¾
 // å©æ¹æ³
-  String _decodeBodyBytes(http.Response response) => response.body;
+  String _decodeBodyBytes(http.Response response) => decodeBodyBytes(response);
 
   // è·åéç¨è¯·æ±å¤´ï¼å
 // å« JWT
   Future<Map<String, String>> _getHeaders() async {
-      final token = (await AuthTokenStore.instance.getJwtToken()) ?? '';
-    debugPrint('Using JWT for request: $token');
-    return {
-      'Content-Type': 'application/json; charset=utf-8',
-      if (token.isNotEmpty) 'Authorization': 'Bearer $token',
-    };
+    return getHeaders();
   }
 
   /// ä½¿ç¨ HTTP ä¿¡æ¯è¿è¡ç»å½
@@ -46,18 +41,11 @@ class AuthControllerApi {
 
     List<String> contentTypes = ["application/json"];
     String? nullableContentType =
-    contentTypes.isNotEmpty ? contentTypes[0] : null;
+        contentTypes.isNotEmpty ? contentTypes[0] : null;
     List<String> authNames = [];
 
-    var response = await apiClient.invokeAPI(
-        path,
-        'POST',
-        queryParams,
-        postBody,
-        headerParams,
-        formParams,
-        nullableContentType,
-        authNames);
+    var response = await apiClient.invokeAPI(path, 'POST', queryParams,
+        postBody, headerParams, formParams, nullableContentType, authNames);
     return response;
   }
 
@@ -66,7 +54,7 @@ class AuthControllerApi {
       {required LoginRequest loginRequest}) async {
     try {
       http.Response response =
-      await apiAuthLoginPostWithHttpInfo(loginRequest: loginRequest);
+          await apiAuthLoginPostWithHttpInfo(loginRequest: loginRequest);
       debugPrint('Login response status: ${response.statusCode}');
       debugPrint('Login response body: ${response.body}');
 
@@ -99,18 +87,11 @@ class AuthControllerApi {
 
     List<String> contentTypes = ["application/json"];
     String? nullableContentType =
-    contentTypes.isNotEmpty ? contentTypes[0] : null;
+        contentTypes.isNotEmpty ? contentTypes[0] : null;
     List<String> authNames = [];
 
-    var response = await apiClient.invokeAPI(
-        path,
-        'POST',
-        queryParams,
-        postBody,
-        headerParams,
-        formParams,
-        nullableContentType,
-        authNames);
+    var response = await apiClient.invokeAPI(path, 'POST', queryParams,
+        postBody, headerParams, formParams, nullableContentType, authNames);
     return response;
   }
 
@@ -151,18 +132,11 @@ class AuthControllerApi {
 
     List<String> contentTypes = [];
     String? nullableContentType =
-    contentTypes.isNotEmpty ? contentTypes[0] : null;
+        contentTypes.isNotEmpty ? contentTypes[0] : null;
     List<String> authNames = [];
 
-    var response = await apiClient.invokeAPI(
-        path,
-        'GET',
-        queryParams,
-        null,
-        headerParams,
-        formParams,
-        nullableContentType,
-        authNames);
+    var response = await apiClient.invokeAPI(path, 'GET', queryParams, null,
+        headerParams, formParams, nullableContentType, authNames);
     return response;
   }
 
@@ -199,18 +173,11 @@ class AuthControllerApi {
 
     List<String> contentTypes = [];
     String? nullableContentType =
-    contentTypes.isNotEmpty ? contentTypes[0] : null;
+        contentTypes.isNotEmpty ? contentTypes[0] : null;
     List<String> authNames = [];
 
-    var response = await apiClient.invokeAPI(
-        path,
-        'GET',
-        queryParams,
-        null,
-        headerParams,
-        formParams,
-        nullableContentType,
-        authNames);
+    var response = await apiClient.invokeAPI(path, 'GET', queryParams, null,
+        headerParams, formParams, nullableContentType, authNames);
     return response;
   }
 

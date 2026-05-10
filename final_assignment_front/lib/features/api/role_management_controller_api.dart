@@ -9,7 +9,8 @@ import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 // ¨å±ç?defaultApiClient
 final ApiClient defaultApiClient = ApiClient();
 
-class RoleManagementControllerApi {
+class RoleManagementControllerApi with BaseApiClient {
+  @override
   final ApiClient apiClient;
 
   /// æé å½æ°ï¼å¯ä¼ å
@@ -20,7 +21,7 @@ class RoleManagementControllerApi {
 
   /// ä»?SharedPreferences ä¸­è¯»å?jwtToken å¹¶è®¾ç½®å° ApiClient ä¸?
   Future<void> initializeWithJwt() async {
-      final jwtToken = (await AuthTokenStore.instance.getJwtToken());
+    final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
       throw Exception('Not authenticated. Please log in again.');
     }
@@ -29,19 +30,22 @@ class RoleManagementControllerApi {
   }
 
   /// è§£ç ååºä½å­èå°å­ç¬¦ä¸?
-  String _decodeBodyBytes(http.Response response) => response.body;
+  String _decodeBodyBytes(http.Response response) => decodeBodyBytes(response);
 
   /// è¾
 // å©æ¹æ³ï¼æ·»å æ¥è¯¢åæ°ï¼å¦åç§°æç´¢ï¼
   List<QueryParam> _addQueryParams({String? name, String? idempotencyKey}) {
     final queryParams = <QueryParam>[];
     if (name != null) queryParams.add(QueryParam('name', name));
-    if (idempotencyKey != null) queryParams.add(QueryParam('idempotencyKey', idempotencyKey));
+    if (idempotencyKey != null) {
+      queryParams.addAll(idempotencyParams(idempotencyKey));
+    }
     return queryParams;
   }
 
   /// POST /api/roles - åå»ºæ°çè§è²è®°å½ (ä»?ADMIN)
-  Future<RoleManagement> createRole(RoleManagement role, String idempotencyKey) async {
+  Future<RoleManagement> createRole(
+      RoleManagement role, String idempotencyKey) async {
     final response = await apiClient.invokeAPI(
       '/api/roles',
       'POST',
@@ -55,7 +59,8 @@ class RoleManagementControllerApi {
     if (response.statusCode != 201) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     }
-    final data = apiClient.deserialize(_decodeBodyBytes(response), 'Map<String, dynamic>');
+    final data = apiClient.deserialize(
+        _decodeBodyBytes(response), 'Map<String, dynamic>');
     return RoleManagement.fromJson(data);
   }
 
@@ -75,7 +80,8 @@ class RoleManagementControllerApi {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     }
     if (response.body.isEmpty) return null;
-    final data = apiClient.deserialize(_decodeBodyBytes(response), 'Map<String, dynamic>');
+    final data = apiClient.deserialize(
+        _decodeBodyBytes(response), 'Map<String, dynamic>');
     return RoleManagement.fromJson(data);
   }
 
@@ -94,7 +100,8 @@ class RoleManagementControllerApi {
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     }
-    final List<dynamic> data = apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    final List<dynamic> data =
+        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
     return RoleManagement.listFromJson(data);
   }
 
@@ -117,7 +124,8 @@ class RoleManagementControllerApi {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     }
     if (response.body.isEmpty) return null;
-    final data = apiClient.deserialize(_decodeBodyBytes(response), 'Map<String, dynamic>');
+    final data = apiClient.deserialize(
+        _decodeBodyBytes(response), 'Map<String, dynamic>');
     return RoleManagement.fromJson(data);
   }
 
@@ -137,12 +145,14 @@ class RoleManagementControllerApi {
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     }
-    final List<dynamic> data = apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    final List<dynamic> data =
+        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
     return RoleManagement.listFromJson(data);
   }
 
   /// PUT /api/roles/{roleId} - æ´æ°æå®è§è²çä¿¡æ?(ä»?ADMIN)
-  Future<RoleManagement> apiRolesRoleIdPut(int roleId, RoleManagement updatedRole, String idempotencyKey) async {
+  Future<RoleManagement> apiRolesRoleIdPut(
+      int roleId, RoleManagement updatedRole, String idempotencyKey) async {
     final response = await apiClient.invokeAPI(
       '/api/roles/$roleId',
       'PUT',
@@ -156,7 +166,8 @@ class RoleManagementControllerApi {
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     }
-    final data = apiClient.deserialize(_decodeBodyBytes(response), 'Map<String, dynamic>');
+    final data = apiClient.deserialize(
+        _decodeBodyBytes(response), 'Map<String, dynamic>');
     return RoleManagement.fromJson(data);
   }
 
@@ -202,7 +213,8 @@ class RoleManagementControllerApi {
     final roles = await apiRolesGet();
     for (var role in roles) {
       if (role.roleName != null && role.roleName!.isNotEmpty) {
-        return role.roleName!; // è¿åç¬¬ä¸ä¸ªéç©ºè§è²åï¼åè®¾ç¨æ·åªæä¸ä¸ªä¸»è¦è§è?
+        return role
+            .roleName!; // è¿åç¬¬ä¸ä¸ªéç©ºè§è²åï¼åè®¾ç¨æ·åªæä¸ä¸ªä¸»è¦è§è?
       }
     }
     throw ApiException(403, 'æ æ³ç¡®å®ç¨æ·è§è²');
@@ -232,7 +244,8 @@ class RoleManagementControllerApi {
 
   /// DELETE /api/roles/name/{roleName} (WebSocket)
   /// å¯¹åºåç«¯: @WsAction(service="RoleManagement", action="deleteRoleByName")
-  Future<bool> eventbusRolesNameRoleNameDelete({required String roleName}) async {
+  Future<bool> eventbusRolesNameRoleNameDelete(
+      {required String roleName}) async {
     if (roleName.isEmpty) {
       throw ApiException(400, "Missing required param: roleName");
     }
@@ -250,7 +263,8 @@ class RoleManagementControllerApi {
 
   /// GET /api/roles/name/{roleName} (WebSocket)
   /// å¯¹åºåç«¯: @WsAction(service="RoleManagement", action="getRoleByName")
-  Future<RoleManagement?> eventbusRolesNameRoleNameGet({required String roleName}) async {
+  Future<RoleManagement?> eventbusRolesNameRoleNameGet(
+      {required String roleName}) async {
     if (roleName.isEmpty) {
       throw ApiException(400, "Missing required param: roleName");
     }
@@ -271,11 +285,14 @@ class RoleManagementControllerApi {
 
   /// POST /api/roles (WebSocket)
   /// å¯¹åºåç«¯: @WsAction(service="RoleManagement", action="createRole")
-  Future<RoleManagement> eventbusRolesPost({required RoleManagement roleManagement, String? idempotencyKey}) async {
+  Future<RoleManagement> eventbusRolesPost(
+      {required RoleManagement roleManagement, String? idempotencyKey}) async {
     final msg = {
       "service": "RoleManagement",
       "action": "createRole",
-      "args": idempotencyKey != null ? [roleManagement.toJson(), idempotencyKey] : [roleManagement.toJson()]
+      "args": idempotencyKey != null
+          ? [roleManagement.toJson(), idempotencyKey]
+          : [roleManagement.toJson()]
     };
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
@@ -327,7 +344,9 @@ class RoleManagementControllerApi {
     final msg = {
       "service": "RoleManagement",
       "action": "updateRole",
-      "args": idempotencyKey != null ? [roleId, updatedRole.toJson(), idempotencyKey] : [roleId, updatedRole.toJson()]
+      "args": idempotencyKey != null
+          ? [roleId, updatedRole.toJson(), idempotencyKey]
+          : [roleId, updatedRole.toJson()]
     };
     final respMap = await apiClient.sendWsMessage(msg);
     if (respMap.containsKey("error")) {
@@ -375,7 +394,8 @@ class RoleManagementControllerApi {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     }
     if (response.body.isEmpty) return null;
-    final data = apiClient.deserialize(_decodeBodyBytes(response), 'Map<String, dynamic>');
+    final data = apiClient.deserialize(
+        _decodeBodyBytes(response), 'Map<String, dynamic>');
     return RoleManagement.fromJson(data);
   }
 
@@ -402,7 +422,8 @@ class RoleManagementControllerApi {
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     }
-    final List<dynamic> data = apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    final List<dynamic> data =
+        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
     return RoleManagement.listFromJson(data);
   }
 
@@ -429,7 +450,8 @@ class RoleManagementControllerApi {
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     }
-    final List<dynamic> data = apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    final List<dynamic> data =
+        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
     return RoleManagement.listFromJson(data);
   }
 
@@ -456,7 +478,8 @@ class RoleManagementControllerApi {
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     }
-    final List<dynamic> data = apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    final List<dynamic> data =
+        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
     return RoleManagement.listFromJson(data);
   }
 
@@ -483,7 +506,8 @@ class RoleManagementControllerApi {
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     }
-    final List<dynamic> data = apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    final List<dynamic> data =
+        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
     return RoleManagement.listFromJson(data);
   }
 
@@ -510,7 +534,8 @@ class RoleManagementControllerApi {
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     }
-    final List<dynamic> data = apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    final List<dynamic> data =
+        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
     return RoleManagement.listFromJson(data);
   }
 
@@ -537,7 +562,8 @@ class RoleManagementControllerApi {
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     }
-    final List<dynamic> data = apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    final List<dynamic> data =
+        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
     return RoleManagement.listFromJson(data);
   }
 
@@ -564,7 +590,8 @@ class RoleManagementControllerApi {
     if (response.statusCode >= 400) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     }
-    final List<dynamic> data = apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
+    final List<dynamic> data =
+        apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
     return RoleManagement.listFromJson(data);
   }
 

@@ -5,19 +5,22 @@ import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:http/http.dart' as http;
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
-class LoginLogControllerApi {
+class LoginLogControllerApi with BaseApiClient {
   final ApiClient _apiClient;
   LoginLogControllerApi() : _apiClient = ApiClient();
 
+  @override
+  ApiClient get apiClient => _apiClient;
+
   Future<void> initializeWithJwt() async {
-      final jwtToken = (await AuthTokenStore.instance.getJwtToken());
+    final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
       throw Exception('JWT token not found in SharedPreferences');
     }
     _apiClient.setJwtToken(jwtToken);
   }
 
-  String _decode(http.Response r) => r.body;
+  String _decode(http.Response r) => decodeBodyBytes(r);
 
   // GET /api/logs/login
   Future<List<LoginLog>> apiLogsLoginGet() async {
@@ -34,7 +37,9 @@ class LoginLogControllerApi {
     if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
     if (r.body.isEmpty) return [];
     final List<dynamic> data = jsonDecode(_decode(r));
-    return data.map((e) => LoginLog.fromJson(e as Map<String, dynamic>)).toList();
+    return data
+        .map((e) => LoginLog.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   // GET /api/logs/login/{logId}
@@ -62,7 +67,7 @@ class LoginLogControllerApi {
     final r = await _apiClient.invokeAPI(
       '/api/logs/login',
       'POST',
-      [QueryParam('idempotencyKey', idempotencyKey)],
+      idempotencyParams(idempotencyKey),
       loginLog.toJson(),
       {},
       {},
@@ -82,7 +87,7 @@ class LoginLogControllerApi {
     final r = await _apiClient.invokeAPI(
       '/api/logs/login/$logId',
       'PUT',
-      [QueryParam('idempotencyKey', idempotencyKey)],
+      idempotencyParams(idempotencyKey),
       loginLog.toJson(),
       {},
       {},
@@ -131,7 +136,9 @@ class LoginLogControllerApi {
     if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
     if (r.body.isEmpty) return [];
     final List<dynamic> data = jsonDecode(_decode(r));
-    return data.map((e) => LoginLog.fromJson(e as Map<String, dynamic>)).toList();
+    return data
+        .map((e) => LoginLog.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   // GET /api/logs/login/search/result?result=&page=&size=
@@ -157,7 +164,9 @@ class LoginLogControllerApi {
     if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
     if (r.body.isEmpty) return [];
     final List<dynamic> data = jsonDecode(_decode(r));
-    return data.map((e) => LoginLog.fromJson(e as Map<String, dynamic>)).toList();
+    return data
+        .map((e) => LoginLog.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   // GET /api/logs/login/search/time-range?startTime=&endTime=&page=&size=
@@ -185,7 +194,9 @@ class LoginLogControllerApi {
     if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
     if (r.body.isEmpty) return [];
     final List<dynamic> data = jsonDecode(_decode(r));
-    return data.map((e) => LoginLog.fromJson(e as Map<String, dynamic>)).toList();
+    return data
+        .map((e) => LoginLog.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   // GET /api/logs/login/search/ip?ip=&page=&size=
@@ -211,7 +222,9 @@ class LoginLogControllerApi {
     if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
     if (r.body.isEmpty) return [];
     final List<dynamic> data = jsonDecode(_decode(r));
-    return data.map((e) => LoginLog.fromJson(e as Map<String, dynamic>)).toList();
+    return data
+        .map((e) => LoginLog.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   // GET /api/logs/login/search/location?loginLocation=&page=&size=
@@ -237,7 +250,9 @@ class LoginLogControllerApi {
     if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
     if (r.body.isEmpty) return [];
     final List<dynamic> data = jsonDecode(_decode(r));
-    return data.map((e) => LoginLog.fromJson(e as Map<String, dynamic>)).toList();
+    return data
+        .map((e) => LoginLog.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   // GET /api/logs/login/search/device-type?deviceType=&page=&size=
@@ -263,7 +278,9 @@ class LoginLogControllerApi {
     if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
     if (r.body.isEmpty) return [];
     final List<dynamic> data = jsonDecode(_decode(r));
-    return data.map((e) => LoginLog.fromJson(e as Map<String, dynamic>)).toList();
+    return data
+        .map((e) => LoginLog.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   // GET /api/logs/login/search/browser-type?browserType=&page=&size=
@@ -289,7 +306,9 @@ class LoginLogControllerApi {
     if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
     if (r.body.isEmpty) return [];
     final List<dynamic> data = jsonDecode(_decode(r));
-    return data.map((e) => LoginLog.fromJson(e as Map<String, dynamic>)).toList();
+    return data
+        .map((e) => LoginLog.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   // GET /api/logs/login/search/logout-time-range?startTime=&endTime=&page=&size=
@@ -317,6 +336,8 @@ class LoginLogControllerApi {
     if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
     if (r.body.isEmpty) return [];
     final List<dynamic> data = jsonDecode(_decode(r));
-    return data.map((e) => LoginLog.fromJson(e as Map<String, dynamic>)).toList();
+    return data
+        .map((e) => LoginLog.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 }

@@ -8,31 +8,29 @@ import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
 final ApiClient defaultApiClient = ApiClient();
 
-class DeductionInformationControllerApi {
+class DeductionInformationControllerApi with BaseApiClient {
+  @override
   final ApiClient apiClient;
   DeductionInformationControllerApi([ApiClient? client])
       : apiClient = client ?? defaultApiClient;
 
   Future<void> initializeWithJwt() async {
-      final jwtToken = (await AuthTokenStore.instance.getJwtToken());
+    final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
       throw Exception('Not logged in, please login again.');
     }
     apiClient.setJwtToken(jwtToken);
-    debugPrint('Initialized DeductionInformationControllerApi with token: $jwtToken');
+    debugPrint(
+        'Initialized DeductionInformationControllerApi with token: $jwtToken');
   }
 
-  String _decode(http.Response r) => r.body;
+  String _decode(http.Response r) => decodeBodyBytes(r);
 
   Future<Map<String, String>> _headers() async {
-      final token = (await AuthTokenStore.instance.getJwtToken()) ?? '';
-    return {
-      'Content-Type': 'application/json; charset=utf-8',
-      if (token.isNotEmpty) 'Authorization': 'Bearer $token',
-    };
+    return getHeaders();
   }
 
-  List<QueryParam> _idem(String key) => [QueryParam('idempotencyKey', key)];
+  List<QueryParam> _idem(String key) => idempotencyParams(key);
 
   // POST /api/deductions
   Future<DeductionRecordModel> apiDeductionsPost({
@@ -118,7 +116,8 @@ class DeductionInformationControllerApi {
   }
 
   // DELETE /api/deductions/{deductionId}
-  Future<void> apiDeductionsDeductionIdDelete({required int deductionId}) async {
+  Future<void> apiDeductionsDeductionIdDelete(
+      {required int deductionId}) async {
     final r = await apiClient.invokeAPI(
       '/api/deductions/$deductionId',
       'DELETE',
@@ -258,4 +257,3 @@ class DeductionInformationControllerApi {
     return data.map((e) => DeductionRecordModel.fromJson(e)).toList();
   }
 }
-

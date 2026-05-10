@@ -7,24 +7,20 @@ import 'package:final_assignment_front/features/model/chat_action_response.dart'
 import 'package:final_assignment_front/features/model/chat_response.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
-import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 import 'package:http/http.dart' as http;
 
 final ApiClient defaultApiClient = ApiClient();
 
-class ChatControllerApi {
+class ChatControllerApi with BaseApiClient {
   ChatControllerApi([ApiClient? apiClient])
       : apiClient = apiClient ?? defaultApiClient;
 
+  @override
   final ApiClient apiClient;
 
   Future<http.Response> apiAiChatGetWithHttpInfo(String message) async {
     final queryParams = [QueryParam('message', message)];
-    final headerParams = <String, String>{};
-    final jwtToken = await AuthTokenStore.instance.getJwtToken();
-    if (jwtToken != null && jwtToken.isNotEmpty) {
-      headerParams['Authorization'] = 'Bearer $jwtToken';
-    }
+    final headerParams = await getHeaders();
 
     return apiClient.invokeAPI(
       '/api/ai/chat',
@@ -69,11 +65,7 @@ class ChatControllerApi {
       QueryParam('message', message),
       QueryParam('webSearch', webSearch.toString()),
     ];
-    final headerParams = <String, String>{};
-    final jwtToken = await AuthTokenStore.instance.getJwtToken();
-    if (jwtToken != null && jwtToken.isNotEmpty) {
-      headerParams['Authorization'] = 'Bearer $jwtToken';
-    }
+    final headerParams = await getHeaders();
 
     return apiClient.invokeAPI(
       '/api/ai/chat/actions',

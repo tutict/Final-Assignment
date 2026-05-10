@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:final_assignment_front/features/model/offense_information.dart';
-import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -9,7 +8,8 @@ import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 // Global default client
 final ApiClient defaultApiClient = ApiClient();
 
-class TrafficViolationControllerApi {
+class TrafficViolationControllerApi with BaseApiClient {
+  @override
   final ApiClient apiClient;
 
   TrafficViolationControllerApi([ApiClient? apiClient])
@@ -17,24 +17,21 @@ class TrafficViolationControllerApi {
 
   // Read jwt and configure client
   Future<void> initializeWithJwt() async {
-      final jwtToken = (await AuthTokenStore.instance.getJwtToken());
+    final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
       throw Exception('Not authenticated. Please log in again.');
     }
     apiClient.setJwtToken(jwtToken);
-    debugPrint('Initialized TrafficViolationControllerApi with token: $jwtToken');
+    debugPrint(
+        'Initialized TrafficViolationControllerApi with token: $jwtToken');
   }
 
   // Decode body
-  String _decodeBodyBytes(http.Response response) => response.body;
+  String _decodeBodyBytes(http.Response response) => decodeBodyBytes(response);
 
   // Auth headers
   Future<Map<String, String>> _getHeaders() async {
-      final token = (await AuthTokenStore.instance.getJwtToken()) ?? '';
-    return {
-      'Content-Type': 'application/json; charset=utf-8',
-      if (token.isNotEmpty) 'Authorization': 'Bearer $token',
-    };
+    return getHeaders();
   }
 
   // Build query params
@@ -46,8 +43,7 @@ class TrafficViolationControllerApi {
   }
 
   Never _handleError(http.Response response) {
-    final body = _decodeBodyBytes(response);
-    throw ApiException(response.statusCode, body.isEmpty ? 'HTTP ${response.statusCode}' : body);
+    return throwResponseError(response);
   }
 
   // GET /api/violations - all violations
@@ -120,4 +116,3 @@ class TrafficViolationControllerApi {
     return jsonList.map((e) => OffenseInformation.fromJson(e)).toList();
   }
 }
-

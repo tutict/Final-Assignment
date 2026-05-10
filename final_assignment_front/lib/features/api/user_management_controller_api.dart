@@ -8,7 +8,8 @@ import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
 final ApiClient defaultApiClient = ApiClient();
 
-class UserManagementControllerApi {
+class UserManagementControllerApi with BaseApiClient {
+  @override
   final ApiClient apiClient;
 
   UserManagementControllerApi([ApiClient? apiClient])
@@ -16,7 +17,7 @@ class UserManagementControllerApi {
 
   // åå§å?JWT
   Future<void> initializeWithJwt() async {
-      final jwtToken = (await AuthTokenStore.instance.getJwtToken());
+    final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
       throw Exception('Not authenticated. Please log in again.');
     }
@@ -25,16 +26,11 @@ class UserManagementControllerApi {
   }
 
   // è§£ç ååºä½?
-  String _decodeBodyBytes(http.Response response) => response.body;
+  String _decodeBodyBytes(http.Response response) => decodeBodyBytes(response);
 
   // è·åè¯·æ±å¤?
   Future<Map<String, String>> _getHeaders() async {
-      final token = (await AuthTokenStore.instance.getJwtToken()) ?? '';
-    debugPrint('Using JWT for request: $token');
-    return {
-      'Content-Type': 'application/json; charset=utf-8',
-      if (token.isNotEmpty) 'Authorization': 'Bearer $token',
-    };
+    return getHeaders();
   }
 
 // --- GET /api/users ---
@@ -596,8 +592,8 @@ class UserManagementControllerApi {
     int page = 1,
     int size = 20,
   }) async {
-    final path =
-        "/api/users/role-bindings/by-role/$roleId".replaceAll("{format}", "json");
+    final path = "/api/users/role-bindings/by-role/$roleId"
+        .replaceAll("{format}", "json");
     final headerParams = await _getHeaders();
     final response = await apiClient.invokeAPI(
       path,
@@ -747,6 +743,7 @@ class UserManagementControllerApi {
     final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
     return jsonList.cast<Map<String, dynamic>>();
   }
+
   Future<List<UserManagement>> apiUsersSearchStatusGet({
     required String status,
     int page = 1,
@@ -931,14 +928,16 @@ class UserManagementControllerApi {
     }
 
     // removed endpoint
-    throw ApiException(410, "Endpoint removed: DELETE /api/users/username/{username}");
+    throw ApiException(
+        410, "Endpoint removed: DELETE /api/users/username/{username}");
   }
 
   Future<void> apiUsersUsernameUsernameDelete({
     required String username,
   }) async {
     // removed endpoint
-    throw ApiException(410, "Endpoint removed: DELETE /api/users/username/{username}");
+    throw ApiException(
+        410, "Endpoint removed: DELETE /api/users/username/{username}");
   }
 
   // --- GET /api/users/username/{username} ---
@@ -987,7 +986,8 @@ class UserManagementControllerApi {
     try {
       final response =
           await apiUsersSearchUsernameGetWithHttpInfo(username: username);
-      debugPrint('Users search username response status: ${response.statusCode}');
+      debugPrint(
+          'Users search username response status: ${response.statusCode}');
       debugPrint('Users search username response body: ${response.body}');
 
       if (response.statusCode >= 400) {
@@ -1063,26 +1063,30 @@ class UserManagementControllerApi {
   Future<http.Response> apiUsersAutocompleteStatusesGetWithHttpInfo({
     required String prefix,
   }) async {
-    throw ApiException(410, "Endpoint removed: /api/users/autocomplete/statuses");
+    throw ApiException(
+        410, "Endpoint removed: /api/users/autocomplete/statuses");
   }
 
   Future<List<String>> apiUsersAutocompleteStatusesGet({
     required String prefix,
   }) async {
-    throw ApiException(410, "Endpoint removed: /api/users/autocomplete/statuses");
+    throw ApiException(
+        410, "Endpoint removed: /api/users/autocomplete/statuses");
   }
 
   // --- GET /api/users/autocomplete/phone-numbers ---
   Future<http.Response> apiUsersAutocompletePhoneNumbersGetWithHttpInfo({
     required String prefix,
   }) async {
-    throw ApiException(410, "Endpoint removed: /api/users/autocomplete/phone-numbers");
+    throw ApiException(
+        410, "Endpoint removed: /api/users/autocomplete/phone-numbers");
   }
 
   Future<List<String>> apiUsersAutocompletePhoneNumbersGet({
     required String prefix,
   }) async {
-    throw ApiException(410, "Endpoint removed: /api/users/autocomplete/phone-numbers");
+    throw ApiException(
+        410, "Endpoint removed: /api/users/autocomplete/phone-numbers");
   }
 
   // --- WebSocket Methods ---

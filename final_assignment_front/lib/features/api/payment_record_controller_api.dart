@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:final_assignment_front/features/model/payment_record.dart';
-import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -9,14 +8,15 @@ import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
 final ApiClient defaultApiClient = ApiClient();
 
-class PaymentRecordControllerApi {
+class PaymentRecordControllerApi with BaseApiClient {
+  @override
   final ApiClient apiClient;
 
   PaymentRecordControllerApi([ApiClient? apiClient])
       : apiClient = apiClient ?? defaultApiClient;
 
   Future<void> initializeWithJwt() async {
-      final jwtToken = (await AuthTokenStore.instance.getJwtToken());
+    final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null || jwtToken.isEmpty) {
       throw Exception('JWT token not found in SharedPreferences');
     }
@@ -25,37 +25,23 @@ class PaymentRecordControllerApi {
   }
 
   String _decodeBodyBytes(http.Response response) {
-    return utf8.decode(response.bodyBytes);
+    return decodeBodyBytes(response);
   }
 
   Future<Map<String, String>> _getHeaders({String? idempotencyKey}) async {
-      final token = (await AuthTokenStore.instance.getJwtToken()) ?? '';
-    final headers = <String, String>{
-      'Content-Type': 'application/json; charset=utf-8',
-    };
-    if (token.isNotEmpty) {
-      headers['Authorization'] = 'Bearer $token';
-    }
-    if (idempotencyKey != null && idempotencyKey.trim().isNotEmpty) {
-      headers['Idempotency-Key'] = idempotencyKey.trim();
-    }
-    return headers;
+    return getHeaders(idempotencyKey: idempotencyKey);
   }
 
   void _ensureSuccess(http.Response response) {
-    if (response.statusCode >= 400) {
-      final message = response.body.isNotEmpty
-          ? _decodeBodyBytes(response)
-          : 'Request failed with status ${response.statusCode}';
-      throw ApiException(response.statusCode, message);
-    }
+    ensureSuccess(response);
   }
 
   List<PaymentRecordModel> _parseList(String body) {
     if (body.isEmpty) return [];
     final List<dynamic> jsonList = jsonDecode(body) as List<dynamic>;
     return jsonList
-        .map((item) => PaymentRecordModel.fromJson(item as Map<String, dynamic>))
+        .map(
+            (item) => PaymentRecordModel.fromJson(item as Map<String, dynamic>))
         .toList();
   }
 

@@ -9,7 +9,8 @@ import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 // ¨å±ç?defaultApiClient
 final ApiClient defaultApiClient = ApiClient();
 
-class PermissionManagementControllerApi {
+class PermissionManagementControllerApi with BaseApiClient {
+  @override
   final ApiClient apiClient;
 
   /// æé å½æ°ï¼å¯ä¼ å
@@ -20,7 +21,7 @@ class PermissionManagementControllerApi {
 
   /// ä»?SharedPreferences ä¸­è¯»å?jwtToken å¹¶è®¾ç½®å° ApiClient ä¸?
   Future<void> initializeWithJwt() async {
-      final jwtToken = (await AuthTokenStore.instance.getJwtToken());
+    final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
       throw Exception('Not authenticated. Please log in again.');
     }
@@ -30,7 +31,7 @@ class PermissionManagementControllerApi {
   }
 
   /// è§£ç ååºä½å­èå°å­ç¬¦ä¸?
-  String _decodeBodyBytes(Response response) => response.body;
+  String _decodeBodyBytes(Response response) => decodeBodyBytes(response);
 
   /// è¾
 // å©æ¹æ³ï¼æ·»å æ¥è¯¢åæ°ï¼å¦åç§°æç´¢ï¼

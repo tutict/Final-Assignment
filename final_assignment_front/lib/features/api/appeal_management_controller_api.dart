@@ -10,46 +10,33 @@ import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
 final ApiClient defaultApiClient = ApiClient();
 
-class AppealManagementControllerApi {
+class AppealManagementControllerApi with BaseApiClient {
+  @override
   final ApiClient apiClient;
 
   AppealManagementControllerApi([ApiClient? apiClient])
       : apiClient = apiClient ?? defaultApiClient;
 
   Future<void> initializeWithJwt() async {
-      final jwtToken = (await AuthTokenStore.instance.getJwtToken());
+    final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null || jwtToken.isEmpty) {
       throw Exception('Not authenticated. Please log in again.');
     }
     apiClient.setJwtToken(jwtToken);
-    debugPrint('Initialized AppealManagementControllerApi with token: $jwtToken');
+    debugPrint(
+        'Initialized AppealManagementControllerApi with token: $jwtToken');
   }
 
   String _decodeBodyBytes(http.Response response) {
-    return utf8.decode(response.bodyBytes);
+    return decodeBodyBytes(response);
   }
 
   Future<Map<String, String>> _getHeaders({String? idempotencyKey}) async {
-      final token = (await AuthTokenStore.instance.getJwtToken()) ?? '';
-    final headers = <String, String>{
-      'Content-Type': 'application/json; charset=utf-8',
-    };
-    if (token.isNotEmpty) {
-      headers['Authorization'] = 'Bearer $token';
-    }
-    if (idempotencyKey != null && idempotencyKey.trim().isNotEmpty) {
-      headers['Idempotency-Key'] = idempotencyKey.trim();
-    }
-    return headers;
+    return getHeaders(idempotencyKey: idempotencyKey);
   }
 
   void _ensureSuccess(http.Response response) {
-    if (response.statusCode >= 400) {
-      final message = response.body.isNotEmpty
-          ? _decodeBodyBytes(response)
-          : 'Request failed with status ${response.statusCode}';
-      throw ApiException(response.statusCode, message);
-    }
+    ensureSuccess(response);
   }
 
   List<AppealRecordModel> _parseAppealList(String body) {
@@ -85,8 +72,7 @@ class AppealManagementControllerApi {
     );
     _ensureSuccess(response);
     final body = _decodeBodyBytes(response);
-    return AppealRecordModel.fromJson(
-        jsonDecode(body) as Map<String, dynamic>);
+    return AppealRecordModel.fromJson(jsonDecode(body) as Map<String, dynamic>);
   }
 
   /// PUT /api/appeals/{appealId}
@@ -107,8 +93,7 @@ class AppealManagementControllerApi {
     );
     _ensureSuccess(response);
     final body = _decodeBodyBytes(response);
-    return AppealRecordModel.fromJson(
-        jsonDecode(body) as Map<String, dynamic>);
+    return AppealRecordModel.fromJson(jsonDecode(body) as Map<String, dynamic>);
   }
 
   /// DELETE /api/appeals/{appealId}
@@ -444,8 +429,7 @@ class AppealManagementControllerApi {
   }
 
   /// DELETE /api/appeals/reviews/{reviewId}
-  Future<void> apiAppealsReviewsReviewIdDelete(
-      {required int reviewId}) async {
+  Future<void> apiAppealsReviewsReviewIdDelete({required int reviewId}) async {
     final response = await apiClient.invokeAPI(
       '/api/appeals/reviews/$reviewId',
       'DELETE',
@@ -599,8 +583,7 @@ class AppealManagementControllerApi {
     if (response.body.isEmpty) {
       return 0;
     }
-    final data =
-        jsonDecode(_decodeBodyBytes(response)) as Map<String, dynamic>;
+    final data = jsonDecode(_decodeBodyBytes(response)) as Map<String, dynamic>;
     final count = data['count'];
     if (count is int) {
       return count;

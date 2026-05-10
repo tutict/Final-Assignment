@@ -9,13 +9,16 @@ import 'package:flutter/material.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 import 'package:http/http.dart' as http;
 
-class SystemLogsControllerApi {
+class SystemLogsControllerApi with BaseApiClient {
   final ApiClient _apiClient;
 
   SystemLogsControllerApi() : _apiClient = ApiClient();
 
+  @override
+  ApiClient get apiClient => _apiClient;
+
   Future<void> initializeWithJwt() async {
-      final jwtToken = (await AuthTokenStore.instance.getJwtToken());
+    final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
       throw Exception('JWT token not found in SharedPreferences');
     }
@@ -23,7 +26,7 @@ class SystemLogsControllerApi {
     debugPrint('Initialized SystemLogsControllerApi with token: $jwtToken');
   }
 
-  String _decode(http.Response r) => r.body;
+  String _decode(http.Response r) => decodeBodyBytes(r);
 
   // GET /api/system/logs/overview
   Future<Map<String, dynamic>> apiSystemLogsOverviewGet() async {
@@ -59,11 +62,14 @@ class SystemLogsControllerApi {
     if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
     if (r.body.isEmpty) return [];
     final List<dynamic> data = jsonDecode(_decode(r));
-    return data.map((e) => LoginLog.fromJson(e as Map<String, dynamic>)).toList();
+    return data
+        .map((e) => LoginLog.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   // GET /api/system/logs/operation/recent?limit=10
-  Future<List<OperationLog>> apiSystemLogsOperationRecentGet({int limit = 10}) async {
+  Future<List<OperationLog>> apiSystemLogsOperationRecentGet(
+      {int limit = 10}) async {
     final r = await _apiClient.invokeAPI(
       '/api/system/logs/operation/recent',
       'GET',
@@ -103,7 +109,8 @@ class SystemLogsControllerApi {
   }
 
   // GET /api/system/logs/requests/search/idempotency
-  Future<List<SysRequestHistoryModel>> apiSystemLogsRequestsSearchIdempotencyGet({
+  Future<List<SysRequestHistoryModel>>
+      apiSystemLogsRequestsSearchIdempotencyGet({
     required String key,
     int page = 1,
     int size = 20,
@@ -187,7 +194,8 @@ class SystemLogsControllerApi {
   }
 
   // GET /api/system/logs/requests/search/business-type
-  Future<List<SysRequestHistoryModel>> apiSystemLogsRequestsSearchBusinessTypeGet({
+  Future<List<SysRequestHistoryModel>>
+      apiSystemLogsRequestsSearchBusinessTypeGet({
     required String businessType,
     int page = 1,
     int size = 20,
@@ -215,7 +223,8 @@ class SystemLogsControllerApi {
   }
 
   // GET /api/system/logs/requests/search/business-id
-  Future<List<SysRequestHistoryModel>> apiSystemLogsRequestsSearchBusinessIdGet({
+  Future<List<SysRequestHistoryModel>>
+      apiSystemLogsRequestsSearchBusinessIdGet({
     required int businessId,
     int page = 1,
     int size = 20,

@@ -8,7 +8,8 @@ import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
 final ApiClient defaultApiClient = ApiClient();
 
-class FineInformationControllerApi {
+class FineInformationControllerApi with BaseApiClient {
+  @override
   final ApiClient apiClient;
 
   FineInformationControllerApi([ApiClient? apiClient])
@@ -16,31 +17,28 @@ class FineInformationControllerApi {
 
   /// ä»?SharedPreferences ä¸­è¯»å?jwtToken å¹¶è®¾ç½®å° ApiClient ä¸?
   Future<void> initializeWithJwt() async {
-      final jwtToken = (await AuthTokenStore.instance.getJwtToken());
+    final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
       throw Exception('Not authenticated. Please log in again.');
     }
     apiClient.setJwtToken(jwtToken);
-    debugPrint('Initialized FineInformationControllerApi with token: $jwtToken');
+    debugPrint(
+        'Initialized FineInformationControllerApi with token: $jwtToken');
   }
 
   /// è§£ç ååºä½å­èå°å­ç¬¦ä¸²ï¼ä½¿ç¨ UTF-8 è§£ç 
   String _decodeBodyBytes(http.Response response) {
-    return utf8.decode(response.bodyBytes); // Properly decode UTF-8
+    return decodeBodyBytes(response);
   }
 
   /// è·åå¸¦æ JWT çè¯·æ±å¤´
   Future<Map<String, String>> _getHeaders() async {
-      final token = (await AuthTokenStore.instance.getJwtToken()) ?? '';
-    return {
-      'Content-Type': 'application/json; charset=utf-8',
-      if (token.isNotEmpty) 'Authorization': 'Bearer $token',
-    };
+    return getHeaders();
   }
 
   /// æ·»å  idempotencyKey ä½ä¸ºæ¥è¯¢åæ°
   List<QueryParam> _addIdempotencyKey(String idempotencyKey) {
-    return [QueryParam('idempotencyKey', idempotencyKey)];
+    return idempotencyParams(idempotencyKey);
   }
 
   // HTTP Methods
@@ -91,7 +89,8 @@ class FineInformationControllerApi {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     }
     if (response.body.isEmpty) return null;
-    final data = apiClient.deserialize(_decodeBodyBytes(response), 'Map<String, dynamic>');
+    final data = apiClient.deserialize(
+        _decodeBodyBytes(response), 'Map<String, dynamic>');
     return FineInformation.fromJson(data);
   }
 
@@ -142,7 +141,8 @@ class FineInformationControllerApi {
       }
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     }
-    final data = apiClient.deserialize(_decodeBodyBytes(response), 'Map<String, dynamic>');
+    final data = apiClient.deserialize(
+        _decodeBodyBytes(response), 'Map<String, dynamic>');
     return FineInformation.fromJson(data);
   }
 
@@ -203,7 +203,7 @@ class FineInformationControllerApi {
   /// GET /api/fines/search/date-range - æ ¹æ®æ¶é´èå´è·åç½æ¬¾ (ç¨æ·åç®¡çå)
   Future<List<FineInformation>> apiFinesTimeRangeGet({
     String startDate = '1970-01-01', // Default matches backend
-    String endDate = '2100-01-01',   // Default matches backend
+    String endDate = '2100-01-01', // Default matches backend
   }) async {
     const path = '/api/fines/search/date-range';
     final queryParams = [
@@ -236,7 +236,8 @@ class FineInformationControllerApi {
     if (receiptNumber.isEmpty) {
       throw ApiException(400, "Missing required param: receiptNumber");
     }
-    final path = '/api/fines/receiptNumber/${Uri.encodeComponent(receiptNumber)}';
+    final path =
+        '/api/fines/receiptNumber/${Uri.encodeComponent(receiptNumber)}';
     final headerParams = await _getHeaders();
     final response = await apiClient.invokeAPI(
       path,
@@ -255,7 +256,8 @@ class FineInformationControllerApi {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
     }
     if (response.body.isEmpty) return null;
-    final data = apiClient.deserialize(_decodeBodyBytes(response), 'Map<String, dynamic>');
+    final data = apiClient.deserialize(
+        _decodeBodyBytes(response), 'Map<String, dynamic>');
     return FineInformation.fromJson(data);
   }
 

@@ -5,19 +5,22 @@ import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:http/http.dart' as http;
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
-class OperationLogControllerApi {
+class OperationLogControllerApi with BaseApiClient {
   final ApiClient _apiClient;
   OperationLogControllerApi() : _apiClient = ApiClient();
 
+  @override
+  ApiClient get apiClient => _apiClient;
+
   Future<void> initializeWithJwt() async {
-      final jwtToken = (await AuthTokenStore.instance.getJwtToken());
+    final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
       throw Exception('JWT token not found in SharedPreferences');
     }
     _apiClient.setJwtToken(jwtToken);
   }
 
-  String _decode(http.Response r) => r.body;
+  String _decode(http.Response r) => decodeBodyBytes(r);
 
   // GET /api/logs/operation
   Future<List<OperationLog>> apiLogsOperationGet() async {
@@ -34,7 +37,9 @@ class OperationLogControllerApi {
     if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
     if (r.body.isEmpty) return [];
     final List<dynamic> data = jsonDecode(_decode(r));
-    return data.map((e) => OperationLog.fromJson(e as Map<String, dynamic>)).toList();
+    return data
+        .map((e) => OperationLog.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   // GET /api/logs/operation/{logId}
@@ -62,7 +67,7 @@ class OperationLogControllerApi {
     final r = await _apiClient.invokeAPI(
       '/api/logs/operation',
       'POST',
-      [QueryParam('idempotencyKey', idempotencyKey)],
+      idempotencyParams(idempotencyKey),
       operationLog.toJson(),
       {},
       {},
@@ -82,7 +87,7 @@ class OperationLogControllerApi {
     final r = await _apiClient.invokeAPI(
       '/api/logs/operation/$logId',
       'PUT',
-      [QueryParam('idempotencyKey', idempotencyKey)],
+      idempotencyParams(idempotencyKey),
       operationLog.toJson(),
       {},
       {},
@@ -131,7 +136,9 @@ class OperationLogControllerApi {
     if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
     if (r.body.isEmpty) return [];
     final List<dynamic> data = jsonDecode(_decode(r));
-    return data.map((e) => OperationLog.fromJson(e as Map<String, dynamic>)).toList();
+    return data
+        .map((e) => OperationLog.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   // GET /api/logs/operation/search/type?type=&page=&size=
@@ -157,7 +164,9 @@ class OperationLogControllerApi {
     if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
     if (r.body.isEmpty) return [];
     final List<dynamic> data = jsonDecode(_decode(r));
-    return data.map((e) => OperationLog.fromJson(e as Map<String, dynamic>)).toList();
+    return data
+        .map((e) => OperationLog.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   // GET /api/logs/operation/search/user/{userId}?page=&size=
@@ -182,7 +191,9 @@ class OperationLogControllerApi {
     if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
     if (r.body.isEmpty) return [];
     final List<dynamic> data = jsonDecode(_decode(r));
-    return data.map((e) => OperationLog.fromJson(e as Map<String, dynamic>)).toList();
+    return data
+        .map((e) => OperationLog.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   // GET /api/logs/operation/search/time-range?startTime=&endTime=&page=&size=
@@ -210,7 +221,9 @@ class OperationLogControllerApi {
     if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
     if (r.body.isEmpty) return [];
     final List<dynamic> data = jsonDecode(_decode(r));
-    return data.map((e) => OperationLog.fromJson(e as Map<String, dynamic>)).toList();
+    return data
+        .map((e) => OperationLog.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   // GET /api/logs/operation/search/username?username=&page=&size=
@@ -236,7 +249,9 @@ class OperationLogControllerApi {
     if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
     if (r.body.isEmpty) return [];
     final List<dynamic> data = jsonDecode(_decode(r));
-    return data.map((e) => OperationLog.fromJson(e as Map<String, dynamic>)).toList();
+    return data
+        .map((e) => OperationLog.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   // GET /api/logs/operation/search/request-url?requestUrl=&page=&size=
@@ -262,7 +277,9 @@ class OperationLogControllerApi {
     if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
     if (r.body.isEmpty) return [];
     final List<dynamic> data = jsonDecode(_decode(r));
-    return data.map((e) => OperationLog.fromJson(e as Map<String, dynamic>)).toList();
+    return data
+        .map((e) => OperationLog.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   // GET /api/logs/operation/search/request-method?requestMethod=&page=&size=
@@ -288,7 +305,9 @@ class OperationLogControllerApi {
     if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
     if (r.body.isEmpty) return [];
     final List<dynamic> data = jsonDecode(_decode(r));
-    return data.map((e) => OperationLog.fromJson(e as Map<String, dynamic>)).toList();
+    return data
+        .map((e) => OperationLog.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   // GET /api/logs/operation/search/result?operationResult=&page=&size=
@@ -314,6 +333,8 @@ class OperationLogControllerApi {
     if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
     if (r.body.isEmpty) return [];
     final List<dynamic> data = jsonDecode(_decode(r));
-    return data.map((e) => OperationLog.fromJson(e as Map<String, dynamic>)).toList();
+    return data
+        .map((e) => OperationLog.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 }

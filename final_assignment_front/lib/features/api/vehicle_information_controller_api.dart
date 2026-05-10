@@ -8,7 +8,8 @@ import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
 final ApiClient defaultApiClient = ApiClient();
 
-class VehicleInformationControllerApi {
+class VehicleInformationControllerApi with BaseApiClient {
+  @override
   final ApiClient apiClient;
   VehicleInformationControllerApi([ApiClient? client])
       : apiClient = client ?? defaultApiClient;
@@ -23,19 +24,10 @@ class VehicleInformationControllerApi {
         'Initialized VehicleInformationControllerApi with token: $jwtToken');
   }
 
-  String _decode(http.Response r) => r.body;
+  String _decode(http.Response r) => decodeBodyBytes(r);
 
   Future<Map<String, String>> _headers({String? idempotencyKey}) async {
-    final token = (await AuthTokenStore.instance.getJwtToken()) ?? '';
-    final headers = {
-      'Content-Type': 'application/json; charset=utf-8',
-      if (token.isNotEmpty) 'Authorization': 'Bearer $token',
-    };
-    final trimmedKey = idempotencyKey?.trim();
-    if (trimmedKey != null && trimmedKey.isNotEmpty) {
-      headers['Idempotency-Key'] = trimmedKey;
-    }
-    return headers;
+    return getHeaders(idempotencyKey: idempotencyKey);
   }
 
   // GET /api/vehicles

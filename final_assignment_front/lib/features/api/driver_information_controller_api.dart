@@ -10,7 +10,8 @@ import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 // ¨å±ç?defaultApiClient
 final ApiClient defaultApiClient = ApiClient();
 
-class DriverInformationControllerApi {
+class DriverInformationControllerApi with BaseApiClient {
+  @override
   final ApiClient apiClient;
 
   /// æé å½æ°ï¼å¯ä¼ å
@@ -21,7 +22,7 @@ class DriverInformationControllerApi {
 
   /// ä»?SharedPreferences ä¸­è¯»å?jwtToken å¹¶è®¾ç½®å° ApiClient ä¸?
   Future<void> initializeWithJwt() async {
-      final jwtToken = (await AuthTokenStore.instance.getJwtToken());
+    final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
       throw Exception('Not authenticated. Please log in again.');
     }
@@ -32,21 +33,17 @@ class DriverInformationControllerApi {
 
   /// è§£ç ååºä½å­èå°å­ç¬¦ä¸²ï¼ä½¿ç¨ UTF-8 è§£ç 
   String _decodeBodyBytes(http.Response response) {
-    return utf8.decode(response.bodyBytes); // Properly decode UTF-8
+    return decodeBodyBytes(response);
   }
 
   /// è·åå¸¦æ JWT çè¯·æ±å¤´
   Future<Map<String, String>> _getHeaders() async {
-      final token = (await AuthTokenStore.instance.getJwtToken()) ?? '';
-    return {
-      'Content-Type': 'application/json; charset=utf-8',
-      if (token.isNotEmpty) 'Authorization': 'Bearer $token',
-    };
+    return getHeaders();
   }
 
   /// æ·»å  idempotencyKey ä½ä¸ºæ¥è¯¢åæ°
   List<QueryParam> _addIdempotencyKey(String idempotencyKey) {
-    return [QueryParam('idempotencyKey', idempotencyKey)];
+    return idempotencyParams(idempotencyKey);
   }
 
   // HTTP Methods

@@ -5,6 +5,7 @@ import 'package:final_assignment_front/features/dashboard/controllers/chat_contr
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/progress_controller.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
+import 'package:final_assignment_front/features/offense/offense_realtime_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart'
     show
@@ -89,6 +90,10 @@ class AppBindings extends Bindings {
     Get.put<AppLifecycleObserver>(
       AppLifecycleObserver(logWriter: apiInterceptor.logWriter)..start(),
       permanent: true,
+    );
+    Get.lazyPut<OffenseRealtimeService>(
+      () => OffenseRealtimeService(),
+      fenix: true,
     );
 
     Get.lazyPut<DashboardController>(() => DashboardController(), fenix: true);
