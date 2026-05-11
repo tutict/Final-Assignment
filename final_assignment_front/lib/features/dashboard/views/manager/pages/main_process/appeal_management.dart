@@ -454,202 +454,74 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
   }
 
   Widget _buildSearchBar(ThemeData themeData) {
-    return Card(
-      elevation: 4,
-      color: themeData.colorScheme.surfaceContainerLowest,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Autocomplete<String>(
-                    optionsBuilder: (TextEditingValue textEditingValue) async {
-                      if (textEditingValue.text.isEmpty ||
-                          _searchType == 'timeRange') {
-                        return const Iterable<String>.empty();
-                      }
-                      return await _fetchAutocompleteSuggestions(
-                          textEditingValue.text);
-                    },
-                    onSelected: (String selection) {
-                      _searchController.text = selection;
-                      _applyFilters(selection);
-                    },
-                    fieldViewBuilder:
-                        (context, controller, focusNode, onFieldSubmitted) {
-                      return TextField(
-                        controller: _searchController,
-                        focusNode: focusNode,
-                        style: themeData.textTheme.bodyMedium
-                            ?.copyWith(color: themeData.colorScheme.onSurface),
-                        decoration: InputDecoration(
-                          hintText: _searchType == 'appealReason'
-                              ? '搜索申诉原因'
-                              : _searchType == 'appellantName'
-                                  ? '搜索申诉人姓名'
-                                  : _searchType == 'processStatus'
-                                      ? '搜索处理状态' // Updated to Chinese
-                                      : '搜索时间范围（已选择）',
-                          hintStyle: themeData.textTheme.bodyMedium?.copyWith(
-                            color: themeData.colorScheme.onSurface
-                                .withValues(alpha: 0.6),
-                          ),
-                          prefixIcon: Icon(Icons.search,
-                              color: themeData.colorScheme.primary),
-                          suffixIcon: _searchController.text.isNotEmpty ||
-                                  (_startTime != null && _endTime != null)
-                              ? IconButton(
-                                  icon: Icon(Icons.clear,
-                                      color: themeData
-                                          .colorScheme.onSurfaceVariant),
-                                  onPressed: () {
-                                    _searchController.clear();
-                                    setState(() {
-                                      _startTime = null;
-                                      _endTime = null;
-                                      _searchType = 'appealReason';
-                                    });
-                                    _applyFilters('');
-                                  },
-                                )
-                              : null,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12.0),
-                            borderSide: BorderSide.none,
-                          ),
-                          filled: true,
-                          fillColor: themeData.colorScheme.surfaceContainer,
-                          contentPadding: const EdgeInsets.symmetric(
-                              vertical: 14.0, horizontal: 16.0),
-                        ),
-                        onChanged: (value) => _applyFilters(value),
-                        onSubmitted: (value) => _applyFilters(value),
-                        enabled: _searchType != 'timeRange',
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(width: 8),
-                DropdownButton<String>(
-                  value: _searchType,
-                  onChanged: (String? newValue) {
-                    setState(() {
-                      _searchType = newValue!;
-                      _searchController.clear();
-                      _startTime = null;
-                      _endTime = null;
-                      _applyFilters('');
-                    });
-                  },
-                  items: <String>[
-                    'appealReason',
-                    'appellantName',
-                    'processStatus',
-                    'timeRange'
-                  ].map<DropdownMenuItem<String>>((String value) {
-                    return DropdownMenuItem<String>(
-                      value: value,
-                      child: Text(
-                        value == 'appealReason'
-                            ? '按申诉原因'
-                            : value == 'appellantName'
-                                ? '按申诉人姓名'
-                                : value == 'processStatus'
-                                    ? '按处理状态' // Updated to Chinese
-                                    : '按时间范围',
-                        style:
-                            TextStyle(color: themeData.colorScheme.onSurface),
-                      ),
-                    );
-                  }).toList(),
-                  dropdownColor: themeData.colorScheme.surfaceContainer,
-                  icon: Icon(Icons.arrow_drop_down,
-                      color: themeData.colorScheme.primary),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    _startTime != null && _endTime != null
-                        ? '日期范围: ${formatDateTime(_startTime)} 至 ${formatDateTime(_endTime)}'
-                        : '选择日期范围',
-                    style: themeData.textTheme.bodyMedium?.copyWith(
-                      color: _startTime != null && _endTime != null
-                          ? themeData.colorScheme.onSurface
-                          : themeData.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-                IconButton(
-                  icon: Icon(Icons.date_range,
-                      color: themeData.colorScheme.primary),
-                  tooltip: '按日期范围搜索',
-                  onPressed: () async {
-                    final range = await showDateRangePicker(
-                      context: context,
-                      firstDate: DateTime(2000),
-                      lastDate: DateTime.now(),
-                      locale: const Locale('zh', 'CN'),
-                      helpText: '选择日期范围',
-                      cancelText: '取消',
-                      confirmText: '确定',
-                      fieldStartHintText: '开始日期',
-                      fieldEndHintText: '结束日期',
-                      builder: (BuildContext context, Widget? child) {
-                        return Theme(
-                          data: themeData.copyWith(
-                            colorScheme: themeData.colorScheme.copyWith(
-                              primary: themeData.colorScheme.primary,
-                              onPrimary: themeData.colorScheme.onPrimary,
-                            ),
-                            textButtonTheme: TextButtonThemeData(
-                              style: TextButton.styleFrom(
-                                foregroundColor: themeData.colorScheme.primary,
-                              ),
-                            ),
-                          ),
-                          child: child!,
-                        );
-                      },
-                    );
-                    if (range != null) {
-                      setState(() {
-                        _startTime = range.start;
-                        _endTime = range.end;
-                        _searchType = 'timeRange';
-                        _searchController.clear();
-                      });
-                      _applyFilters('');
-                    }
-                  },
-                ),
-                if (_startTime != null && _endTime != null)
-                  IconButton(
-                    icon: Icon(Icons.clear,
-                        color: themeData.colorScheme.onSurfaceVariant),
-                    tooltip: '清除日期范围',
-                    onPressed: () {
-                      setState(() {
-                        _startTime = null;
-                        _endTime = null;
-                        _searchType = 'appealReason';
-                        _searchController.clear();
-                      });
-                      _applyFilters('');
-                    },
-                  ),
-              ],
-            ),
-          ],
+    return SearchFilterBar(
+      controller: _searchController,
+      wrapInCard: true,
+      cardColor: themeData.colorScheme.surfaceContainerLowest,
+      fillColor: themeData.colorScheme.surfaceContainer,
+      inputBorderless: true,
+      searchEnabled: _searchType != 'timeRange',
+      clearButtonIncludesDateRange: true,
+      searchTypes: const [
+        SearchFilterOption(
+          value: 'appealReason',
+          label: '按申诉原因',
+          hintText: '搜索申诉原因',
         ),
-      ),
+        SearchFilterOption(
+          value: 'appellantName',
+          label: '按申诉人姓名',
+          hintText: '搜索申诉人姓名',
+        ),
+        SearchFilterOption(
+          value: 'processStatus',
+          label: '按处理状态',
+          hintText: '搜索处理状态',
+        ),
+        SearchFilterOption(
+          value: 'timeRange',
+          label: '按时间范围',
+          hintText: '搜索时间范围（已选择）',
+        ),
+      ],
+      selectedSearchType: _searchType,
+      onTypeChanged: (value) {
+        setState(() {
+          _searchType = value;
+          _searchController.clear();
+          _startTime = null;
+          _endTime = null;
+          _applyFilters('');
+        });
+      },
+      suggestions: (query) async {
+        if (_searchType == 'timeRange') return const Iterable<String>.empty();
+        return _fetchAutocompleteSuggestions(query);
+      },
+      showDateRange: true,
+      startDate: _startTime,
+      endDate: _endTime,
+      dateRangeTextBuilder: (start, end) =>
+          '日期范围: ${formatDateTime(start)} 至 ${formatDateTime(end)}',
+      onDateRangeChanged: (range) {
+        setState(() {
+          _startTime = range?.start;
+          _endTime = range?.end;
+          _searchType = range == null ? 'appealReason' : 'timeRange';
+          _searchController.clear();
+        });
+        _applyFilters('');
+      },
+      onSearch: _applyFilters,
+      onClear: () {
+        _searchController.clear();
+        setState(() {
+          _startTime = null;
+          _endTime = null;
+          _searchType = 'appealReason';
+        });
+        _applyFilters('');
+      },
     );
   }
 

@@ -8,6 +8,8 @@ import 'package:final_assignment_front/features/model/driver_information.dart';
 import 'package:final_assignment_front/features/model/user_management.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
+import 'package:final_assignment_front/shared/dialogs/app_dialog.dart';
+import 'package:final_assignment_front/shared/widgets/index.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
@@ -48,8 +50,7 @@ class _VehicleManagementState extends State<VehicleManagement> {
   final TextEditingController _searchController = TextEditingController();
   final VehicleInformationControllerApi vehicleApi =
       VehicleInformationControllerApi();
-  final UserManagementControllerApi userApi =
-      UserManagementControllerApi();
+  final UserManagementControllerApi userApi = UserManagementControllerApi();
   final DriverInformationControllerApi driverApi =
       DriverInformationControllerApi();
   final List<VehicleInformation> _vehicleList = [];
@@ -122,8 +123,7 @@ class _VehicleManagementState extends State<VehicleManagement> {
         return null;
       }
       await userApi.initializeWithJwt();
-      return await userApi.apiUsersSearchUsernameGet(
-          username: storedUsername);
+      return await userApi.apiUsersSearchUsernameGet(username: storedUsername);
     } catch (e) {
       debugPrint('Failed to fetch UserManagement: $e');
       return null;
@@ -296,18 +296,23 @@ class _VehicleManagementState extends State<VehicleManagement> {
   }
 
   Future<void> _deleteVehicle(int vehicleId, String licensePlate) async {
-    _showDeleteConfirmationDialog('删除', () async {
-      setState(() => _isLoading = true);
-      try {
-        await vehicleApi.apiVehiclesVehicleIdDelete(vehicleId: vehicleId);
-        _showSnackBar('删除车辆成功！');
-        _fetchUserVehicles(reset: true);
-      } catch (e) {
-        _showSnackBar('删除失败: $e', isError: true);
-      } finally {
-        setState(() => _isLoading = false);
-      }
-    });
+    final confirmed = await AppDialog.showConfirmDelete(
+      context,
+      itemName: '该车辆',
+      extraWarning: '此操作不可撤销。',
+    );
+    if (confirmed != true) return;
+
+    setState(() => _isLoading = true);
+    try {
+      await vehicleApi.apiVehiclesVehicleIdDelete(vehicleId: vehicleId);
+      _showSnackBar('删除车辆成功！');
+      _fetchUserVehicles(reset: true);
+    } catch (e) {
+      _showSnackBar('删除失败: $e', isError: true);
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
   void _showSnackBar(String message, {bool isError = false}) {
@@ -320,152 +325,37 @@ class _VehicleManagementState extends State<VehicleManagement> {
     );
   }
 
-  void _showDeleteConfirmationDialog(String action, VoidCallback onConfirm) {
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        final themeData = controller.currentBodyTheme.value;
-        return AlertDialog(
-          backgroundColor: themeData.colorScheme.surfaceContainerHighest,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text(
-            '确认删除',
-            style: themeData.textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: themeData.colorScheme.onSurface,
-            ),
-          ),
-          content: Text(
-            '您确定要$action此车辆吗？此操作不可撤销。',
-            style: themeData.textTheme.bodyMedium?.copyWith(
-              color: themeData.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(
-                '取消',
-                style: themeData.textTheme.labelLarge?.copyWith(
-                  color: themeData.colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                onConfirm();
-                Navigator.pop(ctx);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: themeData.colorScheme.error,
-                foregroundColor: themeData.colorScheme.onError,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              ),
-              child: const Text('删除'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   Widget _buildSearchField(ThemeData themeData) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        children: [
-          Expanded(
-            child: Autocomplete<String>(
-              optionsBuilder: (TextEditingValue textEditingValue) async {
-                if (textEditingValue.text.isEmpty) {
-                  return const Iterable<String>.empty();
-                }
-                return await _fetchAutocompleteSuggestions(
-                    textEditingValue.text);
-              },
-              onSelected: (String selection) {
-                _searchController.text = selection;
-                _searchVehicles();
-              },
-              fieldViewBuilder:
-                  (context, controller, focusNode, onFieldSubmitted) {
-                _searchController.text = controller.text;
-                return TextField(
-                  controller: controller,
-                  focusNode: focusNode,
-                  style: TextStyle(color: themeData.colorScheme.onSurface),
-                  decoration: InputDecoration(
-                    hintText:
-                        _searchType == 'licensePlate' ? '搜索车牌号' : '搜索车辆类型',
-                    hintStyle: TextStyle(
-                        color:
-                            themeData.colorScheme.onSurface.withValues(alpha: 0.6)),
-                    prefixIcon: Icon(Icons.search,
-                        color: themeData.colorScheme.primary),
-                    suffixIcon: controller.text.isNotEmpty
-                        ? IconButton(
-                            icon: Icon(Icons.clear,
-                                color: themeData.colorScheme.onSurfaceVariant),
-                            onPressed: () {
-                              controller.clear();
-                              _searchController.clear();
-                              _fetchUserVehicles(reset: true);
-                            },
-                          )
-                        : null,
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12.0)),
-                    enabledBorder: OutlineInputBorder(
-                      borderSide: BorderSide(
-                          color:
-                              themeData.colorScheme.outline.withValues(alpha: 0.3)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderSide: BorderSide(
-                          color: themeData.colorScheme.primary, width: 1.5),
-                    ),
-                    filled: true,
-                    fillColor: themeData.colorScheme.surfaceContainerLowest,
-                    contentPadding: const EdgeInsets.symmetric(
-                        vertical: 12.0, horizontal: 16.0),
-                  ),
-                  onChanged: (value) => _applyFilters(value),
-                  onSubmitted: (value) => _searchVehicles(),
-                );
-              },
-            ),
-          ),
-          const SizedBox(width: 8),
-          DropdownButton<String>(
-            value: _searchType,
-            onChanged: (String? newValue) {
-              setState(() {
-                _searchType = newValue!;
-                _searchController.clear();
-                _fetchUserVehicles(reset: true);
-              });
-            },
-            items: <String>['licensePlate', 'vehicleType']
-                .map<DropdownMenuItem<String>>((String value) {
-              return DropdownMenuItem<String>(
-                value: value,
-                child: Text(
-                  value == 'licensePlate' ? '按车牌号' : '按车辆类型',
-                  style: TextStyle(color: themeData.colorScheme.onSurface),
-                ),
-              );
-            }).toList(),
-            dropdownColor: themeData.colorScheme.surfaceContainer,
-            icon: Icon(Icons.arrow_drop_down,
-                color: themeData.colorScheme.primary),
-          ),
-        ],
-      ),
+    return SearchFilterBar(
+      controller: _searchController,
+      fillColor: themeData.colorScheme.surfaceContainerLowest,
+      searchTypes: const [
+        SearchFilterOption(
+          value: 'licensePlate',
+          label: '按车牌号',
+          hintText: '搜索车牌号',
+        ),
+        SearchFilterOption(
+          value: 'vehicleType',
+          label: '按车辆类型',
+          hintText: '搜索车辆类型',
+        ),
+      ],
+      selectedSearchType: _searchType,
+      onTypeChanged: (value) {
+        setState(() {
+          _searchType = value;
+          _searchController.clear();
+          _fetchUserVehicles(reset: true);
+        });
+      },
+      suggestions: _fetchAutocompleteSuggestions,
+      onSearch: (_) => _searchVehicles(),
+      onChanged: _applyFilters,
+      onClear: () {
+        _searchController.clear();
+        _fetchUserVehicles(reset: true);
+      },
     );
   }
 
@@ -668,8 +558,7 @@ class AddVehiclePage extends StatefulWidget {
 class _AddVehiclePageState extends State<AddVehiclePage> {
   final VehicleInformationControllerApi vehicleApi =
       VehicleInformationControllerApi();
-  final UserManagementControllerApi userApi =
-      UserManagementControllerApi();
+  final UserManagementControllerApi userApi = UserManagementControllerApi();
   final DriverInformationControllerApi driverApi =
       DriverInformationControllerApi();
   final _formKey = GlobalKey<FormState>();
@@ -750,8 +639,7 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
         return null;
       }
       await userApi.initializeWithJwt();
-      return await userApi.apiUsersSearchUsernameGet(
-          username: storedUsername);
+      return await userApi.apiUsersSearchUsernameGet(username: storedUsername);
     } catch (e) {
       debugPrint('Error fetching UserManagement: $e');
       return null;
@@ -896,7 +784,8 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
                       ? '请输入11位手机号码'
                       : null,
           helperStyle: TextStyle(
-              color: themeData.colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
+              color: themeData.colorScheme.onSurfaceVariant
+                  .withValues(alpha: 0.6)),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
           enabledBorder: OutlineInputBorder(
               borderSide: BorderSide(
@@ -906,7 +795,8 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
                   BorderSide(color: themeData.colorScheme.primary, width: 1.5)),
           filled: true,
           fillColor: readOnly
-              ? themeData.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5)
+              ? themeData.colorScheme.surfaceContainerHighest
+                  .withValues(alpha: 0.5)
               : themeData.colorScheme.surfaceContainerLowest,
           prefixText: prefix,
           prefixStyle: TextStyle(
@@ -1083,8 +973,7 @@ class EditVehiclePage extends StatefulWidget {
 class _EditVehiclePageState extends State<EditVehiclePage> {
   final VehicleInformationControllerApi vehicleApi =
       VehicleInformationControllerApi();
-  final UserManagementControllerApi userApi =
-      UserManagementControllerApi();
+  final UserManagementControllerApi userApi = UserManagementControllerApi();
   final DriverInformationControllerApi driverApi =
       DriverInformationControllerApi();
   final _formKey = GlobalKey<FormState>();
@@ -1167,8 +1056,7 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
         return null;
       }
       await userApi.initializeWithJwt();
-      return await userApi.apiUsersSearchUsernameGet(
-          username: storedUsername);
+      return await userApi.apiUsersSearchUsernameGet(username: storedUsername);
     } catch (e) {
       debugPrint('Failed to fetch UserManagement: $e');
       return null;
@@ -1306,7 +1194,8 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
                       ? '请输入11位手机号码'
                       : null,
           helperStyle: TextStyle(
-              color: themeData.colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
+              color: themeData.colorScheme.onSurfaceVariant
+                  .withValues(alpha: 0.6)),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
           enabledBorder: OutlineInputBorder(
               borderSide: BorderSide(
@@ -1316,7 +1205,8 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
                   BorderSide(color: themeData.colorScheme.primary, width: 1.5)),
           filled: true,
           fillColor: readOnly
-              ? themeData.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5)
+              ? themeData.colorScheme.surfaceContainerHighest
+                  .withValues(alpha: 0.5)
               : themeData.colorScheme.surfaceContainerLowest,
           prefixText: prefix,
           prefixStyle: TextStyle(
@@ -1328,7 +1218,8 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
               : null,
           hintText: readOnly && label == '身份证号码' ? '请在用户信息管理中修改身份证号码' : null,
           hintStyle: TextStyle(
-              color: themeData.colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
+              color: themeData.colorScheme.onSurfaceVariant
+                  .withValues(alpha: 0.6)),
         ),
         keyboardType: keyboardType,
         readOnly: readOnly,
@@ -1487,8 +1378,7 @@ class VehicleDetailPage extends StatefulWidget {
 class _VehicleDetailPageState extends State<VehicleDetailPage> {
   final VehicleInformationControllerApi vehicleApi =
       VehicleInformationControllerApi();
-  final UserManagementControllerApi userApi =
-      UserManagementControllerApi();
+  final UserManagementControllerApi userApi = UserManagementControllerApi();
   bool _isLoading = false;
   bool _isEditable = false;
   String _errorMessage = '';
@@ -1539,8 +1429,7 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
         return null;
       }
       await userApi.initializeWithJwt();
-      return await userApi.apiUsersSearchUsernameGet(
-          username: storedUsername);
+      return await userApi.apiUsersSearchUsernameGet(username: storedUsername);
     } catch (e) {
       debugPrint('Failed to fetch UserManagement: $e');
       return null;
@@ -1574,6 +1463,7 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
       setState(() => _errorMessage = '加载权限失败: $e');
     }
   }
+
   Future<void> _deleteVehicle(int vehicleId) async {
     setState(() => _isLoading = true);
     try {
@@ -1616,50 +1506,16 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
     );
   }
 
-  void _showDeleteConfirmationDialog(String action, VoidCallback onConfirm) {
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        final themeData =
-            controller?.currentBodyTheme.value ?? ThemeData.light();
-        return AlertDialog(
-          backgroundColor: themeData.colorScheme.surfaceContainerHighest,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text('确认删除',
-              style: themeData.textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: themeData.colorScheme.onSurface)),
-          content: Text('您确定要$action此车辆吗？此操作不可撤销。',
-              style: themeData.textTheme.bodyMedium
-                  ?.copyWith(color: themeData.colorScheme.onSurfaceVariant)),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text('取消',
-                  style: themeData.textTheme.labelLarge?.copyWith(
-                      color: themeData.colorScheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w600)),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                onConfirm();
-                Navigator.pop(ctx);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: themeData.colorScheme.error,
-                foregroundColor: themeData.colorScheme.onError,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              ),
-              child: const Text('删除'),
-            ),
-          ],
-        );
-      },
+  Future<void> _showDeleteConfirmationDialog(
+      Future<void> Function() onConfirm) async {
+    final confirmed = await AppDialog.showConfirmDelete(
+      context,
+      itemName: '该车辆',
+      extraWarning: '此操作不可撤销。',
     );
+    if (confirmed == true) {
+      await onConfirm();
+    }
   }
 
   @override
@@ -1721,7 +1577,7 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
           color: themeData.colorScheme.error,
           tooltip: '删除车辆',
           onPressed: () => _showDeleteConfirmationDialog(
-              '删除', () => _deleteVehicle(widget.vehicle.vehicleId ?? 0)),
+              () => _deleteVehicle(widget.vehicle.vehicleId ?? 0)),
         ),
       ]);
     }

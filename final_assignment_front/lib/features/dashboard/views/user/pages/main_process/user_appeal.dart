@@ -12,6 +12,7 @@ import 'package:final_assignment_front/features/api/offense_information_controll
 import 'package:final_assignment_front/features/api/user_management_controller_api.dart';
 import 'package:final_assignment_front/features/model/driver_information.dart';
 import 'package:final_assignment_front/features/model/user_management.dart';
+import 'package:final_assignment_front/shared/widgets/index.dart';
 import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
 import 'package:get/get.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
@@ -634,150 +635,38 @@ class _UserAppealPageState extends State<UserAppealPage> {
   }
 
   Widget _buildSearchBar(ThemeData themeData) {
-    return Card(
-      elevation: 2,
-      color: themeData.colorScheme.surfaceContainer,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
-      child: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Autocomplete<String>(
-                    optionsBuilder: (TextEditingValue textEditingValue) async {
-                      if (textEditingValue.text.isEmpty) {
-                        return const Iterable<String>.empty();
-                      }
-                      return await _fetchAutocompleteSuggestions(
-                          textEditingValue.text);
-                    },
-                    onSelected: (String selection) {
-                      _searchController.text = selection;
-                      _fetchUserAppeals();
-                    },
-                    fieldViewBuilder:
-                        (context, controller, focusNode, onFieldSubmitted) {
-                      _searchController.text = controller.text;
-                      return TextField(
-                        controller: controller,
-                        focusNode: focusNode,
-                        style:
-                            TextStyle(color: themeData.colorScheme.onSurface),
-                        decoration: InputDecoration(
-                          hintText: '搜索申诉原因',
-                          hintStyle: TextStyle(
-                              color: themeData.colorScheme.onSurface
-                                  .withValues(alpha: 0.6)),
-                          prefixIcon: Icon(Icons.search,
-                              color: themeData.colorScheme.primary),
-                          suffixIcon: controller.text.isNotEmpty
-                              ? IconButton(
-                                  icon: Icon(Icons.clear,
-                                      color: themeData
-                                          .colorScheme.onSurfaceVariant),
-                                  onPressed: () {
-                                    controller.clear();
-                                    _searchController.clear();
-                                    _fetchUserAppeals(resetFilters: true);
-                                  },
-                                )
-                              : null,
-                          border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8.0)),
-                          enabledBorder: OutlineInputBorder(
-                            borderSide: BorderSide(
-                                color: themeData.colorScheme.outline
-                                    .withValues(alpha: 0.3)),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderSide: BorderSide(
-                                color: themeData.colorScheme.primary,
-                                width: 1.5),
-                          ),
-                          filled: true,
-                          fillColor:
-                              themeData.colorScheme.surfaceContainerLowest,
-                          contentPadding: const EdgeInsets.symmetric(
-                              vertical: 12.0, horizontal: 16.0),
-                        ),
-                        onChanged: (value) {
-                          if (value.isEmpty) {
-                            _fetchUserAppeals(resetFilters: true);
-                          }
-                        },
-                        onSubmitted: (value) => _fetchUserAppeals(),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    _startTime != null && _endTime != null
-                        ? '日期范围: ${formatDateTime(_startTime)} 至 ${formatDateTime(_endTime)}'
-                        : '选择日期范围',
-                    style: TextStyle(
-                      color: _startTime != null && _endTime != null
-                          ? themeData.colorScheme.onSurface
-                          : themeData.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-                IconButton(
-                  icon: Icon(Icons.date_range,
-                      color: themeData.colorScheme.primary),
-                  tooltip: '按日期范围搜索',
-                  onPressed: () async {
-                    final range = await showDateRangePicker(
-                      context: context,
-                      firstDate: DateTime(2000),
-                      lastDate: DateTime.now(),
-                      locale: const Locale('zh', 'CN'),
-                      helpText: '选择日期范围',
-                      cancelText: '取消',
-                      confirmText: '确定',
-                      fieldStartHintText: '开始日期',
-                      fieldEndHintText: '结束日期',
-                      builder: (BuildContext context, Widget? child) {
-                        return Theme(
-                          data: Theme.of(context),
-                          child: child!,
-                        );
-                      },
-                    );
-                    if (range != null) {
-                      setState(() {
-                        _startTime = range.start;
-                        _endTime = range.end;
-                      });
-                      _fetchUserAppeals();
-                    }
-                  },
-                ),
-                if (_startTime != null && _endTime != null)
-                  IconButton(
-                    icon: Icon(Icons.clear,
-                        color: themeData.colorScheme.onSurfaceVariant),
-                    tooltip: '清除日期范围',
-                    onPressed: () {
-                      setState(() {
-                        _startTime = null;
-                        _endTime = null;
-                      });
-                      _fetchUserAppeals();
-                    },
-                  ),
-              ],
-            ),
-          ],
-        ),
-      ),
+    return SearchFilterBar(
+      controller: _searchController,
+      wrapInCard: true,
+      cardElevation: 2,
+      cardBorderRadius: 12,
+      cardColor: themeData.colorScheme.surfaceContainer,
+      cardPadding: const EdgeInsets.all(8),
+      inputBorderRadius: 8,
+      hintText: '搜索申诉原因',
+      suggestions: _fetchAutocompleteSuggestions,
+      showDateRange: true,
+      startDate: _startTime,
+      endDate: _endTime,
+      dateRangeTextBuilder: (start, end) =>
+          '日期范围: ${formatDateTime(start)} 至 ${formatDateTime(end)}',
+      onDateRangeChanged: (range) {
+        setState(() {
+          _startTime = range?.start;
+          _endTime = range?.end;
+        });
+        _fetchUserAppeals();
+      },
+      onSearch: (_) => _fetchUserAppeals(),
+      onChanged: (value) {
+        if (value.isEmpty) {
+          _fetchUserAppeals(resetFilters: true);
+        }
+      },
+      onClear: () {
+        _searchController.clear();
+        _fetchUserAppeals(resetFilters: true);
+      },
     );
   }
 

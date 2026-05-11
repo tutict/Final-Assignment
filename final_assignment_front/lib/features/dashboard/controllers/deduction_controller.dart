@@ -2,23 +2,22 @@ import 'package:final_assignment_front/core/errors/app_exception.dart';
 import 'package:final_assignment_front/core/errors/exception_mapper.dart';
 import 'package:final_assignment_front/features/model/deduction_record.dart';
 import 'package:final_assignment_front/features/offense/repositories/deduction_repository.dart';
+import 'package:final_assignment_front/shared/controllers/base_list_controller.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:uuid/uuid.dart';
 
-class DeductionController extends GetxController {
+class DeductionController extends BaseListController<DeductionRecordModel> {
   DeductionController(this._repository);
 
   final DeductionRepository _repository;
   final Uuid _uuid = const Uuid();
 
-  final RxList<DeductionRecordModel> deductions = <DeductionRecordModel>[].obs;
+  RxList<DeductionRecordModel> get deductions => items;
   final RxList<DeductionRecordModel> filteredDeductions =
       <DeductionRecordModel>[].obs;
-  final RxBool isLoading = false.obs;
   final RxBool isAdmin = false.obs;
   final RxBool hasMore = true.obs;
-  final RxString errorMessage = ''.obs;
   final RxString searchType = 'handler'.obs;
   final Rxn<DateTime> startTime = Rxn<DateTime>();
   final Rxn<DateTime> endTime = Rxn<DateTime>();
@@ -27,13 +26,10 @@ class DeductionController extends GetxController {
   int pageSize = 20;
 
   @override
-  void onInit() {
-    super.onInit();
-    initialize();
-  }
+  Future<void> fetchData() => initialize();
 
   Future<void> initialize() {
-    return _run(() async {
+    return runWithLoading(() async {
       await _repository.initializeWithJwt();
       isAdmin.value = await _repository.isCurrentUserAdmin();
       if (!isAdmin.value) {
@@ -48,7 +44,7 @@ class DeductionController extends GetxController {
     String? query,
     bool manageLoading = true,
   }) {
-    return _run(
+    return runWithLoading(
       () async {
         if (!isAdmin.value || (!hasMore.value && !reset)) return;
 
@@ -170,36 +166,26 @@ class DeductionController extends GetxController {
     return loadDeductions(reset: true);
   }
 
-  Future<void> _run(
-    Future<void> Function() action, {
-    bool manageLoading = true,
-  }) async {
-    if (manageLoading) {
-      isLoading.value = true;
-    }
-    errorMessage.value = '';
-    try {
-      await action();
-    } catch (error) {
-      final appException =
-          error is AppException ? error : ExceptionMapper.map(error);
-      errorMessage.value = appException.message;
-      if (kDebugMode) {
-        debugPrint('DeductionController error: $appException');
-      }
-    } finally {
-      if (manageLoading) {
-        isLoading.value = false;
-      }
-    }
-  }
-
   Future<bool> _runBool(Future<void> Function() action) async {
     var success = false;
-    await _run(() async {
+    await runWithLoading(() async {
       await action();
       success = true;
     });
     return success;
+  }
+
+  @override
+  String getErrorMessage(Object error) => _mapError(error).message;
+
+  @override
+  void onAsyncError(Object error, StackTrace stackTrace) {
+    if (kDebugMode) {
+      debugPrint('DeductionController error: ${_mapError(error)}');
+    }
+  }
+
+  AppException _mapError(Object error) {
+    return error is AppException ? error : ExceptionMapper.map(error);
   }
 }

@@ -2,34 +2,30 @@ import 'package:final_assignment_front/core/errors/app_exception.dart';
 import 'package:final_assignment_front/core/errors/exception_mapper.dart';
 import 'package:final_assignment_front/features/model/vehicle_information.dart';
 import 'package:final_assignment_front/features/vehicle/repositories/vehicle_repository.dart';
+import 'package:final_assignment_front/shared/controllers/base_list_controller.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:uuid/uuid.dart';
 
-class VehicleController extends GetxController {
+class VehicleController extends BaseListController<VehicleInformation> {
   VehicleController(this._repository);
 
   final VehicleRepository _repository;
   final Uuid _uuid = const Uuid();
 
-  final RxList<VehicleInformation> vehicles = <VehicleInformation>[].obs;
+  RxList<VehicleInformation> get vehicles => items;
   final RxList<VehicleInformation> filteredVehicles =
       <VehicleInformation>[].obs;
-  final RxBool isLoading = false.obs;
   final RxBool hasMore = true.obs;
-  final RxString errorMessage = ''.obs;
   final RxString searchType = 'licensePlate'.obs;
   final Rxn<DateTime> startDate = Rxn<DateTime>();
   final Rxn<DateTime> endDate = Rxn<DateTime>();
 
   @override
-  void onInit() {
-    super.onInit();
-    loadVehicles(reset: true);
-  }
+  Future<void> fetchData() => loadVehicles(reset: true);
 
   Future<void> loadVehicles({bool reset = false, String? query}) {
-    return _run(() async {
+    return runWithLoading(() async {
       if (reset) {
         vehicles.clear();
         filteredVehicles.clear();
@@ -159,31 +155,34 @@ class VehicleController extends GetxController {
     applyFilters('');
   }
 
-  Future<void> _run(Future<void> Function() action) async {
-    isLoading.value = true;
-    errorMessage.value = '';
-    try {
-      await action();
-    } catch (error) {
-      _handleError(error);
-    } finally {
-      isLoading.value = false;
-    }
-  }
-
   Future<bool> _runBool(Future<void> Function() action) async {
     var success = false;
-    await _run(() async {
+    await runWithLoading(() async {
       await action();
       success = true;
     });
     return success;
   }
 
+  @override
+  String getErrorMessage(Object error) => _mapError(error).message;
+
+  @override
+  void onAsyncError(Object error, StackTrace stackTrace) {
+    _notifyError(_mapError(error));
+  }
+
+  AppException _mapError(Object error) {
+    return error is AppException ? error : ExceptionMapper.map(error);
+  }
+
   void _handleError(Object error) {
-    final appException =
-        error is AppException ? error : ExceptionMapper.map(error);
+    final appException = _mapError(error);
     errorMessage.value = appException.message;
+    _notifyError(appException);
+  }
+
+  void _notifyError(AppException appException) {
     if (Get.context != null) {
       Get.snackbar('操作失败', appException.message);
     }

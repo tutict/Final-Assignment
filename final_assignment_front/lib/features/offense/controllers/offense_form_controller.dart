@@ -1,15 +1,15 @@
 import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/vehicle_information_controller_api.dart';
 import 'package:final_assignment_front/features/model/offense_information.dart';
+import 'package:final_assignment_front/shared/controllers/base_list_controller.dart';
 import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 
 enum OffenseFormMode { create, edit }
 
-class OffenseFormController extends GetxController {
+class OffenseFormController extends BaseListController<OffenseInformation> {
   OffenseFormController({
     required this.mode,
     this.initialOffense,
@@ -34,16 +34,10 @@ class OffenseFormController extends GetxController {
   final processStatusController = TextEditingController();
   final processResultController = TextEditingController();
 
-  final isLoading = false.obs;
-  final errorMessage = ''.obs;
-
   bool get isEdit => mode == OffenseFormMode.edit;
 
   @override
-  void onInit() {
-    super.onInit();
-    initialize();
-  }
+  Future<void> fetchData() => initialize();
 
   Future<bool> validateJwtToken() async {
     final jwtToken = await AuthTokenStore.instance.getJwtToken();
@@ -64,23 +58,20 @@ class OffenseFormController extends GetxController {
   }
 
   Future<void> initialize() async {
-    isLoading.value = true;
-    errorMessage.value = '';
-    try {
-      if (!await validateJwtToken()) return;
-      await offenseApi.initializeWithJwt();
-      await vehicleApi.initializeWithJwt();
-      if (isEdit) {
-        _initializeFields(initialOffense);
-      } else {
-        processStatusController.text = _getOffenseProcessStatusLabel(
-            OffenseProcessStatus.unprocessed.code);
-      }
-    } catch (e) {
-      errorMessage.value = '初始化失败: $e';
-    } finally {
-      isLoading.value = false;
-    }
+    await runWithLoading(
+      () async {
+        if (!await validateJwtToken()) return;
+        await offenseApi.initializeWithJwt();
+        await vehicleApi.initializeWithJwt();
+        if (isEdit) {
+          _initializeFields(initialOffense);
+        } else {
+          processStatusController.text = _getOffenseProcessStatusLabel(
+              OffenseProcessStatus.unprocessed.code);
+        }
+      },
+      errorMessageBuilder: (error) => '初始化失败: $error',
+    );
   }
 
   void _initializeFields(OffenseInformation? offense) {
@@ -134,34 +125,33 @@ class OffenseFormController extends GetxController {
   Future<bool> submit() async {
     if (!(formKey.currentState?.validate() ?? false)) return false;
     if (!await validateJwtToken()) return false;
-    isLoading.value = true;
-    errorMessage.value = '';
-    try {
-      final idempotencyKey = _generateIdempotencyKey();
-      final payload = _buildPayload(idempotencyKey: idempotencyKey);
-      if (isEdit) {
-        final offenseId = initialOffense?.offenseId;
-        if (offenseId == null) {
-          throw Exception('缺少违法记录ID');
+    var success = false;
+    await runWithLoading(
+      () async {
+        final idempotencyKey = _generateIdempotencyKey();
+        final payload = _buildPayload(idempotencyKey: idempotencyKey);
+        if (isEdit) {
+          final offenseId = initialOffense?.offenseId;
+          if (offenseId == null) {
+            throw Exception('缺少违法记录ID');
+          }
+          await offenseApi.apiOffensesOffenseIdPut(
+            offenseId: offenseId,
+            offenseInformation: payload,
+            idempotencyKey: idempotencyKey,
+          );
+        } else {
+          await offenseApi.apiOffensesPost(
+            offenseInformation: payload,
+            idempotencyKey: idempotencyKey,
+          );
         }
-        await offenseApi.apiOffensesOffenseIdPut(
-          offenseId: offenseId,
-          offenseInformation: payload,
-          idempotencyKey: idempotencyKey,
-        );
-      } else {
-        await offenseApi.apiOffensesPost(
-          offenseInformation: payload,
-          idempotencyKey: idempotencyKey,
-        );
-      }
-      return true;
-    } catch (e) {
-      errorMessage.value = isEdit ? '更新违法行为记录失败: $e' : '创建违法行为记录失败: $e';
-      return false;
-    } finally {
-      isLoading.value = false;
-    }
+        success = true;
+      },
+      errorMessageBuilder: (error) =>
+          isEdit ? '更新违法行为记录失败: $error' : '创建违法行为记录失败: $error',
+    );
+    return success;
   }
 
   OffenseInformation _buildPayload({required String idempotencyKey}) {

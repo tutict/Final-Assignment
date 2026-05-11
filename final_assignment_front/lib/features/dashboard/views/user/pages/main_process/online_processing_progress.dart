@@ -6,6 +6,7 @@ import 'package:final_assignment_front/features/dashboard/controllers/progress_c
 import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/model/progress_item.dart';
+import 'package:final_assignment_front/shared/dialogs/app_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -173,7 +174,6 @@ class OnlineProcessingProgress extends StatelessWidget {
                                           } else if (value == 'delete') {
                                             _showDeleteConfirmationDialog(
                                                 context,
-                                                themeData,
                                                 progressController,
                                                 item.id!);
                                           }
@@ -628,58 +628,16 @@ class OnlineProcessingProgress extends StatelessWidget {
     );
   }
 
-  void _showDeleteConfirmationDialog(BuildContext context, ThemeData themeData,
-      ProgressController progressController, int id) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: themeData.colorScheme.surfaceContainerHighest,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          '确认删除',
-          style: themeData.textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: themeData.colorScheme.onSurface,
-          ),
-        ),
-        content: Text(
-          '确定要删除此进度记录吗？此操作不可撤销。',
-          style: themeData.textTheme.bodyMedium?.copyWith(
-            color: themeData.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(
-              '取消',
-              style: themeData.textTheme.labelLarge?.copyWith(
-                color: themeData.colorScheme.onSurfaceVariant,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              await progressController.deleteProgress(id);
-              Navigator.pop(ctx);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: themeData.colorScheme.error,
-              foregroundColor: themeData.colorScheme.onError,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              textStyle: themeData.textTheme.labelLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            child: const Text('删除'),
-          ),
-        ],
-      ),
+  Future<void> _showDeleteConfirmationDialog(BuildContext context,
+      ProgressController progressController, int id) async {
+    final confirmed = await AppDialog.showConfirmDelete(
+      context,
+      itemName: '该进度记录',
+      extraWarning: '此操作不可撤销。',
     );
+    if (confirmed == true) {
+      await progressController.deleteProgress(id);
+    }
   }
 
   String _translateStatus(String? status) {

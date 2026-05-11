@@ -6,6 +6,8 @@ import 'package:final_assignment_front/features/api/login_log_controller_api.dar
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/model/login_log.dart';
+import 'package:final_assignment_front/shared/dialogs/app_dialog.dart';
+import 'package:final_assignment_front/shared/widgets/index.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -91,9 +93,8 @@ class _LoginLogPageState extends State<LoginLogPage> {
     } catch (e) {
       setState(() => _errorMessage = '无效的登录信息，请重新登录');
       return false;
+    }
   }
-}
-
 
   Future<void> _initialize() async {
     setState(() => _isLoading = true);
@@ -593,36 +594,10 @@ class _LoginLogPageState extends State<LoginLogPage> {
   }
 
   Future<void> _deleteLog(int logId) async {
-    final themeData = controller.currentBodyTheme.value;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => Theme(
-        data: themeData,
-        child: AlertDialog(
-          title: const Text('确认删除'),
-          content: const Text('确定要删除此日志吗？此操作不可撤销。'),
-          backgroundColor: themeData.colorScheme.surfaceContainerLowest,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: Text('取消',
-                  style: TextStyle(color: themeData.colorScheme.error)),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context, true),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: themeData.colorScheme.error,
-                foregroundColor: themeData.colorScheme.onError,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12.0)),
-              ),
-              child: const Text('删除'),
-            ),
-          ],
-        ),
-      ),
+    final confirmed = await AppDialog.showConfirmDelete(
+      context,
+      itemName: '该日志',
+      extraWarning: '此操作不可撤销。',
     );
 
     if (confirmed == true) {
@@ -682,194 +657,69 @@ class _LoginLogPageState extends State<LoginLogPage> {
   }
 
   Widget _buildSearchBar(ThemeData themeData) {
-    return Card(
-      elevation: 4,
-      color: themeData.colorScheme.surfaceContainerLowest,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Autocomplete<String>(
-                    optionsBuilder: (TextEditingValue textEditingValue) async {
-                      if (textEditingValue.text.isEmpty ||
-                          _searchType == 'timeRange') {
-                        return const Iterable<String>.empty();
-                      }
-                      return await _fetchAutocompleteSuggestions(
-                          textEditingValue.text);
-                    },
-                    onSelected: (String selection) {
-                      _searchController.text = selection;
-                      _applyFilters(selection);
-                    },
-                    fieldViewBuilder:
-                        (context, controller, focusNode, onFieldSubmitted) {
-                      return TextField(
-                        controller: _searchController,
-                        focusNode: focusNode,
-                        style: themeData.textTheme.bodyMedium
-                            ?.copyWith(color: themeData.colorScheme.onSurface),
-                        decoration: InputDecoration(
-                          hintText: _searchType == 'username'
-                              ? '搜索用户名'
-                              : _searchType == 'loginResult'
-                                  ? '搜索登录结果'
-                                  : '搜索时间范围（已选择）',
-                          hintStyle: themeData.textTheme.bodyMedium?.copyWith(
-                            color: themeData.colorScheme.onSurface
-                                .withValues(alpha: 0.6),
-                          ),
-                          prefixIcon: Icon(Icons.search,
-                              color: themeData.colorScheme.primary),
-                          suffixIcon: _searchController.text.isNotEmpty ||
-                                  (_startTime != null && _endTime != null)
-                              ? IconButton(
-                                  icon: Icon(Icons.clear,
-                                      color: themeData
-                                          .colorScheme.onSurfaceVariant),
-                                  onPressed: () {
-                                    _searchController.clear();
-                                    setState(() {
-                                      _startTime = null;
-                                      _endTime = null;
-                                      _searchType = 'username';
-                                    });
-                                    _applyFilters('');
-                                  },
-                                )
-                              : null,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12.0),
-                            borderSide: BorderSide.none,
-                          ),
-                          filled: true,
-                          fillColor: themeData.colorScheme.surfaceContainer,
-                          contentPadding: const EdgeInsets.symmetric(
-                              vertical: 14.0, horizontal: 16.0),
-                        ),
-                        onChanged: (value) => _applyFilters(value),
-                        onSubmitted: (value) => _applyFilters(value),
-                        enabled: _searchType != 'timeRange',
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(width: 8),
-                DropdownButton<String>(
-                  value: _searchType,
-                  onChanged: (String? newValue) {
-                    setState(() {
-                      _searchType = newValue!;
-                      _searchController.clear();
-                      _startTime = null;
-                      _endTime = null;
-                      _applyFilters('');
-                    });
-                  },
-                  items: <String>['username', 'loginResult']
-                      .map<DropdownMenuItem<String>>((String value) {
-                    return DropdownMenuItem<String>(
-                      value: value,
-                      child: Text(
-                        value == 'username'
-                            ? '按用户名'
-                            : value == 'loginResult'
-                                ? '按登录结果'
-                                : '',
-                        style:
-                            TextStyle(color: themeData.colorScheme.onSurface),
-                      ),
-                    );
-                  }).toList(),
-                  dropdownColor: themeData.colorScheme.surfaceContainer,
-                  icon: Icon(Icons.arrow_drop_down,
-                      color: themeData.colorScheme.primary),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    _startTime != null && _endTime != null
-                        ? '日期范围: ${formatDateTime(_startTime)} 至 ${formatDateTime(_endTime)}'
-                        : '选择日期范围',
-                    style: themeData.textTheme.bodyMedium?.copyWith(
-                      color: _startTime != null && _endTime != null
-                          ? themeData.colorScheme.onSurface
-                          : themeData.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-                IconButton(
-                  icon: Icon(Icons.date_range,
-                      color: themeData.colorScheme.primary),
-                  tooltip: '按日期范围搜索',
-                  onPressed: () async {
-                    final range = await showDateRangePicker(
-                      context: context,
-                      firstDate: DateTime(2000),
-                      lastDate: DateTime.now(),
-                      locale: const Locale('zh', 'CN'),
-                      helpText: '选择日期范围',
-                      cancelText: '取消',
-                      confirmText: '确定',
-                      fieldStartHintText: '开始日期',
-                      fieldEndHintText: '结束日期',
-                      builder: (BuildContext context, Widget? child) {
-                        return Theme(
-                          data: themeData.copyWith(
-                            colorScheme: themeData.colorScheme.copyWith(
-                              primary: themeData.colorScheme.primary,
-                              onPrimary: themeData.colorScheme.onPrimary,
-                            ),
-                            textButtonTheme: TextButtonThemeData(
-                              style: TextButton.styleFrom(
-                                foregroundColor: themeData.colorScheme.primary,
-                              ),
-                            ),
-                          ),
-                          child: child!,
-                        );
-                      },
-                    );
-                    if (range != null) {
-                      setState(() {
-                        _startTime = range.start;
-                        _endTime = range.end;
-                        _searchType = 'timeRange';
-                        _searchController.clear();
-                      });
-                      _applyFilters('');
-                    }
-                  },
-                ),
-                if (_startTime != null && _endTime != null)
-                  IconButton(
-                    icon: Icon(Icons.clear,
-                        color: themeData.colorScheme.onSurfaceVariant),
-                    tooltip: '清除日期范围',
-                    onPressed: () {
-                      setState(() {
-                        _startTime = null;
-                        _endTime = null;
-                        _searchType = 'username';
-                        _searchController.clear();
-                      });
-                      _applyFilters('');
-                    },
-                  ),
-              ],
-            ),
-          ],
+    return SearchFilterBar(
+      controller: _searchController,
+      wrapInCard: true,
+      cardColor: themeData.colorScheme.surfaceContainerLowest,
+      fillColor: themeData.colorScheme.surfaceContainer,
+      inputBorderless: true,
+      searchEnabled: _searchType != 'timeRange',
+      clearButtonIncludesDateRange: true,
+      searchTypes: const [
+        SearchFilterOption(
+          value: 'username',
+          label: '按用户名',
+          hintText: '搜索用户名',
         ),
-      ),
+        SearchFilterOption(
+          value: 'loginResult',
+          label: '按登录结果',
+          hintText: '搜索登录结果',
+        ),
+        SearchFilterOption(
+          value: 'timeRange',
+          label: '按时间范围',
+          hintText: '搜索时间范围（已选择）',
+        ),
+      ],
+      selectedSearchType: _searchType,
+      onTypeChanged: (value) {
+        setState(() {
+          _searchType = value;
+          _searchController.clear();
+          _startTime = null;
+          _endTime = null;
+          _applyFilters('');
+        });
+      },
+      suggestions: (query) async {
+        if (_searchType == 'timeRange') return const Iterable<String>.empty();
+        return _fetchAutocompleteSuggestions(query);
+      },
+      showDateRange: true,
+      startDate: _startTime,
+      endDate: _endTime,
+      dateRangeTextBuilder: (start, end) =>
+          '日期范围: ${formatDateTime(start)} 至 ${formatDateTime(end)}',
+      onDateRangeChanged: (range) {
+        setState(() {
+          _startTime = range?.start;
+          _endTime = range?.end;
+          _searchType = range == null ? 'username' : 'timeRange';
+          _searchController.clear();
+        });
+        _applyFilters('');
+      },
+      onSearch: _applyFilters,
+      onClear: () {
+        _searchController.clear();
+        setState(() {
+          _startTime = null;
+          _endTime = null;
+          _searchType = 'username';
+        });
+        _applyFilters('');
+      },
     );
   }
 
@@ -981,132 +831,127 @@ class _LoginLogPageState extends State<LoginLogPage> {
         padding: EdgeInsets.zero,
         onRefresh: _refreshLogs,
         onThemeToggle: controller.toggleBodyTheme,
-        body:
-        Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          if (_isAdmin) _buildSearchBar(themeData),
-                          const SizedBox(height: 20),
-                          Expanded(
-                            child: _isLoading && _currentPage == 1
-                                ? Center(
-                                    child: CupertinoActivityIndicator(
-                                      color: themeData.colorScheme.primary,
-                                      radius: 16.0,
+        body: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (_isAdmin) _buildSearchBar(themeData),
+              const SizedBox(height: 20),
+              Expanded(
+                child: _isLoading && _currentPage == 1
+                    ? Center(
+                        child: CupertinoActivityIndicator(
+                          color: themeData.colorScheme.primary,
+                          radius: 16.0,
+                        ),
+                      )
+                    : _errorMessage.isNotEmpty && !_isLoading
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  CupertinoIcons.exclamationmark_triangle,
+                                  color: themeData.colorScheme.error,
+                                  size: 48,
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  _errorMessage,
+                                  style:
+                                      themeData.textTheme.titleMedium?.copyWith(
+                                    color: themeData.colorScheme.error,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                if (_errorMessage.contains('未授权') ||
+                                    _errorMessage.contains('登录') ||
+                                    _errorMessage.contains('权限不足'))
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 20.0),
+                                    child: ElevatedButton(
+                                      onPressed: () =>
+                                          Get.offAllNamed(Routes.login),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor:
+                                            themeData.colorScheme.primary,
+                                        foregroundColor:
+                                            themeData.colorScheme.onPrimary,
+                                        shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(12.0)),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 24.0, vertical: 12.0),
+                                      ),
+                                      child: const Text('重新登录'),
                                     ),
-                                  )
-                                : _errorMessage.isNotEmpty && !_isLoading
-                                    ? Center(
-                                        child: Column(
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            Icon(
-                                              CupertinoIcons.exclamationmark_triangle,
-                                              color: themeData.colorScheme.error,
-                                              size: 48,
-                                            ),
-                                            const SizedBox(height: 16),
-                                            Text(
-                                              _errorMessage,
-                                              style: themeData.textTheme.titleMedium
-                                                  ?.copyWith(
-                                                color: themeData.colorScheme.error,
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                              textAlign: TextAlign.center,
-                                            ),
-                                            if (_errorMessage.contains('未授权') ||
-                                                _errorMessage.contains('登录') ||
-                                                _errorMessage.contains('权限不足'))
-                                              Padding(
-                                                padding:
-                                                    const EdgeInsets.only(top: 20.0),
-                                                child: ElevatedButton(
-                                                  onPressed: () =>
-                                                      Get.offAllNamed(Routes.login),
-                                                  style: ElevatedButton.styleFrom(
-                                                    backgroundColor:
-                                                        themeData.colorScheme.primary,
-                                                    foregroundColor:
-                                                        themeData.colorScheme.onPrimary,
-                                                    shape: RoundedRectangleBorder(
-                                                        borderRadius:
-                                                            BorderRadius.circular(
-                                                                12.0)),
-                                                    padding: const EdgeInsets.symmetric(
-                                                        horizontal: 24.0,
-                                                        vertical: 12.0),
-                                                  ),
-                                                  child: const Text('重新登录'),
-                                                ),
-                                              ),
-                                          ],
-                                        ),
-                                      )
-                                    : _filteredLogs.isEmpty
-                                        ? Center(
-                                            child: Column(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.center,
-                                              children: [
-                                                Icon(
-                                                  CupertinoIcons.doc,
-                                                  color: themeData
-                                                      .colorScheme.onSurfaceVariant,
-                                                  size: 48,
-                                                ),
-                                                const SizedBox(height: 16),
-                                                Text(
-                                                  _errorMessage.isNotEmpty
-                                                      ? _errorMessage
-                                                      : '暂无日志记录',
-                                                  style: themeData.textTheme.titleMedium
-                                                      ?.copyWith(
-                                                    color: themeData
-                                                        .colorScheme.onSurfaceVariant,
-                                                    fontWeight: FontWeight.w500,
-                                                  ),
-                                                  textAlign: TextAlign.center,
-                                                ),
-                                              ],
-                                            ),
-                                          )
-                                        : CupertinoScrollbar(
-                                            controller: _scrollController,
-                                            thumbVisibility: true,
-                                            thickness: 6.0,
-                                            thicknessWhileDragging: 10.0,
-                                            child: RefreshIndicator(
-                                              onRefresh: () => _refreshLogs(),
-                                              color: themeData.colorScheme.primary,
-                                              backgroundColor: themeData
-                                                  .colorScheme.surfaceContainer,
-                                              child: ListView.builder(
-                                                controller: _scrollController,
-                                                itemCount: _filteredLogs.length +
-                                                    (_hasMore ? 1 : 0),
-                                                itemBuilder: (context, index) {
-                                                  if (index == _filteredLogs.length &&
-                                                      _hasMore) {
-                                                    return const Padding(
-                                                      padding: EdgeInsets.all(8.0),
-                                                      child: Center(
-                                                          child:
-                                                              CupertinoActivityIndicator()),
-                                                    );
-                                                  }
-                                                  final log = _filteredLogs[index];
-                                                  return _buildLogCard(log, themeData);
-                                                },
-                                              ),
-                                            ),
-                                          ),
-                          ),
-                        ],
-                      ),
-                    ),
+                                  ),
+                              ],
+                            ),
+                          )
+                        : _filteredLogs.isEmpty
+                            ? Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      CupertinoIcons.doc,
+                                      color: themeData
+                                          .colorScheme.onSurfaceVariant,
+                                      size: 48,
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      _errorMessage.isNotEmpty
+                                          ? _errorMessage
+                                          : '暂无日志记录',
+                                      style: themeData.textTheme.titleMedium
+                                          ?.copyWith(
+                                        color: themeData
+                                            .colorScheme.onSurfaceVariant,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : CupertinoScrollbar(
+                                controller: _scrollController,
+                                thumbVisibility: true,
+                                thickness: 6.0,
+                                thicknessWhileDragging: 10.0,
+                                child: RefreshIndicator(
+                                  onRefresh: () => _refreshLogs(),
+                                  color: themeData.colorScheme.primary,
+                                  backgroundColor:
+                                      themeData.colorScheme.surfaceContainer,
+                                  child: ListView.builder(
+                                    controller: _scrollController,
+                                    itemCount: _filteredLogs.length +
+                                        (_hasMore ? 1 : 0),
+                                    itemBuilder: (context, index) {
+                                      if (index == _filteredLogs.length &&
+                                          _hasMore) {
+                                        return const Padding(
+                                          padding: EdgeInsets.all(8.0),
+                                          child: Center(
+                                              child:
+                                                  CupertinoActivityIndicator()),
+                                        );
+                                      }
+                                      final log = _filteredLogs[index];
+                                      return _buildLogCard(log, themeData);
+                                    },
+                                  ),
+                                ),
+                              ),
+              ),
+            ],
+          ),
+        ),
       );
     });
   }

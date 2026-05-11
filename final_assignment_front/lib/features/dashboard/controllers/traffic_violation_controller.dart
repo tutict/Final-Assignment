@@ -2,48 +2,33 @@ import 'package:final_assignment_front/core/errors/app_exception.dart';
 import 'package:final_assignment_front/core/errors/exception_mapper.dart';
 import 'package:final_assignment_front/features/model/offense_information.dart';
 import 'package:final_assignment_front/features/offense/repositories/traffic_violation_repository.dart';
+import 'package:final_assignment_front/shared/controllers/base_list_controller.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 
-class TrafficViolationController extends GetxController {
+class TrafficViolationController
+    extends BaseListController<OffenseInformation> {
   TrafficViolationController(this._repository);
 
   final TrafficViolationRepository _repository;
 
-  final RxList<OffenseInformation> violations = <OffenseInformation>[].obs;
+  RxList<OffenseInformation> get violations => items;
   final RxMap<String, int> violationTypes = <String, int>{}.obs;
   final RxList<Map<String, dynamic>> timeSeries = <Map<String, dynamic>>[].obs;
   final RxMap<String, int> appealReasons = <String, int>{}.obs;
   final RxMap<String, int> paymentStatus = <String, int>{}.obs;
-  final RxBool isLoading = false.obs;
-  final RxString errorMessage = ''.obs;
   final Rx<DateTime> startTime =
       DateTime.now().subtract(const Duration(days: 30)).obs;
 
   @override
-  void onInit() {
-    super.onInit();
-    loadDashboardData();
-  }
+  Future<void> fetchData() => loadDashboardData();
 
   Future<void> loadDashboardData() async {
-    isLoading.value = true;
-    errorMessage.value = '';
-
-    try {
+    await runWithLoading(() async {
       final data = await _repository.getViolations();
       violations.assignAll(data);
       _rebuildDashboardMetrics(data);
-    } catch (error) {
-      final appException =
-          error is AppException ? error : ExceptionMapper.map(error);
-      errorMessage.value = appException.message;
-      if (kDebugMode) {
-        debugPrint('TrafficViolation dashboard load failed: $appException');
-      }
-    } finally {
-      isLoading.value = false;
-    }
+    });
   }
 
   Future<List<OffenseInformation>> loadByStatus({
@@ -155,6 +140,20 @@ class TrafficViolationController extends GetxController {
       if (completed > 0) 'Completed/Paid': completed,
       if (pending > 0) 'Pending/Unpaid': pending,
     };
+  }
+
+  @override
+  String getErrorMessage(Object error) => _mapError(error).message;
+
+  @override
+  void onAsyncError(Object error, StackTrace stackTrace) {
+    if (kDebugMode) {
+      debugPrint('TrafficViolation dashboard load failed: ${_mapError(error)}');
+    }
+  }
+
+  AppException _mapError(Object error) {
+    return error is AppException ? error : ExceptionMapper.map(error);
   }
 }
 

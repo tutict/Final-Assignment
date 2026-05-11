@@ -9,6 +9,7 @@ import 'package:final_assignment_front/features/dashboard/controllers/manager_da
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/model/offense_information.dart';
 import 'package:final_assignment_front/features/offense/controllers/offense_form_controller.dart';
+import 'package:final_assignment_front/shared/dialogs/app_dialog.dart';
 import 'package:final_assignment_front/shared/widgets/index.dart';
 import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
 import 'package:flutter/material.dart';
@@ -430,22 +431,10 @@ class _OffenseListPageState extends State<OffenseList> {
   }
 
   Future<void> _deleteOffense(int offenseId) async {
-    bool? confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('确认删除'),
-        content: const Text('确定要删除此违法信息吗？此操作不可撤销。'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('删除', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
+    final confirm = await AppDialog.showConfirmDelete(
+      context,
+      itemName: '该违法信息',
+      extraWarning: '此操作不可撤销。',
     );
 
     if (confirm == true) {
@@ -466,182 +455,58 @@ class _OffenseListPageState extends State<OffenseList> {
   }
 
   Widget _buildSearchField(ThemeData themeData) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Autocomplete<String>(
-                  optionsBuilder: (TextEditingValue textEditingValue) async {
-                    if (textEditingValue.text.isEmpty) {
-                      return const Iterable<String>.empty();
-                    }
-                    return await _fetchAutocompleteSuggestions(
-                        textEditingValue.text);
-                  },
-                  onSelected: (String selection) {
-                    _searchController.text = selection;
-                    _applyFilters(selection);
-                  },
-                  fieldViewBuilder:
-                      (context, controller, focusNode, onFieldSubmitted) {
-                    _searchController.text = controller.text;
-                    return TextField(
-                      controller: controller,
-                      focusNode: focusNode,
-                      style: TextStyle(color: themeData.colorScheme.onSurface),
-                      decoration: InputDecoration(
-                        hintText: _searchType == 'driverName'
-                            ? '搜索司机姓名'
-                            : _searchType == 'licensePlate'
-                                ? '搜索车牌号'
-                                : '搜索违法类型',
-                        hintStyle: TextStyle(
-                            color: themeData.colorScheme.onSurface
-                                .withValues(alpha: 0.6)),
-                        prefixIcon: Icon(Icons.search,
-                            color: themeData.colorScheme.primary),
-                        suffixIcon: controller.text.isNotEmpty
-                            ? IconButton(
-                                icon: Icon(Icons.clear,
-                                    color:
-                                        themeData.colorScheme.onSurfaceVariant),
-                                onPressed: () {
-                                  controller.clear();
-                                  _searchController.clear();
-                                  _applyFilters('');
-                                },
-                              )
-                            : null,
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12.0)),
-                        enabledBorder: OutlineInputBorder(
-                          borderSide: BorderSide(
-                              color: themeData.colorScheme.outline
-                                  .withValues(alpha: 0.3)),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide: BorderSide(
-                              color: themeData.colorScheme.primary, width: 1.5),
-                        ),
-                        filled: true,
-                        fillColor: themeData.colorScheme.surfaceContainerLowest,
-                        contentPadding: const EdgeInsets.symmetric(
-                            vertical: 12.0, horizontal: 16.0),
-                      ),
-                      onChanged: (value) => _applyFilters(value),
-                      onSubmitted: (value) => _applyFilters(value),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(width: 8),
-              DropdownButton<String>(
-                value: _searchType,
-                onChanged: (String? newValue) {
-                  setState(() {
-                    _searchType = newValue!;
-                    _searchController.clear();
-                    _startDate = null;
-                    _endDate = null;
-                    _applyFilters('');
-                  });
-                },
-                items: <String>['driverName', 'licensePlate', 'offenseType']
-                    .map<DropdownMenuItem<String>>((String value) {
-                  return DropdownMenuItem<String>(
-                    value: value,
-                    child: Text(
-                      value == 'driverName'
-                          ? '按司机姓名'
-                          : value == 'licensePlate'
-                              ? '按车牌号'
-                              : '按违法类型',
-                      style: TextStyle(color: themeData.colorScheme.onSurface),
-                    ),
-                  );
-                }).toList(),
-                dropdownColor: themeData.colorScheme.surfaceContainer,
-                icon: Icon(Icons.arrow_drop_down,
-                    color: themeData.colorScheme.primary),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  _startDate != null && _endDate != null
-                      ? '违法时间范围: ${formatDate(_startDate)} 至 ${formatDate(_endDate)}'
-                      : '选择违法时间范围',
-                  style: themeData.textTheme.bodyMedium?.copyWith(
-                    color: _startDate != null && _endDate != null
-                        ? themeData.colorScheme.onSurface
-                        : themeData.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-              IconButton(
-                icon: Icon(Icons.date_range,
-                    color: themeData.colorScheme.primary),
-                tooltip: '按违法时间范围搜索',
-                onPressed: () async {
-                  final range = await showDateRangePicker(
-                    context: context,
-                    firstDate: DateTime(1900),
-                    lastDate: DateTime.now(),
-                    locale: const Locale('zh', 'CN'),
-                    helpText: '选择违法时间范围',
-                    cancelText: '取消',
-                    confirmText: '确定',
-                    fieldStartHintText: '开始日期',
-                    fieldEndHintText: '结束日期',
-                    builder: (BuildContext context, Widget? child) {
-                      return Theme(
-                        data: themeData.copyWith(
-                          colorScheme: themeData.colorScheme.copyWith(
-                            primary: themeData.colorScheme.primary,
-                            onPrimary: themeData.colorScheme.onPrimary,
-                          ),
-                          textButtonTheme: TextButtonThemeData(
-                            style: TextButton.styleFrom(
-                              foregroundColor: themeData.colorScheme.primary,
-                            ),
-                          ),
-                        ),
-                        child: child!,
-                      );
-                    },
-                  );
-                  if (range != null) {
-                    setState(() {
-                      _startDate = range.start;
-                      _endDate = range.end;
-                    });
-                    _applyFilters(_searchController.text);
-                  }
-                },
-              ),
-              if (_startDate != null && _endDate != null)
-                IconButton(
-                  icon: Icon(Icons.clear,
-                      color: themeData.colorScheme.onSurfaceVariant),
-                  tooltip: '清除日期范围',
-                  onPressed: () {
-                    setState(() {
-                      _startDate = null;
-                      _endDate = null;
-                    });
-                    _applyFilters(_searchController.text);
-                  },
-                ),
-            ],
-          ),
-        ],
-      ),
+    return SearchFilterBar(
+      controller: _searchController,
+      fillColor: themeData.colorScheme.surfaceContainerLowest,
+      searchTypes: const [
+        SearchFilterOption(
+          value: 'driverName',
+          label: '按司机姓名',
+          hintText: '搜索司机姓名',
+        ),
+        SearchFilterOption(
+          value: 'licensePlate',
+          label: '按车牌号',
+          hintText: '搜索车牌号',
+        ),
+        SearchFilterOption(
+          value: 'offenseType',
+          label: '按违法类型',
+          hintText: '搜索违法类型',
+        ),
+      ],
+      selectedSearchType: _searchType,
+      onTypeChanged: (value) {
+        setState(() {
+          _searchType = value;
+          _searchController.clear();
+          _startDate = null;
+          _endDate = null;
+          _applyFilters('');
+        });
+      },
+      suggestions: _fetchAutocompleteSuggestions,
+      showDateRange: true,
+      startDate: _startDate,
+      endDate: _endDate,
+      firstDate: DateTime(1900),
+      dateRangeTextBuilder: (start, end) =>
+          '违法时间范围: ${formatDate(start)} 至 ${formatDate(end)}',
+      dateRangePlaceholder: '选择违法时间范围',
+      dateRangeTooltip: '按违法时间范围搜索',
+      dateRangeHelpText: '选择违法时间范围',
+      onDateRangeChanged: (range) {
+        setState(() {
+          _startDate = range?.start;
+          _endDate = range?.end;
+        });
+        _applyFilters(_searchController.text);
+      },
+      onSearch: _applyFilters,
+      onClear: () {
+        _searchController.clear();
+        _applyFilters('');
+      },
     );
   }
 
@@ -1292,22 +1157,10 @@ class _OffenseDetailPageState extends State<OffenseDetailPage> {
   }
 
   Future<void> _deleteOffense(int offenseId) async {
-    bool? confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('确认删除'),
-        content: const Text('确定要删除此违法信息吗？此操作不可撤销。'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('删除', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
+    final confirm = await AppDialog.showConfirmDelete(
+      context,
+      itemName: '该违法信息',
+      extraWarning: '此操作不可撤销。',
     );
 
     if (confirm == true) {

@@ -8,6 +8,8 @@ import 'package:final_assignment_front/features/dashboard/controllers/manager_da
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/api/user_management_controller_api.dart';
 import 'package:final_assignment_front/features/model/user_management.dart';
+import 'package:final_assignment_front/shared/dialogs/app_dialog.dart';
+import 'package:final_assignment_front/shared/widgets/index.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -893,36 +895,10 @@ class _UserManagementPageState extends State<UserManagementPage> {
   }
 
   Future<void> _deleteUser(String userId) async {
-    final themeData = controller.currentBodyTheme.value;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => Theme(
-        data: themeData,
-        child: AlertDialog(
-          title: const Text('确认删除'),
-          content: const Text('确定要删除此用户吗？此操作不可撤销。'),
-          backgroundColor: themeData.colorScheme.surfaceContainerLowest,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: Text('取消',
-                  style: TextStyle(color: themeData.colorScheme.error)),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context, true),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: themeData.colorScheme.error,
-                foregroundColor: themeData.colorScheme.onError,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12.0)),
-              ),
-              child: const Text('删除'),
-            ),
-          ],
-        ),
-      ),
+    final confirmed = await AppDialog.showConfirmDelete(
+      context,
+      itemName: '该用户',
+      extraWarning: '此操作不可撤销。',
     );
 
     if (confirmed == true) {
@@ -943,114 +919,56 @@ class _UserManagementPageState extends State<UserManagementPage> {
   }
 
   Widget _buildSearchField(ThemeData themeData) {
-    return Card(
-      elevation: 4,
-      color: themeData.colorScheme.surfaceContainerLowest,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Row(
-          children: [
-            Expanded(
-              child: Autocomplete<String>(
-                optionsBuilder: (TextEditingValue textEditingValue) async {
-                  if (textEditingValue.text.isEmpty) {
-                    return const Iterable<String>.empty();
-                  }
-                  return await _fetchAutocompleteSuggestions(
-                      textEditingValue.text);
-                },
-                onSelected: (String selection) {
-                  _searchController.text = selection;
-                  _searchUsers();
-                },
-                fieldViewBuilder:
-                    (context, controller, focusNode, onFieldSubmitted) {
-                  _searchController.text = controller.text;
-                  return TextField(
-                    controller: controller,
-                    focusNode: focusNode,
-                    style: TextStyle(color: themeData.colorScheme.onSurface),
-                    decoration: InputDecoration(
-                      hintText: _searchType == 'username'
-                          ? '搜索账号'
-                          : _searchType == 'status'
-                              ? '搜索状态'
-                              : _searchType == 'department'
-                                  ? '搜索部门'
-                                  : _searchType == 'contactNumber'
-                                      ? '搜索联系电话'
-                                      : '搜索邮箱',
-                      hintStyle: TextStyle(
-                          color: themeData.colorScheme.onSurface
-                              .withValues(alpha: 0.6)),
-                      prefixIcon: Icon(Icons.search,
-                          color: themeData.colorScheme.primary),
-                      suffixIcon: controller.text.isNotEmpty
-                          ? IconButton(
-                              icon: Icon(Icons.clear,
-                                  color:
-                                      themeData.colorScheme.onSurfaceVariant),
-                              onPressed: () {
-                                controller.clear();
-                                _searchController.clear();
-                                _refreshUserList();
-                              },
-                            )
-                          : null,
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12.0),
-                          borderSide: BorderSide.none),
-                      filled: true,
-                      fillColor: themeData.colorScheme.surfaceContainer,
-                      contentPadding: const EdgeInsets.symmetric(
-                          vertical: 14.0, horizontal: 16.0),
-                    ),
-                    onSubmitted: (value) => _searchUsers(),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(width: 8),
-            DropdownButton<String>(
-              value: _searchType,
-              onChanged: (String? newValue) {
-                setState(() {
-                  _searchType = newValue!;
-                  _searchController.clear();
-                  _refreshUserList();
-                });
-              },
-              items: <String>[
-                'username',
-                'status',
-                'department',
-                'contactNumber',
-                'email'
-              ].map<DropdownMenuItem<String>>((String value) {
-                return DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(
-                    value == 'username'
-                        ? '按账号'
-                        : value == 'status'
-                            ? '按状态'
-                            : value == 'department'
-                                ? '按部门'
-                                : value == 'contactNumber'
-                                    ? '按联系电话'
-                                    : '按邮箱',
-                    style: TextStyle(color: themeData.colorScheme.onSurface),
-                  ),
-                );
-              }).toList(),
-              dropdownColor: themeData.colorScheme.surfaceContainer,
-              icon: Icon(Icons.arrow_drop_down,
-                  color: themeData.colorScheme.primary),
-            ),
-          ],
+    return SearchFilterBar(
+      controller: _searchController,
+      wrapInCard: true,
+      cardColor: themeData.colorScheme.surfaceContainerLowest,
+      fillColor: themeData.colorScheme.surfaceContainer,
+      inputBorderless: true,
+      searchTypes: const [
+        SearchFilterOption(
+          value: 'username',
+          label: '按账号',
+          hintText: '搜索账号',
         ),
-      ),
+        SearchFilterOption(
+          value: 'status',
+          label: '按状态',
+          hintText: '搜索状态',
+        ),
+        SearchFilterOption(
+          value: 'department',
+          label: '按部门',
+          hintText: '搜索部门',
+        ),
+        SearchFilterOption(
+          value: 'contactNumber',
+          label: '按联系电话',
+          hintText: '搜索联系电话',
+        ),
+        SearchFilterOption(
+          value: 'email',
+          label: '按邮箱',
+          hintText: '搜索邮箱',
+        ),
+      ],
+      selectedSearchType: _searchType,
+      onTypeChanged: (value) {
+        setState(() {
+          _searchType = value;
+          _searchController.clear();
+          _refreshUserList();
+        });
+      },
+      suggestions: _fetchAutocompleteSuggestions,
+      onSearch: (_) => _searchUsers(),
+      onChanged: (value) {
+        _searchController.text = value;
+      },
+      onClear: () {
+        _searchController.clear();
+        _refreshUserList();
+      },
     );
   }
 

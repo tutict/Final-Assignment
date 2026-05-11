@@ -6,10 +6,11 @@ import 'package:final_assignment_front/features/api/operation_log_controller_api
 import 'package:final_assignment_front/features/api/system_logs_controller_api.dart';
 import 'package:final_assignment_front/features/model/login_log.dart';
 import 'package:final_assignment_front/features/model/operation_log.dart';
+import 'package:final_assignment_front/shared/controllers/base_list_controller.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:get/get.dart';
 
-class LogController extends GetxController {
+class LogController extends BaseListController<Object> {
   LogController({
     LoginLogControllerApi? loginLogApi,
     OperationLogControllerApi? operationLogApi,
@@ -22,13 +23,14 @@ class LogController extends GetxController {
   final OperationLogControllerApi _operationLogApi;
   final SystemLogsControllerApi _systemLogsApi;
 
-  final RxBool isLoading = false.obs;
-  final RxString errorMessage = ''.obs;
   final RxList<LoginLog> loginLogs = <LoginLog>[].obs;
   final RxList<OperationLog> operationLogs = <OperationLog>[].obs;
   final RxMap<String, dynamic> systemOverview = <String, dynamic>{}.obs;
   final RxList<LoginLog> recentLoginLogs = <LoginLog>[].obs;
   final RxList<OperationLog> recentOperationLogs = <OperationLog>[].obs;
+
+  @override
+  Future<void> fetchData() async {}
 
   Future<void> fetchLoginLogs() async {
     await _load(() async {
@@ -148,16 +150,16 @@ class LogController extends GetxController {
   }
 
   Future<void> _load(Future<void> Function() action) async {
-    isLoading.value = true;
-    errorMessage.value = '';
-    try {
-      await _ensureAuthenticated();
-      await action();
-    } catch (error, stackTrace) {
-      await _handleError(error, stackTrace);
-    } finally {
-      isLoading.value = false;
-    }
+    await runWithLoading(
+      () async {
+        await _ensureAuthenticated();
+        await action();
+      },
+      errorMessageBuilder: (error) => error is ApiException && error.code == 403
+          ? 'Unauthorized'
+          : error.toString(),
+      onError: _handleError,
+    );
   }
 
   Future<void> _ensureAuthenticated() async {

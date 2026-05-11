@@ -3,6 +3,7 @@ import 'package:final_assignment_front/features/dashboard/bindings/progress_bind
 import 'package:final_assignment_front/features/dashboard/controllers/progress_controller.dart';
 import 'package:final_assignment_front/features/model/progress_item.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
+import 'package:final_assignment_front/shared/dialogs/app_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -167,69 +168,29 @@ class _ProgressDetailPageState extends State<ProgressDetailPage> {
     }
   }
 
-  void _showDeleteConfirmationDialog(ThemeData themeData) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: themeData.colorScheme.surfaceContainerHighest,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          '确认删除',
-          style: themeData.textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: themeData.colorScheme.onSurface,
-          ),
-        ),
-        content: Text(
-          '您确定要删除此进度记录吗？此操作不可撤销。',
-          style: themeData.textTheme.bodyMedium?.copyWith(
-            color: themeData.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(
-              '取消',
-              style: themeData.textTheme.labelLarge?.copyWith(
-                color: themeData.colorScheme.onSurfaceVariant,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (widget.item.id == null) {
-                _showSnackBar('无法删除：进度ID为空',
-                    isError: true, themeData: themeData);
-                Navigator.pop(ctx);
-                return;
-              }
-              try {
-                await progressController.deleteProgress(widget.item.id!);
-                if (mounted) {
-                  _showSnackBar('删除成功', themeData: themeData);
-                  Navigator.pop(context, true);
-                }
-              } catch (e) {
-                if (mounted) {
-                  _showSnackBar('删除失败: $e',
-                      isError: true, themeData: themeData);
-                }
-              }
-              Navigator.pop(ctx);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: themeData.colorScheme.error,
-              foregroundColor: themeData.colorScheme.onError,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8)),
-            ),
-            child: const Text('删除'),
-          ),
-        ],
-      ),
+  Future<void> _showDeleteConfirmationDialog(ThemeData themeData) async {
+    final confirmed = await AppDialog.showConfirmDelete(
+      context,
+      itemName: '该进度记录',
+      extraWarning: '此操作不可撤销。',
     );
+    if (confirmed != true) return;
+
+    if (widget.item.id == null) {
+      _showSnackBar('无法删除：进度ID为空', isError: true, themeData: themeData);
+      return;
+    }
+    try {
+      await progressController.deleteProgress(widget.item.id!);
+      if (mounted) {
+        _showSnackBar('删除成功', themeData: themeData);
+        Navigator.pop(context, true);
+      }
+    } catch (e) {
+      if (mounted) {
+        _showSnackBar('删除失败: $e', isError: true, themeData: themeData);
+      }
+    }
   }
 
   void _showSnackBar(String message,

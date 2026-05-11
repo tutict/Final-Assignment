@@ -4,8 +4,9 @@ import 'package:final_assignment_front/features/dashboard/controllers/progress_c
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/model/appeal_record.dart';
+import 'package:final_assignment_front/shared/dialogs/app_dialog.dart';
 import 'package:final_assignment_front/shared/widgets/index.dart';
-import 'package:final_assignment_front/utils/ui/ui_utils.dart';
+import 'package:final_assignment_front/utils/ui/ui_utils.dart' as ui;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -299,7 +300,7 @@ class ProgressManagementPage extends StatelessWidget {
     final titleController = TextEditingController();
     final detailsController = TextEditingController();
     AppealRecordModel? selectedAppeal;
-    AppDialog.showCustomDialog(
+    ui.AppDialog.showCustomDialog(
       context: context,
       theme: themeData,
       title: '创建进度',
@@ -364,7 +365,7 @@ class ProgressManagementPage extends StatelessWidget {
           onPressed: () {
             final title = titleController.text.trim();
             if (title.isEmpty) {
-              AppSnackbar.showError(
+              ui.AppSnackbar.showError(
                 context,
                 message: '标题不能为空',
                 theme: themeData,
@@ -490,18 +491,19 @@ class ProgressManagementPage extends StatelessWidget {
     }
   }
 
-  void _showDeleteConfirmationDialog(BuildContext context, int progressId,
-      ProgressController controller, ThemeData themeData) {
-    AppDialog.showConfirmDialog(
-      context: context,
-      theme: themeData,
-      title: '确认删除',
-      message: '您确定要删除此进度记录吗？此操作不可撤销。',
-      confirmText: '删除',
-      confirmColor: themeData.colorScheme.error,
-      leadingIcon: Icons.warning_amber_rounded,
-      onConfirmed: () => controller.deleteProgress(progressId),
+  Future<void> _showDeleteConfirmationDialog(
+      BuildContext context,
+      int progressId,
+      ProgressController controller,
+      ThemeData themeData) async {
+    final confirmed = await AppDialog.showConfirmDelete(
+      context,
+      itemName: '该进度记录',
+      extraWarning: '此操作不可撤销。',
     );
+    if (confirmed == true) {
+      await controller.deleteProgress(progressId);
+    }
   }
 
   String _translateStatus(String? status) {
