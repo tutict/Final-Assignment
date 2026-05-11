@@ -5,7 +5,6 @@ import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/features/api/auth_controller_api.dart';
 import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/user_management_controller_api.dart';
-import 'package:final_assignment_front/features/dashboard/controllers/chat_controller.dart';
 import 'package:final_assignment_front/features/model/driver_information.dart';
 import 'package:final_assignment_front/features/model/login_request.dart';
 import 'package:final_assignment_front/features/model/register_request.dart';
@@ -25,7 +24,7 @@ mixin ValidatorMixin {
   String? validateUsername(String? val) {
     if (val == null || val.isEmpty) return '用户邮箱不能为空';
     final emailRegex =
-    RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+        RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
     if (!emailRegex.hasMatch(val)) return '请输入有效的邮箱地址';
     return null;
   }
@@ -59,7 +58,6 @@ class _LoginScreenState extends State<LoginScreen>
     driverApi = DriverInformationControllerApi();
     _userRole = null;
     _hasSentRegisterRequest = false;
-    _initializeControllers();
     _loadTheme();
   }
 
@@ -76,12 +74,6 @@ class _LoginScreenState extends State<LoginScreen>
       _isDarkMode = !_isDarkMode;
     });
     await prefs.setBool('isDarkMode', _isDarkMode);
-  }
-
-  void _initializeControllers() {
-    if (!Get.isRegistered<ChatController>()) {
-      Get.lazyPut(() => ChatController());
-    }
   }
 
   Map<String, dynamic> _decodeJwt(String token) {
@@ -118,7 +110,8 @@ class _LoginScreenState extends State<LoginScreen>
         final int? userIdFromLogin = userData['userId'];
         String resolvedName = userData['name'] ?? username.split('@').first;
         String resolvedEmail = userData['email'] ?? username;
-        debugPrint('提取的 userId: $userIdFromLogin, 姓名: $resolvedName, 邮箱: $resolvedEmail');
+        debugPrint(
+            '提取的 userId: $userIdFromLogin, 姓名: $resolvedName, 邮箱: $resolvedEmail');
 
         String driverName = resolvedName;
 
@@ -130,8 +123,8 @@ class _LoginScreenState extends State<LoginScreen>
 
         int? userId = userIdFromLogin;
         try {
-          final userInfo = await userManagementApi
-              .apiUsersSearchUsernameGet(username: username);
+          final userInfo = await userManagementApi.apiUsersSearchUsernameGet(
+              username: username);
           if (userInfo != null) {
             userId = userInfo.userId ?? userId;
             resolvedName =
@@ -146,7 +139,7 @@ class _LoginScreenState extends State<LoginScreen>
         if (userId != null) {
           try {
             final driverInfo =
-            await driverApi.apiDriversDriverIdGet(driverId: userId);
+                await driverApi.apiDriversDriverIdGet(driverId: userId);
             if (driverInfo != null && driverInfo.name != null) {
               driverName = driverInfo.name!;
               debugPrint('从数据库获取的 driverName: $driverName');
@@ -181,9 +174,8 @@ class _LoginScreenState extends State<LoginScreen>
         await prefs.setString('userEmail', resolvedEmail);
         if (userId != null) await prefs.setString('userId', userId.toString());
 
-        Get.find<ChatController>().setUserRole(_userRole!);
-
-        debugPrint('登录成功 - 角色: $_userRole, 姓名: $driverName, 邮箱: $resolvedEmail');
+        debugPrint(
+            '登录成功 - 角色: $_userRole, 姓名: $driverName, 邮箱: $resolvedEmail');
         return null;
       }
       return result['message'] ?? '登录失败';
@@ -256,15 +248,13 @@ class _LoginScreenState extends State<LoginScreen>
               idempotencyKey: generateIdempotencyKey(),
             );
             final fetchedDriver =
-            await driverApi.apiDriversDriverIdGet(driverId: userId);
+                await driverApi.apiDriversDriverIdGet(driverId: userId);
             driverName = fetchedDriver?.name ?? resolvedName;
             await prefs.setString('driverName', driverName);
             await prefs.setString('userEmail', resolvedEmail);
             await prefs.setString('userId', userId.toString());
             debugPrint('Driver created and fetched name: $driverName');
           }
-
-          Get.find<ChatController>().setUserRole(_userRole!);
 
           debugPrint(
               'Signup and login successful - Role: $_userRole, Name: $driverName, Email: $resolvedEmail');
@@ -283,7 +273,7 @@ class _LoginScreenState extends State<LoginScreen>
 
   Future<String?> _recoverPassword(String name) async {
     final emailRegex =
-    RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+        RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
     if (!emailRegex.hasMatch(name)) return '请输入有效的邮箱地址';
 
     final bool? isCaptchaValid = await showDialog<bool>(
@@ -304,7 +294,7 @@ class _LoginScreenState extends State<LoginScreen>
         child: AlertDialog(
           backgroundColor: themeData.colorScheme.surfaceContainer,
           shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
           title: Text(
             '重置密码',
             style: themeData.textTheme.titleLarge?.copyWith(
@@ -333,7 +323,8 @@ class _LoginScreenState extends State<LoginScreen>
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8.0),
                     borderSide: BorderSide(
-                        color: themeData.colorScheme.outline.withValues(alpha: 0.3)),
+                        color: themeData.colorScheme.outline
+                            .withValues(alpha: 0.3)),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8.0),
@@ -363,7 +354,7 @@ class _LoginScreenState extends State<LoginScreen>
                         content: Text('新密码不能为空',
                             style: TextStyle(
                                 color:
-                                themeData.colorScheme.onErrorContainer))),
+                                    themeData.colorScheme.onErrorContainer))),
                   );
                 } else if (newPasswordController.text.length < 3) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -371,7 +362,7 @@ class _LoginScreenState extends State<LoginScreen>
                         content: Text('密码太短',
                             style: TextStyle(
                                 color:
-                                themeData.colorScheme.onErrorContainer))),
+                                    themeData.colorScheme.onErrorContainer))),
                   );
                 } else {
                   Navigator.pop(context, true);
@@ -424,7 +415,7 @@ class _LoginScreenState extends State<LoginScreen>
           SnackBar(
             content: Text('密码重置成功，请使用新密码登录',
                 style:
-                TextStyle(color: themeData.colorScheme.onPrimaryContainer)),
+                    TextStyle(color: themeData.colorScheme.onPrimaryContainer)),
             backgroundColor: themeData.colorScheme.primary,
           ),
         );
@@ -482,7 +473,8 @@ class _LoginScreenState extends State<LoginScreen>
             ),
             // Particle Effect with Connections
             ConnectedParticleSystem(
-              particleColor: themeData.colorScheme.primary.withValues(alpha: 0.3),
+              particleColor:
+                  themeData.colorScheme.primary.withValues(alpha: 0.3),
               lineColor: themeData.colorScheme.primary.withValues(alpha: 0.2),
               vsync: this,
             ),
@@ -510,7 +502,8 @@ class _LoginScreenState extends State<LoginScreen>
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20.0),
                   ),
-                  shadowColor: themeData.colorScheme.shadow.withValues(alpha: 0.3),
+                  shadowColor:
+                      themeData.colorScheme.shadow.withValues(alpha: 0.3),
                 ),
                 titleStyle: themeData.textTheme.headlineMedium?.copyWith(
                   color: themeData.colorScheme.onSurface,
@@ -534,7 +527,8 @@ class _LoginScreenState extends State<LoginScreen>
                 buttonTheme: LoginButtonTheme(
                   splashColor: themeData.colorScheme.primaryContainer,
                   backgroundColor: themeData.colorScheme.primary,
-                  highlightColor: themeData.colorScheme.primary.withValues(alpha: 0.9),
+                  highlightColor:
+                      themeData.colorScheme.primary.withValues(alpha: 0.9),
                   elevation: 8.0,
                   highlightElevation: 10.0,
                   shape: RoundedRectangleBorder(
@@ -549,27 +543,30 @@ class _LoginScreenState extends State<LoginScreen>
                   prefixIconColor: themeData.colorScheme.onSurfaceVariant,
                   errorStyle: themeData.textTheme.bodySmall?.copyWith(
                     color: themeData.colorScheme.onErrorContainer,
-                    backgroundColor: themeData.colorScheme.error.withValues(alpha: 0.9),
+                    backgroundColor:
+                        themeData.colorScheme.error.withValues(alpha: 0.9),
                   ),
                   labelStyle: themeData.textTheme.bodyMedium?.copyWith(
                     color: themeData.colorScheme.onSurfaceVariant,
                     fontSize: 14.0,
                   ),
                   hintStyle: themeData.textTheme.bodyMedium?.copyWith(
-                    color:
-                    themeData.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                    color: themeData.colorScheme.onSurfaceVariant
+                        .withValues(alpha: 0.6),
                     fontSize: 14.0,
                   ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12.0),
                     borderSide: BorderSide(
-                      color: themeData.colorScheme.outline.withValues(alpha: 0.4),
+                      color:
+                          themeData.colorScheme.outline.withValues(alpha: 0.4),
                     ),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12.0),
                     borderSide: BorderSide(
-                      color: themeData.colorScheme.outline.withValues(alpha: 0.4),
+                      color:
+                          themeData.colorScheme.outline.withValues(alpha: 0.4),
                     ),
                   ),
                   focusedBorder: OutlineInputBorder(
@@ -711,9 +708,9 @@ class Particle {
 
   Particle(this.random)
       : position = Offset(
-    random.nextDouble() * 1000,
-    random.nextDouble() * 1000,
-  ),
+          random.nextDouble() * 1000,
+          random.nextDouble() * 1000,
+        ),
         velocity = Offset(
           cos(random.nextDouble() * 2 * pi) * fixedSpeed,
           sin(random.nextDouble() * 2 * pi) * fixedSpeed,
@@ -731,7 +728,8 @@ class Particle {
     if (position.dx <= radius || position.dx >= width - radius) {
       velocity = Offset(-velocity.dx, velocity.dy);
       // Ensure velocity magnitude remains fixedSpeed
-      double currentSpeed = sqrt(velocity.dx * velocity.dx + velocity.dy * velocity.dy);
+      double currentSpeed =
+          sqrt(velocity.dx * velocity.dx + velocity.dy * velocity.dy);
       if (currentSpeed != 0) {
         velocity = Offset(
           velocity.dx * fixedSpeed / currentSpeed,
@@ -747,7 +745,8 @@ class Particle {
     if (position.dy <= radius || position.dy >= height - radius) {
       velocity = Offset(velocity.dx, -velocity.dy);
       // Ensure velocity magnitude remains fixedSpeed
-      double currentSpeed = sqrt(velocity.dx * velocity.dx + velocity.dy * velocity.dy);
+      double currentSpeed =
+          sqrt(velocity.dx * velocity.dx + velocity.dy * velocity.dy);
       if (currentSpeed != 0) {
         velocity = Offset(
           velocity.dx * fixedSpeed / currentSpeed,

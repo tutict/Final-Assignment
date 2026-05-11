@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:final_assignment_front/constants/app_constants.dart';
+import 'package:final_assignment_front/features/dashboard/bindings/chat_binding.dart';
 import 'package:flutter/material.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/chat_controller.dart';
 import 'package:final_assignment_front/shared_components/user_predefined_questions.dart';
@@ -23,6 +24,7 @@ class _AiChatState extends State<AiChat> with SingleTickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    AiChatBinding.registerDependencies();
     animationController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,

@@ -25,7 +25,9 @@ import 'package:final_assignment_front/features/dashboard/views/user/pages/scann
 import 'package:final_assignment_front/features/dashboard/views/user/user_dashboard.dart';
 import 'package:final_assignment_front/features/login_screen/login.dart';
 import 'package:final_assignment_front/features/model/progress_item.dart';
+import 'package:final_assignment_front/features/dashboard/bindings/dashboard_progress_binding.dart';
 import 'package:final_assignment_front/features/dashboard/bindings/manager_dashboard_binding.dart';
+import 'package:final_assignment_front/features/dashboard/bindings/progress_binding.dart';
 import 'package:final_assignment_front/features/dashboard/bindings/user_dashboard_binding.dart';
 import 'package:final_assignment_front/features/offense/bindings/traffic_violation_binding.dart';
 import 'package:get/get.dart';
@@ -102,6 +104,7 @@ class AppPages {
     GetPage(
       name: RoutePaths.onlineProcessingProgress,
       page: () => const OnlineProcessingProgress(),
+      binding: ProgressBinding(),
     ),
     GetPage(
       name: RoutePaths.userSetting,
@@ -110,6 +113,7 @@ class AppPages {
     GetPage(
       name: RoutePaths.consultation,
       page: () => const ConsultationFeedback(),
+      binding: ProgressBinding(),
     ),
     GetPage(
       name: RoutePaths.personalMain,
@@ -122,26 +126,32 @@ class AppPages {
     GetPage(
       name: RoutePaths.appealManagement,
       page: () => const AppealManagementAdmin(),
+      binding: DashboardBinding(),
     ),
     GetPage(
       name: RoutePaths.driverList,
       page: () => const DriverList(),
+      binding: DashboardBinding(),
     ),
     GetPage(
       name: RoutePaths.offenseList,
       page: () => const OffenseList(),
+      binding: DashboardBinding(),
     ),
     GetPage(
       name: RoutePaths.vehicleList,
       page: () => const VehicleList(),
+      binding: DashboardBinding(),
     ),
     GetPage(
       name: RoutePaths.fineInformation,
       page: () => const FineInformationPage(),
+      binding: DashboardBinding(),
     ),
     GetPage(
       name: RoutePaths.onlineProcessingProgress,
       page: () => const OnlineProcessingProgress(),
+      binding: ProgressBinding(),
     ),
     GetPage(
       name: RoutePaths.vehicleManagement,
@@ -154,6 +164,7 @@ class AppPages {
     GetPage(
       name: RoutePaths.managerBusinessProcessing,
       page: () => const ManagerBusinessProcessing(),
+      binding: DashboardBinding(),
     ),
     GetPage(
       name: RoutePaths.accidentEvidencePage,
@@ -182,12 +193,14 @@ class AppPages {
     GetPage(
       name: RoutePaths.progressManagement,
       page: () => const ProgressManagementPage(),
+      binding: DashboardProgressBinding(),
     ),
     GetPage(
       name: RoutePaths.progressDetailPage,
       page: () => ProgressDetailPage(
         item: Get.arguments as ProgressItem,
       ),
+      binding: ProgressBinding(),
       transition: Transition.fadeIn,
     ),
     GetPage(
@@ -202,6 +215,7 @@ class AppPages {
     GetPage(
       name: RoutePaths.progressManagementPage,
       page: () => const ProgressManagementPage(),
+      binding: DashboardProgressBinding(),
     ),
     ...AdminPages.routes,
   ];

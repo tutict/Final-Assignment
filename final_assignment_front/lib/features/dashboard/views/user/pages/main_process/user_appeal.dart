@@ -1,5 +1,6 @@
 // ignore_for_file: use_build_context_synchronously
 import 'dart:convert';
+import 'package:final_assignment_front/features/dashboard/bindings/progress_binding.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/progress_controller.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -924,7 +925,7 @@ class UserAppealDetailPage extends StatefulWidget {
 }
 
 class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
-  final ProgressController progressController = Get.find<ProgressController>();
+  late final ProgressController progressController;
   bool _isLoadingProgress = false;
 
   final UserDashboardController? controller =
@@ -935,6 +936,8 @@ class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
   @override
   void initState() {
     super.initState();
+    ProgressBinding.registerDependencies();
+    progressController = Get.find<ProgressController>();
     _fetchProgress();
   }
 

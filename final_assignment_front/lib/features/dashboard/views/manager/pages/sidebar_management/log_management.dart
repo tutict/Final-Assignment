@@ -1,3 +1,4 @@
+import 'package:final_assignment_front/features/dashboard/bindings/manager_dashboard_binding.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/logs/login_log_page.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/logs/operation_log_page.dart';
@@ -19,12 +20,8 @@ class _LogManagementState extends State<LogManagement> {
   @override
   void initState() {
     super.initState();
-    try {
-      controller = Get.find<DashboardController>();
-    } catch (e) {
-      debugPrint('DashboardController not found: $e');
-      controller = Get.put(DashboardController()); // Register if not found
-    }
+    DashboardBinding.registerDependencies();
+    controller = Get.find<DashboardController>();
   }
 
   // 日志管理选项数据

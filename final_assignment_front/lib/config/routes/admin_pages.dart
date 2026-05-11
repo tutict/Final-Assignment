@@ -9,7 +9,9 @@ import 'package:final_assignment_front/features/dashboard/views/manager/pages/si
 import 'package:final_assignment_front/features/dashboard/views/shared/components/ai_chat.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/components/change_themes.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/components/map.dart';
+import 'package:final_assignment_front/features/dashboard/bindings/chat_binding.dart';
 import 'package:final_assignment_front/features/dashboard/bindings/log_binding.dart';
+import 'package:final_assignment_front/features/dashboard/bindings/manager_dashboard_binding.dart';
 import 'package:get/get.dart';
 
 import 'app_routes.dart';
@@ -19,14 +21,17 @@ class AdminPages {
     GetPage(
       name: RoutePaths.aiChat,
       page: () => const AiChat(),
+      binding: AiChatBinding(),
     ),
     GetPage(
       name: RoutePaths.map,
       page: () => const MapPage(),
+      binding: DashboardBinding(),
     ),
     GetPage(
       name: RoutePaths.backupAndRestore,
       page: () => const BackupAndRestore(),
+      binding: DashboardBinding(),
     ),
     GetPage(
       name: RoutePaths.managerPersonalPage,
@@ -35,6 +40,7 @@ class AdminPages {
     GetPage(
       name: RoutePaths.managerSetting,
       page: () => const ManagerSetting(),
+      binding: DashboardBinding(),
     ),
     GetPage(
       name: RoutePaths.changeThemes,
@@ -43,25 +49,36 @@ class AdminPages {
     GetPage(
       name: RoutePaths.logManagement,
       page: () => const LogManagement(),
+      binding: DashboardBinding(),
     ),
     GetPage(
       name: RoutePaths.userManagementPage,
       page: () => const UserManagementPage(),
+      binding: DashboardBinding(),
     ),
     GetPage(
       name: RoutePaths.loginLogPage,
       page: () => const LoginLogPage(),
-      binding: LogBinding(),
+      binding: BindingsBuilder(() {
+        DashboardBinding.registerDependencies();
+        LogBinding.registerDependencies();
+      }),
     ),
     GetPage(
       name: RoutePaths.operationLogPage,
       page: () => const OperationLogPage(),
-      binding: LogBinding(),
+      binding: BindingsBuilder(() {
+        DashboardBinding.registerDependencies();
+        LogBinding.registerDependencies();
+      }),
     ),
     GetPage(
       name: RoutePaths.systemLogPage,
       page: () => const SystemLogPage(),
-      binding: LogBinding(),
+      binding: BindingsBuilder(() {
+        DashboardBinding.registerDependencies();
+        LogBinding.registerDependencies();
+      }),
     ),
   ];
 }

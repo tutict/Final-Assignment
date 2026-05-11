@@ -1,9 +1,6 @@
 import 'package:final_assignment_front/core/auth/auth_service.dart';
 import 'package:final_assignment_front/core/lifecycle/app_lifecycle_observer.dart';
 import 'package:final_assignment_front/core/network/interceptor.dart';
-import 'package:final_assignment_front/features/dashboard/controllers/chat_controller.dart';
-import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
-import 'package:final_assignment_front/features/dashboard/controllers/progress_controller.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
 import 'package:final_assignment_front/features/offense/offense_realtime_service.dart';
 import 'package:flutter/material.dart';
@@ -95,11 +92,7 @@ class AppBindings extends Bindings {
       () => OffenseRealtimeService(),
       fenix: true,
     );
-
-    Get.lazyPut<DashboardController>(() => DashboardController(), fenix: true);
-    Get.lazyPut<ChatController>(() => ChatController(), fenix: true);
     Get.lazyPut<UserDashboardController>(() => UserDashboardController(),
         fenix: true);
-    Get.lazyPut<ProgressController>(() => ProgressController(), fenix: true);
   }
 }

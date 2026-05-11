@@ -1,4 +1,5 @@
 import 'package:final_assignment_front/config/routes/app_routes.dart';
+import 'package:final_assignment_front/features/dashboard/bindings/progress_binding.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/progress_controller.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
@@ -15,6 +16,7 @@ class ProgressManagementPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final DashboardController dashboardController =
         Get.find<DashboardController>();
+    ProgressBinding.registerDependencies();
     final ProgressController progressController =
         Get.find<ProgressController>();
 
@@ -365,8 +367,7 @@ class ProgressManagementPage extends StatelessWidget {
                           '申诉: ${appeal.appellantName} (ID: ${appeal.appealId})'),
                     );
                   }).toList(),
-                  onChanged: (value) =>
-                      setState(() => selectedAppeal = value),
+                  onChanged: (value) => setState(() => selectedAppeal = value),
                 ),
               ),
             ],
@@ -397,9 +398,7 @@ class ProgressManagementPage extends StatelessWidget {
             }
             controller.submitProgress(
               title,
-              detailsController.text.isNotEmpty
-                  ? detailsController.text
-                  : null,
+              detailsController.text.isNotEmpty ? detailsController.text : null,
               appealId: selectedAppeal?.appealId,
             );
             Navigator.of(context).pop();

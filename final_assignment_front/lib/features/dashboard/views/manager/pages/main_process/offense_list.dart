@@ -5,10 +5,10 @@ import 'dart:developer' as developer;
 import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/core/config/app_config.dart';
 import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
-import 'package:final_assignment_front/features/api/vehicle_information_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/model/offense_information.dart';
+import 'package:final_assignment_front/features/offense/controllers/offense_form_controller.dart';
 import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -383,10 +383,15 @@ class _OffenseListPageState extends State<OffenseList> {
   }
 
   void _createOffense() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const AddOffensePage()),
-    ).then((value) {
+    Get.to<bool>(
+      () => const AddOffensePage(),
+      binding: BindingsBuilder(() {
+        Get.lazyPut<OffenseFormController>(
+          () => OffenseFormController(mode: OffenseFormMode.create),
+          tag: 'add-offense',
+        );
+      }),
+    )?.then((value) {
       if (value == true) {
         _refreshOffenses();
       }
@@ -394,12 +399,20 @@ class _OffenseListPageState extends State<OffenseList> {
   }
 
   void _editOffense(OffenseInformation offense) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => EditOffensePage(offense: offense),
-      ),
-    ).then((value) {
+    final controllerTag =
+        'edit-offense-${offense.offenseId ?? identityHashCode(offense)}';
+    Get.to<bool>(
+      () => EditOffensePage(offense: offense),
+      binding: BindingsBuilder(() {
+        Get.lazyPut<OffenseFormController>(
+          () => OffenseFormController(
+            mode: OffenseFormMode.edit,
+            initialOffense: offense,
+          ),
+          tag: controllerTag,
+        );
+      }),
+    )?.then((value) {
       if (value == true) {
         _refreshOffenses();
       }
@@ -851,153 +864,58 @@ class AddOffensePage extends StatefulWidget {
 }
 
 class _AddOffensePageState extends State<AddOffensePage> {
-  final OffenseInformationControllerApi offenseApi =
-      OffenseInformationControllerApi();
-  final VehicleInformationControllerApi vehicleApi =
-      VehicleInformationControllerApi(); // Add vehicle API
-  final _formKey = GlobalKey<FormState>();
-  final _driverNameController = TextEditingController();
-  final _licensePlateController = TextEditingController();
-  final _offenseTypeController = TextEditingController();
-  final _offenseCodeController = TextEditingController();
-  final _offenseLocationController = TextEditingController();
-  final _offenseTimeController = TextEditingController();
-  final _deductedPointsController = TextEditingController();
-  final _fineAmountController = TextEditingController();
-  final _processStatusController = TextEditingController();
-  final _processResultController = TextEditingController();
-  bool _isLoading = false;
+  late final OffenseFormController formController;
   final DashboardController controller = Get.find<DashboardController>();
-
-  Future<bool> _validateJwtToken() async {
-    final jwtToken = (await AuthTokenStore.instance.getJwtToken());
-    if (jwtToken == null || jwtToken.isEmpty) {
-      _showSnackBar('未授权，请重新登录', isError: true);
-      return false;
-    }
-    try {
-      if (JwtDecoder.isExpired(jwtToken)) {
-        _showSnackBar('登录已过期，请重新登录', isError: true);
-        return false;
-      }
-      return true;
-    } catch (e) {
-      _showSnackBar('无效的登录信息，请重新登录', isError: true);
-      return false;
-    }
-  }
+  String get _controllerTag => 'add-offense';
+  GlobalKey<FormState> get _formKey => formController.formKey;
+  TextEditingController get _driverNameController =>
+      formController.driverNameController;
+  TextEditingController get _licensePlateController =>
+      formController.licensePlateController;
+  TextEditingController get _offenseTypeController =>
+      formController.offenseTypeController;
+  TextEditingController get _offenseCodeController =>
+      formController.offenseCodeController;
+  TextEditingController get _offenseLocationController =>
+      formController.offenseLocationController;
+  TextEditingController get _offenseTimeController =>
+      formController.offenseTimeController;
+  TextEditingController get _deductedPointsController =>
+      formController.deductedPointsController;
+  TextEditingController get _fineAmountController =>
+      formController.fineAmountController;
+  TextEditingController get _processStatusController =>
+      formController.processStatusController;
+  TextEditingController get _processResultController =>
+      formController.processResultController;
+  bool get _isLoading => formController.isLoading.value;
 
   @override
   void initState() {
     super.initState();
-    _initialize();
+    formController = Get.find<OffenseFormController>(tag: _controllerTag);
   }
 
-  Future<void> _initialize() async {
-    setState(() => _isLoading = true);
-    try {
-      if (!await _validateJwtToken()) {
-        Navigator.pushReplacementNamed(context, Routes.login);
-        return;
-      }
-      await offenseApi.initializeWithJwt();
-      await vehicleApi.initializeWithJwt(); // Initialize vehicle API
-      _processStatusController.text =
-          getOffenseProcessStatusLabel(OffenseProcessStatus.unprocessed.code);
-    } catch (e) {
-      _showSnackBar('初始化失败: $e', isError: true);
-    } finally {
-      setState(() => _isLoading = false);
-    }
-  }
+  Future<List<String>> _fetchDriverNameSuggestions(String prefix) =>
+      formController.fetchDriverNameSuggestions(prefix);
 
-  @override
-  void dispose() {
-    _driverNameController.dispose();
-    _licensePlateController.dispose();
-    _offenseTypeController.dispose();
-    _offenseCodeController.dispose();
-    _offenseLocationController.dispose();
-    _offenseTimeController.dispose();
-    _deductedPointsController.dispose();
-    _fineAmountController.dispose();
-    _processStatusController.dispose();
-    _processResultController.dispose();
-    super.dispose();
-  }
-
-  Future<List<String>> _fetchDriverNameSuggestions(String prefix) async {
-    try {
-      if (!await _validateJwtToken()) {
-        Navigator.pushReplacementNamed(context, Routes.login);
-        return [];
-      }
-      final vehicles = await vehicleApi.apiVehiclesSearchGeneralGet(
-          keywords: prefix, page: 1, size: 10);
-      return vehicles
-          .map((v) => v.ownerName ?? '')
-          .where((name) => name.toLowerCase().contains(prefix.toLowerCase()))
-          .toSet()
-          .toList();
-    } catch (e) {
-      _showSnackBar('获取司机姓名建议失败: $e', isError: true);
-      return [];
-    }
-  }
-
-  Future<List<String>> _fetchLicensePlateSuggestions(String prefix) async {
-    try {
-      if (!await _validateJwtToken()) {
-        Navigator.pushReplacementNamed(context, Routes.login);
-        return [];
-      }
-      return await vehicleApi.apiVehiclesSearchLicenseGlobalGet(prefix: prefix);
-    } catch (e) {
-      _showSnackBar('获取车牌号建议失败: $e', isError: true);
-      return [];
-    }
-  }
+  Future<List<String>> _fetchLicensePlateSuggestions(String prefix) =>
+      formController.fetchLicensePlateSuggestions(prefix);
 
   Future<void> _submitOffense() async {
-    if (!_formKey.currentState!.validate()) return;
-    if (!await _validateJwtToken()) {
-      Navigator.pushReplacementNamed(context, Routes.login);
+    final success = await formController.submit();
+    if (!mounted) return;
+    if (success) {
+      _showSnackBar('创建违法行为记录成功！');
+      Navigator.pop(context, true);
       return;
     }
-    setState(() => _isLoading = true);
-    try {
-      final offenseTime =
-          DateTime.parse("${_offenseTimeController.text.trim()}T00:00:00.000");
-      final idempotencyKey = generateIdempotencyKey();
-      final offensePayload = OffenseInformation(
-        offenseTime: offenseTime,
-        driverName: _driverNameController.text.trim(),
-        licensePlate: _licensePlateController.text.trim(),
-        offenseType: _offenseTypeController.text.trim(),
-        offenseCode: _offenseCodeController.text.trim(),
-        offenseLocation: _offenseLocationController.text.trim(),
-        deductedPoints: _deductedPointsController.text.trim().isEmpty
-            ? null
-            : int.parse(_deductedPointsController.text.trim()),
-        fineAmount: _fineAmountController.text.trim().isEmpty
-            ? null
-            : double.parse(_fineAmountController.text.trim()),
-        processStatus: OffenseProcessStatus.unprocessed.code,
-        processResult: _processResultController.text.trim().isEmpty
-            ? null
-            : _processResultController.text.trim(),
-        idempotencyKey: idempotencyKey,
-      );
-      await offenseApi.apiOffensesPost(
-        offenseInformation: offensePayload,
-        idempotencyKey: idempotencyKey,
-      );
-      _showSnackBar('创建违法行为记录成功！');
-      if (mounted) Navigator.pop(context, true);
-    } catch (e) {
-      _showSnackBar('创建违法行为记录失败: $e', isError: true);
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+    if (formController.errorMessage.value.isNotEmpty) {
+      _showSnackBar(formController.errorMessage.value, isError: true);
+      if (formController.errorMessage.value.contains('登录') ||
+          formController.errorMessage.value.contains('授权')) {
+        Navigator.pushReplacementNamed(context, Routes.login);
+      }
     }
   }
 
@@ -1041,7 +959,7 @@ class _AddOffensePageState extends State<AddOffensePage> {
       ),
     );
     if (pickedDate != null && mounted) {
-      setState(() => _offenseTimeController.text = formatDate(pickedDate));
+      formController.setOffenseDate(pickedDate);
     }
   }
 
@@ -1218,6 +1136,7 @@ class _AddOffensePageState extends State<AddOffensePage> {
   @override
   Widget build(BuildContext context) {
     return Obx(() {
+      formController.isLoading.value;
       final themeData = controller.currentBodyTheme.value;
       return DashboardPageTemplate(
         theme: themeData,
@@ -1611,170 +1530,59 @@ class EditOffensePage extends StatefulWidget {
 }
 
 class _EditOffensePageState extends State<EditOffensePage> {
-  final OffenseInformationControllerApi offenseApi =
-      OffenseInformationControllerApi();
-  final VehicleInformationControllerApi vehicleApi =
-      VehicleInformationControllerApi(); // Add vehicle API
-  final _formKey = GlobalKey<FormState>();
-  final _driverNameController = TextEditingController();
-  final _licensePlateController = TextEditingController();
-  final _offenseTypeController = TextEditingController();
-  final _offenseCodeController = TextEditingController();
-  final _offenseLocationController = TextEditingController();
-  final _offenseTimeController = TextEditingController();
-  final _deductedPointsController = TextEditingController();
-  final _fineAmountController = TextEditingController();
-  final _processStatusController = TextEditingController();
-  final _processResultController = TextEditingController();
-  bool _isLoading = false;
+  late final OffenseFormController formController;
   final DashboardController controller = Get.find<DashboardController>();
-
-  Future<bool> _validateJwtToken() async {
-    final jwtToken = (await AuthTokenStore.instance.getJwtToken());
-    if (jwtToken == null || jwtToken.isEmpty) {
-      _showSnackBar('未授权，请重新登录', isError: true);
-      return false;
-    }
-    try {
-      if (JwtDecoder.isExpired(jwtToken)) {
-        _showSnackBar('登录已过期，请重新登录', isError: true);
-        return false;
-      }
-      return true;
-    } catch (e) {
-      _showSnackBar('无效的登录信息，请重新登录', isError: true);
-      return false;
-    }
-  }
+  String get _controllerTag =>
+      'edit-offense-${widget.offense.offenseId ?? identityHashCode(widget.offense)}';
+  GlobalKey<FormState> get _formKey => formController.formKey;
+  TextEditingController get _driverNameController =>
+      formController.driverNameController;
+  TextEditingController get _licensePlateController =>
+      formController.licensePlateController;
+  TextEditingController get _offenseTypeController =>
+      formController.offenseTypeController;
+  TextEditingController get _offenseCodeController =>
+      formController.offenseCodeController;
+  TextEditingController get _offenseLocationController =>
+      formController.offenseLocationController;
+  TextEditingController get _offenseTimeController =>
+      formController.offenseTimeController;
+  TextEditingController get _deductedPointsController =>
+      formController.deductedPointsController;
+  TextEditingController get _fineAmountController =>
+      formController.fineAmountController;
+  TextEditingController get _processStatusController =>
+      formController.processStatusController;
+  TextEditingController get _processResultController =>
+      formController.processResultController;
+  bool get _isLoading => formController.isLoading.value;
 
   @override
   void initState() {
     super.initState();
-    _initialize();
+    formController = Get.find<OffenseFormController>(tag: _controllerTag);
   }
 
-  Future<void> _initialize() async {
-    setState(() => _isLoading = true);
-    try {
-      if (!await _validateJwtToken()) {
-        Navigator.pushReplacementNamed(context, Routes.login);
-        return;
-      }
-      await offenseApi.initializeWithJwt();
-      await vehicleApi.initializeWithJwt(); // Initialize vehicle API
-      _initializeFields();
-    } catch (e) {
-      _showSnackBar('初始化失败: $e', isError: true);
-    } finally {
-      setState(() => _isLoading = false);
-    }
-  }
+  Future<List<String>> _fetchDriverNameSuggestions(String prefix) =>
+      formController.fetchDriverNameSuggestions(prefix);
 
-  void _initializeFields() {
-    setState(() {
-      _driverNameController.text = widget.offense.driverName ?? '';
-      _licensePlateController.text = widget.offense.licensePlate ?? '';
-      _offenseTypeController.text = widget.offense.offenseType ?? '';
-      _offenseCodeController.text = widget.offense.offenseCode ?? '';
-      _offenseLocationController.text = widget.offense.offenseLocation ?? '';
-      _offenseTimeController.text = formatDate(widget.offense.offenseTime);
-      _deductedPointsController.text =
-          widget.offense.deductedPoints?.toString() ?? '';
-      _fineAmountController.text = widget.offense.fineAmount?.toString() ?? '';
-      _processStatusController.text =
-          getOffenseProcessStatusLabel(widget.offense.processStatus);
-      _processResultController.text = widget.offense.processResult ?? '';
-    });
-  }
-
-  @override
-  void dispose() {
-    _driverNameController.dispose();
-    _licensePlateController.dispose();
-    _offenseTypeController.dispose();
-    _offenseCodeController.dispose();
-    _offenseLocationController.dispose();
-    _offenseTimeController.dispose();
-    _deductedPointsController.dispose();
-    _fineAmountController.dispose();
-    _processStatusController.dispose();
-    _processResultController.dispose();
-    super.dispose();
-  }
-
-  Future<List<String>> _fetchDriverNameSuggestions(String prefix) async {
-    try {
-      if (!await _validateJwtToken()) {
-        Navigator.pushReplacementNamed(context, Routes.login);
-        return [];
-      }
-      final vehicles = await vehicleApi.apiVehiclesSearchGeneralGet(
-          keywords: prefix, page: 1, size: 10);
-      return vehicles
-          .map((v) => v.ownerName ?? '')
-          .where((name) => name.toLowerCase().contains(prefix.toLowerCase()))
-          .toSet()
-          .toList();
-    } catch (e) {
-      _showSnackBar('获取司机姓名建议失败: $e', isError: true);
-      return [];
-    }
-  }
-
-  Future<List<String>> _fetchLicensePlateSuggestions(String prefix) async {
-    try {
-      if (!await _validateJwtToken()) {
-        Navigator.pushReplacementNamed(context, Routes.login);
-        return [];
-      }
-      return await vehicleApi.apiVehiclesSearchLicenseGlobalGet(prefix: prefix);
-    } catch (e) {
-      _showSnackBar('获取车牌号建议失败: $e', isError: true);
-      return [];
-    }
-  }
+  Future<List<String>> _fetchLicensePlateSuggestions(String prefix) =>
+      formController.fetchLicensePlateSuggestions(prefix);
 
   Future<void> _updateOffense() async {
-    if (!_formKey.currentState!.validate()) return;
-    if (!await _validateJwtToken()) {
-      Navigator.pushReplacementNamed(context, Routes.login);
+    final success = await formController.submit();
+    if (!mounted) return;
+    if (success) {
+      _showSnackBar('更新违法行为记录成功！');
+      Navigator.pop(context, true);
       return;
     }
-    setState(() => _isLoading = true);
-    try {
-      final offenseTime =
-          DateTime.parse("${_offenseTimeController.text.trim()}T00:00:00.000");
-      final offensePayload = OffenseInformation(
-        offenseId: widget.offense.offenseId,
-        driverName: _driverNameController.text.trim(),
-        licensePlate: _licensePlateController.text.trim(),
-        offenseType: _offenseTypeController.text.trim(),
-        offenseCode: _offenseCodeController.text.trim(),
-        offenseLocation: _offenseLocationController.text.trim(),
-        offenseTime: offenseTime,
-        deductedPoints: _deductedPointsController.text.trim().isEmpty
-            ? null
-            : int.parse(_deductedPointsController.text.trim()),
-        fineAmount: _fineAmountController.text.trim().isEmpty
-            ? null
-            : double.parse(_fineAmountController.text.trim()),
-        processStatus: widget.offense.processStatus,
-        processResult: _processResultController.text.trim().isEmpty
-            ? null
-            : _processResultController.text.trim(),
-      );
-      final idempotencyKey = generateIdempotencyKey();
-      await offenseApi.apiOffensesOffenseIdPut(
-        offenseId: widget.offense.offenseId!,
-        offenseInformation: offensePayload,
-        idempotencyKey: idempotencyKey,
-      );
-      _showSnackBar('更新违法行为记录成功！');
-      if (mounted) Navigator.pop(context, true);
-    } catch (e) {
-      _showSnackBar('更新违法行为记录失败: $e', isError: true);
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+    if (formController.errorMessage.value.isNotEmpty) {
+      _showSnackBar(formController.errorMessage.value, isError: true);
+      if (formController.errorMessage.value.contains('登录') ||
+          formController.errorMessage.value.contains('授权')) {
+        Navigator.pushReplacementNamed(context, Routes.login);
+      }
     }
   }
 
@@ -1818,7 +1626,7 @@ class _EditOffensePageState extends State<EditOffensePage> {
       ),
     );
     if (pickedDate != null && mounted) {
-      setState(() => _offenseTimeController.text = formatDate(pickedDate));
+      formController.setOffenseDate(pickedDate);
     }
   }
 
@@ -1995,6 +1803,7 @@ class _EditOffensePageState extends State<EditOffensePage> {
   @override
   Widget build(BuildContext context) {
     return Obx(() {
+      formController.isLoading.value;
       final themeData = controller.currentBodyTheme.value;
       return DashboardPageTemplate(
         theme: themeData,

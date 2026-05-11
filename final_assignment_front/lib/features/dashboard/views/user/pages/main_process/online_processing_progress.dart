@@ -1,6 +1,7 @@
 // ignore_for_file: use_build_context_synchronously
 
 import 'package:final_assignment_front/config/routes/app_routes.dart';
+import 'package:final_assignment_front/features/dashboard/bindings/progress_binding.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/progress_controller.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
@@ -17,14 +18,9 @@ class OnlineProcessingProgress extends StatelessWidget {
     final UserDashboardController dashboardController =
         Get.find<UserDashboardController>();
 
-// Ensure ProgressController is registered (fallback, but prefer global registration)
-    ProgressController progressController;
-    try {
-      progressController = Get.find<ProgressController>();
-    } catch (e) {
-      progressController = Get.put(ProgressController());
-      debugPrint('ProgressController was not found; registered locally: $e');
-    }
+    ProgressBinding.registerDependencies();
+    final ProgressController progressController =
+        Get.find<ProgressController>();
 
     return Obx(() {
       final themeData = dashboardController.currentBodyTheme.value;

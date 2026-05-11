@@ -1,3 +1,4 @@
+import 'package:final_assignment_front/features/dashboard/bindings/manager_dashboard_binding.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/appeal_management.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/deduction_management.dart';
@@ -23,12 +24,8 @@ class _ManagerBusinessProcessingState extends State<ManagerBusinessProcessing> {
   @override
   void initState() {
     super.initState();
-    try {
-      controller = Get.find<DashboardController>();
-    } catch (e) {
-      debugPrint('DashboardController not found: $e');
-      controller = Get.put(DashboardController()); // Register if not found
-    }
+    DashboardBinding.registerDependencies();
+    controller = Get.find<DashboardController>();
   }
 
   // 业务选项数据
@@ -112,8 +109,8 @@ class _ManagerBusinessProcessingState extends State<ManagerBusinessProcessing> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           CircleAvatar(
-                            backgroundColor:
-                                colorScheme.primaryContainer.withValues(alpha: 0.6),
+                            backgroundColor: colorScheme.primaryContainer
+                                .withValues(alpha: 0.6),
                             child: Icon(
                               option['icon'],
                               color: colorScheme.onPrimaryContainer,

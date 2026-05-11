@@ -1,6 +1,7 @@
 // ignore_for_file: use_build_context_synchronously
 import 'dart:convert';
 
+import 'package:final_assignment_front/features/dashboard/bindings/progress_binding.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/progress_controller.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/user/widgets/user_page_app_bar.dart';
@@ -52,9 +53,17 @@ class ConsultationFeedback extends StatefulWidget {
 
 class _ConsultationFeedbackState extends State<ConsultationFeedback> {
   final TextEditingController _feedbackController = TextEditingController();
+  late final ProgressController _progressController;
   final UserDashboardController _dashboardController =
       Get.find<UserDashboardController>();
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    ProgressBinding.registerDependencies();
+    _progressController = Get.find<ProgressController>();
+  }
 
   @override
   void dispose() {
@@ -79,7 +88,7 @@ class _ConsultationFeedbackState extends State<ConsultationFeedback> {
         throw Exception('未找到登录信息，请重新登录');
       }
 
-      final apiClient = Get.find<ProgressController>().apiClient;
+      final apiClient = _progressController.apiClient;
       final feedbackData = Feedback(
         feedbackId: 0,
         username: username,
@@ -201,6 +210,7 @@ class FeedbackApprovalPage extends StatefulWidget {
 
 class _FeedbackApprovalPageState extends State<FeedbackApprovalPage> {
   final List<Feedback> _feedbackRequests = [];
+  late final ProgressController _progressController;
   final UserDashboardController dashboardController =
       Get.find<UserDashboardController>();
   bool _isLoading = true;
@@ -209,6 +219,8 @@ class _FeedbackApprovalPageState extends State<FeedbackApprovalPage> {
   @override
   void initState() {
     super.initState();
+    ProgressBinding.registerDependencies();
+    _progressController = Get.find<ProgressController>();
     _fetchFeedbackRequests();
   }
 
@@ -225,7 +237,7 @@ class _FeedbackApprovalPageState extends State<FeedbackApprovalPage> {
         throw Exception('未登录，请重新登录');
       }
 
-      final apiClient = Get.find<ProgressController>().apiClient;
+      final apiClient = _progressController.apiClient;
       final response = await apiClient.invokeAPI(
         '/api/feedback',
         'GET',
@@ -268,7 +280,7 @@ class _FeedbackApprovalPageState extends State<FeedbackApprovalPage> {
         throw Exception('未登录，请重新登录');
       }
 
-      final apiClient = Get.find<ProgressController>().apiClient;
+      final apiClient = _progressController.apiClient;
       final response = await apiClient.invokeAPI(
         '/api/feedback/$feedbackId',
         'PUT',

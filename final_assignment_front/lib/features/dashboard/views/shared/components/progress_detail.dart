@@ -1,4 +1,5 @@
 // ignore_for_file: use_build_context_synchronously
+import 'package:final_assignment_front/features/dashboard/bindings/progress_binding.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/progress_controller.dart';
 import 'package:final_assignment_front/features/model/progress_item.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
@@ -16,11 +17,18 @@ class ProgressDetailPage extends StatefulWidget {
 }
 
 class _ProgressDetailPageState extends State<ProgressDetailPage> {
-  final ProgressController progressController = Get.find<ProgressController>();
+  late final ProgressController progressController;
   final UserDashboardController? dashboardController =
       Get.isRegistered<UserDashboardController>()
           ? Get.find<UserDashboardController>()
           : null;
+
+  @override
+  void initState() {
+    super.initState();
+    ProgressBinding.registerDependencies();
+    progressController = Get.find<ProgressController>();
+  }
 
   @override
   Widget build(BuildContext context) {
