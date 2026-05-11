@@ -1,54 +1,20 @@
 ﻿import React, { useMemo, useState } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
 import PageLayout from '../../components/PageLayout.jsx';
 import DataTable from '../../components/DataTable.jsx';
 import SearchBar from '../../components/SearchBar.jsx';
 import Modal from '../../components/Modal.jsx';
 import StatusPill from '../../components/StatusPill.jsx';
-import { entityConfigs } from '../../config/entities.js';
-import { listEntities, postWithIdempotency } from '../../api/entities.js';
+import { useAppealManagement } from '../../hooks/useAppealManagement.js';
 import { formatDateTime, normalizeText } from '../../utils/format.js';
-import {
-  APPEAL_PROCESS_EVENT,
-  canApprove,
-  canReject,
-} from '../../utils/workflowPermissions.js';
+import { canApprove, canReject } from '../../utils/workflowPermissions.js';
 import { getStatusLabel } from '../../utils/statusLabels.js';
-
-async function fetchAppeals() {
-  const offenses = await listEntities(entityConfigs.offenses.basePath);
-  const results = [];
-  for (const offense of offenses.slice(0, 20)) {
-    if (!offense.offenseId) continue;
-    try {
-      const appealList = await listEntities(entityConfigs.appeals.basePath, {
-        offenseId: offense.offenseId,
-        page: 1,
-        size: 50,
-      });
-      results.push(...appealList);
-    } catch (error) {
-      // ignore per-offense errors
-    }
-  }
-  return results;
-}
 
 export default function AppealManagementPage() {
   const [search, setSearch] = useState('');
   const [activeAppeal, setActiveAppeal] = useState(null);
   const [rejectReason, setRejectReason] = useState('');
 
-  const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['appeals'],
-    queryFn: fetchAppeals,
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, event }) =>
-      postWithIdempotency(`/api/workflow/appeals/${id}/events/${event}`, {}),
-    onSuccess: () => refetch(),
-  });
+  const { data, isLoading, isError, approve, reject, isUpdating } = useAppealManagement();
 
   const rows = Array.isArray(data) ? data : [];
 
@@ -72,19 +38,13 @@ export default function AppealManagementPage() {
 
   const handleApprove = async () => {
     if (!activeAppeal?.appealId) return;
-    await updateMutation.mutateAsync({
-      id: activeAppeal.appealId,
-      event: APPEAL_PROCESS_EVENT.approve,
-    });
+    await approve(activeAppeal);
     setActiveAppeal(null);
   };
 
   const handleReject = async () => {
     if (!activeAppeal?.appealId) return;
-    await updateMutation.mutateAsync({
-      id: activeAppeal.appealId,
-      event: APPEAL_PROCESS_EVENT.reject,
-    });
+    await reject(activeAppeal);
     setRejectReason('');
     setActiveAppeal(null);
   };
@@ -93,7 +53,7 @@ export default function AppealManagementPage() {
     <PageLayout title="申诉管理" subtitle="申诉审核与处理结果确认">
       <SearchBar value={search} onChange={setSearch} placeholder="搜索申诉原因/申诉人/处理状态" />
       {isLoading ? <div className="placeholder">加载中...</div> : null}
-      {error ? <div className="form-error">加载失败，请检查后端服务。</div> : null}
+      {isError ? <div className="form-error">加载失败，请检查后端服务。</div> : null}
       <DataTable
         columns={columns}
         rows={filteredRows}
@@ -115,7 +75,7 @@ export default function AppealManagementPage() {
               type="button"
               className="primary"
               onClick={handleApprove}
-              disabled={!canApprove(activeAppeal?.processStatus)}
+              disabled={isUpdating || !canApprove(activeAppeal?.processStatus)}
             >
               通过
             </button>
@@ -123,7 +83,7 @@ export default function AppealManagementPage() {
               type="button"
               className="danger"
               onClick={handleReject}
-              disabled={!canReject(activeAppeal?.processStatus)}
+              disabled={isUpdating || !canReject(activeAppeal?.processStatus)}
             >
               驳回
             </button>
