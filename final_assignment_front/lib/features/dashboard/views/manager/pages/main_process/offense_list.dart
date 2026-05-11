@@ -9,6 +9,7 @@ import 'package:final_assignment_front/features/dashboard/controllers/manager_da
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/model/offense_information.dart';
 import 'package:final_assignment_front/features/offense/controllers/offense_form_controller.dart';
+import 'package:final_assignment_front/shared/widgets/index.dart';
 import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -691,48 +692,26 @@ class _OffenseListPageState extends State<OffenseList> {
                       return false;
                     },
                     child: _isLoading && _currentPage == 1
-                        ? Center(
-                            child: CircularProgressIndicator(
-                              valueColor: AlwaysStoppedAnimation(
-                                  themeData.colorScheme.primary),
-                            ),
-                          )
+                        ? const LoadingView()
                         : _errorMessage.isNotEmpty &&
                                 _filteredOffenseList.isEmpty
-                            ? Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      _errorMessage,
-                                      style: themeData.textTheme.titleMedium
-                                          ?.copyWith(
-                                        color: themeData.colorScheme.error,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                    if (_errorMessage.contains('未授权') ||
-                                        _errorMessage.contains('登录'))
-                                      Padding(
-                                        padding:
-                                            const EdgeInsets.only(top: 16.0),
-                                        child: ElevatedButton(
-                                          onPressed: () =>
-                                              Navigator.pushReplacementNamed(
-                                                  context, Routes.login),
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor:
-                                                themeData.colorScheme.primary,
-                                            foregroundColor:
-                                                themeData.colorScheme.onPrimary,
-                                          ),
-                                          child: const Text('重新登录'),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              )
+                            ? (_errorMessage.contains('未找到') ||
+                                    _errorMessage.contains('当前没有')
+                                ? EmptyStateView(
+                                    message: _errorMessage,
+                                    icon: Icons.receipt_long_outlined,
+                                  )
+                                : ErrorStateView(
+                                    message: _errorMessage,
+                                    actionLabel: '重新登录',
+                                    onRetry: _errorMessage.contains('未授权') ||
+                                            _errorMessage.contains('登录')
+                                        ? () => Navigator.pushReplacementNamed(
+                                              context,
+                                              Routes.login,
+                                            )
+                                        : null,
+                                  ))
                             : ListView.builder(
                                 itemCount: _filteredOffenseList.length +
                                     (_hasMore ? 1 : 0),
@@ -1147,7 +1126,7 @@ class _AddOffensePageState extends State<AddOffensePage> {
         body: Padding(
           padding: const EdgeInsets.all(16.0),
           child: _isLoading
-              ? const Center(child: CircularProgressIndicator())
+              ? const LoadingView()
               : Form(
                   key: _formKey,
                   child: SingleChildScrollView(
@@ -1403,29 +1382,12 @@ class _OffenseDetailPageState extends State<OffenseDetailPage> {
           pageType: DashboardPageType.manager,
           bodyIsScrollable: true,
           padding: EdgeInsets.zero,
-          body: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(_errorMessage,
-                    style: themeData.textTheme.titleMedium?.copyWith(
-                        color: themeData.colorScheme.error,
-                        fontWeight: FontWeight.w500),
-                    textAlign: TextAlign.center),
-                if (_errorMessage.contains('登录'))
-                  Padding(
-                    padding: const EdgeInsets.only(top: 16.0),
-                    child: ElevatedButton(
-                      onPressed: () =>
-                          Navigator.pushReplacementNamed(context, Routes.login),
-                      style: ElevatedButton.styleFrom(
-                          backgroundColor: themeData.colorScheme.primary,
-                          foregroundColor: themeData.colorScheme.onPrimary),
-                      child: const Text('前往登录'),
-                    ),
-                  ),
-              ],
-            ),
+          body: ErrorStateView(
+            message: _errorMessage,
+            actionLabel: '前往登录',
+            onRetry: _errorMessage.contains('登录')
+                ? () => Navigator.pushReplacementNamed(context, Routes.login)
+                : null,
           ),
         );
       }
@@ -1463,10 +1425,7 @@ class _OffenseDetailPageState extends State<OffenseDetailPage> {
           ],
         ],
         body: _isLoading
-            ? Center(
-                child: CircularProgressIndicator(
-                    valueColor:
-                        AlwaysStoppedAnimation(themeData.colorScheme.primary)))
+            ? const LoadingView()
             : Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Card(
@@ -1814,7 +1773,7 @@ class _EditOffensePageState extends State<EditOffensePage> {
         body: Padding(
           padding: const EdgeInsets.all(16.0),
           child: _isLoading
-              ? const Center(child: CircularProgressIndicator())
+              ? const LoadingView()
               : Form(
                   key: _formKey,
                   child: SingleChildScrollView(

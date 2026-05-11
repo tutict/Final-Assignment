@@ -10,6 +10,7 @@ import 'package:final_assignment_front/features/dashboard/views/shared/widgets/d
 import 'package:final_assignment_front/features/model/driver_information.dart';
 import 'package:final_assignment_front/features/model/user_management.dart';
 import 'package:final_assignment_front/features/model/vehicle_information.dart';
+import 'package:final_assignment_front/shared/widgets/index.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
@@ -652,48 +653,26 @@ class _VehicleListState extends State<VehicleList> {
                       return false;
                     },
                     child: _isLoading && _currentPage == 1
-                        ? Center(
-                            child: CircularProgressIndicator(
-                              valueColor: AlwaysStoppedAnimation(
-                                  themeData.colorScheme.primary),
-                            ),
-                          )
+                        ? const LoadingView()
                         : _errorMessage.isNotEmpty &&
                                 _filteredVehicleList.isEmpty
-                            ? Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      _errorMessage,
-                                      style: themeData.textTheme.titleMedium
-                                          ?.copyWith(
-                                        color: themeData.colorScheme.error,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                    if (_errorMessage.contains('未授权') ||
-                                        _errorMessage.contains('登录'))
-                                      Padding(
-                                        padding:
-                                            const EdgeInsets.only(top: 16.0),
-                                        child: ElevatedButton(
-                                          onPressed: () =>
-                                              Navigator.pushReplacementNamed(
-                                                  context, '/login'),
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor:
-                                                themeData.colorScheme.primary,
-                                            foregroundColor:
-                                                themeData.colorScheme.onPrimary,
-                                          ),
-                                          child: const Text('重新登录'),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              )
+                            ? (_errorMessage.contains('未找到') ||
+                                    _errorMessage.contains('当前没有')
+                                ? EmptyStateView(
+                                    message: _errorMessage,
+                                    icon: Icons.directions_car_outlined,
+                                  )
+                                : ErrorStateView(
+                                    message: _errorMessage,
+                                    actionLabel: '重新登录',
+                                    onRetry: _errorMessage.contains('未授权') ||
+                                            _errorMessage.contains('登录')
+                                        ? () => Navigator.pushReplacementNamed(
+                                              context,
+                                              '/login',
+                                            )
+                                        : null,
+                                  ))
                             : ListView.builder(
                                 itemCount: _filteredVehicleList.length +
                                     (_hasMore ? 1 : 0),
@@ -1186,7 +1165,7 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
         body: Padding(
           padding: const EdgeInsets.all(16.0),
           child: _isLoading
-              ? const Center(child: CircularProgressIndicator())
+              ? const LoadingView()
               : Form(
                   key: _formKey,
                   child: SingleChildScrollView(
@@ -1612,7 +1591,7 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
         body: Padding(
           padding: const EdgeInsets.all(16.0),
           child: _isLoading
-              ? const Center(child: CircularProgressIndicator())
+              ? const LoadingView()
               : Form(
                   key: _formKey,
                   child: SingleChildScrollView(
@@ -1957,29 +1936,12 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
           pageType: DashboardPageType.manager,
           bodyIsScrollable: true,
           padding: EdgeInsets.zero,
-          body: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(_errorMessage,
-                    style: themeData.textTheme.titleMedium?.copyWith(
-                        color: themeData.colorScheme.error,
-                        fontWeight: FontWeight.w500),
-                    textAlign: TextAlign.center),
-                if (_errorMessage.contains('登录'))
-                  Padding(
-                    padding: const EdgeInsets.only(top: 16.0),
-                    child: ElevatedButton(
-                      onPressed: () =>
-                          Navigator.pushReplacementNamed(context, '/login'),
-                      style: ElevatedButton.styleFrom(
-                          backgroundColor: themeData.colorScheme.primary,
-                          foregroundColor: themeData.colorScheme.onPrimary),
-                      child: const Text('前往登录'),
-                    ),
-                  ),
-              ],
-            ),
+          body: ErrorStateView(
+            message: _errorMessage,
+            actionLabel: '前往登录',
+            onRetry: _errorMessage.contains('登录')
+                ? () => Navigator.pushReplacementNamed(context, '/login')
+                : null,
           ),
         );
       }
@@ -2027,10 +1989,7 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
           ],
         ],
         body: _isLoading
-            ? Center(
-                child: CircularProgressIndicator(
-                    valueColor:
-                        AlwaysStoppedAnimation(themeData.colorScheme.primary)))
+            ? const LoadingView()
             : Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Card(

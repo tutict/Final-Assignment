@@ -5,6 +5,7 @@ import 'package:final_assignment_front/features/dashboard/bindings/progress_bind
 import 'package:final_assignment_front/features/dashboard/controllers/progress_controller.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/user/widgets/user_page_app_bar.dart';
+import 'package:final_assignment_front/shared/widgets/index.dart';
 import 'package:final_assignment_front/utils/ui/ui_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -173,7 +174,7 @@ class _ConsultationFeedbackState extends State<ConsultationFeedback> {
               ),
               const SizedBox(height: 20),
               _isLoading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const LoadingView()
                   : SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
@@ -327,24 +328,16 @@ class _FeedbackApprovalPageState extends State<FeedbackApprovalPage> {
         body: Padding(
           padding: const EdgeInsets.all(16.0),
           child: _isLoading
-              ? const Center(child: CircularProgressIndicator())
+              ? const LoadingView()
               : _errorMessage.isNotEmpty
-                  ? Center(
-                      child: Text(
-                        _errorMessage,
-                        style: themeData.textTheme.bodyLarge?.copyWith(
-                          color: themeData.colorScheme.error,
-                        ),
-                      ),
+                  ? ErrorStateView(
+                      message: _errorMessage,
+                      onRetry: _fetchFeedbackRequests,
                     )
                   : _feedbackRequests.isEmpty
-                      ? Center(
-                          child: Text(
-                            '暂无反馈请求',
-                            style: themeData.textTheme.bodyLarge?.copyWith(
-                              color: themeData.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
+                      ? const EmptyStateView(
+                          message: '暂无反馈请求',
+                          icon: Icons.feedback_outlined,
                         )
                       : ListView.builder(
                           itemCount: _feedbackRequests.length,

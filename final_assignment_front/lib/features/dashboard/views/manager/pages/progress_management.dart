@@ -4,6 +4,7 @@ import 'package:final_assignment_front/features/dashboard/controllers/progress_c
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/model/appeal_record.dart';
+import 'package:final_assignment_front/shared/widgets/index.dart';
 import 'package:final_assignment_front/utils/ui/ui_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -50,45 +51,19 @@ class ProgressManagementPage extends StatelessWidget {
 // 进度列表
               Expanded(
                 child: progressController.isLoading.value
-                    ? Center(
-                        child: CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation(
-                              themeData.colorScheme.primary),
-                        ),
-                      )
+                    ? const LoadingView()
                     : progressController.errorMessage.isNotEmpty
-                        ? Center(
-                            child: Text(
-                              progressController.errorMessage.value,
-                              style: themeData.textTheme.bodyLarge?.copyWith(
-                                color: themeData.colorScheme.error,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
+                        ? ErrorStateView(
+                            message: progressController.errorMessage.value,
                           )
                         : !progressController.isAdmin
-                            ? Center(
-                                child: Text(
-                                  '权限不足：仅管理员可访问',
-                                  style:
-                                      themeData.textTheme.titleMedium?.copyWith(
-                                    color:
-                                        themeData.colorScheme.onSurfaceVariant,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
+                            ? const PermissionDeniedView(
+                                hint: '权限不足：仅管理员可访问',
                               )
                             : progressController.filteredItems.isEmpty
-                                ? Center(
-                                    child: Text(
-                                      '暂无进度记录',
-                                      style: themeData.textTheme.titleMedium
-                                          ?.copyWith(
-                                        color: themeData
-                                            .colorScheme.onSurfaceVariant,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
+                                ? const EmptyStateView(
+                                    message: '暂无进度记录',
+                                    icon: Icons.timeline_outlined,
                                   )
                                 : ListView.builder(
                                     itemCount:

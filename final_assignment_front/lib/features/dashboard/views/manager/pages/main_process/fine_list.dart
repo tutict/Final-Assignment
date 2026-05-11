@@ -11,6 +11,7 @@ import 'package:final_assignment_front/features/dashboard/views/shared/widgets/d
 import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/features/api/fine_information_controller_api.dart';
 import 'package:final_assignment_front/features/model/fine_information.dart';
+import 'package:final_assignment_front/shared/widgets/index.dart';
 import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
 import 'package:final_assignment_front/utils/workflow_permissions.dart';
 import 'package:get/get.dart';
@@ -703,86 +704,63 @@ class _FineListState extends State<FineList> {
                       return false;
                     },
                     child: _isLoading && _currentPage == 1
-                        ? Center(
-                            child: CircularProgressIndicator(
-                              valueColor: AlwaysStoppedAnimation(
-                                  themeData.colorScheme.primary),
-                            ),
-                          )
+                        ? const LoadingView()
                         : _errorMessage.isNotEmpty && _filteredFineList.isEmpty
-                            ? Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      _errorMessage,
-                                      style: themeData.textTheme.titleMedium
-                                          ?.copyWith(
-                                        color: themeData.colorScheme.error,
-                                        fontWeight: FontWeight.w500,
+                            ? (_errorMessage.contains('未找到') ||
+                                    _errorMessage.contains('当前没有')
+                                ? EmptyStateView(
+                                    message: _errorMessage,
+                                    icon: Icons.payments_outlined,
+                                  )
+                                : Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      ErrorStateView(
+                                        message: _errorMessage,
+                                        actionLabel:
+                                            _errorMessage.contains('未授权') ||
+                                                    _errorMessage.contains('登录')
+                                                ? '重新登录'
+                                                : '重试',
+                                        onRetry: _errorMessage
+                                                    .contains('未授权') ||
+                                                _errorMessage.contains('登录')
+                                            ? () =>
+                                                Navigator.pushReplacementNamed(
+                                                  context,
+                                                  Routes.login,
+                                                )
+                                            : _errorMessage.contains('获取罚款信息失败')
+                                                ? _refreshFines
+                                                : null,
                                       ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                    if (_errorMessage.contains('获取罚款信息失败'))
-                                      Padding(
-                                        padding:
-                                            const EdgeInsets.only(top: 16.0),
-                                        child: ElevatedButton(
-                                          onPressed: () => _refreshFines(),
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor:
-                                                themeData.colorScheme.primary,
-                                            foregroundColor:
-                                                themeData.colorScheme.onPrimary,
+                                      if (_errorMessage.contains('获取罚款信息失败') &&
+                                          _cachedFineList.isNotEmpty)
+                                        Padding(
+                                          padding:
+                                              const EdgeInsets.only(top: 16.0),
+                                          child: ElevatedButton(
+                                            onPressed: () {
+                                              setState(() {
+                                                _fineList.clear();
+                                                _fineList
+                                                    .addAll(_cachedFineList);
+                                                _applyFilters(
+                                                    _searchController.text);
+                                                _errorMessage = '';
+                                              });
+                                            },
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: themeData
+                                                  .colorScheme.secondary,
+                                              foregroundColor: themeData
+                                                  .colorScheme.onSecondary,
+                                            ),
+                                            child: const Text('恢复缓存数据'),
                                           ),
-                                          child: const Text('重试'),
                                         ),
-                                      ),
-                                    if (_errorMessage.contains('获取罚款信息失败') &&
-                                        _cachedFineList.isNotEmpty)
-                                      Padding(
-                                        padding:
-                                            const EdgeInsets.only(top: 16.0),
-                                        child: ElevatedButton(
-                                          onPressed: () {
-                                            setState(() {
-                                              _fineList.clear();
-                                              _fineList.addAll(_cachedFineList);
-                                              _applyFilters(
-                                                  _searchController.text);
-                                              _errorMessage = '';
-                                            });
-                                          },
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor:
-                                                themeData.colorScheme.secondary,
-                                            foregroundColor: themeData
-                                                .colorScheme.onSecondary,
-                                          ),
-                                          child: const Text('恢复缓存数据'),
-                                        ),
-                                      ),
-                                    if (_errorMessage.contains('未授权') ||
-                                        _errorMessage.contains('登录'))
-                                      Padding(
-                                        padding:
-                                            const EdgeInsets.only(top: 16.0),
-                                        child: ElevatedButton(
-                                          onPressed: () =>
-                                              Navigator.pushReplacementNamed(
-                                                  context, Routes.login),
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor:
-                                                themeData.colorScheme.primary,
-                                            foregroundColor:
-                                                themeData.colorScheme.onPrimary,
-                                          ),
-                                          child: const Text('重新登录'),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              )
+                                    ],
+                                  ))
                             : ListView.builder(
                                 controller: _scrollController,
                                 itemCount: _filteredFineList.length +
@@ -1404,7 +1382,7 @@ class _AddFinePageState extends State<AddFinePage> {
         body: Padding(
           padding: const EdgeInsets.all(16.0),
           child: _isLoading
-              ? const Center(child: CircularProgressIndicator())
+              ? const LoadingView()
               : Form(
                   key: _formKey,
                   child: SingleChildScrollView(
@@ -1725,34 +1703,13 @@ class _FineDetailPageState extends State<FineDetailPage> {
           pageType: DashboardPageType.manager,
           bodyIsScrollable: true,
           padding: EdgeInsets.zero,
-          body: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  _errorMessage,
-                  style: themeData.textTheme.titleMedium?.copyWith(
-                    color: themeData.colorScheme.error,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                if (_errorMessage.contains('未授权') ||
-                    _errorMessage.contains('登录'))
-                  Padding(
-                    padding: const EdgeInsets.only(top: 16.0),
-                    child: ElevatedButton(
-                      onPressed: () =>
-                          Navigator.pushReplacementNamed(context, Routes.login),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: themeData.colorScheme.primary,
-                        foregroundColor: themeData.colorScheme.onPrimary,
-                      ),
-                      child: const Text('重新登录'),
-                    ),
-                  ),
-              ],
-            ),
+          body: ErrorStateView(
+            message: _errorMessage,
+            actionLabel: '重新登录',
+            onRetry: _errorMessage.contains('未授权') ||
+                    _errorMessage.contains('登录')
+                ? () => Navigator.pushReplacementNamed(context, Routes.login)
+                : null,
           ),
         );
       }
@@ -1793,12 +1750,7 @@ class _FineDetailPageState extends State<FineDetailPage> {
           ],
         ],
         body: _isLoading
-            ? Center(
-                child: CircularProgressIndicator(
-                  valueColor:
-                      AlwaysStoppedAnimation(themeData.colorScheme.primary),
-                ),
-              )
+            ? const LoadingView()
             : Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Card(

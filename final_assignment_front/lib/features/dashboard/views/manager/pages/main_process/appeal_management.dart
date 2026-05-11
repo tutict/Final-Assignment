@@ -9,6 +9,7 @@ import 'package:final_assignment_front/features/api/offense_information_controll
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/model/appeal_record.dart';
+import 'package:final_assignment_front/shared/widgets/index.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
 import 'package:final_assignment_front/utils/workflow_permissions.dart';
@@ -734,83 +735,29 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
               const SizedBox(height: 20),
               Expanded(
                 child: _isLoading
-                    ? Center(
-                        child: CupertinoActivityIndicator(
-                          color: themeData.colorScheme.primary,
-                          radius: 16.0,
-                        ),
-                      )
+                    ? const LoadingView()
                     : _errorMessage.isNotEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  CupertinoIcons.exclamationmark_triangle,
-                                  color: themeData.colorScheme.error,
-                                  size: 48,
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  _errorMessage,
-                                  style:
-                                      themeData.textTheme.titleMedium?.copyWith(
-                                    color: themeData.colorScheme.error,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                                if (_errorMessage.contains('未授权') ||
-                                    _errorMessage.contains('登录') ||
-                                    _errorMessage.contains('权限不足'))
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 20.0),
-                                    child: ElevatedButton(
-                                      onPressed: () =>
-                                          Get.offAllNamed(Routes.login),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor:
-                                            themeData.colorScheme.primary,
-                                        foregroundColor:
-                                            themeData.colorScheme.onPrimary,
-                                        shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(12.0)),
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 24.0, vertical: 12.0),
-                                      ),
-                                      child: const Text('重新登录'),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          )
+                        ? (_errorMessage.contains('未找到') ||
+                                _errorMessage.contains('暂无')
+                            ? EmptyStateView(
+                                message: _errorMessage,
+                                icon: CupertinoIcons.doc,
+                              )
+                            : ErrorStateView(
+                                message: _errorMessage,
+                                actionLabel: '重新登录',
+                                onRetry: _errorMessage.contains('未授权') ||
+                                        _errorMessage.contains('登录') ||
+                                        _errorMessage.contains('权限不足')
+                                    ? () => Get.offAllNamed(Routes.login)
+                                    : null,
+                              ))
                         : _filteredAppeals.isEmpty
-                            ? Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      CupertinoIcons.doc,
-                                      color: themeData
-                                          .colorScheme.onSurfaceVariant,
-                                      size: 48,
-                                    ),
-                                    const SizedBox(height: 16),
-                                    Text(
-                                      _errorMessage.isNotEmpty
-                                          ? _errorMessage
-                                          : '暂无申诉记录',
-                                      style: themeData.textTheme.titleMedium
-                                          ?.copyWith(
-                                        color: themeData
-                                            .colorScheme.onSurfaceVariant,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  ],
-                                ),
+                            ? EmptyStateView(
+                                message: _errorMessage.isNotEmpty
+                                    ? _errorMessage
+                                    : '暂无申诉记录',
+                                icon: CupertinoIcons.doc,
                               )
                             : CupertinoScrollbar(
                                 thumbVisibility: true,
@@ -1282,50 +1229,16 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
         body: Padding(
           padding: const EdgeInsets.all(16.0),
           child: _isLoading
-              ? Center(
-                  child: CupertinoActivityIndicator(
-                    color: themeData.colorScheme.primary,
-                    radius: 16.0,
-                  ),
-                )
+              ? const LoadingView()
               : _errorMessage.isNotEmpty
-                  ? Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          CupertinoIcons.exclamationmark_triangle,
-                          color: themeData.colorScheme.error,
-                          size: 48,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          _errorMessage,
-                          style: themeData.textTheme.titleMedium?.copyWith(
-                            color: themeData.colorScheme.error,
-                            fontWeight: FontWeight.w500,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        if (_errorMessage.contains('未授权') ||
-                            _errorMessage.contains('登录') ||
-                            _errorMessage.contains('权限不足'))
-                          Padding(
-                            padding: const EdgeInsets.only(top: 20.0),
-                            child: ElevatedButton(
-                              onPressed: () => Get.offAllNamed(Routes.login),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: themeData.colorScheme.primary,
-                                foregroundColor:
-                                    themeData.colorScheme.onPrimary,
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12.0)),
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 24.0, vertical: 12.0),
-                              ),
-                              child: const Text('重新登录'),
-                            ),
-                          ),
-                      ],
+                  ? ErrorStateView(
+                      message: _errorMessage,
+                      actionLabel: '重新登录',
+                      onRetry: _errorMessage.contains('未授权') ||
+                              _errorMessage.contains('登录') ||
+                              _errorMessage.contains('权限不足')
+                          ? () => Get.offAllNamed(Routes.login)
+                          : null,
                     )
                   : CupertinoScrollbar(
                       controller: ScrollController(),

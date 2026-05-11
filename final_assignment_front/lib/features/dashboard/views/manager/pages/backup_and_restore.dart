@@ -2,6 +2,7 @@ import 'package:final_assignment_front/features/api/backup_restore_controller_ap
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/model/backup_restore.dart';
+import 'package:final_assignment_front/shared/widgets/index.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -63,8 +64,7 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
         throw Exception('未登录，请重新登录');
       }
       final roles = _extractRoles(jwtToken);
-      final isAdmin =
-          roles.any((role) => role.toUpperCase().contains('ADMIN'));
+      final isAdmin = roles.any((role) => role.toUpperCase().contains('ADMIN'));
       if (!isAdmin) {
         setState(() {
           _isAdmin = false;
@@ -156,8 +156,7 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
           .toList();
     } else if (type == 'time') {
       filtered = _backups
-          .where((backup) =>
-              _formatDate(backup.backupTime).contains(trimmed))
+          .where((backup) => _formatDate(backup.backupTime).contains(trimmed))
           .toList();
     } else {
       filtered = List.from(_backups);
@@ -303,8 +302,7 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
 
   String _formatErrorMessage(dynamic error) {
     if (error is ApiException) {
-      final message =
-          error.message.isNotEmpty ? error.message : '服务器错误';
+      final message = error.message.isNotEmpty ? error.message : '服务器错误';
       return '$message (HTTP ${error.code})';
     }
     return error.toString();
@@ -398,9 +396,8 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
         title: '备份与恢复管理',
         pageType: DashboardPageType.manager,
         isLoading: _isLoading,
-        errorMessage: _errorMessage.isNotEmpty
-            ? _errorMessage
-            : '权限不足：仅管理员可访问此页面',
+        errorMessage:
+            _errorMessage.isNotEmpty ? _errorMessage : '权限不足：仅管理员可访问此页面',
         body: const SizedBox.shrink(),
       );
     }
@@ -422,249 +419,232 @@ class _BackupAndRestoreState extends State<BackupAndRestore> {
           ),
         ],
         body: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _fileNameController,
-                        decoration: InputDecoration(
-                          labelText: '按文件名搜索备份',
-                          prefixIcon: const Icon(Icons.search),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8.0),
-                          ),
-                          labelStyle: TextStyle(
-                            color: isLight ? Colors.black87 : Colors.white,
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderSide: BorderSide(
-                              color: isLight ? Colors.grey : Colors.grey[500]!,
-                            ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderSide: BorderSide(
-                              color: isLight ? Colors.blue : Colors.blueGrey,
-                            ),
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _fileNameController,
+                      decoration: InputDecoration(
+                        labelText: '按文件名搜索备份',
+                        prefixIcon: const Icon(Icons.search),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8.0),
+                        ),
+                        labelStyle: TextStyle(
+                          color: isLight ? Colors.black87 : Colors.white,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                            color: isLight ? Colors.grey : Colors.grey[500]!,
                           ),
                         ),
-                        onChanged: (value) =>
-                            _searchBackups('filename', value.trim()),
-                        style: TextStyle(
-                          color: isLight ? Colors.black : Colors.white,
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                            color: isLight ? Colors.blue : Colors.blueGrey,
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    ElevatedButton(
-                      onPressed: () => _searchBackups(
-                          'filename', _fileNameController.text.trim()),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                            isLight ? Colors.blue : Colors.blueGrey,
-                        foregroundColor: Colors.white,
+                      onChanged: (value) =>
+                          _searchBackups('filename', value.trim()),
+                      style: TextStyle(
+                        color: isLight ? Colors.black : Colors.white,
                       ),
-                      child: const Text('搜索'),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _backupTimeController,
-                        readOnly: true,
-                        decoration: InputDecoration(
-                          labelText: '按备份时间搜索',
-                          prefixIcon: const Icon(Icons.calendar_today),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8.0),
-                          ),
-                          labelStyle: TextStyle(
-                            color: isLight ? Colors.black87 : Colors.white,
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderSide: BorderSide(
-                              color: isLight ? Colors.grey : Colors.grey[500]!,
-                            ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderSide: BorderSide(
-                              color: isLight ? Colors.blue : Colors.blueGrey,
-                            ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: () => _searchBackups(
+                        'filename', _fileNameController.text.trim()),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isLight ? Colors.blue : Colors.blueGrey,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('搜索'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _backupTimeController,
+                      readOnly: true,
+                      decoration: InputDecoration(
+                        labelText: '按备份时间搜索',
+                        prefixIcon: const Icon(Icons.calendar_today),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8.0),
+                        ),
+                        labelStyle: TextStyle(
+                          color: isLight ? Colors.black87 : Colors.white,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                            color: isLight ? Colors.grey : Colors.grey[500]!,
                           ),
                         ),
-                        style: TextStyle(
-                          color: isLight ? Colors.black : Colors.white,
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(
+                            color: isLight ? Colors.blue : Colors.blueGrey,
+                          ),
                         ),
-                        onTap: () async {
-                          FocusScope.of(context).requestFocus(FocusNode());
-                          final pickedDate = await showDatePicker(
-                            context: context,
-                            initialDate: DateTime.now(),
-                            firstDate: DateTime(2000),
-                            lastDate: DateTime(2101),
-                            builder: (context, child) => Theme(
-                              data: ThemeData(
-                                primaryColor:
+                      ),
+                      style: TextStyle(
+                        color: isLight ? Colors.black : Colors.white,
+                      ),
+                      onTap: () async {
+                        FocusScope.of(context).requestFocus(FocusNode());
+                        final pickedDate = await showDatePicker(
+                          context: context,
+                          initialDate: DateTime.now(),
+                          firstDate: DateTime(2000),
+                          lastDate: DateTime(2101),
+                          builder: (context, child) => Theme(
+                            data: ThemeData(
+                              primaryColor:
+                                  isLight ? Colors.blue : Colors.blueGrey,
+                              colorScheme: ColorScheme.light(
+                                primary:
                                     isLight ? Colors.blue : Colors.blueGrey,
-                                colorScheme: ColorScheme.light(
-                                  primary:
-                                      isLight ? Colors.blue : Colors.blueGrey,
-                                ).copyWith(
-                                    secondary: isLight
-                                        ? Colors.blue
-                                        : Colors.blueGrey),
-                              ),
-                              child: child!,
+                              ).copyWith(
+                                  secondary:
+                                      isLight ? Colors.blue : Colors.blueGrey),
                             ),
-                          );
-                          if (pickedDate != null) {
-                            final formatted =
-                                "${pickedDate.year.toString().padLeft(4, '0')}-${pickedDate.month.toString().padLeft(2, '0')}-${pickedDate.day.toString().padLeft(2, '0')}";
-                            _backupTimeController.text = formatted;
-                            _searchBackups('time', formatted);
-                          }
-                        },
-                      ),
+                            child: child!,
+                          ),
+                        );
+                        if (pickedDate != null) {
+                          final formatted =
+                              "${pickedDate.year.toString().padLeft(4, '0')}-${pickedDate.month.toString().padLeft(2, '0')}-${pickedDate.day.toString().padLeft(2, '0')}";
+                          _backupTimeController.text = formatted;
+                          _searchBackups('time', formatted);
+                        }
+                      },
                     ),
-                    const SizedBox(width: 8),
-                    ElevatedButton(
-                      onPressed: () => _searchBackups(
-                          'time', _backupTimeController.text.trim()),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                            isLight ? Colors.blue : Colors.blueGrey,
-                        foregroundColor: Colors.white,
-                      ),
-                      child: const Text('搜索'),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: () => _searchBackups(
+                        'time', _backupTimeController.text.trim()),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isLight ? Colors.blue : Colors.blueGrey,
+                      foregroundColor: Colors.white,
                     ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Expanded(
-                  child: _isLoading
-                      ? const Center(child: CircularProgressIndicator())
-                      : _errorMessage.isNotEmpty
-                          ? Center(
-                              child: Text(
-                                _errorMessage,
-                                style: TextStyle(
-                                  color: isLight ? Colors.black : Colors.white,
+                    child: const Text('搜索'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: _isLoading
+                    ? const LoadingView()
+                    : _errorMessage.isNotEmpty
+                        ? ErrorStateView(message: _errorMessage)
+                        : _filteredBackups.isEmpty
+                            ? const EmptyStateView(
+                                message: '没有找到备份记录',
+                                icon: Icons.backup_outlined,
+                              )
+                            : RefreshIndicator(
+                                onRefresh: _loadBackups,
+                                child: ListView.builder(
+                                  physics:
+                                      const AlwaysScrollableScrollPhysics(),
+                                  itemCount: _filteredBackups.length,
+                                  itemBuilder: (context, index) {
+                                    final backup = _filteredBackups[index];
+                                    return Card(
+                                      margin: const EdgeInsets.symmetric(
+                                          vertical: 8.0, horizontal: 16.0),
+                                      elevation: 4,
+                                      color: isLight
+                                          ? Colors.white
+                                          : Colors.grey[800],
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(10.0),
+                                      ),
+                                      child: ListTile(
+                                        title: Text(
+                                          '文件名: ${backup.backupFileName ?? '无'}',
+                                          style: TextStyle(
+                                            color: isLight
+                                                ? Colors.black87
+                                                : Colors.white,
+                                          ),
+                                        ),
+                                        subtitle: Text(
+                                          '备份时间: ${_formatDateTime(backup.backupTime)}\n恢复时间: ${_formatDateTime(backup.restoreTime)}\n恢复状态: ${backup.restoreStatus ?? '未恢复'}',
+                                          style: TextStyle(
+                                            color: isLight
+                                                ? Colors.black54
+                                                : Colors.white70,
+                                          ),
+                                        ),
+                                        trailing: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            IconButton(
+                                              icon: Icon(
+                                                Icons.restore,
+                                                color: isLight
+                                                    ? Colors.green
+                                                    : Colors.green[300],
+                                              ),
+                                              onPressed: () =>
+                                                  _restoreBackup(backup),
+                                              tooltip: '恢复此备份',
+                                            ),
+                                            IconButton(
+                                              icon: Icon(
+                                                Icons.edit,
+                                                color: isLight
+                                                    ? Colors.blue
+                                                    : Colors.blue[300],
+                                              ),
+                                              onPressed: () =>
+                                                  _showUpdateBackupDialog(
+                                                      backup),
+                                              tooltip: '编辑此备份',
+                                            ),
+                                            IconButton(
+                                              icon: Icon(
+                                                Icons.delete,
+                                                color: isLight
+                                                    ? Colors.red
+                                                    : Colors.red[300],
+                                              ),
+                                              onPressed: () => _deleteBackup(
+                                                  backup.backupId!),
+                                              tooltip: '删除此备份',
+                                            ),
+                                            IconButton(
+                                              icon: Icon(
+                                                Icons.info,
+                                                color: isLight
+                                                    ? Colors.blue
+                                                    : Colors.blue[300],
+                                              ),
+                                              onPressed: () =>
+                                                  _goToDetailPage(backup),
+                                              tooltip: '查看详情',
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  },
                                 ),
                               ),
-                            )
-                          : _filteredBackups.isEmpty
-                              ? Center(
-                                  child: Text(
-                                    '没有找到备份记录',
-                                    style: TextStyle(
-                                      color: isLight
-                                          ? Colors.black
-                                          : Colors.white,
-                                    ),
-                                  ),
-                                )
-                              : RefreshIndicator(
-                                  onRefresh: _loadBackups,
-                                  child: ListView.builder(
-                                    physics:
-                                        const AlwaysScrollableScrollPhysics(),
-                                    itemCount: _filteredBackups.length,
-                                    itemBuilder: (context, index) {
-                                      final backup = _filteredBackups[index];
-                                      return Card(
-                                        margin: const EdgeInsets.symmetric(
-                                            vertical: 8.0, horizontal: 16.0),
-                                        elevation: 4,
-                                        color: isLight
-                                            ? Colors.white
-                                            : Colors.grey[800],
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(10.0),
-                                        ),
-                                        child: ListTile(
-                                          title: Text(
-                                            '文件名: ${backup.backupFileName ?? '无'}',
-                                            style: TextStyle(
-                                              color: isLight
-                                                  ? Colors.black87
-                                                  : Colors.white,
-                                            ),
-                                          ),
-                                          subtitle: Text(
-                                            '备份时间: ${_formatDateTime(backup.backupTime)}\n恢复时间: ${_formatDateTime(backup.restoreTime)}\n恢复状态: ${backup.restoreStatus ?? '未恢复'}',
-                                            style: TextStyle(
-                                              color: isLight
-                                                  ? Colors.black54
-                                                  : Colors.white70,
-                                            ),
-                                          ),
-                                          trailing: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              IconButton(
-                                                icon: Icon(
-                                                  Icons.restore,
-                                                  color: isLight
-                                                      ? Colors.green
-                                                      : Colors.green[300],
-                                                ),
-                                                onPressed: () =>
-                                                    _restoreBackup(backup),
-                                                tooltip: '恢复此备份',
-                                              ),
-                                              IconButton(
-                                                icon: Icon(
-                                                  Icons.edit,
-                                                  color: isLight
-                                                      ? Colors.blue
-                                                      : Colors.blue[300],
-                                                ),
-                                                onPressed: () =>
-                                                    _showUpdateBackupDialog(
-                                                        backup),
-                                                tooltip: '编辑此备份',
-                                              ),
-                                              IconButton(
-                                                icon: Icon(
-                                                  Icons.delete,
-                                                  color: isLight
-                                                      ? Colors.red
-                                                      : Colors.red[300],
-                                                ),
-                                                onPressed: () =>
-                                                    _deleteBackup(
-                                                        backup.backupId!),
-                                                tooltip: '删除此备份',
-                                              ),
-                                              IconButton(
-                                                icon: Icon(
-                                                  Icons.info,
-                                                  color: isLight
-                                                      ? Colors.blue
-                                                      : Colors.blue[300],
-                                                ),
-                                                onPressed: () =>
-                                                    _goToDetailPage(backup),
-                                                tooltip: '查看详情',
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-        );
+        ),
+      );
     });
   }
 }
@@ -796,8 +776,7 @@ class _BackupDetailPageState extends State<BackupDetailPage> {
 
   String _formatErrorMessage(dynamic error) {
     if (error is ApiException) {
-      final message =
-          error.message.isNotEmpty ? error.message : '服务器错误';
+      final message = error.message.isNotEmpty ? error.message : '服务器错误';
       return '$message (HTTP ${error.code})';
     }
     return error.toString();
@@ -839,7 +818,7 @@ class _BackupDetailPageState extends State<BackupDetailPage> {
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
+            ? const LoadingView()
             : ListView(
                 children: [
                   _buildDetailRow(
@@ -848,8 +827,8 @@ class _BackupDetailPageState extends State<BackupDetailPage> {
                       context, '文件名', _backup.backupFileName ?? '无'),
                   _buildDetailRow(
                       context, '备份时间', _formatDateTime(_backup.backupTime)),
-                  _buildDetailRow(context, '恢复时间',
-                      _formatDateTime(_backup.restoreTime)),
+                  _buildDetailRow(
+                      context, '恢复时间', _formatDateTime(_backup.restoreTime)),
                   _buildDetailRow(
                       context, '恢复状态', _backup.restoreStatus ?? '未恢复'),
                   _buildDetailRow(context, '备注', _backup.remarks ?? '无'),

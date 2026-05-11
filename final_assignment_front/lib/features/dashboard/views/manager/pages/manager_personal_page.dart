@@ -6,6 +6,7 @@ import 'package:final_assignment_front/features/dashboard/controllers/manager_da
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/model/driver_information.dart';
 import 'package:final_assignment_front/features/model/user_management.dart';
+import 'package:final_assignment_front/shared/widgets/index.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -351,8 +352,8 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8.0),
                         borderSide: BorderSide(
-                            color:
-                                themeData.colorScheme.outline.withValues(alpha: 0.3)),
+                            color: themeData.colorScheme.outline
+                                .withValues(alpha: 0.3)),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8.0),
@@ -430,50 +431,25 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
     });
   }
 
-
   Widget _buildBody(ThemeData themeData) {
     if (_isLoading) {
-      return Center(
-        child: CupertinoActivityIndicator(
-          color: themeData.colorScheme.primary,
-          radius: 16.0,
-        ),
-      );
+      return const LoadingView();
     }
 
     if (_errorMessage.isNotEmpty) {
-      return Center(
-        child: Text(
-          _errorMessage,
-          style: themeData.textTheme.bodyLarge?.copyWith(
-            color: themeData.colorScheme.error,
-            fontSize: 18,
-          ),
-        ),
-      );
+      return ErrorStateView(message: _errorMessage);
     }
 
     return FutureBuilder<UserManagement?>(
       future: _managerFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(
-            child: CupertinoActivityIndicator(
-              color: themeData.colorScheme.primary,
-              radius: 16.0,
-            ),
-          );
+          return const LoadingView();
         } else if (snapshot.hasError ||
             !snapshot.hasData ||
             snapshot.data == null) {
-          return Center(
-            child: Text(
-              _errorMessage.isNotEmpty ? _errorMessage : '未找到用户信息',
-              style: themeData.textTheme.bodyLarge?.copyWith(
-                color: themeData.colorScheme.error,
-                fontSize: 18,
-              ),
-            ),
+          return ErrorStateView(
+            message: _errorMessage.isNotEmpty ? _errorMessage : '未找到用户信息',
           );
         } else {
           final manager = snapshot.data!;

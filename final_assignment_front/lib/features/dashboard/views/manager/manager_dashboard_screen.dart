@@ -19,6 +19,7 @@ import 'package:final_assignment_front/shared_components/project_card.dart';
 import 'package:final_assignment_front/shared_components/responsive_builder.dart';
 import 'package:final_assignment_front/shared_components/selection_button.dart';
 import 'package:final_assignment_front/shared_components/today_text.dart';
+import 'package:final_assignment_front/shared/widgets/index.dart';
 import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
 import 'package:final_assignment_front/utils/navigation/page_resolver.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -385,14 +386,11 @@ class DashboardScreen extends GetView<DashboardController> {
           child: Obx(
             () {
               if (trafficViolationController.isLoading.value) {
-                return const Center(child: CircularProgressIndicator());
+                return const LoadingView();
               }
               if (trafficViolationController.errorMessage.value.isNotEmpty) {
-                return Center(
-                  child: Text(
-                    trafficViolationController.errorMessage.value,
-                    textAlign: TextAlign.center,
-                  ),
+                return ErrorStateView(
+                  message: trafficViolationController.errorMessage.value,
                 );
               }
 
