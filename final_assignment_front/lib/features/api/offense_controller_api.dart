@@ -8,11 +8,11 @@ import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 // Global default client
 final ApiClient defaultApiClient = ApiClient();
 
-class TrafficViolationControllerApi with BaseApiClient {
+class OffenseControllerApi with BaseApiClient {
   @override
   final ApiClient apiClient;
 
-  TrafficViolationControllerApi([ApiClient? apiClient])
+  OffenseControllerApi([ApiClient? apiClient])
       : apiClient = apiClient ?? defaultApiClient;
 
   // Read jwt and configure client
@@ -22,8 +22,7 @@ class TrafficViolationControllerApi with BaseApiClient {
       throw Exception('Not authenticated. Please log in again.');
     }
     apiClient.setJwtToken(jwtToken);
-    debugPrint(
-        'Initialized TrafficViolationControllerApi with token: $jwtToken');
+    debugPrint('Initialized OffenseControllerApi with token: $jwtToken');
   }
 
   // Decode body
@@ -46,8 +45,8 @@ class TrafficViolationControllerApi with BaseApiClient {
     return throwResponseError(response);
   }
 
-  // GET /api/violations - all violations
-  Future<List<OffenseInformation>> apiViolationsGet() async {
+  // GET /api/violations - all offenses
+  Future<List<OffenseInformation>> listOffenses() async {
     const path = '/api/violations';
     final headers = await _getHeaders();
     final response = await apiClient.invokeAPI(
@@ -68,7 +67,7 @@ class TrafficViolationControllerApi with BaseApiClient {
 
   // GET /api/violations/{offenseId} - full chain details
   // Returns a payload map with keys: offense, fines, payments, deductions, appeals
-  Future<Map<String, dynamic>> apiViolationsOffenseIdGet({
+  Future<Map<String, dynamic>> getOffenseDetails({
     required int offenseId,
   }) async {
     final path = '/api/violations/$offenseId';
@@ -89,7 +88,7 @@ class TrafficViolationControllerApi with BaseApiClient {
   }
 
   // GET /api/violations/status?processStatus=...&page=1&size=20
-  Future<List<OffenseInformation>> apiViolationsStatusGet({
+  Future<List<OffenseInformation>> listOffensesByStatus({
     required String processStatus,
     int page = 1,
     int size = 20,

@@ -52,7 +52,8 @@ class VehicleList extends StatefulWidget {
 }
 
 class _VehicleListState extends State<VehicleList> {
-  final DashboardController controller = Get.find<DashboardController>();
+  final ManagerDashboardController controller =
+      Get.find<ManagerDashboardController>();
   final VehicleController vehicleController = Get.find<VehicleController>();
   final VehicleInformationControllerApi vehicleApi =
       VehicleInformationControllerApi();
@@ -723,7 +724,8 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
   final _firstRegistrationDateController = TextEditingController();
   final _currentStatusController = TextEditingController();
   bool _isLoading = false;
-  final DashboardController controller = Get.find<DashboardController>();
+  final ManagerDashboardController controller =
+      Get.find<ManagerDashboardController>();
 
   Future<bool> _validateJwtToken() async {
     final jwtToken = (await AuthTokenStore.instance.getJwtToken());
@@ -1127,7 +1129,8 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
   final _firstRegistrationDateController = TextEditingController();
   final _currentStatusController = TextEditingController();
   bool _isLoading = false;
-  final DashboardController controller = Get.find<DashboardController>();
+  final ManagerDashboardController controller =
+      Get.find<ManagerDashboardController>();
 
   Future<bool> _validateJwtToken() async {
     final jwtToken = (await AuthTokenStore.instance.getJwtToken());
@@ -1508,7 +1511,8 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
   bool _isEditable = false;
   String _errorMessage = '';
   String? _currentDriverName;
-  final DashboardController controller = Get.find<DashboardController>();
+  final ManagerDashboardController controller =
+      Get.find<ManagerDashboardController>();
 
   Future<bool> _validateJwtToken() async {
     final jwtToken = (await AuthTokenStore.instance.getJwtToken());

@@ -3,7 +3,7 @@
 import 'package:flutter/material.dart';
 
 // 导入处理底部弹出窗口的文件
-part 'app_bottomshet.dart';
+part 'app_bottomsheet.dart';
 
 // 导入处理对话框的文件
 part 'app_dialog.dart';

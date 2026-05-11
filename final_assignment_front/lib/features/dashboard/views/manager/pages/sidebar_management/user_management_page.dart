@@ -38,7 +38,8 @@ class _UserManagementPageState extends State<UserManagementPage> {
   final List<UserManagement> _userList = [];
   List<UserManagement>? _cachedAllUsers;
   final ScrollController _scrollController = ScrollController();
-  final DashboardController controller = Get.find<DashboardController>();
+  final ManagerDashboardController controller =
+      Get.find<ManagerDashboardController>();
   final Logger _logger = Logger('UserManagementPage');
   bool _isLoading = true;
   String _errorMessage = '';

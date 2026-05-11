@@ -38,7 +38,7 @@ class _BusinessProgressPageState extends State<BusinessProgressPage> {
     {
       'title': '车辆登记管理',
       'icon': Icons.directions_car,
-      'route': const VehicleManagement(),
+      'route': const VehicleManagementPage(),
     },
   ];
 

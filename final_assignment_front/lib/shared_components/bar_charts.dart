@@ -2,11 +2,11 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 /// 条形图组件，用于展示交通违法类型的分布
-class TrafficViolationBarChart extends StatelessWidget {
+class OffenseBarChart extends StatelessWidget {
   final Map<String, int> typeCountMap;
   final DateTime startTime;
 
-  const TrafficViolationBarChart({
+  const OffenseBarChart({
     super.key,
     required this.typeCountMap,
     required this.startTime,

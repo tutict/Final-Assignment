@@ -1,19 +1,18 @@
 import 'package:final_assignment_front/core/errors/app_exception.dart';
 import 'package:final_assignment_front/core/errors/exception_mapper.dart';
 import 'package:final_assignment_front/features/model/offense_information.dart';
-import 'package:final_assignment_front/features/offense/repositories/traffic_violation_repository.dart';
+import 'package:final_assignment_front/features/offense/repositories/offense_repository.dart';
 import 'package:final_assignment_front/shared/controllers/base_list_controller.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 
-class TrafficViolationController
-    extends BaseListController<OffenseInformation> {
-  TrafficViolationController(this._repository);
+class OffenseController extends BaseListController<OffenseInformation> {
+  OffenseController(this._repository);
 
-  final TrafficViolationRepository _repository;
+  final OffenseRepository _repository;
 
-  RxList<OffenseInformation> get violations => items;
-  final RxMap<String, int> violationTypes = <String, int>{}.obs;
+  RxList<OffenseInformation> get offenses => items;
+  final RxMap<String, int> offenseTypes = <String, int>{}.obs;
   final RxList<Map<String, dynamic>> timeSeries = <Map<String, dynamic>>[].obs;
   final RxMap<String, int> appealReasons = <String, int>{}.obs;
   final RxMap<String, int> paymentStatus = <String, int>{}.obs;
@@ -25,8 +24,8 @@ class TrafficViolationController
 
   Future<void> loadDashboardData() async {
     await runWithLoading(() async {
-      final data = await _repository.getViolations();
-      violations.assignAll(data);
+      final data = await _repository.listOffenses();
+      offenses.assignAll(data);
       _rebuildDashboardMetrics(data);
     });
   }
@@ -36,7 +35,7 @@ class TrafficViolationController
     int page = 1,
     int size = 20,
   }) {
-    return _repository.getViolationsByStatus(
+    return _repository.listOffensesByStatus(
       processStatus: processStatus,
       page: page,
       size: size,
@@ -44,7 +43,7 @@ class TrafficViolationController
   }
 
   Future<Map<String, dynamic>> loadDetails(int offenseId) {
-    return _repository.getViolationDetails(offenseId: offenseId);
+    return _repository.getOffenseDetails(offenseId: offenseId);
   }
 
   void _rebuildDashboardMetrics(List<OffenseInformation> data) {
@@ -52,7 +51,7 @@ class TrafficViolationController
     final windowStart = now.subtract(const Duration(days: 30));
     startTime.value = windowStart;
 
-    violationTypes.assignAll(
+    offenseTypes.assignAll(
       _countBy(
         data,
         (item) => item.offenseType ?? item.offenseDescription,
@@ -148,7 +147,7 @@ class TrafficViolationController
   @override
   void onAsyncError(Object error, StackTrace stackTrace) {
     if (kDebugMode) {
-      debugPrint('TrafficViolation dashboard load failed: ${_mapError(error)}');
+      debugPrint('Offense dashboard load failed: ${_mapError(error)}');
     }
   }
 

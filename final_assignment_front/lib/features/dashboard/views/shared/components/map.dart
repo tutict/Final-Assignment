@@ -18,8 +18,8 @@ class MapPage extends StatefulWidget {
 }
 
 class _MapPageState extends State<MapPage> {
-  // Attempt to find either DashboardController or UserDashboardController
-  DashboardController? _dashboardController;
+  // Attempt to find either ManagerDashboardController or UserDashboardController
+  ManagerDashboardController? _dashboardController;
   UserDashboardController? _userDashboardController;
 
   @override
@@ -27,12 +27,13 @@ class _MapPageState extends State<MapPage> {
     super.initState();
     // Initialize the appropriate controller
     try {
-      _dashboardController = Get.find<DashboardController>();
+      _dashboardController = Get.find<ManagerDashboardController>();
     } catch (_) {
       try {
         _userDashboardController = Get.find<UserDashboardController>();
       } catch (_) {
-        debugPrint('No DashboardController or UserDashboardController found');
+        debugPrint(
+            'No ManagerDashboardController or UserDashboardController found');
       }
     }
   }

@@ -15,14 +15,14 @@ import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
-class DeductionManagement extends StatefulWidget {
-  const DeductionManagement({super.key});
+class DeductionManagementPage extends StatefulWidget {
+  const DeductionManagementPage({super.key});
 
   @override
-  State<DeductionManagement> createState() => _DeductionManagementState();
+  State<DeductionManagementPage> createState() => _DeductionManagementState();
 }
 
-class _DeductionManagementState extends State<DeductionManagement> {
+class _DeductionManagementState extends State<DeductionManagementPage> {
   final DeductionInformationControllerApi deductionApi =
       DeductionInformationControllerApi();
   final TextEditingController _searchController = TextEditingController();
@@ -37,7 +37,8 @@ class _DeductionManagementState extends State<DeductionManagement> {
   bool _isAdmin = false;
   DateTime? _startTime;
   DateTime? _endTime;
-  final DashboardController controller = Get.find<DashboardController>();
+  final ManagerDashboardController controller =
+      Get.find<ManagerDashboardController>();
   final ScrollController _scrollController = ScrollController();
 
   @override
@@ -713,7 +714,8 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
   bool _isLoading = false;
   int? _selectedOffenseId;
   List<Map<String, dynamic>> _offenseSuggestions = [];
-  final DashboardController controller = Get.find<DashboardController>();
+  final ManagerDashboardController controller =
+      Get.find<ManagerDashboardController>();
 
   String generateIdempotencyKey() => const Uuid().v4();
 
@@ -1163,7 +1165,8 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
   bool _isLoading = false;
   int? _selectedOffenseId;
   List<Map<String, dynamic>> _offenseSuggestions = [];
-  final DashboardController controller = Get.find<DashboardController>();
+  final ManagerDashboardController controller =
+      Get.find<ManagerDashboardController>();
 
   String generateIdempotencyKey() => const Uuid().v4();
 

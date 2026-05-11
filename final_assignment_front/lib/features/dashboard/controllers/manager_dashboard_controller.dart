@@ -13,7 +13,7 @@ import 'package:flutter/rendering.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class DashboardController extends GetxController {
+class ManagerDashboardController extends GetxController {
   final scaffoldKey = GlobalKey<ScaffoldState>();
   final caseCardDataList = <CaseCardData>[].obs;
   var selectedStyle = 'Basic'.obs;
@@ -114,7 +114,8 @@ class DashboardController extends GetxController {
       name: name,
       email: email,
     );
-    debugPrint('DashboardController updated - Name: $name, Email: $email');
+    debugPrint(
+        'ManagerDashboardController updated - Name: $name, Email: $email');
     _saveUserToPrefs(name, email, 'ADMIN');
   }
 

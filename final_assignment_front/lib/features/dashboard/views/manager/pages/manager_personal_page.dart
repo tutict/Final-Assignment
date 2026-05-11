@@ -31,9 +31,9 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
   late Future<UserManagement?> _managerFuture;
   UserManagement? _currentManager;
   DriverInformation? _driverInfo;
-  final DashboardController? controller =
-      Get.isRegistered<DashboardController>()
-          ? Get.find<DashboardController>()
+  final ManagerDashboardController? controller =
+      Get.isRegistered<ManagerDashboardController>()
+          ? Get.find<ManagerDashboardController>()
           : null;
   bool _isLoading = true;
   String _errorMessage = '';

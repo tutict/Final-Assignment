@@ -5,7 +5,7 @@ import 'package:final_assignment_front/features/dashboard/views/manager/pages/ma
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/vehicle_list.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/progress_management.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/sidebar_management/manager_business_processing.dart';
-import 'package:final_assignment_front/features/dashboard/views/manager/pages/traffic_violation_screen.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager/pages/offense_screen.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/components/progress_detail.dart';
 import 'package:final_assignment_front/features/dashboard/views/user/pages/main_process/business_progress.dart';
 import 'package:final_assignment_front/features/dashboard/views/user/pages/main_process/fine_information.dart';
@@ -17,7 +17,7 @@ import 'package:final_assignment_front/features/dashboard/views/user/pages/news/
 import 'package:final_assignment_front/features/dashboard/views/user/pages/news/accident_quick_guide_page.dart';
 import 'package:final_assignment_front/features/dashboard/views/user/pages/news/accident_video_quick_page.dart';
 import 'package:final_assignment_front/features/dashboard/views/user/pages/news/fine_payment_notice_page.dart';
-import 'package:final_assignment_front/features/dashboard/views/user/pages/news/latest_traffic_violation_news_page.dart';
+import 'package:final_assignment_front/features/dashboard/views/user/pages/news/latest_offense_news_page.dart';
 import 'package:final_assignment_front/features/dashboard/views/user/pages/personal/consultation_feedback.dart';
 import 'package:final_assignment_front/features/dashboard/views/user/pages/personal/personal_main.dart';
 import 'package:final_assignment_front/features/dashboard/views/user/pages/personal/setting/setting_main.dart';
@@ -29,7 +29,7 @@ import 'package:final_assignment_front/features/dashboard/bindings/dashboard_pro
 import 'package:final_assignment_front/features/dashboard/bindings/manager_dashboard_binding.dart';
 import 'package:final_assignment_front/features/dashboard/bindings/progress_binding.dart';
 import 'package:final_assignment_front/features/dashboard/bindings/user_dashboard_binding.dart';
-import 'package:final_assignment_front/features/offense/bindings/traffic_violation_binding.dart';
+import 'package:final_assignment_front/features/offense/bindings/offense_binding.dart';
 import 'package:get/get.dart';
 
 import 'admin_pages.dart';
@@ -73,8 +73,7 @@ class AppPages {
   static const accidentQuickGuidePage = Routes.accidentQuickGuidePage;
   static const accidentVideoQuickPage = Routes.accidentVideoQuickPage;
   static const finePaymentNoticePage = Routes.finePaymentNoticePage;
-  static const latestTrafficViolationNewsPage =
-      Routes.latestTrafficViolationNewsPage;
+  static const latestOffenseNewsPage = Routes.latestOffenseNewsPage;
   static const progressManagement = Routes.progressManagement;
   static const progressDetailPage = Routes.progressDetailPage;
   static const logManagement = Routes.logManagement;
@@ -83,7 +82,7 @@ class AppPages {
   static const operationLogPage = Routes.operationLogPage;
   static const systemLogPage = Routes.systemLogPage;
   static const userOffenseListPage = Routes.userOffenseListPage;
-  static const trafficViolationScreen = Routes.trafficViolationScreen;
+  static const offenseScreen = Routes.offenseScreen;
   static const progressManagementPage = Routes.progressManagementPage;
 
   static final routes = [
@@ -125,12 +124,12 @@ class AppPages {
     ),
     GetPage(
       name: RoutePaths.appealManagement,
-      page: () => const AppealManagementAdmin(),
+      page: () => const ManagerAppealManagementPage(),
       binding: DashboardBinding(),
     ),
     GetPage(
       name: RoutePaths.driverList,
-      page: () => const DriverList(),
+      page: () => const DriverListPage(),
       binding: DashboardBinding(),
     ),
     GetPage(
@@ -155,7 +154,7 @@ class AppPages {
     ),
     GetPage(
       name: RoutePaths.vehicleManagement,
-      page: () => const VehicleManagement(),
+      page: () => const VehicleManagementPage(),
     ),
     GetPage(
       name: RoutePaths.businessProgress,
@@ -187,8 +186,8 @@ class AppPages {
       page: () => const FinePaymentNoticePage(),
     ),
     GetPage(
-      name: RoutePaths.latestTrafficViolationNewsPage,
-      page: () => const LatestTrafficViolationNewsPage(),
+      name: RoutePaths.latestOffenseNewsPage,
+      page: () => const LatestOffenseNewsPage(),
     ),
     GetPage(
       name: RoutePaths.progressManagement,
@@ -208,9 +207,9 @@ class AppPages {
       page: () => const UserOffenseListPage(),
     ),
     GetPage(
-      name: RoutePaths.trafficViolationScreen,
-      page: () => const TrafficViolationScreen(),
-      binding: TrafficViolationBinding(),
+      name: RoutePaths.offenseScreen,
+      page: () => const OffenseScreen(),
+      binding: OffenseBinding(),
     ),
     GetPage(
       name: RoutePaths.progressManagementPage,

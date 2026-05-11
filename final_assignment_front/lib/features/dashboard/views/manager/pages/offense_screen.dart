@@ -1,20 +1,20 @@
 import 'package:final_assignment_front/features/dashboard/views/shared/components/active_project_card.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
-import 'package:final_assignment_front/features/dashboard/controllers/traffic_violation_controller.dart';
+import 'package:final_assignment_front/features/dashboard/controllers/offense_controller.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 
-class TrafficViolationScreen extends GetView<TrafficViolationController> {
-  const TrafficViolationScreen({super.key});
+class OffenseScreen extends GetView<OffenseController> {
+  const OffenseScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     return Obx(() {
-      final violationTypes = Map<String, int>.from(controller.violationTypes);
+      final offenseTypes = Map<String, int>.from(controller.offenseTypes);
       final timeSeries = List<Map<String, dynamic>>.from(
         controller.timeSeries,
       );
@@ -35,7 +35,7 @@ class TrafficViolationScreen extends GetView<TrafficViolationController> {
             _buildChartSection(
               context,
               '违法类型分布',
-              violationTypes.isEmpty
+              offenseTypes.isEmpty
                   ? const Center(child: Text('无违法类型数据'))
                   : ActiveProjectCard(
                       title: '违法类型分布',
@@ -46,8 +46,8 @@ class TrafficViolationScreen extends GetView<TrafficViolationController> {
                       },
                       child: SizedBox(
                         height: 250,
-                        child: TrafficViolationBarChart(
-                          typeCountMap: violationTypes,
+                        child: OffenseBarChart(
+                          typeCountMap: offenseTypes,
                           startTime: startTime,
                         ),
                       ),
@@ -89,7 +89,7 @@ class TrafficViolationScreen extends GetView<TrafficViolationController> {
                       },
                       child: SizedBox(
                         height: 250,
-                        child: TrafficViolationPieChart(
+                        child: OffensePieChart(
                           data: appealReasons,
                         ),
                       ),
@@ -109,7 +109,7 @@ class TrafficViolationScreen extends GetView<TrafficViolationController> {
                       },
                       child: SizedBox(
                         height: 250,
-                        child: TrafficViolationPieChart(
+                        child: OffensePieChart(
                           data: paymentStatus,
                         ),
                       ),
@@ -376,11 +376,11 @@ class TrafficViolationScreen extends GetView<TrafficViolationController> {
 }
 
 // Pie chart wrapper
-class TrafficViolationPieChartCard extends StatelessWidget {
+class OffensePieChartCard extends StatelessWidget {
   final Map<String, int> data;
   final String title;
 
-  const TrafficViolationPieChartCard({
+  const OffensePieChartCard({
     super.key,
     required this.data,
     required this.title,
@@ -397,17 +397,17 @@ class TrafficViolationPieChartCard extends StatelessWidget {
       },
       child: SizedBox(
         height: 250,
-        child: TrafficViolationPieChart(data: data),
+        child: OffensePieChart(data: data),
       ),
     );
   }
 }
 
 // Pie chart with dynamic data
-class TrafficViolationPieChart extends StatelessWidget {
+class OffensePieChart extends StatelessWidget {
   final Map<String, int> data;
 
-  const TrafficViolationPieChart({
+  const OffensePieChart({
     super.key,
     required this.data,
   });
@@ -528,11 +528,11 @@ class TrafficViolationPieChart extends StatelessWidget {
 }
 
 // Bar chart with dynamic data
-class TrafficViolationBarChart extends StatelessWidget {
+class OffenseBarChart extends StatelessWidget {
   final Map<String, int> typeCountMap;
   final DateTime startTime;
 
-  const TrafficViolationBarChart({
+  const OffenseBarChart({
     super.key,
     required this.typeCountMap,
     required this.startTime,

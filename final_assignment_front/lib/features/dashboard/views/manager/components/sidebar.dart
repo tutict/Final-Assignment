@@ -9,7 +9,8 @@ class _Sidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final DashboardController controller = Get.find<DashboardController>();
+    final ManagerDashboardController controller =
+        Get.find<ManagerDashboardController>();
 
     return Obx(() {
       final ThemeData currentTheme = controller.currentBodyTheme.value;

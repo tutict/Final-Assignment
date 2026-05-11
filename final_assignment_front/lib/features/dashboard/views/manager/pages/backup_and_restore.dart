@@ -13,16 +13,17 @@ import 'package:uuid/uuid.dart';
 String generateIdempotencyKey() => const Uuid().v4();
 
 /// 备份与恢复管理页面
-class BackupAndRestore extends StatefulWidget {
-  const BackupAndRestore({super.key});
+class BackupAndRestorePage extends StatefulWidget {
+  const BackupAndRestorePage({super.key});
 
   @override
-  State<BackupAndRestore> createState() => _BackupAndRestoreState();
+  State<BackupAndRestorePage> createState() => _BackupAndRestoreState();
 }
 
-class _BackupAndRestoreState extends State<BackupAndRestore> {
+class _BackupAndRestoreState extends State<BackupAndRestorePage> {
   final BackupRestoreControllerApi backupApi = BackupRestoreControllerApi();
-  final DashboardController controller = Get.find<DashboardController>();
+  final ManagerDashboardController controller =
+      Get.find<ManagerDashboardController>();
   final List<BackupRestore> _backups = [];
   List<BackupRestore> _filteredBackups = [];
   bool _apiInitialized = false;

@@ -42,14 +42,15 @@ Color getAppealProcessStatusColor(String? status, ThemeData themeData) {
       themeData.colorScheme.onSurfaceVariant;
 }
 
-class AppealManagementAdmin extends StatefulWidget {
-  const AppealManagementAdmin({super.key});
+class ManagerAppealManagementPage extends StatefulWidget {
+  const ManagerAppealManagementPage({super.key});
 
   @override
-  State<AppealManagementAdmin> createState() => _AppealManagementAdminState();
+  State<ManagerAppealManagementPage> createState() =>
+      _AppealManagementAdminState();
 }
 
-class _AppealManagementAdminState extends State<AppealManagementAdmin> {
+class _AppealManagementAdminState extends State<ManagerAppealManagementPage> {
   final AppealManagementControllerApi appealApi =
       AppealManagementControllerApi();
   final OffenseInformationControllerApi offenseApi =
@@ -64,7 +65,8 @@ class _AppealManagementAdminState extends State<AppealManagementAdmin> {
   bool _isAdmin = false;
   String _errorMessage = '';
   static const int _maxOffenseBatch = 20;
-  final DashboardController controller = Get.find<DashboardController>();
+  final ManagerDashboardController controller =
+      Get.find<ManagerDashboardController>();
 
   @override
   void initState() {
@@ -678,7 +680,8 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
   bool _isLoading = false;
   bool _isAdmin = false;
   String _errorMessage = '';
-  final DashboardController controller = Get.find<DashboardController>();
+  final ManagerDashboardController controller =
+      Get.find<ManagerDashboardController>();
 
   @override
   void initState() {

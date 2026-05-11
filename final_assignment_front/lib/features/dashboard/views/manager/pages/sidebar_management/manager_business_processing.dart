@@ -19,13 +19,13 @@ class ManagerBusinessProcessing extends StatefulWidget {
 }
 
 class _ManagerBusinessProcessingState extends State<ManagerBusinessProcessing> {
-  late DashboardController controller;
+  late ManagerDashboardController controller;
 
   @override
   void initState() {
     super.initState();
     DashboardBinding.registerDependencies();
-    controller = Get.find<DashboardController>();
+    controller = Get.find<ManagerDashboardController>();
   }
 
   // 业务选项数据
@@ -33,22 +33,22 @@ class _ManagerBusinessProcessingState extends State<ManagerBusinessProcessing> {
     {
       'title': '申诉管理',
       'icon': Icons.gavel,
-      'route': const AppealManagementAdmin(),
+      'route': const ManagerAppealManagementPage(),
     },
     {
       'title': '扣分管理',
       'icon': Icons.score,
-      'route': const DeductionManagement(),
+      'route': const DeductionManagementPage(),
     },
     {
       'title': '司机管理',
       'icon': Icons.person,
-      'route': const DriverList(),
+      'route': const DriverListPage(),
     },
     {
       'title': '罚款管理',
       'icon': Icons.payment,
-      'route': const FineList(),
+      'route': const FineListPage(),
     },
     {
       'title': '车辆管理',

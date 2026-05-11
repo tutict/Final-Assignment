@@ -17,7 +17,8 @@ class OverviewHeader extends StatefulWidget {
 class _OverviewHeaderState extends State<OverviewHeader> {
   @override
   Widget build(BuildContext context) {
-    final selectedCase = Get.find<DashboardController>().selectedCaseType;
+    final selectedCase =
+        Get.find<ManagerDashboardController>().selectedCaseType;
     return Obx(() {
       if (widget.axis == Axis.horizontal) {
         // 为了在水平滚动中避免 Expanded 导致无限宽度的问题，
@@ -32,8 +33,7 @@ class _OverviewHeaderState extends State<OverviewHeader> {
               constraints: const BoxConstraints(minWidth: 80),
               child: Text(
                 "当前工作",
-                style: const TextStyle(fontWeight: FontWeight.w600)
-                    ,
+                style: const TextStyle(fontWeight: FontWeight.w600),
               ),
             ),
             const SizedBox(width: 8),
@@ -64,8 +64,7 @@ class _OverviewHeaderState extends State<OverviewHeader> {
           children: [
             Text(
               "当前工作",
-              style: const TextStyle(fontWeight: FontWeight.w600)
-                  ,
+              style: const TextStyle(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 10),
             SingleChildScrollView(

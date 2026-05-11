@@ -39,14 +39,14 @@ String formatDate(DateTime? date) {
   return "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
 }
 
-class VehicleManagement extends StatefulWidget {
-  const VehicleManagement({super.key});
+class VehicleManagementPage extends StatefulWidget {
+  const VehicleManagementPage({super.key});
 
   @override
-  State<VehicleManagement> createState() => _VehicleManagementState();
+  State<VehicleManagementPage> createState() => _VehicleManagementState();
 }
 
-class _VehicleManagementState extends State<VehicleManagement> {
+class _VehicleManagementState extends State<VehicleManagementPage> {
   final TextEditingController _searchController = TextEditingController();
   final VehicleInformationControllerApi vehicleApi =
       VehicleInformationControllerApi();

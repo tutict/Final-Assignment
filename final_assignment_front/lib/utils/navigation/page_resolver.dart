@@ -9,7 +9,7 @@ import 'package:final_assignment_front/features/dashboard/views/user/pages/news/
 import 'package:final_assignment_front/features/dashboard/views/user/pages/news/accident_quick_guide_page.dart';
 import 'package:final_assignment_front/features/dashboard/views/user/pages/news/accident_video_quick_page.dart';
 import 'package:final_assignment_front/features/dashboard/views/user/pages/news/fine_payment_notice_page.dart';
-import 'package:final_assignment_front/features/dashboard/views/user/pages/news/latest_traffic_violation_news_page.dart';
+import 'package:final_assignment_front/features/dashboard/views/user/pages/news/latest_offense_news_page.dart';
 import 'package:final_assignment_front/features/dashboard/views/user/pages/personal/consultation_feedback.dart';
 import 'package:final_assignment_front/features/dashboard/views/user/pages/personal/personal_main.dart';
 import 'package:final_assignment_front/features/dashboard/views/user/pages/personal/setting/setting_main.dart';
@@ -44,8 +44,8 @@ Widget? resolveDashboardPage(String routeName) {
       return const AccidentProgressPage();
     case Routes.finePaymentNoticePage:
       return const FinePaymentNoticePage();
-    case Routes.latestTrafficViolationNewsPage:
-      return const LatestTrafficViolationNewsPage();
+    case Routes.latestOffenseNewsPage:
+      return const LatestOffenseNewsPage();
     case Routes.progressManagement:
       return const ProgressManagementPage();
     case Routes.userOffenseListPage:

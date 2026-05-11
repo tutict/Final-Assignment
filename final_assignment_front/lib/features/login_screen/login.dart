@@ -121,25 +121,26 @@ class _LoginScreenState extends State<LoginScreen>
         await userManagementApi.initializeWithJwt();
         debugPrint('UserManagement API 已初始化');
 
-        int? userId = userIdFromLogin;
+        int? authUserId = userIdFromLogin;
         try {
           final userInfo = await userManagementApi.apiUsersSearchUsernameGet(
               username: username);
           if (userInfo != null) {
-            userId = userInfo.userId ?? userId;
+            authUserId = userInfo.userId ?? authUserId;
             resolvedName =
                 userInfo.realName ?? userInfo.username ?? resolvedName;
             resolvedEmail = userInfo.email ?? resolvedEmail;
-            debugPrint('通过用户名查询获取的 userId: $userId, 姓名: $resolvedName');
+            debugPrint('通过用户名查询获取的 userId: $authUserId, 姓名: $resolvedName');
           }
         } catch (e) {
           debugPrint('通过用户名查询用户信息失败: $e');
         }
 
-        if (userId != null) {
+        if (authUserId != null) {
+          final driverId = authUserId; // 当前系统 authUserId 与 driverId 一一对应
           try {
             final driverInfo =
-                await driverApi.apiDriversDriverIdGet(driverId: userId);
+                await driverApi.apiDriversDriverIdGet(driverId: driverId);
             if (driverInfo != null && driverInfo.name != null) {
               driverName = driverInfo.name!;
               debugPrint('从数据库获取的 driverName: $driverName');
@@ -150,7 +151,7 @@ class _LoginScreenState extends State<LoginScreen>
             if (e is ApiException && e.code == 404) {
               final idempotencyKey = generateIdempotencyKey();
               final newDriverInfo = DriverInformation(
-                driverId: userId,
+                driverId: driverId,
                 name: resolvedName,
                 contactNumber: '',
                 idCardNumber: '',
@@ -172,7 +173,9 @@ class _LoginScreenState extends State<LoginScreen>
         driverName = driverName.isNotEmpty ? driverName : resolvedName;
         await prefs.setString('driverName', driverName);
         await prefs.setString('userEmail', resolvedEmail);
-        if (userId != null) await prefs.setString('userId', userId.toString());
+        if (authUserId != null) {
+          await prefs.setString('userId', authUserId.toString());
+        }
 
         debugPrint(
             '登录成功 - 角色: $_userRole, 姓名: $driverName, 邮箱: $resolvedEmail');
@@ -230,15 +233,16 @@ class _LoginScreenState extends State<LoginScreen>
           await prefs.setString('userName', username);
 
           final userData = loginResult['user'] ?? {};
-          final int? userId = userData['userId'];
+          final int? authUserId = userData['userId'];
           String resolvedName = userData['name'] ?? username.split('@').first;
           String resolvedEmail = userData['email'] ?? username;
 
           String driverName = resolvedName;
-          if (userId != null) {
+          if (authUserId != null) {
+            final driverId = authUserId; // 当前系统 authUserId 与 driverId 一一对应
             await driverApi.initializeWithJwt();
             final driverInfo = DriverInformation(
-              driverId: userId,
+              driverId: driverId,
               name: resolvedName,
               idCardNumber: '',
               contactNumber: '',
@@ -248,11 +252,11 @@ class _LoginScreenState extends State<LoginScreen>
               idempotencyKey: generateIdempotencyKey(),
             );
             final fetchedDriver =
-                await driverApi.apiDriversDriverIdGet(driverId: userId);
+                await driverApi.apiDriversDriverIdGet(driverId: driverId);
             driverName = fetchedDriver?.name ?? resolvedName;
             await prefs.setString('driverName', driverName);
             await prefs.setString('userEmail', resolvedEmail);
-            await prefs.setString('userId', userId.toString());
+            await prefs.setString('userId', authUserId.toString());
             debugPrint('Driver created and fetched name: $driverName');
           }
 

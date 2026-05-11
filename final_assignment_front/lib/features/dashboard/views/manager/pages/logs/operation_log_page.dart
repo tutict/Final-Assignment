@@ -37,7 +37,8 @@ class _OperationLogPageState extends State<OperationLogPage> {
   final OperationLogControllerApi logApi = OperationLogControllerApi();
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  final DashboardController controller = Get.find<DashboardController>();
+  final ManagerDashboardController controller =
+      Get.find<ManagerDashboardController>();
   final List<OperationLog> _logs = [];
   List<OperationLog> _filteredLogs = [];
   String _searchType = 'userId';

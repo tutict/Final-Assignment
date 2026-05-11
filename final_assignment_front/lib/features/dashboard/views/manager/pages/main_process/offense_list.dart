@@ -59,7 +59,8 @@ class _OffenseListPageState extends State<OffenseList> {
   bool _isAdmin = false;
   DateTime? _startDate;
   DateTime? _endDate;
-  final DashboardController controller = Get.find<DashboardController>();
+  final ManagerDashboardController controller =
+      Get.find<ManagerDashboardController>();
 
   @override
   void initState() {
@@ -709,7 +710,8 @@ class AddOffensePage extends StatefulWidget {
 
 class _AddOffensePageState extends State<AddOffensePage> {
   late final OffenseFormController formController;
-  final DashboardController controller = Get.find<DashboardController>();
+  final ManagerDashboardController controller =
+      Get.find<ManagerDashboardController>();
   String get _controllerTag => 'add-offense';
   GlobalKey<FormState> get _formKey => formController.formKey;
   TextEditingController get _driverNameController =>
@@ -1022,7 +1024,8 @@ class _OffenseDetailPageState extends State<OffenseDetailPage> {
   bool _isLoading = false;
   bool _isEditable = false;
   String _errorMessage = '';
-  final DashboardController controller = Get.find<DashboardController>();
+  final ManagerDashboardController controller =
+      Get.find<ManagerDashboardController>();
 
   Future<bool> _validateJwtToken() async {
     final jwtToken = (await AuthTokenStore.instance.getJwtToken());
@@ -1281,7 +1284,8 @@ class EditOffensePage extends StatefulWidget {
 
 class _EditOffensePageState extends State<EditOffensePage> {
   late final OffenseFormController formController;
-  final DashboardController controller = Get.find<DashboardController>();
+  final ManagerDashboardController controller =
+      Get.find<ManagerDashboardController>();
   String get _controllerTag =>
       'edit-offense-${widget.offense.offenseId ?? identityHashCode(widget.offense)}';
   GlobalKey<FormState> get _formKey => formController.formKey;

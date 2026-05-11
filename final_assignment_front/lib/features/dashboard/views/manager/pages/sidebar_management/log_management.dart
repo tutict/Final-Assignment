@@ -15,13 +15,13 @@ class LogManagement extends StatefulWidget {
 }
 
 class _LogManagementState extends State<LogManagement> {
-  late DashboardController controller;
+  late ManagerDashboardController controller;
 
   @override
   void initState() {
     super.initState();
     DashboardBinding.registerDependencies();
-    controller = Get.find<DashboardController>();
+    controller = Get.find<ManagerDashboardController>();
   }
 
   // 日志管理选项数据

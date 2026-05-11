@@ -19,16 +19,17 @@ String formatDateTime(DateTime? dateTime) {
   return '${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')}';
 }
 
-class DriverList extends StatefulWidget {
-  const DriverList({super.key});
+class DriverListPage extends StatefulWidget {
+  const DriverListPage({super.key});
 
   @override
-  State<DriverList> createState() => _DriverListPageState();
+  State<DriverListPage> createState() => _DriverListPageState();
 }
 
-class _DriverListPageState extends State<DriverList> {
+class _DriverListPageState extends State<DriverListPage> {
   final driverApi = DriverInformationControllerApi();
-  final DashboardController controller = Get.find<DashboardController>();
+  final ManagerDashboardController controller =
+      Get.find<ManagerDashboardController>();
   List<DriverInformation> _drivers = [];
   List<DriverInformation> _filteredDrivers = [];
   final TextEditingController _searchController = TextEditingController();
@@ -62,18 +63,18 @@ class _DriverListPageState extends State<DriverList> {
   Future<void> _loadDrivers() async {
     setState(() => _isLoading = true);
     try {
-      developer.log('Loading driver list', name: 'DriverList');
+      developer.log('Loading driver list', name: 'DriverListPage');
       final drivers = await driverApi.apiDriversGet();
       if (mounted) {
         setState(() {
           _drivers = drivers;
           _filterDrivers();
           developer.log('Loaded ${_drivers.length} drivers',
-              name: 'DriverList');
+              name: 'DriverListPage');
         });
       }
     } catch (e) {
-      developer.log('Error loading drivers: $e', name: 'DriverList');
+      developer.log('Error loading drivers: $e', name: 'DriverListPage');
       if (mounted) {
         AppUtils.showSnackBar(context, AppUtils.formatErrorMessage(e),
             isError: true);
@@ -101,7 +102,7 @@ class _DriverListPageState extends State<DriverList> {
     });
     developer.log(
         'Filtered ${_filteredDrivers.length} drivers for query: $query',
-        name: 'DriverList');
+        name: 'DriverListPage');
   }
 
   String _mapGenderToDisplay(String? gender) {
@@ -114,7 +115,7 @@ class _DriverListPageState extends State<DriverList> {
     Get.to(() => const AddDriverPage())?.then((value) {
       if (value == true && mounted) {
         developer.log('AddDriverPage returned true, refreshing list',
-            name: 'DriverList');
+            name: 'DriverListPage');
         _loadDrivers();
       }
     });
@@ -124,7 +125,7 @@ class _DriverListPageState extends State<DriverList> {
     Get.to(() => DriverDetailPage(driver: driver))?.then((value) {
       if (value == true && mounted) {
         developer.log('DriverDetailPage returned true, refreshing list',
-            name: 'DriverList');
+            name: 'DriverListPage');
         _loadDrivers();
       }
     });
@@ -296,7 +297,8 @@ class _AddDriverPageState extends State<AddDriverPage> {
   final TextEditingController _expiryDateController = TextEditingController();
   bool _isLoading = false;
 
-  final DashboardController controller = Get.find<DashboardController>();
+  final ManagerDashboardController controller =
+      Get.find<ManagerDashboardController>();
 
   @override
   void initState() {
@@ -672,7 +674,8 @@ class _EditDriverPageState extends State<EditDriverPage> {
   final TextEditingController _expiryDateController = TextEditingController();
   bool _isLoading = false;
 
-  final DashboardController controller = Get.find<DashboardController>();
+  final ManagerDashboardController controller =
+      Get.find<ManagerDashboardController>();
 
   @override
   void initState() {
@@ -1054,7 +1057,8 @@ class _DriverDetailPageState extends State<DriverDetailPage> {
   bool _isLoading = false;
   final ScrollController _scrollController = ScrollController();
 
-  final DashboardController controller = Get.find<DashboardController>();
+  final ManagerDashboardController controller =
+      Get.find<ManagerDashboardController>();
 
   @override
   void initState() {
@@ -1313,7 +1317,8 @@ class AppUtils {
 
   static void showSnackBar(BuildContext context, String message,
       {bool isError = false}) {
-    final themeData = Get.find<DashboardController>().currentBodyTheme.value;
+    final themeData =
+        Get.find<ManagerDashboardController>().currentBodyTheme.value;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
@@ -1369,7 +1374,8 @@ class AppUtils {
 
   static Future<bool> showConfirmationDialog(
       BuildContext context, String title, String content) async {
-    final themeData = Get.find<DashboardController>().currentBodyTheme.value;
+    final themeData =
+        Get.find<ManagerDashboardController>().currentBodyTheme.value;
     return await showDialog<bool>(
           context: context,
           builder: (context) => Theme(

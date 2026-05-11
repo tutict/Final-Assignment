@@ -77,7 +77,7 @@ class PoliceCard extends StatelessWidget {
                 ),
                 const Padding(
                   padding: EdgeInsets.all(16),
-                  child: _Info(),
+                  child: _PoliceInfoRow(),
                 ),
               ],
             ),
@@ -88,8 +88,8 @@ class PoliceCard extends StatelessWidget {
   }
 }
 
-class _Info extends StatelessWidget {
-  const _Info();
+class _PoliceInfoRow extends StatelessWidget {
+  const _PoliceInfoRow();
 
   @override
   Widget build(BuildContext context) {

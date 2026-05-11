@@ -96,12 +96,13 @@ class _PersonalMainPageState extends State<PersonalMainPage> {
       if (user == null || user.userId == null) {
         throw Exception('加载用户信息失败');
       }
-      final userId = user.userId!;
+      final authUserId = user.userId!;
+      final driverId = authUserId; // 当前系统 authUserId 与 driverId 一一对应
       DriverInformation? driverInfo =
-          await driverApi.apiDriversDriverIdGet(driverId: userId);
+          await driverApi.apiDriversDriverIdGet(driverId: driverId);
       if (driverInfo == null) {
         final newDriver = DriverInformation(
-          driverId: userId,
+          driverId: driverId,
           name: user.username ?? '未知用户',
           contactNumber: user.contactNumber ?? '',
           idCardNumber: '',
@@ -111,7 +112,7 @@ class _PersonalMainPageState extends State<PersonalMainPage> {
           driverInformation: newDriver,
           idempotencyKey: generateIdempotencyKey(),
         );
-        driverInfo = await driverApi.apiDriversDriverIdGet(driverId: userId);
+        driverInfo = await driverApi.apiDriversDriverIdGet(driverId: driverId);
         _driverLicenseFinalized = true;
       } else {
         _driverLicenseFinalized =
@@ -146,7 +147,8 @@ class _PersonalMainPageState extends State<PersonalMainPage> {
       if (user == null || user.userId == null) {
         throw Exception('未找到当前用户信息');
       }
-      final userId = user.userId!;
+      final authUserId = user.userId!;
+      final driverId = authUserId; // 当前系统 authUserId 与 driverId 一一对应
       final idempotencyKey = generateIdempotencyKey();
       final prefs = await SharedPreferences.getInstance();
       final jwtToken = prefs.getString('jwtToken');
@@ -158,7 +160,7 @@ class _PersonalMainPageState extends State<PersonalMainPage> {
         case 'idCardNumber':
         case 'driverLicenseNumber':
           final updatedDriver = DriverInformation(
-            driverId: userId,
+            driverId: driverId,
             name: field == 'name'
                 ? value
                 : _driverInfo?.name ?? user.username ?? '未知用户',

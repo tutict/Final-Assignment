@@ -69,7 +69,7 @@ class PostCard extends StatelessWidget {
               // 信息区域
               const Padding(
                 padding: EdgeInsets.all(8),
-                child: _Info(),
+                child: _PostInfoRow(),
               ),
             ],
           ),
@@ -80,8 +80,8 @@ class PostCard extends StatelessWidget {
 }
 
 /// 卡片上的信息部分
-class _Info extends StatelessWidget {
-  const _Info();
+class _PostInfoRow extends StatelessWidget {
+  const _PostInfoRow();
 
   @override
   Widget build(BuildContext context) {

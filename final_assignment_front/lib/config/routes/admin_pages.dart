@@ -30,7 +30,7 @@ class AdminPages {
     ),
     GetPage(
       name: RoutePaths.backupAndRestore,
-      page: () => const BackupAndRestore(),
+      page: () => const BackupAndRestorePage(),
       binding: DashboardBinding(),
     ),
     GetPage(
@@ -39,7 +39,7 @@ class AdminPages {
     ),
     GetPage(
       name: RoutePaths.managerSetting,
-      page: () => const ManagerSetting(),
+      page: () => const ManagerSettingPage(),
       binding: DashboardBinding(),
     ),
     GetPage(

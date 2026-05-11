@@ -70,22 +70,19 @@ class ProgressReportCard extends StatelessWidget {
               children: [
                 Text(
                   data.title,
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleMedium!
-                      .copyWith(
+                  style: Theme.of(context).textTheme.titleMedium!.copyWith(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
-                      )
-                      ,
+                      ),
                 ),
                 const SizedBox(height: 8), // 减少间距
-                _RichText(value1: "${data.task}", value2: " 申诉"),
+                _ReportRichText(value1: "${data.task}", value2: " 申诉"),
                 const SizedBox(height: 6), // 减少间距
-                _RichText(value1: "${data.doneTask}", value2: " 已处理的申诉"),
+                _ReportRichText(value1: "${data.doneTask}", value2: " 已处理的申诉"),
                 const SizedBox(height: 6), // 减少间距
-                _RichText(value1: "${data.undoneTask}", value2: " 未处理的申诉"),
+                _ReportRichText(
+                    value1: "${data.undoneTask}", value2: " 未处理的申诉"),
               ],
             ),
           ),
@@ -100,8 +97,8 @@ class ProgressReportCard extends StatelessWidget {
 }
 
 // 定义富文本组件，用于显示带有强调的文本
-class _RichText extends StatelessWidget {
-  const _RichText({
+class _ReportRichText extends StatelessWidget {
+  const _ReportRichText({
     required this.value1,
     required this.value2,
   });
@@ -157,27 +154,19 @@ class _Indicator extends StatelessWidget {
         children: [
           Text(
             "${(percent * 100).toStringAsFixed(1)} %",
-            style: Theme.of(context)
-                .textTheme
-                .titleSmall!
-                .copyWith(
+            style: Theme.of(context).textTheme.titleSmall!.copyWith(
                   fontSize: 16, // 减小完成度字体
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
-                )
-                ,
+                ),
           ),
           Text(
             "完成度",
-            style: Theme.of(context)
-                .textTheme
-                .bodySmall!
-                .copyWith(
+            style: Theme.of(context).textTheme.bodySmall!.copyWith(
                   fontSize: 12, // 减小字体
                   fontWeight: FontWeight.normal,
                   color: Colors.white70,
-                )
-                ,
+                ),
           ),
         ],
       ),

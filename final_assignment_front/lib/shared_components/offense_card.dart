@@ -3,13 +3,13 @@ import 'package:final_assignment_front/constants/app_constants.dart';
 import 'package:percent_indicator/circular_percent_indicator.dart';
 
 // 定义交通违法行为卡片组件
-class TrafficViolationCard extends StatelessWidget {
-  const TrafficViolationCard({
+class OffenseCard extends StatelessWidget {
+  const OffenseCard({
     required this.data,
     super.key,
   });
 
-  final TrafficViolationCardData data;
+  final OffenseCardData data;
 
   @override
   Widget build(BuildContext context) {
@@ -53,33 +53,29 @@ class TrafficViolationCard extends StatelessWidget {
               children: [
                 Text(
                   data.title,
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleMedium!
-                      .copyWith(
+                  style: Theme.of(context).textTheme.titleMedium!.copyWith(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
-                      )
-                      ,
+                      ),
                 ),
                 const SizedBox(height: 8), // 减少间距
-                _ViolationRichText(
-                    value1: "${data.totalViolations}", value2: " 总违法行为"),
+                _OffenseRichText(
+                    value1: "${data.totalOffenses}", value2: " 总违法行为"),
                 const SizedBox(height: 6), // 减少间距
-                _ViolationRichText(
-                    value1: "${data.handledViolations}", value2: " 已处理的违法"),
+                _OffenseRichText(
+                    value1: "${data.handledOffenses}", value2: " 已处理的违法"),
                 const SizedBox(height: 6), // 减少间距
-                _ViolationRichText(
-                    value1: "${data.unhandledViolations}", value2: " 未处理的违法"),
+                _OffenseRichText(
+                    value1: "${data.unhandledOffenses}", value2: " 未处理的违法"),
               ],
             ),
           ),
           Expanded(
             flex: 1,
-            child: _ViolationIndicator(
-              total: data.totalViolations,
-              handled: data.handledViolations,
+            child: _OffenseIndicator(
+              total: data.totalOffenses,
+              handled: data.handledOffenses,
               isLight: isLight,
             ),
           ),
@@ -90,8 +86,8 @@ class TrafficViolationCard extends StatelessWidget {
 }
 
 // 定义交通违法富文本组件
-class _ViolationRichText extends StatelessWidget {
-  const _ViolationRichText({
+class _OffenseRichText extends StatelessWidget {
+  const _OffenseRichText({
     required this.value1,
     required this.value2,
   });
@@ -126,8 +122,8 @@ class _ViolationRichText extends StatelessWidget {
 }
 
 // 定义交通违法进度指示器组件
-class _ViolationIndicator extends StatelessWidget {
-  const _ViolationIndicator({
+class _OffenseIndicator extends StatelessWidget {
+  const _OffenseIndicator({
     required this.total,
     required this.handled,
     required this.isLight,
@@ -154,27 +150,19 @@ class _ViolationIndicator extends StatelessWidget {
         children: [
           Text(
             "${(percent * 100).toStringAsFixed(1)} %",
-            style: Theme.of(context)
-                .textTheme
-                .titleSmall!
-                .copyWith(
+            style: Theme.of(context).textTheme.titleSmall!.copyWith(
                   fontSize: 16, // 减小完成度字体
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
-                )
-                ,
+                ),
           ),
           Text(
             "处理率",
-            style: Theme.of(context)
-                .textTheme
-                .bodySmall!
-                .copyWith(
+            style: Theme.of(context).textTheme.bodySmall!.copyWith(
                   fontSize: 12, // 减小字体
                   fontWeight: FontWeight.normal,
                   color: Colors.white70,
-                )
-                ,
+                ),
           ),
         ],
       ),
@@ -185,16 +173,16 @@ class _ViolationIndicator extends StatelessWidget {
 }
 
 // 定义交通违法卡片数据模型
-class TrafficViolationCardData {
-  final int totalViolations;
-  final int handledViolations;
-  final int unhandledViolations;
+class OffenseCardData {
+  final int totalOffenses;
+  final int handledOffenses;
+  final int unhandledOffenses;
   final String title;
 
-  const TrafficViolationCardData({
-    required this.totalViolations,
-    required this.handledViolations,
-    required this.unhandledViolations,
+  const OffenseCardData({
+    required this.totalOffenses,
+    required this.handledOffenses,
+    required this.unhandledOffenses,
     required this.title,
   });
 }

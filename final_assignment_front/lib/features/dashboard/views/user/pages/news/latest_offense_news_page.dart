@@ -1,8 +1,8 @@
 import 'package:final_assignment_front/features/dashboard/views/user/widgets/news_page_layout.dart';
 import 'package:flutter/material.dart';
 
-class LatestTrafficViolationNewsPage extends StatelessWidget {
-  const LatestTrafficViolationNewsPage({super.key});
+class LatestOffenseNewsPage extends StatelessWidget {
+  const LatestOffenseNewsPage({super.key});
 
   @override
   Widget build(BuildContext context) {

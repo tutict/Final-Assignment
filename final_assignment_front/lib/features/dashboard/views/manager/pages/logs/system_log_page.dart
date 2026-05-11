@@ -33,7 +33,8 @@ class SystemLogPage extends StatefulWidget {
 class _SystemLogPageState extends State<SystemLogPage> {
   final SystemLogsControllerApi logApi = SystemLogsControllerApi();
   final ScrollController _scrollController = ScrollController();
-  final DashboardController controller = Get.find<DashboardController>();
+  final ManagerDashboardController controller =
+      Get.find<ManagerDashboardController>();
 
   Map<String, dynamic> _overviewData = {};
   List<LoginLog> _recentLoginLogs = [];

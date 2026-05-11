@@ -37,7 +37,8 @@ class _LoginLogPageState extends State<LoginLogPage> {
   final LoginLogControllerApi logApi = LoginLogControllerApi();
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  final DashboardController controller = Get.find<DashboardController>();
+  final ManagerDashboardController controller =
+      Get.find<ManagerDashboardController>();
   final List<LoginLog> _logs = [];
   List<LoginLog> _filteredLogs = [];
   String _searchType = 'username';

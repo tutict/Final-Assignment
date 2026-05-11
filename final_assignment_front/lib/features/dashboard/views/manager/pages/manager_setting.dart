@@ -6,16 +6,17 @@ import 'package:final_assignment_front/features/dashboard/controllers/manager_da
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
-class ManagerSetting extends StatefulWidget {
-  const ManagerSetting({super.key});
+class ManagerSettingPage extends StatefulWidget {
+  const ManagerSettingPage({super.key});
 
   @override
-  State<ManagerSetting> createState() => _ManageSettingPage();
+  State<ManagerSettingPage> createState() => _ManageSettingPage();
 }
 
-class _ManageSettingPage extends State<ManagerSetting> {
+class _ManageSettingPage extends State<ManagerSettingPage> {
   bool _notificationEnabled = false;
-  final DashboardController controller = Get.find<DashboardController>();
+  final ManagerDashboardController controller =
+      Get.find<ManagerDashboardController>();
   final TextEditingController _themeController = TextEditingController();
 
   @override
@@ -172,8 +173,8 @@ class _ManageSettingPage extends State<ManagerSetting> {
                 leading: const Icon(Icons.notifications, color: Colors.blue),
                 title: Text(
                   '启用通知',
-                  style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurface),
+                  style:
+                      TextStyle(color: Theme.of(context).colorScheme.onSurface),
                 ),
                 subtitle: Text(
                   _notificationEnabled ? '已启用' : '已禁用',
@@ -197,8 +198,8 @@ class _ManageSettingPage extends State<ManagerSetting> {
                 leading: const Icon(Icons.palette, color: Colors.blue),
                 title: Text(
                   '选择显示主题',
-                  style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurface),
+                  style:
+                      TextStyle(color: Theme.of(context).colorScheme.onSurface),
                 ),
                 subtitle: Text(
                   _themeController.text,
@@ -217,8 +218,8 @@ class _ManageSettingPage extends State<ManagerSetting> {
                 leading: const Icon(Icons.save, color: Colors.blue),
                 title: Text(
                   '保存设置',
-                  style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurface),
+                  style:
+                      TextStyle(color: Theme.of(context).colorScheme.onSurface),
                 ),
                 trailing:
                     const Icon(Icons.arrow_forward_ios, color: Colors.grey),
@@ -229,8 +230,8 @@ class _ManageSettingPage extends State<ManagerSetting> {
                 leading: const Icon(Icons.logout, color: Colors.blue),
                 title: Text(
                   '登出',
-                  style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurface),
+                  style:
+                      TextStyle(color: Theme.of(context).colorScheme.onSurface),
                 ),
                 trailing:
                     const Icon(Icons.arrow_forward_ios, color: Colors.grey),

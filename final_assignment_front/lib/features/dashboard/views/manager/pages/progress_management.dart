@@ -16,8 +16,8 @@ class ProgressManagementPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final DashboardController dashboardController =
-        Get.find<DashboardController>();
+    final ManagerDashboardController dashboardController =
+        Get.find<ManagerDashboardController>();
     ProgressBinding.registerDependencies();
     final ProgressController progressController =
         Get.find<ProgressController>();

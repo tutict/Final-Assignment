@@ -301,8 +301,7 @@ class UserDashboard extends GetView<UserDashboardController> with FloatingBase {
             },
             child: UserNewsCard(
               onPressed: () {
-                controller
-                    .navigateToPage(Routes.latestTrafficViolationNewsPage);
+                controller.navigateToPage(Routes.latestOffenseNewsPage);
               },
               onPressedSecond: () {
                 controller.navigateToPage(Routes.finePaymentNoticePage);

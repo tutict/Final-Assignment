@@ -1,28 +1,28 @@
 import 'package:final_assignment_front/core/repository/base_repository.dart';
-import 'package:final_assignment_front/features/api/traffic_violation_controller_api.dart';
+import 'package:final_assignment_front/features/api/offense_controller_api.dart';
 import 'package:final_assignment_front/features/model/offense_information.dart';
 
-abstract class TrafficViolationRepository {
+abstract class OffenseRepository {
   Future<void> initializeWithJwt();
 
-  Future<List<OffenseInformation>> getViolations();
+  Future<List<OffenseInformation>> listOffenses();
 
-  Future<Map<String, dynamic>> getViolationDetails({
+  Future<Map<String, dynamic>> getOffenseDetails({
     required int offenseId,
   });
 
-  Future<List<OffenseInformation>> getViolationsByStatus({
+  Future<List<OffenseInformation>> listOffensesByStatus({
     required String processStatus,
     int page = 1,
     int size = 20,
   });
 }
 
-class TrafficViolationRepositoryImpl extends BaseRepository
-    implements TrafficViolationRepository {
-  TrafficViolationRepositoryImpl(this._api);
+class OffenseRepositoryImpl extends BaseRepository
+    implements OffenseRepository {
+  OffenseRepositoryImpl(this._api);
 
-  final TrafficViolationControllerApi _api;
+  final OffenseControllerApi _api;
 
   @override
   Future<void> initializeWithJwt() {
@@ -30,32 +30,32 @@ class TrafficViolationRepositoryImpl extends BaseRepository
   }
 
   @override
-  Future<List<OffenseInformation>> getViolations() {
+  Future<List<OffenseInformation>> listOffenses() {
     return guard(() async {
       await _api.initializeWithJwt();
-      return _api.apiViolationsGet();
+      return _api.listOffenses();
     });
   }
 
   @override
-  Future<Map<String, dynamic>> getViolationDetails({
+  Future<Map<String, dynamic>> getOffenseDetails({
     required int offenseId,
   }) {
     return guard(() async {
       await _api.initializeWithJwt();
-      return _api.apiViolationsOffenseIdGet(offenseId: offenseId);
+      return _api.getOffenseDetails(offenseId: offenseId);
     });
   }
 
   @override
-  Future<List<OffenseInformation>> getViolationsByStatus({
+  Future<List<OffenseInformation>> listOffensesByStatus({
     required String processStatus,
     int page = 1,
     int size = 20,
   }) {
     return guard(() async {
       await _api.initializeWithJwt();
-      return _api.apiViolationsStatusGet(
+      return _api.listOffensesByStatus(
         processStatus: processStatus,
         page: page,
         size: size,

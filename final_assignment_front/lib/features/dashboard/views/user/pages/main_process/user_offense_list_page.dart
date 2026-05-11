@@ -130,12 +130,14 @@ class _UserOffenseListPageState extends State<UserOffenseListPage> {
       if (user?.userId == null) {
         throw Exception('User data does not contain userId');
       }
+      final authUserId = user!.userId!;
+      final driverId = authUserId; // 当前系统 authUserId 与 driverId 一一对应
       await driverApi.initializeWithJwt();
       var driverInfo =
-          await driverApi.apiDriversDriverIdGet(driverId: user!.userId!);
+          await driverApi.apiDriversDriverIdGet(driverId: driverId);
       if (driverInfo == null) {
         driverInfo = DriverInformation(
-          driverId: user.userId,
+          driverId: driverId,
           name: user.username ?? '未知用户',
           contactNumber: user.contactNumber ?? '',
           idCardNumber: '',
@@ -146,8 +148,7 @@ class _UserOffenseListPageState extends State<UserOffenseListPage> {
           driverInformation: driverInfo,
           idempotencyKey: generateIdempotencyKey(),
         );
-        driverInfo =
-            await driverApi.apiDriversDriverIdGet(driverId: user.userId!);
+        driverInfo = await driverApi.apiDriversDriverIdGet(driverId: driverId);
       }
       final driverName = driverInfo?.name ?? user.username ?? '未知用户';
       developer.log('Driver name from API: $driverName');

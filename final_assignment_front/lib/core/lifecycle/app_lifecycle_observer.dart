@@ -75,7 +75,7 @@ class AppLifecycleObserver extends GetxService with WidgetsBindingObserver {
       _logWriter.writeSystemEvent(
         logType: 'SYSTEM_EVENT',
         content: 'Application started',
-        remarks: 'Traffic Violation Management System started',
+        remarks: 'Offense Management System started',
       ),
       _logWriter.writeOperationEvent(
         type: 'SYSTEM_EVENT',

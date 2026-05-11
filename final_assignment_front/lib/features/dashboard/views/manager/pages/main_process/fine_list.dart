@@ -49,15 +49,15 @@ DateTime _comparableFineDate(FineInformation fine) {
   return _resolvedFineDate(fine) ?? DateTime.fromMillisecondsSinceEpoch(0);
 }
 
-/// FineList 页面：管理员才能访问
-class FineList extends StatefulWidget {
-  const FineList({super.key});
+/// FineListPage 页面：管理员才能访问
+class FineListPage extends StatefulWidget {
+  const FineListPage({super.key});
 
   @override
-  State<FineList> createState() => _FineListState();
+  State<FineListPage> createState() => _FineListState();
 }
 
-class _FineListState extends State<FineList> {
+class _FineListState extends State<FineListPage> {
   final FineInformationControllerApi fineApi = FineInformationControllerApi();
   final TextEditingController _searchController = TextEditingController();
   final List<FineInformation> _fineList = [];
@@ -72,7 +72,8 @@ class _FineListState extends State<FineList> {
   bool _isAdmin = false;
   DateTime? _startDate;
   DateTime? _endDate;
-  final DashboardController controller = Get.find<DashboardController>();
+  final ManagerDashboardController controller =
+      Get.find<ManagerDashboardController>();
   final ScrollController _scrollController = ScrollController();
 
   @override
@@ -769,7 +770,8 @@ class _AddFinePageState extends State<AddFinePage> {
   final _remarksController = TextEditingController();
   final _dateController = TextEditingController();
   bool _isLoading = false;
-  final DashboardController controller = Get.find<DashboardController>();
+  final ManagerDashboardController controller =
+      Get.find<ManagerDashboardController>();
   int? _selectedOffenseId;
 
   @override
@@ -1279,7 +1281,8 @@ class _FineDetailPageState extends State<FineDetailPage> {
   bool _isLoading = false;
   bool _isAdmin = false;
   String _errorMessage = '';
-  final DashboardController controller = Get.find<DashboardController>();
+  final ManagerDashboardController controller =
+      Get.find<ManagerDashboardController>();
   late FineInformation _currentFine;
 
   @override
@@ -1431,7 +1434,7 @@ class _FineDetailPageState extends State<FineDetailPage> {
       ),
     ).then((value) {
       if (value == true) {
-        Navigator.pop(context, true); // Trigger refresh in FineList
+        Navigator.pop(context, true); // Trigger refresh in FineListPage
       }
     });
   }

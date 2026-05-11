@@ -4,14 +4,14 @@ import 'package:eva_icons_flutter/eva_icons_flutter.dart';
 import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
-import 'package:final_assignment_front/features/dashboard/controllers/traffic_violation_controller.dart';
+import 'package:final_assignment_front/features/dashboard/controllers/offense_controller.dart';
 import 'package:final_assignment_front/features/dashboard/models/profile.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/components/active_project_card.dart'
     hide kSpacing, kBorderRadius;
 import 'package:final_assignment_front/features/dashboard/views/shared/components/ai_chat.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/components/profile_tile.dart';
-import 'package:final_assignment_front/features/dashboard/views/manager/pages/traffic_violation_screen.dart';
-import 'package:final_assignment_front/shared_components/traffic_violation_card.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager/pages/offense_screen.dart';
+import 'package:final_assignment_front/shared_components/offense_card.dart';
 import 'package:final_assignment_front/shared_components/list_profil_image.dart';
 import 'package:final_assignment_front/shared_components/police_card.dart';
 import 'package:final_assignment_front/shared_components/progress_report_card.dart';
@@ -36,7 +36,7 @@ part 'components/sidebar.dart';
 
 part 'components/team_member.dart';
 
-class DashboardScreen extends GetView<DashboardController> {
+class DashboardScreen extends GetView<ManagerDashboardController> {
   const DashboardScreen({super.key});
 
   @override
@@ -266,10 +266,10 @@ class DashboardScreen extends GetView<DashboardController> {
   }
 
   Widget _buildProgressSection(Axis axis, BuildContext context) {
-    const TrafficViolationCardData violationData = TrafficViolationCardData(
-      totalViolations: 15,
-      handledViolations: 10,
-      unhandledViolations: 5,
+    const OffenseCardData offenseData = OffenseCardData(
+      totalOffenses: 15,
+      handledOffenses: 10,
+      unhandledOffenses: 5,
       title: "今日交通违法行为",
     );
     const ProgressReportCardData appealData = ProgressReportCardData(
@@ -300,7 +300,7 @@ class DashboardScreen extends GetView<DashboardController> {
                   ),
                 ],
               ),
-              child: const TrafficViolationCard(data: violationData),
+              child: const OffenseCard(data: offenseData),
             ),
           ),
           const SizedBox(width: kSpacing / 2),
@@ -363,13 +363,13 @@ class DashboardScreen extends GetView<DashboardController> {
   }) {
 // Height for two stacked charts with titles
     final double gridHeight = MediaQuery.of(context).size.height * 1.0;
-    final trafficViolationController = Get.find<TrafficViolationController>();
+    final offenseController = Get.find<OffenseController>();
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: kSpacing),
       child: ActiveProjectCard(
         onPressedSeeAll: () {
-          Get.toNamed(Routes.trafficViolationScreen);
+          Get.toNamed(Routes.offenseScreen);
         },
         child: Container(
           height: gridHeight,
@@ -385,22 +385,22 @@ class DashboardScreen extends GetView<DashboardController> {
           ),
           child: Obx(
             () {
-              if (trafficViolationController.isLoading.value) {
+              if (offenseController.isLoading.value) {
                 return const LoadingView();
               }
-              if (trafficViolationController.errorMessage.value.isNotEmpty) {
+              if (offenseController.errorMessage.value.isNotEmpty) {
                 return ErrorStateView(
-                  message: trafficViolationController.errorMessage.value,
+                  message: offenseController.errorMessage.value,
                 );
               }
 
-              final violationTypes = Map<String, int>.from(
-                trafficViolationController.violationTypes,
+              final offenseTypes = Map<String, int>.from(
+                offenseController.offenseTypes,
               );
               final timeSeries = List<Map<String, dynamic>>.from(
-                trafficViolationController.timeSeries,
+                offenseController.timeSeries,
               );
-              final startTime = trafficViolationController.startTime.value;
+              final startTime = offenseController.startTime.value;
 
               return GridView.builder(
                 itemCount: 2,
@@ -421,8 +421,8 @@ class DashboardScreen extends GetView<DashboardController> {
                   if (index == 0) {
                     chart = SizedBox(
                       height: 280, // Increased for full visibility
-                      child: TrafficViolationBarChart(
-                        typeCountMap: violationTypes,
+                      child: OffenseBarChart(
+                        typeCountMap: offenseTypes,
                         startTime: startTime,
                       ),
                     );

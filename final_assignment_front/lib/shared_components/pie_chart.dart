@@ -1,10 +1,10 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
-class TrafficViolationPieChart extends StatelessWidget {
+class OffensePieChart extends StatelessWidget {
   final Map<String, int> typeCountMap;
 
-  const TrafficViolationPieChart({super.key, required this.typeCountMap});
+  const OffensePieChart({super.key, required this.typeCountMap});
 
   @override
   Widget build(BuildContext context) {

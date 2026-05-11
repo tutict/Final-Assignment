@@ -10,7 +10,7 @@ class ProfilTile extends StatelessWidget {
   final Profile data;
   final VoidCallback onPressedNotification;
   final dynamic
-      controller; // Can be either UserDashboardController or DashboardController
+      controller; // Can be either UserDashboardController or ManagerDashboardController
 
   const ProfilTile({
     super.key,
@@ -27,9 +27,11 @@ class ProfilTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool isLight = Theme.of(context).brightness == Brightness.light;
-    final Color backgroundColor =
-        isLight ? Colors.white : Theme.of(context).cardColor.withValues(alpha: 0.9);
-    final Color shadowColor = Colors.black.withValues(alpha: isLight ? 0.1 : 0.2);
+    final Color backgroundColor = isLight
+        ? Colors.white
+        : Theme.of(context).cardColor.withValues(alpha: 0.9);
+    final Color shadowColor =
+        Colors.black.withValues(alpha: isLight ? 0.1 : 0.2);
     final Color defaultTextColor = isLight ? Colors.black87 : Colors.white;
     final Color subtitleTextColor =
         isLight ? Colors.grey.shade600 : Colors.white70;
@@ -57,7 +59,8 @@ class ProfilTile extends StatelessWidget {
                 ? controller.currentEmail.value
                 : data.email;
             displayPost = '欢迎使用交通违法行为处理管理系统驾驶员端';
-          } else if (userRole == 'ADMIN' && controller is DashboardController) {
+          } else if (userRole == 'ADMIN' &&
+              controller is ManagerDashboardController) {
             displayName = controller.currentDriverName.value.isNotEmpty
                 ? controller.currentDriverName.value
                 : data.name;
@@ -152,7 +155,8 @@ class ProfilTile extends StatelessWidget {
                 ),
                 tooltip: "通知",
                 splashRadius: 26,
-                splashColor: Theme.of(context).primaryColor.withValues(alpha: 0.3),
+                splashColor:
+                    Theme.of(context).primaryColor.withValues(alpha: 0.3),
                 highlightColor: Colors.transparent,
               ),
               shape: RoundedRectangleBorder(

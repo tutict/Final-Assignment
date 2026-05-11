@@ -115,8 +115,7 @@ class Routes {
   static const finePaymentNoticePage = RoutePaths.finePaymentNoticePage;
 
   // 最新交通违章新闻介绍路由
-  static const latestTrafficViolationNewsPage =
-      RoutePaths.latestTrafficViolationNewsPage;
+  static const latestOffenseNewsPage = RoutePaths.latestOffenseNewsPage;
 
   // 管理员管理进度页面
   static const progressManagement = RoutePaths.progressManagement;
@@ -143,7 +142,7 @@ class Routes {
   static const userOffenseListPage = RoutePaths.userOffenseListPage;
 
   // 违章列表页面路由
-  static const trafficViolationScreen = RoutePaths.trafficViolationScreen;
+  static const offenseScreen = RoutePaths.offenseScreen;
 
   static const progressManagementPage = RoutePaths.progressManagementPage;
 }
@@ -266,8 +265,7 @@ class RoutePaths {
   static const finePaymentNoticePage = '/finePaymentNoticePage';
 
   // 最新交通违章新闻路由
-  static const latestTrafficViolationNewsPage =
-      '/latestTrafficViolationNewsPage';
+  static const latestOffenseNewsPage = '/latestOffenseNewsPage';
 
   // 管理员进度管理页面
   static const progressManagement = '/progressManagement';
@@ -294,7 +292,7 @@ class RoutePaths {
   static const userOffenseListPage = '/userOffenseListPage';
 
   // 违章列表页面路由
-  static const trafficViolationScreen = '/trafficViolationScreen';
+  static const offenseScreen = '/offenseScreen';
 
   static const progressManagementPage = '/progressManagementPage';
 }
