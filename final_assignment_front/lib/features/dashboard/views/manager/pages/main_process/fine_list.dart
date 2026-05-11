@@ -1071,20 +1071,25 @@ class _AddFinePageState extends State<AddFinePage> {
     if (label == '车牌号' || label == '缴款人') {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 6.0),
-        child: Autocomplete<Map<String, dynamic>>(
-          optionsBuilder: (TextEditingValue textEditingValue) async {
-            if (textEditingValue.text.isEmpty) {
+        child: AppAutocompleteField<Map<String, dynamic>>(
+          label: label,
+          controller: controller,
+          helperText: label == '车牌号' ? '请输入车牌号，例如：黑AWS34' : null,
+          keyboardType: keyboardType,
+          maxLength: maxLength,
+          options: (query) async {
+            if (query.isEmpty) {
               return const Iterable<Map<String, dynamic>>.empty();
             }
             final suggestions = label == '车牌号'
-                ? (await _fetchLicensePlateSuggestions(textEditingValue.text))
+                ? (await _fetchLicensePlateSuggestions(query))
                     .map((s) => {'value': s})
                     .toList()
-                : await _fetchPayeeSuggestions(textEditingValue.text);
+                : await _fetchPayeeSuggestions(query);
             return suggestions;
           },
-          displayStringForOption: (Map<String, dynamic> option) =>
-              label == '车牌号' ? option['value'] : option['payee'],
+          displayStringForOption: (option) =>
+              (label == '车牌号' ? option['value'] : option['payee']).toString(),
           onSelected: (Map<String, dynamic> selection) async {
             if (label == '车牌号') {
               controller.text = selection['value'];
@@ -1093,108 +1098,45 @@ class _AddFinePageState extends State<AddFinePage> {
               await _onPayeeSelected(selection);
             }
           },
-          fieldViewBuilder:
-              (context, textEditingController, focusNode, onFieldSubmitted) {
-            textEditingController.text = controller.text;
-            return TextFormField(
-              controller: textEditingController,
-              focusNode: focusNode,
-              style: TextStyle(color: themeData.colorScheme.onSurface),
-              decoration: InputDecoration(
-                labelText: label,
-                labelStyle:
-                    TextStyle(color: themeData.colorScheme.onSurfaceVariant),
-                helperText: label == '车牌号' ? '请输入车牌号，例如：黑AWS34' : null,
-                helperStyle: TextStyle(
-                    color: themeData.colorScheme.onSurfaceVariant
-                        .withValues(alpha: 0.6)),
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12.0)),
-                enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(
-                        color: themeData.colorScheme.outline
-                            .withValues(alpha: 0.3))),
-                focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(
-                        color: themeData.colorScheme.primary, width: 1.5)),
-                filled: true,
-                fillColor: themeData.colorScheme.surfaceContainerLowest,
-                suffixIcon: textEditingController.text.isNotEmpty
-                    ? IconButton(
-                        icon: Icon(Icons.clear,
-                            color: themeData.colorScheme.onSurfaceVariant),
-                        onPressed: () {
-                          textEditingController.clear();
-                          controller.clear();
-                          if (label == '车牌号' || label == '缴款人') {
-                            setState(() {
-                              _selectedOffenseId = null;
-                              if (label == '车牌号') {
-                                _payeeController.clear();
-                                _fineAmountController.clear();
-                              }
-                            });
-                          }
-                        },
-                      )
-                    : null,
-              ),
-              keyboardType: keyboardType,
-              maxLength: maxLength,
-              validator: validator ??
-                  (value) {
-                    final trimmedValue = value?.trim() ?? '';
-                    if (required && trimmedValue.isEmpty) return '$label不能为空';
-                    if (label == '车牌号') {
-                      if (trimmedValue.isEmpty) return '车牌号不能为空';
-                      if (trimmedValue.length > 20) return '车牌号不能超过20个字符';
-                      if (!RegExp(r'^[\u4e00-\u9fa5][A-Za-z0-9]{5,7}$')
-                          .hasMatch(trimmedValue)) {
-                        return '请输入有效车牌号，例如：黑AWS34';
-                      }
-                    }
-                    if (label == '缴款人' && trimmedValue.length > 100) {
-                      return '缴款人姓名不能超过100个字符';
-                    }
-                    return null;
-                  },
-              onChanged: (value) {
-                controller.text = value;
-              },
-            );
+          onClear: () {
+            setState(() {
+              _selectedOffenseId = null;
+              if (label == '车牌号') {
+                _payeeController.clear();
+                _fineAmountController.clear();
+              }
+            });
           },
+          validator: validator ??
+              (value) {
+                final trimmedValue = value?.trim() ?? '';
+                if (required && trimmedValue.isEmpty) return '$label不能为空';
+                if (label == '车牌号') {
+                  if (trimmedValue.isEmpty) return '车牌号不能为空';
+                  if (trimmedValue.length > 20) return '车牌号不能超过20个字符';
+                  if (!RegExp(r'^[\u4e00-\u9fa5][A-Za-z0-9]{5,7}$')
+                      .hasMatch(trimmedValue)) {
+                    return '请输入有效车牌号，例如：黑AWS34';
+                  }
+                }
+                if (label == '缴款人' && trimmedValue.length > 100) {
+                  return '缴款人姓名不能超过100个字符';
+                }
+                return null;
+              },
         ),
       );
     }
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
-      child: TextFormField(
+      child: AppTextFormField(
+        label: label,
         controller: controller,
-        style: TextStyle(color: themeData.colorScheme.onSurface),
-        decoration: InputDecoration(
-          labelText: label,
-          labelStyle: TextStyle(color: themeData.colorScheme.onSurfaceVariant),
-          helperText: label == '银行账号' ? '请输入银行账号（选填）' : null,
-          helperStyle: TextStyle(
-              color: themeData.colorScheme.onSurfaceVariant
-                  .withValues(alpha: 0.6)),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
-          enabledBorder: OutlineInputBorder(
-              borderSide: BorderSide(
-                  color: themeData.colorScheme.outline.withValues(alpha: 0.3))),
-          focusedBorder: OutlineInputBorder(
-              borderSide:
-                  BorderSide(color: themeData.colorScheme.primary, width: 1.5)),
-          filled: true,
-          fillColor: readOnly
-              ? themeData.colorScheme.surfaceContainerHighest
-                  .withValues(alpha: 0.5)
-              : themeData.colorScheme.surfaceContainerLowest,
-          suffixIcon: readOnly
-              ? Icon(Icons.calendar_today,
-                  size: 18, color: themeData.colorScheme.primary)
-              : null,
-        ),
+        helperText: label == '银行账号' ? '请输入银行账号（选填）' : null,
+        suffix: readOnly
+            ? Icon(Icons.calendar_today,
+                size: 18, color: themeData.colorScheme.primary)
+            : null,
         keyboardType: keyboardType,
         readOnly: readOnly,
         onTap: onTap,

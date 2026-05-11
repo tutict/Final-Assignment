@@ -5,6 +5,7 @@ import 'package:final_assignment_front/features/api/offense_information_controll
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/model/deduction_record.dart';
+import 'package:final_assignment_front/shared/widgets/index.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -957,145 +958,56 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
     if (isAutocomplete && suggestions != null) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 6.0),
-        child: Autocomplete<Map<String, dynamic>>(
-          optionsBuilder: (TextEditingValue textEditingValue) {
-            if (textEditingValue.text.isEmpty) {
+        child: AppAutocompleteField<Map<String, dynamic>>(
+          label: label,
+          controller: controller,
+          helperText: '请选择违法记录',
+          options: (query) {
+            if (query.isEmpty) {
               return suggestions;
             }
             return suggestions.where((option) => option['description']
                 .toLowerCase()
-                .contains(textEditingValue.text.toLowerCase()));
+                .contains(query.toLowerCase()));
           },
-          displayStringForOption: (Map<String, dynamic> option) =>
-              option['description'],
+          displayStringForOption: (option) => option['description'].toString(),
           onSelected: (Map<String, dynamic> selection) {
             onSelected?.call(selection);
           },
-          fieldViewBuilder:
-              (context, textEditingController, focusNode, onFieldSubmitted) {
-            return TextFormField(
-              controller: textEditingController,
-              focusNode: focusNode,
-              style: TextStyle(color: themeData.colorScheme.onSurface),
-              decoration: InputDecoration(
-                labelText: label,
-                labelStyle:
-                    TextStyle(color: themeData.colorScheme.onSurfaceVariant),
-                helperText: '请选择违法记录',
-                helperStyle: TextStyle(
-                    color: themeData.colorScheme.onSurfaceVariant
-                        .withValues(alpha: 0.6)),
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12.0)),
-                enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(
-                        color: themeData.colorScheme.outline
-                            .withValues(alpha: 0.3))),
-                focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(
-                        color: themeData.colorScheme.primary, width: 1.5)),
-                filled: true,
-                fillColor: themeData.colorScheme.surfaceContainerLowest,
-                suffixIcon: textEditingController.text.isNotEmpty
-                    ? IconButton(
-                        icon: Icon(Icons.clear,
-                            color: themeData.colorScheme.onSurfaceVariant),
-                        onPressed: () {
-                          textEditingController.clear();
-                          setState(() {
-                            _selectedOffenseId = null;
-                            _deductedPointsController.clear();
-                            _dateController.clear();
-                          });
-                        },
-                      )
-                    : null,
-              ),
-              validator: validator ??
-                  (value) {
-                    if (required && (value == null || value.trim().isEmpty)) {
-                      return '$label不能为空';
-                    }
-                    return null;
-                  },
-              onChanged: (value) {
-                controller.text = value;
+          onClear: () {
+            setState(() {
+              _selectedOffenseId = null;
+              _deductedPointsController.clear();
+              _dateController.clear();
+            });
+          },
+          validator: validator ??
+              (value) {
+                if (required && (value == null || value.trim().isEmpty)) {
+                  return '$label不能为空';
+                }
+                return null;
               },
-            );
-          },
-          optionsViewBuilder: (context, onSelected, options) {
-            return Align(
-              alignment: Alignment.topLeft,
-              child: Material(
-                elevation: 4.0,
-                color: themeData.colorScheme.surfaceContainer,
-                borderRadius: BorderRadius.circular(8.0),
-                child: Container(
-                  constraints:
-                      const BoxConstraints(maxHeight: 200, maxWidth: 300),
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: options.length,
-                    itemBuilder: (context, index) {
-                      final option = options.elementAt(index);
-                      return ListTile(
-                        title: Text(
-                          option['description'],
-                          style:
-                              TextStyle(color: themeData.colorScheme.onSurface),
-                        ),
-                        onTap: () => onSelected(option),
-                      );
-                    },
-                  ),
-                ),
-              ),
-            );
-          },
         ),
       );
     }
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
-      child: TextFormField(
+      child: AppTextFormField(
+        label: label,
         controller: controller,
-        style: TextStyle(color: themeData.colorScheme.onSurface),
-        decoration: InputDecoration(
-          labelText: label,
-          labelStyle: TextStyle(color: themeData.colorScheme.onSurfaceVariant),
-          helperText: label == '处理人' || label == '审批人'
-              ? '请输入$label 姓名（选填）'
-              : label == '扣分分数 *'
-                  ? '请输入扣分点数'
-                  : label == '扣分时间 *'
-                      ? '请选择扣分日期'
-                      : null,
-          helperStyle: TextStyle(
-              color: themeData.colorScheme.onSurfaceVariant
-                  .withValues(alpha: 0.6)),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
-          enabledBorder: OutlineInputBorder(
-              borderSide: BorderSide(
-                  color: themeData.colorScheme.outline.withValues(alpha: 0.3))),
-          focusedBorder: OutlineInputBorder(
-              borderSide:
-                  BorderSide(color: themeData.colorScheme.primary, width: 1.5)),
-          filled: true,
-          fillColor: readOnly
-              ? themeData.colorScheme.surfaceContainerHighest
-                  .withValues(alpha: 0.5)
-              : themeData.colorScheme.surfaceContainerLowest,
-          suffixIcon: label == '扣分时间 *'
-              ? Icon(Icons.calendar_today,
-                  size: 18, color: themeData.colorScheme.primary)
-              : controller.text.isNotEmpty
-                  ? IconButton(
-                      icon: Icon(Icons.clear,
-                          color: themeData.colorScheme.onSurfaceVariant),
-                      onPressed: () => controller.clear(),
-                    )
-                  : null,
-        ),
+        helperText: label == '处理人' || label == '审批人'
+            ? '请输入$label 姓名（选填）'
+            : label == '扣分分数 *'
+                ? '请输入扣分点数'
+                : label == '扣分时间 *'
+                    ? '请选择扣分日期'
+                    : null,
+        suffix: label == '扣分时间 *'
+            ? Icon(Icons.calendar_today,
+                size: 18, color: themeData.colorScheme.primary)
+            : null,
+        showClear: label != '扣分时间 *',
         keyboardType: keyboardType,
         readOnly: label == '扣分时间 *' ? true : readOnly,
         onTap: label == '扣分时间 *' ? _pickDate : onTap,
@@ -1501,145 +1413,56 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
     if (isAutocomplete && suggestions != null) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 6.0),
-        child: Autocomplete<Map<String, dynamic>>(
-          optionsBuilder: (TextEditingValue textEditingValue) {
-            if (textEditingValue.text.isEmpty) {
+        child: AppAutocompleteField<Map<String, dynamic>>(
+          label: label,
+          controller: controller,
+          helperText: '请选择违法记录',
+          options: (query) {
+            if (query.isEmpty) {
               return suggestions;
             }
             return suggestions.where((option) => option['description']
                 .toLowerCase()
-                .contains(textEditingValue.text.toLowerCase()));
+                .contains(query.toLowerCase()));
           },
-          displayStringForOption: (Map<String, dynamic> option) =>
-              option['description'],
+          displayStringForOption: (option) => option['description'].toString(),
           onSelected: (Map<String, dynamic> selection) {
             onSelected?.call(selection);
           },
-          fieldViewBuilder:
-              (context, textEditingController, focusNode, onFieldSubmitted) {
-            return TextFormField(
-              controller: textEditingController,
-              focusNode: focusNode,
-              style: TextStyle(color: themeData.colorScheme.onSurface),
-              decoration: InputDecoration(
-                labelText: label,
-                labelStyle:
-                    TextStyle(color: themeData.colorScheme.onSurfaceVariant),
-                helperText: '请选择违法记录',
-                helperStyle: TextStyle(
-                    color: themeData.colorScheme.onSurfaceVariant
-                        .withValues(alpha: 0.6)),
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12.0)),
-                enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(
-                        color: themeData.colorScheme.outline
-                            .withValues(alpha: 0.3))),
-                focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(
-                        color: themeData.colorScheme.primary, width: 1.5)),
-                filled: true,
-                fillColor: themeData.colorScheme.surfaceContainerLowest,
-                suffixIcon: textEditingController.text.isNotEmpty
-                    ? IconButton(
-                        icon: Icon(Icons.clear,
-                            color: themeData.colorScheme.onSurfaceVariant),
-                        onPressed: () {
-                          textEditingController.clear();
-                          setState(() {
-                            _selectedOffenseId = null;
-                            _deductedPointsController.clear();
-                            _dateController.clear();
-                          });
-                        },
-                      )
-                    : null,
-              ),
-              validator: validator ??
-                  (value) {
-                    if (required && (value == null || value.trim().isEmpty)) {
-                      return '$label不能为空';
-                    }
-                    return null;
-                  },
-              onChanged: (value) {
-                controller.text = value;
+          onClear: () {
+            setState(() {
+              _selectedOffenseId = null;
+              _deductedPointsController.clear();
+              _dateController.clear();
+            });
+          },
+          validator: validator ??
+              (value) {
+                if (required && (value == null || value.trim().isEmpty)) {
+                  return '$label不能为空';
+                }
+                return null;
               },
-            );
-          },
-          optionsViewBuilder: (context, onSelected, options) {
-            return Align(
-              alignment: Alignment.topLeft,
-              child: Material(
-                elevation: 4.0,
-                color: themeData.colorScheme.surfaceContainer,
-                borderRadius: BorderRadius.circular(8.0),
-                child: Container(
-                  constraints:
-                      const BoxConstraints(maxHeight: 200, maxWidth: 300),
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: options.length,
-                    itemBuilder: (context, index) {
-                      final option = options.elementAt(index);
-                      return ListTile(
-                        title: Text(
-                          option['description'],
-                          style:
-                              TextStyle(color: themeData.colorScheme.onSurface),
-                        ),
-                        onTap: () => onSelected(option),
-                      );
-                    },
-                  ),
-                ),
-              ),
-            );
-          },
         ),
       );
     }
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
-      child: TextFormField(
+      child: AppTextFormField(
+        label: label,
         controller: controller,
-        style: TextStyle(color: themeData.colorScheme.onSurface),
-        decoration: InputDecoration(
-          labelText: label,
-          labelStyle: TextStyle(color: themeData.colorScheme.onSurfaceVariant),
-          helperText: label == '处理人' || label == '审批人'
-              ? '请输入$label 姓名（选填）'
-              : label == '扣分分数 *'
-                  ? '请输入扣分点数'
-                  : label == '扣分时间 *'
-                      ? '请选择扣分日期'
-                      : null,
-          helperStyle: TextStyle(
-              color: themeData.colorScheme.onSurfaceVariant
-                  .withValues(alpha: 0.6)),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
-          enabledBorder: OutlineInputBorder(
-              borderSide: BorderSide(
-                  color: themeData.colorScheme.outline.withValues(alpha: 0.3))),
-          focusedBorder: OutlineInputBorder(
-              borderSide:
-                  BorderSide(color: themeData.colorScheme.primary, width: 1.5)),
-          filled: true,
-          fillColor: readOnly
-              ? themeData.colorScheme.surfaceContainerHighest
-                  .withValues(alpha: 0.5)
-              : themeData.colorScheme.surfaceContainerLowest,
-          suffixIcon: label == '扣分时间 *'
-              ? Icon(Icons.calendar_today,
-                  size: 18, color: themeData.colorScheme.primary)
-              : controller.text.isNotEmpty
-                  ? IconButton(
-                      icon: Icon(Icons.clear,
-                          color: themeData.colorScheme.onSurfaceVariant),
-                      onPressed: () => controller.clear(),
-                    )
-                  : null,
-        ),
+        helperText: label == '处理人' || label == '审批人'
+            ? '请输入$label 姓名（选填）'
+            : label == '扣分分数 *'
+                ? '请输入扣分点数'
+                : label == '扣分时间 *'
+                    ? '请选择扣分日期'
+                    : null,
+        suffix: label == '扣分时间 *'
+            ? Icon(Icons.calendar_today,
+                size: 18, color: themeData.colorScheme.primary)
+            : null,
+        showClear: label != '扣分时间 *',
         keyboardType: keyboardType,
         readOnly: label == '扣分时间 *' ? true : readOnly,
         onTap: label == '扣分时间 *' ? _pickDate : onTap,

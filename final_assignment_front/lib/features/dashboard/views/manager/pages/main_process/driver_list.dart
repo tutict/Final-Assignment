@@ -8,6 +8,7 @@ import 'package:final_assignment_front/features/api/driver_information_controlle
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/model/driver_information.dart';
+import 'package:final_assignment_front/shared/widgets/index.dart';
 
 String generateIdempotencyKey() {
   return DateTime.now().millisecondsSinceEpoch.toString();
@@ -194,22 +195,18 @@ class _DriverListPageState extends State<DriverList> {
                                 _searchController.text.isEmpty
                                     ? '暂无司机信息'
                                     : '无匹配的司机记录',
-                                style:
-                                    themeData.textTheme.bodyLarge?.copyWith(
-                                  color: themeData
-                                      .colorScheme.onSurfaceVariant,
+                                style: themeData.textTheme.bodyLarge?.copyWith(
+                                  color: themeData.colorScheme.onSurfaceVariant,
                                 ),
                               ),
                             )
                           : ListView.builder(
-                              physics:
-                                  const AlwaysScrollableScrollPhysics(),
+                              physics: const AlwaysScrollableScrollPhysics(),
                               itemCount: _filteredDrivers.length,
                               itemBuilder: (context, index) {
                                 final driver = _filteredDrivers[index];
                                 final name = driver.name ?? '未知';
-                                final id =
-                                    driver.driverId?.toString() ?? '无';
+                                final id = driver.driverId?.toString() ?? '无';
                                 final gender =
                                     _mapGenderToDisplay(driver.gender);
                                 final contact = driver.contactNumber ?? '无';
@@ -219,22 +216,20 @@ class _DriverListPageState extends State<DriverList> {
                                   color: themeData
                                       .colorScheme.surfaceContainerLowest,
                                   shape: RoundedRectangleBorder(
-                                    borderRadius:
-                                        BorderRadius.circular(12.0),
+                                    borderRadius: BorderRadius.circular(12.0),
                                   ),
                                   margin: const EdgeInsets.symmetric(
                                       vertical: 8.0, horizontal: 16.0),
                                   child: ListTile(
-                                    contentPadding:
-                                        const EdgeInsets.all(16.0),
+                                    contentPadding: const EdgeInsets.all(16.0),
                                     leading: CircleAvatar(
                                       backgroundColor: themeData
                                           .colorScheme.primaryContainer,
                                       child: Text(
                                         name.isNotEmpty ? name[0] : '?',
                                         style: TextStyle(
-                                          color: themeData.colorScheme
-                                              .onPrimaryContainer,
+                                          color: themeData
+                                              .colorScheme.onPrimaryContainer,
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
@@ -244,8 +239,7 @@ class _DriverListPageState extends State<DriverList> {
                                       style: themeData.textTheme.titleMedium
                                           ?.copyWith(
                                         fontWeight: FontWeight.bold,
-                                        color:
-                                            themeData.colorScheme.onSurface,
+                                        color: themeData.colorScheme.onSurface,
                                       ),
                                     ),
                                     subtitle: Text(
@@ -527,8 +521,7 @@ class _AddDriverPageState extends State<AddDriverPage> {
                                 if (value == null || value.isEmpty) {
                                   return '联系电话不能为空';
                                 }
-                                if (!RegExp(r'^1[3-9]\d{9}$')
-                                    .hasMatch(value)) {
+                                if (!RegExp(r'^1[3-9]\d{9}$').hasMatch(value)) {
                                   return '请输入有效的11位手机号码';
                                 }
                                 return null;
@@ -574,8 +567,7 @@ class _AddDriverPageState extends State<AddDriverPage> {
                               Icons.calendar_today,
                               _birthdateController,
                               readOnly: true,
-                              onTap: () =>
-                                  _selectDate(_birthdateController),
+                              onTap: () => _selectDate(_birthdateController),
                             ),
                             const SizedBox(height: 16),
                             AppUtils.buildTextField(
@@ -601,8 +593,7 @@ class _AddDriverPageState extends State<AddDriverPage> {
                               Icons.calendar_today,
                               _issueDateController,
                               readOnly: true,
-                              onTap: () =>
-                                  _selectDate(_issueDateController),
+                              onTap: () => _selectDate(_issueDateController),
                             ),
                             const SizedBox(height: 16),
                             AppUtils.buildTextField(
@@ -611,37 +602,32 @@ class _AddDriverPageState extends State<AddDriverPage> {
                               Icons.calendar_today,
                               _expiryDateController,
                               readOnly: true,
-                              onTap: () =>
-                                  _selectDate(_expiryDateController),
+                              onTap: () => _selectDate(_expiryDateController),
                             ),
                             const SizedBox(height: 24),
                             ElevatedButton(
                               onPressed: _isLoading ? null : _submitDriver,
                               // Disable button when loading
                               style: ElevatedButton.styleFrom(
-                                backgroundColor:
-                                    themeData.colorScheme.primary,
+                                backgroundColor: themeData.colorScheme.primary,
                                 foregroundColor:
                                     themeData.colorScheme.onPrimary,
                                 shape: RoundedRectangleBorder(
-                                    borderRadius:
-                                        BorderRadius.circular(12.0)),
+                                    borderRadius: BorderRadius.circular(12.0)),
                                 padding: const EdgeInsets.symmetric(
                                     vertical: 16.0, horizontal: 24.0),
                                 elevation: 2,
                               ),
                               child: _isLoading
                                   ? CupertinoActivityIndicator(
-                                      color:
-                                          themeData.colorScheme.onPrimary,
+                                      color: themeData.colorScheme.onPrimary,
                                       radius: 12.0,
                                     )
                                   : Text(
                                       '添加',
                                       style: themeData.textTheme.labelLarge
                                           ?.copyWith(
-                                        color:
-                                            themeData.colorScheme.onPrimary,
+                                        color: themeData.colorScheme.onPrimary,
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
@@ -937,8 +923,7 @@ class _EditDriverPageState extends State<EditDriverPage> {
                                 if (value == null || value.isEmpty) {
                                   return '联系电话不能为空';
                                 }
-                                if (!RegExp(r'^1[3-9]\d{9}$')
-                                    .hasMatch(value)) {
+                                if (!RegExp(r'^1[3-9]\d{9}$').hasMatch(value)) {
                                   return '请输入有效的11位手机号码';
                                 }
                                 return null;
@@ -984,8 +969,7 @@ class _EditDriverPageState extends State<EditDriverPage> {
                               Icons.calendar_today,
                               _birthdateController,
                               readOnly: true,
-                              onTap: () =>
-                                  _selectDate(_birthdateController),
+                              onTap: () => _selectDate(_birthdateController),
                             ),
                             const SizedBox(height: 16),
                             AppUtils.buildTextField(
@@ -1011,8 +995,7 @@ class _EditDriverPageState extends State<EditDriverPage> {
                               Icons.calendar_today,
                               _issueDateController,
                               readOnly: true,
-                              onTap: () =>
-                                  _selectDate(_issueDateController),
+                              onTap: () => _selectDate(_issueDateController),
                             ),
                             const SizedBox(height: 16),
                             AppUtils.buildTextField(
@@ -1021,28 +1004,24 @@ class _EditDriverPageState extends State<EditDriverPage> {
                               Icons.calendar_today,
                               _expiryDateController,
                               readOnly: true,
-                              onTap: () =>
-                                  _selectDate(_expiryDateController),
+                              onTap: () => _selectDate(_expiryDateController),
                             ),
                             const SizedBox(height: 24),
                             ElevatedButton(
                               onPressed: _submitDriver,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor:
-                                    themeData.colorScheme.primary,
+                                backgroundColor: themeData.colorScheme.primary,
                                 foregroundColor:
                                     themeData.colorScheme.onPrimary,
                                 shape: RoundedRectangleBorder(
-                                    borderRadius:
-                                        BorderRadius.circular(12.0)),
+                                    borderRadius: BorderRadius.circular(12.0)),
                                 padding: const EdgeInsets.symmetric(
                                     vertical: 14.0, horizontal: 24.0),
                                 elevation: 2,
                               ),
                               child: Text(
                                 '保存',
-                                style: themeData.textTheme.labelLarge
-                                    ?.copyWith(
+                                style: themeData.textTheme.labelLarge?.copyWith(
                                   color: themeData.colorScheme.onPrimary,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -1213,8 +1192,8 @@ class _DriverDetailPageState extends State<DriverDetailPage> {
         actions: [
           DashboardPageBarAction(
             icon: Icons.edit,
-            onPressed: () => Get.to(() => EditDriverPage(driver: _driver))
-                ?.then((value) {
+            onPressed: () =>
+                Get.to(() => EditDriverPage(driver: _driver))?.then((value) {
               if (value == true && mounted) {
                 developer.log(
                     'EditDriverPage returned true, refreshing details',
@@ -1270,8 +1249,7 @@ class _DriverDetailPageState extends State<DriverDetailPage> {
                             _buildDetailRow(
                                 '允许驾驶车辆类型', allowedVehicleType, themeData),
                             _buildDetailRow('发证日期', issueDate, themeData),
-                            _buildDetailRow(
-                                '有效期截止日期', expiryDate, themeData),
+                            _buildDetailRow('有效期截止日期', expiryDate, themeData),
                           ],
                         ),
                       ),
@@ -1368,33 +1346,19 @@ class AppUtils {
     String? Function(String?)? validator,
     VoidCallback? onClear,
   }) {
-    return TextFormField(
+    return AppTextFormField(
+      label: label,
       controller: controller,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon, color: themeData.colorScheme.primary),
-        suffixIcon: readOnly
-            ? Icon(Icons.calendar_today, color: themeData.colorScheme.primary)
-            : controller.text.isNotEmpty
-                ? IconButton(
-                    icon: Icon(Icons.clear,
-                        color: themeData.colorScheme.onSurfaceVariant),
-                    onPressed: onClear ?? () => controller.clear(),
-                  )
-                : null,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12.0),
-          borderSide: BorderSide.none,
-        ),
-        filled: true,
-        fillColor: themeData.colorScheme.surfaceContainer,
-        labelStyle: themeData.textTheme.bodyMedium
-            ?.copyWith(color: themeData.colorScheme.onSurfaceVariant),
-        contentPadding:
-            const EdgeInsets.symmetric(vertical: 14.0, horizontal: 16.0),
-      ),
-      style: themeData.textTheme.bodyMedium
-          ?.copyWith(color: themeData.colorScheme.onSurface),
+      prefixIcon: icon,
+      suffix: readOnly
+          ? Icon(Icons.calendar_today, color: themeData.colorScheme.primary)
+          : null,
+      showClear: !readOnly,
+      onClear: onClear,
+      fillColor: themeData.colorScheme.surfaceContainer,
+      borderless: true,
+      contentPadding:
+          const EdgeInsets.symmetric(vertical: 14.0, horizontal: 16.0),
       keyboardType: keyboardType,
       readOnly: readOnly,
       onTap: onTap,

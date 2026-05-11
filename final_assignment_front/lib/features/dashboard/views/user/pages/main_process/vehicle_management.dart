@@ -770,43 +770,21 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
       String? Function(String?)? validator}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
-      child: TextFormField(
+      child: AppTextFormField(
+        label: label,
         controller: controller,
-        style: TextStyle(color: themeData.colorScheme.onSurface),
-        decoration: InputDecoration(
-          labelText: label,
-          labelStyle: TextStyle(color: themeData.colorScheme.onSurfaceVariant),
-          helperText: label == '车牌号'
-              ? '请输入车牌号后缀，例如：12345'
-              : label == '身份证号码'
-                  ? '请输入15或18位身份证号码'
-                  : label == '联系电话'
-                      ? '请输入11位手机号码'
-                      : null,
-          helperStyle: TextStyle(
-              color: themeData.colorScheme.onSurfaceVariant
-                  .withValues(alpha: 0.6)),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
-          enabledBorder: OutlineInputBorder(
-              borderSide: BorderSide(
-                  color: themeData.colorScheme.outline.withValues(alpha: 0.3))),
-          focusedBorder: OutlineInputBorder(
-              borderSide:
-                  BorderSide(color: themeData.colorScheme.primary, width: 1.5)),
-          filled: true,
-          fillColor: readOnly
-              ? themeData.colorScheme.surfaceContainerHighest
-                  .withValues(alpha: 0.5)
-              : themeData.colorScheme.surfaceContainerLowest,
-          prefixText: prefix,
-          prefixStyle: TextStyle(
-              color: themeData.colorScheme.onSurface,
-              fontWeight: FontWeight.bold),
-          suffixIcon: readOnly && label == '首次注册日期'
-              ? Icon(Icons.calendar_today,
-                  size: 18, color: themeData.colorScheme.primary)
-              : null,
-        ),
+        helperText: label == '车牌号'
+            ? '请输入车牌号后缀，例如：12345'
+            : label == '身份证号码'
+                ? '请输入15或18位身份证号码'
+                : label == '联系电话'
+                    ? '请输入11位手机号码'
+                    : null,
+        prefixText: prefix,
+        suffix: readOnly && label == '首次注册日期'
+            ? Icon(Icons.calendar_today,
+                size: 18, color: themeData.colorScheme.primary)
+            : null,
         keyboardType: keyboardType,
         readOnly: readOnly,
         onTap: onTap,
@@ -1180,47 +1158,22 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
       String? Function(String?)? validator}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
-      child: TextFormField(
+      child: AppTextFormField(
+        label: label,
         controller: controller,
-        style: TextStyle(color: themeData.colorScheme.onSurface),
-        decoration: InputDecoration(
-          labelText: label,
-          labelStyle: TextStyle(color: themeData.colorScheme.onSurfaceVariant),
-          helperText: label == '车牌号'
-              ? '请输入车牌号后缀，例如：12345'
-              : label == '身份证号码'
-                  ? '请输入15或18位身份证号码'
-                  : label == '联系电话'
-                      ? '请输入11位手机号码'
-                      : null,
-          helperStyle: TextStyle(
-              color: themeData.colorScheme.onSurfaceVariant
-                  .withValues(alpha: 0.6)),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
-          enabledBorder: OutlineInputBorder(
-              borderSide: BorderSide(
-                  color: themeData.colorScheme.outline.withValues(alpha: 0.3))),
-          focusedBorder: OutlineInputBorder(
-              borderSide:
-                  BorderSide(color: themeData.colorScheme.primary, width: 1.5)),
-          filled: true,
-          fillColor: readOnly
-              ? themeData.colorScheme.surfaceContainerHighest
-                  .withValues(alpha: 0.5)
-              : themeData.colorScheme.surfaceContainerLowest,
-          prefixText: prefix,
-          prefixStyle: TextStyle(
-              color: themeData.colorScheme.onSurface,
-              fontWeight: FontWeight.bold),
-          suffixIcon: readOnly && label == '首次注册日期'
-              ? Icon(Icons.calendar_today,
-                  size: 18, color: themeData.colorScheme.primary)
-              : null,
-          hintText: readOnly && label == '身份证号码' ? '请在用户信息管理中修改身份证号码' : null,
-          hintStyle: TextStyle(
-              color: themeData.colorScheme.onSurfaceVariant
-                  .withValues(alpha: 0.6)),
-        ),
+        helperText: label == '车牌号'
+            ? '请输入车牌号后缀，例如：12345'
+            : label == '身份证号码'
+                ? '请输入15或18位身份证号码'
+                : label == '联系电话'
+                    ? '请输入11位手机号码'
+                    : null,
+        hintText: readOnly && label == '身份证号码' ? '请在用户信息管理中修改身份证号码' : null,
+        prefixText: prefix,
+        suffix: readOnly && label == '首次注册日期'
+            ? Icon(Icons.calendar_today,
+                size: 18, color: themeData.colorScheme.primary)
+            : null,
         keyboardType: keyboardType,
         readOnly: readOnly,
         onTap: onTap,

@@ -818,114 +818,52 @@ class _AddOffensePageState extends State<AddOffensePage> {
     if (label == '司机姓名' || label == '车牌号') {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 6.0),
-        child: Autocomplete<String>(
-          optionsBuilder: (TextEditingValue textEditingValue) async {
-            if (textEditingValue.text.isEmpty) {
-              return const Iterable<String>.empty();
-            }
+        child: AppAutocompleteField<String>(
+          label: label,
+          controller: controller,
+          helperText: label == '车牌号' ? '请输入车牌号，例如：黑AWS34' : null,
+          keyboardType: keyboardType,
+          maxLength: maxLength,
+          options: (query) async {
+            if (query.isEmpty) return const Iterable<String>.empty();
             return label == '司机姓名'
-                ? await _fetchDriverNameSuggestions(textEditingValue.text)
-                : await _fetchLicensePlateSuggestions(textEditingValue.text);
+                ? await _fetchDriverNameSuggestions(query)
+                : await _fetchLicensePlateSuggestions(query);
           },
-          onSelected: (String selection) {
-            controller.text = selection;
-          },
-          fieldViewBuilder:
-              (context, textEditingController, focusNode, onFieldSubmitted) {
-            textEditingController.text = controller.text;
-            return TextFormField(
-              controller: textEditingController,
-              focusNode: focusNode,
-              style: TextStyle(color: themeData.colorScheme.onSurface),
-              decoration: InputDecoration(
-                labelText: label,
-                labelStyle:
-                    TextStyle(color: themeData.colorScheme.onSurfaceVariant),
-                helperText: label == '车牌号' ? '请输入车牌号，例如：黑AWS34' : null,
-                helperStyle: TextStyle(
-                    color: themeData.colorScheme.onSurfaceVariant
-                        .withValues(alpha: 0.6)),
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12.0)),
-                enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(
-                        color: themeData.colorScheme.outline
-                            .withValues(alpha: 0.3))),
-                focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(
-                        color: themeData.colorScheme.primary, width: 1.5)),
-                filled: true,
-                fillColor: themeData.colorScheme.surfaceContainerLowest,
-                suffixIcon: textEditingController.text.isNotEmpty
-                    ? IconButton(
-                        icon: Icon(Icons.clear,
-                            color: themeData.colorScheme.onSurfaceVariant),
-                        onPressed: () {
-                          textEditingController.clear();
-                          controller.clear();
-                        },
-                      )
-                    : null,
-              ),
-              keyboardType: keyboardType,
-              maxLength: maxLength,
-              validator: validator ??
-                  (value) {
-                    final trimmedValue = value?.trim() ?? '';
-                    if (required && trimmedValue.isEmpty) return '$label不能为空';
-                    if (label == '司机姓名' && trimmedValue.length > 100) {
-                      return '司机姓名不能超过100个字符';
-                    }
-                    if (label == '车牌号') {
-                      if (trimmedValue.isEmpty) return '车牌号不能为空';
-                      if (trimmedValue.length > 20) return '车牌号不能超过20个字符';
-                      if (!isValidLicensePlate(trimmedValue)) {
-                        return '请输入有效车牌号，例如：黑AWS34';
-                      }
-                    }
-                    return null;
-                  },
-              onChanged: (value) {
-                controller.text = value;
+          onSelected: (selection) => controller.text = selection,
+          validator: validator ??
+              (value) {
+                final trimmedValue = value?.trim() ?? '';
+                if (required && trimmedValue.isEmpty) return '$label不能为空';
+                if (label == '司机姓名' && trimmedValue.length > 100) {
+                  return '司机姓名不能超过100个字符';
+                }
+                if (label == '车牌号') {
+                  if (trimmedValue.isEmpty) return '车牌号不能为空';
+                  if (trimmedValue.length > 20) return '车牌号不能超过20个字符';
+                  if (!isValidLicensePlate(trimmedValue)) {
+                    return '请输入有效车牌号，例如：黑AWS34';
+                  }
+                }
+                return null;
               },
-            );
-          },
         ),
       );
     }
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
-      child: TextFormField(
+      child: AppTextFormField(
+        label: label,
         controller: controller,
-        style: TextStyle(color: themeData.colorScheme.onSurface),
-        decoration: InputDecoration(
-          labelText: label,
-          labelStyle: TextStyle(color: themeData.colorScheme.onSurfaceVariant),
-          helperText: label == '违法地点'
-              ? '请输入违法地点，例如：XX路口'
-              : label == '车牌号'
-                  ? '请输入车牌号，例如：黑AWS34'
-                  : null,
-          helperStyle: TextStyle(
-              color: themeData.colorScheme.onSurfaceVariant
-                  .withValues(alpha: 0.6)),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
-          enabledBorder: OutlineInputBorder(
-              borderSide: BorderSide(
-                  color: themeData.colorScheme.outline.withValues(alpha: 0.3))),
-          focusedBorder: OutlineInputBorder(
-              borderSide:
-                  BorderSide(color: themeData.colorScheme.primary, width: 1.5)),
-          filled: true,
-          fillColor: readOnly
-              ? themeData.colorScheme.surfaceContainerHighest
-                  .withValues(alpha: 0.5)
-              : themeData.colorScheme.surfaceContainerLowest,
-          suffixIcon: readOnly
-              ? Icon(Icons.calendar_today,
-                  size: 18, color: themeData.colorScheme.primary)
-              : null,
-        ),
+        helperText: label == '违法地点'
+            ? '请输入违法地点，例如：XX路口'
+            : label == '车牌号'
+                ? '请输入车牌号，例如：黑AWS34'
+                : null,
+        suffix: readOnly
+            ? Icon(Icons.calendar_today,
+                size: 18, color: themeData.colorScheme.primary)
+            : null,
         keyboardType: keyboardType,
         readOnly: readOnly,
         onTap: onTap,
@@ -1453,114 +1391,52 @@ class _EditOffensePageState extends State<EditOffensePage> {
     if (label == '司机姓名' || label == '车牌号') {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 6.0),
-        child: Autocomplete<String>(
-          optionsBuilder: (TextEditingValue textEditingValue) async {
-            if (textEditingValue.text.isEmpty) {
-              return const Iterable<String>.empty();
-            }
+        child: AppAutocompleteField<String>(
+          label: label,
+          controller: controller,
+          helperText: label == '车牌号' ? '请输入车牌号，例如：黑AWS34' : null,
+          keyboardType: keyboardType,
+          maxLength: maxLength,
+          options: (query) async {
+            if (query.isEmpty) return const Iterable<String>.empty();
             return label == '司机姓名'
-                ? await _fetchDriverNameSuggestions(textEditingValue.text)
-                : await _fetchLicensePlateSuggestions(textEditingValue.text);
+                ? await _fetchDriverNameSuggestions(query)
+                : await _fetchLicensePlateSuggestions(query);
           },
-          onSelected: (String selection) {
-            controller.text = selection;
-          },
-          fieldViewBuilder:
-              (context, textEditingController, focusNode, onFieldSubmitted) {
-            textEditingController.text = controller.text;
-            return TextFormField(
-              controller: textEditingController,
-              focusNode: focusNode,
-              style: TextStyle(color: themeData.colorScheme.onSurface),
-              decoration: InputDecoration(
-                labelText: label,
-                labelStyle:
-                    TextStyle(color: themeData.colorScheme.onSurfaceVariant),
-                helperText: label == '车牌号' ? '请输入车牌号，例如：黑AWS34' : null,
-                helperStyle: TextStyle(
-                    color: themeData.colorScheme.onSurfaceVariant
-                        .withValues(alpha: 0.6)),
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12.0)),
-                enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(
-                        color: themeData.colorScheme.outline
-                            .withValues(alpha: 0.3))),
-                focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(
-                        color: themeData.colorScheme.primary, width: 1.5)),
-                filled: true,
-                fillColor: themeData.colorScheme.surfaceContainerLowest,
-                suffixIcon: textEditingController.text.isNotEmpty
-                    ? IconButton(
-                        icon: Icon(Icons.clear,
-                            color: themeData.colorScheme.onSurfaceVariant),
-                        onPressed: () {
-                          textEditingController.clear();
-                          controller.clear();
-                        },
-                      )
-                    : null,
-              ),
-              keyboardType: keyboardType,
-              maxLength: maxLength,
-              validator: validator ??
-                  (value) {
-                    final trimmedValue = value?.trim() ?? '';
-                    if (required && trimmedValue.isEmpty) return '$label不能为空';
-                    if (label == '司机姓名' && trimmedValue.length > 100) {
-                      return '司机姓名不能超过100个字符';
-                    }
-                    if (label == '车牌号') {
-                      if (trimmedValue.isEmpty) return '车牌号不能为空';
-                      if (trimmedValue.length > 20) return '车牌号不能超过20个字符';
-                      if (!isValidLicensePlate(trimmedValue)) {
-                        return '请输入有效车牌号，例如：黑AWS34';
-                      }
-                    }
-                    return null;
-                  },
-              onChanged: (value) {
-                controller.text = value;
+          onSelected: (selection) => controller.text = selection,
+          validator: validator ??
+              (value) {
+                final trimmedValue = value?.trim() ?? '';
+                if (required && trimmedValue.isEmpty) return '$label不能为空';
+                if (label == '司机姓名' && trimmedValue.length > 100) {
+                  return '司机姓名不能超过100个字符';
+                }
+                if (label == '车牌号') {
+                  if (trimmedValue.isEmpty) return '车牌号不能为空';
+                  if (trimmedValue.length > 20) return '车牌号不能超过20个字符';
+                  if (!isValidLicensePlate(trimmedValue)) {
+                    return '请输入有效车牌号，例如：黑AWS34';
+                  }
+                }
+                return null;
               },
-            );
-          },
         ),
       );
     }
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
-      child: TextFormField(
+      child: AppTextFormField(
+        label: label,
         controller: controller,
-        style: TextStyle(color: themeData.colorScheme.onSurface),
-        decoration: InputDecoration(
-          labelText: label,
-          labelStyle: TextStyle(color: themeData.colorScheme.onSurfaceVariant),
-          helperText: label == '违法地点'
-              ? '请输入违法地点，例如：XX路口'
-              : label == '车牌号'
-                  ? '请输入车牌号，例如：黑AWS34'
-                  : null,
-          helperStyle: TextStyle(
-              color: themeData.colorScheme.onSurfaceVariant
-                  .withValues(alpha: 0.6)),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12.0)),
-          enabledBorder: OutlineInputBorder(
-              borderSide: BorderSide(
-                  color: themeData.colorScheme.outline.withValues(alpha: 0.3))),
-          focusedBorder: OutlineInputBorder(
-              borderSide:
-                  BorderSide(color: themeData.colorScheme.primary, width: 1.5)),
-          filled: true,
-          fillColor: readOnly
-              ? themeData.colorScheme.surfaceContainerHighest
-                  .withValues(alpha: 0.5)
-              : themeData.colorScheme.surfaceContainerLowest,
-          suffixIcon: readOnly
-              ? Icon(Icons.calendar_today,
-                  size: 18, color: themeData.colorScheme.primary)
-              : null,
-        ),
+        helperText: label == '违法地点'
+            ? '请输入违法地点，例如：XX路口'
+            : label == '车牌号'
+                ? '请输入车牌号，例如：黑AWS34'
+                : null,
+        suffix: readOnly
+            ? Icon(Icons.calendar_today,
+                size: 18, color: themeData.colorScheme.primary)
+            : null,
         keyboardType: keyboardType,
         readOnly: readOnly,
         onTap: onTap,
