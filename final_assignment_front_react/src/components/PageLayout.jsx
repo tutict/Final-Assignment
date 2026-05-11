@@ -1,6 +1,6 @@
 ﻿import React from 'react';
 
-export default function PageLayout({ title, subtitle, actions, children }) {
+export default function PageLayout({ title, subtitle, headerActions, children }) {
   return (
     <section className="page">
       <div className="page-header">
@@ -8,7 +8,7 @@ export default function PageLayout({ title, subtitle, actions, children }) {
           <h1>{title}</h1>
           {subtitle ? <p>{subtitle}</p> : null}
         </div>
-        {actions ? <div className="page-actions">{actions}</div> : null}
+        {headerActions ? <div className="page-actions">{headerActions}</div> : null}
       </div>
       <div className="page-body">{children}</div>
     </section>

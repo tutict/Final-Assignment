@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { API_PATHS } from '../constants/apiPaths.js';
 
 const DEFAULT_API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081';
 
@@ -45,7 +46,7 @@ export function useAiChatStream({ apiBase = DEFAULT_API_BASE } = {}) {
         webSearch: webSearch ? 'true' : 'false',
       });
 
-      const eventSource = new EventSource(`${apiBase}/api/ai/chat?${params.toString()}`);
+      const eventSource = new EventSource(`${apiBase}${API_PATHS.AI_CHAT_STREAM}?${params.toString()}`);
       eventSourceRef.current = eventSource;
       let buffer = '';
 

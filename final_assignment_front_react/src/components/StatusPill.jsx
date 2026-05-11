@@ -1,19 +1,22 @@
-﻿import React from 'react';
+import React from 'react';
 import clsx from 'clsx';
-import { getStatusLabel } from '../utils/statusLabels.js';
+import { STATUS, getStatusLabel } from '../utils/statusLabels.js';
+
+const SUCCESS_STATUSES = new Set([STATUS.SUCCESS, STATUS.APPROVED, STATUS.PAID]);
+const WARNING_STATUSES = new Set([STATUS.PENDING, STATUS.PROCESSING]);
+const DANGER_STATUSES = new Set([STATUS.FAILED, STATUS.REJECTED, STATUS.UNPAID]);
 
 export default function StatusPill({ value }) {
-  const normalized = String(value || '').toLowerCase();
+  const status = String(value || '');
   return (
     <span
       className={clsx('status-pill', {
-        success: normalized.includes('success') || normalized.includes('approved') || normalized.includes('paid'),
-        warning: normalized.includes('pending') || normalized.includes('processing'),
-        danger: normalized.includes('fail') || normalized.includes('rejected') || normalized.includes('unpaid'),
+        success: SUCCESS_STATUSES.has(status),
+        warning: WARNING_STATUSES.has(status),
+        danger: DANGER_STATUSES.has(status),
       })}
     >
       {getStatusLabel(value)}
     </span>
   );
 }
-

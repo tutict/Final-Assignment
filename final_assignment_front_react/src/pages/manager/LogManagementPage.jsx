@@ -10,6 +10,11 @@ const logPages = [
 
 export default function LogManagementPage() {
   const navigate = useNavigate();
+
+  const handleNavigateLogPage = (path) => {
+    navigate(path);
+  };
+
   return (
     <PageLayout title="日志管理" subtitle="审计、追踪与合规报告">
       <div className="grid-three">
@@ -17,7 +22,7 @@ export default function LogManagementPage() {
           <div key={page.path} className="panel">
             <h3>{page.title}</h3>
             <p>{page.description}</p>
-            <button type="button" className="primary" onClick={() => navigate(page.path)}>
+            <button type="button" className="primary" onClick={() => handleNavigateLogPage(page.path)}>
               查看
             </button>
           </div>

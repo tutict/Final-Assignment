@@ -2,6 +2,7 @@
 import { jwtDecode } from 'jwt-decode';
 import { login as loginApi, register as registerApi } from '../api/auth';
 import { setAuthToken } from '../api/client';
+import { ROLES } from '../constants/roles.js';
 
 const AuthContext = createContext(null);
 
@@ -32,7 +33,7 @@ function loadStoredAuth() {
   return {
     token,
     roles,
-    userRole: localStorage.getItem('userRole') || roles[0] || 'USER',
+    userRole: localStorage.getItem('userRole') || roles[0] || ROLES.USER,
     userName: localStorage.getItem('userName') || '',
     userEmail: localStorage.getItem('userEmail') || '',
     driverName: localStorage.getItem('driverName') || '',
@@ -62,7 +63,7 @@ export function AuthProvider({ children }) {
       }
       const roles = extractRoles(token);
       const normalizedRoles = roles.map((role) => role.replace('ROLE_', ''));
-      const userRole = normalizedRoles[0] || 'USER';
+      const userRole = normalizedRoles[0] || ROLES.USER;
       const user = result?.user || {};
       const resolvedName = user?.name || user?.realName || username.split('@')[0];
       const resolvedEmail = user?.email || username;
@@ -100,7 +101,7 @@ export function AuthProvider({ children }) {
       const result = await registerApi({
         username,
         password,
-        role: role || 'USER',
+        role: role || ROLES.USER,
         idempotencyKey: crypto?.randomUUID ? crypto.randomUUID() : undefined,
       });
       if (result?.status !== 'CREATED') {
@@ -134,7 +135,7 @@ export function AuthProvider({ children }) {
       logout,
       isAuthenticated: Boolean(auth?.token),
       roles: auth?.roles || [],
-      userRole: auth?.userRole || 'USER',
+      userRole: auth?.userRole || ROLES.USER,
     }),
     [auth, loading, login, register, logout]
   );

@@ -37,7 +37,7 @@ class UserDashboardController extends GetxController {
   final RxString currentEmail = ''.obs;
   var driverLicenseNumber = RxString('');
   var idCardNumber = RxString('');
-  final isLoadingUser = true.obs; // Loading state for user data
+  final isLoading = true.obs; // Loading state for user data
   final offenseApi = OffenseInformationControllerApi();
   final roleApi = RoleManagementControllerApi();
   Widget? Function(String routeName)? pageResolver;
@@ -74,7 +74,7 @@ class UserDashboardController extends GetxController {
   }
 
   Future<void> _loadUserFromPrefs() async {
-    isLoadingUser.value = true;
+    isLoading.value = true;
     try {
       final prefs = await SharedPreferences.getInstance();
       final jwtToken = prefs.getString('jwtToken');
@@ -106,7 +106,7 @@ class UserDashboardController extends GetxController {
       _showErrorSnackBar('加载用户信息失败: $e');
       _redirectToLogin();
     } finally {
-      isLoadingUser.value = false;
+      isLoading.value = false;
     }
   }
 

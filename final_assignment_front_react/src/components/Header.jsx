@@ -1,11 +1,12 @@
 ﻿import React from 'react';
 import { FiSun, FiMoon, FiUser } from 'react-icons/fi';
 import { useAuth } from '../auth/AuthContext.jsx';
+import { ROLES } from '../constants/roles.js';
 
 export default function Header({ title, subtitle, onToggleTheme, theme }) {
   const { auth } = useAuth();
   const userName = auth?.driverName || auth?.userName || '访客';
-  const role = auth?.userRole || 'USER';
+  const role = auth?.userRole || ROLES.USER;
 
   return (
     <header className="app-header">

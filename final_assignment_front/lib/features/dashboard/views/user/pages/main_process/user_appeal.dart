@@ -814,7 +814,7 @@ class UserAppealDetailPage extends StatefulWidget {
 
 class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
   late final ProgressController progressController;
-  bool _isLoadingProgress = false;
+  bool isLoading = false;
 
   final UserDashboardController? controller =
       Get.isRegistered<UserDashboardController>()
@@ -830,11 +830,11 @@ class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
   }
 
   Future<void> _fetchProgress() async {
-    setState(() => _isLoadingProgress = true);
+    setState(() => isLoading = true);
     try {
       await progressController.fetchProgress();
     } finally {
-      if (mounted) setState(() => _isLoadingProgress = false);
+      if (mounted) setState(() => isLoading = false);
     }
   }
 
@@ -1069,7 +1069,7 @@ class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
                           ),
                         ),
                         const SizedBox(height: 12),
-                        _isLoadingProgress
+                        isLoading
                             ? const Center(child: CircularProgressIndicator())
                             : Obx(() {
                                 final relatedProgress = progressController

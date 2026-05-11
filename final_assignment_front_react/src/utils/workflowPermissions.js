@@ -1,9 +1,11 @@
+import { STATUS } from './statusLabels.js';
+
 export const APPEAL_PROCESS_STATUS = Object.freeze({
-  unprocessed: 'Unprocessed',
-  underReview: 'Under_Review',
-  approved: 'Approved',
-  rejected: 'Rejected',
-  withdrawn: 'Withdrawn',
+  unprocessed: STATUS.UNPROCESSED,
+  underReview: STATUS.UNDER_REVIEW,
+  approved: STATUS.APPROVED,
+  rejected: STATUS.REJECTED,
+  withdrawn: STATUS.WITHDRAWN,
 });
 
 export const APPEAL_PROCESS_EVENT = Object.freeze({

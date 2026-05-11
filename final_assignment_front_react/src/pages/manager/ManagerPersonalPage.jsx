@@ -1,6 +1,7 @@
 ﻿import React from 'react';
 import PageLayout from '../../components/PageLayout.jsx';
 import { useAuth } from '../../auth/AuthContext.jsx';
+import { ROLES } from '../../constants/roles.js';
 
 export default function ManagerPersonalPage() {
   const { auth } = useAuth();
@@ -9,7 +10,7 @@ export default function ManagerPersonalPage() {
       <div className="profile-card">
         <h3>{auth?.userName || '管理员'}</h3>
         <p>邮箱：{auth?.userEmail || '-'}</p>
-        <p>角色：{auth?.userRole || 'ADMIN'}</p>
+        <p>角色：{auth?.userRole || ROLES.ADMIN}</p>
       </div>
     </PageLayout>
   );

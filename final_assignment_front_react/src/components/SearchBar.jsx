@@ -1,5 +1,8 @@
 ﻿import React from 'react';
 
+/**
+ * `actions` renders trailing controls inside the search bar.
+ */
 export default function SearchBar({ value, onChange, placeholder, actions }) {
   return (
     <div className="search-bar">

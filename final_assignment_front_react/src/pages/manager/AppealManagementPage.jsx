@@ -24,17 +24,22 @@ export default function AppealManagementPage() {
   const [search, setSearch] = useState('');
   const [rejectReason, setRejectReason] = useState('');
   const {
-    isOpen: detailOpen,
+    isOpen: isDetailOpen,
     activeRow: activeAppeal,
-    open: openDetail,
-    close: closeDetailModal,
+    open,
+    close,
   } = useModalState();
 
   const { data, isLoading, isError, approve, reject, isUpdating } = useAppealManagement();
 
-  const closeDetail = () => {
+  const handleCloseDetail = () => {
     setRejectReason('');
-    closeDetailModal();
+    close();
+  };
+
+  const handleOpenDetail = (row) => {
+    setRejectReason('');
+    open(row);
   };
 
   const rows = Array.isArray(data) ? data : [];
@@ -51,20 +56,20 @@ export default function AppealManagementPage() {
 
   const columns = useMemo(() => buildColumns(appealColumnFields), []);
 
-  const { confirm: confirmApprove, loading: approving } = useConfirm(
+  const { confirm: handleConfirmApprove, loading: approving } = useConfirm(
     async () => {
       if (!activeAppeal?.appealId) return;
       await approve(activeAppeal);
     },
-    { onSuccess: closeDetail }
+    { onSuccess: handleCloseDetail }
   );
 
-  const { confirm: confirmReject, loading: rejecting } = useConfirm(
+  const { confirm: handleConfirmReject, loading: rejecting } = useConfirm(
     async () => {
       if (!activeAppeal?.appealId) return;
       await reject(activeAppeal);
     },
-    { onSuccess: closeDetail }
+    { onSuccess: handleCloseDetail }
   );
 
   const updating = isUpdating || approving || rejecting;
@@ -77,24 +82,21 @@ export default function AppealManagementPage() {
       <DataTable
         columns={columns}
         rows={filteredRows}
-        onView={(row) => {
-          setRejectReason('');
-          openDetail(row);
-        }}
+        onView={handleOpenDetail}
       />
       <Modal
-        open={detailOpen}
+        isOpen={isDetailOpen}
         title="申诉详情"
-        onClose={closeDetail}
-        footer={
+        onClose={handleCloseDetail}
+        footerActions={
           <div className="modal-actions">
-            <button type="button" className="ghost" onClick={closeDetail}>
+            <button type="button" className="ghost" onClick={handleCloseDetail}>
               关闭
             </button>
             <button
               type="button"
               className="primary"
-              onClick={confirmApprove}
+              onClick={handleConfirmApprove}
               disabled={updating || !canApprove(activeAppeal?.processStatus)}
             >
               通过
@@ -102,7 +104,7 @@ export default function AppealManagementPage() {
             <button
               type="button"
               className="danger"
-              onClick={confirmReject}
+              onClick={handleConfirmReject}
               disabled={updating || !canReject(activeAppeal?.processStatus)}
             >
               驳回

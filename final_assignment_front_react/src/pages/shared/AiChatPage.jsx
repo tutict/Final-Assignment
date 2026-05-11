@@ -10,9 +10,12 @@ export default function AiChatPage() {
     webSearch,
     setWebSearch,
     streaming,
-    send,
-    stop,
+    send: sendMessage,
+    stop: stopStream,
   } = useAiChatStream();
+
+  const handleSend = () => sendMessage();
+  const handleStop = () => stopStream();
 
   return (
     <PageLayout title="AI 智能助手" subtitle="在线咨询 · 违法处理建议 · 业务指引">
@@ -44,14 +47,14 @@ export default function AiChatPage() {
               onChange={(event) => setInput(event.target.value)}
               placeholder="请输入问题，例如：如何处理超速罚单？"
               onKeyDown={(event) => {
-                if (event.key === 'Enter') send();
+                if (event.key === 'Enter') handleSend();
               }}
             />
-            <button type="button" className="primary" onClick={() => send()} disabled={streaming}>
+            <button type="button" className="primary" onClick={handleSend} disabled={streaming}>
               发送
             </button>
             {streaming ? (
-              <button type="button" className="ghost" onClick={stop}>
+              <button type="button" className="ghost" onClick={handleStop}>
                 停止
               </button>
             ) : null}

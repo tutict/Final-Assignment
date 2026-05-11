@@ -1,6 +1,7 @@
 import React, { Suspense, lazy } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import ProtectedRoute from './auth/ProtectedRoute.jsx';
+import { ROLES } from './constants/roles.js';
 import LoginPage from './pages/shared/LoginPage.jsx';
 
 const ManagerLayout = lazy(() => import('./layouts/ManagerLayout.jsx'));
@@ -88,6 +89,9 @@ const newsContent = {
   ],
 };
 
+const managerRoles = [ROLES.ADMIN, ROLES.SUPER_ADMIN, ROLES.APPEAL_REVIEWER];
+const userRoles = [ROLES.USER, ROLES.ADMIN, ROLES.SUPER_ADMIN];
+
 export default function App() {
   return (
     <Routes>
@@ -96,7 +100,7 @@ export default function App() {
 
       <Route
         element={
-          <ProtectedRoute allowRoles={['ADMIN', 'SUPER_ADMIN', 'APPEAL_REVIEWER']}>
+          <ProtectedRoute allowRoles={managerRoles}>
             {renderLazyPage(ManagerLayout)}
           </ProtectedRoute>
         }
@@ -119,7 +123,7 @@ export default function App() {
       <Route
         path="/admin"
         element={
-          <ProtectedRoute allowRoles={['ADMIN', 'SUPER_ADMIN', 'APPEAL_REVIEWER']}>
+          <ProtectedRoute allowRoles={managerRoles}>
             {renderLazyPage(AdminLayout)}
           </ProtectedRoute>
         }
@@ -142,7 +146,7 @@ export default function App() {
 
       <Route
         element={
-          <ProtectedRoute allowRoles={['USER', 'ADMIN', 'SUPER_ADMIN']}>
+          <ProtectedRoute allowRoles={userRoles}>
             {renderLazyPage(UserLayout)}
           </ProtectedRoute>
         }
@@ -163,7 +167,7 @@ export default function App() {
       <Route
         path="/mainScan"
         element={
-          <ProtectedRoute allowRoles={['USER', 'ADMIN', 'SUPER_ADMIN']}>
+          <ProtectedRoute allowRoles={userRoles}>
             {renderLazyPage(RoleAwareLayout, {
               headerTitle: '扫码服务',
               headerSubtitle: '快速处理入口',
@@ -177,7 +181,7 @@ export default function App() {
       <Route
         path="/changeThemes"
         element={
-          <ProtectedRoute allowRoles={['USER', 'ADMIN', 'SUPER_ADMIN']}>
+          <ProtectedRoute allowRoles={userRoles}>
             {renderLazyPage(RoleAwareLayout, {
               headerTitle: '主题管理',
               headerSubtitle: '界面风格设置',
@@ -191,7 +195,7 @@ export default function App() {
       <Route
         path="/accidentEvidencePage"
         element={
-          <ProtectedRoute allowRoles={['USER', 'ADMIN', 'SUPER_ADMIN']}>
+          <ProtectedRoute allowRoles={userRoles}>
             {renderLazyPage(RoleAwareLayout, {
               headerTitle: '事故证据采集',
               headerSubtitle: '快捷指南',
@@ -210,7 +214,7 @@ export default function App() {
       <Route
         path="/accidentProgressPage"
         element={
-          <ProtectedRoute allowRoles={['USER', 'ADMIN', 'SUPER_ADMIN']}>
+          <ProtectedRoute allowRoles={userRoles}>
             {renderLazyPage(RoleAwareLayout, {
               headerTitle: '事故处理流程',
               headerSubtitle: '快速指南',
@@ -229,7 +233,7 @@ export default function App() {
       <Route
         path="/accidentQuickGuidePage"
         element={
-          <ProtectedRoute allowRoles={['USER', 'ADMIN', 'SUPER_ADMIN']}>
+          <ProtectedRoute allowRoles={userRoles}>
             {renderLazyPage(RoleAwareLayout, {
               headerTitle: '事故快处指南',
               headerSubtitle: '快速指南',
@@ -248,7 +252,7 @@ export default function App() {
       <Route
         path="/accidentVideoQuickPage"
         element={
-          <ProtectedRoute allowRoles={['USER', 'ADMIN', 'SUPER_ADMIN']}>
+          <ProtectedRoute allowRoles={userRoles}>
             {renderLazyPage(RoleAwareLayout, {
               headerTitle: '事故处理视频',
               headerSubtitle: '快速指南',
@@ -267,7 +271,7 @@ export default function App() {
       <Route
         path="/finePaymentNoticePage"
         element={
-          <ProtectedRoute allowRoles={['USER', 'ADMIN', 'SUPER_ADMIN']}>
+          <ProtectedRoute allowRoles={userRoles}>
             {renderLazyPage(RoleAwareLayout, {
               headerTitle: '罚款缴纳说明',
               headerSubtitle: '快速指南',
@@ -286,7 +290,7 @@ export default function App() {
       <Route
         path="/latestTrafficViolationNewsPage"
         element={
-          <ProtectedRoute allowRoles={['USER', 'ADMIN', 'SUPER_ADMIN']}>
+          <ProtectedRoute allowRoles={userRoles}>
             {renderLazyPage(RoleAwareLayout, {
               headerTitle: '最新交通资讯',
               headerSubtitle: '权威资讯',
@@ -305,7 +309,7 @@ export default function App() {
 
       <Route
         element={
-          <ProtectedRoute allowRoles={['USER', 'ADMIN', 'SUPER_ADMIN']}>
+          <ProtectedRoute allowRoles={userRoles}>
             {renderLazyPage(RoleAwareLayout, {
               headerTitle: '账户中心',
               headerSubtitle: '账户与安全设置',

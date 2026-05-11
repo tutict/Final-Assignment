@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { listEntities, postWithIdempotency } from '../api/entities.js';
 import { entityConfigs } from '../config/entities.js';
+import { API_PATHS } from '../constants/apiPaths.js';
 import { APPEAL_PROCESS_EVENT } from '../utils/workflowPermissions.js';
 
 const DEFAULT_OFFENSE_LIMIT = 20;
@@ -143,7 +144,7 @@ export function useAppealManagement(options = {}) {
   const workflowMutation = useMutation({
     mutationKey: appealManagementKeys.workflow(),
     mutationFn: ({ appealId, event }) =>
-      postWithIdempotency(`/api/workflow/appeals/${appealId}/events/${event}`, {}),
+      postWithIdempotency(API_PATHS.APPEAL_WORKFLOW_EVENT(appealId, event), {}),
     onSuccess: async (updatedAppeal, variables) => {
       const changedAppeal = {
         appealId: variables.appealId,

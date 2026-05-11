@@ -34,10 +34,10 @@ export default function CrudPage({ config }) {
   const [search, setSearch] = useState('');
   const [formData, setFormData] = useState({});
   const {
-    isOpen: modalOpen,
+    isOpen: isModalOpen,
     activeRow: editing,
-    open: openModal,
-    close: closeModal,
+    open,
+    close,
   } = useModalState();
   const deferredSearch = useDeferredValue(search);
 
@@ -97,16 +97,18 @@ export default function CrudPage({ config }) {
   const handleOpenCreate = () => {
     if (!canMutate) return;
     setFormData({});
-    openModal();
+    open();
   };
 
   const handleEdit = (row) => {
     if (!canMutate) return;
     setFormData(row || {});
-    openModal(row);
+    open(row);
   };
 
-  const { confirm: confirmDelete, loading: deleteLoading } = useConfirm(async (row) => {
+  const handleCloseModal = () => close();
+
+  const { confirm: handleConfirmDelete, loading: deleteLoading } = useConfirm(async (row) => {
     if (!canMutate) return;
     const id = row?.[config.idField];
     if (!id) return;
@@ -115,7 +117,7 @@ export default function CrudPage({ config }) {
     }
   });
 
-  const { confirm: confirmSave, loading: saveLoading } = useConfirm(
+  const { confirm: handleConfirmSave, loading: saveLoading } = useConfirm(
     async () => {
       if (!canMutate) return;
       const editableFieldNames = editableFields.map((field) => field.name);
@@ -132,7 +134,7 @@ export default function CrudPage({ config }) {
         await createMutation.mutateAsync(payload);
       }
     },
-    { onSuccess: closeModal }
+    { onSuccess: handleCloseModal }
   );
 
   if (useCustomPage) {
@@ -150,7 +152,7 @@ export default function CrudPage({ config }) {
     <PageLayout
       title={config.label}
       subtitle={config.subtitle || '数据管理与业务操作'}
-      actions={
+      headerActions={
         canMutate ? (
           <button type="button" className="primary" onClick={handleOpenCreate}>
             新增
@@ -171,21 +173,21 @@ export default function CrudPage({ config }) {
         columns={columns}
         rows={filteredRows}
         onEdit={canMutate ? handleEdit : undefined}
-        onDelete={canMutate ? confirmDelete : undefined}
+        onDelete={canMutate ? handleConfirmDelete : undefined}
       />
       <Modal
-        open={modalOpen}
+        isOpen={isModalOpen}
         title={editing ? `编辑${config.label}` : `新增${config.label}`}
-        onClose={closeModal}
-        footer={
+        onClose={handleCloseModal}
+        footerActions={
           <div className="modal-actions">
-            <button type="button" className="ghost" onClick={closeModal}>
+            <button type="button" className="ghost" onClick={handleCloseModal}>
               取消
             </button>
             <button
               type="button"
               className="primary"
-              onClick={confirmSave}
+              onClick={handleConfirmSave}
               disabled={saveLoading || deleteLoading}
             >
               保存

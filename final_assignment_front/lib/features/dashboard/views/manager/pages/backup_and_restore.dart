@@ -27,7 +27,7 @@ class _BackupAndRestoreState extends State<BackupAndRestorePage> {
   final List<BackupRestore> _backups = [];
   List<BackupRestore> _filteredBackups = [];
   bool _apiInitialized = false;
-  bool _isLoading = true;
+  bool isLoading = true;
   bool _isAdmin = false; // 确保是管理员
   String _errorMessage = '';
   final TextEditingController _fileNameController = TextEditingController();
@@ -48,14 +48,14 @@ class _BackupAndRestoreState extends State<BackupAndRestorePage> {
 
   Future<void> _initialize() async {
     setState(() {
-      _isLoading = true;
+      isLoading = true;
       _errorMessage = '';
     });
     try {
       if (!await _ensureApiInitialized()) {
         setState(() {
           _errorMessage = '未登录，请重新登录';
-          _isLoading = false;
+          isLoading = false;
         });
         return;
       }
@@ -70,7 +70,7 @@ class _BackupAndRestoreState extends State<BackupAndRestorePage> {
         setState(() {
           _isAdmin = false;
           _errorMessage = '权限不足：仅管理员可访问此页面';
-          _isLoading = false;
+          isLoading = false;
         });
         return;
       }
@@ -79,7 +79,7 @@ class _BackupAndRestoreState extends State<BackupAndRestorePage> {
     } catch (e) {
       setState(() {
         _errorMessage = '初始化失败: ${_formatErrorMessage(e)}';
-        _isLoading = false;
+        isLoading = false;
       });
     }
   }
@@ -109,18 +109,18 @@ class _BackupAndRestoreState extends State<BackupAndRestorePage> {
 
   Future<void> _loadBackups() async {
     if (!_isAdmin) {
-      setState(() => _isLoading = false);
+      setState(() => isLoading = false);
       return;
     }
     if (!await _ensureApiInitialized()) {
       setState(() {
-        _isLoading = false;
+        isLoading = false;
         _errorMessage = '未登录，请重新登录';
       });
       return;
     }
     setState(() {
-      _isLoading = true;
+      isLoading = true;
       _errorMessage = '';
     });
 
@@ -131,11 +131,11 @@ class _BackupAndRestoreState extends State<BackupAndRestorePage> {
           ..clear()
           ..addAll(backups);
         _filteredBackups = List<BackupRestore>.from(_backups);
-        _isLoading = false;
+        isLoading = false;
       });
     } catch (e) {
       setState(() {
-        _isLoading = false;
+        isLoading = false;
         _errorMessage = '加载备份记录失败: ${_formatErrorMessage(e)}';
         _filteredBackups = [];
       });
@@ -396,7 +396,7 @@ class _BackupAndRestoreState extends State<BackupAndRestorePage> {
         theme: controller.currentBodyTheme.value,
         title: '备份与恢复管理',
         pageType: DashboardPageType.manager,
-        isLoading: _isLoading,
+        isLoading: isLoading,
         errorMessage:
             _errorMessage.isNotEmpty ? _errorMessage : '权限不足：仅管理员可访问此页面',
         body: const SizedBox.shrink(),
@@ -541,7 +541,7 @@ class _BackupAndRestoreState extends State<BackupAndRestorePage> {
               ),
               const SizedBox(height: 16),
               Expanded(
-                child: _isLoading
+                child: isLoading
                     ? const LoadingView()
                     : _errorMessage.isNotEmpty
                         ? ErrorStateView(message: _errorMessage)
@@ -663,7 +663,7 @@ class _BackupDetailPageState extends State<BackupDetailPage> {
   final BackupRestoreControllerApi _backupApi = BackupRestoreControllerApi();
   final TextEditingController _remarksController = TextEditingController();
   bool _apiInitialized = false;
-  bool _isLoading = false;
+  bool isLoading = false;
   bool _isAdmin = false;
   late BackupRestore _backup;
 
@@ -676,10 +676,10 @@ class _BackupDetailPageState extends State<BackupDetailPage> {
   }
 
   Future<void> _initialize() async {
-    setState(() => _isLoading = true);
+    setState(() => isLoading = true);
     try {
       if (!await _ensureApiInitialized()) {
-        setState(() => _isLoading = false);
+        setState(() => isLoading = false);
         return;
       }
       final prefs = await SharedPreferences.getInstance();
@@ -687,19 +687,19 @@ class _BackupDetailPageState extends State<BackupDetailPage> {
       if (token == null || token.isEmpty) {
         setState(() {
           _isAdmin = false;
-          _isLoading = false;
+          isLoading = false;
         });
         return;
       }
       final roles = _extractRoles(token);
       setState(() {
         _isAdmin = roles.any((role) => role.toUpperCase().contains('ADMIN'));
-        _isLoading = false;
+        isLoading = false;
       });
     } catch (_) {
       setState(() {
         _isAdmin = false;
-        _isLoading = false;
+        isLoading = false;
       });
     }
   }
@@ -731,13 +731,13 @@ class _BackupDetailPageState extends State<BackupDetailPage> {
     if (!mounted || !_isAdmin) return;
 
     final scaffoldMessenger = ScaffoldMessenger.of(context);
-    setState(() => _isLoading = true);
+    setState(() => isLoading = true);
 
     if (!await _ensureApiInitialized()) {
       scaffoldMessenger.showSnackBar(
         const SnackBar(content: Text('未登录，请重新登录')),
       );
-      setState(() => _isLoading = false);
+      setState(() => isLoading = false);
       return;
     }
 
@@ -755,13 +755,13 @@ class _BackupDetailPageState extends State<BackupDetailPage> {
       );
       setState(() {
         _backup = result;
-        _isLoading = false;
+        isLoading = false;
       });
       if (mounted) {
         Navigator.pop(context, true);
       }
     } catch (e) {
-      setState(() => _isLoading = false);
+      setState(() => isLoading = false);
       scaffoldMessenger.showSnackBar(
         SnackBar(content: Text('更新备份失败: ${_formatErrorMessage(e)}')),
       );
@@ -796,8 +796,8 @@ class _BackupDetailPageState extends State<BackupDetailPage> {
         theme: Theme.of(context),
         title: '备份详情',
         pageType: DashboardPageType.manager,
-        isLoading: _isLoading,
-        errorMessage: _isLoading ? null : '权限不足：仅管理员可访问此页面',
+        isLoading: isLoading,
+        errorMessage: isLoading ? null : '权限不足：仅管理员可访问此页面',
         body: const SizedBox.shrink(),
       );
     }
@@ -815,10 +815,10 @@ class _BackupDetailPageState extends State<BackupDetailPage> {
           tooltip: '编辑备份',
         ),
       ],
-      isLoading: _isLoading,
+      isLoading: isLoading,
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: _isLoading
+        child: isLoading
             ? const LoadingView()
             : ListView(
                 children: [

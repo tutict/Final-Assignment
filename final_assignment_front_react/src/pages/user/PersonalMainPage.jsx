@@ -1,6 +1,7 @@
 ﻿import React from 'react';
 import PageLayout from '../../components/PageLayout.jsx';
 import { useAuth } from '../../auth/AuthContext.jsx';
+import { ROLES } from '../../constants/roles.js';
 
 export default function PersonalMainPage() {
   const { auth } = useAuth();
@@ -9,7 +10,7 @@ export default function PersonalMainPage() {
       <div className="profile-card">
         <h3>{auth?.driverName || auth?.userName || '未命名用户'}</h3>
         <p>邮箱：{auth?.userEmail || '-'}</p>
-        <p>角色：{auth?.userRole || 'USER'}</p>
+        <p>角色：{auth?.userRole || ROLES.USER}</p>
       </div>
     </PageLayout>
   );

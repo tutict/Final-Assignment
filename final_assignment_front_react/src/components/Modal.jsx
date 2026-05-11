@@ -1,8 +1,8 @@
 ﻿import React from 'react';
 import clsx from 'clsx';
 
-export default function Modal({ open, title, onClose, children, footer, wide }) {
-  if (!open) return null;
+export default function Modal({ isOpen, title, onClose, children, footerActions, wide }) {
+  if (!isOpen) return null;
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true">
       <div className={clsx('modal', wide && 'modal-wide')}>
@@ -13,7 +13,7 @@ export default function Modal({ open, title, onClose, children, footer, wide }) 
           </button>
         </div>
         <div className="modal-body">{children}</div>
-        {footer ? <div className="modal-footer">{footer}</div> : null}
+        {footerActions ? <div className="modal-footer">{footerActions}</div> : null}
       </div>
     </div>
   );

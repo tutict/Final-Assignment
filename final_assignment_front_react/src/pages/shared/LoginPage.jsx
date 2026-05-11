@@ -1,6 +1,7 @@
 ﻿import React, { useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext.jsx';
+import { ROLES } from '../../constants/roles.js';
 
 export default function LoginPage() {
   const { login, register, isAuthenticated, userRole, loading } = useAuth();
@@ -15,7 +16,7 @@ export default function LoginPage() {
   const navigate = useNavigate();
 
   if (isAuthenticated) {
-    return <Navigate to={userRole === 'ADMIN' ? '/dashboard' : '/userDashboard'} replace />;
+    return <Navigate to={userRole === ROLES.ADMIN ? '/dashboard' : '/userDashboard'} replace />;
   }
 
   const handleChange = (key, value) => {
@@ -57,7 +58,7 @@ export default function LoginPage() {
     }
 
     const storedRole = localStorage.getItem('userRole') || userRole;
-    const redirectTo = location.state?.from?.pathname || (storedRole === 'ADMIN' ? '/dashboard' : '/userDashboard');
+    const redirectTo = location.state?.from?.pathname || (storedRole === ROLES.ADMIN ? '/dashboard' : '/userDashboard');
     navigate(redirectTo, { replace: true });
   };
 
