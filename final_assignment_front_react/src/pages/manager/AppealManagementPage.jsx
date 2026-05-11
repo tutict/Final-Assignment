@@ -1,20 +1,41 @@
-﻿import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import PageLayout from '../../components/PageLayout.jsx';
 import DataTable from '../../components/DataTable.jsx';
 import SearchBar from '../../components/SearchBar.jsx';
 import Modal from '../../components/Modal.jsx';
-import StatusPill from '../../components/StatusPill.jsx';
 import { useAppealManagement } from '../../hooks/useAppealManagement.js';
-import { formatDateTime, normalizeText } from '../../utils/format.js';
+import { useConfirm } from '../../hooks/useConfirm.js';
+import { useModalState } from '../../hooks/useModalState.js';
+import { buildColumns } from '../../utils/buildColumns.js';
+import { normalizeText } from '../../utils/format.js';
 import { canApprove, canReject } from '../../utils/workflowPermissions.js';
 import { getStatusLabel } from '../../utils/statusLabels.js';
 
+const appealColumnFields = [
+  { key: 'appealId', label: '申诉ID' },
+  { key: 'offenseId', label: '违法记录ID' },
+  { key: 'appellantName', label: '申诉人' },
+  { key: 'appealReason', label: '申诉原因' },
+  { key: 'appealTime', label: '申诉时间', type: 'DateTime' },
+  { key: 'processStatus', label: '处理状态' },
+];
+
 export default function AppealManagementPage() {
   const [search, setSearch] = useState('');
-  const [activeAppeal, setActiveAppeal] = useState(null);
   const [rejectReason, setRejectReason] = useState('');
+  const {
+    isOpen: detailOpen,
+    activeRow: activeAppeal,
+    open: openDetail,
+    close: closeDetailModal,
+  } = useModalState();
 
   const { data, isLoading, isError, approve, reject, isUpdating } = useAppealManagement();
+
+  const closeDetail = () => {
+    setRejectReason('');
+    closeDetailModal();
+  };
 
   const rows = Array.isArray(data) ? data : [];
 
@@ -22,32 +43,31 @@ export default function AppealManagementPage() {
     if (!search.trim()) return rows;
     const query = normalizeText(search);
     return rows.filter((row) =>
-      [row.appealReason, row.appellantName, row.processStatus]
-        .some((value) => normalizeText(value).includes(query))
+      [row.appealReason, row.appellantName, row.processStatus].some((value) =>
+        normalizeText(value).includes(query)
+      )
     );
   }, [rows, search]);
 
-  const columns = [
-    { key: 'appealId', label: '申诉ID' },
-    { key: 'offenseId', label: '违法记录ID' },
-    { key: 'appellantName', label: '申诉人' },
-    { key: 'appealReason', label: '申诉原因' },
-    { key: 'appealTime', label: '申诉时间', render: (row) => formatDateTime(row.appealTime) },
-    { key: 'processStatus', label: '处理状态', render: (row) => <StatusPill value={row.processStatus} /> },
-  ];
+  const columns = useMemo(() => buildColumns(appealColumnFields), []);
 
-  const handleApprove = async () => {
-    if (!activeAppeal?.appealId) return;
-    await approve(activeAppeal);
-    setActiveAppeal(null);
-  };
+  const { confirm: confirmApprove, loading: approving } = useConfirm(
+    async () => {
+      if (!activeAppeal?.appealId) return;
+      await approve(activeAppeal);
+    },
+    { onSuccess: closeDetail }
+  );
 
-  const handleReject = async () => {
-    if (!activeAppeal?.appealId) return;
-    await reject(activeAppeal);
-    setRejectReason('');
-    setActiveAppeal(null);
-  };
+  const { confirm: confirmReject, loading: rejecting } = useConfirm(
+    async () => {
+      if (!activeAppeal?.appealId) return;
+      await reject(activeAppeal);
+    },
+    { onSuccess: closeDetail }
+  );
+
+  const updating = isUpdating || approving || rejecting;
 
   return (
     <PageLayout title="申诉管理" subtitle="申诉审核与处理结果确认">
@@ -59,31 +79,31 @@ export default function AppealManagementPage() {
         rows={filteredRows}
         onView={(row) => {
           setRejectReason('');
-          setActiveAppeal(row);
+          openDetail(row);
         }}
       />
       <Modal
-        open={Boolean(activeAppeal)}
+        open={detailOpen}
         title="申诉详情"
-        onClose={() => setActiveAppeal(null)}
+        onClose={closeDetail}
         footer={
           <div className="modal-actions">
-            <button type="button" className="ghost" onClick={() => setActiveAppeal(null)}>
+            <button type="button" className="ghost" onClick={closeDetail}>
               关闭
             </button>
             <button
               type="button"
               className="primary"
-              onClick={handleApprove}
-              disabled={isUpdating || !canApprove(activeAppeal?.processStatus)}
+              onClick={confirmApprove}
+              disabled={updating || !canApprove(activeAppeal?.processStatus)}
             >
               通过
             </button>
             <button
               type="button"
               className="danger"
-              onClick={handleReject}
-              disabled={isUpdating || !canReject(activeAppeal?.processStatus)}
+              onClick={confirmReject}
+              disabled={updating || !canReject(activeAppeal?.processStatus)}
             >
               驳回
             </button>

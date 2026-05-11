@@ -1,10 +1,5 @@
-﻿import React from 'react';
-import PageLayout from '../../components/PageLayout.jsx';
+import PlaceholderPage from '../shared/PlaceholderPage.jsx';
 
 export default function ManagerSettingPage() {
-  return (
-    <PageLayout title="管理员设置" subtitle="系统安全与告警策略">
-      <div className="placeholder">可在此配置管理员偏好、系统告警与审计策略。</div>
-    </PageLayout>
-  );
+  return <PlaceholderPage title="管理员设置" description="系统安全与告警策略" />;
 }

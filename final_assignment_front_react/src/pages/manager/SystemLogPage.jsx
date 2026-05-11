@@ -1,29 +1,27 @@
-﻿import React from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useMemo } from 'react';
 import PageLayout from '../../components/PageLayout.jsx';
 import DataTable from '../../components/DataTable.jsx';
-import { api } from '../../api/client.js';
-import { formatDateTime } from '../../utils/format.js';
+import { useSystemLogs } from '../../hooks/useSystemLogs.js';
+import { buildColumns } from '../../utils/buildColumns.js';
 
-async function fetchOverview() {
-  const response = await api.get('/api/system/logs/overview');
-  return response.data;
-}
+const loginLogFields = [
+  { key: 'username', label: '用户名' },
+  { key: 'loginTime', label: '登录时间', type: 'DateTime' },
+  { key: 'loginResult', label: '结果' },
+  { key: 'loginIp', label: 'IP' },
+];
 
-async function fetchRecentLogin() {
-  const response = await api.get('/api/system/logs/login/recent', { params: { limit: 10 } });
-  return response.data;
-}
-
-async function fetchRecentOperation() {
-  const response = await api.get('/api/system/logs/operation/recent', { params: { limit: 10 } });
-  return response.data;
-}
+const operationLogFields = [
+  { key: 'operationType', label: '操作类型' },
+  { key: 'operationModule', label: '模块' },
+  { key: 'username', label: '用户' },
+  { key: 'operationTime', label: '时间', type: 'DateTime' },
+];
 
 export default function SystemLogPage() {
-  const overview = useQuery({ queryKey: ['systemLogs', 'overview'], queryFn: fetchOverview });
-  const loginLogs = useQuery({ queryKey: ['systemLogs', 'loginRecent'], queryFn: fetchRecentLogin });
-  const operationLogs = useQuery({ queryKey: ['systemLogs', 'operationRecent'], queryFn: fetchRecentOperation });
+  const { overview, loginLogs, operationLogs } = useSystemLogs();
+  const loginColumns = useMemo(() => buildColumns(loginLogFields), []);
+  const operationColumns = useMemo(() => buildColumns(operationLogFields), []);
 
   return (
     <PageLayout title="系统日志" subtitle="系统运行概览与近期审计">
@@ -44,28 +42,12 @@ export default function SystemLogPage() {
 
       <div className="panel">
         <h3>近期登录日志</h3>
-        <DataTable
-          columns={[
-            { key: 'username', label: '用户名' },
-            { key: 'loginTime', label: '登录时间', render: (row) => formatDateTime(row.loginTime) },
-            { key: 'loginResult', label: '结果' },
-            { key: 'loginIp', label: 'IP' },
-          ]}
-          rows={loginLogs.data || []}
-        />
+        <DataTable columns={loginColumns} rows={loginLogs.data || []} />
       </div>
 
       <div className="panel">
         <h3>近期操作日志</h3>
-        <DataTable
-          columns={[
-            { key: 'operationType', label: '操作类型' },
-            { key: 'operationModule', label: '模块' },
-            { key: 'username', label: '用户' },
-            { key: 'operationTime', label: '时间', render: (row) => formatDateTime(row.operationTime) },
-          ]}
-          rows={operationLogs.data || []}
-        />
+        <DataTable columns={operationColumns} rows={operationLogs.data || []} />
       </div>
     </PageLayout>
   );

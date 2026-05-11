@@ -5,14 +5,16 @@ import DataTable from '../../components/DataTable.jsx';
 import SearchBar from '../../components/SearchBar.jsx';
 import Modal from '../../components/Modal.jsx';
 import EntityForm from '../../components/EntityForm.jsx';
-import StatusPill from '../../components/StatusPill.jsx';
+import { useConfirm } from '../../hooks/useConfirm.js';
+import { useModalState } from '../../hooks/useModalState.js';
 import {
   createEntity,
   deleteEntity,
   listEntities,
   updateEntity,
 } from '../../api/entities.js';
-import { formatDateTime, humanizeKey, normalizeText } from '../../utils/format.js';
+import { buildColumns } from '../../utils/buildColumns.js';
+import { humanizeKey, normalizeText } from '../../utils/format.js';
 
 function normalizeFields(config, allowedNames) {
   const fields = config.fields || [];
@@ -30,9 +32,13 @@ function normalizeFields(config, allowedNames) {
 
 export default function CrudPage({ config }) {
   const [search, setSearch] = useState('');
-  const [editing, setEditing] = useState(null);
   const [formData, setFormData] = useState({});
-  const [modalOpen, setModalOpen] = useState(false);
+  const {
+    isOpen: modalOpen,
+    activeRow: editing,
+    open: openModal,
+    close: closeModal,
+  } = useModalState();
   const deferredSearch = useDeferredValue(search);
 
   const allFields = useMemo(() => normalizeFields(config), [config]);
@@ -53,11 +59,13 @@ export default function CrudPage({ config }) {
     ? config.list
     : () => listEntities(config.basePath, config.listParams);
 
-  const { data, isLoading, error, refetch } = useQuery({
+  const internalQuery = useQuery({
     queryKey: [config.key],
     queryFn: fetchList,
-    enabled: !useCustomPage,
+    enabled: !useCustomPage && !config.queryResult,
   });
+  const queryResult = config.queryResult || internalQuery;
+  const { data, isLoading, error, refetch = () => {} } = queryResult;
 
   const createMutation = useMutation({
     mutationFn: (payload) => createEntity(config.basePath, payload),
@@ -84,63 +92,48 @@ export default function CrudPage({ config }) {
     );
   }, [rows, displayFields, deferredSearch]);
 
-  const columns = useMemo(() => {
-    return displayFields.map((field) => ({
-      key: field.name,
-      label: field.label,
-      render: (row) => {
-        const value = row?.[field.name];
-        if (field.type === 'DateTime') {
-          return formatDateTime(value);
-        }
-        if (field.name.toLowerCase().includes('status')) {
-          return <StatusPill value={value} />;
-        }
-        return value ?? '';
-      },
-    }));
-  }, [displayFields]);
+  const columns = useMemo(() => buildColumns(displayFields), [displayFields]);
 
   const handleOpenCreate = () => {
     if (!canMutate) return;
-    setEditing(null);
     setFormData({});
-    setModalOpen(true);
+    openModal();
   };
 
   const handleEdit = (row) => {
     if (!canMutate) return;
-    setEditing(row);
     setFormData(row || {});
-    setModalOpen(true);
+    openModal(row);
   };
 
-  const handleDelete = async (row) => {
+  const { confirm: confirmDelete, loading: deleteLoading } = useConfirm(async (row) => {
     if (!canMutate) return;
     const id = row?.[config.idField];
     if (!id) return;
     if (window.confirm('确定删除该记录吗？')) {
       await deleteMutation.mutateAsync(id);
     }
-  };
+  });
 
-  const handleSave = async () => {
-    if (!canMutate) return;
-    const editableFieldNames = editableFields.map((field) => field.name);
-    const basePayload = editableFieldNames.reduce((acc, key) => {
-      acc[key] = formData[key];
-      return acc;
-    }, {});
-    const payload = config.preparePayload ? config.preparePayload(basePayload) : basePayload;
-    if (editing) {
-      const id = editing?.[config.idField];
-      if (!id) return;
-      await updateMutation.mutateAsync({ id, payload });
-    } else {
-      await createMutation.mutateAsync(payload);
-    }
-    setModalOpen(false);
-  };
+  const { confirm: confirmSave, loading: saveLoading } = useConfirm(
+    async () => {
+      if (!canMutate) return;
+      const editableFieldNames = editableFields.map((field) => field.name);
+      const basePayload = editableFieldNames.reduce((acc, key) => {
+        acc[key] = formData[key];
+        return acc;
+      }, {});
+      const payload = config.preparePayload ? config.preparePayload(basePayload) : basePayload;
+      if (editing) {
+        const id = editing?.[config.idField];
+        if (!id) return;
+        await updateMutation.mutateAsync({ id, payload });
+      } else {
+        await createMutation.mutateAsync(payload);
+      }
+    },
+    { onSuccess: closeModal }
+  );
 
   if (useCustomPage) {
     return (
@@ -178,18 +171,23 @@ export default function CrudPage({ config }) {
         columns={columns}
         rows={filteredRows}
         onEdit={canMutate ? handleEdit : undefined}
-        onDelete={canMutate ? handleDelete : undefined}
+        onDelete={canMutate ? confirmDelete : undefined}
       />
       <Modal
         open={modalOpen}
         title={editing ? `编辑${config.label}` : `新增${config.label}`}
-        onClose={() => setModalOpen(false)}
+        onClose={closeModal}
         footer={
           <div className="modal-actions">
-            <button type="button" className="ghost" onClick={() => setModalOpen(false)}>
+            <button type="button" className="ghost" onClick={closeModal}>
               取消
             </button>
-            <button type="button" className="primary" onClick={handleSave}>
+            <button
+              type="button"
+              className="primary"
+              onClick={confirmSave}
+              disabled={saveLoading || deleteLoading}
+            >
               保存
             </button>
           </div>
