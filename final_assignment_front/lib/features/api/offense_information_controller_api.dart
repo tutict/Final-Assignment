@@ -15,7 +15,7 @@ class OffenseInformationControllerApi with BaseApiClient {
 
   Future<void> initializeWithJwt() => initializeClientWithJwt();
 
-  Future<void> apiOffensesPost({
+  Future<void> createOffense({
     required OffenseInformation offenseInformation,
     required String idempotencyKey,
   }) async {
@@ -38,7 +38,7 @@ class OffenseInformationControllerApi with BaseApiClient {
     );
   }
 
-  Future<OffenseInformation?> apiOffensesOffenseIdGet({
+  Future<OffenseInformation?> getOffense({
     required int offenseId,
   }) async {
     final response = await apiClient.invokeAPI(
@@ -54,7 +54,7 @@ class OffenseInformationControllerApi with BaseApiClient {
     return parseNullableResponse(response, OffenseInformation.fromJson);
   }
 
-  Future<List<OffenseInformation>> apiOffensesGet() async {
+  Future<List<OffenseInformation>> listOffenses() async {
     final response = await apiClient.invokeAPI(
       '/api/offenses',
       'GET',
@@ -68,7 +68,7 @@ class OffenseInformationControllerApi with BaseApiClient {
     return parseListResponse(response, OffenseInformation.fromJson);
   }
 
-  Future<OffenseInformation> apiOffensesOffenseIdPut({
+  Future<OffenseInformation> updateOffense({
     required int offenseId,
     required OffenseInformation offenseInformation,
     required String idempotencyKey,
@@ -93,7 +93,7 @@ class OffenseInformationControllerApi with BaseApiClient {
     );
   }
 
-  Future<void> apiOffensesOffenseIdDelete({
+  Future<void> deleteOffense({
     required int offenseId,
   }) async {
     final response = await apiClient.invokeAPI(
@@ -115,7 +115,7 @@ class OffenseInformationControllerApi with BaseApiClient {
     );
   }
 
-  Future<List<OffenseInformation>> apiOffensesTimeRangeGet({
+  Future<List<OffenseInformation>> searchOffensesByTimeRange({
     String startTime = '1970-01-01',
     String endTime = '2100-01-01',
   }) async {
@@ -135,7 +135,7 @@ class OffenseInformationControllerApi with BaseApiClient {
     return parseListResponse(response, OffenseInformation.fromJson);
   }
 
-  Future<List<OffenseInformation>> apiOffensesByOffenseTypeGet({
+  Future<List<OffenseInformation>> listOffensesByOffenseType({
     required String query,
     int page = 1,
     int size = 10,
@@ -160,7 +160,7 @@ class OffenseInformationControllerApi with BaseApiClient {
     return parseListResponse(response, OffenseInformation.fromJson);
   }
 
-  Future<List<OffenseInformation>> apiOffensesByDriverNameGet({
+  Future<List<OffenseInformation>> listOffensesByDriverName({
     required String query,
     int page = 1,
     int size = 10,
@@ -224,7 +224,7 @@ class OffenseInformationControllerApi with BaseApiClient {
     return merged.values.toList();
   }
 
-  Future<List<OffenseInformation>> apiOffensesDriverDriverIdGet({
+  Future<List<OffenseInformation>> listOffensesByDriver({
     required int driverId,
     int page = 1,
     int size = 20,
@@ -245,7 +245,7 @@ class OffenseInformationControllerApi with BaseApiClient {
     return parseListResponse(response, OffenseInformation.fromJson);
   }
 
-  Future<List<OffenseInformation>> apiOffensesVehicleVehicleIdGet({
+  Future<List<OffenseInformation>> listOffensesByVehicle({
     required int vehicleId,
     int page = 1,
     int size = 20,
@@ -266,7 +266,7 @@ class OffenseInformationControllerApi with BaseApiClient {
     return parseListResponse(response, OffenseInformation.fromJson);
   }
 
-  Future<List<OffenseInformation>> apiOffensesSearchStatusGet({
+  Future<List<OffenseInformation>> searchOffensesByStatus({
     required String processStatus,
     int page = 1,
     int size = 20,
@@ -288,7 +288,7 @@ class OffenseInformationControllerApi with BaseApiClient {
     return parseListResponse(response, OffenseInformation.fromJson);
   }
 
-  Future<List<OffenseInformation>> apiOffensesSearchNumberGet({
+  Future<List<OffenseInformation>> searchOffensesByNumber({
     required String offenseNumber,
     int page = 1,
     int size = 20,
@@ -310,7 +310,7 @@ class OffenseInformationControllerApi with BaseApiClient {
     return parseListResponse(response, OffenseInformation.fromJson);
   }
 
-  Future<List<OffenseInformation>> apiOffensesSearchLocationGet({
+  Future<List<OffenseInformation>> searchOffensesByLocation({
     required String offenseLocation,
     int page = 1,
     int size = 20,
@@ -332,7 +332,7 @@ class OffenseInformationControllerApi with BaseApiClient {
     return parseListResponse(response, OffenseInformation.fromJson);
   }
 
-  Future<List<OffenseInformation>> apiOffensesSearchProvinceGet({
+  Future<List<OffenseInformation>> searchOffensesByProvince({
     required String offenseProvince,
     int page = 1,
     int size = 20,
@@ -354,7 +354,7 @@ class OffenseInformationControllerApi with BaseApiClient {
     return parseListResponse(response, OffenseInformation.fromJson);
   }
 
-  Future<List<OffenseInformation>> apiOffensesSearchCityGet({
+  Future<List<OffenseInformation>> searchOffensesByCity({
     required String offenseCity,
     int page = 1,
     int size = 20,
@@ -376,7 +376,7 @@ class OffenseInformationControllerApi with BaseApiClient {
     return parseListResponse(response, OffenseInformation.fromJson);
   }
 
-  Future<List<OffenseInformation>> apiOffensesSearchNotificationGet({
+  Future<List<OffenseInformation>> searchOffensesByNotification({
     required String notificationStatus,
     int page = 1,
     int size = 20,
@@ -398,7 +398,7 @@ class OffenseInformationControllerApi with BaseApiClient {
     return parseListResponse(response, OffenseInformation.fromJson);
   }
 
-  Future<List<OffenseInformation>> apiOffensesSearchAgencyGet({
+  Future<List<OffenseInformation>> searchOffensesByAgency({
     required String enforcementAgency,
     int page = 1,
     int size = 20,
@@ -420,7 +420,7 @@ class OffenseInformationControllerApi with BaseApiClient {
     return parseListResponse(response, OffenseInformation.fromJson);
   }
 
-  Future<List<OffenseInformation>> apiOffensesSearchFineRangeGet({
+  Future<List<OffenseInformation>> searchOffensesByFineRange({
     required double minAmount,
     required double maxAmount,
     int page = 1,
@@ -444,7 +444,7 @@ class OffenseInformationControllerApi with BaseApiClient {
     return parseListResponse(response, OffenseInformation.fromJson);
   }
 
-  Future<List<OffenseInformation>> apiOffensesByLicensePlateGet({
+  Future<List<OffenseInformation>> listOffensesByLicensePlate({
     required String query,
     int page = 1,
     int size = 10,

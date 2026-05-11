@@ -125,7 +125,7 @@ class _BackupAndRestoreState extends State<BackupAndRestorePage> {
     });
 
     try {
-      final backups = await backupApi.apiSystemBackupGet();
+      final backups = await backupApi.listBackups();
       setState(() {
         _backups
           ..clear()
@@ -189,7 +189,7 @@ class _BackupAndRestoreState extends State<BackupAndRestorePage> {
         idempotencyKey: idempotencyKey,
       );
 
-      await backupApi.apiSystemBackupPost(
+      await backupApi.createBackup(
         backupRestore: newBackup,
         idempotencyKey: idempotencyKey,
       );
@@ -219,7 +219,7 @@ class _BackupAndRestoreState extends State<BackupAndRestorePage> {
     try {
       final idempotencyKey = generateIdempotencyKey();
       final payload = updatedBackup.copyWith(idempotencyKey: idempotencyKey);
-      await backupApi.apiSystemBackupBackupIdPut(
+      await backupApi.updateBackup(
         backupId: backupId,
         backupRestore: payload,
         idempotencyKey: idempotencyKey,
@@ -254,7 +254,7 @@ class _BackupAndRestoreState extends State<BackupAndRestorePage> {
         status: 'RESTORED',
         idempotencyKey: idempotencyKey,
       );
-      await backupApi.apiSystemBackupBackupIdPut(
+      await backupApi.updateBackup(
         backupId: backup.backupId!,
         backupRestore: payload,
         idempotencyKey: idempotencyKey,
@@ -282,7 +282,7 @@ class _BackupAndRestoreState extends State<BackupAndRestorePage> {
     }
 
     try {
-      await backupApi.apiSystemBackupBackupIdDelete(backupId: backupId);
+      await backupApi.deleteBackup(backupId: backupId);
       scaffoldMessenger.showSnackBar(
         const SnackBar(content: Text('删除备份成功')),
       );
@@ -744,7 +744,7 @@ class _BackupDetailPageState extends State<BackupDetailPage> {
     try {
       final idempotencyKey = generateIdempotencyKey();
       final payload = updatedBackup.copyWith(idempotencyKey: idempotencyKey);
-      final result = await _backupApi.apiSystemBackupBackupIdPut(
+      final result = await _backupApi.updateBackup(
         backupId: backupId,
         backupRestore: payload,
         idempotencyKey: idempotencyKey,

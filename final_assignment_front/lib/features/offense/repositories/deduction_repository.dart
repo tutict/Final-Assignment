@@ -121,7 +121,7 @@ class DeductionRepositoryImpl extends BaseRepository
   Future<List<DeductionRecordModel>> getDeductions() {
     return guard(() async {
       await _api.initializeWithJwt();
-      final deductions = await _api.apiDeductionsGet();
+      final deductions = await _api.listDeductions();
       return _sortByDeductionTimeDesc(deductions);
     });
   }
@@ -132,7 +132,7 @@ class DeductionRepositoryImpl extends BaseRepository
   }) {
     return guard(() async {
       await _api.initializeWithJwt();
-      return _api.apiDeductionsDeductionIdGet(deductionId: deductionId);
+      return _api.getDeduction(deductionId: deductionId);
     });
   }
 
@@ -144,7 +144,7 @@ class DeductionRepositoryImpl extends BaseRepository
   }) {
     return guard(() async {
       await _api.initializeWithJwt();
-      final created = await _api.apiDeductionsPost(
+      final created = await _api.createDeduction(
         body: body,
         idempotencyKey: idempotencyKey,
       );
@@ -164,7 +164,7 @@ class DeductionRepositoryImpl extends BaseRepository
   }) {
     return guard(() async {
       await _api.initializeWithJwt();
-      final updated = await _api.apiDeductionsDeductionIdPut(
+      final updated = await _api.updateDeduction(
         deductionId: deductionId,
         body: body,
         idempotencyKey: idempotencyKey,
@@ -183,7 +183,7 @@ class DeductionRepositoryImpl extends BaseRepository
   }) {
     return guard(() async {
       await _api.initializeWithJwt();
-      await _api.apiDeductionsDeductionIdDelete(deductionId: deductionId);
+      await _api.deleteDeduction(deductionId: deductionId);
       if (clearCacheAfterWrite) {
         await _clearCacheUnsafe();
       }
@@ -198,7 +198,7 @@ class DeductionRepositoryImpl extends BaseRepository
   }) {
     return guard(() async {
       await _api.initializeWithJwt();
-      return _api.apiDeductionsDriverDriverIdGet(
+      return _api.listDeductionsByDriver(
         driverId: driverId,
         page: page,
         size: size,
@@ -214,7 +214,7 @@ class DeductionRepositoryImpl extends BaseRepository
   }) {
     return guard(() async {
       await _api.initializeWithJwt();
-      return _api.apiDeductionsOffenseOffenseIdGet(
+      return _api.listDeductionsByOffense(
         offenseId: offenseId,
         page: page,
         size: size,
@@ -231,7 +231,7 @@ class DeductionRepositoryImpl extends BaseRepository
   }) {
     return guard(() async {
       await _api.initializeWithJwt();
-      return _api.apiDeductionsSearchHandlerGet(
+      return _api.searchDeductionsByHandler(
         handler: handler,
         mode: mode,
         page: page,
@@ -248,7 +248,7 @@ class DeductionRepositoryImpl extends BaseRepository
   }) {
     return guard(() async {
       await _api.initializeWithJwt();
-      return _api.apiDeductionsSearchStatusGet(
+      return _api.searchDeductionsByStatus(
         status: status,
         page: page,
         size: size,
@@ -265,7 +265,7 @@ class DeductionRepositoryImpl extends BaseRepository
   }) {
     return guard(() async {
       await _api.initializeWithJwt();
-      return _api.apiDeductionsSearchTimeRangeGet(
+      return _api.searchDeductionsByTimeRange(
         startTime: startTime.toIso8601String(),
         endTime: endTime.toIso8601String(),
         page: page,

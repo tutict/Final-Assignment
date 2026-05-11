@@ -228,7 +228,7 @@ class _VehicleListState extends State<VehicleList> {
         return;
       }
       List<VehicleInformation> vehicles =
-          await vehicleApi.apiVehiclesGet(); // 无分页参数
+          await vehicleApi.listVehicles(); // 无分页参数
 
       setState(() {
         _vehicleList.addAll(vehicles);
@@ -268,15 +268,14 @@ class _VehicleListState extends State<VehicleList> {
         return [];
       }
       if (_searchType == 'licensePlate') {
-        final suggestions = await vehicleApi.apiVehiclesSearchLicenseGlobalGet(
+        final suggestions = await vehicleApi.searchVehiclesByLicenseGlobal(
           prefix: prefix,
         );
         return suggestions
             .where((s) => s.toLowerCase().contains(prefix.toLowerCase()))
             .toList();
       } else {
-        final suggestions =
-            await vehicleApi.apiVehiclesAutocompleteTypesGlobalGet(
+        final suggestions = await vehicleApi.autocompleteVehicleTypesGlobal(
           prefix: prefix,
         );
         return suggestions
@@ -1597,7 +1596,7 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
       }
       final driverApi = DriverInformationControllerApi();
       await driverApi.initializeWithJwt();
-      return await driverApi.apiDriversDriverIdGet(driverId: userId);
+      return await driverApi.getDriver(driverId: userId);
     } catch (e) {
       setState(() => _errorMessage = '获取司机信息失败: $e');
       return null;

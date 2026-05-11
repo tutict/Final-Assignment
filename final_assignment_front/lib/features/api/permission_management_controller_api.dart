@@ -42,7 +42,7 @@ class PermissionManagementControllerApi with BaseApiClient {
   }
 
   /// GET /api/permissions - è·åæææé?
-  Future<List<PermissionManagement>> apiPermissionsGet() async {
+  Future<List<PermissionManagement>> listPermissions() async {
     final response = await apiClient.invokeAPI(
       '/api/permissions',
       'GET',
@@ -63,8 +63,7 @@ class PermissionManagementControllerApi with BaseApiClient {
 
   /// DELETE /api/permissions/name/{permissionName} - æ ¹æ®åç§°å é¤æé (ä»
 // ç®¡çå)
-  Future<void> apiPermissionsNamePermissionNameDelete(
-      {required String permissionName}) async {
+  Future<void> deletePermissionByName({required String permissionName}) async {
     if (permissionName.isEmpty) {
       throw ApiException(400, "Missing required param: permissionName");
     }
@@ -84,7 +83,7 @@ class PermissionManagementControllerApi with BaseApiClient {
   }
 
   /// GET /api/permissions/name/{permissionName} - æ ¹æ®åç§°è·åæé
-  Future<PermissionManagement?> apiPermissionsNamePermissionNameGet(
+  Future<PermissionManagement?> getPermissionByName(
       {required String permissionName}) async {
     if (permissionName.isEmpty) {
       throw ApiException(400, "Missing required param: permissionName");
@@ -110,8 +109,7 @@ class PermissionManagementControllerApi with BaseApiClient {
 
   /// DELETE /api/permissions/{permissionId} - æ ¹æ®IDå é¤æé (ä»
 // ç®¡çå)
-  Future<void> apiPermissionsPermissionIdDelete(
-      {required String permissionId}) async {
+  Future<void> deletePermission({required String permissionId}) async {
     if (permissionId.isEmpty) {
       throw ApiException(400, "Missing required param: permissionId");
     }
@@ -131,7 +129,7 @@ class PermissionManagementControllerApi with BaseApiClient {
   }
 
   /// GET /api/permissions/{permissionId} - æ ¹æ®IDè·åæé
-  Future<PermissionManagement?> apiPermissionsPermissionIdGet(
+  Future<PermissionManagement?> getPermission(
       {required String permissionId}) async {
     if (permissionId.isEmpty) {
       throw ApiException(400, "Missing required param: permissionId");
@@ -157,7 +155,7 @@ class PermissionManagementControllerApi with BaseApiClient {
 
   /// PUT /api/permissions/{permissionId} - æ´æ°æé (ä»
 // ç®¡çå)
-  Future<PermissionManagement> apiPermissionsPermissionIdPut({
+  Future<PermissionManagement> updatePermission({
     required String permissionId,
     required PermissionManagement permissionManagement,
   }) async {
@@ -184,7 +182,7 @@ class PermissionManagementControllerApi with BaseApiClient {
 
   /// POST /api/permissions - åå»ºæé (ä»
 // ç®¡çå)
-  Future<PermissionManagement> apiPermissionsPost(
+  Future<PermissionManagement> createPermission(
       {required PermissionManagement permissionManagement}) async {
     final response = await apiClient.invokeAPI(
       '/api/permissions',
@@ -205,8 +203,7 @@ class PermissionManagementControllerApi with BaseApiClient {
   }
 
   /// GET /api/permissions/search - æ ¹æ®åç§°æ¨¡ç³æç´¢æé
-  Future<List<PermissionManagement>> apiPermissionsSearchGet(
-      {String? name}) async {
+  Future<List<PermissionManagement>> searchPermissions({String? name}) async {
     final response = await apiClient.invokeAPI(
       '/api/permissions/search',
       'GET',
@@ -377,7 +374,7 @@ class PermissionManagementControllerApi with BaseApiClient {
   }
 
   // HTTP: GET /api/permissions/parent/{parentId} - æç¶èç¹æ¥è¯¢æé
-  Future<List<PermissionManagement>> apiPermissionsParentParentIdGet({
+  Future<List<PermissionManagement>> listPermissionsByParent({
     required int parentId,
     int page = 1,
     int size = 50,
@@ -404,7 +401,7 @@ class PermissionManagementControllerApi with BaseApiClient {
   }
 
   // HTTP: GET /api/permissions/search/code/prefix
-  Future<List<PermissionManagement>> apiPermissionsSearchCodePrefixGet({
+  Future<List<PermissionManagement>> searchPermissionsByCodePrefix({
     required String permissionCode,
     int page = 1,
     int size = 50,
@@ -432,7 +429,7 @@ class PermissionManagementControllerApi with BaseApiClient {
   }
 
   // HTTP: GET /api/permissions/search/code/fuzzy
-  Future<List<PermissionManagement>> apiPermissionsSearchCodeFuzzyGet({
+  Future<List<PermissionManagement>> searchPermissionsByCodeFuzzy({
     required String permissionCode,
     int page = 1,
     int size = 50,
@@ -460,7 +457,7 @@ class PermissionManagementControllerApi with BaseApiClient {
   }
 
   // HTTP: GET /api/permissions/search/name/prefix
-  Future<List<PermissionManagement>> apiPermissionsSearchNamePrefixGet({
+  Future<List<PermissionManagement>> searchPermissionsByNamePrefix({
     required String permissionName,
     int page = 1,
     int size = 50,
@@ -488,7 +485,7 @@ class PermissionManagementControllerApi with BaseApiClient {
   }
 
   // HTTP: GET /api/permissions/search/name/fuzzy
-  Future<List<PermissionManagement>> apiPermissionsSearchNameFuzzyGet({
+  Future<List<PermissionManagement>> searchPermissionsByNameFuzzy({
     required String permissionName,
     int page = 1,
     int size = 50,
@@ -516,7 +513,7 @@ class PermissionManagementControllerApi with BaseApiClient {
   }
 
   // HTTP: GET /api/permissions/search/type
-  Future<List<PermissionManagement>> apiPermissionsSearchTypeGet({
+  Future<List<PermissionManagement>> searchPermissionsByType({
     required String permissionType,
     int page = 1,
     int size = 50,
@@ -544,7 +541,7 @@ class PermissionManagementControllerApi with BaseApiClient {
   }
 
   // HTTP: GET /api/permissions/search/api-path
-  Future<List<PermissionManagement>> apiPermissionsSearchApiPathGet({
+  Future<List<PermissionManagement>> searchPermissionsByApiPath({
     required String apiPath,
     int page = 1,
     int size = 50,
@@ -572,7 +569,7 @@ class PermissionManagementControllerApi with BaseApiClient {
   }
 
   // HTTP: GET /api/permissions/search/menu-path
-  Future<List<PermissionManagement>> apiPermissionsSearchMenuPathGet({
+  Future<List<PermissionManagement>> searchPermissionsByMenuPath({
     required String menuPath,
     int page = 1,
     int size = 50,
@@ -600,7 +597,7 @@ class PermissionManagementControllerApi with BaseApiClient {
   }
 
   // HTTP: GET /api/permissions/search/visible
-  Future<List<PermissionManagement>> apiPermissionsSearchVisibleGet({
+  Future<List<PermissionManagement>> searchPermissionsByVisible({
     required bool isVisible,
     int page = 1,
     int size = 50,
@@ -628,7 +625,7 @@ class PermissionManagementControllerApi with BaseApiClient {
   }
 
   // HTTP: GET /api/permissions/search/external
-  Future<List<PermissionManagement>> apiPermissionsSearchExternalGet({
+  Future<List<PermissionManagement>> searchPermissionsByExternal({
     required bool isExternal,
     int page = 1,
     int size = 50,
@@ -656,7 +653,7 @@ class PermissionManagementControllerApi with BaseApiClient {
   }
 
   // HTTP: GET /api/permissions/search/status
-  Future<List<PermissionManagement>> apiPermissionsSearchStatusGet({
+  Future<List<PermissionManagement>> searchPermissionsByStatus({
     required String status,
     int page = 1,
     int size = 50,

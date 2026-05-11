@@ -29,7 +29,7 @@ class AuthControllerApi with BaseApiClient {
   }
 
   /// ä½¿ç¨ HTTP ä¿¡æ¯è¿è¡ç»å½
-  Future<http.Response> apiAuthLoginPostWithHttpInfo(
+  Future<http.Response> _loginWithHttpInfo(
       {required LoginRequest loginRequest}) async {
     Object postBody = loginRequest;
 
@@ -50,11 +50,11 @@ class AuthControllerApi with BaseApiClient {
   }
 
   /// ç»å½
-  Future<Map<String, dynamic>> apiAuthLoginPost(
+  Future<Map<String, dynamic>> login(
       {required LoginRequest loginRequest}) async {
     try {
       http.Response response =
-          await apiAuthLoginPostWithHttpInfo(loginRequest: loginRequest);
+          await _loginWithHttpInfo(loginRequest: loginRequest);
       debugPrint('Login response status: ${response.statusCode}');
       debugPrint('Login response body: ${response.body}');
 
@@ -75,7 +75,7 @@ class AuthControllerApi with BaseApiClient {
   }
 
   /// ä½¿ç¨ HTTP ä¿¡æ¯è¿è¡ç¨æ·æ³¨å
-  Future<http.Response> apiAuthRegisterPostWithHttpInfo(
+  Future<http.Response> _registerWithHttpInfo(
       {required RegisterRequest registerRequest}) async {
     Object postBody = registerRequest;
 
@@ -96,11 +96,11 @@ class AuthControllerApi with BaseApiClient {
   }
 
   /// ç¨æ·æ³¨å
-  Future<Map<String, dynamic>> apiAuthRegisterPost(
+  Future<Map<String, dynamic>> register(
       {required RegisterRequest registerRequest}) async {
     try {
-      http.Response response = await apiAuthRegisterPostWithHttpInfo(
-          registerRequest: registerRequest);
+      http.Response response =
+          await _registerWithHttpInfo(registerRequest: registerRequest);
       debugPrint('Register response status: ${response.statusCode}');
       debugPrint('Register response body: ${response.body}');
 
@@ -123,7 +123,7 @@ class AuthControllerApi with BaseApiClient {
   }
 
   /// ä½¿ç¨ HTTP ä¿¡æ¯è·åææç¨æ?
-  Future<http.Response> apiAuthUsersGetWithHttpInfo() async {
+  Future<http.Response> _listAuthUsersWithHttpInfo() async {
     String path = "/api/auth/users".replaceAll("{format}", "json");
 
     List<QueryParam> queryParams = [];
@@ -141,9 +141,9 @@ class AuthControllerApi with BaseApiClient {
   }
 
   /// è·åææç¨æ?
-  Future<Map<String, dynamic>> apiAuthUsersGet() async {
+  Future<Map<String, dynamic>> listAuthUsers() async {
     try {
-      http.Response response = await apiAuthUsersGetWithHttpInfo();
+      http.Response response = await _listAuthUsersWithHttpInfo();
       debugPrint('Users get response status: ${response.statusCode}');
       debugPrint('Users get response body: ${response.body}');
 
@@ -164,7 +164,7 @@ class AuthControllerApi with BaseApiClient {
   }
 
   /// è·åè§è²åè¡¨ï¼æ°å¢ï¼
-  Future<http.Response> apiRolesGetWithHttpInfo() async {
+  Future<http.Response> _listRolesWithHttpInfo() async {
     String path = "/api/roles".replaceAll("{format}", "json");
 
     List<QueryParam> queryParams = [];
@@ -182,9 +182,9 @@ class AuthControllerApi with BaseApiClient {
   }
 
   /// è·åè§è²åè¡¨
-  Future<Map<String, dynamic>> apiRolesGet() async {
+  Future<Map<String, dynamic>> listRoles() async {
     try {
-      http.Response response = await apiRolesGetWithHttpInfo();
+      http.Response response = await _listRolesWithHttpInfo();
       debugPrint('Roles get response status: ${response.statusCode}');
       debugPrint('Roles get response body: ${response.body}');
 

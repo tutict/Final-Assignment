@@ -49,7 +49,7 @@ class DriverInformationControllerApi with BaseApiClient {
   // HTTP Methods
 
   /// POST /api/drivers - åå»ºå¸æºä¿¡æ¯
-  Future<void> apiDriversPost({
+  Future<void> createDriver({
     required DriverInformation driverInformation,
     required String idempotencyKey,
   }) async {
@@ -75,7 +75,7 @@ class DriverInformationControllerApi with BaseApiClient {
   }
 
   /// GET /api/drivers/{driverId} - æ ¹æ®IDè·åå¸æºä¿¡æ¯
-  Future<DriverInformation?> apiDriversDriverIdGet({
+  Future<DriverInformation?> getDriver({
     required int driverId,
   }) async {
     final path = '/api/drivers/$driverId';
@@ -103,7 +103,7 @@ class DriverInformationControllerApi with BaseApiClient {
   }
 
   /// GET /api/drivers - è·åææå¸æºä¿¡æ?
-  Future<List<DriverInformation>> apiDriversGet() async {
+  Future<List<DriverInformation>> listDrivers() async {
     const path = '/api/drivers';
     final headerParams = await _getHeaders();
     final response = await apiClient.invokeAPI(
@@ -125,7 +125,7 @@ class DriverInformationControllerApi with BaseApiClient {
   }
 
   /// PUT /api/drivers/{driverId}/name - æ´æ°å¸æºå§å
-  Future<void> apiDriversDriverIdNamePut({
+  Future<void> updateDriverName({
     required int driverId,
     required String name,
     required String idempotencyKey,
@@ -155,7 +155,7 @@ class DriverInformationControllerApi with BaseApiClient {
   }
 
   /// PUT /api/drivers/{driverId}/contactNumber - æ´æ°å¸æºèç³»çµè¯
-  Future<void> apiDriversDriverIdContactNumberPut({
+  Future<void> updateDriverContactNumber({
     required int driverId,
     required String contactNumber,
     required String idempotencyKey,
@@ -185,7 +185,7 @@ class DriverInformationControllerApi with BaseApiClient {
   }
 
   /// PUT /api/drivers/{driverId}/idCardNumber - æ´æ°å¸æºèº«ä»½è¯å·ç ?
-  Future<void> apiDriversDriverIdIdCardNumberPut({
+  Future<void> updateDriverIdCardNumber({
     required int driverId,
     required String idCardNumber,
     required String idempotencyKey,
@@ -215,7 +215,7 @@ class DriverInformationControllerApi with BaseApiClient {
   }
 
   /// PUT /api/drivers/{driverId} - æ´æ°å¸æºå®æ´ä¿¡æ¯
-  Future<void> apiDriversDriverIdPut({
+  Future<void> updateDriver({
     required int driverId,
     required DriverInformation driverInformation,
     required String idempotencyKey,
@@ -245,7 +245,7 @@ class DriverInformationControllerApi with BaseApiClient {
 
   /// DELETE /api/drivers/{driverId} - å é¤å¸æºä¿¡æ¯ (ä»
 // ç®¡çå)
-  Future<void> apiDriversDriverIdDelete({
+  Future<void> deleteDriver({
     required int driverId,
   }) async {
     final path = '/api/drivers/$driverId';
@@ -271,7 +271,7 @@ class DriverInformationControllerApi with BaseApiClient {
   }
 
   /// GET /api/drivers/by-id-card - æç´¢å¸æºä¿¡æ¯æèº«ä»½è¯å·ç 
-  Future<List<DriverInformation>> apiDriversByIdCardGet({
+  Future<List<DriverInformation>> listDriversByIdCard({
     required String query,
     int page = 1,
     int size = 10,
@@ -308,7 +308,7 @@ class DriverInformationControllerApi with BaseApiClient {
   }
 
   /// GET /api/drivers/by-license-number - æç´¢å¸æºä¿¡æ¯æé©¾é©¶è¯å?
-  Future<List<DriverInformation>> apiDriversByLicenseNumberGet({
+  Future<List<DriverInformation>> listDriversByLicenseNumber({
     required String query,
     int page = 1,
     int size = 10,
@@ -345,7 +345,7 @@ class DriverInformationControllerApi with BaseApiClient {
   }
 
   /// GET /api/drivers/by-name - æç´¢å¸æºä¿¡æ¯æå§å?
-  Future<List<DriverInformation>> apiDriversByNameGet({
+  Future<List<DriverInformation>> listDriversByName({
     required String query,
     int page = 1,
     int size = 10,

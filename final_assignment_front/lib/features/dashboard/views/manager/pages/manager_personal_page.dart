@@ -95,14 +95,13 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
         throw Exception('未能从凭证中解析当前用户');
       }
 
-      final manager =
-          await userApi.apiUsersUsernameUsernameGet(username: username);
+      final manager = await userApi.getUserByUsername(username: username);
       if (manager == null || manager.userId == null) {
         throw Exception('未找到当前用户信息');
       }
 
       DriverInformation? driverInfo =
-          await driverApi.apiDriversDriverIdGet(driverId: manager.userId!);
+          await driverApi.getDriver(driverId: manager.userId!);
       if (driverInfo == null) {
         final idempotencyKey = generateIdempotencyKey();
         final newDriver = DriverInformation(
@@ -113,12 +112,11 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
         );
         debugPrint(
             'Creating driver profile for user ${manager.userId} (${manager.username})');
-        await driverApi.apiDriversPost(
+        await driverApi.createDriver(
           driverInformation: newDriver,
           idempotencyKey: idempotencyKey,
         );
-        driverInfo =
-            await driverApi.apiDriversDriverIdGet(driverId: manager.userId!);
+        driverInfo = await driverApi.getDriver(driverId: manager.userId!);
       }
 
       _driverInfo = driverInfo;
@@ -168,14 +166,14 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
 
       switch (field) {
         case 'name':
-          await driverApi.apiDriversDriverIdNamePut(
+          await driverApi.updateDriverName(
             driverId: userId,
             name: value,
             idempotencyKey: idempotencyKey,
           );
           break;
         case 'contactNumber':
-          await driverApi.apiDriversDriverIdContactNumberPut(
+          await driverApi.updateDriverContactNumber(
             driverId: userId,
             contactNumber: value,
             idempotencyKey: idempotencyKey,
@@ -183,7 +181,7 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
           break;
         case 'password':
           final updatedUser = currentManager.copyWith(password: value);
-          await userApi.apiUsersUserIdPut(
+          await userApi.updateUser(
             userId: userId.toString(),
             userManagement: updatedUser,
             idempotencyKey: idempotencyKey,
@@ -191,7 +189,7 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
           break;
         case 'email':
           final updatedUser = currentManager.copyWith(email: value);
-          await userApi.apiUsersUserIdPut(
+          await userApi.updateUser(
             userId: userId.toString(),
             userManagement: updatedUser,
             idempotencyKey: idempotencyKey,
@@ -199,7 +197,7 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
           break;
         case 'remarks':
           final updatedUser = currentManager.copyWith(remarks: value);
-          await userApi.apiUsersUserIdPut(
+          await userApi.updateUser(
             userId: userId.toString(),
             userManagement: updatedUser,
             idempotencyKey: idempotencyKey,

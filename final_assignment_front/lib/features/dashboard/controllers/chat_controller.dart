@@ -66,9 +66,8 @@ class ChatController extends GetxController {
       Set<String> processedChunks = {}; // Deduplication set
       bool isFirstMessage = true;
 
-      await for (String chunk in chatApi.apiAiChatStream(
-          text, webSearchEnabled.value,
-          cancelToken: cancelToken)) {
+      await for (String chunk in chatApi
+          .streamChat(text, webSearchEnabled.value, cancelToken: cancelToken)) {
         if (cancelToken.isCanceled) {
           break;
         }

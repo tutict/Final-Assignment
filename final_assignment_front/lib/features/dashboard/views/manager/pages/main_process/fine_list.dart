@@ -224,15 +224,15 @@ class _FineListState extends State<FineListPage> {
       for (int attempt = 1; attempt <= retries; attempt++) {
         try {
           if (searchQuery.isEmpty && _startDate == null && _endDate == null) {
-            fines = await fineApi.apiFinesGet();
+            fines = await fineApi.listFines();
             fines.sort((a, b) =>
                 _comparableFineDate(b).compareTo(_comparableFineDate(a)));
           } else if (_searchType == 'payee' && searchQuery.isNotEmpty) {
-            fines = await fineApi.apiFinesPayeePayeeGet(payee: searchQuery);
+            fines = await fineApi.listFinesByPayee(payee: searchQuery);
           } else if (_searchType == 'timeRange' &&
               _startDate != null &&
               _endDate != null) {
-            fines = await fineApi.apiFinesTimeRangeGet(
+            fines = await fineApi.searchFinesByTimeRange(
               startDate: _startDate!.toIso8601String().split('T').first,
               endDate: _endDate!
                   .add(const Duration(days: 1))
@@ -299,7 +299,7 @@ class _FineListState extends State<FineListPage> {
         return [];
       }
       if (_searchType == 'payee') {
-        final fines = await fineApi.apiFinesPayeePayeeGet(payee: prefix.trim());
+        final fines = await fineApi.listFinesByPayee(payee: prefix.trim());
         return fines
             .map((fine) => fine.payee ?? '')
             .where(
@@ -430,7 +430,7 @@ class _FineListState extends State<FineListPage> {
           Navigator.pushReplacementNamed(context, Routes.login);
           return;
         }
-        await fineApi.apiFinesFineIdDelete(fineId: fineId);
+        await fineApi.deleteFine(fineId: fineId);
         _showSnackBar('删除罚款成功！');
         await _refreshFines();
       } catch (e) {
@@ -851,7 +851,7 @@ class _AddFinePageState extends State<AddFinePage> {
         Navigator.pushReplacementNamed(context, Routes.login);
         return [];
       }
-      return await vehicleApi.apiVehiclesSearchLicenseGlobalGet(
+      return await vehicleApi.searchVehiclesByLicenseGlobal(
         prefix: prefix,
         size: 10,
       );
@@ -869,7 +869,7 @@ class _AddFinePageState extends State<AddFinePage> {
         return [];
       }
       if (prefix.trim().isEmpty) return [];
-      final offenses = await offenseApi.apiOffensesByDriverNameGet(
+      final offenses = await offenseApi.listOffensesByDriverName(
         query: prefix.trim(),
         page: 1,
         size: 10,
@@ -900,7 +900,7 @@ class _AddFinePageState extends State<AddFinePage> {
         Navigator.pushReplacementNamed(context, Routes.login);
         return;
       }
-      final offenses = await offenseApi.apiOffensesByLicensePlateGet(
+      final offenses = await offenseApi.listOffensesByLicensePlate(
         query: licensePlate,
         page: 1,
         size: 10,
@@ -991,14 +991,14 @@ class _AddFinePageState extends State<AddFinePage> {
         idempotencyKey: idempotencyKey,
       );
       if (widget.isEditMode) {
-        await fineApi.apiFinesFineIdPut(
+        await fineApi.updateFine(
           fineId: finePayload.fineId ?? 0,
           fineInformation: finePayload,
           idempotencyKey: idempotencyKey,
         );
         _showSnackBar('更新罚款成功！');
       } else {
-        await fineApi.apiFinesPost(
+        await fineApi.createFine(
           fineInformation: finePayload,
           idempotencyKey: idempotencyKey,
         );
@@ -1378,7 +1378,7 @@ class _FineDetailPageState extends State<FineDetailPage> {
         remarks: _currentFine.remarks,
         idempotencyKey: idempotencyKey,
       );
-      final result = await fineApi.apiFinesFineIdPut(
+      final result = await fineApi.updateFine(
         fineId: fineId,
         fineInformation: updatedFine,
         idempotencyKey: idempotencyKey,
@@ -1410,7 +1410,7 @@ class _FineDetailPageState extends State<FineDetailPage> {
           Navigator.pushReplacementNamed(context, Routes.login);
           return;
         }
-        await fineApi.apiFinesFineIdDelete(fineId: fineId);
+        await fineApi.deleteFine(fineId: fineId);
         _showSnackBar('罚款删除成功！');
         if (mounted) Navigator.pop(context, true);
       } on ApiException catch (e) {

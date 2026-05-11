@@ -92,14 +92,14 @@ class _PersonalMainPageState extends State<PersonalMainPage> {
       await driverApi.initializeWithJwt();
       await userApi.initializeWithJwt();
       final user =
-          await userApi.apiUsersSearchUsernameGet(username: storedUsername);
+          await userApi.searchUsersByUsername(username: storedUsername);
       if (user == null || user.userId == null) {
         throw Exception('加载用户信息失败');
       }
       final authUserId = user.userId!;
       final driverId = authUserId; // 当前系统 authUserId 与 driverId 一一对应
       DriverInformation? driverInfo =
-          await driverApi.apiDriversDriverIdGet(driverId: driverId);
+          await driverApi.getDriver(driverId: driverId);
       if (driverInfo == null) {
         final newDriver = DriverInformation(
           driverId: driverId,
@@ -108,11 +108,11 @@ class _PersonalMainPageState extends State<PersonalMainPage> {
           idCardNumber: '',
           driverLicenseNumber: generateDriverLicenseNumber(),
         );
-        await driverApi.apiDriversPost(
+        await driverApi.createDriver(
           driverInformation: newDriver,
           idempotencyKey: generateIdempotencyKey(),
         );
-        driverInfo = await driverApi.apiDriversDriverIdGet(driverId: driverId);
+        driverInfo = await driverApi.getDriver(driverId: driverId);
         _driverLicenseFinalized = true;
       } else {
         _driverLicenseFinalized =
@@ -174,7 +174,7 @@ class _PersonalMainPageState extends State<PersonalMainPage> {
                 ? value
                 : _driverInfo?.driverLicenseNumber ?? '',
           );
-          await driverApi.apiDriversPost(
+          await driverApi.createDriver(
             driverInformation: updatedDriver,
             idempotencyKey: idempotencyKey,
           );

@@ -31,7 +31,7 @@ class VehicleInformationControllerApi with BaseApiClient {
   }
 
   // GET /api/vehicles
-  Future<List<VehicleInformation>> apiVehiclesGet() async {
+  Future<List<VehicleInformation>> listVehicles() async {
     final r = await apiClient.invokeAPI(
       '/api/vehicles',
       'GET',
@@ -49,8 +49,7 @@ class VehicleInformationControllerApi with BaseApiClient {
   }
 
   // GET /api/vehicles/{vehicleId}
-  Future<VehicleInformation?> apiVehiclesVehicleIdGet(
-      {required int vehicleId}) async {
+  Future<VehicleInformation?> getVehicle({required int vehicleId}) async {
     final r = await apiClient.invokeAPI(
       '/api/vehicles/$vehicleId',
       'GET',
@@ -68,7 +67,7 @@ class VehicleInformationControllerApi with BaseApiClient {
   }
 
   // POST /api/vehicles
-  Future<VehicleInformation> apiVehiclesPost({
+  Future<VehicleInformation> createVehicle({
     required VehicleInformation vehicle,
     required String idempotencyKey,
   }) async {
@@ -87,7 +86,7 @@ class VehicleInformationControllerApi with BaseApiClient {
   }
 
   // PUT /api/vehicles/{vehicleId}
-  Future<VehicleInformation> apiVehiclesVehicleIdPut({
+  Future<VehicleInformation> updateVehicle({
     required int vehicleId,
     required VehicleInformation vehicle,
     required String idempotencyKey,
@@ -107,7 +106,7 @@ class VehicleInformationControllerApi with BaseApiClient {
   }
 
   // DELETE /api/vehicles/{vehicleId}
-  Future<void> apiVehiclesVehicleIdDelete({required int vehicleId}) async {
+  Future<void> deleteVehicle({required int vehicleId}) async {
     final r = await apiClient.invokeAPI(
       '/api/vehicles/$vehicleId',
       'DELETE',
@@ -122,7 +121,7 @@ class VehicleInformationControllerApi with BaseApiClient {
   }
 
   // DELETE /api/vehicles/license/{licensePlate}
-  Future<void> apiVehiclesLicenseDelete({required String licensePlate}) async {
+  Future<void> deleteVehicleByLicense({required String licensePlate}) async {
     final r = await apiClient.invokeAPI(
       '/api/vehicles/license/$licensePlate',
       'DELETE',
@@ -137,7 +136,7 @@ class VehicleInformationControllerApi with BaseApiClient {
   }
 
   // GET /api/vehicles/search/license?licensePlate=
-  Future<VehicleInformation?> apiVehiclesSearchLicenseGet(
+  Future<VehicleInformation?> searchVehiclesByLicense(
       {required String licensePlate}) async {
     final r = await apiClient.invokeAPI(
       '/api/vehicles/search/license',
@@ -156,7 +155,7 @@ class VehicleInformationControllerApi with BaseApiClient {
   }
 
   // GET /api/vehicles/search/owner?idCard=
-  Future<List<VehicleInformation>> apiVehiclesSearchOwnerGet(
+  Future<List<VehicleInformation>> searchVehiclesByOwner(
       {required String idCard}) async {
     final r = await apiClient.invokeAPI(
       '/api/vehicles/search/owner',
@@ -175,7 +174,7 @@ class VehicleInformationControllerApi with BaseApiClient {
   }
 
   // GET /api/vehicles/search/type?type=
-  Future<List<VehicleInformation>> apiVehiclesSearchTypeGet(
+  Future<List<VehicleInformation>> searchVehiclesByType(
       {required String type}) async {
     final r = await apiClient.invokeAPI(
       '/api/vehicles/search/type',
@@ -194,7 +193,7 @@ class VehicleInformationControllerApi with BaseApiClient {
   }
 
   // GET /api/vehicles/search/owner/name?ownerName=
-  Future<List<VehicleInformation>> apiVehiclesSearchOwnerNameGet(
+  Future<List<VehicleInformation>> searchVehiclesByOwnerName(
       {required String ownerName}) async {
     final r = await apiClient.invokeAPI(
       '/api/vehicles/search/owner/name',
@@ -213,7 +212,7 @@ class VehicleInformationControllerApi with BaseApiClient {
   }
 
   // GET /api/vehicles/search/status?status=
-  Future<List<VehicleInformation>> apiVehiclesSearchStatusGet(
+  Future<List<VehicleInformation>> searchVehiclesByStatus(
       {required String status}) async {
     final r = await apiClient.invokeAPI(
       '/api/vehicles/search/status',
@@ -232,7 +231,7 @@ class VehicleInformationControllerApi with BaseApiClient {
   }
 
   // GET /api/vehicles/search/general?keywords=&page=&size=
-  Future<List<VehicleInformation>> apiVehiclesSearchGeneralGet({
+  Future<List<VehicleInformation>> searchVehiclesByGeneral({
     required String keywords,
     int page = 1,
     int size = 20,
@@ -258,7 +257,7 @@ class VehicleInformationControllerApi with BaseApiClient {
   }
 
   // GET /api/vehicles/search/license/global?prefix=&size=
-  Future<List<String>> apiVehiclesSearchLicenseGlobalGet({
+  Future<List<String>> searchVehiclesByLicenseGlobal({
     required String prefix,
     int size = 10,
   }) async {
@@ -282,7 +281,7 @@ class VehicleInformationControllerApi with BaseApiClient {
   }
 
   // GET /api/vehicles/autocomplete/plates?prefix=&size=&idCard=
-  Future<List<String>> apiVehiclesAutocompletePlatesGet({
+  Future<List<String>> autocompleteVehiclePlates({
     required String prefix,
     required String idCard,
     int size = 10,
@@ -308,7 +307,7 @@ class VehicleInformationControllerApi with BaseApiClient {
   }
 
   // GET /api/vehicles/autocomplete/types?idCard=&prefix=&size=
-  Future<List<String>> apiVehiclesAutocompleteTypesGet({
+  Future<List<String>> autocompleteVehicleTypes({
     required String idCard,
     required String prefix,
     int size = 10,
@@ -334,7 +333,7 @@ class VehicleInformationControllerApi with BaseApiClient {
   }
 
   // GET /api/vehicles/autocomplete/types/global?prefix=&size=
-  Future<List<String>> apiVehiclesAutocompleteTypesGlobalGet({
+  Future<List<String>> autocompleteVehicleTypesGlobal({
     required String prefix,
     int size = 10,
   }) async {
@@ -358,8 +357,7 @@ class VehicleInformationControllerApi with BaseApiClient {
   }
 
   // GET /api/vehicles/exists/{licensePlate} -> {"exists": true/false}
-  Future<bool> apiVehiclesExistsLicensePlateGet(
-      {required String licensePlate}) async {
+  Future<bool> vehicleLicensePlateExists({required String licensePlate}) async {
     final r = await apiClient.invokeAPI(
       '/api/vehicles/exists/$licensePlate',
       'GET',

@@ -39,7 +39,7 @@ class SystemSettingsControllerApi with BaseApiClient {
   }
 
   /// GET /api/systemSettings/copyrightInfo - è·åçæä¿¡æ¯
-  Future<String?> apiSystemSettingsCopyrightInfoGet() async {
+  Future<String?> getSystemSettingsCopyrightInfo() async {
     final response = await apiClient.invokeAPI(
       '/api/systemSettings/copyrightInfo',
       'GET',
@@ -59,7 +59,7 @@ class SystemSettingsControllerApi with BaseApiClient {
   }
 
   /// GET /api/systemSettings/dateFormat - è·åæ¥ææ ¼å¼
-  Future<String?> apiSystemSettingsDateFormatGet() async {
+  Future<String?> getSystemSettingsDateFormat() async {
     final response = await apiClient.invokeAPI(
       '/api/systemSettings/dateFormat',
       'GET',
@@ -79,7 +79,7 @@ class SystemSettingsControllerApi with BaseApiClient {
   }
 
   /// GET /api/systemSettings/emailAccount - è·åé®ç®±è´¦æ·
-  Future<String?> apiSystemSettingsEmailAccountGet() async {
+  Future<String?> getSystemSettingsEmailAccount() async {
     final response = await apiClient.invokeAPI(
       '/api/systemSettings/emailAccount',
       'GET',
@@ -99,7 +99,7 @@ class SystemSettingsControllerApi with BaseApiClient {
   }
 
   /// GET /api/systemSettings/emailPassword - è·åé®ç®±å¯ç 
-  Future<String?> apiSystemSettingsEmailPasswordGet() async {
+  Future<String?> getSystemSettingsEmailPassword() async {
     final response = await apiClient.invokeAPI(
       '/api/systemSettings/emailPassword',
       'GET',
@@ -119,7 +119,7 @@ class SystemSettingsControllerApi with BaseApiClient {
   }
 
   /// GET /api/systemSettings - è·åææç³»ç»è®¾ç½?
-  Future<SystemSettings?> apiSystemSettingsGet() async {
+  Future<SystemSettings?> getSystemSettings() async {
     final response = await apiClient.invokeAPI(
       '/api/systemSettings',
       'GET',
@@ -141,7 +141,7 @@ class SystemSettingsControllerApi with BaseApiClient {
 
   /// GET /api/systemSettings/loginTimeout - è·åç»å½è¶
 // æ¶æ¶é´
-  Future<int?> apiSystemSettingsLoginTimeoutGet() async {
+  Future<int?> getSystemSettingsLoginTimeout() async {
     final response = await apiClient.invokeAPI(
       '/api/systemSettings/loginTimeout',
       'GET',
@@ -160,7 +160,7 @@ class SystemSettingsControllerApi with BaseApiClient {
   }
 
   /// GET /api/systemSettings/pageSize - è·ååé¡µå¤§å°
-  Future<int?> apiSystemSettingsPageSizeGet() async {
+  Future<int?> getSystemSettingsPageSize() async {
     final response = await apiClient.invokeAPI(
       '/api/systemSettings/pageSize',
       'GET',
@@ -180,7 +180,7 @@ class SystemSettingsControllerApi with BaseApiClient {
 
   /// PUT /api/systemSettings - æ´æ°ç³»ç»è®¾ç½® (ä»
 // ç®¡çå)
-  Future<SystemSettings> apiSystemSettingsPut(
+  Future<SystemSettings> updateSystemSettings(
       {required SystemSettings systemSettings}) async {
     final response = await apiClient.invokeAPI(
       '/api/systemSettings',
@@ -202,7 +202,7 @@ class SystemSettingsControllerApi with BaseApiClient {
 
   /// GET /api/systemSettings/sessionTimeout - è·åä¼è¯è¶
 // æ¶æ¶é´
-  Future<int?> apiSystemSettingsSessionTimeoutGet() async {
+  Future<int?> getSystemSettingsSessionTimeout() async {
     final response = await apiClient.invokeAPI(
       '/api/systemSettings/sessionTimeout',
       'GET',
@@ -221,7 +221,7 @@ class SystemSettingsControllerApi with BaseApiClient {
   }
 
   /// GET /api/systemSettings/smtpServer - è·åSMTPæå¡å?
-  Future<String?> apiSystemSettingsSmtpServerGet() async {
+  Future<String?> getSystemSettingsSmtpServer() async {
     final response = await apiClient.invokeAPI(
       '/api/systemSettings/smtpServer',
       'GET',
@@ -241,7 +241,7 @@ class SystemSettingsControllerApi with BaseApiClient {
   }
 
   /// GET /api/systemSettings/storagePath - è·åå­å¨è·¯å¾
-  Future<String?> apiSystemSettingsStoragePathGet() async {
+  Future<String?> getSystemSettingsStoragePath() async {
     final response = await apiClient.invokeAPI(
       '/api/systemSettings/storagePath',
       'GET',
@@ -261,7 +261,7 @@ class SystemSettingsControllerApi with BaseApiClient {
   }
 
   /// GET /api/systemSettings/systemDescription - è·åç³»ç»æè¿°
-  Future<String?> apiSystemSettingsSystemDescriptionGet() async {
+  Future<String?> getSystemSettingsSystemDescription() async {
     final response = await apiClient.invokeAPI(
       '/api/systemSettings/systemDescription',
       'GET',
@@ -281,7 +281,7 @@ class SystemSettingsControllerApi with BaseApiClient {
   }
 
   /// GET /api/systemSettings/systemName - è·åç³»ç»åç§°
-  Future<String?> apiSystemSettingsSystemNameGet() async {
+  Future<String?> getSystemSettingsSystemName() async {
     final response = await apiClient.invokeAPI(
       '/api/systemSettings/systemName',
       'GET',
@@ -301,7 +301,7 @@ class SystemSettingsControllerApi with BaseApiClient {
   }
 
   /// GET /api/systemSettings/systemVersion - è·åç³»ç»çæ¬
-  Future<String?> apiSystemSettingsSystemVersionGet() async {
+  Future<String?> getSystemSettingsSystemVersion() async {
     final response = await apiClient.invokeAPI(
       '/api/systemSettings/systemVersion',
       'GET',
@@ -323,7 +323,7 @@ class SystemSettingsControllerApi with BaseApiClient {
   // --- New endpoints: /api/system/settings ---
 
   /// POST /api/system/settings
-  Future<SystemSettings> apiSystemSettingsPost({
+  Future<SystemSettings> createSystemSettings({
     required SystemSettings systemSettings,
     String? idempotencyKey,
   }) async {
@@ -346,7 +346,7 @@ class SystemSettingsControllerApi with BaseApiClient {
   }
 
   /// PUT /api/system/settings/{settingId}
-  Future<SystemSettings> apiSystemSettingsSettingIdPut({
+  Future<SystemSettings> updateSystemSetting({
     required int settingId,
     required SystemSettings systemSettings,
     String? idempotencyKey,
@@ -370,7 +370,7 @@ class SystemSettingsControllerApi with BaseApiClient {
   }
 
   /// DELETE /api/system/settings/{settingId}
-  Future<void> apiSystemSettingsSettingIdDelete({
+  Future<void> deleteSystemSetting({
     required int settingId,
   }) async {
     final response = await apiClient.invokeAPI(
@@ -389,7 +389,7 @@ class SystemSettingsControllerApi with BaseApiClient {
   }
 
   /// GET /api/system/settings/{settingId}
-  Future<SystemSettings?> apiSystemSettingsSettingIdGet({
+  Future<SystemSettings?> getSystemSetting({
     required int settingId,
   }) async {
     final response = await apiClient.invokeAPI(
@@ -413,7 +413,7 @@ class SystemSettingsControllerApi with BaseApiClient {
   }
 
   /// GET /api/system/settings
-  Future<List<SystemSettings>> apiSystemSettingsListGet() async {
+  Future<List<SystemSettings>> listSystemSettings() async {
     final response = await apiClient.invokeAPI(
       '/api/system/settings',
       'GET',
@@ -433,7 +433,7 @@ class SystemSettingsControllerApi with BaseApiClient {
   }
 
   /// GET /api/system/settings/key/{settingKey}
-  Future<SystemSettings?> apiSystemSettingsKeyGet({
+  Future<SystemSettings?> getSystemSettingByKey({
     required String settingKey,
   }) async {
     final response = await apiClient.invokeAPI(
@@ -457,7 +457,7 @@ class SystemSettingsControllerApi with BaseApiClient {
   }
 
   /// GET /api/system/settings/category/{category}
-  Future<List<SystemSettings>> apiSystemSettingsCategoryGet({
+  Future<List<SystemSettings>> listSystemSettingsByCategory({
     required String category,
     int page = 1,
     int size = 50,
@@ -484,7 +484,7 @@ class SystemSettingsControllerApi with BaseApiClient {
   }
 
   /// GET /api/system/settings/search/key/prefix
-  Future<List<SystemSettings>> apiSystemSettingsSearchKeyPrefixGet({
+  Future<List<SystemSettings>> searchSystemSettingsByKeyPrefix({
     required String settingKey,
     int page = 1,
     int size = 50,
@@ -512,7 +512,7 @@ class SystemSettingsControllerApi with BaseApiClient {
   }
 
   /// GET /api/system/settings/search/key/fuzzy
-  Future<List<SystemSettings>> apiSystemSettingsSearchKeyFuzzyGet({
+  Future<List<SystemSettings>> searchSystemSettingsByKeyFuzzy({
     required String settingKey,
     int page = 1,
     int size = 50,
@@ -540,7 +540,7 @@ class SystemSettingsControllerApi with BaseApiClient {
   }
 
   /// GET /api/system/settings/search/type
-  Future<List<SystemSettings>> apiSystemSettingsSearchTypeGet({
+  Future<List<SystemSettings>> searchSystemSettingsByType({
     required String settingType,
     int page = 1,
     int size = 50,
@@ -568,7 +568,7 @@ class SystemSettingsControllerApi with BaseApiClient {
   }
 
   /// GET /api/system/settings/search/editable
-  Future<List<SystemSettings>> apiSystemSettingsSearchEditableGet({
+  Future<List<SystemSettings>> searchSystemSettingsByEditable({
     required bool isEditable,
     int page = 1,
     int size = 50,
@@ -596,7 +596,7 @@ class SystemSettingsControllerApi with BaseApiClient {
   }
 
   /// GET /api/system/settings/search/encrypted
-  Future<List<SystemSettings>> apiSystemSettingsSearchEncryptedGet({
+  Future<List<SystemSettings>> searchSystemSettingsByEncrypted({
     required bool isEncrypted,
     int page = 1,
     int size = 50,
@@ -626,7 +626,7 @@ class SystemSettingsControllerApi with BaseApiClient {
   // --- Dict endpoints under /api/system/settings/dicts ---
 
   /// POST /api/system/settings/dicts
-  Future<SysDictModel> apiSystemSettingsDictsPost({
+  Future<SysDictModel> createSystemSettingsDict({
     required SysDictModel sysDict,
     String? idempotencyKey,
   }) async {
@@ -649,7 +649,7 @@ class SystemSettingsControllerApi with BaseApiClient {
   }
 
   /// PUT /api/system/settings/dicts/{dictId}
-  Future<SysDictModel> apiSystemSettingsDictsDictIdPut({
+  Future<SysDictModel> updateSystemSettingsDict({
     required int dictId,
     required SysDictModel sysDict,
     String? idempotencyKey,
@@ -673,7 +673,7 @@ class SystemSettingsControllerApi with BaseApiClient {
   }
 
   /// DELETE /api/system/settings/dicts/{dictId}
-  Future<void> apiSystemSettingsDictsDictIdDelete({
+  Future<void> deleteSystemSettingsDict({
     required int dictId,
   }) async {
     final response = await apiClient.invokeAPI(
@@ -692,7 +692,7 @@ class SystemSettingsControllerApi with BaseApiClient {
   }
 
   /// GET /api/system/settings/dicts/{dictId}
-  Future<SysDictModel?> apiSystemSettingsDictsDictIdGet({
+  Future<SysDictModel?> getSystemSettingsDict({
     required int dictId,
   }) async {
     final response = await apiClient.invokeAPI(
@@ -716,7 +716,7 @@ class SystemSettingsControllerApi with BaseApiClient {
   }
 
   /// GET /api/system/settings/dicts
-  Future<List<SysDictModel>> apiSystemSettingsDictsGet() async {
+  Future<List<SysDictModel>> listSystemSettingsDicts() async {
     final response = await apiClient.invokeAPI(
       '/api/system/settings/dicts',
       'GET',
@@ -736,7 +736,7 @@ class SystemSettingsControllerApi with BaseApiClient {
   }
 
   /// GET /api/system/settings/dicts/search/type
-  Future<List<SysDictModel>> apiSystemSettingsDictsSearchTypeGet({
+  Future<List<SysDictModel>> searchSystemSettingsDictsByType({
     required String dictType,
     int page = 1,
     int size = 50,
@@ -764,7 +764,7 @@ class SystemSettingsControllerApi with BaseApiClient {
   }
 
   /// GET /api/system/settings/dicts/search/code
-  Future<List<SysDictModel>> apiSystemSettingsDictsSearchCodeGet({
+  Future<List<SysDictModel>> searchSystemSettingsDictsByCode({
     required String dictCode,
     int page = 1,
     int size = 50,
@@ -792,7 +792,7 @@ class SystemSettingsControllerApi with BaseApiClient {
   }
 
   /// GET /api/system/settings/dicts/search/label/prefix
-  Future<List<SysDictModel>> apiSystemSettingsDictsSearchLabelPrefixGet({
+  Future<List<SysDictModel>> searchSystemSettingsDictsByLabelPrefix({
     required String dictLabel,
     int page = 1,
     int size = 50,
@@ -820,7 +820,7 @@ class SystemSettingsControllerApi with BaseApiClient {
   }
 
   /// GET /api/system/settings/dicts/search/label/fuzzy
-  Future<List<SysDictModel>> apiSystemSettingsDictsSearchLabelFuzzyGet({
+  Future<List<SysDictModel>> searchSystemSettingsDictsByLabelFuzzy({
     required String dictLabel,
     int page = 1,
     int size = 50,
@@ -848,7 +848,7 @@ class SystemSettingsControllerApi with BaseApiClient {
   }
 
   /// GET /api/system/settings/dicts/search/parent
-  Future<List<SysDictModel>> apiSystemSettingsDictsSearchParentGet({
+  Future<List<SysDictModel>> searchSystemSettingsDictsByParent({
     required int parentId,
     int page = 1,
     int size = 50,
@@ -876,7 +876,7 @@ class SystemSettingsControllerApi with BaseApiClient {
   }
 
   /// GET /api/system/settings/dicts/search/default
-  Future<List<SysDictModel>> apiSystemSettingsDictsSearchDefaultGet({
+  Future<List<SysDictModel>> searchSystemSettingsDictsByDefault({
     required bool isDefault,
     int page = 1,
     int size = 50,
@@ -904,7 +904,7 @@ class SystemSettingsControllerApi with BaseApiClient {
   }
 
   /// GET /api/system/settings/dicts/search/status
-  Future<List<SysDictModel>> apiSystemSettingsDictsSearchStatusGet({
+  Future<List<SysDictModel>> searchSystemSettingsDictsByStatus({
     required String status,
     int page = 1,
     int size = 50,

@@ -126,15 +126,14 @@ class _UserOffenseListPageState extends State<UserOffenseListPage> {
         throw Exception('无法确定当前用户名');
       }
       await userApi.initializeWithJwt();
-      final user = await userApi.apiUsersSearchUsernameGet(username: username);
+      final user = await userApi.searchUsersByUsername(username: username);
       if (user?.userId == null) {
         throw Exception('User data does not contain userId');
       }
       final authUserId = user!.userId!;
       final driverId = authUserId; // 当前系统 authUserId 与 driverId 一一对应
       await driverApi.initializeWithJwt();
-      var driverInfo =
-          await driverApi.apiDriversDriverIdGet(driverId: driverId);
+      var driverInfo = await driverApi.getDriver(driverId: driverId);
       if (driverInfo == null) {
         driverInfo = DriverInformation(
           driverId: driverId,
@@ -144,11 +143,11 @@ class _UserOffenseListPageState extends State<UserOffenseListPage> {
           driverLicenseNumber:
               '${DateTime.now().millisecondsSinceEpoch.toString().substring(6)}${(1000 + (DateTime.now().millisecondsSinceEpoch % 9000)).toString()}',
         );
-        await driverApi.apiDriversPost(
+        await driverApi.createDriver(
           driverInformation: driverInfo,
           idempotencyKey: generateIdempotencyKey(),
         );
-        driverInfo = await driverApi.apiDriversDriverIdGet(driverId: driverId);
+        driverInfo = await driverApi.getDriver(driverId: driverId);
       }
       final driverName = driverInfo?.name ?? user.username ?? '未知用户';
       developer.log('Driver name from API: $driverName');
@@ -203,12 +202,12 @@ class _UserOffenseListPageState extends State<UserOffenseListPage> {
         return;
       }
       final offenses = _searchController.text.isNotEmpty
-          ? await offenseApi.apiOffensesByDriverNameGet(
+          ? await offenseApi.listOffensesByDriverName(
               query: _driverName,
               page: _currentPage,
               size: _pageSize,
             )
-          : await offenseApi.apiOffensesByDriverNameGet(
+          : await offenseApi.listOffensesByDriverName(
               query: _driverName,
               page: _currentPage,
               size: _pageSize,
@@ -308,7 +307,7 @@ class _UserOffenseListPageState extends State<UserOffenseListPage> {
 
   Future<List<String>> _fetchAutocompleteSuggestions(String prefix) async {
     try {
-      final offenses = await offenseApi.apiOffensesByDriverNameGet(
+      final offenses = await offenseApi.listOffensesByDriverName(
         query: _driverName,
         page: 1,
         size: 10,

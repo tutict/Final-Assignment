@@ -164,7 +164,7 @@ class _OperationLogPageState extends State<OperationLogPage> {
       List<OperationLog> logs = [];
       final searchQuery = query?.trim() ?? '';
       if (_searchType == 'userId' && searchQuery.isNotEmpty) {
-        logs = await logApi.apiLogsOperationGet();
+        logs = await logApi.listOperationLogs();
         logs = logs
             .where((log) =>
                 log.userId
@@ -174,7 +174,7 @@ class _OperationLogPageState extends State<OperationLogPage> {
                 false)
             .toList();
       } else if (_searchType == 'operationResult' && searchQuery.isNotEmpty) {
-        logs = await logApi.apiLogsOperationGet();
+        logs = await logApi.listOperationLogs();
         logs = logs
             .where((log) =>
                 log.operationResult
@@ -183,12 +183,12 @@ class _OperationLogPageState extends State<OperationLogPage> {
                 false)
             .toList();
       } else if (_startTime != null && _endTime != null) {
-        logs = await logApi.apiLogsOperationSearchTimeRangeGet(
+        logs = await logApi.searchOperationLogsByTimeRange(
           startTime: _startTime!.toIso8601String(),
           endTime: _endTime!.add(const Duration(days: 1)).toIso8601String(),
         );
       } else {
-        logs = await logApi.apiLogsOperationGet();
+        logs = await logApi.listOperationLogs();
       }
 
       setState(() {
@@ -407,7 +407,7 @@ class _OperationLogPageState extends State<OperationLogPage> {
                             : remarksController.text,
                         operationTime: DateTime.now(),
                       );
-                      await logApi.apiLogsOperationPost(
+                      await logApi.createOperationLog(
                         operationLog: newLog,
                         idempotencyKey: idempotencyKey,
                       );
@@ -548,7 +548,7 @@ class _OperationLogPageState extends State<OperationLogPage> {
                             ? null
                             : remarksController.text,
                       );
-                      await logApi.apiLogsOperationLogIdPut(
+                      await logApi.updateOperationLog(
                         logId: logId,
                         operationLog: updatedLog,
                         idempotencyKey: idempotencyKey,
@@ -589,7 +589,7 @@ class _OperationLogPageState extends State<OperationLogPage> {
         return;
       }
       try {
-        await logApi.apiLogsOperationLogIdDelete(logId: logId);
+        await logApi.deleteOperationLog(logId: logId);
         _showSnackBar('日志删除成功');
         await _refreshLogs();
       } catch (e) {

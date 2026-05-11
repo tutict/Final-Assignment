@@ -165,10 +165,9 @@ class _SystemLogPageState extends State<SystemLogPage> {
         return;
       }
       await logApi.initializeWithJwt();
-      final overview = await logApi.apiSystemLogsOverviewGet();
-      final loginLogs = await logApi.apiSystemLogsLoginRecentGet(limit: 20);
-      final operationLogs =
-          await logApi.apiSystemLogsOperationRecentGet(limit: 20);
+      final overview = await logApi.getSystemLogsOverview();
+      final loginLogs = await logApi.listRecentLoginLogs(limit: 20);
+      final operationLogs = await logApi.listRecentOperationLogs(limit: 20);
       setState(() {
         _overviewData = overview;
         _recentLoginLogs = loginLogs;

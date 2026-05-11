@@ -34,7 +34,7 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
 // --- GET /api/users ---
-  Future<http.Response> apiUsersGetWithHttpInfo() async {
+  Future<http.Response> _listUsersWithHttpInfo() async {
     final path = "/api/users".replaceAll("{format}", "json");
     final headerParams = await _getHeaders();
 
@@ -50,9 +50,9 @@ class UserManagementControllerApi with BaseApiClient {
     );
   }
 
-  Future<List<UserManagement>> apiUsersGet() async {
+  Future<List<UserManagement>> listUsers() async {
     try {
-      final response = await apiUsersGetWithHttpInfo();
+      final response = await _listUsersWithHttpInfo();
       debugPrint('Users get response status: ${response.statusCode}');
       debugPrint('Users get response body: ${response.body}');
 
@@ -76,7 +76,7 @@ class UserManagementControllerApi with BaseApiClient {
   // removed: /api/users/me (not provided by backend controllers)
 
   // --- POST /api/users ---
-  Future<http.Response> apiUsersPostWithHttpInfo({
+  Future<http.Response> _createUserWithHttpInfo({
     required UserManagement userManagement,
     required String idempotencyKey,
   }) async {
@@ -100,12 +100,12 @@ class UserManagementControllerApi with BaseApiClient {
     );
   }
 
-  Future<UserManagement?> apiUsersPost({
+  Future<UserManagement?> createUser({
     required UserManagement userManagement,
     required String idempotencyKey,
   }) async {
     try {
-      final response = await apiUsersPostWithHttpInfo(
+      final response = await _createUserWithHttpInfo(
         userManagement: userManagement,
         idempotencyKey: idempotencyKey,
       );
@@ -131,7 +131,7 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // --- GET /api/users/search/status?status=&page=&size= ---
-  Future<http.Response> apiUsersSearchStatusGetWithHttpInfo({
+  Future<http.Response> _searchUsersByStatusWithHttpInfo({
     required String status,
     int page = 1,
     int size = 20,
@@ -159,7 +159,7 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // --- GET /api/users/search/department?department=&page=&size= ---
-  Future<http.Response> apiUsersSearchDepartmentGetWithHttpInfo({
+  Future<http.Response> _searchUsersByDepartmentWithHttpInfo({
     required String department,
     int page = 1,
     int size = 20,
@@ -186,13 +186,13 @@ class UserManagementControllerApi with BaseApiClient {
     );
   }
 
-  Future<List<UserManagement>> apiUsersSearchDepartmentGet({
+  Future<List<UserManagement>> searchUsersByDepartment({
     required String department,
     int page = 1,
     int size = 20,
   }) async {
     try {
-      final response = await apiUsersSearchDepartmentGetWithHttpInfo(
+      final response = await _searchUsersByDepartmentWithHttpInfo(
           department: department, page: page, size: size);
       debugPrint(
           'Users search department response status: ${response.statusCode}');
@@ -216,7 +216,7 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // --- GET /api/users/search/username/prefix?username=&page=&size= ---
-  Future<List<UserManagement>> apiUsersSearchUsernamePrefixGet({
+  Future<List<UserManagement>> searchUsersByUsernamePrefix({
     required String username,
     int page = 1,
     int size = 20,
@@ -247,7 +247,7 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // --- GET /api/users/search/username/fuzzy?username=&page=&size= ---
-  Future<List<UserManagement>> apiUsersSearchUsernameFuzzyGet({
+  Future<List<UserManagement>> searchUsersByUsernameFuzzy({
     required String username,
     int page = 1,
     int size = 20,
@@ -278,7 +278,7 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // --- GET /api/users/search/real-name/prefix?realName=&page=&size= ---
-  Future<List<UserManagement>> apiUsersSearchRealNamePrefixGet({
+  Future<List<UserManagement>> searchUsersByRealNamePrefix({
     required String realName,
     int page = 1,
     int size = 20,
@@ -309,7 +309,7 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // --- GET /api/users/search/real-name/fuzzy?realName=&page=&size= ---
-  Future<List<UserManagement>> apiUsersSearchRealNameFuzzyGet({
+  Future<List<UserManagement>> searchUsersByRealNameFuzzy({
     required String realName,
     int page = 1,
     int size = 20,
@@ -340,7 +340,7 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // --- GET /api/users/search/id-card?idCardNumber=&page=&size= ---
-  Future<List<UserManagement>> apiUsersSearchIdCardGet({
+  Future<List<UserManagement>> searchUsersByIdCard({
     required String idCardNumber,
     int page = 1,
     int size = 20,
@@ -371,7 +371,7 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // --- GET /api/users/search/contact?contactNumber=&page=&size= ---
-  Future<List<UserManagement>> apiUsersSearchContactGet({
+  Future<List<UserManagement>> searchUsersByContact({
     required String contactNumber,
     int page = 1,
     int size = 20,
@@ -402,7 +402,7 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // --- POST /api/users/{userId}/roles --- bind user role
-  Future<http.Response> apiUsersUserIdRolesPostWithHttpInfo({
+  Future<http.Response> _bindUserRoleWithHttpInfo({
     required int userId,
     required Map<String, dynamic> body, // expects SysUserRoleModel.toJson()
     required String idempotencyKey,
@@ -425,12 +425,12 @@ class UserManagementControllerApi with BaseApiClient {
     );
   }
 
-  Future<Map<String, dynamic>?> apiUsersUserIdRolesPost({
+  Future<Map<String, dynamic>?> bindUserRole({
     required int userId,
     required Map<String, dynamic> body,
     required String idempotencyKey,
   }) async {
-    final response = await apiUsersUserIdRolesPostWithHttpInfo(
+    final response = await _bindUserRoleWithHttpInfo(
       userId: userId,
       body: body,
       idempotencyKey: idempotencyKey,
@@ -447,7 +447,7 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // --- DELETE /api/users/roles/{relationId} ---
-  Future<void> apiUsersRolesRelationIdDelete({required int relationId}) async {
+  Future<void> deleteUserRoleBinding({required int relationId}) async {
     final path = "/api/users/roles/$relationId".replaceAll("{format}", "json");
     final headerParams = await _getHeaders();
     final response = await apiClient.invokeAPI(
@@ -469,7 +469,7 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // --- GET /api/users/{userId}/roles?page=&size= ---
-  Future<List<Map<String, dynamic>>> apiUsersUserIdRolesGet({
+  Future<List<Map<String, dynamic>>> listUserRoles({
     required int userId,
     int page = 1,
     int size = 20,
@@ -498,7 +498,7 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // --- PUT /api/users/role-bindings/{relationId} ---
-  Future<Map<String, dynamic>?> apiUsersRoleBindingsRelationIdPut({
+  Future<Map<String, dynamic>?> updateUserRoleBinding({
     required int relationId,
     required Map<String, dynamic> body,
     required String idempotencyKey,
@@ -531,7 +531,7 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // --- GET /api/users/role-bindings/{relationId} ---
-  Future<Map<String, dynamic>?> apiUsersRoleBindingsRelationIdGet({
+  Future<Map<String, dynamic>?> getUserRoleBinding({
     required int relationId,
   }) async {
     final path =
@@ -559,7 +559,7 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // --- GET /api/users/role-bindings?page=&size= ---
-  Future<List<Map<String, dynamic>>> apiUsersRoleBindingsGet({
+  Future<List<Map<String, dynamic>>> listUserRoleBindings({
     int page = 1,
     int size = 20,
   }) async {
@@ -587,7 +587,7 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // --- GET /api/users/role-bindings/by-role/{roleId}?page=&size= ---
-  Future<List<Map<String, dynamic>>> apiUsersRoleBindingsByRoleRoleIdGet({
+  Future<List<Map<String, dynamic>>> listUserRoleBindingsByRole({
     required int roleId,
     int page = 1,
     int size = 20,
@@ -617,7 +617,7 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // --- GET /api/users/search/department/prefix?department=&page=&size= ---
-  Future<List<UserManagement>> apiUsersSearchDepartmentPrefixGet({
+  Future<List<UserManagement>> searchUsersByDepartmentPrefix({
     required String department,
     int page = 1,
     int size = 20,
@@ -648,7 +648,7 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // --- GET /api/users/search/employee-number?employeeNumber=&page=&size= ---
-  Future<List<UserManagement>> apiUsersSearchEmployeeNumberGet({
+  Future<List<UserManagement>> searchUsersByEmployeeNumber({
     required String employeeNumber,
     int page = 1,
     int size = 20,
@@ -679,7 +679,7 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // --- GET /api/users/search/last-login-range?startTime=&endTime=&page=&size= ---
-  Future<List<UserManagement>> apiUsersSearchLastLoginRangeGet({
+  Future<List<UserManagement>> searchUsersByLastLoginRange({
     required String startTime,
     required String endTime,
     int page = 1,
@@ -712,7 +712,7 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // --- GET /api/users/role-bindings/search?userId=&roleId=&page=&size= ---
-  Future<List<Map<String, dynamic>>> apiUsersRoleBindingsSearchGet({
+  Future<List<Map<String, dynamic>>> searchUserRoleBindings({
     required int userId,
     required int roleId,
     int page = 1,
@@ -744,13 +744,13 @@ class UserManagementControllerApi with BaseApiClient {
     return jsonList.cast<Map<String, dynamic>>();
   }
 
-  Future<List<UserManagement>> apiUsersSearchStatusGet({
+  Future<List<UserManagement>> searchUsersByStatus({
     required String status,
     int page = 1,
     int size = 20,
   }) async {
     try {
-      final response = await apiUsersSearchStatusGetWithHttpInfo(
+      final response = await _searchUsersByStatusWithHttpInfo(
           status: status, page: page, size: size);
       debugPrint('Users search status response status: ${response.statusCode}');
       debugPrint('Users search status response body: ${response.body}');
@@ -775,7 +775,7 @@ class UserManagementControllerApi with BaseApiClient {
   // removed: /api/users/type/{userType} (not provided by backend controllers)
 
   // --- DELETE /api/users/{userId} ---
-  Future<http.Response> apiUsersUserIdDeleteWithHttpInfo({
+  Future<http.Response> _deleteUserWithHttpInfo({
     required String userId,
   }) async {
     if (userId.isEmpty) {
@@ -797,11 +797,11 @@ class UserManagementControllerApi with BaseApiClient {
     );
   }
 
-  Future<void> apiUsersUserIdDelete({
+  Future<void> deleteUser({
     required String userId,
   }) async {
     try {
-      final response = await apiUsersUserIdDeleteWithHttpInfo(userId: userId);
+      final response = await _deleteUserWithHttpInfo(userId: userId);
       debugPrint('Users delete response status: ${response.statusCode}');
       debugPrint('Users delete response body: ${response.body}');
 
@@ -818,7 +818,7 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // --- GET /api/users/{userId} ---
-  Future<http.Response> apiUsersUserIdGetWithHttpInfo({
+  Future<http.Response> _getUserWithHttpInfo({
     required String userId,
   }) async {
     if (userId.isEmpty) {
@@ -840,11 +840,11 @@ class UserManagementControllerApi with BaseApiClient {
     );
   }
 
-  Future<UserManagement?> apiUsersUserIdGet({
+  Future<UserManagement?> getUser({
     required String userId,
   }) async {
     try {
-      final response = await apiUsersUserIdGetWithHttpInfo(userId: userId);
+      final response = await _getUserWithHttpInfo(userId: userId);
       debugPrint('Users userId get response status: ${response.statusCode}');
       debugPrint('Users userId get response body: ${response.body}');
 
@@ -865,7 +865,7 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // --- PUT /api/users/{userId} ---
-  Future<http.Response> apiUsersUserIdPutWithHttpInfo({
+  Future<http.Response> _updateUserWithHttpInfo({
     required String userId,
     required UserManagement userManagement,
     required String idempotencyKey,
@@ -893,13 +893,13 @@ class UserManagementControllerApi with BaseApiClient {
     );
   }
 
-  Future<void> apiUsersUserIdPut({
+  Future<void> updateUser({
     required String userId,
     required UserManagement userManagement,
     required String idempotencyKey,
   }) async {
     try {
-      final response = await apiUsersUserIdPutWithHttpInfo(
+      final response = await _updateUserWithHttpInfo(
         userId: userId,
         userManagement: userManagement,
         idempotencyKey: idempotencyKey,
@@ -920,7 +920,8 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // --- DELETE /api/users/username/{username} ---
-  Future<http.Response> apiUsersUsernameUsernameDeleteWithHttpInfo({
+  // ignore: unused_element
+  Future<http.Response> _deleteUserByUsernameWithHttpInfo({
     required String username,
   }) async {
     if (username.isEmpty) {
@@ -932,7 +933,7 @@ class UserManagementControllerApi with BaseApiClient {
         410, "Endpoint removed: DELETE /api/users/username/{username}");
   }
 
-  Future<void> apiUsersUsernameUsernameDelete({
+  Future<void> deleteUserByUsername({
     required String username,
   }) async {
     // removed endpoint
@@ -941,7 +942,8 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // --- GET /api/users/username/{username} ---
-  Future<http.Response> apiUsersUsernameUsernameGetWithHttpInfo({
+  // ignore: unused_element
+  Future<http.Response> _getUserByUsernameWithHttpInfo({
     required String username,
   }) async {
     if (username.isEmpty) {
@@ -949,17 +951,17 @@ class UserManagementControllerApi with BaseApiClient {
     }
 
     // replaced by /api/users/search/username/{username}
-    return await apiUsersSearchUsernameGetWithHttpInfo(username: username);
+    return await _searchUsersByUsernameWithHttpInfo(username: username);
   }
 
-  Future<UserManagement?> apiUsersUsernameUsernameGet({
+  Future<UserManagement?> getUserByUsername({
     required String username,
   }) async {
-    return await apiUsersSearchUsernameGet(username: username);
+    return await searchUsersByUsername(username: username);
   }
 
   // --- GET /api/users/search/username/{username} ---
-  Future<http.Response> apiUsersSearchUsernameGetWithHttpInfo({
+  Future<http.Response> _searchUsersByUsernameWithHttpInfo({
     required String username,
   }) async {
     if (username.isEmpty) {
@@ -980,12 +982,12 @@ class UserManagementControllerApi with BaseApiClient {
     );
   }
 
-  Future<UserManagement?> apiUsersSearchUsernameGet({
+  Future<UserManagement?> searchUsersByUsername({
     required String username,
   }) async {
     try {
       final response =
-          await apiUsersSearchUsernameGetWithHttpInfo(username: username);
+          await _searchUsersByUsernameWithHttpInfo(username: username);
       debugPrint(
           'Users search username response status: ${response.statusCode}');
       debugPrint('Users search username response body: ${response.body}');
@@ -1007,7 +1009,7 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // --- GET /api/users/autocomplete/usernames ---
-  Future<http.Response> apiUsersAutocompleteUsernamesGetWithHttpInfo({
+  Future<http.Response> _autocompleteUsernamesWithHttpInfo({
     required String prefix,
   }) async {
     if (prefix.isEmpty) {
@@ -1031,12 +1033,11 @@ class UserManagementControllerApi with BaseApiClient {
     );
   }
 
-  Future<List<String>> apiUsersAutocompleteUsernamesGet({
+  Future<List<String>> autocompleteUsernames({
     required String prefix,
   }) async {
     try {
-      final response =
-          await apiUsersAutocompleteUsernamesGetWithHttpInfo(prefix: prefix);
+      final response = await _autocompleteUsernamesWithHttpInfo(prefix: prefix);
       debugPrint(
           'Users autocomplete usernames response status: ${response.statusCode}');
       debugPrint(
@@ -1060,14 +1061,15 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // --- GET /api/users/autocomplete/statuses ---
-  Future<http.Response> apiUsersAutocompleteStatusesGetWithHttpInfo({
+  // ignore: unused_element
+  Future<http.Response> _autocompleteUserStatusesWithHttpInfo({
     required String prefix,
   }) async {
     throw ApiException(
         410, "Endpoint removed: /api/users/autocomplete/statuses");
   }
 
-  Future<List<String>> apiUsersAutocompleteStatusesGet({
+  Future<List<String>> autocompleteUserStatuses({
     required String prefix,
   }) async {
     throw ApiException(
@@ -1075,14 +1077,15 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // --- GET /api/users/autocomplete/phone-numbers ---
-  Future<http.Response> apiUsersAutocompletePhoneNumbersGetWithHttpInfo({
+  // ignore: unused_element
+  Future<http.Response> _autocompleteUserPhoneNumbersWithHttpInfo({
     required String prefix,
   }) async {
     throw ApiException(
         410, "Endpoint removed: /api/users/autocomplete/phone-numbers");
   }
 
-  Future<List<String>> apiUsersAutocompletePhoneNumbersGet({
+  Future<List<String>> autocompleteUserPhoneNumbers({
     required String prefix,
   }) async {
     throw ApiException(
@@ -1113,30 +1116,6 @@ class UserManagementControllerApi with BaseApiClient {
       return null;
     } catch (e) {
       debugPrint('WebSocket users get error: $e');
-      rethrow;
-    }
-  }
-
-  // getCurrentUser (WebSocket)
-  Future<UserManagement?> eventbusUsersMeGet({required String username}) async {
-    final msg = {
-      "service": "UserManagementService",
-      "action": "getCurrentUser",
-      "args": [username],
-    };
-    try {
-      final respMap = await apiClient.sendWsMessage(msg);
-      debugPrint('WebSocket users me get response: $respMap');
-
-      if (respMap.containsKey("error")) {
-        throw ApiException(400, respMap["error"]);
-      }
-      if (respMap.containsKey("result") && respMap["result"] != null) {
-        return UserManagement.fromJson(respMap["result"]);
-      }
-      return null;
-    } catch (e) {
-      debugPrint('WebSocket users me get error: $e');
       rethrow;
     }
   }

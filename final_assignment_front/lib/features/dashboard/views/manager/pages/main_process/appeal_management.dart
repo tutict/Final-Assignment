@@ -273,13 +273,13 @@ class _AppealManagementAdminState extends State<ManagerAppealManagementPage> {
     }
     await appealApi.initializeWithJwt();
     await offenseApi.initializeWithJwt();
-    final offenses = await offenseApi.apiOffensesGet();
+    final offenses = await offenseApi.listOffenses();
     final List<AppealRecordModel> results = [];
     for (final offense in offenses.take(_maxOffenseBatch)) {
       final offenseId = offense.offenseId;
       if (offenseId == null) continue;
       try {
-        final subset = await appealApi.apiAppealsGet(
+        final subset = await appealApi.listAppeals(
           offenseId: offenseId,
           page: 1,
           size: pageSize,

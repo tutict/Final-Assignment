@@ -278,7 +278,7 @@ class ManagerDashboardController extends GetxController {
   Future<List<OffenseInformation>> _fetchAllOffenses() async {
     try {
       await _validateTokenAndRole();
-      return await offenseApi.apiOffensesGet();
+      return await offenseApi.listOffenses();
     } catch (e) {
       debugPrint('Failed to fetch offense information: $e');
       _showErrorSnackBar('无法加载违法行为信息: $e');

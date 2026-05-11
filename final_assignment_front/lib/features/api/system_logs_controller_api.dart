@@ -29,7 +29,7 @@ class SystemLogsControllerApi with BaseApiClient {
   String _decode(http.Response r) => decodeBodyBytes(r);
 
   // GET /api/system/logs/overview
-  Future<Map<String, dynamic>> apiSystemLogsOverviewGet() async {
+  Future<Map<String, dynamic>> getSystemLogsOverview() async {
     final r = await _apiClient.invokeAPI(
       '/api/system/logs/overview',
       'GET',
@@ -48,7 +48,7 @@ class SystemLogsControllerApi with BaseApiClient {
   }
 
   // GET /api/system/logs/login/recent?limit=10
-  Future<List<LoginLog>> apiSystemLogsLoginRecentGet({int limit = 10}) async {
+  Future<List<LoginLog>> listRecentLoginLogs({int limit = 10}) async {
     final r = await _apiClient.invokeAPI(
       '/api/system/logs/login/recent',
       'GET',
@@ -68,8 +68,7 @@ class SystemLogsControllerApi with BaseApiClient {
   }
 
   // GET /api/system/logs/operation/recent?limit=10
-  Future<List<OperationLog>> apiSystemLogsOperationRecentGet(
-      {int limit = 10}) async {
+  Future<List<OperationLog>> listRecentOperationLogs({int limit = 10}) async {
     final r = await _apiClient.invokeAPI(
       '/api/system/logs/operation/recent',
       'GET',
@@ -89,7 +88,7 @@ class SystemLogsControllerApi with BaseApiClient {
   }
 
   // GET /api/system/logs/requests/{historyId}
-  Future<SysRequestHistoryModel?> apiSystemLogsRequestsHistoryIdGet({
+  Future<SysRequestHistoryModel?> getRequestHistory({
     required int historyId,
   }) async {
     final r = await _apiClient.invokeAPI(
@@ -109,8 +108,7 @@ class SystemLogsControllerApi with BaseApiClient {
   }
 
   // GET /api/system/logs/requests/search/idempotency
-  Future<List<SysRequestHistoryModel>>
-      apiSystemLogsRequestsSearchIdempotencyGet({
+  Future<List<SysRequestHistoryModel>> searchRequestHistoryByIdempotency({
     required String key,
     int page = 1,
     int size = 20,
@@ -138,7 +136,7 @@ class SystemLogsControllerApi with BaseApiClient {
   }
 
   // GET /api/system/logs/requests/search/method
-  Future<List<SysRequestHistoryModel>> apiSystemLogsRequestsSearchMethodGet({
+  Future<List<SysRequestHistoryModel>> searchRequestHistoryByMethod({
     required String requestMethod,
     int page = 1,
     int size = 20,
@@ -166,7 +164,7 @@ class SystemLogsControllerApi with BaseApiClient {
   }
 
   // GET /api/system/logs/requests/search/url
-  Future<List<SysRequestHistoryModel>> apiSystemLogsRequestsSearchUrlGet({
+  Future<List<SysRequestHistoryModel>> searchRequestHistoryByUrl({
     required String requestUrl,
     int page = 1,
     int size = 20,
@@ -194,8 +192,7 @@ class SystemLogsControllerApi with BaseApiClient {
   }
 
   // GET /api/system/logs/requests/search/business-type
-  Future<List<SysRequestHistoryModel>>
-      apiSystemLogsRequestsSearchBusinessTypeGet({
+  Future<List<SysRequestHistoryModel>> searchRequestHistoryByBusinessType({
     required String businessType,
     int page = 1,
     int size = 20,
@@ -223,8 +220,7 @@ class SystemLogsControllerApi with BaseApiClient {
   }
 
   // GET /api/system/logs/requests/search/business-id
-  Future<List<SysRequestHistoryModel>>
-      apiSystemLogsRequestsSearchBusinessIdGet({
+  Future<List<SysRequestHistoryModel>> searchRequestHistoryByBusinessId({
     required int businessId,
     int page = 1,
     int size = 20,
@@ -252,7 +248,7 @@ class SystemLogsControllerApi with BaseApiClient {
   }
 
   // GET /api/system/logs/requests/search/status
-  Future<List<SysRequestHistoryModel>> apiSystemLogsRequestsSearchStatusGet({
+  Future<List<SysRequestHistoryModel>> searchRequestHistoryByStatus({
     required String status,
     int page = 1,
     int size = 20,
@@ -280,7 +276,7 @@ class SystemLogsControllerApi with BaseApiClient {
   }
 
   // GET /api/system/logs/requests/search/user
-  Future<List<SysRequestHistoryModel>> apiSystemLogsRequestsSearchUserGet({
+  Future<List<SysRequestHistoryModel>> searchRequestHistoryByUser({
     required int userId,
     int page = 1,
     int size = 20,
@@ -308,7 +304,7 @@ class SystemLogsControllerApi with BaseApiClient {
   }
 
   // GET /api/system/logs/requests/search/ip
-  Future<List<SysRequestHistoryModel>> apiSystemLogsRequestsSearchIpGet({
+  Future<List<SysRequestHistoryModel>> searchRequestHistoryByIp({
     required String requestIp,
     int page = 1,
     int size = 20,
@@ -336,7 +332,7 @@ class SystemLogsControllerApi with BaseApiClient {
   }
 
   // GET /api/system/logs/requests/search/time-range
-  Future<List<SysRequestHistoryModel>> apiSystemLogsRequestsSearchTimeRangeGet({
+  Future<List<SysRequestHistoryModel>> searchRequestHistoryByTimeRange({
     required String startTime,
     required String endTime,
     int page = 1,

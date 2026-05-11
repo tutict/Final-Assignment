@@ -46,7 +46,7 @@ class OffenseTypeControllerApi with BaseApiClient {
   }
 
   /// POST /api/offense-types
-  Future<OffenseTypeDictModel> apiOffenseTypesPost({
+  Future<OffenseTypeDictModel> createOffenseType({
     required OffenseTypeDictModel offenseType,
     String? idempotencyKey,
   }) async {
@@ -66,7 +66,7 @@ class OffenseTypeControllerApi with BaseApiClient {
   }
 
   /// PUT /api/offense-types/{typeId}
-  Future<OffenseTypeDictModel> apiOffenseTypesTypeIdPut({
+  Future<OffenseTypeDictModel> updateOffenseType({
     required int typeId,
     required OffenseTypeDictModel offenseType,
     String? idempotencyKey,
@@ -87,7 +87,7 @@ class OffenseTypeControllerApi with BaseApiClient {
   }
 
   /// DELETE /api/offense-types/{typeId}
-  Future<void> apiOffenseTypesTypeIdDelete({required int typeId}) async {
+  Future<void> deleteOffenseType({required int typeId}) async {
     final response = await apiClient.invokeAPI(
       '/api/offense-types/$typeId',
       'DELETE',
@@ -104,7 +104,7 @@ class OffenseTypeControllerApi with BaseApiClient {
   }
 
   /// GET /api/offense-types/{typeId}
-  Future<OffenseTypeDictModel?> apiOffenseTypesTypeIdGet({
+  Future<OffenseTypeDictModel?> getOffenseType({
     required int typeId,
   }) async {
     final response = await apiClient.invokeAPI(
@@ -125,7 +125,7 @@ class OffenseTypeControllerApi with BaseApiClient {
   }
 
   /// GET /api/offense-types
-  Future<List<OffenseTypeDictModel>> apiOffenseTypesGet() async {
+  Future<List<OffenseTypeDictModel>> listOffenseTypes() async {
     final response = await apiClient.invokeAPI(
       '/api/offense-types',
       'GET',
@@ -141,7 +141,7 @@ class OffenseTypeControllerApi with BaseApiClient {
   }
 
   /// GET /api/offense-types/search/code/prefix
-  Future<List<OffenseTypeDictModel>> apiOffenseTypesSearchCodePrefixGet({
+  Future<List<OffenseTypeDictModel>> searchOffenseTypesByCodePrefix({
     required String offenseCode,
     int page = 1,
     int size = 20,
@@ -165,7 +165,7 @@ class OffenseTypeControllerApi with BaseApiClient {
   }
 
   /// GET /api/offense-types/search/code/fuzzy
-  Future<List<OffenseTypeDictModel>> apiOffenseTypesSearchCodeFuzzyGet({
+  Future<List<OffenseTypeDictModel>> searchOffenseTypesByCodeFuzzy({
     required String offenseCode,
     int page = 1,
     int size = 20,
@@ -189,7 +189,7 @@ class OffenseTypeControllerApi with BaseApiClient {
   }
 
   /// GET /api/offense-types/search/name/prefix
-  Future<List<OffenseTypeDictModel>> apiOffenseTypesSearchNamePrefixGet({
+  Future<List<OffenseTypeDictModel>> searchOffenseTypesByNamePrefix({
     required String offenseName,
     int page = 1,
     int size = 20,
@@ -213,7 +213,7 @@ class OffenseTypeControllerApi with BaseApiClient {
   }
 
   /// GET /api/offense-types/search/name/fuzzy
-  Future<List<OffenseTypeDictModel>> apiOffenseTypesSearchNameFuzzyGet({
+  Future<List<OffenseTypeDictModel>> searchOffenseTypesByNameFuzzy({
     required String offenseName,
     int page = 1,
     int size = 20,
@@ -237,7 +237,7 @@ class OffenseTypeControllerApi with BaseApiClient {
   }
 
   /// GET /api/offense-types/search/category
-  Future<List<OffenseTypeDictModel>> apiOffenseTypesSearchCategoryGet({
+  Future<List<OffenseTypeDictModel>> searchOffenseTypesByCategory({
     required String category,
     int page = 1,
     int size = 20,
@@ -261,7 +261,7 @@ class OffenseTypeControllerApi with BaseApiClient {
   }
 
   /// GET /api/offense-types/search/severity
-  Future<List<OffenseTypeDictModel>> apiOffenseTypesSearchSeverityGet({
+  Future<List<OffenseTypeDictModel>> searchOffenseTypesBySeverity({
     required String severityLevel,
     int page = 1,
     int size = 20,
@@ -285,7 +285,7 @@ class OffenseTypeControllerApi with BaseApiClient {
   }
 
   /// GET /api/offense-types/search/status
-  Future<List<OffenseTypeDictModel>> apiOffenseTypesSearchStatusGet({
+  Future<List<OffenseTypeDictModel>> searchOffenseTypesByStatus({
     required String status,
     int page = 1,
     int size = 20,
@@ -309,7 +309,7 @@ class OffenseTypeControllerApi with BaseApiClient {
   }
 
   /// GET /api/offense-types/search/fine-range
-  Future<List<OffenseTypeDictModel>> apiOffenseTypesSearchFineRangeGet({
+  Future<List<OffenseTypeDictModel>> searchOffenseTypesByFineRange({
     required double minAmount,
     required double maxAmount,
     int page = 1,
@@ -335,7 +335,7 @@ class OffenseTypeControllerApi with BaseApiClient {
   }
 
   /// GET /api/offense-types/search/points-range
-  Future<List<OffenseTypeDictModel>> apiOffenseTypesSearchPointsRangeGet({
+  Future<List<OffenseTypeDictModel>> searchOffenseTypesByPointsRange({
     required int minPoints,
     required int maxPoints,
     int page = 1,

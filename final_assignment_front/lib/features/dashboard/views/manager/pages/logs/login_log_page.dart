@@ -164,7 +164,7 @@ class _LoginLogPageState extends State<LoginLogPage> {
         Get.offAllNamed(Routes.login);
         return;
       }
-      final logs = await logApi.apiLogsLoginGet();
+      final logs = await logApi.listLoginLogs();
       setState(() {
         _logs.addAll(logs);
         _hasMore = false;
@@ -403,7 +403,7 @@ class _LoginLogPageState extends State<LoginLogPage> {
                             : remarksController.text,
                         loginTime: DateTime.now(),
                       );
-                      await logApi.apiLogsLoginPost(
+                      await logApi.createLoginLog(
                         loginLog: newLog,
                         idempotencyKey: idempotencyKey,
                       );
@@ -566,7 +566,7 @@ class _LoginLogPageState extends State<LoginLogPage> {
                             ? null
                             : remarksController.text,
                       );
-                      await logApi.apiLogsLoginLogIdPut(
+                      await logApi.updateLoginLog(
                         logId: logId,
                         loginLog: updatedLog,
                         idempotencyKey: idempotencyKey,
@@ -607,7 +607,7 @@ class _LoginLogPageState extends State<LoginLogPage> {
         return;
       }
       try {
-        await logApi.apiLogsLoginLogIdDelete(logId: logId);
+        await logApi.deleteLoginLog(logId: logId);
         _showSnackBar('日志删除成功');
         await _refreshLogs();
       } catch (e) {

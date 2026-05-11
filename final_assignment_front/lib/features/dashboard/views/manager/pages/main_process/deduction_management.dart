@@ -133,24 +133,24 @@ class _DeductionManagementState extends State<DeductionManagementPage> {
       List<DeductionRecordModel> deductions = [];
       final searchQuery = query?.trim() ?? '';
       if (searchQuery.isEmpty && _startTime == null && _endTime == null) {
-        deductions = await deductionApi.apiDeductionsGet();
+        deductions = await deductionApi.listDeductions();
         deductions.sort((a, b) {
           final aTime = a.deductionTime ?? DateTime(1970);
           final bTime = b.deductionTime ?? DateTime(1970);
           return bTime.compareTo(aTime);
         });
       } else if (_searchType == 'handler' && searchQuery.isNotEmpty) {
-        deductions = await deductionApi.apiDeductionsSearchHandlerGet(
-            handler: searchQuery);
+        deductions =
+            await deductionApi.searchDeductionsByHandler(handler: searchQuery);
       } else if (_searchType == 'timeRange' &&
           _startTime != null &&
           _endTime != null) {
-        deductions = await deductionApi.apiDeductionsSearchTimeRangeGet(
+        deductions = await deductionApi.searchDeductionsByTimeRange(
           startTime: _startTime!.toIso8601String(),
           endTime: _endTime!.add(const Duration(days: 1)).toIso8601String(),
         );
       } else {
-        deductions = await deductionApi.apiDeductionsGet();
+        deductions = await deductionApi.listDeductions();
       }
 
       setState(() {
@@ -643,7 +643,7 @@ class _DeductionManagementState extends State<DeductionManagementPage> {
                                                     if (confirm == true) {
                                                       try {
                                                         await deductionApi
-                                                            .apiDeductionsDeductionIdDelete(
+                                                            .deleteDeduction(
                                                                 deductionId:
                                                                     deduction
                                                                         .deductionId!);
@@ -777,7 +777,7 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
         Get.offAllNamed(Routes.login);
         return;
       }
-      final offenses = await offenseApi.apiOffensesGet();
+      final offenses = await offenseApi.listOffenses();
       setState(() {
         _offenseSuggestions = offenses
             .map((offense) => {
@@ -796,7 +796,7 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
     try {
       final offenseId = selection['offenseId'] as int?;
       if (offenseId == null) return;
-      final offenses = await offenseApi.apiOffensesGet();
+      final offenses = await offenseApi.listOffenses();
       final selectedOffense =
           offenses.firstWhere((o) => o.offenseId == offenseId);
       setState(() {
@@ -843,7 +843,7 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
             : _remarksController.text.trim(),
         offenseId: _selectedOffenseId,
       );
-      await deductionApi.apiDeductionsPost(
+      await deductionApi.createDeduction(
           body: deduction, idempotencyKey: idempotencyKey);
       _showSnackBar('创建扣分记录成功！');
 
@@ -1229,7 +1229,7 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
         Get.offAllNamed(Routes.login);
         return;
       }
-      final offenses = await offenseApi.apiOffensesGet();
+      final offenses = await offenseApi.listOffenses();
       setState(() {
         _offenseSuggestions = offenses
             .map((offense) => {
@@ -1248,7 +1248,7 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
     try {
       final offenseId = selection['offenseId'] as int?;
       if (offenseId == null) return;
-      final offenses = await offenseApi.apiOffensesGet();
+      final offenses = await offenseApi.listOffenses();
       final selectedOffense =
           offenses.firstWhere((o) => o.offenseId == offenseId);
       setState(() {
@@ -1296,7 +1296,7 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
             : _remarksController.text.trim(),
         offenseId: _selectedOffenseId,
       );
-      await deductionApi.apiDeductionsDeductionIdPut(
+      await deductionApi.updateDeduction(
         deductionId: widget.deduction.deductionId!,
         body: deduction,
         idempotencyKey: idempotencyKey,

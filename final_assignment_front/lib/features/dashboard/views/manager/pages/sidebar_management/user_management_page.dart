@@ -193,7 +193,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
   Future<bool> _checkUsernameAvailability(String username) async {
     try {
       _logger.info('Checking username availability: $username');
-      await userApi.apiUsersUsernameUsernameGet(username: username);
+      await userApi.getUserByUsername(username: username);
       _logger.info('Username $username already exists');
       return false; // 用户存在
     } catch (e) {
@@ -251,18 +251,17 @@ class _UserManagementPageState extends State<UserManagementPage> {
           hasMoreResults = false;
         }
       } else if (_searchType == 'username') {
-        final user =
-            await userApi.apiUsersUsernameUsernameGet(username: searchQuery);
+        final user = await userApi.getUserByUsername(username: searchQuery);
         users = user != null ? [user] : [];
       } else if (_searchType == 'status') {
-        users = await userApi.apiUsersSearchStatusGet(
+        users = await userApi.searchUsersByStatus(
           status: searchQuery,
           page: _currentPage,
           size: _pageSize,
         );
         hasMoreResults = users.length == _pageSize;
       } else if (_searchType == 'department') {
-        users = await userApi.apiUsersSearchDepartmentGet(
+        users = await userApi.searchUsersByDepartment(
           department: searchQuery,
           page: _currentPage,
           size: _pageSize,
@@ -329,8 +328,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
       }
       final lowerPrefix = prefix.toLowerCase();
       if (_searchType == 'username') {
-        final suggestions =
-            await userApi.apiUsersAutocompleteUsernamesGet(prefix: prefix);
+        final suggestions = await userApi.autocompleteUsernames(prefix: prefix);
         return suggestions
             .where((s) => s.toLowerCase().contains(lowerPrefix))
             .take(5)
@@ -389,7 +387,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
     if (_cachedAllUsers != null) {
       return _cachedAllUsers!;
     }
-    final allUsers = await userApi.apiUsersGet();
+    final allUsers = await userApi.listUsers();
     _cachedAllUsers = List<UserManagement>.from(allUsers);
     return _cachedAllUsers!;
   }
@@ -648,7 +646,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                       );
                       _logger.info(
                           'Registering user: $username, idempotencyKey: $idempotencyKey');
-                      final response = await authApi.apiAuthRegisterPost(
+                      final response = await authApi.register(
                           registerRequest: registerRequest);
                       _logger.info('User registration response: $response');
                       _showSnackBar('用户创建成功');
@@ -865,7 +863,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                       _logger.info(
                         'Updating user: ${user.userId}, status: $selectedStatus, idempotencyKey: $idempotencyKey',
                       );
-                      await userApi.apiUsersUserIdPut(
+                      await userApi.updateUser(
                         userId: user.userId.toString(),
                         userManagement: updatedUser,
                         idempotencyKey: idempotencyKey,
@@ -909,7 +907,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
       }
       try {
         _logger.info('Deleting user: $userId');
-        await userApi.apiUsersUserIdDelete(userId: userId);
+        await userApi.deleteUser(userId: userId);
         _showSnackBar('用户删除成功');
         await _refreshUserList();
       } catch (e) {

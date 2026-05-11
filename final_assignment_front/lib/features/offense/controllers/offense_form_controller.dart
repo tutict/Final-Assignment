@@ -92,7 +92,7 @@ class OffenseFormController extends BaseListController<OffenseInformation> {
   Future<List<String>> fetchDriverNameSuggestions(String prefix) async {
     try {
       if (!await validateJwtToken()) return [];
-      final vehicles = await vehicleApi.apiVehiclesSearchGeneralGet(
+      final vehicles = await vehicleApi.searchVehiclesByGeneral(
         keywords: prefix,
         page: 1,
         size: 10,
@@ -111,7 +111,7 @@ class OffenseFormController extends BaseListController<OffenseInformation> {
   Future<List<String>> fetchLicensePlateSuggestions(String prefix) async {
     try {
       if (!await validateJwtToken()) return [];
-      return await vehicleApi.apiVehiclesSearchLicenseGlobalGet(prefix: prefix);
+      return await vehicleApi.searchVehiclesByLicenseGlobal(prefix: prefix);
     } catch (e) {
       errorMessage.value = '获取车牌号建议失败: $e';
       return [];
@@ -135,13 +135,13 @@ class OffenseFormController extends BaseListController<OffenseInformation> {
           if (offenseId == null) {
             throw Exception('缺少违法记录ID');
           }
-          await offenseApi.apiOffensesOffenseIdPut(
+          await offenseApi.updateOffense(
             offenseId: offenseId,
             offenseInformation: payload,
             idempotencyKey: idempotencyKey,
           );
         } else {
-          await offenseApi.apiOffensesPost(
+          await offenseApi.createOffense(
             offenseInformation: payload,
             idempotencyKey: idempotencyKey,
           );

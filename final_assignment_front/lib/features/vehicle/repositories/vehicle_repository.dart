@@ -95,7 +95,7 @@ class VehicleRepositoryImpl extends BaseRepository
   Future<List<VehicleInformation>> getVehicles() {
     return guard(() async {
       await _api.initializeWithJwt();
-      return _api.apiVehiclesGet();
+      return _api.listVehicles();
     });
   }
 
@@ -103,7 +103,7 @@ class VehicleRepositoryImpl extends BaseRepository
   Future<VehicleInformation?> getVehicle({required int vehicleId}) {
     return guard(() async {
       await _api.initializeWithJwt();
-      return _api.apiVehiclesVehicleIdGet(vehicleId: vehicleId);
+      return _api.getVehicle(vehicleId: vehicleId);
     });
   }
 
@@ -172,7 +172,7 @@ class VehicleRepositoryImpl extends BaseRepository
   Future<void> deleteVehicle({required int vehicleId}) {
     return guard(() async {
       await _api.initializeWithJwt();
-      await _api.apiVehiclesVehicleIdDelete(vehicleId: vehicleId);
+      await _api.deleteVehicle(vehicleId: vehicleId);
     });
   }
 
@@ -180,7 +180,7 @@ class VehicleRepositoryImpl extends BaseRepository
   Future<void> deleteVehicleByLicensePlate({required String licensePlate}) {
     return guard(() async {
       await _api.initializeWithJwt();
-      await _api.apiVehiclesLicenseDelete(licensePlate: licensePlate);
+      await _api.deleteVehicleByLicense(licensePlate: licensePlate);
     });
   }
 
@@ -190,7 +190,7 @@ class VehicleRepositoryImpl extends BaseRepository
   }) {
     return guard(() async {
       await _api.initializeWithJwt();
-      return _api.apiVehiclesSearchLicenseGet(licensePlate: licensePlate);
+      return _api.searchVehiclesByLicense(licensePlate: licensePlate);
     });
   }
 
@@ -200,7 +200,7 @@ class VehicleRepositoryImpl extends BaseRepository
   }) {
     return guard(() async {
       await _api.initializeWithJwt();
-      return _api.apiVehiclesSearchOwnerGet(idCard: idCard);
+      return _api.searchVehiclesByOwner(idCard: idCard);
     });
   }
 
@@ -208,7 +208,7 @@ class VehicleRepositoryImpl extends BaseRepository
   Future<List<VehicleInformation>> searchByType({required String type}) {
     return guard(() async {
       await _api.initializeWithJwt();
-      return _api.apiVehiclesSearchTypeGet(type: type);
+      return _api.searchVehiclesByType(type: type);
     });
   }
 
@@ -218,7 +218,7 @@ class VehicleRepositoryImpl extends BaseRepository
   }) {
     return guard(() async {
       await _api.initializeWithJwt();
-      return _api.apiVehiclesSearchOwnerNameGet(ownerName: ownerName);
+      return _api.searchVehiclesByOwnerName(ownerName: ownerName);
     });
   }
 
@@ -226,7 +226,7 @@ class VehicleRepositoryImpl extends BaseRepository
   Future<List<VehicleInformation>> searchByStatus({required String status}) {
     return guard(() async {
       await _api.initializeWithJwt();
-      return _api.apiVehiclesSearchStatusGet(status: status);
+      return _api.searchVehiclesByStatus(status: status);
     });
   }
 
@@ -238,7 +238,7 @@ class VehicleRepositoryImpl extends BaseRepository
   }) {
     return guard(() async {
       await _api.initializeWithJwt();
-      return _api.apiVehiclesSearchGeneralGet(
+      return _api.searchVehiclesByGeneral(
         keywords: keywords,
         page: page,
         size: size,
@@ -253,7 +253,7 @@ class VehicleRepositoryImpl extends BaseRepository
   }) {
     return guard(() async {
       await _api.initializeWithJwt();
-      return _api.apiVehiclesSearchLicenseGlobalGet(
+      return _api.searchVehiclesByLicenseGlobal(
         prefix: prefix,
         size: size,
       );
@@ -268,7 +268,7 @@ class VehicleRepositoryImpl extends BaseRepository
   }) {
     return guard(() async {
       await _api.initializeWithJwt();
-      return _api.apiVehiclesAutocompletePlatesGet(
+      return _api.autocompleteVehiclePlates(
         prefix: prefix,
         idCard: idCard,
         size: size,
@@ -284,7 +284,7 @@ class VehicleRepositoryImpl extends BaseRepository
   }) {
     return guard(() async {
       await _api.initializeWithJwt();
-      return _api.apiVehiclesAutocompleteTypesGet(
+      return _api.autocompleteVehicleTypes(
         idCard: idCard,
         prefix: prefix,
         size: size,
@@ -299,7 +299,7 @@ class VehicleRepositoryImpl extends BaseRepository
   }) {
     return guard(() async {
       await _api.initializeWithJwt();
-      return _api.apiVehiclesAutocompleteTypesGlobalGet(
+      return _api.autocompleteVehicleTypesGlobal(
         prefix: prefix,
         size: size,
       );
@@ -310,7 +310,7 @@ class VehicleRepositoryImpl extends BaseRepository
   Future<bool> existsLicensePlate({required String licensePlate}) {
     return guard(() async {
       await _api.initializeWithJwt();
-      return _api.apiVehiclesExistsLicensePlateGet(
+      return _api.vehicleLicensePlateExists(
         licensePlate: licensePlate,
       );
     });

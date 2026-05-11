@@ -45,7 +45,7 @@ class FineInformationControllerApi with BaseApiClient {
 
   /// POST /api/fines - åå»ºç½æ¬¾ (ä»
 // ç®¡çå)
-  Future<void> apiFinesPost({
+  Future<void> createFine({
     required FineInformation fineInformation,
     required String idempotencyKey,
   }) async {
@@ -67,7 +67,7 @@ class FineInformationControllerApi with BaseApiClient {
   }
 
   /// GET /api/fines/{fineId} - è·åç½æ¬¾ä¿¡æ¯ (ç¨æ·åç®¡çå)
-  Future<FineInformation?> apiFinesFineIdGet({
+  Future<FineInformation?> getFine({
     required int fineId,
   }) async {
     final path = '/api/fines/$fineId';
@@ -95,7 +95,7 @@ class FineInformationControllerApi with BaseApiClient {
   }
 
   /// GET /api/fines - è·åææç½æ¬?(ç¨æ·åç®¡çå)
-  Future<List<FineInformation>> apiFinesGet() async {
+  Future<List<FineInformation>> listFines() async {
     const path = '/api/fines';
     final headerParams = await _getHeaders();
     final response = await apiClient.invokeAPI(
@@ -118,7 +118,7 @@ class FineInformationControllerApi with BaseApiClient {
 
   /// PUT /api/fines/{fineId} - æ´æ°ç½æ¬¾ (ä»
 // ç®¡çå)
-  Future<FineInformation> apiFinesFineIdPut({
+  Future<FineInformation> updateFine({
     required int fineId,
     required FineInformation fineInformation,
     required String idempotencyKey,
@@ -148,7 +148,7 @@ class FineInformationControllerApi with BaseApiClient {
 
   /// DELETE /api/fines/{fineId} - å é¤ç½æ¬¾ (ä»
 // ç®¡çå)
-  Future<void> apiFinesFineIdDelete({
+  Future<void> deleteFine({
     required int fineId,
   }) async {
     final path = '/api/fines/$fineId';
@@ -174,7 +174,7 @@ class FineInformationControllerApi with BaseApiClient {
   }
 
   /// GET /api/fines/payee/{payee} - æ ¹æ®ç¼´æ¬¾äººè·åç½æ¬?(ç¨æ·åç®¡çå)
-  Future<List<FineInformation>> apiFinesPayeePayeeGet({
+  Future<List<FineInformation>> listFinesByPayee({
     required String payee,
   }) async {
     if (payee.isEmpty) {
@@ -201,7 +201,7 @@ class FineInformationControllerApi with BaseApiClient {
   }
 
   /// GET /api/fines/search/date-range - æ ¹æ®æ¶é´èå´è·åç½æ¬¾ (ç¨æ·åç®¡çå)
-  Future<List<FineInformation>> apiFinesTimeRangeGet({
+  Future<List<FineInformation>> searchFinesByTimeRange({
     String startDate = '1970-01-01', // Default matches backend
     String endDate = '2100-01-01', // Default matches backend
   }) async {
@@ -230,7 +230,7 @@ class FineInformationControllerApi with BaseApiClient {
   }
 
   /// GET /api/fines/receiptNumber/{receiptNumber} - æ ¹æ®æ¶æ®ç¼å·è·åç½æ¬¾ (ç¨æ·åç®¡çå)
-  Future<FineInformation?> apiFinesReceiptNumberReceiptNumberGet({
+  Future<FineInformation?> getFineByReceiptNumber({
     required String receiptNumber,
   }) async {
     if (receiptNumber.isEmpty) {
@@ -262,7 +262,7 @@ class FineInformationControllerApi with BaseApiClient {
   }
 
   /// GET /api/fines/offense/{offenseId} - æè¿æ³è®°å½åé¡µæ¥è¯¢ç½æ¬?
-  Future<List<FineInformation>> apiFinesOffenseOffenseIdGet({
+  Future<List<FineInformation>> listFinesByOffense({
     required int offenseId,
     int page = 1,
     int size = 20,
@@ -288,7 +288,7 @@ class FineInformationControllerApi with BaseApiClient {
   }
 
   /// GET /api/fines/search/handler - æå¤çäººæç´¢ç½æ¬¾è®°å½
-  Future<List<FineInformation>> apiFinesSearchHandlerGet({
+  Future<List<FineInformation>> searchFinesByHandler({
     required String handler,
     String mode = 'prefix', // or 'fuzzy'
     int page = 1,
@@ -320,7 +320,7 @@ class FineInformationControllerApi with BaseApiClient {
   }
 
   /// GET /api/fines/search/status - ææ¯ä»ç¶ææç´¢ç½æ¬¾è®°å½?
-  Future<List<FineInformation>> apiFinesSearchStatusGet({
+  Future<List<FineInformation>> searchFinesByStatus({
     required String status,
     int page = 1,
     int size = 20,
@@ -350,7 +350,7 @@ class FineInformationControllerApi with BaseApiClient {
   }
 
   /// GET /api/fines/by-time-range - æç´¢ç½æ¬¾ææ¶é´èå?(ç¨æ·åç®¡çå)
-  Future<List<FineInformation>> apiFinesByTimeRangeGet({
+  Future<List<FineInformation>> listFinesByTimeRange({
     required String startTime,
     required String endTime,
     int maxSuggestions = 10,

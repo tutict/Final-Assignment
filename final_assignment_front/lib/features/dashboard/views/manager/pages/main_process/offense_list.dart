@@ -239,7 +239,7 @@ class _OffenseListPageState extends State<OffenseList> {
         Navigator.pushReplacementNamed(context, Routes.login);
         return;
       }
-      List<OffenseInformation> offenses = await offenseApi.apiOffensesGet();
+      List<OffenseInformation> offenses = await offenseApi.listOffenses();
 
       setState(() {
         _offenseList.addAll(offenses);
@@ -280,7 +280,7 @@ class _OffenseListPageState extends State<OffenseList> {
       }
       switch (_searchType) {
         case 'driverName':
-          final offenses = await offenseApi.apiOffensesByDriverNameGet(
+          final offenses = await offenseApi.listOffensesByDriverName(
               query: prefix.trim(), page: 1, size: 10);
           return offenses
               .map((o) => o.driverName ?? '')
@@ -288,7 +288,7 @@ class _OffenseListPageState extends State<OffenseList> {
                   (name) => name.toLowerCase().contains(prefix.toLowerCase()))
               .toList();
         case 'licensePlate':
-          final offenses = await offenseApi.apiOffensesByLicensePlateGet(
+          final offenses = await offenseApi.listOffensesByLicensePlate(
               query: prefix.trim(), page: 1, size: 10);
           return offenses
               .map((o) => o.licensePlate ?? '')
@@ -296,7 +296,7 @@ class _OffenseListPageState extends State<OffenseList> {
                   (plate) => plate.toLowerCase().contains(prefix.toLowerCase()))
               .toList();
         case 'offenseType':
-          final offenses = await offenseApi.apiOffensesByOffenseTypeGet(
+          final offenses = await offenseApi.listOffensesByOffenseType(
               query: prefix.trim(), page: 1, size: 10);
           return offenses
               .map((o) => o.offenseType ?? '')
@@ -445,7 +445,7 @@ class _OffenseListPageState extends State<OffenseList> {
           Navigator.pushReplacementNamed(context, Routes.login);
           return;
         }
-        await offenseApi.apiOffensesOffenseIdDelete(offenseId: offenseId);
+        await offenseApi.deleteOffense(offenseId: offenseId);
         await _refreshOffenses();
       } catch (e) {
         setState(() => _errorMessage = '删除违法信息失败: $e');
@@ -1111,7 +1111,7 @@ class _OffenseDetailPageState extends State<OffenseDetailPage> {
           Navigator.pushReplacementNamed(context, Routes.login);
           return;
         }
-        await offenseApi.apiOffensesOffenseIdDelete(offenseId: offenseId);
+        await offenseApi.deleteOffense(offenseId: offenseId);
         _showSnackBar('删除违法信息成功！');
         if (mounted) Navigator.pop(context, true);
       } catch (e) {

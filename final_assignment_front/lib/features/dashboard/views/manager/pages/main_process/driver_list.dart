@@ -64,7 +64,7 @@ class _DriverListPageState extends State<DriverListPage> {
     setState(() => _isLoading = true);
     try {
       developer.log('Loading driver list', name: 'DriverListPage');
-      final drivers = await driverApi.apiDriversGet();
+      final drivers = await driverApi.listDrivers();
       if (mounted) {
         setState(() {
           _drivers = drivers;
@@ -388,7 +388,7 @@ class _AddDriverPageState extends State<AddDriverPage> {
           final idempotencyKey = generateIdempotencyKey();
           developer.log('Attempt $attempt with idempotencyKey: $idempotencyKey',
               name: 'AddDriverPage');
-          await driverApi.apiDriversPost(
+          await driverApi.createDriver(
             driverInformation: driver,
             idempotencyKey: idempotencyKey,
           );
@@ -794,7 +794,7 @@ class _EditDriverPageState extends State<EditDriverPage> {
           final idempotencyKey = generateIdempotencyKey();
           developer.log('Attempt $attempt with idempotencyKey: $idempotencyKey',
               name: 'EditDriverPage');
-          await driverApi.apiDriversDriverIdPut(
+          await driverApi.updateDriver(
             driverId: widget.driver.driverId!,
             driverInformation: driver,
             idempotencyKey: idempotencyKey,
@@ -1099,7 +1099,7 @@ class _DriverDetailPageState extends State<DriverDetailPage> {
         try {
           developer.log('Attempt $attempt to delete driver ID: $driverId',
               name: 'DriverDetailPage');
-          await driverApi.apiDriversDriverIdDelete(driverId: driverId);
+          await driverApi.deleteDriver(driverId: driverId);
           if (mounted) {
             AppUtils.showSnackBar(context, '删除司机成功！');
             Navigator.pop(context, true);
@@ -1135,7 +1135,7 @@ class _DriverDetailPageState extends State<DriverDetailPage> {
       developer.log('Loading driver details for ID: ${_driver.driverId}',
           name: 'DriverDetailPage');
       final updatedDriver =
-          await driverApi.apiDriversDriverIdGet(driverId: _driver.driverId!);
+          await driverApi.getDriver(driverId: _driver.driverId!);
       if (updatedDriver != null && mounted) {
         setState(() {
           _driver = updatedDriver;

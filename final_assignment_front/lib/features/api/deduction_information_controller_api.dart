@@ -33,7 +33,7 @@ class DeductionInformationControllerApi with BaseApiClient {
   List<QueryParam> _idem(String key) => idempotencyParams(key);
 
   // POST /api/deductions
-  Future<DeductionRecordModel> apiDeductionsPost({
+  Future<DeductionRecordModel> createDeduction({
     required DeductionRecordModel body,
     required String idempotencyKey,
   }) async {
@@ -55,7 +55,7 @@ class DeductionInformationControllerApi with BaseApiClient {
   }
 
   // GET /api/deductions/{deductionId}
-  Future<DeductionRecordModel?> apiDeductionsDeductionIdGet({
+  Future<DeductionRecordModel?> getDeduction({
     required int deductionId,
   }) async {
     final r = await apiClient.invokeAPI(
@@ -75,7 +75,7 @@ class DeductionInformationControllerApi with BaseApiClient {
   }
 
   // GET /api/deductions
-  Future<List<DeductionRecordModel>> apiDeductionsGet() async {
+  Future<List<DeductionRecordModel>> listDeductions() async {
     final r = await apiClient.invokeAPI(
       '/api/deductions',
       'GET',
@@ -93,7 +93,7 @@ class DeductionInformationControllerApi with BaseApiClient {
   }
 
   // PUT /api/deductions/{deductionId}
-  Future<DeductionRecordModel> apiDeductionsDeductionIdPut({
+  Future<DeductionRecordModel> updateDeduction({
     required int deductionId,
     required DeductionRecordModel body,
     required String idempotencyKey,
@@ -116,8 +116,7 @@ class DeductionInformationControllerApi with BaseApiClient {
   }
 
   // DELETE /api/deductions/{deductionId}
-  Future<void> apiDeductionsDeductionIdDelete(
-      {required int deductionId}) async {
+  Future<void> deleteDeduction({required int deductionId}) async {
     final r = await apiClient.invokeAPI(
       '/api/deductions/$deductionId',
       'DELETE',
@@ -132,7 +131,7 @@ class DeductionInformationControllerApi with BaseApiClient {
   }
 
   // GET /api/deductions/driver/{driverId}?page=&size=
-  Future<List<DeductionRecordModel>> apiDeductionsDriverDriverIdGet({
+  Future<List<DeductionRecordModel>> listDeductionsByDriver({
     required int driverId,
     int page = 1,
     int size = 20,
@@ -154,7 +153,7 @@ class DeductionInformationControllerApi with BaseApiClient {
   }
 
   // GET /api/deductions/offense/{offenseId}?page=&size=
-  Future<List<DeductionRecordModel>> apiDeductionsOffenseOffenseIdGet({
+  Future<List<DeductionRecordModel>> listDeductionsByOffense({
     required int offenseId,
     int page = 1,
     int size = 20,
@@ -176,7 +175,7 @@ class DeductionInformationControllerApi with BaseApiClient {
   }
 
   // GET /api/deductions/search/handler?handler=&mode=&page=&size=
-  Future<List<DeductionRecordModel>> apiDeductionsSearchHandlerGet({
+  Future<List<DeductionRecordModel>> searchDeductionsByHandler({
     required String handler,
     String mode = 'prefix',
     int page = 1,
@@ -204,7 +203,7 @@ class DeductionInformationControllerApi with BaseApiClient {
   }
 
   // GET /api/deductions/search/status?status=&page=&size=
-  Future<List<DeductionRecordModel>> apiDeductionsSearchStatusGet({
+  Future<List<DeductionRecordModel>> searchDeductionsByStatus({
     required String status,
     int page = 1,
     int size = 20,
@@ -230,7 +229,7 @@ class DeductionInformationControllerApi with BaseApiClient {
   }
 
   // GET /api/deductions/search/time-range?startTime=&endTime=&page=&size=
-  Future<List<DeductionRecordModel>> apiDeductionsSearchTimeRangeGet({
+  Future<List<DeductionRecordModel>> searchDeductionsByTimeRange({
     required String startTime,
     required String endTime,
     int page = 1,

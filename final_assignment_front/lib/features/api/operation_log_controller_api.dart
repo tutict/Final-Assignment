@@ -23,7 +23,7 @@ class OperationLogControllerApi with BaseApiClient {
   String _decode(http.Response r) => decodeBodyBytes(r);
 
   // GET /api/logs/operation
-  Future<List<OperationLog>> apiLogsOperationGet() async {
+  Future<List<OperationLog>> listOperationLogs() async {
     final r = await _apiClient.invokeAPI(
       '/api/logs/operation',
       'GET',
@@ -43,7 +43,7 @@ class OperationLogControllerApi with BaseApiClient {
   }
 
   // GET /api/logs/operation/{logId}
-  Future<OperationLog?> apiLogsOperationLogIdGet({required int logId}) async {
+  Future<OperationLog?> getOperationLog({required int logId}) async {
     final r = await _apiClient.invokeAPI(
       '/api/logs/operation/$logId',
       'GET',
@@ -60,7 +60,7 @@ class OperationLogControllerApi with BaseApiClient {
   }
 
   // POST /api/logs/operation
-  Future<OperationLog> apiLogsOperationPost({
+  Future<OperationLog> createOperationLog({
     required OperationLog operationLog,
     required String idempotencyKey,
   }) async {
@@ -79,7 +79,7 @@ class OperationLogControllerApi with BaseApiClient {
   }
 
   // PUT /api/logs/operation/{logId}
-  Future<OperationLog> apiLogsOperationLogIdPut({
+  Future<OperationLog> updateOperationLog({
     required int logId,
     required OperationLog operationLog,
     required String idempotencyKey,
@@ -99,7 +99,7 @@ class OperationLogControllerApi with BaseApiClient {
   }
 
   // DELETE /api/logs/operation/{logId}
-  Future<void> apiLogsOperationLogIdDelete({required int logId}) async {
+  Future<void> deleteOperationLog({required int logId}) async {
     final r = await _apiClient.invokeAPI(
       '/api/logs/operation/$logId',
       'DELETE',
@@ -114,7 +114,7 @@ class OperationLogControllerApi with BaseApiClient {
   }
 
   // GET /api/logs/operation/search/module?module=&page=&size=
-  Future<List<OperationLog>> apiLogsOperationSearchModuleGet({
+  Future<List<OperationLog>> searchOperationLogsByModule({
     required String module,
     int page = 1,
     int size = 20,
@@ -142,7 +142,7 @@ class OperationLogControllerApi with BaseApiClient {
   }
 
   // GET /api/logs/operation/search/type?type=&page=&size=
-  Future<List<OperationLog>> apiLogsOperationSearchTypeGet({
+  Future<List<OperationLog>> searchOperationLogsByType({
     required String type,
     int page = 1,
     int size = 20,
@@ -170,7 +170,7 @@ class OperationLogControllerApi with BaseApiClient {
   }
 
   // GET /api/logs/operation/search/user/{userId}?page=&size=
-  Future<List<OperationLog>> apiLogsOperationSearchUserUserIdGet({
+  Future<List<OperationLog>> searchOperationLogsByUser({
     required int userId,
     int page = 1,
     int size = 20,
@@ -197,7 +197,7 @@ class OperationLogControllerApi with BaseApiClient {
   }
 
   // GET /api/logs/operation/search/time-range?startTime=&endTime=&page=&size=
-  Future<List<OperationLog>> apiLogsOperationSearchTimeRangeGet({
+  Future<List<OperationLog>> searchOperationLogsByTimeRange({
     required String startTime,
     required String endTime,
     int page = 1,
@@ -227,7 +227,7 @@ class OperationLogControllerApi with BaseApiClient {
   }
 
   // GET /api/logs/operation/search/username?username=&page=&size=
-  Future<List<OperationLog>> apiLogsOperationSearchUsernameGet({
+  Future<List<OperationLog>> searchOperationLogsByUsername({
     required String username,
     int page = 1,
     int size = 20,
@@ -255,7 +255,7 @@ class OperationLogControllerApi with BaseApiClient {
   }
 
   // GET /api/logs/operation/search/request-url?requestUrl=&page=&size=
-  Future<List<OperationLog>> apiLogsOperationSearchRequestUrlGet({
+  Future<List<OperationLog>> searchOperationLogsByRequestUrl({
     required String requestUrl,
     int page = 1,
     int size = 20,
@@ -283,7 +283,7 @@ class OperationLogControllerApi with BaseApiClient {
   }
 
   // GET /api/logs/operation/search/request-method?requestMethod=&page=&size=
-  Future<List<OperationLog>> apiLogsOperationSearchRequestMethodGet({
+  Future<List<OperationLog>> searchOperationLogsByRequestMethod({
     required String requestMethod,
     int page = 1,
     int size = 20,
@@ -311,7 +311,7 @@ class OperationLogControllerApi with BaseApiClient {
   }
 
   // GET /api/logs/operation/search/result?operationResult=&page=&size=
-  Future<List<OperationLog>> apiLogsOperationSearchResultGet({
+  Future<List<OperationLog>> searchOperationLogsByResult({
     required String operationResult,
     int page = 1,
     int size = 20,

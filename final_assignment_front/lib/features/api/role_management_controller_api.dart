@@ -65,7 +65,7 @@ class RoleManagementControllerApi with BaseApiClient {
   }
 
   /// GET /api/roles/{roleId} - æ ¹æ®è§è²IDè·åè§è²ä¿¡æ¯ (USER å?ADMIN)
-  Future<RoleManagement?> apiRolesRoleIdGet(int roleId) async {
+  Future<RoleManagement?> getRole(int roleId) async {
     final response = await apiClient.invokeAPI(
       '/api/roles/$roleId',
       'GET',
@@ -86,7 +86,7 @@ class RoleManagementControllerApi with BaseApiClient {
   }
 
   /// GET /api/roles - è·åææè§è²ä¿¡æ?(USER å?ADMIN)
-  Future<List<RoleManagement>> apiRolesGet() async {
+  Future<List<RoleManagement>> listRoles() async {
     final response = await apiClient.invokeAPI(
       '/api/roles',
       'GET',
@@ -106,7 +106,7 @@ class RoleManagementControllerApi with BaseApiClient {
   }
 
   /// GET /api/roles/name/{roleName} - æ ¹æ®è§è²åç§°è·åè§è²ä¿¡æ¯ (USER å?ADMIN)
-  Future<RoleManagement?> apiRolesNameRoleNameGet(String roleName) async {
+  Future<RoleManagement?> getRoleByName(String roleName) async {
     if (roleName.isEmpty) {
       throw ApiException(400, "Missing required param: roleName");
     }
@@ -131,7 +131,7 @@ class RoleManagementControllerApi with BaseApiClient {
 
   /// GET /api/roles/search - æ ¹æ®è§è²åç§°æ¨¡ç³å¹é
 // è·åè§è²ä¿¡æ¯ (USER å?ADMIN)
-  Future<List<RoleManagement>> apiRolesSearchGet({String? name}) async {
+  Future<List<RoleManagement>> searchRoles({String? name}) async {
     final response = await apiClient.invokeAPI(
       '/api/roles/search',
       'GET',
@@ -151,7 +151,7 @@ class RoleManagementControllerApi with BaseApiClient {
   }
 
   /// PUT /api/roles/{roleId} - æ´æ°æå®è§è²çä¿¡æ?(ä»?ADMIN)
-  Future<RoleManagement> apiRolesRoleIdPut(
+  Future<RoleManagement> updateRole(
       int roleId, RoleManagement updatedRole, String idempotencyKey) async {
     final response = await apiClient.invokeAPI(
       '/api/roles/$roleId',
@@ -172,7 +172,7 @@ class RoleManagementControllerApi with BaseApiClient {
   }
 
   /// DELETE /api/roles/{roleId} - å é¤æå®è§è²è®°å½ (ä»?ADMIN)
-  Future<void> apiRolesRoleIdDelete(int roleId) async {
+  Future<void> deleteRole(int roleId) async {
     final response = await apiClient.invokeAPI(
       '/api/roles/$roleId',
       'DELETE',
@@ -189,7 +189,7 @@ class RoleManagementControllerApi with BaseApiClient {
   }
 
   /// DELETE /api/roles/name/{roleName} - æ ¹æ®è§è²åç§°å é¤è§è²è®°å½ (ä»?ADMIN)
-  Future<void> apiRolesNameRoleNameDelete(String roleName) async {
+  Future<void> deleteRoleByName(String roleName) async {
     if (roleName.isEmpty) {
       throw ApiException(400, "Missing required param: roleName");
     }
@@ -210,7 +210,7 @@ class RoleManagementControllerApi with BaseApiClient {
 
   /// è·åå½åç¨æ·è§è² (USER å?ADMIN)
   Future<String> getCurrentUserRole() async {
-    final roles = await apiRolesGet();
+    final roles = await listRoles();
     for (var role in roles) {
       if (role.roleName != null && role.roleName!.isNotEmpty) {
         return role
@@ -376,7 +376,7 @@ class RoleManagementControllerApi with BaseApiClient {
   }
 
   // HTTP: GET /api/roles/by-code/{roleCode} - æ ¹æ®è§è²ç¼ç è·å
-  Future<RoleManagement?> apiRolesByCodeRoleCodeGet(String roleCode) async {
+  Future<RoleManagement?> getRoleByCode(String roleCode) async {
     if (roleCode.isEmpty) {
       throw ApiException(400, "Missing required param: roleCode");
     }
@@ -400,7 +400,7 @@ class RoleManagementControllerApi with BaseApiClient {
   }
 
   // HTTP: GET /api/roles/search/code/prefix?roleCode=&page=&size=
-  Future<List<RoleManagement>> apiRolesSearchCodePrefixGet({
+  Future<List<RoleManagement>> searchRolesByCodePrefix({
     required String roleCode,
     int page = 1,
     int size = 20,
@@ -428,7 +428,7 @@ class RoleManagementControllerApi with BaseApiClient {
   }
 
   // HTTP: GET /api/roles/search/code/fuzzy?roleCode=&page=&size=
-  Future<List<RoleManagement>> apiRolesSearchCodeFuzzyGet({
+  Future<List<RoleManagement>> searchRolesByCodeFuzzy({
     required String roleCode,
     int page = 1,
     int size = 20,
@@ -456,7 +456,7 @@ class RoleManagementControllerApi with BaseApiClient {
   }
 
   // HTTP: GET /api/roles/search/name/prefix?roleName=&page=&size=
-  Future<List<RoleManagement>> apiRolesSearchNamePrefixGet({
+  Future<List<RoleManagement>> searchRolesByNamePrefix({
     required String roleName,
     int page = 1,
     int size = 20,
@@ -484,7 +484,7 @@ class RoleManagementControllerApi with BaseApiClient {
   }
 
   // HTTP: GET /api/roles/search/name/fuzzy?roleName=&page=&size=
-  Future<List<RoleManagement>> apiRolesSearchNameFuzzyGet({
+  Future<List<RoleManagement>> searchRolesByNameFuzzy({
     required String roleName,
     int page = 1,
     int size = 20,
@@ -512,7 +512,7 @@ class RoleManagementControllerApi with BaseApiClient {
   }
 
   // HTTP: GET /api/roles/search/type?roleType=&page=&size=
-  Future<List<RoleManagement>> apiRolesSearchTypeGet({
+  Future<List<RoleManagement>> searchRolesByType({
     required String roleType,
     int page = 1,
     int size = 20,
@@ -540,7 +540,7 @@ class RoleManagementControllerApi with BaseApiClient {
   }
 
   // HTTP: GET /api/roles/search/data-scope?dataScope=&page=&size=
-  Future<List<RoleManagement>> apiRolesSearchDataScopeGet({
+  Future<List<RoleManagement>> searchRolesByDataScope({
     required String dataScope,
     int page = 1,
     int size = 20,
@@ -568,7 +568,7 @@ class RoleManagementControllerApi with BaseApiClient {
   }
 
   // HTTP: GET /api/roles/search/status?status=&page=&size=
-  Future<List<RoleManagement>> apiRolesSearchStatusGet({
+  Future<List<RoleManagement>> searchRolesByStatus({
     required String status,
     int page = 1,
     int size = 20,
@@ -596,7 +596,7 @@ class RoleManagementControllerApi with BaseApiClient {
   }
 
   // HTTP: GET /api/roles/{roleId}/permissions - æ¥è¯¢è§è²æ¥æçæé?
-  Future<List<dynamic>> apiRolesRoleIdPermissionsGet({
+  Future<List<dynamic>> listRolePermissions({
     required int roleId,
     int page = 1,
     int size = 50,
@@ -621,7 +621,7 @@ class RoleManagementControllerApi with BaseApiClient {
   }
 
   // HTTP: GET /api/roles/permissions/search?roleId=&permissionId=&page=&size=
-  Future<List<dynamic>> apiRolesPermissionsSearchGet({
+  Future<List<dynamic>> searchRolePermissions({
     required int roleId,
     required int permissionId,
     int page = 1,

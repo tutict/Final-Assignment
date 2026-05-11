@@ -45,7 +45,7 @@ class BackupRestoreControllerApi with BaseApiClient {
   }
 
   /// POST /api/system/backup
-  Future<BackupRestore> apiSystemBackupPost({
+  Future<BackupRestore> createBackup({
     required BackupRestore backupRestore,
     String? idempotencyKey,
   }) async {
@@ -65,7 +65,7 @@ class BackupRestoreControllerApi with BaseApiClient {
   }
 
   /// PUT /api/system/backup/{backupId}
-  Future<BackupRestore> apiSystemBackupBackupIdPut({
+  Future<BackupRestore> updateBackup({
     required int backupId,
     required BackupRestore backupRestore,
     String? idempotencyKey,
@@ -86,7 +86,7 @@ class BackupRestoreControllerApi with BaseApiClient {
   }
 
   /// DELETE /api/system/backup/{backupId}
-  Future<void> apiSystemBackupBackupIdDelete({required int backupId}) async {
+  Future<void> deleteBackup({required int backupId}) async {
     final response = await apiClient.invokeAPI(
       '/api/system/backup/$backupId',
       'DELETE',
@@ -103,8 +103,7 @@ class BackupRestoreControllerApi with BaseApiClient {
   }
 
   /// GET /api/system/backup/{backupId}
-  Future<BackupRestore?> apiSystemBackupBackupIdGet(
-      {required int backupId}) async {
+  Future<BackupRestore?> getBackup({required int backupId}) async {
     final response = await apiClient.invokeAPI(
       '/api/system/backup/$backupId',
       'GET',
@@ -127,7 +126,7 @@ class BackupRestoreControllerApi with BaseApiClient {
   }
 
   /// GET /api/system/backup?status=...
-  Future<List<BackupRestore>> apiSystemBackupGet({String? status}) async {
+  Future<List<BackupRestore>> listBackups({String? status}) async {
     final queryParams = <QueryParam>[];
     if (status != null && status.trim().isNotEmpty) {
       queryParams.add(QueryParam('status', status.trim()));
@@ -150,7 +149,7 @@ class BackupRestoreControllerApi with BaseApiClient {
   }
 
   /// GET /api/system/backup/search/type
-  Future<List<BackupRestore>> apiSystemBackupSearchTypeGet({
+  Future<List<BackupRestore>> searchBackupsByType({
     required String backupType,
     int page = 1,
     int size = 20,
@@ -174,7 +173,7 @@ class BackupRestoreControllerApi with BaseApiClient {
   }
 
   /// GET /api/system/backup/search/file-name
-  Future<List<BackupRestore>> apiSystemBackupSearchFileNameGet({
+  Future<List<BackupRestore>> searchBackupsByFileName({
     required String backupFileName,
     int page = 1,
     int size = 20,
@@ -198,7 +197,7 @@ class BackupRestoreControllerApi with BaseApiClient {
   }
 
   /// GET /api/system/backup/search/handler
-  Future<List<BackupRestore>> apiSystemBackupSearchHandlerGet({
+  Future<List<BackupRestore>> searchBackupsByHandler({
     required String backupHandler,
     int page = 1,
     int size = 20,
@@ -222,7 +221,7 @@ class BackupRestoreControllerApi with BaseApiClient {
   }
 
   /// GET /api/system/backup/search/restore-status
-  Future<List<BackupRestore>> apiSystemBackupSearchRestoreStatusGet({
+  Future<List<BackupRestore>> searchBackupsByRestoreStatus({
     required String restoreStatus,
     int page = 1,
     int size = 20,
@@ -246,7 +245,7 @@ class BackupRestoreControllerApi with BaseApiClient {
   }
 
   /// GET /api/system/backup/search/status
-  Future<List<BackupRestore>> apiSystemBackupSearchStatusGet({
+  Future<List<BackupRestore>> searchBackupsByStatus({
     required String status,
     int page = 1,
     int size = 20,
@@ -270,7 +269,7 @@ class BackupRestoreControllerApi with BaseApiClient {
   }
 
   /// GET /api/system/backup/search/backup-time-range
-  Future<List<BackupRestore>> apiSystemBackupSearchBackupTimeRangeGet({
+  Future<List<BackupRestore>> searchBackupsByBackupTimeRange({
     required String startTime,
     required String endTime,
     int page = 1,
@@ -296,7 +295,7 @@ class BackupRestoreControllerApi with BaseApiClient {
   }
 
   /// GET /api/system/backup/search/restore-time-range
-  Future<List<BackupRestore>> apiSystemBackupSearchRestoreTimeRangeGet({
+  Future<List<BackupRestore>> searchBackupsByRestoreTimeRange({
     required String startTime,
     required String endTime,
     int page = 1,

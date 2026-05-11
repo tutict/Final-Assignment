@@ -35,7 +35,7 @@ class LogController extends BaseListController<Object> {
   Future<void> fetchLoginLogs() async {
     await _load(() async {
       await _loginLogApi.initializeWithJwt();
-      loginLogs.assignAll(await _loginLogApi.apiLogsLoginGet());
+      loginLogs.assignAll(await _loginLogApi.listLoginLogs());
     });
   }
 
@@ -47,7 +47,7 @@ class LogController extends BaseListController<Object> {
     await _load(() async {
       await _loginLogApi.initializeWithJwt();
       loginLogs.assignAll(
-        await _loginLogApi.apiLogsLoginSearchUsernameGet(
+        await _loginLogApi.searchLoginLogsByUsername(
           username: username,
           page: page,
           size: size,
@@ -59,7 +59,7 @@ class LogController extends BaseListController<Object> {
   Future<void> fetchOperationLogs() async {
     await _load(() async {
       await _operationLogApi.initializeWithJwt();
-      operationLogs.assignAll(await _operationLogApi.apiLogsOperationGet());
+      operationLogs.assignAll(await _operationLogApi.listOperationLogs());
     });
   }
 
@@ -71,7 +71,7 @@ class LogController extends BaseListController<Object> {
     await _load(() async {
       await _operationLogApi.initializeWithJwt();
       operationLogs.assignAll(
-        await _operationLogApi.apiLogsOperationSearchUserUserIdGet(
+        await _operationLogApi.searchOperationLogsByUser(
           userId: userId,
           page: page,
           size: size,
@@ -89,7 +89,7 @@ class LogController extends BaseListController<Object> {
     await _load(() async {
       await _operationLogApi.initializeWithJwt();
       operationLogs.assignAll(
-        await _operationLogApi.apiLogsOperationSearchTimeRangeGet(
+        await _operationLogApi.searchOperationLogsByTimeRange(
           startTime: startTime.toIso8601String(),
           endTime: endTime.toIso8601String(),
           page: page,
@@ -102,11 +102,11 @@ class LogController extends BaseListController<Object> {
   Future<void> fetchSystemLogDashboard({int recentLimit = 20}) async {
     await _load(() async {
       await _systemLogsApi.initializeWithJwt();
-      final overview = await _systemLogsApi.apiSystemLogsOverviewGet();
-      final login = await _systemLogsApi.apiSystemLogsLoginRecentGet(
+      final overview = await _systemLogsApi.getSystemLogsOverview();
+      final login = await _systemLogsApi.listRecentLoginLogs(
         limit: recentLimit,
       );
-      final operation = await _systemLogsApi.apiSystemLogsOperationRecentGet(
+      final operation = await _systemLogsApi.listRecentOperationLogs(
         limit: recentLimit,
       );
 
@@ -125,11 +125,11 @@ class LogController extends BaseListController<Object> {
       ]);
 
       final results = await Future.wait<Object>([
-        _loginLogApi.apiLogsLoginGet(),
-        _operationLogApi.apiLogsOperationGet(),
-        _systemLogsApi.apiSystemLogsOverviewGet(),
-        _systemLogsApi.apiSystemLogsLoginRecentGet(limit: recentLimit),
-        _systemLogsApi.apiSystemLogsOperationRecentGet(limit: recentLimit),
+        _loginLogApi.listLoginLogs(),
+        _operationLogApi.listOperationLogs(),
+        _systemLogsApi.getSystemLogsOverview(),
+        _systemLogsApi.listRecentLoginLogs(limit: recentLimit),
+        _systemLogsApi.listRecentOperationLogs(limit: recentLimit),
       ]);
 
       loginLogs.assignAll(results[0] as List<LoginLog>);

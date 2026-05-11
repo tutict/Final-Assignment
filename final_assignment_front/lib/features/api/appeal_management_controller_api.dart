@@ -56,7 +56,7 @@ class AppealManagementControllerApi with BaseApiClient {
   }
 
   /// POST /api/appeals
-  Future<AppealRecordModel> apiAppealsPost({
+  Future<AppealRecordModel> createAppeal({
     required AppealRecordModel appealRecord,
     String? idempotencyKey,
   }) async {
@@ -76,7 +76,7 @@ class AppealManagementControllerApi with BaseApiClient {
   }
 
   /// PUT /api/appeals/{appealId}
-  Future<AppealRecordModel> apiAppealsAppealIdPut({
+  Future<AppealRecordModel> updateAppeal({
     required int appealId,
     required AppealRecordModel appealRecord,
     String? idempotencyKey,
@@ -97,7 +97,7 @@ class AppealManagementControllerApi with BaseApiClient {
   }
 
   /// DELETE /api/appeals/{appealId}
-  Future<void> apiAppealsAppealIdDelete({required int appealId}) async {
+  Future<void> deleteAppeal({required int appealId}) async {
     final response = await apiClient.invokeAPI(
       '/api/appeals/$appealId',
       'DELETE',
@@ -114,8 +114,7 @@ class AppealManagementControllerApi with BaseApiClient {
   }
 
   /// GET /api/appeals/{appealId}
-  Future<AppealRecordModel?> apiAppealsAppealIdGet(
-      {required int appealId}) async {
+  Future<AppealRecordModel?> getAppeal({required int appealId}) async {
     final response = await apiClient.invokeAPI(
       '/api/appeals/$appealId',
       'GET',
@@ -138,7 +137,7 @@ class AppealManagementControllerApi with BaseApiClient {
   }
 
   /// GET /api/appeals?offenseId=...&page=...&size=...
-  Future<List<AppealRecordModel>> apiAppealsGet({
+  Future<List<AppealRecordModel>> listAppeals({
     required int offenseId,
     int page = 1,
     int size = 20,
@@ -169,7 +168,7 @@ class AppealManagementControllerApi with BaseApiClient {
   }
 
   /// GET /api/appeals/search/number/prefix
-  Future<List<AppealRecordModel>> apiAppealsSearchNumberPrefixGet({
+  Future<List<AppealRecordModel>> searchAppealsByNumberPrefix({
     required String appealNumber,
     int page = 1,
     int size = 20,
@@ -193,7 +192,7 @@ class AppealManagementControllerApi with BaseApiClient {
   }
 
   /// GET /api/appeals/search/number/fuzzy
-  Future<List<AppealRecordModel>> apiAppealsSearchNumberFuzzyGet({
+  Future<List<AppealRecordModel>> searchAppealsByNumberFuzzy({
     required String appealNumber,
     int page = 1,
     int size = 20,
@@ -217,7 +216,7 @@ class AppealManagementControllerApi with BaseApiClient {
   }
 
   /// GET /api/appeals/search/appellant/name/prefix
-  Future<List<AppealRecordModel>> apiAppealsSearchAppellantNamePrefixGet({
+  Future<List<AppealRecordModel>> searchAppealsByAppellantNamePrefix({
     required String appellantName,
     int page = 1,
     int size = 20,
@@ -241,7 +240,7 @@ class AppealManagementControllerApi with BaseApiClient {
   }
 
   /// GET /api/appeals/search/appellant/name/fuzzy
-  Future<List<AppealRecordModel>> apiAppealsSearchAppellantNameFuzzyGet({
+  Future<List<AppealRecordModel>> searchAppealsByAppellantNameFuzzy({
     required String appellantName,
     int page = 1,
     int size = 20,
@@ -265,7 +264,7 @@ class AppealManagementControllerApi with BaseApiClient {
   }
 
   /// GET /api/appeals/search/appellant/id-card
-  Future<List<AppealRecordModel>> apiAppealsSearchAppellantIdCardGet({
+  Future<List<AppealRecordModel>> searchAppealsByAppellantIdCard({
     required String appellantIdCard,
     int page = 1,
     int size = 20,
@@ -289,7 +288,7 @@ class AppealManagementControllerApi with BaseApiClient {
   }
 
   /// GET /api/appeals/search/acceptance-status
-  Future<List<AppealRecordModel>> apiAppealsSearchAcceptanceStatusGet({
+  Future<List<AppealRecordModel>> searchAppealsByAcceptanceStatus({
     required String acceptanceStatus,
     int page = 1,
     int size = 20,
@@ -313,7 +312,7 @@ class AppealManagementControllerApi with BaseApiClient {
   }
 
   /// GET /api/appeals/search/process-status
-  Future<List<AppealRecordModel>> apiAppealsSearchProcessStatusGet({
+  Future<List<AppealRecordModel>> searchAppealsByProcessStatus({
     required String processStatus,
     int page = 1,
     int size = 20,
@@ -337,7 +336,7 @@ class AppealManagementControllerApi with BaseApiClient {
   }
 
   /// GET /api/appeals/search/time-range
-  Future<List<AppealRecordModel>> apiAppealsSearchTimeRangeGet({
+  Future<List<AppealRecordModel>> searchAppealsByTimeRange({
     required String startTime,
     required String endTime,
     int page = 1,
@@ -363,7 +362,7 @@ class AppealManagementControllerApi with BaseApiClient {
   }
 
   /// GET /api/appeals/search/handler
-  Future<List<AppealRecordModel>> apiAppealsSearchHandlerGet({
+  Future<List<AppealRecordModel>> searchAppealsByHandler({
     required String acceptanceHandler,
     int page = 1,
     int size = 20,
@@ -387,7 +386,7 @@ class AppealManagementControllerApi with BaseApiClient {
   }
 
   /// POST /api/appeals/{appealId}/reviews
-  Future<AppealReviewModel> apiAppealsAppealIdReviewsPost({
+  Future<AppealReviewModel> createAppealReview({
     required int appealId,
     required AppealReviewModel review,
     String? idempotencyKey,
@@ -408,7 +407,7 @@ class AppealManagementControllerApi with BaseApiClient {
   }
 
   /// PUT /api/appeals/reviews/{reviewId}
-  Future<AppealReviewModel> apiAppealsReviewsReviewIdPut({
+  Future<AppealReviewModel> updateAppealReview({
     required int reviewId,
     required AppealReviewModel review,
     String? idempotencyKey,
@@ -429,7 +428,7 @@ class AppealManagementControllerApi with BaseApiClient {
   }
 
   /// DELETE /api/appeals/reviews/{reviewId}
-  Future<void> apiAppealsReviewsReviewIdDelete({required int reviewId}) async {
+  Future<void> deleteAppealReview({required int reviewId}) async {
     final response = await apiClient.invokeAPI(
       '/api/appeals/reviews/$reviewId',
       'DELETE',
@@ -446,8 +445,7 @@ class AppealManagementControllerApi with BaseApiClient {
   }
 
   /// GET /api/appeals/reviews/{reviewId}
-  Future<AppealReviewModel?> apiAppealsReviewsReviewIdGet(
-      {required int reviewId}) async {
+  Future<AppealReviewModel?> getAppealReview({required int reviewId}) async {
     final response = await apiClient.invokeAPI(
       '/api/appeals/reviews/$reviewId',
       'GET',
@@ -470,7 +468,7 @@ class AppealManagementControllerApi with BaseApiClient {
   }
 
   /// GET /api/appeals/reviews
-  Future<List<AppealReviewModel>> apiAppealsReviewsGet() async {
+  Future<List<AppealReviewModel>> listAppealReviews() async {
     final response = await apiClient.invokeAPI(
       '/api/appeals/reviews',
       'GET',
@@ -489,7 +487,7 @@ class AppealManagementControllerApi with BaseApiClient {
   }
 
   /// GET /api/appeals/reviews/search/reviewer
-  Future<List<AppealReviewModel>> apiAppealsReviewsSearchReviewerGet({
+  Future<List<AppealReviewModel>> searchAppealReviewsByReviewer({
     required String reviewer,
     int page = 1,
     int size = 20,
@@ -513,7 +511,7 @@ class AppealManagementControllerApi with BaseApiClient {
   }
 
   /// GET /api/appeals/reviews/search/reviewer-dept
-  Future<List<AppealReviewModel>> apiAppealsReviewsSearchReviewerDeptGet({
+  Future<List<AppealReviewModel>> searchAppealReviewsByReviewerDept({
     required String reviewerDept,
     int page = 1,
     int size = 20,
@@ -537,7 +535,7 @@ class AppealManagementControllerApi with BaseApiClient {
   }
 
   /// GET /api/appeals/reviews/search/time-range
-  Future<List<AppealReviewModel>> apiAppealsReviewsSearchTimeRangeGet({
+  Future<List<AppealReviewModel>> searchAppealReviewsByTimeRange({
     required String startTime,
     required String endTime,
     int page = 1,
@@ -563,7 +561,7 @@ class AppealManagementControllerApi with BaseApiClient {
   }
 
   /// GET /api/appeals/reviews/count?level=xxx
-  Future<int> apiAppealsReviewsCountGet({
+  Future<int> countAppealReviews({
     required String reviewLevel,
   }) async {
     if (reviewLevel.trim().isEmpty) {

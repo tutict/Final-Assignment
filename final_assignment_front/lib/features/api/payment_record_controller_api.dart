@@ -46,7 +46,7 @@ class PaymentRecordControllerApi with BaseApiClient {
   }
 
   /// POST /api/payments
-  Future<PaymentRecordModel> apiPaymentsPost({
+  Future<PaymentRecordModel> createPayment({
     required PaymentRecordModel paymentRecord,
     String? idempotencyKey,
   }) async {
@@ -66,7 +66,7 @@ class PaymentRecordControllerApi with BaseApiClient {
   }
 
   /// PUT /api/payments/{paymentId}
-  Future<PaymentRecordModel> apiPaymentsPaymentIdPut({
+  Future<PaymentRecordModel> updatePayment({
     required int paymentId,
     required PaymentRecordModel paymentRecord,
     String? idempotencyKey,
@@ -87,7 +87,7 @@ class PaymentRecordControllerApi with BaseApiClient {
   }
 
   /// DELETE /api/payments/{paymentId}
-  Future<void> apiPaymentsPaymentIdDelete({required int paymentId}) async {
+  Future<void> deletePayment({required int paymentId}) async {
     final response = await apiClient.invokeAPI(
       '/api/payments/$paymentId',
       'DELETE',
@@ -104,7 +104,7 @@ class PaymentRecordControllerApi with BaseApiClient {
   }
 
   /// GET /api/payments/{paymentId}
-  Future<PaymentRecordModel?> apiPaymentsPaymentIdGet({
+  Future<PaymentRecordModel?> getPayment({
     required int paymentId,
   }) async {
     final response = await apiClient.invokeAPI(
@@ -125,7 +125,7 @@ class PaymentRecordControllerApi with BaseApiClient {
   }
 
   /// GET /api/payments
-  Future<List<PaymentRecordModel>> apiPaymentsGet() async {
+  Future<List<PaymentRecordModel>> listPayments() async {
     final response = await apiClient.invokeAPI(
       '/api/payments',
       'GET',
@@ -141,7 +141,7 @@ class PaymentRecordControllerApi with BaseApiClient {
   }
 
   /// GET /api/payments/fine/{fineId}?page=&size=
-  Future<List<PaymentRecordModel>> apiPaymentsFineFineIdGet({
+  Future<List<PaymentRecordModel>> listPaymentsByFine({
     required int fineId,
     int page = 1,
     int size = 20,
@@ -164,7 +164,7 @@ class PaymentRecordControllerApi with BaseApiClient {
   }
 
   /// GET /api/payments/search/payer?idCard=&page=&size=
-  Future<List<PaymentRecordModel>> apiPaymentsSearchPayerGet({
+  Future<List<PaymentRecordModel>> searchPaymentsByPayer({
     required String idCard,
     int page = 1,
     int size = 20,
@@ -188,7 +188,7 @@ class PaymentRecordControllerApi with BaseApiClient {
   }
 
   /// GET /api/payments/search/status?status=&page=&size=
-  Future<List<PaymentRecordModel>> apiPaymentsSearchStatusGet({
+  Future<List<PaymentRecordModel>> searchPaymentsByStatus({
     required String status,
     int page = 1,
     int size = 20,
@@ -212,7 +212,7 @@ class PaymentRecordControllerApi with BaseApiClient {
   }
 
   /// GET /api/payments/search/transaction?transactionId=&page=&size=
-  Future<List<PaymentRecordModel>> apiPaymentsSearchTransactionGet({
+  Future<List<PaymentRecordModel>> searchPaymentsByTransaction({
     required String transactionId,
     int page = 1,
     int size = 20,
@@ -236,7 +236,7 @@ class PaymentRecordControllerApi with BaseApiClient {
   }
 
   /// GET /api/payments/search/payment-number?paymentNumber=&page=&size=
-  Future<List<PaymentRecordModel>> apiPaymentsSearchPaymentNumberGet({
+  Future<List<PaymentRecordModel>> searchPaymentsByPaymentNumber({
     required String paymentNumber,
     int page = 1,
     int size = 20,
@@ -260,7 +260,7 @@ class PaymentRecordControllerApi with BaseApiClient {
   }
 
   /// GET /api/payments/search/payer-name?payerName=&page=&size=
-  Future<List<PaymentRecordModel>> apiPaymentsSearchPayerNameGet({
+  Future<List<PaymentRecordModel>> searchPaymentsByPayerName({
     required String payerName,
     int page = 1,
     int size = 20,
@@ -284,7 +284,7 @@ class PaymentRecordControllerApi with BaseApiClient {
   }
 
   /// GET /api/payments/search/payment-method?paymentMethod=&page=&size=
-  Future<List<PaymentRecordModel>> apiPaymentsSearchPaymentMethodGet({
+  Future<List<PaymentRecordModel>> searchPaymentsByPaymentMethod({
     required String paymentMethod,
     int page = 1,
     int size = 20,
@@ -308,7 +308,7 @@ class PaymentRecordControllerApi with BaseApiClient {
   }
 
   /// GET /api/payments/search/payment-channel?paymentChannel=&page=&size=
-  Future<List<PaymentRecordModel>> apiPaymentsSearchPaymentChannelGet({
+  Future<List<PaymentRecordModel>> searchPaymentsByPaymentChannel({
     required String paymentChannel,
     int page = 1,
     int size = 20,
@@ -332,7 +332,7 @@ class PaymentRecordControllerApi with BaseApiClient {
   }
 
   /// GET /api/payments/search/time-range?startTime=&endTime=&page=&size=
-  Future<List<PaymentRecordModel>> apiPaymentsSearchTimeRangeGet({
+  Future<List<PaymentRecordModel>> searchPaymentsByTimeRange({
     required String startTime,
     required String endTime,
     int page = 1,
@@ -358,7 +358,7 @@ class PaymentRecordControllerApi with BaseApiClient {
   }
 
   /// PUT /api/payments/{paymentId}/status/{state}
-  Future<PaymentRecordModel> apiPaymentsPaymentIdStatusPut({
+  Future<PaymentRecordModel> updatePaymentStatus({
     required int paymentId,
     required String state,
   }) async {

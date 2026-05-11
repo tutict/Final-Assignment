@@ -18,7 +18,7 @@ class ChatControllerApi with BaseApiClient {
   @override
   final ApiClient apiClient;
 
-  Future<http.Response> apiAiChatGetWithHttpInfo(String message) async {
+  Future<http.Response> _sendChatMessageWithHttpInfo(String message) async {
     final queryParams = [QueryParam('message', message)];
     final headerParams = await getHeaders();
 
@@ -34,9 +34,9 @@ class ChatControllerApi with BaseApiClient {
     );
   }
 
-  Future<String?> apiAiChatGet(String message) async {
+  Future<String?> sendChatMessage(String message) async {
     try {
-      final response = await apiAiChatGetWithHttpInfo(message);
+      final response = await _sendChatMessageWithHttpInfo(message);
       final decodedBody = utf8.decode(response.bodyBytes, allowMalformed: true);
       if (response.statusCode >= 400) {
         throw Exception('API request failed: $decodedBody');
@@ -52,12 +52,13 @@ class ChatControllerApi with BaseApiClient {
       }
       return 'No valid response from AI.';
     } catch (error) {
-      developer.log('Error in apiAiChatGet: $error', name: 'ChatControllerApi');
+      developer.log('Error in sendChatMessage: $error',
+          name: 'ChatControllerApi');
       throw Exception('Failed to process AI response: $error');
     }
   }
 
-  Future<http.Response> apiAiChatActionsGetWithHttpInfo(
+  Future<http.Response> _getChatActionsWithHttpInfo(
     String message,
     bool webSearch,
   ) async {
@@ -79,12 +80,12 @@ class ChatControllerApi with BaseApiClient {
     );
   }
 
-  Future<ChatActionResponse?> apiAiChatActionsGet(
+  Future<ChatActionResponse?> getChatActions(
     String message,
     bool webSearch,
   ) async {
     try {
-      final response = await apiAiChatActionsGetWithHttpInfo(
+      final response = await _getChatActionsWithHttpInfo(
         message,
         webSearch,
       );
@@ -103,14 +104,14 @@ class ChatControllerApi with BaseApiClient {
       return null;
     } catch (error) {
       developer.log(
-        'Error in apiAiChatActionsGet: $error',
+        'Error in getChatActions: $error',
         name: 'ChatControllerApi',
       );
       throw Exception('Failed to process AI actions response: $error');
     }
   }
 
-  Stream<String> apiAiChatStream(
+  Stream<String> streamChat(
     String message,
     bool webSearch, {
     CancelToken? cancelToken,

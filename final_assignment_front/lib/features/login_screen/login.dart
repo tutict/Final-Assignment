@@ -92,7 +92,7 @@ class _LoginScreenState extends State<LoginScreen>
     final password = data.password.trim();
 
     try {
-      final result = await authApi.apiAuthLoginPost(
+      final result = await authApi.login(
         loginRequest: LoginRequest(username: username, password: password),
       );
 
@@ -123,8 +123,8 @@ class _LoginScreenState extends State<LoginScreen>
 
         int? authUserId = userIdFromLogin;
         try {
-          final userInfo = await userManagementApi.apiUsersSearchUsernameGet(
-              username: username);
+          final userInfo =
+              await userManagementApi.searchUsersByUsername(username: username);
           if (userInfo != null) {
             authUserId = userInfo.userId ?? authUserId;
             resolvedName =
@@ -139,8 +139,7 @@ class _LoginScreenState extends State<LoginScreen>
         if (authUserId != null) {
           final driverId = authUserId; // 当前系统 authUserId 与 driverId 一一对应
           try {
-            final driverInfo =
-                await driverApi.apiDriversDriverIdGet(driverId: driverId);
+            final driverInfo = await driverApi.getDriver(driverId: driverId);
             if (driverInfo != null && driverInfo.name != null) {
               driverName = driverInfo.name!;
               debugPrint('从数据库获取的 driverName: $driverName');
@@ -156,7 +155,7 @@ class _LoginScreenState extends State<LoginScreen>
                 contactNumber: '',
                 idCardNumber: '',
               );
-              await driverApi.apiDriversPost(
+              await driverApi.createDriver(
                 driverInformation: newDriverInfo,
                 idempotencyKey: idempotencyKey,
               );
@@ -208,7 +207,7 @@ class _LoginScreenState extends State<LoginScreen>
     final idempotencyKey = generateIdempotencyKey();
 
     try {
-      final registerResult = await authApi.apiAuthRegisterPost(
+      final registerResult = await authApi.register(
         registerRequest: RegisterRequest(
           username: username,
           password: password,
@@ -219,7 +218,7 @@ class _LoginScreenState extends State<LoginScreen>
       if (registerResult['status'] == 'CREATED') {
         _hasSentRegisterRequest = true;
 
-        final loginResult = await authApi.apiAuthLoginPost(
+        final loginResult = await authApi.login(
           loginRequest: LoginRequest(username: username, password: password),
         );
 
@@ -247,12 +246,11 @@ class _LoginScreenState extends State<LoginScreen>
               idCardNumber: '',
               contactNumber: '',
             );
-            await driverApi.apiDriversPost(
+            await driverApi.createDriver(
               driverInformation: driverInfo,
               idempotencyKey: generateIdempotencyKey(),
             );
-            final fetchedDriver =
-                await driverApi.apiDriversDriverIdGet(driverId: driverId);
+            final fetchedDriver = await driverApi.getDriver(driverId: driverId);
             driverName = fetchedDriver?.name ?? resolvedName;
             await prefs.setString('driverName', driverName);
             await prefs.setString('userEmail', resolvedEmail);

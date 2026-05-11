@@ -35,7 +35,7 @@ class ProgressControllerApi with BaseApiClient {
   }
 
   /// åå»ºæ°çè¿åº¦è®°å½ã?with HTTP info returned
-  Future<http.Response> apiProgressPostWithHttpInfo({
+  Future<http.Response> _createProgressItemWithHttpInfo({
     required ProgressItem progressItem,
     Map<String, String>? headers,
   }) async {
@@ -70,11 +70,11 @@ class ProgressControllerApi with BaseApiClient {
   }
 
   /// åå»ºæ°çè¿åº¦è®°å½ã?
-  Future<ProgressItem> apiProgressPost({
+  Future<ProgressItem> createProgressItem({
     required ProgressItem progressItem,
     Map<String, String>? headers,
   }) async {
-    http.Response response = await apiProgressPostWithHttpInfo(
+    http.Response response = await _createProgressItemWithHttpInfo(
         progressItem: progressItem, headers: headers);
     if (response.statusCode == 201) {
       return ProgressItem.fromJson(jsonDecode(_decodeBodyBytes(response)));
@@ -83,7 +83,7 @@ class ProgressControllerApi with BaseApiClient {
   }
 
   /// è·åææè¿åº¦è®°å½ã?with HTTP info returned
-  Future<http.Response> apiProgressGetWithHttpInfo({
+  Future<http.Response> _listProgressItemsWithHttpInfo({
     Map<String, String>? headers,
   }) async {
     final jwtToken = (await AuthTokenStore.instance.getJwtToken());
@@ -117,10 +117,11 @@ class ProgressControllerApi with BaseApiClient {
   }
 
   /// è·åææè¿åº¦è®°å½ã?
-  Future<List<ProgressItem>> apiProgressGet({
+  Future<List<ProgressItem>> listProgressItems({
     Map<String, String>? headers,
   }) async {
-    http.Response response = await apiProgressGetWithHttpInfo(headers: headers);
+    http.Response response =
+        await _listProgressItemsWithHttpInfo(headers: headers);
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(_decodeBodyBytes(response));
       return data.map((json) => ProgressItem.fromJson(json)).toList();
@@ -129,7 +130,7 @@ class ProgressControllerApi with BaseApiClient {
   }
 
   /// æ ¹æ®ç¨æ·åè·åè¿åº¦è®°å½ã?with HTTP info returned
-  Future<http.Response> apiProgressUsernameGetWithHttpInfo({
+  Future<http.Response> _listProgressItemsByUsernameWithHttpInfo({
     required String username,
     Map<String, String>? headers,
   }) async {
@@ -166,11 +167,11 @@ class ProgressControllerApi with BaseApiClient {
   }
 
   /// æ ¹æ®ç¨æ·åè·åè¿åº¦è®°å½ã?
-  Future<List<ProgressItem>> apiProgressUsernameGet({
+  Future<List<ProgressItem>> listProgressItemsByUsername({
     required String username,
     Map<String, String>? headers,
   }) async {
-    http.Response response = await apiProgressUsernameGetWithHttpInfo(
+    http.Response response = await _listProgressItemsByUsernameWithHttpInfo(
         username: username, headers: headers);
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(_decodeBodyBytes(response));
@@ -180,7 +181,7 @@ class ProgressControllerApi with BaseApiClient {
   }
 
   /// æ ¹æ®è¿åº¦IDæ´æ°è¿åº¦ç¶æã?with HTTP info returned
-  Future<http.Response> apiProgressProgressIdStatusPutWithHttpInfo({
+  Future<http.Response> _updateProgressItemStatusWithHttpInfo({
     required int progressId,
     required String newStatus,
     Map<String, String>? headers,
@@ -220,12 +221,12 @@ class ProgressControllerApi with BaseApiClient {
   }
 
   /// æ ¹æ®è¿åº¦IDæ´æ°è¿åº¦ç¶æã?
-  Future<ProgressItem> apiProgressProgressIdStatusPut({
+  Future<ProgressItem> updateProgressItemStatus({
     required int progressId,
     required String newStatus,
     Map<String, String>? headers,
   }) async {
-    http.Response response = await apiProgressProgressIdStatusPutWithHttpInfo(
+    http.Response response = await _updateProgressItemStatusWithHttpInfo(
         progressId: progressId, newStatus: newStatus, headers: headers);
     if (response.statusCode == 200) {
       return ProgressItem.fromJson(jsonDecode(_decodeBodyBytes(response)));
@@ -234,7 +235,7 @@ class ProgressControllerApi with BaseApiClient {
   }
 
   /// å é¤æå®è¿åº¦è®°å½ã?with HTTP info returned
-  Future<http.Response> apiProgressProgressIdDeleteWithHttpInfo({
+  Future<http.Response> _deleteProgressItemWithHttpInfo({
     required int progressId,
     Map<String, String>? headers,
   }) async {
@@ -269,11 +270,11 @@ class ProgressControllerApi with BaseApiClient {
   }
 
   /// å é¤æå®è¿åº¦è®°å½ã?
-  Future<void> apiProgressProgressIdDelete({
+  Future<void> deleteProgressItem({
     required int progressId,
     Map<String, String>? headers,
   }) async {
-    http.Response response = await apiProgressProgressIdDeleteWithHttpInfo(
+    http.Response response = await _deleteProgressItemWithHttpInfo(
         progressId: progressId, headers: headers);
     if (response.statusCode != 204) {
       throw ApiException(response.statusCode, _decodeBodyBytes(response));
@@ -281,7 +282,7 @@ class ProgressControllerApi with BaseApiClient {
   }
 
   /// æ ¹æ®ç¶æè·åè¿åº¦è®°å½ã?with HTTP info returned
-  Future<http.Response> apiProgressStatusStatusGetWithHttpInfo({
+  Future<http.Response> _listProgressItemsByStatusWithHttpInfo({
     required String status,
     Map<String, String>? headers,
   }) async {
@@ -316,11 +317,11 @@ class ProgressControllerApi with BaseApiClient {
   }
 
   /// æ ¹æ®ç¶æè·åè¿åº¦è®°å½ã?
-  Future<List<ProgressItem>> apiProgressStatusStatusGet({
+  Future<List<ProgressItem>> listProgressItemsByStatus({
     required String status,
     Map<String, String>? headers,
   }) async {
-    http.Response response = await apiProgressStatusStatusGetWithHttpInfo(
+    http.Response response = await _listProgressItemsByStatusWithHttpInfo(
         status: status, headers: headers);
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(_decodeBodyBytes(response));
@@ -330,7 +331,7 @@ class ProgressControllerApi with BaseApiClient {
   }
 
   /// æ ¹æ®æ¶é´èå´è·åè¿åº¦è®°å½ã?with HTTP info returned
-  Future<http.Response> apiProgressTimeRangeGetWithHttpInfo({
+  Future<http.Response> _searchProgressItemsByTimeRangeWithHttpInfo({
     required String startTime,
     required String endTime,
     Map<String, String>? headers,
@@ -369,12 +370,12 @@ class ProgressControllerApi with BaseApiClient {
   }
 
   /// æ ¹æ®æ¶é´èå´è·åè¿åº¦è®°å½ã?
-  Future<List<ProgressItem>> apiProgressTimeRangeGet({
+  Future<List<ProgressItem>> searchProgressItemsByTimeRange({
     required String startTime,
     required String endTime,
     Map<String, String>? headers,
   }) async {
-    http.Response response = await apiProgressTimeRangeGetWithHttpInfo(
+    http.Response response = await _searchProgressItemsByTimeRangeWithHttpInfo(
         startTime: startTime, endTime: endTime, headers: headers);
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(_decodeBodyBytes(response));

@@ -23,7 +23,7 @@ class LoginLogControllerApi with BaseApiClient {
   String _decode(http.Response r) => decodeBodyBytes(r);
 
   // GET /api/logs/login
-  Future<List<LoginLog>> apiLogsLoginGet() async {
+  Future<List<LoginLog>> listLoginLogs() async {
     final r = await _apiClient.invokeAPI(
       '/api/logs/login',
       'GET',
@@ -43,7 +43,7 @@ class LoginLogControllerApi with BaseApiClient {
   }
 
   // GET /api/logs/login/{logId}
-  Future<LoginLog?> apiLogsLoginLogIdGet({required int logId}) async {
+  Future<LoginLog?> getLoginLog({required int logId}) async {
     final r = await _apiClient.invokeAPI(
       '/api/logs/login/$logId',
       'GET',
@@ -60,7 +60,7 @@ class LoginLogControllerApi with BaseApiClient {
   }
 
   // POST /api/logs/login
-  Future<LoginLog> apiLogsLoginPost({
+  Future<LoginLog> createLoginLog({
     required LoginLog loginLog,
     required String idempotencyKey,
   }) async {
@@ -79,7 +79,7 @@ class LoginLogControllerApi with BaseApiClient {
   }
 
   // PUT /api/logs/login/{logId}
-  Future<LoginLog> apiLogsLoginLogIdPut({
+  Future<LoginLog> updateLoginLog({
     required int logId,
     required LoginLog loginLog,
     required String idempotencyKey,
@@ -99,7 +99,7 @@ class LoginLogControllerApi with BaseApiClient {
   }
 
   // DELETE /api/logs/login/{logId}
-  Future<void> apiLogsLoginLogIdDelete({required int logId}) async {
+  Future<void> deleteLoginLog({required int logId}) async {
     final r = await _apiClient.invokeAPI(
       '/api/logs/login/$logId',
       'DELETE',
@@ -114,7 +114,7 @@ class LoginLogControllerApi with BaseApiClient {
   }
 
   // GET /api/logs/login/search/username?username=&page=&size=
-  Future<List<LoginLog>> apiLogsLoginSearchUsernameGet({
+  Future<List<LoginLog>> searchLoginLogsByUsername({
     required String username,
     int page = 1,
     int size = 20,
@@ -142,7 +142,7 @@ class LoginLogControllerApi with BaseApiClient {
   }
 
   // GET /api/logs/login/search/result?result=&page=&size=
-  Future<List<LoginLog>> apiLogsLoginSearchResultGet({
+  Future<List<LoginLog>> searchLoginLogsByResult({
     required String result,
     int page = 1,
     int size = 20,
@@ -170,7 +170,7 @@ class LoginLogControllerApi with BaseApiClient {
   }
 
   // GET /api/logs/login/search/time-range?startTime=&endTime=&page=&size=
-  Future<List<LoginLog>> apiLogsLoginSearchTimeRangeGet({
+  Future<List<LoginLog>> searchLoginLogsByTimeRange({
     required String startTime,
     required String endTime,
     int page = 1,
@@ -200,7 +200,7 @@ class LoginLogControllerApi with BaseApiClient {
   }
 
   // GET /api/logs/login/search/ip?ip=&page=&size=
-  Future<List<LoginLog>> apiLogsLoginSearchIpGet({
+  Future<List<LoginLog>> searchLoginLogsByIp({
     required String ip,
     int page = 1,
     int size = 20,
@@ -228,7 +228,7 @@ class LoginLogControllerApi with BaseApiClient {
   }
 
   // GET /api/logs/login/search/location?loginLocation=&page=&size=
-  Future<List<LoginLog>> apiLogsLoginSearchLocationGet({
+  Future<List<LoginLog>> searchLoginLogsByLocation({
     required String loginLocation,
     int page = 1,
     int size = 20,
@@ -256,7 +256,7 @@ class LoginLogControllerApi with BaseApiClient {
   }
 
   // GET /api/logs/login/search/device-type?deviceType=&page=&size=
-  Future<List<LoginLog>> apiLogsLoginSearchDeviceTypeGet({
+  Future<List<LoginLog>> searchLoginLogsByDeviceType({
     required String deviceType,
     int page = 1,
     int size = 20,
@@ -284,7 +284,7 @@ class LoginLogControllerApi with BaseApiClient {
   }
 
   // GET /api/logs/login/search/browser-type?browserType=&page=&size=
-  Future<List<LoginLog>> apiLogsLoginSearchBrowserTypeGet({
+  Future<List<LoginLog>> searchLoginLogsByBrowserType({
     required String browserType,
     int page = 1,
     int size = 20,
@@ -312,7 +312,7 @@ class LoginLogControllerApi with BaseApiClient {
   }
 
   // GET /api/logs/login/search/logout-time-range?startTime=&endTime=&page=&size=
-  Future<List<LoginLog>> apiLogsLoginSearchLogoutTimeRangeGet({
+  Future<List<LoginLog>> searchLoginLogsByLogoutTimeRange({
     required String startTime,
     required String endTime,
     int page = 1,

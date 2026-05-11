@@ -108,14 +108,13 @@ class _FineInformationPageState extends State<FineInformationPage> {
         throw Exception('无法确定当前用户名');
       }
 
-      final user = await userApi.apiUsersSearchUsernameGet(username: username);
+      final user = await userApi.searchUsersByUsername(username: username);
       if (user?.userId == null) {
         throw Exception('User data does not contain userId');
       }
 
       await driverApi.initializeWithJwt();
-      final driverInfo =
-          await driverApi.apiDriversDriverIdGet(driverId: user!.userId!);
+      final driverInfo = await driverApi.getDriver(driverId: user!.userId!);
       if (driverInfo != null && driverInfo.name != null) {
         final driverName = driverInfo.name!;
         developer.log('Driver name from API: $driverName');
@@ -132,7 +131,7 @@ class _FineInformationPageState extends State<FineInformationPage> {
 
   Future<List<FineInformation>> _loadUserFines() async {
     try {
-      final allFines = await fineApi.apiFinesGet();
+      final allFines = await fineApi.listFines();
       developer.log('All Fines: $allFines');
       final filteredFines =
           allFines.where((fine) => fine.payee == _currentDriverName).toList();

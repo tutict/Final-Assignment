@@ -146,15 +146,14 @@ class _UserAppealPageState extends State<UserAppealPage> {
         throw Exception('无法确定当前用户');
       }
       await userApi.initializeWithJwt();
-      final userData =
-          await userApi.apiUsersSearchUsernameGet(username: username);
+      final userData = await userApi.searchUsersByUsername(username: username);
       if (userData == null || userData.userId == null) {
         throw Exception('User data does not contain userId');
       }
       final int userId = userData.userId!;
 
       await driverApi.initializeWithJwt();
-      var driverInfo = await driverApi.apiDriversDriverIdGet(driverId: userId);
+      var driverInfo = await driverApi.getDriver(driverId: userId);
       if (driverInfo == null) {
         driverInfo = DriverInformation(
           driverId: userId,
@@ -164,11 +163,11 @@ class _UserAppealPageState extends State<UserAppealPage> {
           driverLicenseNumber:
               '${DateTime.now().millisecondsSinceEpoch.toString().substring(6)}${(1000 + (DateTime.now().millisecondsSinceEpoch % 9000)).toString()}',
         );
-        await driverApi.apiDriversPost(
+        await driverApi.createDriver(
           driverInformation: driverInfo,
           idempotencyKey: generateIdempotencyKey(),
         );
-        driverInfo = await driverApi.apiDriversDriverIdGet(driverId: userId);
+        driverInfo = await driverApi.getDriver(driverId: userId);
       }
       final driverName = driverInfo?.name ?? userData.username ?? '未知用户';
       developer.log('Driver name from API: $driverName');
@@ -184,7 +183,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
       if (_currentDriverName == null) {
         throw Exception('未找到驾驶员姓名');
       }
-      final offenses = await offenseApi.apiOffensesByDriverNameGet(
+      final offenses = await offenseApi.listOffensesByDriverName(
         query: _currentDriverName!,
         page: 1,
         size: 20,
@@ -206,7 +205,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
       if (_currentDriverName == null) {
         throw Exception('未找到驾驶员姓名');
       }
-      _offenseCache = await offenseApi.apiOffensesByDriverNameGet(
+      _offenseCache = await offenseApi.listOffensesByDriverName(
         query: _currentDriverName!,
         page: 1,
         size: 20,
@@ -227,7 +226,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
       if (storedUsername == null || storedUsername.isEmpty) {
         throw Exception('未找到用户名');
       }
-      return await userApi.apiUsersSearchUsernameGet(username: storedUsername);
+      return await userApi.searchUsersByUsername(username: storedUsername);
     } catch (e) {
       developer.log('获取用户信息失败: $e');
       return null;
@@ -236,7 +235,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
 
   Future<DriverInformation?> _fetchDriverInformation(int userId) async {
     try {
-      return await driverApi.apiDriversDriverIdGet(driverId: userId);
+      return await driverApi.getDriver(driverId: userId);
     } catch (e) {
       developer.log('获取驾驶员信息失败: $e');
       return null;
@@ -273,7 +272,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
       for (final id in offenseIds) {
         try {
           final records =
-              await appealApi.apiAppealsGet(offenseId: id, page: 1, size: 50);
+              await appealApi.listAppeals(offenseId: id, page: 1, size: 50);
           fetched.addAll(records);
         } catch (e) {
           developer.log('Failed to fetch appeals for offense $id: $e');
@@ -327,7 +326,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
       AppealRecordModel appeal, String idempotencyKey) async {
     try {
       developer.log('Submitting appeal with idempotencyKey: $idempotencyKey');
-      await appealApi.apiAppealsPost(
+      await appealApi.createAppeal(
           appealRecord: appeal, idempotencyKey: idempotencyKey);
       developer.log('Appeal submitted successfully: ${appeal.toJson()}');
       _showSnackBar('申诉提交成功！');

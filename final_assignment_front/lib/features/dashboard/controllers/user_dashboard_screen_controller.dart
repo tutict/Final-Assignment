@@ -66,8 +66,7 @@ class UserDashboardController extends GetxController {
     } else {
       final brightness =
           WidgetsBinding.instance.platformDispatcher.platformBrightness;
-      currentTheme.value =
-          brightness == Brightness.dark ? 'Dark' : 'Light';
+      currentTheme.value = brightness == Brightness.dark ? 'Dark' : 'Light';
       _applyTheme();
       await prefs.setString(
           'userTheme_${selectedStyle.value}', currentTheme.value);
@@ -121,7 +120,7 @@ class UserDashboardController extends GetxController {
       final userApi = UserManagementControllerApi();
       await userApi.initializeWithJwt();
       final user =
-          await userApi.apiUsersSearchUsernameGet(username: storedUsername);
+          await userApi.searchUsersByUsername(username: storedUsername);
       if (user == null || user.userId == null) {
         throw Exception('User or user ID not found');
       }
@@ -129,7 +128,7 @@ class UserDashboardController extends GetxController {
 
       final driverApi = DriverInformationControllerApi();
       await driverApi.initializeWithJwt();
-      final driver = await driverApi.apiDriversDriverIdGet(driverId: userId);
+      final driver = await driverApi.getDriver(driverId: userId);
       final resolvedName =
           driver?.name ?? user.realName ?? user.username ?? storedUsername;
       final resolvedEmail = user.email ?? currentEmail.value;
@@ -145,7 +144,8 @@ class UserDashboardController extends GetxController {
       if (resolvedEmail.isNotEmpty) {
         await prefs.setString('userEmail', resolvedEmail);
       }
-      developer.log('Updated user info from API: name=$resolvedName, id=$userId');
+      developer
+          .log('Updated user info from API: name=$resolvedName, id=$userId');
     } catch (e) {
       developer.log('Failed to fetch driver data: $e');
       _showErrorSnackBar('无法获取司机信息: $e');
