@@ -77,11 +77,11 @@ class ProgressReportCard extends StatelessWidget {
                       ),
                 ),
                 const SizedBox(height: 8), // 减少间距
-                _ReportRichText(value1: "${data.task}", value2: " 申诉"),
+                _ProgressRichText(value1: "${data.task}", value2: " 申诉"),
                 const SizedBox(height: 6), // 减少间距
-                _ReportRichText(value1: "${data.doneTask}", value2: " 已处理的申诉"),
+                _ProgressRichText(value1: "${data.doneTask}", value2: " 已处理的申诉"),
                 const SizedBox(height: 6), // 减少间距
-                _ReportRichText(
+                _ProgressRichText(
                     value1: "${data.undoneTask}", value2: " 未处理的申诉"),
               ],
             ),
@@ -97,8 +97,8 @@ class ProgressReportCard extends StatelessWidget {
 }
 
 // 定义富文本组件，用于显示带有强调的文本
-class _ReportRichText extends StatelessWidget {
-  const _ReportRichText({
+class _ProgressRichText extends StatelessWidget {
+  const _ProgressRichText({
     required this.value1,
     required this.value2,
   });

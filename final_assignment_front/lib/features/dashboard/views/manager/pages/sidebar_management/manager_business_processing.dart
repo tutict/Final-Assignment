@@ -1,9 +1,9 @@
 import 'package:final_assignment_front/features/dashboard/bindings/manager_dashboard_binding.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
-import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/appeal_management.dart';
-import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/deduction_management.dart';
-import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/driver_list.dart';
-import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/fine_list.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/manager_appeal_management_page.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/deduction_management_page.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/driver_list_page.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/fine_list_page.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/offense_list.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/vehicle_list.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';

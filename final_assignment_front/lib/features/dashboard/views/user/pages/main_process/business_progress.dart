@@ -4,7 +4,7 @@ import 'package:get/get.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/user/pages/main_process/fine_information.dart';
 import 'package:final_assignment_front/features/dashboard/views/user/pages/main_process/user_appeal.dart';
-import 'package:final_assignment_front/features/dashboard/views/user/pages/main_process/vehicle_management.dart';
+import 'package:final_assignment_front/features/dashboard/views/user/pages/main_process/vehicle_management_page.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 
 class BusinessProgressPage extends StatefulWidget {

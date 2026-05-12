@@ -99,13 +99,13 @@ class CaseCard extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min, // 限制宽度为最小值
                 children: [
-                  _CaseIconButton(
+                  _CaseActionIconButton(
                     iconData: EvaIcons.messageCircleOutline, // 评论图标
                     onPressed: onPressedComments,
                     totalContributors: data.totalComments, // 评论数量
                   ),
                   const SizedBox(width: kSpacing / 2), // 水平间距
-                  _CaseIconButton(
+                  _CaseActionIconButton(
                     iconData: EvaIcons.peopleOutline, // 贡献者图标
                     onPressed: onPressedContributors,
                     totalContributors: data.totalContributors, // 贡献者数量
@@ -215,8 +215,8 @@ class _Tile extends StatelessWidget {
 /// - `iconData`: 图标的图标数据。
 /// - `totalContributors`: 显示的数字，通常是评论数或贡献者数。
 /// - `onPressed`: 点击按钮时的回调函数。
-class _CaseIconButton extends StatelessWidget {
-  const _CaseIconButton({
+class _CaseActionIconButton extends StatelessWidget {
+  const _CaseActionIconButton({
     required this.iconData,
     required this.totalContributors,
     required this.onPressed,

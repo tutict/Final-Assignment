@@ -56,7 +56,7 @@ class _SelectionButtonState extends State<SelectionButton> {
 
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          child: _SelectionButton(
+          child: _SelectionOptionButton(
             selected: selected == index,
             onPressed: () {
               widget.onSelected(index, data);
@@ -77,8 +77,8 @@ void navigateToPage(String routeName) {
 }
 
 // 定义实际渲染的按钮组件
-class _SelectionButton extends StatelessWidget {
-  const _SelectionButton({
+class _SelectionOptionButton extends StatelessWidget {
+  const _SelectionOptionButton({
     required this.selected,
     required this.data,
     required this.onPressed,

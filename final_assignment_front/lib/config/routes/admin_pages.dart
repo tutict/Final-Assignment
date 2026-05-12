@@ -1,9 +1,9 @@
-import 'package:final_assignment_front/features/dashboard/views/manager/pages/backup_and_restore.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager/pages/backup_and_restore_page.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/logs/login_log_page.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/logs/operation_log_page.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/logs/system_log_page.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/manager_personal_page.dart';
-import 'package:final_assignment_front/features/dashboard/views/manager/pages/manager_setting.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager/pages/manager_setting_page.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/sidebar_management/log_management.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/sidebar_management/user_management_page.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/components/ai_chat.dart';

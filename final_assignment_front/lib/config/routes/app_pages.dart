@@ -1,6 +1,6 @@
 import 'package:final_assignment_front/features/dashboard/views/manager/manager_dashboard_screen.dart';
-import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/appeal_management.dart';
-import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/driver_list.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/manager_appeal_management_page.dart';
+import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/driver_list_page.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/offense_list.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/main_process/vehicle_list.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/progress_management.dart';
@@ -11,7 +11,7 @@ import 'package:final_assignment_front/features/dashboard/views/user/pages/main_
 import 'package:final_assignment_front/features/dashboard/views/user/pages/main_process/fine_information.dart';
 import 'package:final_assignment_front/features/dashboard/views/user/pages/main_process/online_processing_progress.dart';
 import 'package:final_assignment_front/features/dashboard/views/user/pages/main_process/user_offense_list_page.dart';
-import 'package:final_assignment_front/features/dashboard/views/user/pages/main_process/vehicle_management.dart';
+import 'package:final_assignment_front/features/dashboard/views/user/pages/main_process/vehicle_management_page.dart';
 import 'package:final_assignment_front/features/dashboard/views/user/pages/news/accident_evidence_page.dart';
 import 'package:final_assignment_front/features/dashboard/views/user/pages/news/accident_progress_page.dart';
 import 'package:final_assignment_front/features/dashboard/views/user/pages/news/accident_quick_guide_page.dart';
