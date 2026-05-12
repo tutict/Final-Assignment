@@ -1,6 +1,9 @@
-﻿import axios from 'axios';
+import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081';
+
+let logoutCallback = null;
+let navigateCallback = null;
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -9,6 +12,22 @@ const api = axios.create({
   },
   timeout: 15000,
 });
+
+export function setAuthCallbacks({ onLogout, onNavigate } = {}) {
+  logoutCallback = typeof onLogout === 'function' ? onLogout : null;
+  navigateCallback = typeof onNavigate === 'function' ? onNavigate : null;
+}
+
+export function clearStoredAuth() {
+  localStorage.removeItem('authToken');
+  localStorage.removeItem('userRole');
+  localStorage.removeItem('userName');
+  localStorage.removeItem('userEmail');
+  localStorage.removeItem('driverName');
+  localStorage.removeItem('userId');
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+}
 
 export function setAuthToken(token) {
   if (token) {
@@ -29,10 +48,20 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error?.response?.status === 401) {
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('userRole');
+    const status = error?.response?.status;
+
+    if (status === 401) {
+      clearStoredAuth();
+      setAuthToken(null);
+      logoutCallback?.();
+      navigateCallback?.('/login');
+      return Promise.reject(error);
     }
+
+    if (status === 403) {
+      return Promise.reject(Object.assign(error, { isForbidden: true }));
+    }
+
     return Promise.reject(error);
   }
 );
@@ -45,4 +74,3 @@ export function generateIdempotencyKey() {
 }
 
 export { api };
-

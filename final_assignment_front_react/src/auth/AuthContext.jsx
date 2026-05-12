@@ -1,7 +1,15 @@
-﻿import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import { jwtDecode } from 'jwt-decode';
+import { useNavigate } from 'react-router-dom';
 import { login as loginApi, register as registerApi } from '../api/auth';
-import { setAuthToken } from '../api/client';
+import { clearStoredAuth, setAuthCallbacks, setAuthToken } from '../api/client';
 import { ROLES } from '../constants/roles.js';
 
 const AuthContext = createContext(null);
@@ -42,8 +50,18 @@ function loadStoredAuth() {
 }
 
 export function AuthProvider({ children }) {
+  const navigate = useNavigate();
   const [auth, setAuth] = useState(() => loadStoredAuth());
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setAuthCallbacks({
+      onLogout: () => setAuth(null),
+      onNavigate: (path) => navigate(path, { replace: true }),
+    });
+
+    return () => setAuthCallbacks();
+  }, [navigate]);
 
   useEffect(() => {
     if (auth?.token) {
@@ -117,12 +135,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   const logout = useCallback(() => {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('userRole');
-    localStorage.removeItem('userName');
-    localStorage.removeItem('userEmail');
-    localStorage.removeItem('driverName');
-    localStorage.removeItem('userId');
+    clearStoredAuth();
     setAuth(null);
   }, []);
 
@@ -150,4 +163,3 @@ export function useAuth() {
   }
   return ctx;
 }
-

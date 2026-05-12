@@ -1,6 +1,8 @@
 import React, { Suspense, lazy } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import ProtectedRoute from './auth/ProtectedRoute.jsx';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
+import PageErrorFallback from './components/PageErrorFallback.jsx';
 import { ROLES } from './constants/roles.js';
 import LoginPage from './pages/shared/LoginPage.jsx';
 
@@ -63,6 +65,14 @@ function renderLazyPage(LazyComponent, props) {
   );
 }
 
+function renderBoundedPage(LazyComponent, pageName, props) {
+  return (
+    <ErrorBoundary fallback={<PageErrorFallback pageName={pageName} />}>
+      {renderLazyPage(LazyComponent, props)}
+    </ErrorBoundary>
+  );
+}
+
 const newsContent = {
   accidentEvidencePage: [
     { heading: '现场证据采集', content: '拍摄现场全景、车辆位置、损伤部位和路面标识。' },
@@ -105,13 +115,13 @@ export default function App() {
           </ProtectedRoute>
         }
       >
-        <Route path="/dashboard" element={renderLazyPage(ManagerDashboardPage)} />
+        <Route path="/dashboard" element={renderBoundedPage(ManagerDashboardPage, '管理端首页')} />
         <Route path="/trafficViolationScreen" element={renderLazyPage(TrafficViolationScreenPage)} />
-        <Route path="/appealManagement" element={renderLazyPage(AppealManagementPage)} />
+        <Route path="/appealManagement" element={renderBoundedPage(AppealManagementPage, '申诉管理')} />
         <Route path="/deductionManagement" element={renderLazyPage(DeductionManagementPage)} />
         <Route path="/driverList" element={renderLazyPage(DriverListPage)} />
-        <Route path="/fineList" element={renderLazyPage(FineListPage)} />
-        <Route path="/offenseList" element={renderLazyPage(OffenseListPage)} />
+        <Route path="/fineList" element={renderBoundedPage(FineListPage, '罚款管理')} />
+        <Route path="/offenseList" element={renderBoundedPage(OffenseListPage, '违法记录')} />
         <Route path="/vehicleList" element={renderLazyPage(VehicleListPage)} />
         <Route path="/progressManagement" element={renderLazyPage(ProgressManagementPage)} />
         <Route path="/managerBusinessProcessing" element={renderLazyPage(ManagerBusinessProcessingPage)} />
@@ -136,7 +146,7 @@ export default function App() {
         <Route path="userManagementPage" element={renderLazyPage(UserManagementPage)} />
         <Route path="loginLogPage" element={renderLazyPage(LoginLogPage)} />
         <Route path="operationLogPage" element={renderLazyPage(OperationLogPage)} />
-        <Route path="systemLogPage" element={renderLazyPage(SystemLogPage)} />
+        <Route path="systemLogPage" element={renderBoundedPage(SystemLogPage, '系统日志')} />
         <Route path="roleManagement" element={renderLazyPage(RoleManagementPage)} />
         <Route path="permissionManagement" element={renderLazyPage(PermissionManagementPage)} />
         <Route path="systemSettings" element={renderLazyPage(SystemSettingsPage)} />
@@ -152,9 +162,9 @@ export default function App() {
         }
       >
         <Route path="/userDashboard" element={renderLazyPage(UserDashboardPage)} />
-        <Route path="/userOffenseListPage" element={renderLazyPage(UserOffenseListPage)} />
+        <Route path="/userOffenseListPage" element={renderBoundedPage(UserOffenseListPage, '违法记录')} />
         <Route path="/vehicleManagement" element={renderLazyPage(VehicleManagementPage)} />
-        <Route path="/fineInformation" element={renderLazyPage(FineInformationPage)} />
+        <Route path="/fineInformation" element={renderBoundedPage(FineInformationPage, '罚款信息')} />
         <Route path="/businessProgress" element={renderLazyPage(BusinessProgressPage)} />
         <Route path="/onlineProcessingProgress" element={renderLazyPage(OnlineProcessingProgressPage)} />
         <Route path="/onlineProcessing" element={renderLazyPage(OnlineProcessingPage)} />

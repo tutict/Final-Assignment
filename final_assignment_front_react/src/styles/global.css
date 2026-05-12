@@ -410,6 +410,31 @@ a {
   color: var(--danger);
 }
 
+.error-fallback,
+.error-state {
+  padding: 20px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--danger) 10%, var(--panel));
+  border: 1px solid color-mix(in srgb, var(--danger) 35%, var(--border));
+  color: var(--text);
+}
+
+.error-fallback {
+  text-align: center;
+}
+
+.error-fallback p {
+  margin: 0 0 12px;
+}
+
+.error-state {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 12px 0;
+}
+
 .placeholder {
   padding: 20px;
   border-radius: 14px;
