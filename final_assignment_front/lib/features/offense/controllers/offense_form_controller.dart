@@ -141,10 +141,7 @@ class OffenseFormController extends BaseListController<OffenseInformation> {
             idempotencyKey: idempotencyKey,
           );
         } else {
-          await offenseApi.createOffense(
-            offenseInformation: payload,
-            idempotencyKey: idempotencyKey,
-          );
+          await offenseApi.createOffense(payload);
         }
         success = true;
       },

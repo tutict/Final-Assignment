@@ -95,25 +95,33 @@ class FineInformationControllerApi with BaseApiClient {
   }
 
   /// GET /api/fines - è·åææç½æ¬?(ç¨æ·åç®¡çå)
-  Future<List<FineInformation>> listFines() async {
+  Future<http.Response> _apiFinesGet({
+    Map<String, dynamic>? params,
+  }) async {
     const path = '/api/fines';
+    final queryParams = params?.entries
+            .where((entry) => entry.value != null)
+            .map((entry) => QueryParam(entry.key, entry.value.toString()))
+            .toList() ??
+        <QueryParam>[];
     final headerParams = await _getHeaders();
-    final response = await apiClient.invokeAPI(
+    return apiClient.invokeAPI(
       path,
       'GET',
-      [],
+      queryParams,
       null,
       headerParams,
       {},
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
-    if (response.body.isEmpty) return [];
-    final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
-    return jsonList.map((json) => FineInformation.fromJson(json)).toList();
+  }
+
+  Future<List<FineInformation>> listFines({
+    Map<String, dynamic>? params,
+  }) async {
+    final response = await _apiFinesGet(params: params);
+    return parseListResponse(response, FineInformation.fromJson);
   }
 
   /// PUT /api/fines/{fineId} - æ´æ°ç½æ¬¾ (ä»

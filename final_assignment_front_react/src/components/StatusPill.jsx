@@ -1,10 +1,11 @@
 import React from 'react';
 import clsx from 'clsx';
+import { STATUSES } from '../constants/statuses.js';
 import { STATUS, getStatusLabel } from '../utils/statusLabels.js';
 
-const SUCCESS_STATUSES = new Set([STATUS.SUCCESS, STATUS.APPROVED, STATUS.PAID]);
-const WARNING_STATUSES = new Set([STATUS.PENDING, STATUS.PROCESSING]);
-const DANGER_STATUSES = new Set([STATUS.FAILED, STATUS.REJECTED, STATUS.UNPAID]);
+const SUCCESS_STATUSES = new Set([STATUS.SUCCESS, STATUSES.APPROVED, STATUS.PAID]);
+const WARNING_STATUSES = new Set([STATUSES.PENDING, STATUS.PROCESSING]);
+const DANGER_STATUSES = new Set([STATUS.FAILED, STATUSES.REJECTED, STATUS.UNPAID]);
 
 export default function StatusPill({ value }) {
   const status = String(value || '');

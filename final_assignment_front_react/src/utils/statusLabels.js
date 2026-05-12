@@ -1,11 +1,13 @@
+import { STATUSES } from '../constants/statuses.js';
+
 export const STATUS = Object.freeze({
-  PENDING: 'Pending',
+  PENDING: STATUSES.PENDING,
   ACCEPTED: 'Accepted',
   NEED_SUPPLEMENT: 'Need_Supplement',
   UNPROCESSED: 'Unprocessed',
   UNDER_REVIEW: 'Under_Review',
-  APPROVED: 'Approved',
-  REJECTED: 'Rejected',
+  APPROVED: STATUSES.APPROVED,
+  REJECTED: STATUSES.REJECTED,
   WITHDRAWN: 'Withdrawn',
   UNPAID: 'Unpaid',
   PARTIAL: 'Partial',

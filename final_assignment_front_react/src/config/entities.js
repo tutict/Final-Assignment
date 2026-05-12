@@ -1,8 +1,10 @@
-﻿export const entityConfigs = {
+﻿import { API_PATHS } from '../constants/apiPaths.js';
+
+export const entityConfigs = {
   drivers: {
     key: 'drivers',
     label: '驾驶员信息',
-    basePath: '/api/drivers',
+    basePath: API_PATHS.DRIVERS,
     idField: 'driverId',
     displayFields: ['driverId', 'name', 'idCardNumber', 'contactNumber', 'driverLicenseNumber', 'licenseType', 'currentPoints', 'status'],
     editableFields: ['name', 'idCardNumber', 'gender', 'birthdate', 'contactNumber', 'email', 'address', 'driverLicenseNumber', 'licenseType', 'allowedVehicleType', 'firstLicenseDate', 'issueDate', 'expiryDate', 'issuingAuthority', 'status', 'remarks'],
@@ -36,7 +38,7 @@
   vehicles: {
     key: 'vehicles',
     label: '车辆信息',
-    basePath: '/api/vehicles',
+    basePath: API_PATHS.VEHICLES,
     idField: 'vehicleId',
     displayFields: ['vehicleId', 'licensePlate', 'vehicleType', 'brand', 'model', 'ownerName', 'ownerContact', 'status'],
     editableFields: ['licensePlate', 'plateColor', 'vehicleType', 'brand', 'model', 'vehicleColor', 'engineNumber', 'frameNumber', 'ownerName', 'ownerIdCard', 'ownerContact', 'ownerAddress', 'firstRegistrationDate', 'registrationDate', 'issuingAuthority', 'status', 'inspectionExpiryDate', 'insuranceExpiryDate', 'remarks'],
@@ -72,7 +74,7 @@
   offenses: {
     key: 'offenses',
     label: '违法记录',
-    basePath: '/api/offenses',
+    basePath: API_PATHS.OFFENSES,
     idField: 'offenseId',
     displayFields: ['offenseId', 'offenseNumber', 'offenseTime', 'offenseLocation', 'driverName', 'licensePlate', 'offenseType', 'fineAmount', 'deductedPoints', 'processStatus'],
     editableFields: ['offenseCode', 'offenseNumber', 'offenseTime', 'offenseLocation', 'offenseProvince', 'offenseCity', 'driverId', 'vehicleId', 'offenseDescription', 'evidenceType', 'evidenceUrls', 'enforcementAgency', 'fineAmount', 'deductedPoints', 'detentionDays', 'remarks'],
@@ -115,7 +117,7 @@
   deductions: {
     key: 'deductions',
     label: '扣分记录',
-    basePath: '/api/deductions',
+    basePath: API_PATHS.DEDUCTIONS,
     idField: 'deductionId',
     displayFields: ['deductionId', 'offenseId', 'driverId', 'deductedPoints', 'deductionTime', 'scoringCycle', 'status', 'handler'],
     editableFields: ['offenseId', 'driverId', 'deductedPoints', 'deductionTime', 'scoringCycle', 'status', 'restoreReason', 'remarks'],
@@ -141,7 +143,7 @@
   fines: {
     key: 'fines',
     label: '罚款记录',
-    basePath: '/api/fines',
+    basePath: API_PATHS.FINES,
     idField: 'fineId',
     displayFields: ['fineId', 'offenseId', 'fineNumber', 'fineAmount', 'lateFee', 'totalAmount', 'paymentDeadline', 'paymentStatus', 'status'],
     editableFields: ['offenseId', 'fineNumber', 'fineAmount', 'lateFee', 'totalAmount', 'fineDate', 'paymentDeadline', 'issuingAuthority', 'paymentStatus', 'status', 'remarks'],
@@ -177,7 +179,7 @@
   payments: {
     key: 'payments',
     label: '缴费记录',
-    basePath: '/api/payments',
+    basePath: API_PATHS.PAYMENTS,
     idField: 'paymentId',
     useCustomPage: true,
     displayFields: ['paymentId', 'fineId', 'paymentNumber', 'paymentAmount', 'paymentMethod', 'paymentTime', 'payerName', 'paymentStatus', 'receiptNumber'],
@@ -212,7 +214,7 @@
   offenseTypes: {
     key: 'offenseTypes',
     label: '违法类型字典',
-    basePath: '/api/offense-types',
+    basePath: API_PATHS.OFFENSE_TYPES,
     idField: 'typeId',
     displayFields: ['typeId', 'offenseCode', 'offenseName', 'category', 'standardFineAmount', 'deductedPoints', 'severityLevel', 'status'],
     editableFields: ['offenseCode', 'offenseName', 'category', 'description', 'standardFineAmount', 'minFineAmount', 'maxFineAmount', 'deductedPoints', 'detentionDays', 'licenseSuspensionDays', 'severityLevel', 'legalBasis', 'status', 'remarks'],
@@ -240,7 +242,7 @@
   appeals: {
     key: 'appeals',
     label: '申诉记录',
-    basePath: '/api/appeals',
+    basePath: API_PATHS.APPEAL_LIST,
     idField: 'appealId',
     displayFields: ['appealId', 'appealNumber', 'appellantName', 'appealType', 'appealTime', 'acceptanceStatus', 'processStatus', 'processResult'],
     editableFields: ['offenseId', 'appealNumber', 'appellantName', 'appellantIdCard', 'appellantContact', 'appellantEmail', 'appellantAddress', 'appealType', 'appealReason', 'appealTime', 'evidenceDescription', 'evidenceUrls'],
@@ -273,7 +275,7 @@
   progress: {
     key: 'progress',
     label: '业务进度',
-    basePath: '/api/progress',
+    basePath: API_PATHS.PROGRESS,
     idField: 'id',
     useCustomPage: true,
     displayFields: ['id', 'businessType', 'businessId', 'businessStatus', 'userId', 'createdTime', 'modifiedTime'],
@@ -297,7 +299,7 @@
   users: {
     key: 'users',
     label: '用户管理',
-    basePath: '/api/users',
+    basePath: API_PATHS.USERS,
     idField: 'userId',
     useCustomPage: true,
     displayFields: ['userId', 'username', 'realName', 'contactNumber', 'email', 'department', 'position', 'status', 'lastLoginTime'],
@@ -332,7 +334,7 @@
   roles: {
     key: 'roles',
     label: '角色管理',
-    basePath: '/api/roles',
+    basePath: API_PATHS.ROLES,
     idField: 'roleId',
     displayFields: ['roleId', 'roleCode', 'roleName', 'roleType', 'dataScope', 'status', 'sortOrder'],
     editableFields: ['roleCode', 'roleName', 'roleType', 'roleDescription', 'dataScope', 'status', 'sortOrder', 'remarks'],
@@ -356,7 +358,7 @@
   permissions: {
     key: 'permissions',
     label: '权限管理',
-    basePath: '/api/permissions',
+    basePath: API_PATHS.PERMISSIONS,
     idField: 'permissionId',
     displayFields: ['permissionId', 'permissionCode', 'permissionName', 'permissionType', 'menuPath', 'isVisible', 'status', 'sortOrder'],
     editableFields: ['parentId', 'permissionCode', 'permissionName', 'permissionType', 'permissionDescription', 'menuPath', 'menuIcon', 'component', 'isVisible', 'isExternal', 'sortOrder', 'status', 'remarks'],
@@ -387,7 +389,7 @@
   systemSettings: {
     key: 'systemSettings',
     label: '系统设置',
-    basePath: '/api/system/settings',
+    basePath: API_PATHS.SYSTEM_SETTINGS,
     idField: 'settingId',
     displayFields: ['settingId', 'systemName', 'systemVersion', 'systemDescription', 'dateFormat', 'pageSize', 'loginTimeout', 'sessionTimeout', 'modifiedTime'],
     editableFields: ['systemName', 'systemDescription', 'copyrightInfo', 'loginTimeout', 'sessionTimeout', 'dateFormat', 'pageSize', 'remarks'],
@@ -423,7 +425,7 @@
   backups: {
     key: 'backups',
     label: '备份记录',
-    basePath: '/api/system/backup',
+    basePath: API_PATHS.SYSTEM_BACKUP,
     idField: 'backupId',
     displayFields: ['backupId', 'backupType', 'backupFileName', 'backupFileSize', 'backupTime', 'backupDuration', 'backupHandler', 'restoreStatus', 'status'],
     editableFields: [],
@@ -451,7 +453,7 @@
   loginLogs: {
     key: 'loginLogs',
     label: '登录日志',
-    basePath: '/api/logs/login',
+    basePath: API_PATHS.LOGIN_LOGS,
     idField: 'logId',
     displayFields: ['logId', 'username', 'loginTime', 'logoutTime', 'loginResult', 'failureReason', 'loginIp', 'loginLocation', 'browserType', 'osType', 'deviceType'],
     editableFields: [],
@@ -480,7 +482,7 @@
   operationLogs: {
     key: 'operationLogs',
     label: '操作日志',
-    basePath: '/api/logs/operation',
+    basePath: API_PATHS.OPERATION_LOGS,
     idField: 'logId',
     displayFields: ['logId', 'operationType', 'operationModule', 'operationFunction', 'operationContent', 'operationTime', 'username', 'requestMethod', 'requestUrl', 'requestIp', 'operationResult', 'errorMessage', 'executionTime'],
     editableFields: [],
@@ -512,7 +514,7 @@
   systemLogs: {
     key: 'systemLogs',
     label: '系统日志',
-    basePath: '/api/system/logs',
+    basePath: API_PATHS.SYSTEM_LOGS,
     idField: 'id',
     useCustomPage: true,
     displayFields: ['logId', 'logType', 'logContent', 'operationTime', 'operationUser', 'operationIpAddress', 'remarks'],

@@ -1120,6 +1120,41 @@ class UserManagementControllerApi with BaseApiClient {
     }
   }
 
+  Future<UserManagement?> _getCurrentUserViaEventbus({
+    required String username,
+  }) async {
+    final msg = {
+      "service": "UserManagementService",
+      "action": "getCurrentUser",
+      "args": [username],
+    };
+    try {
+      final respMap = await apiClient.sendWsMessage(msg);
+      debugPrint('WebSocket users me get response: $respMap');
+
+      if (respMap.containsKey("error")) {
+        throw ApiException(400, respMap["error"]);
+      }
+      if (respMap.containsKey("result") && respMap["result"] != null) {
+        return UserManagement.fromJson(respMap["result"]);
+      }
+      return null;
+    } catch (e) {
+      debugPrint('WebSocket users me get error: $e');
+      rethrow;
+    }
+  }
+
+  Future<UserManagement> getCurrentUser({
+    required String username,
+  }) async {
+    final user = await _getCurrentUserViaEventbus(username: username);
+    if (user == null) {
+      throw ApiException(404, "Current user not found");
+    }
+    return user;
+  }
+
   // updateCurrentUser (WebSocket)
   Future<void> eventbusUsersMePut({
     required String username,

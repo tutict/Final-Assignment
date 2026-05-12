@@ -3,6 +3,7 @@ import 'package:final_assignment_front/features/model/offense_information.dart';
 import 'package:final_assignment_front/features/model/vehicle_information.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
+import 'package:http/http.dart' as http;
 
 final ApiClient defaultApiClient = ApiClient();
 
@@ -15,26 +16,35 @@ class OffenseInformationControllerApi with BaseApiClient {
 
   Future<void> initializeWithJwt() => initializeClientWithJwt();
 
-  Future<void> createOffense({
-    required OffenseInformation offenseInformation,
-    required String idempotencyKey,
-  }) async {
-    final response = await apiClient.invokeAPI(
+  Future<http.Response> _apiOffensesPost(OffenseInformation body) async {
+    final idempotencyKey = resolveIdempotencyKey(body.idempotencyKey);
+    return apiClient.invokeAPI(
       '/api/offenses',
       'POST',
       idempotencyParams(idempotencyKey),
-      offenseInformation.toJson(),
+      body.toJson(),
       await getHeaders(idempotencyKey: idempotencyKey),
       const {},
       'application/json',
       const ['bearerAuth'],
     );
-    ensureSuccess(
+  }
+
+  Future<OffenseInformation> createOffense(OffenseInformation body) async {
+    final response = await _apiOffensesPost(body);
+    final statusMessages = {
+      400: 'Invalid request data',
+      409:
+          'Duplicate request detected with idempotencyKey: ${body.idempotencyKey}',
+    };
+    if (decodeBodyBytes(response).trim().isEmpty) {
+      ensureSuccess(response, statusMessages: statusMessages);
+      return body;
+    }
+    return parseResponse(
       response,
-      statusMessages: {
-        400: 'Invalid request data',
-        409: 'Duplicate request detected with idempotencyKey: $idempotencyKey',
-      },
+      OffenseInformation.fromJson,
+      statusMessages: statusMessages,
     );
   }
 
