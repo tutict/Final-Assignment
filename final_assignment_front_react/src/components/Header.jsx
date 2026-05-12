@@ -3,6 +3,20 @@ import { FiSun, FiMoon, FiUser } from 'react-icons/fi';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { ROLES } from '../constants/roles.js';
 
+/**
+ * @component Header
+ * @description 应用顶部头部栏，展示标题、主题切换按钮和当前用户信息。
+ *
+ * @param {{
+ *   title: string,
+ *   subtitle?: string,
+ *   onToggleTheme: () => void,
+ *   theme: string,
+ * }} props - 页面标题、辅助标题、主题切换回调和当前主题标识。
+ *
+ * @notes
+ * - 当前没有 actions/onBack prop；右侧区域固定为主题切换和用户信息。
+ */
 export default function Header({ title, subtitle, onToggleTheme, theme }) {
   const { auth } = useAuth();
   const userName = auth?.driverName || auth?.userName || '访客';

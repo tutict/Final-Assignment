@@ -1,11 +1,31 @@
+/// 请求历史数据模型。
+/// 对应后端实体/DTO：com.tutict.finalassignmentbackend.entity.SysRequestHistory
+/// 对应 API：GET /api/progress、GET /api/system/logs/requests/{historyId}
+///
+/// 注意：[idempotencyKey] 用于幂等控制；[businessStatus] 是业务层状态，
+/// 不等同于 HTTP 状态码。
 class SysRequestHistoryModel {
   final int? id;
+
+  /// 幂等键，由后端在创建记录时自动生成。
+  /// 用于防止重复提交，前端不应手动设置此字段。
+  /// 对应后端字段：idempotencyKey
   final String? idempotencyKey;
   final String? requestMethod;
   final String? requestUrl;
+
+  /// 请求参数快照。
+  /// 可能包含业务入参或敏感信息，前端展示、日志输出前应按后端脱敏规则处理。
+  /// 对应后端字段：requestParams
+  /// @todo 需后端确认该字段是否可能包含身份证号、手机号、令牌等敏感信息。
   final String? requestParams;
   final String? businessType;
   final int? businessId;
+
+  /// 业务层处理状态。
+  /// 常见值：PROCESSING（处理中）/ SUCCESS（成功）/ FAILED（失败）
+  /// 区别于 HTTP 状态码：本字段描述业务幂等处理结果，不表示网络请求响应码。
+  /// 对应后端字段：businessStatus
   final String? businessStatus;
   final int? userId;
   final String? requestIp;

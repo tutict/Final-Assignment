@@ -1,12 +1,33 @@
+/// 违法记录数据模型。
+/// 对应后端实体/DTO：com.tutict.finalassignmentbackend.entity.OffenseRecord
+/// 对应 API：GET /api/offenses、POST /api/offenses
+///
+/// 注意：[processStatus] 和 [idempotencyKey] 由后端控制，前端只读。
 class OffenseInformation {
+  /// 违法记录主键，用于标识本条违法记录。
+  /// 与 [driverId]、[vehicleId] 是关联关系：本字段是违法记录 ID，
+  /// [driverId] 指向驾驶员，[vehicleId] 指向车辆。
+  /// 对应后端字段：offenseId
   final int? offenseId;
   final String? offenseCode;
   final String? offenseNumber;
+
+  /// 违法实际发生时间。
+  /// 区别于 [createdAt]：本字段是业务发生时间，[createdAt] 是记录创建时间。
+  /// 对应后端字段：offenseTime
   final DateTime? offenseTime;
   final String? offenseLocation;
   final String? offenseProvince;
   final String? offenseCity;
+
+  /// 关联驾驶员 ID，指向本次违法涉及的驾驶员。
+  /// 与 [offenseId]、[vehicleId] 共同描述“哪位驾驶员驾驶哪辆车产生哪条违法记录”。
+  /// 对应后端字段：driverId
   final int? driverId;
+
+  /// 关联车辆 ID，指向本次违法涉及的车辆。
+  /// 与 [offenseId]、[driverId] 共同描述“哪位驾驶员驾驶哪辆车产生哪条违法记录”。
+  /// 对应后端字段：vehicleId
   final int? vehicleId;
   final String? offenseDescription;
   final String? evidenceType;
@@ -14,7 +35,18 @@ class OffenseInformation {
   final String? enforcementAgency;
   final String? enforcementOfficer;
   final String? enforcementDevice;
+
+  /// 违法记录当前处理状态。
+  /// 枚举值：Unprocessed（未处理）/ Processing（处理中）/ Processed（已处理）/
+  /// Appealing（申诉中）/ Appeal_Approved（申诉通过）/ Appeal_Rejected（申诉驳回）/ Cancelled（已取消）
+  /// 由后端 workflow/state machine 控制，前端只读，不可在表单中直接修改。
+  /// 对应后端字段：processStatus
   final String? processStatus;
+
+  /// 通知状态，表示违法通知送达进度。
+  /// 枚举值：Not_Sent（未通知）/ Sent（已发送）/ Received（已送达）/ Confirmed（已确认）
+  /// 对应后端字段：notificationStatus
+  /// @todo 后端当前枚举未暴露“通知失败”值，需确认失败场景是否使用额外状态。
   final String? notificationStatus;
   final DateTime? notificationTime;
   final double? fineAmount;
@@ -23,6 +55,10 @@ class OffenseInformation {
   final DateTime? processTime;
   final String? processHandler;
   final String? processResult;
+
+  /// 记录创建时间，由后端生成。
+  /// 区别于 [offenseTime]：本字段表示记录进入系统的时间，不代表违法发生时间。
+  /// 对应后端字段：createdAt
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final String? createdBy;
@@ -30,10 +66,14 @@ class OffenseInformation {
   final DateTime? deletedAt;
   final String? remarks;
 
-  // 兼容前端其他页面仍需展示的聚合字段
+  /// 兼容前端其他页面仍需展示的聚合字段。
   final String? licensePlate;
   final String? driverName;
   final String? offenseType;
+
+  /// 幂等键，由后端在创建记录时自动生成。
+  /// 用于防止重复提交，前端不应手动设置此字段。
+  /// 对应后端字段：idempotencyKey
   final String? idempotencyKey;
 
   const OffenseInformation({

@@ -15,6 +15,21 @@ function isMultiline(name) {
   return markers.some((marker) => name.toLowerCase().includes(marker));
 }
 
+/**
+ * @component EntityForm
+ * @description 根据实体字段配置渲染编辑表单，负责字段输入类型推断、只读控制和表单值回写。
+ *
+ * @param {{
+ *   fields: Array<{ name: string, label?: string, type?: string, readOnly?: boolean }>,
+ *   value: Record<string, unknown>,
+ *   onChange: (name: string, value: unknown) => void,
+ *   disabledFields?: Array<string>,
+ * }} props - 表单字段配置、当前值和变更回调。
+ *
+ * @notes
+ * - 当前组件使用 value/onChange/disabledFields，不支持 initialValues/onSubmit/isLoading/mode。
+ * - 字段输入类型由 field.type 和 field.name 推断。
+ */
 export default function EntityForm({ fields, value, onChange, disabledFields }) {
   return (
     <div className="form-grid">

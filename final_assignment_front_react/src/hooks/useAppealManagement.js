@@ -1,3 +1,35 @@
+/**
+ * @hook useAppealManagement
+ * @description 管理端申诉审批页专用 Hook，聚合违法记录与其申诉记录并提供审批/驳回工作流操作。
+ *
+ * @param {{
+ *   offenseLimit?: number,
+ *   appealParams?: { page?: number, size?: number },
+ * }} [options] - 查询选项；offenseLimit 限制参与聚合的违法记录数量，appealParams 透传给申诉列表查询。
+ *
+ * @returns {{
+ *   data: Array<Object & { offense: Object }>,  // 申诉列表；每条为 AppealRecord 字段并附加 offense，offense 是对应 OffenseInformation 对象
+ *   isLoading: boolean,  // 首次加载状态
+ *   isFetching: boolean,  // 后台刷新状态
+ *   isError: boolean,  // 查询是否失败
+ *   error: unknown,  // React Query 暴露的查询错误
+ *   approve: (appealOrId: number|string|{ appealId: number|string, offenseId?: number|string }) => Promise<unknown>,  // 触发 APPROVE workflow 事件
+ *   reject: (appealOrId: number|string|{ appealId: number|string, offenseId?: number|string }) => Promise<unknown>,  // 触发 REJECT workflow 事件
+ *   isUpdating: boolean,  // approve/reject mutation 进行中
+ *   refetch: () => Promise<unknown>,  // 重新拉取聚合列表
+ * }}
+ *
+ * @example
+ * const { data, isLoading, approve, reject, isUpdating } = useAppealManagement();
+ * await approve(data[0]);
+ *
+ * @notes
+ * - 仅用于管理端申诉审批页面；用户端申诉列表请使用 useUserAppeals。
+ * - data 是 appeal + offense 的聚合结构，来源为 offenses 列表与每条 offense 的 appeals 查询结果。
+ * - React Query queryKey 以 appealManagementKeys 管理：offenses 单独缓存，appeals/list 使用规范化参数缓存，byOffense 按 offenseId 和分页参数缓存。
+ * - approve/reject 不做提交前乐观更新；mutation 成功后写入 detail cache，并失效 listPrefix、legacy ['appeals'] 和对应 byOffense cache。
+ * - 默认只处理前 20 条有 offenseId 的违法记录，每条违法记录默认查询第 1 页、50 条申诉。
+ */
 import { useCallback } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { listEntities, postWithIdempotency } from '../api/entities.js';

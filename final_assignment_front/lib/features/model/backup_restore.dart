@@ -1,3 +1,9 @@
+/// 系统备份恢复数据模型。
+/// 对应后端实体/DTO：com.tutict.finalassignmentbackend.entity.SysBackupRestore
+/// 对应 API：GET /api/system/backup、POST /api/system/backup
+///
+/// 注意：[restoreStatus] 表示本次恢复操作状态，[status] 表示备份记录整体状态；
+/// [idempotencyKey] 由后端控制，前端只读。
 class BackupRestore {
   final int? backupId;
   final String? backupType;
@@ -9,14 +15,28 @@ class BackupRestore {
   final String? backupHandler;
   final DateTime? restoreTime;
   final int? restoreDuration;
+
+  /// 本次恢复操作的状态。
+  /// 枚举值：Success（恢复成功）/ Failed（恢复失败）/ Partial（部分恢复）
+  /// 区别于 [status]：本字段只描述恢复动作结果，不表示备份记录整体状态。
+  /// 对应后端字段：restoreStatus
   final String? restoreStatus;
   final String? restoreHandler;
   final String? errorMessage;
+
+  /// 备份记录整体状态。
+  /// 枚举值：Success（备份成功）/ Failed（备份失败）/ In_Progress（进行中）
+  /// 区别于 [restoreStatus]：本字段描述备份记录本身，不描述某次恢复操作结果。
+  /// 对应后端字段：status
   final String? status;
   final DateTime? createdTime;
   final DateTime? modifiedTime;
   final DateTime? deletedAt;
   final String? remarks;
+
+  /// 幂等键，由后端在创建记录时自动生成。
+  /// 用于防止重复提交，前端不应手动设置此字段。
+  /// 对应后端字段：idempotencyKey
   final String? idempotencyKey;
 
   const BackupRestore({

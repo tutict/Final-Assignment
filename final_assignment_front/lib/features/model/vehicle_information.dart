@@ -1,3 +1,9 @@
+/// 车辆信息数据模型。
+/// 对应后端实体/DTO：com.tutict.finalassignmentbackend.entity.VehicleInformation
+/// 对应 API：GET /api/vehicles、POST /api/vehicles
+///
+/// 注意：[status] 表示车辆当前状态；[plateStatusSnapshot] 是历史快照字段，
+/// 不应与当前状态混用。
 class VehicleInformation {
   final int? vehicleId;
   final String? licensePlate;
@@ -15,6 +21,11 @@ class VehicleInformation {
   final DateTime? firstRegistrationDate;
   final DateTime? registrationDate;
   final String? issuingAuthority;
+
+  /// 车辆当前状态。
+  /// 枚举值：Active（正常）/ Inactive（停用）/ Scrapped（报废）/ Stolen（被盗）/ Mortgaged（抵押）
+  /// 区别于 [plateStatusSnapshot]：本字段表示当前车辆状态。
+  /// 对应后端字段：status
   final String? status;
   final DateTime? inspectionExpiryDate;
   final DateTime? insuranceExpiryDate;
@@ -24,7 +35,11 @@ class VehicleInformation {
   final String? updatedBy;
   final DateTime? deletedAt;
   final String? remarks;
-  final String? plateStatusSnapshot; // legacy UI fields fallback
+
+  /// 车牌状态快照字段，记录违法发生时的车牌状态。
+  /// 不是车辆当前状态；当前状态以 [status] 为准，避免与 [currentStatus] 混淆。
+  /// 对应后端字段：currentStatus
+  final String? plateStatusSnapshot;
 
   const VehicleInformation({
     this.vehicleId,
@@ -61,7 +76,9 @@ class VehicleInformation {
   /// 兼容旧版字段：contactNumber -> ownerContact
   String? get contactNumber => ownerContact;
 
-  /// 兼容旧版字段：currentStatus -> status
+  /// 兼容旧版字段：currentStatus -> status。
+  /// 优先返回车辆当前状态 [status]；当旧接口只返回 [plateStatusSnapshot] 时作为回退。
+  /// 与 [plateStatusSnapshot] 的区别：本 getter 面向 UI 读取当前状态，不表示历史快照。
   String? get currentStatus => status ?? plateStatusSnapshot;
 
   VehicleInformation copyWith({

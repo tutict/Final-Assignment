@@ -1,17 +1,48 @@
+/// 罚款记录数据模型。
+/// 对应后端实体/DTO：com.tutict.finalassignmentbackend.entity.FineRecord
+/// 对应 API：GET /api/fines、POST /api/fines
+///
+/// 注意：[paymentStatus] 表示支付进度，[status] 表示罚单本身状态；
+/// [idempotencyKey] 由后端控制，前端只读。
 class FineInformation {
   final int? fineId;
   final int? offenseId;
   final String? fineNumber;
+
+  /// 基础罚款金额。
+  /// 通常与 [lateFee] 一起参与 [totalAmount] 的计算，最终金额以后端返回为准。
+  /// 对应后端字段：fineAmount
   final double? fineAmount;
+
+  /// 滞纳金金额。
+  /// 通常计入 [totalAmount]；是否产生滞纳金由后端根据缴款期限计算。
+  /// 对应后端字段：lateFee
   final double? lateFee;
+
+  /// 应缴总金额。
+  /// 通常为 [fineAmount] 与 [lateFee] 计算后的结果；如存在减免，以后端结果为准。
+  /// 对应后端字段：totalAmount
   final double? totalAmount;
   final DateTime? fineDate;
   final DateTime? paymentDeadline;
   final String? issuingAuthority;
   final String? handler;
   final String? approver;
+
+  /// 支付状态，表示罚款缴纳进度。
+  /// 枚举值：Unpaid（未支付）/ Partial（部分支付）/ Paid（已支付）/ Overdue（逾期）/ Waived（减免）
+  /// 区别于 [status]：本字段只描述支付进度，不表示罚单记录是否有效或作废。
+  /// 对应后端字段：paymentStatus
   final String? paymentStatus;
+
+  /// 已支付金额。
+  /// 通常用于和 [totalAmount] 一起计算 [unpaidAmount]，最终金额以后端返回为准。
+  /// 对应后端字段：paidAmount
   final double? paidAmount;
+
+  /// 未支付金额。
+  /// 通常为 [totalAmount] 扣除 [paidAmount] 后的结果，最终金额以后端返回为准。
+  /// 对应后端字段：unpaidAmount
   final double? unpaidAmount;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -20,13 +51,22 @@ class FineInformation {
   final DateTime? deletedAt;
   final String? remarks;
 
-  // legacy/扩展字段，兼容旧版前端仍依赖的属性
+  /// legacy/扩展字段，兼容旧版前端仍依赖的属性。
   final String? fineTime;
   final String? payee;
   final String? accountNumber;
   final String? bank;
   final String? receiptNumber;
+
+  /// 幂等键，由后端在创建记录时自动生成。
+  /// 用于防止重复提交，前端不应手动设置此字段。
+  /// 对应后端字段：idempotencyKey
   final String? idempotencyKey;
+
+  /// 罚单状态，表示罚单记录是否有效、作废或减免。
+  /// 区别于 [paymentStatus]：本字段描述罚单本身状态，不表示支付进度。
+  /// 对应后端字段：status
+  /// @todo 后端 FineRecord 当前未显式声明 status 字段，需确认枚举值与来源。
   final String? status;
 
   const FineInformation({

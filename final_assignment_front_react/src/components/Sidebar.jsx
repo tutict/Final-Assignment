@@ -3,6 +3,19 @@ import { NavLink } from 'react-router-dom';
 import clsx from 'clsx';
 import { useAuth } from '../auth/AuthContext.jsx';
 
+/**
+ * @component SidebarItem
+ * @description 侧边导航单项，负责渲染图标、标签和路由链接。
+ *
+ * @param {{
+ *   item: {
+ *     label: string,
+ *     path: string,
+ *     icon?: React.ComponentType,
+ *     isLogout?: boolean,
+ *   },
+ * }} props - 单个导航项配置。
+ */
 function SidebarItem({ item }) {
   const Icon = item.icon;
   return (
@@ -18,6 +31,20 @@ function SidebarItem({ item }) {
   );
 }
 
+/**
+ * @component Sidebar
+ * @description 应用侧边导航栏，渲染主导航与快捷入口并支持退出登录项。
+ *
+ * @param {{
+ *   title: string,
+ *   items: Array<{ label: string, path: string, icon?: React.ComponentType, isLogout?: boolean }>,
+ *   footerItems?: Array<{ label: string, path: string, icon?: React.ComponentType, isLogout?: boolean }>,
+ * }} props - 导航分组标题、主导航和快捷入口。
+ *
+ * @notes
+ * - 当前没有 collapsed/activePath prop；激活态由 NavLink 根据路由自动判断。
+ * - 导航项结构使用 items/footerItems，不是 navItems。
+ */
 export default function Sidebar({ title, items, footerItems }) {
   const { logout } = useAuth();
 
