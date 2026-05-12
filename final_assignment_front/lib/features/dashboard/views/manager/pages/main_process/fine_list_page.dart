@@ -274,7 +274,6 @@ class _FineListState extends State<FineListPage> {
       setState(() {
         if (e.toString().contains('403')) {
           _errorMessage = '未授权，请重新登录';
-          Navigator.pushReplacementNamed(context, Routes.login);
         } else if (e.toString().contains('404')) {
           _errorMessage = '未找到罚款记录';
           _hasMore = false;

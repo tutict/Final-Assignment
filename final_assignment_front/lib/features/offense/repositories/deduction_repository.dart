@@ -2,7 +2,6 @@ import 'package:final_assignment_front/core/errors/app_exception.dart';
 import 'package:final_assignment_front/core/repository/base_repository.dart';
 import 'package:final_assignment_front/features/api/deduction_information_controller_api.dart';
 import 'package:final_assignment_front/features/model/deduction_record.dart';
-import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
@@ -101,10 +100,18 @@ class DeductionRepositoryImpl extends BaseRepository
     return guard(() async {
       final token = await AuthTokenStore.instance.getJwtToken();
       if (token == null || token.isEmpty) {
-        throw const AppException('未授权，请重新登录', statusCode: 401);
+        throw const AppException(
+          type: AppErrorType.unauthorized,
+          message: '未授权，请重新登录',
+          statusCode: 401,
+        );
       }
       if (JwtDecoder.isExpired(token)) {
-        throw const AppException('登录已过期，请重新登录', statusCode: 401);
+        throw const AppException(
+          type: AppErrorType.unauthorized,
+          message: '登录已过期，请重新登录',
+          statusCode: 401,
+        );
       }
 
       final decoded = JwtDecoder.decode(token);
@@ -324,7 +331,7 @@ class DeductionRepositoryImpl extends BaseRepository
   }
 
   Future<void> _clearCacheUnsafe() async {
-    final response = await _apiClient.invokeAPI(
+    await _apiClient.invokeAPI(
       '/api/cache/clear',
       'POST',
       const [],
@@ -334,10 +341,6 @@ class DeductionRepositoryImpl extends BaseRepository
       null,
       const ['bearerAuth'],
     );
-
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, response.body);
-    }
   }
 
   List<DeductionRecordModel> _sortByDeductionTimeDesc(

@@ -33,7 +33,11 @@ class DeductionController extends BaseListController<DeductionRecordModel> {
       await _repository.initializeWithJwt();
       isAdmin.value = await _repository.isCurrentUserAdmin();
       if (!isAdmin.value) {
-        throw const AppException('权限不足：仅管理员可访问此页面', statusCode: 403);
+        throw const AppException(
+          type: AppErrorType.forbidden,
+          message: '权限不足：仅管理员可访问此页面',
+          statusCode: 403,
+        );
       }
       await loadDeductions(reset: true, manageLoading: false);
     });

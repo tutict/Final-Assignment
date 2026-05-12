@@ -124,6 +124,7 @@ class AppealManagementControllerApi with BaseApiClient {
       const {},
       null,
       ['bearerAuth'],
+      passThroughStatusCodes: const {404},
     );
     if (response.statusCode == 404) {
       return null;
@@ -159,6 +160,7 @@ class AppealManagementControllerApi with BaseApiClient {
       const {},
       null,
       ['bearerAuth'],
+      passThroughStatusCodes: const {404},
     );
     if (response.statusCode == 404) {
       return [];
@@ -455,6 +457,7 @@ class AppealManagementControllerApi with BaseApiClient {
       const {},
       null,
       ['bearerAuth'],
+      passThroughStatusCodes: const {404},
     );
     if (response.statusCode == 404) {
       return null;
@@ -478,6 +481,7 @@ class AppealManagementControllerApi with BaseApiClient {
       const {},
       null,
       ['bearerAuth'],
+      passThroughStatusCodes: const {404},
     );
     if (response.statusCode == 404) {
       return [];

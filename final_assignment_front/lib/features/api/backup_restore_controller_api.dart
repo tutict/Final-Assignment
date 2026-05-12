@@ -113,6 +113,7 @@ class BackupRestoreControllerApi with BaseApiClient {
       const {},
       null,
       ['bearerAuth'],
+      passThroughStatusCodes: const {404},
     );
     if (response.statusCode == 404) {
       return null;
@@ -140,6 +141,7 @@ class BackupRestoreControllerApi with BaseApiClient {
       const {},
       null,
       ['bearerAuth'],
+      passThroughStatusCodes: const {404},
     );
     if (response.statusCode == 404) {
       return [];

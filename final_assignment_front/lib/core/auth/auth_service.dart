@@ -176,6 +176,17 @@ class AuthService extends GetxService {
     await redirectToLogin(clearStoredTokens: false);
   }
 
+  Future<void> handleUnauthorized({String? source}) async {
+    if (_isRedirecting || Get.currentRoute == Routes.login) {
+      return;
+    }
+
+    developer.log(
+      'Handling 401${source == null ? '' : ' from $source'}',
+    );
+    await redirectToLogin(clearStoredTokens: true);
+  }
+
   Future<void> redirectToLogin({bool clearStoredTokens = true}) async {
     if (_isRedirecting || Get.currentRoute == Routes.login) {
       return;

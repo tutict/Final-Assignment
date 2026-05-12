@@ -51,7 +51,7 @@ class FineInformationControllerApi with BaseApiClient {
   }) async {
     const path = '/api/fines';
     final headerParams = await _getHeaders();
-    final response = await apiClient.invokeAPI(
+    await apiClient.invokeAPI(
       path,
       'POST',
       _addIdempotencyKey(idempotencyKey),
@@ -61,9 +61,6 @@ class FineInformationControllerApi with BaseApiClient {
       'application/json',
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
   }
 
   /// GET /api/fines/{fineId} - è·åç½æ¬¾ä¿¡æ¯ (ç¨æ·åç®¡çå)
@@ -81,12 +78,10 @@ class FineInformationControllerApi with BaseApiClient {
       {},
       null,
       ['bearerAuth'],
+      passThroughStatusCodes: const {404},
     );
-    if (response.statusCode >= 400) {
-      if (response.statusCode == 404) {
-        return null; // Not found, return null
-      }
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    if (response.statusCode == 404) {
+      return null; // Not found, return null
     }
     if (response.body.isEmpty) return null;
     final data = apiClient.deserialize(
@@ -143,12 +138,6 @@ class FineInformationControllerApi with BaseApiClient {
       'application/json',
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      if (response.statusCode == 404) {
-        throw ApiException(404, "Fine not found with ID: $fineId");
-      }
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     final data = apiClient.deserialize(
         _decodeBodyBytes(response), 'Map<String, dynamic>');
     return FineInformation.fromJson(data);
@@ -161,7 +150,7 @@ class FineInformationControllerApi with BaseApiClient {
   }) async {
     final path = '/api/fines/$fineId';
     final headerParams = await _getHeaders();
-    final response = await apiClient.invokeAPI(
+    await apiClient.invokeAPI(
       path,
       'DELETE',
       [],
@@ -171,14 +160,6 @@ class FineInformationControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      if (response.statusCode == 404) {
-        throw ApiException(404, "Fine not found with ID: $fineId");
-      } else if (response.statusCode == 403) {
-        throw ApiException(403, "Unauthorized: Only ADMIN can delete fines");
-      }
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
   }
 
   /// GET /api/fines/payee/{payee} - æ ¹æ®ç¼´æ¬¾äººè·åç½æ¬?(ç¨æ·åç®¡çå)
@@ -200,9 +181,6 @@ class FineInformationControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     if (response.body.isEmpty) return [];
     final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
     return jsonList.map((json) => FineInformation.fromJson(json)).toList();
@@ -229,9 +207,6 @@ class FineInformationControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     if (response.body.isEmpty) return [];
     final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
     return jsonList.map((json) => FineInformation.fromJson(json)).toList();
@@ -256,12 +231,10 @@ class FineInformationControllerApi with BaseApiClient {
       {},
       null,
       ['bearerAuth'],
+      passThroughStatusCodes: const {404},
     );
-    if (response.statusCode >= 400) {
-      if (response.statusCode == 404) {
-        return null; // Not found, return null
-      }
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    if (response.statusCode == 404) {
+      return null; // Not found, return null
     }
     if (response.body.isEmpty) return null;
     final data = apiClient.deserialize(
@@ -287,9 +260,6 @@ class FineInformationControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     if (response.body.isEmpty) return [];
     final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
     return jsonList.map((json) => FineInformation.fromJson(json)).toList();
@@ -319,9 +289,6 @@ class FineInformationControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     if (response.body.isEmpty) return [];
     final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
     return jsonList.map((json) => FineInformation.fromJson(json)).toList();
@@ -349,9 +316,6 @@ class FineInformationControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     if (response.body.isEmpty) return [];
     final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
     return jsonList.map((json) => FineInformation.fromJson(json)).toList();
@@ -383,12 +347,6 @@ class FineInformationControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      if (response.statusCode == 204) {
-        return []; // No content, return empty list
-      }
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     if (response.body.isEmpty) return [];
     final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
     return jsonList.map((json) => FineInformation.fromJson(json)).toList();

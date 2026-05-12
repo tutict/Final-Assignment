@@ -123,8 +123,8 @@ class LogEventWriter {
           )
           .timeout(const Duration(seconds: 10));
 
-      if (response.statusCode == 403) {
-        await _authService.handleForbidden(source: uri.path);
+      if (response.statusCode == 401) {
+        await _authService.handleUnauthorized(source: uri.path);
       } else if (response.statusCode >= 400) {
         developer.log(
           'Failed to write system log: ${response.statusCode} ${response.body}',
@@ -195,8 +195,8 @@ class LogEventWriter {
           )
           .timeout(const Duration(seconds: 10));
 
-      if (response.statusCode == 403) {
-        await _authService.handleForbidden(source: uri.path);
+      if (response.statusCode == 401) {
+        await _authService.handleUnauthorized(source: uri.path);
       } else if (response.statusCode >= 400) {
         developer.log(
           'Failed to write operation log: ${response.statusCode} ${response.body}',
@@ -280,8 +280,8 @@ class ApiRequestLoggingInterceptor extends GetxService {
     required int statusCode,
     required int elapsedMilliseconds,
   }) async {
-    if (statusCode == 403 && !_isAuthRefresh(uri)) {
-      await authService.handleForbidden(source: uri.path);
+    if (statusCode == 401 && !_isAuthRefresh(uri)) {
+      await authService.handleUnauthorized(source: uri.path);
     }
 
     if (!_shouldLog(uri)) return;

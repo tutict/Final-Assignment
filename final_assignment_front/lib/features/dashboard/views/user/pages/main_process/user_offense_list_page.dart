@@ -239,7 +239,6 @@ class _UserOffenseListPageState extends State<UserOffenseListPage> {
           _hasMore = false;
         } else if (e.toString().contains('403')) {
           _errorMessage = '未授权，请重新登录';
-          Get.offAllNamed(Routes.login);
         } else {
           _errorMessage = '获取违法记录失败: ${_formatErrorMessage(e)}';
         }

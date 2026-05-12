@@ -41,10 +41,6 @@ class OffenseControllerApi with BaseApiClient {
         .toList();
   }
 
-  Never _handleError(http.Response response) {
-    return throwResponseError(response);
-  }
-
   // GET /api/violations - all offenses
   Future<List<OffenseInformation>> listOffenses() async {
     const path = '/api/violations';
@@ -59,7 +55,6 @@ class OffenseControllerApi with BaseApiClient {
       null,
       const ['bearerAuth'],
     );
-    if (response.statusCode >= 400) _handleError(response);
     if (response.body.isEmpty) return [];
     final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
     return jsonList.map((e) => OffenseInformation.fromJson(e)).toList();
@@ -82,7 +77,6 @@ class OffenseControllerApi with BaseApiClient {
       null,
       const ['bearerAuth'],
     );
-    if (response.statusCode >= 400) _handleError(response);
     if (response.body.isEmpty) return {};
     return jsonDecode(_decodeBodyBytes(response)) as Map<String, dynamic>;
   }
@@ -109,7 +103,6 @@ class OffenseControllerApi with BaseApiClient {
       null,
       const ['bearerAuth'],
     );
-    if (response.statusCode >= 400) _handleError(response);
     if (response.body.isEmpty) return [];
     final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
     return jsonList.map((e) => OffenseInformation.fromJson(e)).toList();

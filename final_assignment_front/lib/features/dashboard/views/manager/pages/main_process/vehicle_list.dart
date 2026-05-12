@@ -246,7 +246,6 @@ class _VehicleListState extends State<VehicleList> {
       setState(() {
         if (e.toString().contains('403')) {
           _errorMessage = '未授权，请重新登录';
-          Navigator.pushReplacementNamed(context, '/login');
         } else if (e.toString().contains('404')) {
           _vehicleList.clear();
           _filteredVehicleList.clear();

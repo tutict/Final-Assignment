@@ -116,6 +116,7 @@ class OffenseTypeControllerApi with BaseApiClient {
       const {},
       null,
       ['bearerAuth'],
+      passThroughStatusCodes: const {404},
     );
     if (response.statusCode == 404) return null;
     _ensureSuccess(response);

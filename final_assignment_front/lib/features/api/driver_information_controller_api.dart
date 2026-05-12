@@ -55,7 +55,7 @@ class DriverInformationControllerApi with BaseApiClient {
   }) async {
     const path = '/api/drivers';
     final headerParams = await _getHeaders();
-    final response = await apiClient.invokeAPI(
+    await apiClient.invokeAPI(
       path,
       'POST',
       _addIdempotencyKey(idempotencyKey),
@@ -65,13 +65,6 @@ class DriverInformationControllerApi with BaseApiClient {
       'application/json',
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      if (response.statusCode == 409) {
-        throw ApiException(409,
-            "Duplicate request detected with idempotencyKey: $idempotencyKey");
-      }
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
   }
 
   /// GET /api/drivers/{driverId} - æ ¹æ®IDè·åå¸æºä¿¡æ¯
@@ -89,12 +82,10 @@ class DriverInformationControllerApi with BaseApiClient {
       {},
       null,
       ['bearerAuth'],
+      passThroughStatusCodes: const {404},
     );
-    if (response.statusCode >= 400) {
-      if (response.statusCode == 404) {
-        return null; // Not found, return null
-      }
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
+    if (response.statusCode == 404) {
+      return null; // Not found, return null
     }
     if (response.body.isEmpty) return null;
     final data = apiClient.deserialize(
@@ -116,9 +107,6 @@ class DriverInformationControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     if (response.body.isEmpty) return [];
     final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
     return jsonList.map((json) => DriverInformation.fromJson(json)).toList();
@@ -132,7 +120,7 @@ class DriverInformationControllerApi with BaseApiClient {
   }) async {
     final path = '/api/drivers/$driverId/name';
     final headerParams = await _getHeaders();
-    final response = await apiClient.invokeAPI(
+    await apiClient.invokeAPI(
       path,
       'PUT',
       _addIdempotencyKey(idempotencyKey),
@@ -143,15 +131,6 @@ class DriverInformationControllerApi with BaseApiClient {
       'application/json',
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      if (response.statusCode == 404) {
-        throw ApiException(404, "Driver not found with ID: $driverId");
-      } else if (response.statusCode == 409) {
-        throw ApiException(409,
-            "Duplicate request detected with idempotencyKey: $idempotencyKey");
-      }
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
   }
 
   /// PUT /api/drivers/{driverId}/contactNumber - æ´æ°å¸æºèç³»çµè¯
@@ -162,7 +141,7 @@ class DriverInformationControllerApi with BaseApiClient {
   }) async {
     final path = '/api/drivers/$driverId/contactNumber';
     final headerParams = await _getHeaders();
-    final response = await apiClient.invokeAPI(
+    await apiClient.invokeAPI(
       path,
       'PUT',
       _addIdempotencyKey(idempotencyKey),
@@ -173,15 +152,6 @@ class DriverInformationControllerApi with BaseApiClient {
       'application/json',
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      if (response.statusCode == 404) {
-        throw ApiException(404, "Driver not found with ID: $driverId");
-      } else if (response.statusCode == 409) {
-        throw ApiException(409,
-            "Duplicate request detected with idempotencyKey: $idempotencyKey");
-      }
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
   }
 
   /// PUT /api/drivers/{driverId}/idCardNumber - æ´æ°å¸æºèº«ä»½è¯å·ç ?
@@ -192,7 +162,7 @@ class DriverInformationControllerApi with BaseApiClient {
   }) async {
     final path = '/api/drivers/$driverId/idCardNumber';
     final headerParams = await _getHeaders();
-    final response = await apiClient.invokeAPI(
+    await apiClient.invokeAPI(
       path,
       'PUT',
       _addIdempotencyKey(idempotencyKey),
@@ -203,15 +173,6 @@ class DriverInformationControllerApi with BaseApiClient {
       'application/json',
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      if (response.statusCode == 404) {
-        throw ApiException(404, "Driver not found with ID: $driverId");
-      } else if (response.statusCode == 409) {
-        throw ApiException(409,
-            "Duplicate request detected with idempotencyKey: $idempotencyKey");
-      }
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
   }
 
   /// PUT /api/drivers/{driverId} - æ´æ°å¸æºå®æ´ä¿¡æ¯
@@ -222,7 +183,7 @@ class DriverInformationControllerApi with BaseApiClient {
   }) async {
     final path = '/api/drivers/$driverId';
     final headerParams = await _getHeaders();
-    final response = await apiClient.invokeAPI(
+    await apiClient.invokeAPI(
       path,
       'PUT',
       _addIdempotencyKey(idempotencyKey),
@@ -232,15 +193,6 @@ class DriverInformationControllerApi with BaseApiClient {
       'application/json',
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      if (response.statusCode == 404) {
-        throw ApiException(404, "Driver not found with ID: $driverId");
-      } else if (response.statusCode == 409) {
-        throw ApiException(409,
-            "Duplicate request detected with idempotencyKey: $idempotencyKey");
-      }
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
   }
 
   /// DELETE /api/drivers/{driverId} - å é¤å¸æºä¿¡æ¯ (ä»
@@ -250,7 +202,7 @@ class DriverInformationControllerApi with BaseApiClient {
   }) async {
     final path = '/api/drivers/$driverId';
     final headerParams = await _getHeaders();
-    final response = await apiClient.invokeAPI(
+    await apiClient.invokeAPI(
       path,
       'DELETE',
       [],
@@ -260,14 +212,6 @@ class DriverInformationControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      if (response.statusCode == 404) {
-        throw ApiException(404, "Driver not found with ID: $driverId");
-      } else if (response.statusCode == 403) {
-        throw ApiException(403, "Unauthorized: Only ADMIN can delete drivers");
-      }
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
   }
 
   /// GET /api/drivers/by-id-card - æç´¢å¸æºä¿¡æ¯æèº«ä»½è¯å·ç 
@@ -296,12 +240,6 @@ class DriverInformationControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      if (response.statusCode == 204) {
-        return []; // No content, return empty list
-      }
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     if (response.body.isEmpty) return [];
     final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
     return jsonList.map((json) => DriverInformation.fromJson(json)).toList();
@@ -333,12 +271,6 @@ class DriverInformationControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      if (response.statusCode == 204) {
-        return []; // No content, return empty list
-      }
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     if (response.body.isEmpty) return [];
     final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
     return jsonList.map((json) => DriverInformation.fromJson(json)).toList();
@@ -370,12 +302,6 @@ class DriverInformationControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      if (response.statusCode == 204) {
-        return []; // No content, return empty list
-      }
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     if (response.body.isEmpty) return [];
     final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
     return jsonList.map((json) => DriverInformation.fromJson(json)).toList();

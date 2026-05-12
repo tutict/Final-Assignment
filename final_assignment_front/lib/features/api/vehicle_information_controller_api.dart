@@ -80,6 +80,7 @@ class VehicleInformationControllerApi with BaseApiClient {
       const {},
       null,
       const ['bearerAuth'],
+      passThroughStatusCodes: const {404},
     );
     if (r.statusCode == 404) return null;
     if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));
@@ -216,6 +217,7 @@ class VehicleInformationControllerApi with BaseApiClient {
       const {},
       null,
       const ['bearerAuth'],
+      passThroughStatusCodes: const {404},
     );
     if (r.statusCode == 404) return null;
     if (r.statusCode >= 400) throw ApiException(r.statusCode, _decode(r));

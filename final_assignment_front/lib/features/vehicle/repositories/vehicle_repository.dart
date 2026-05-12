@@ -124,9 +124,6 @@ class VehicleRepositoryImpl extends BaseRepository
         'application/json',
         const ['bearerAuth'],
       );
-      if (response.statusCode >= 400) {
-        throw ApiException(response.statusCode, response.body);
-      }
       if (response.body.isEmpty) {
         throw ApiException(
             response.statusCode, 'Empty vehicle create response');
@@ -155,9 +152,6 @@ class VehicleRepositoryImpl extends BaseRepository
         'application/json',
         const ['bearerAuth'],
       );
-      if (response.statusCode >= 400) {
-        throw ApiException(response.statusCode, response.body);
-      }
       if (response.body.isEmpty) {
         throw ApiException(
             response.statusCode, 'Empty vehicle update response');

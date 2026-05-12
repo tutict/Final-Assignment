@@ -47,9 +47,6 @@ class ChatControllerApi with BaseApiClient {
     try {
       final response = await _sendChatMessageWithHttpInfo(message);
       final decodedBody = utf8.decode(response.bodyBytes, allowMalformed: true);
-      if (response.statusCode >= 400) {
-        throw Exception('API request failed: $decodedBody');
-      }
       if (decodedBody.isEmpty) {
         return 'AI returned an empty response.';
       }
@@ -109,9 +106,6 @@ class ChatControllerApi with BaseApiClient {
         webSearch,
       );
       final decodedBody = utf8.decode(response.bodyBytes, allowMalformed: true);
-      if (response.statusCode >= 400) {
-        throw Exception('API request failed: $decodedBody');
-      }
       if (decodedBody.isEmpty) {
         return null;
       }

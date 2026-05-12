@@ -83,13 +83,11 @@ class ProgressController extends BaseListController<ProgressItem> {
         const {},
         null,
         ['bearerAuth'],
+        passThroughStatusCodes: const {404},
       );
       if (response.statusCode == 404 || response.body.isEmpty) {
         appeals.clear();
         return;
-      }
-      if (response.statusCode >= 400) {
-        throw ApiException(response.statusCode, response.body);
       }
       final List<dynamic> data = jsonDecode(response.body);
       appeals.value = data

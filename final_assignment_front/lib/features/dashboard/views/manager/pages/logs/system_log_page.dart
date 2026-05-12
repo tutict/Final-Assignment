@@ -180,7 +180,6 @@ class _SystemLogPageState extends State<SystemLogPage> {
       setState(() {
         if (e is ApiException && e.code == 403) {
           _errorMessage = '未授权，请重新登录';
-          Get.offAllNamed(Routes.login);
         } else {
           _errorMessage = '加载系统日志失败: ${_formatErrorMessage(e)}';
         }

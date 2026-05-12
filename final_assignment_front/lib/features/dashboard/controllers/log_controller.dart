@@ -180,9 +180,6 @@ class LogController extends BaseListController<Object> {
     );
 
     if (error is ApiException && error.code == 403) {
-      if (Get.isRegistered<AuthService>()) {
-        await Get.find<AuthService>().handleForbidden(source: 'LogController');
-      }
       errorMessage.value = 'Unauthorized';
       return;
     }

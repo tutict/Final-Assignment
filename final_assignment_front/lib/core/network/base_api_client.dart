@@ -4,8 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:uuid/uuid.dart';
 
-import '../../utils/helpers/api_exception.dart';
 import '../../utils/services/auth_token_store.dart';
+import 'app_exception.dart';
 import 'api_client.dart';
 
 abstract mixin class BaseApiClient {
@@ -24,7 +24,11 @@ abstract mixin class BaseApiClient {
   Future<void> initializeClientWithJwt() async {
     final jwtToken = await AuthTokenStore.instance.getJwtToken();
     if (jwtToken == null || jwtToken.isEmpty) {
-      throw Exception('Not authenticated. Please log in again.');
+      throw const AppException(
+        type: AppErrorType.unauthorized,
+        message: '登录已过期，请重新登录',
+        statusCode: 401,
+      );
     }
     apiClient.setJwtToken(jwtToken);
     if (kDebugMode) {
@@ -98,15 +102,22 @@ abstract mixin class BaseApiClient {
     final success = successStatusCodes?.contains(response.statusCode) ??
         (response.statusCode >= 200 && response.statusCode < 400);
     if (!success) {
-      throw ApiException(
+      throw AppException.fromStatusCode(
         response.statusCode,
-        statusMessages[response.statusCode] ?? extractErrorMessage(response),
+        message: statusMessages[response.statusCode] ??
+            extractErrorMessage(response),
+        originalError: response,
       );
     }
 
     final decoded = _tryDecodeJson(response);
     if (decoded is Map && decoded['success'] == false) {
-      throw ApiException(response.statusCode, _messageFromMap(decoded));
+      throw AppException(
+        type: AppErrorType.businessError,
+        message: _messageFromMap(decoded),
+        statusCode: response.statusCode,
+        originalError: response,
+      );
     }
   }
 
@@ -114,9 +125,11 @@ abstract mixin class BaseApiClient {
     http.Response response, {
     Map<int, String> statusMessages = const {},
   }) {
-    throw ApiException(
+    throw AppException.fromStatusCode(
       response.statusCode,
-      statusMessages[response.statusCode] ?? extractErrorMessage(response),
+      message:
+          statusMessages[response.statusCode] ?? extractErrorMessage(response),
+      originalError: response,
     );
   }
 
@@ -138,9 +151,11 @@ abstract mixin class BaseApiClient {
     if (payload is Map) {
       return fromJson(Map<String, dynamic>.from(payload));
     }
-    throw ApiException(
-      response.statusCode,
-      'Expected JSON object response, got ${payload.runtimeType}',
+    throw AppException(
+      type: AppErrorType.businessError,
+      message: 'Expected JSON object response, got ${payload.runtimeType}',
+      statusCode: response.statusCode,
+      originalError: response,
     );
   }
 
@@ -169,9 +184,11 @@ abstract mixin class BaseApiClient {
     if (payload is Map) {
       return fromJson(Map<String, dynamic>.from(payload));
     }
-    throw ApiException(
-      response.statusCode,
-      'Expected JSON object response, got ${payload.runtimeType}',
+    throw AppException(
+      type: AppErrorType.businessError,
+      message: 'Expected JSON object response, got ${payload.runtimeType}',
+      statusCode: response.statusCode,
+      originalError: response,
     );
   }
 
@@ -209,9 +226,11 @@ abstract mixin class BaseApiClient {
         value['records'] as List<dynamic>,
       Map value when value['content'] is List<dynamic> =>
         value['content'] as List<dynamic>,
-      _ => throw ApiException(
-          response.statusCode,
-          'Expected JSON list response, got ${payload.runtimeType}',
+      _ => throw AppException(
+          type: AppErrorType.businessError,
+          message: 'Expected JSON list response, got ${payload.runtimeType}',
+          statusCode: response.statusCode,
+          originalError: response,
         ),
     };
 
@@ -222,9 +241,11 @@ abstract mixin class BaseApiClient {
       if (item is Map) {
         return fromJson(Map<String, dynamic>.from(item));
       }
-      throw ApiException(
-        response.statusCode,
-        'Expected JSON object in list, got ${item.runtimeType}',
+      throw AppException(
+        type: AppErrorType.businessError,
+        message: 'Expected JSON object in list, got ${item.runtimeType}',
+        statusCode: response.statusCode,
+        originalError: response,
       );
     }).toList();
   }
@@ -249,16 +270,23 @@ abstract mixin class BaseApiClient {
     if (payload is Map) {
       return Map<String, dynamic>.from(payload);
     }
-    throw ApiException(
-      response.statusCode,
-      'Expected JSON object response, got ${payload.runtimeType}',
+    throw AppException(
+      type: AppErrorType.businessError,
+      message: 'Expected JSON object response, got ${payload.runtimeType}',
+      statusCode: response.statusCode,
+      originalError: response,
     );
   }
 
   dynamic unwrapPayload(dynamic decoded) {
     if (decoded is Map) {
       if (decoded['success'] == false) {
-        throw ApiException(400, _messageFromMap(decoded));
+        throw AppException(
+          type: AppErrorType.businessError,
+          message: _messageFromMap(decoded),
+          statusCode: 400,
+          originalError: decoded,
+        );
       }
       if (decoded.containsKey('success') && decoded.containsKey('data')) {
         return decoded['data'];

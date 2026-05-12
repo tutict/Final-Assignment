@@ -76,9 +76,6 @@ class RoleManagementControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     if (response.body.isEmpty) return null;
     final data = apiClient.deserialize(
         _decodeBodyBytes(response), 'Map<String, dynamic>');
@@ -97,9 +94,6 @@ class RoleManagementControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     final List<dynamic> data =
         apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
     return RoleManagement.listFromJson(data);
@@ -120,9 +114,6 @@ class RoleManagementControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     if (response.body.isEmpty) return null;
     final data = apiClient.deserialize(
         _decodeBodyBytes(response), 'Map<String, dynamic>');
@@ -142,9 +133,6 @@ class RoleManagementControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     final List<dynamic> data =
         apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
     return RoleManagement.listFromJson(data);
@@ -163,9 +151,6 @@ class RoleManagementControllerApi with BaseApiClient {
       'application/json',
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     final data = apiClient.deserialize(
         _decodeBodyBytes(response), 'Map<String, dynamic>');
     return RoleManagement.fromJson(data);
@@ -390,9 +375,6 @@ class RoleManagementControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     if (response.body.isEmpty) return null;
     final data = apiClient.deserialize(
         _decodeBodyBytes(response), 'Map<String, dynamic>');
@@ -419,9 +401,6 @@ class RoleManagementControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     final List<dynamic> data =
         apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
     return RoleManagement.listFromJson(data);
@@ -447,9 +426,6 @@ class RoleManagementControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     final List<dynamic> data =
         apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
     return RoleManagement.listFromJson(data);
@@ -475,9 +451,6 @@ class RoleManagementControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     final List<dynamic> data =
         apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
     return RoleManagement.listFromJson(data);
@@ -503,9 +476,6 @@ class RoleManagementControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     final List<dynamic> data =
         apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
     return RoleManagement.listFromJson(data);
@@ -531,9 +501,6 @@ class RoleManagementControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     final List<dynamic> data =
         apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
     return RoleManagement.listFromJson(data);
@@ -559,9 +526,6 @@ class RoleManagementControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     final List<dynamic> data =
         apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
     return RoleManagement.listFromJson(data);
@@ -587,9 +551,6 @@ class RoleManagementControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     final List<dynamic> data =
         apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
     return RoleManagement.listFromJson(data);
@@ -614,9 +575,6 @@ class RoleManagementControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     return apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
   }
 
@@ -642,9 +600,6 @@ class RoleManagementControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     return apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
   }
 }

@@ -327,7 +327,6 @@ class _AppealManagementAdminState extends State<ManagerAppealManagementPage> {
         _filteredAppeals.clear();
         if (e is ApiException && e.code == 403) {
           _errorMessage = '未授权，请重新登录';
-          Get.offAllNamed(Routes.login);
         } else {
           _errorMessage = '加载申诉信息失败: ${_formatErrorMessage(e)}';
         }

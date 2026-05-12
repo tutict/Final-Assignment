@@ -18,10 +18,6 @@ class AuthControllerApi with BaseApiClient {
   AuthControllerApi([ApiClient? apiClient])
       : apiClient = apiClient ?? defaultApiClient;
 
-  // è§£ç ååºä½çè¾
-// å©æ¹æ³
-  String _decodeBodyBytes(http.Response response) => decodeBodyBytes(response);
-
   // è·åéç¨è¯·æ±å¤´ï¼å
 // å« JWT
   Future<Map<String, String>> _getHeaders() async {
@@ -58,12 +54,7 @@ class AuthControllerApi with BaseApiClient {
       debugPrint('Login response status: ${response.statusCode}');
       debugPrint('Login response body: ${response.body}');
 
-      if (response.statusCode >= 400) {
-        String errorMessage = response.body.isNotEmpty
-            ? _decodeBodyBytes(response)
-            : 'Unknown error';
-        throw ApiException(response.statusCode, errorMessage);
-      } else if (response.body.isNotEmpty) {
+      if (response.body.isNotEmpty) {
         return jsonDecode(response.body) as Map<String, dynamic>;
       } else {
         return {};
@@ -104,12 +95,7 @@ class AuthControllerApi with BaseApiClient {
       debugPrint('Register response status: ${response.statusCode}');
       debugPrint('Register response body: ${response.body}');
 
-      if (response.statusCode >= 400) {
-        String errorMessage = response.body.isNotEmpty
-            ? _decodeBodyBytes(response)
-            : 'Unknown error';
-        throw ApiException(response.statusCode, errorMessage);
-      } else if (response.body.isNotEmpty) {
+      if (response.body.isNotEmpty) {
         return jsonDecode(response.body) as Map<String, dynamic>;
       } else if (response.statusCode == 201) {
         return {'status': 'CREATED'};
@@ -147,12 +133,7 @@ class AuthControllerApi with BaseApiClient {
       debugPrint('Users get response status: ${response.statusCode}');
       debugPrint('Users get response body: ${response.body}');
 
-      if (response.statusCode >= 400) {
-        String errorMessage = response.body.isNotEmpty
-            ? _decodeBodyBytes(response)
-            : 'Unknown error';
-        throw ApiException(response.statusCode, errorMessage);
-      } else if (response.body.isNotEmpty) {
+      if (response.body.isNotEmpty) {
         return jsonDecode(response.body) as Map<String, dynamic>;
       } else {
         return {};
@@ -188,12 +169,7 @@ class AuthControllerApi with BaseApiClient {
       debugPrint('Roles get response status: ${response.statusCode}');
       debugPrint('Roles get response body: ${response.body}');
 
-      if (response.statusCode >= 400) {
-        String errorMessage = response.body.isNotEmpty
-            ? _decodeBodyBytes(response)
-            : 'Unknown error';
-        throw ApiException(response.statusCode, errorMessage);
-      } else if (response.body.isNotEmpty) {
+      if (response.body.isNotEmpty) {
         return jsonDecode(response.body) as Map<String, dynamic>;
       } else {
         return {};

@@ -13,6 +13,7 @@ import '../../utils/services/http_bearer_auth.dart';
 import '../../utils/services/query_param.dart';
 import '../auth/auth_service.dart';
 import '../config/app_config.dart';
+import 'app_exception.dart';
 import 'client_factory.dart' as client_factory;
 import 'interceptor.dart';
 
@@ -124,60 +125,98 @@ class ApiClient {
   String serialize(Object obj) => jsonEncode(obj);
 
   Future<http.Response> invokeAPI(
-    String path,
-    String method,
-    Iterable<QueryParam> queryParams,
-    Object? body,
-    Map<String, String> headerParams,
-    Map<String, String> formParams,
-    String? nullableContentType,
-    List<String> authNames,
-  ) async {
-    final normalizedMethod = method.toUpperCase();
-    if (normalizedMethod == 'WS_CONNECT') {
-      await connectWebSocket(path, queryParams);
-      return http.Response('', 200);
+      String path,
+      String method,
+      Iterable<QueryParam> queryParams,
+      Object? body,
+      Map<String, String> headerParams,
+      Map<String, String> formParams,
+      String? nullableContentType,
+      List<String> authNames,
+      {Set<int> passThroughStatusCodes = const {}}) async {
+    try {
+      final normalizedMethod = method.toUpperCase();
+      if (normalizedMethod == 'WS_CONNECT') {
+        await connectWebSocket(path, queryParams);
+        return http.Response('', 200);
+      }
+      if (normalizedMethod == 'WS_SEND') {
+        await sendWsMessage(body as Map<String, dynamic>);
+        return http.Response('', 200);
+      }
+      if (normalizedMethod == 'WS_CLOSE') {
+        closeWebSocket();
+        return http.Response('', 200);
+      }
+
+      final queryParamsList = queryParams.toList();
+      await _refreshJwtForAuth(authNames);
+      await _loadJwtForAuth(authNames);
+      _updateParamsForAuth(authNames, queryParamsList, headerParams);
+
+      headerParams.addAll(_defaultHeaderMap);
+      final contentType =
+          nullableContentType ?? 'application/json; charset=utf-8';
+      headerParams['Content-Type'] = contentType;
+
+      final uri = _buildUri(path, queryParamsList);
+      if (kDebugMode) {
+        debugPrint('Request URL: $uri');
+        debugPrint('Final Request Headers: $headerParams');
+      }
+
+      final msgBody =
+          contentType.startsWith('application/x-www-form-urlencoded')
+              ? formParams
+              : serialize(body ?? {});
+
+      final response = await _sendHttp(
+        normalizedMethod,
+        uri,
+        headerParams,
+        msgBody,
+      ).timeout(const Duration(seconds: 30));
+
+      if (kDebugMode) {
+        debugPrint('Response: ${response.statusCode} - ${response.body}');
+      }
+
+      _throwIfErrorResponse(
+        response,
+        passThroughStatusCodes: passThroughStatusCodes,
+      );
+      return response;
+    } on AppException catch (e) {
+      await _handleAppException(e);
+      rethrow;
+    } on TimeoutException catch (e) {
+      final exception = AppException.fromError(e);
+      await _handleAppException(exception);
+      throw exception;
+    } on http.ClientException catch (e) {
+      final exception = AppException.fromError(e);
+      await _handleAppException(exception);
+      throw exception;
+    } catch (e) {
+      final exception = AppException.fromError(e);
+      await _handleAppException(exception);
+      throw exception;
     }
-    if (normalizedMethod == 'WS_SEND') {
-      await sendWsMessage(body as Map<String, dynamic>);
-      return http.Response('', 200);
-    }
-    if (normalizedMethod == 'WS_CLOSE') {
-      closeWebSocket();
-      return http.Response('', 200);
-    }
+  }
 
-    final queryParamsList = queryParams.toList();
-    await _refreshJwtForAuth(authNames);
-    await _loadJwtForAuth(authNames);
-    _updateParamsForAuth(authNames, queryParamsList, headerParams);
+  void _throwIfErrorResponse(
+    http.Response response, {
+    Set<int> passThroughStatusCodes = const {},
+  }) {
+    if (passThroughStatusCodes.contains(response.statusCode)) return;
+    if (!AppException.isErrorStatus(response.statusCode)) return;
+    throw AppException.fromResponse(response);
+  }
 
-    headerParams.addAll(_defaultHeaderMap);
-    final contentType =
-        nullableContentType ?? 'application/json; charset=utf-8';
-    headerParams['Content-Type'] = contentType;
-
-    final uri = _buildUri(path, queryParamsList);
-    if (kDebugMode) {
-      debugPrint('Request URL: $uri');
-      debugPrint('Final Request Headers: $headerParams');
-    }
-
-    final msgBody = contentType.startsWith('application/x-www-form-urlencoded')
-        ? formParams
-        : serialize(body ?? {});
-
-    final response = await _sendHttp(
-      normalizedMethod,
-      uri,
-      headerParams,
-      msgBody,
-    ).timeout(const Duration(seconds: 30));
-
-    if (kDebugMode) {
-      debugPrint('Response: ${response.statusCode} - ${response.body}');
-    }
-    return response;
+  Future<void> _handleAppException(AppException exception) async {
+    if (exception.type != AppErrorType.unauthorized) return;
+    if (!Get.isRegistered<AuthService>()) return;
+    await Get.find<AuthService>().handleUnauthorized();
   }
 
   Future<void> _refreshJwtForAuth(List<String> authNames) async {

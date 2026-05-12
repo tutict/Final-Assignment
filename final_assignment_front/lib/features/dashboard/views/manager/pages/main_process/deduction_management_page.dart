@@ -184,7 +184,6 @@ class _DeductionManagementState extends State<DeductionManagementPage> {
           _hasMore = false;
         } else if (e.toString().contains('403')) {
           _errorMessage = '未授权，请重新登录';
-          Get.offAllNamed(Routes.login);
         } else {
           _errorMessage = '获取扣分记录失败: ${_formatErrorMessage(e)}';
         }

@@ -301,7 +301,6 @@ class _UserManagementPageState extends State<UserManagementPage> {
           switch (e.code) {
             case 403:
               _errorMessage = '未授权，请重新登录';
-              Get.offAllNamed(Routes.login);
               break;
             case 404:
               _errorMessage = '未找到符合条件的用户';

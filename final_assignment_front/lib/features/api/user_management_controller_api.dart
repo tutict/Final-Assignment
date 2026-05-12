@@ -68,12 +68,7 @@ class UserManagementControllerApi with BaseApiClient {
       debugPrint('Users get response status: ${response.statusCode}');
       debugPrint('Users get response body: ${response.body}');
 
-      if (response.statusCode >= 400) {
-        final errorMessage = response.body.isNotEmpty
-            ? _decodeBodyBytes(response)
-            : 'Unknown error';
-        throw ApiException(response.statusCode, errorMessage);
-      } else if (response.body.isNotEmpty) {
+      if (response.body.isNotEmpty) {
         final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
         return jsonList.map((json) => UserManagement.fromJson(json)).toList();
       } else {
@@ -134,12 +129,7 @@ class UserManagementControllerApi with BaseApiClient {
       debugPrint('Users post response status: ${response.statusCode}');
       debugPrint('Users post response body: ${response.body}');
 
-      if (response.statusCode >= 400) {
-        final errorMessage = response.body.isNotEmpty
-            ? _decodeBodyBytes(response)
-            : 'Unknown error';
-        throw ApiException(response.statusCode, errorMessage);
-      } else if (response.body.isNotEmpty) {
+      if (response.body.isNotEmpty) {
         return UserManagement.fromJson(jsonDecode(_decodeBodyBytes(response)));
       } else if (response.statusCode == 201) {
         return null; // 201 CREATEDï¼æ ååºä½?
@@ -231,12 +221,7 @@ class UserManagementControllerApi with BaseApiClient {
           'Users search department response status: ${response.statusCode}');
       debugPrint('Users search department response body: ${response.body}');
 
-      if (response.statusCode >= 400) {
-        final errorMessage = response.body.isNotEmpty
-            ? _decodeBodyBytes(response)
-            : 'Unknown error';
-        throw ApiException(response.statusCode, errorMessage);
-      } else if (response.body.isNotEmpty) {
+      if (response.body.isNotEmpty) {
         final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
         return jsonList.map((json) => UserManagement.fromJson(json)).toList();
       } else {
@@ -279,12 +264,6 @@ class UserManagementControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      final errorMessage = response.body.isNotEmpty
-          ? _decodeBodyBytes(response)
-          : 'Unknown error';
-      throw ApiException(response.statusCode, errorMessage);
-    }
     if (response.body.isEmpty) return [];
     final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
     return jsonList.map((json) => UserManagement.fromJson(json)).toList();
@@ -321,12 +300,6 @@ class UserManagementControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      final errorMessage = response.body.isNotEmpty
-          ? _decodeBodyBytes(response)
-          : 'Unknown error';
-      throw ApiException(response.statusCode, errorMessage);
-    }
     if (response.body.isEmpty) return [];
     final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
     return jsonList.map((json) => UserManagement.fromJson(json)).toList();
@@ -363,12 +336,6 @@ class UserManagementControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      final errorMessage = response.body.isNotEmpty
-          ? _decodeBodyBytes(response)
-          : 'Unknown error';
-      throw ApiException(response.statusCode, errorMessage);
-    }
     if (response.body.isEmpty) return [];
     final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
     return jsonList.map((json) => UserManagement.fromJson(json)).toList();
@@ -405,12 +372,6 @@ class UserManagementControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      final errorMessage = response.body.isNotEmpty
-          ? _decodeBodyBytes(response)
-          : 'Unknown error';
-      throw ApiException(response.statusCode, errorMessage);
-    }
     if (response.body.isEmpty) return [];
     final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
     return jsonList.map((json) => UserManagement.fromJson(json)).toList();
@@ -447,12 +408,6 @@ class UserManagementControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      final errorMessage = response.body.isNotEmpty
-          ? _decodeBodyBytes(response)
-          : 'Unknown error';
-      throw ApiException(response.statusCode, errorMessage);
-    }
     if (response.body.isEmpty) return [];
     final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
     return jsonList.map((json) => UserManagement.fromJson(json)).toList();
@@ -489,12 +444,6 @@ class UserManagementControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      final errorMessage = response.body.isNotEmpty
-          ? _decodeBodyBytes(response)
-          : 'Unknown error';
-      throw ApiException(response.statusCode, errorMessage);
-    }
     if (response.body.isEmpty) return [];
     final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
     return jsonList.map((json) => UserManagement.fromJson(json)).toList();
@@ -547,12 +496,6 @@ class UserManagementControllerApi with BaseApiClient {
       body: body,
       idempotencyKey: idempotencyKey,
     );
-    if (response.statusCode >= 400) {
-      final errorMessage = response.body.isNotEmpty
-          ? _decodeBodyBytes(response)
-          : 'Unknown error';
-      throw ApiException(response.statusCode, errorMessage);
-    }
     return response.body.isNotEmpty
         ? jsonDecode(_decodeBodyBytes(response)) as Map<String, dynamic>
         : null;
@@ -571,7 +514,7 @@ class UserManagementControllerApi with BaseApiClient {
   Future<void> deleteUserRoleBinding({required int relationId}) async {
     final path = "/api/users/roles/$relationId".replaceAll("{format}", "json");
     final headerParams = await _getHeaders();
-    final response = await apiClient.invokeAPI(
+    await apiClient.invokeAPI(
       path,
       'DELETE',
       [],
@@ -581,12 +524,6 @@ class UserManagementControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      final errorMessage = response.body.isNotEmpty
-          ? _decodeBodyBytes(response)
-          : 'Unknown error';
-      throw ApiException(response.statusCode, errorMessage);
-    }
   }
 
   // --- GET /api/users/{userId}/roles?page=&size= ---
@@ -618,12 +555,6 @@ class UserManagementControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      final errorMessage = response.body.isNotEmpty
-          ? _decodeBodyBytes(response)
-          : 'Unknown error';
-      throw ApiException(response.statusCode, errorMessage);
-    }
     if (response.body.isEmpty) return [];
     final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
     return jsonList.cast<Map<String, dynamic>>();
@@ -662,12 +593,6 @@ class UserManagementControllerApi with BaseApiClient {
       'application/json',
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      final errorMessage = response.body.isNotEmpty
-          ? _decodeBodyBytes(response)
-          : 'Unknown error';
-      throw ApiException(response.statusCode, errorMessage);
-    }
     return response.body.isNotEmpty
         ? jsonDecode(_decodeBodyBytes(response)) as Map<String, dynamic>
         : null;
@@ -699,12 +624,6 @@ class UserManagementControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      final errorMessage = response.body.isNotEmpty
-          ? _decodeBodyBytes(response)
-          : 'Unknown error';
-      throw ApiException(response.statusCode, errorMessage);
-    }
     return response.body.isNotEmpty
         ? jsonDecode(_decodeBodyBytes(response)) as Map<String, dynamic>
         : null;
@@ -737,12 +656,6 @@ class UserManagementControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      final errorMessage = response.body.isNotEmpty
-          ? _decodeBodyBytes(response)
-          : 'Unknown error';
-      throw ApiException(response.statusCode, errorMessage);
-    }
     if (response.body.isEmpty) return [];
     final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
     return jsonList.cast<Map<String, dynamic>>();
@@ -778,12 +691,6 @@ class UserManagementControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      final errorMessage = response.body.isNotEmpty
-          ? _decodeBodyBytes(response)
-          : 'Unknown error';
-      throw ApiException(response.statusCode, errorMessage);
-    }
     if (response.body.isEmpty) return [];
     final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
     return jsonList.cast<Map<String, dynamic>>();
@@ -820,12 +727,6 @@ class UserManagementControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      final errorMessage = response.body.isNotEmpty
-          ? _decodeBodyBytes(response)
-          : 'Unknown error';
-      throw ApiException(response.statusCode, errorMessage);
-    }
     if (response.body.isEmpty) return [];
     final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
     return jsonList.map((json) => UserManagement.fromJson(json)).toList();
@@ -862,12 +763,6 @@ class UserManagementControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      final errorMessage = response.body.isNotEmpty
-          ? _decodeBodyBytes(response)
-          : 'Unknown error';
-      throw ApiException(response.statusCode, errorMessage);
-    }
     if (response.body.isEmpty) return [];
     final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
     return jsonList.map((json) => UserManagement.fromJson(json)).toList();
@@ -907,12 +802,6 @@ class UserManagementControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      final errorMessage = response.body.isNotEmpty
-          ? _decodeBodyBytes(response)
-          : 'Unknown error';
-      throw ApiException(response.statusCode, errorMessage);
-    }
     if (response.body.isEmpty) return [];
     final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
     return jsonList.map((json) => UserManagement.fromJson(json)).toList();
@@ -952,12 +841,6 @@ class UserManagementControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      final errorMessage = response.body.isNotEmpty
-          ? _decodeBodyBytes(response)
-          : 'Unknown error';
-      throw ApiException(response.statusCode, errorMessage);
-    }
     if (response.body.isEmpty) return [];
     final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
     return jsonList.cast<Map<String, dynamic>>();
@@ -985,12 +868,7 @@ class UserManagementControllerApi with BaseApiClient {
       debugPrint('Users search status response status: ${response.statusCode}');
       debugPrint('Users search status response body: ${response.body}');
 
-      if (response.statusCode >= 400) {
-        final errorMessage = response.body.isNotEmpty
-            ? _decodeBodyBytes(response)
-            : 'Unknown error';
-        throw ApiException(response.statusCode, errorMessage);
-      } else if (response.body.isNotEmpty) {
+      if (response.body.isNotEmpty) {
         final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
         return jsonList.map((json) => UserManagement.fromJson(json)).toList();
       } else {
@@ -1043,13 +921,6 @@ class UserManagementControllerApi with BaseApiClient {
       final response = await _deleteUserWithHttpInfo(userId: userId);
       debugPrint('Users delete response status: ${response.statusCode}');
       debugPrint('Users delete response body: ${response.body}');
-
-      if (response.statusCode >= 400) {
-        final errorMessage = response.body.isNotEmpty
-            ? _decodeBodyBytes(response)
-            : 'Unknown error';
-        throw ApiException(response.statusCode, errorMessage);
-      }
     } catch (e) {
       debugPrint('Users delete error: $e');
       rethrow;
@@ -1096,12 +967,7 @@ class UserManagementControllerApi with BaseApiClient {
       debugPrint('Users userId get response status: ${response.statusCode}');
       debugPrint('Users userId get response body: ${response.body}');
 
-      if (response.statusCode >= 400) {
-        final errorMessage = response.body.isNotEmpty
-            ? _decodeBodyBytes(response)
-            : 'Unknown error';
-        throw ApiException(response.statusCode, errorMessage);
-      } else if (response.body.isNotEmpty) {
+      if (response.body.isNotEmpty) {
         return UserManagement.fromJson(jsonDecode(_decodeBodyBytes(response)));
       } else {
         return null;
@@ -1165,13 +1031,6 @@ class UserManagementControllerApi with BaseApiClient {
       );
       debugPrint('Users userId put response status: ${response.statusCode}');
       debugPrint('Users userId put response body: ${response.body}');
-
-      if (response.statusCode >= 400) {
-        final errorMessage = response.body.isNotEmpty
-            ? _decodeBodyBytes(response)
-            : 'Unknown error';
-        throw ApiException(response.statusCode, errorMessage);
-      }
     } catch (e) {
       debugPrint('Users userId put error: $e');
       rethrow;
@@ -1278,12 +1137,7 @@ class UserManagementControllerApi with BaseApiClient {
           'Users search username response status: ${response.statusCode}');
       debugPrint('Users search username response body: ${response.body}');
 
-      if (response.statusCode >= 400) {
-        final errorMessage = response.body.isNotEmpty
-            ? _decodeBodyBytes(response)
-            : 'Unknown error';
-        throw ApiException(response.statusCode, errorMessage);
-      } else if (response.body.isNotEmpty) {
+      if (response.body.isNotEmpty) {
         return UserManagement.fromJson(jsonDecode(_decodeBodyBytes(response)));
       } else {
         return null;
@@ -1338,12 +1192,7 @@ class UserManagementControllerApi with BaseApiClient {
       debugPrint(
           'Users autocomplete usernames response body: ${response.body}');
 
-      if (response.statusCode >= 400) {
-        final errorMessage = response.body.isNotEmpty
-            ? _decodeBodyBytes(response)
-            : 'Unknown error';
-        throw ApiException(response.statusCode, errorMessage);
-      } else if (response.body.isNotEmpty) {
+      if (response.body.isNotEmpty) {
         final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
         return jsonList.cast<String>();
       } else {

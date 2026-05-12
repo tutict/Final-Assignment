@@ -50,9 +50,6 @@ class SystemSettingsControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     if (response.body.isEmpty) return null;
     return apiClient.deserialize(_decodeBodyBytes(response), 'String')
         as String?;
@@ -70,9 +67,6 @@ class SystemSettingsControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     if (response.body.isEmpty) return null;
     return apiClient.deserialize(_decodeBodyBytes(response), 'String')
         as String?;
@@ -90,9 +84,6 @@ class SystemSettingsControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     if (response.body.isEmpty) return null;
     return apiClient.deserialize(_decodeBodyBytes(response), 'String')
         as String?;
@@ -110,9 +101,6 @@ class SystemSettingsControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     if (response.body.isEmpty) return null;
     return apiClient.deserialize(_decodeBodyBytes(response), 'String')
         as String?;
@@ -130,9 +118,6 @@ class SystemSettingsControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     if (response.body.isEmpty) return null;
     final data = apiClient.deserialize(
         _decodeBodyBytes(response), 'Map<String, dynamic>');
@@ -152,9 +137,6 @@ class SystemSettingsControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     if (response.body.isEmpty) return null;
     return apiClient.deserialize(_decodeBodyBytes(response), 'int') as int?;
   }
@@ -171,9 +153,6 @@ class SystemSettingsControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     if (response.body.isEmpty) return null;
     return apiClient.deserialize(_decodeBodyBytes(response), 'int') as int?;
   }
@@ -192,9 +171,6 @@ class SystemSettingsControllerApi with BaseApiClient {
       'application/json',
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     final data = apiClient.deserialize(
         _decodeBodyBytes(response), 'Map<String, dynamic>');
     return SystemSettings.fromJson(data);
@@ -213,9 +189,6 @@ class SystemSettingsControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     if (response.body.isEmpty) return null;
     return apiClient.deserialize(_decodeBodyBytes(response), 'int') as int?;
   }
@@ -232,9 +205,6 @@ class SystemSettingsControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     if (response.body.isEmpty) return null;
     return apiClient.deserialize(_decodeBodyBytes(response), 'String')
         as String?;
@@ -252,9 +222,6 @@ class SystemSettingsControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     if (response.body.isEmpty) return null;
     return apiClient.deserialize(_decodeBodyBytes(response), 'String')
         as String?;
@@ -272,9 +239,6 @@ class SystemSettingsControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     if (response.body.isEmpty) return null;
     return apiClient.deserialize(_decodeBodyBytes(response), 'String')
         as String?;
@@ -292,9 +256,6 @@ class SystemSettingsControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     if (response.body.isEmpty) return null;
     return apiClient.deserialize(_decodeBodyBytes(response), 'String')
         as String?;
@@ -312,9 +273,6 @@ class SystemSettingsControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     if (response.body.isEmpty) return null;
     return apiClient.deserialize(_decodeBodyBytes(response), 'String')
         as String?;
@@ -337,9 +295,6 @@ class SystemSettingsControllerApi with BaseApiClient {
       'application/json',
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     final data = apiClient.deserialize(
         _decodeBodyBytes(response), 'Map<String, dynamic>');
     return SystemSettings.fromJson(data);
@@ -361,9 +316,6 @@ class SystemSettingsControllerApi with BaseApiClient {
       'application/json',
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     final data = apiClient.deserialize(
         _decodeBodyBytes(response), 'Map<String, dynamic>');
     return SystemSettings.fromJson(data);
@@ -401,11 +353,9 @@ class SystemSettingsControllerApi with BaseApiClient {
       {},
       null,
       ['bearerAuth'],
+      passThroughStatusCodes: const {404},
     );
     if (response.statusCode == 404) return null;
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     if (response.body.isEmpty) return null;
     final data = apiClient.deserialize(
         _decodeBodyBytes(response), 'Map<String, dynamic>');
@@ -424,9 +374,6 @@ class SystemSettingsControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     final List<dynamic> data =
         apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
     return SystemSettings.listFromJson(data);
@@ -445,11 +392,9 @@ class SystemSettingsControllerApi with BaseApiClient {
       {},
       null,
       ['bearerAuth'],
+      passThroughStatusCodes: const {404},
     );
     if (response.statusCode == 404) return null;
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     if (response.body.isEmpty) return null;
     final data = apiClient.deserialize(
         _decodeBodyBytes(response), 'Map<String, dynamic>');
@@ -475,9 +420,6 @@ class SystemSettingsControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     final List<dynamic> data =
         apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
     return SystemSettings.listFromJson(data);
@@ -503,9 +445,6 @@ class SystemSettingsControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     final List<dynamic> data =
         apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
     return SystemSettings.listFromJson(data);
@@ -531,9 +470,6 @@ class SystemSettingsControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     final List<dynamic> data =
         apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
     return SystemSettings.listFromJson(data);
@@ -559,9 +495,6 @@ class SystemSettingsControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     final List<dynamic> data =
         apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
     return SystemSettings.listFromJson(data);
@@ -587,9 +520,6 @@ class SystemSettingsControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     final List<dynamic> data =
         apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
     return SystemSettings.listFromJson(data);
@@ -615,9 +545,6 @@ class SystemSettingsControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     final List<dynamic> data =
         apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
     return SystemSettings.listFromJson(data);
@@ -640,9 +567,6 @@ class SystemSettingsControllerApi with BaseApiClient {
       'application/json',
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     final data = apiClient.deserialize(
         _decodeBodyBytes(response), 'Map<String, dynamic>');
     return SysDictModel.fromJson(data);
@@ -664,9 +588,6 @@ class SystemSettingsControllerApi with BaseApiClient {
       'application/json',
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     final data = apiClient.deserialize(
         _decodeBodyBytes(response), 'Map<String, dynamic>');
     return SysDictModel.fromJson(data);
@@ -704,11 +625,9 @@ class SystemSettingsControllerApi with BaseApiClient {
       {},
       null,
       ['bearerAuth'],
+      passThroughStatusCodes: const {404},
     );
     if (response.statusCode == 404) return null;
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     if (response.body.isEmpty) return null;
     final data = apiClient.deserialize(
         _decodeBodyBytes(response), 'Map<String, dynamic>');
@@ -727,9 +646,6 @@ class SystemSettingsControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     final List<dynamic> data =
         apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
     return SysDictModel.listFromJson(data);
@@ -755,9 +671,6 @@ class SystemSettingsControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     final List<dynamic> data =
         apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
     return SysDictModel.listFromJson(data);
@@ -783,9 +696,6 @@ class SystemSettingsControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     final List<dynamic> data =
         apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
     return SysDictModel.listFromJson(data);
@@ -811,9 +721,6 @@ class SystemSettingsControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     final List<dynamic> data =
         apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
     return SysDictModel.listFromJson(data);
@@ -839,9 +746,6 @@ class SystemSettingsControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     final List<dynamic> data =
         apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
     return SysDictModel.listFromJson(data);
@@ -867,9 +771,6 @@ class SystemSettingsControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     final List<dynamic> data =
         apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
     return SysDictModel.listFromJson(data);
@@ -895,9 +796,6 @@ class SystemSettingsControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     final List<dynamic> data =
         apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
     return SysDictModel.listFromJson(data);
@@ -923,9 +821,6 @@ class SystemSettingsControllerApi with BaseApiClient {
       null,
       ['bearerAuth'],
     );
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, _decodeBodyBytes(response));
-    }
     final List<dynamic> data =
         apiClient.deserialize(_decodeBodyBytes(response), 'List<dynamic>');
     return SysDictModel.listFromJson(data);

@@ -685,6 +685,7 @@ class OffenseInformationControllerApi with BaseApiClient {
       const {},
       null,
       const ['bearerAuth'],
+      passThroughStatusCodes: const {404},
     );
     if (vehicleResp.statusCode == 404 ||
         decodeBodyBytes(vehicleResp).trim().isEmpty) {
