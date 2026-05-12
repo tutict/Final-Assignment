@@ -16,6 +16,11 @@ class UserManagementControllerApi with BaseApiClient {
       : apiClient = apiClient ?? defaultApiClient;
 
   // åå§å?JWT
+  /// 使用当前登录态初始化用户管理 API 客户端的 JWT。
+  ///
+  /// 调用用户管理接口前应先完成初始化，确保后续请求携带 bearer token。
+  ///
+  /// 抛出 [Exception]：当本地登录态无有效 JWT 时。
   Future<void> initializeWithJwt() async {
     final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
@@ -50,6 +55,13 @@ class UserManagementControllerApi with BaseApiClient {
     );
   }
 
+  /// 获取用户列表。
+  ///
+  /// 返回 [UserManagement] 列表；后端返回空响应时返回空列表。
+  ///
+  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  ///
+  /// 对应接口：GET /api/users
   Future<List<UserManagement>> listUsers() async {
     try {
       final response = await _listUsersWithHttpInfo();
@@ -100,6 +112,16 @@ class UserManagementControllerApi with BaseApiClient {
     );
   }
 
+  /// 创建用户。
+  ///
+  /// [userManagement] 待创建的用户数据。
+  /// [idempotencyKey] 幂等键，用于防止重复提交。
+  ///
+  /// 返回后端创建后的 [UserManagement]；201 且空响应时返回 `null`。
+  ///
+  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 或响应体异常时。
+  ///
+  /// 对应接口：POST /api/users
   Future<UserManagement?> createUser({
     required UserManagement userManagement,
     required String idempotencyKey,
@@ -186,6 +208,17 @@ class UserManagementControllerApi with BaseApiClient {
     );
   }
 
+  /// 按部门精确搜索用户。
+  ///
+  /// [department] 部门名称或编码。
+  /// [page] 分页页码，当前客户端默认从 1 开始。
+  /// [size] 每页条数，默认 20。
+  ///
+  /// 返回 [UserManagement] 列表；无匹配时返回空列表。
+  ///
+  /// 抛出 [ApiException]：当 [department] 为空或 HTTP 响应非 2xx 时。
+  ///
+  /// 对应接口：GET /api/users/search/department
   Future<List<UserManagement>> searchUsersByDepartment({
     required String department,
     int page = 1,
@@ -216,6 +249,17 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // --- GET /api/users/search/username/prefix?username=&page=&size= ---
+  /// 按用户名前缀搜索用户。
+  ///
+  /// [username] 用户名前缀。
+  /// [page] 分页页码，当前客户端默认从 1 开始。
+  /// [size] 每页条数，默认 20。
+  ///
+  /// 返回 [UserManagement] 列表；无匹配时返回空列表。
+  ///
+  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  ///
+  /// 对应接口：GET /api/users/search/username/prefix
   Future<List<UserManagement>> searchUsersByUsernamePrefix({
     required String username,
     int page = 1,
@@ -247,6 +291,17 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // --- GET /api/users/search/username/fuzzy?username=&page=&size= ---
+  /// 按用户名模糊搜索用户。
+  ///
+  /// [username] 用户名关键字，模糊匹配规则由后端定义。
+  /// [page] 分页页码，当前客户端默认从 1 开始。
+  /// [size] 每页条数，默认 20。
+  ///
+  /// 返回 [UserManagement] 列表；无匹配时返回空列表。
+  ///
+  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  ///
+  /// 对应接口：GET /api/users/search/username/fuzzy
   Future<List<UserManagement>> searchUsersByUsernameFuzzy({
     required String username,
     int page = 1,
@@ -278,6 +333,17 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // --- GET /api/users/search/real-name/prefix?realName=&page=&size= ---
+  /// 按真实姓名前缀搜索用户。
+  ///
+  /// [realName] 真实姓名前缀。
+  /// [page] 分页页码，当前客户端默认从 1 开始。
+  /// [size] 每页条数，默认 20。
+  ///
+  /// 返回 [UserManagement] 列表；无匹配时返回空列表。
+  ///
+  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  ///
+  /// 对应接口：GET /api/users/search/real-name/prefix
   Future<List<UserManagement>> searchUsersByRealNamePrefix({
     required String realName,
     int page = 1,
@@ -309,6 +375,17 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // --- GET /api/users/search/real-name/fuzzy?realName=&page=&size= ---
+  /// 按真实姓名模糊搜索用户。
+  ///
+  /// [realName] 真实姓名关键字，模糊匹配规则由后端定义。
+  /// [page] 分页页码，当前客户端默认从 1 开始。
+  /// [size] 每页条数，默认 20。
+  ///
+  /// 返回 [UserManagement] 列表；无匹配时返回空列表。
+  ///
+  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  ///
+  /// 对应接口：GET /api/users/search/real-name/fuzzy
   Future<List<UserManagement>> searchUsersByRealNameFuzzy({
     required String realName,
     int page = 1,
@@ -340,6 +417,17 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // --- GET /api/users/search/id-card?idCardNumber=&page=&size= ---
+  /// 按身份证号搜索用户。
+  ///
+  /// [idCardNumber] 身份证号查询值。
+  /// [page] 分页页码，当前客户端默认从 1 开始。
+  /// [size] 每页条数，默认 20。
+  ///
+  /// 返回 [UserManagement] 列表；无匹配时返回空列表。
+  ///
+  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  ///
+  /// 对应接口：GET /api/users/search/id-card
   Future<List<UserManagement>> searchUsersByIdCard({
     required String idCardNumber,
     int page = 1,
@@ -371,6 +459,17 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // --- GET /api/users/search/contact?contactNumber=&page=&size= ---
+  /// 按联系方式搜索用户。
+  ///
+  /// [contactNumber] 手机号或联系方式查询值。
+  /// [page] 分页页码，当前客户端默认从 1 开始。
+  /// [size] 每页条数，默认 20。
+  ///
+  /// 返回 [UserManagement] 列表；无匹配时返回空列表。
+  ///
+  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  ///
+  /// 对应接口：GET /api/users/search/contact
   Future<List<UserManagement>> searchUsersByContact({
     required String contactNumber,
     int page = 1,
@@ -425,6 +524,19 @@ class UserManagementControllerApi with BaseApiClient {
     );
   }
 
+  /// 为用户绑定角色。
+  ///
+  /// [userId] 用户主键。
+  /// [body] 用户-角色关系请求体，通常为 SysUserRoleModel 的 JSON。
+  /// [idempotencyKey] 幂等键，用于防止重复绑定。
+  ///
+  /// 该方法建立用户与角色的授权关系，决定用户可访问的菜单、接口和业务权限。
+  ///
+  /// 返回后端返回的绑定关系 Map；后端空响应时返回 `null`。
+  ///
+  /// 抛出 [ApiException]：当 [idempotencyKey] 为空或 HTTP 响应非 2xx 时。
+  ///
+  /// 对应接口：POST /api/users/{userId}/roles
   Future<Map<String, dynamic>?> bindUserRole({
     required int userId,
     required Map<String, dynamic> body,
@@ -447,6 +559,15 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // --- DELETE /api/users/roles/{relationId} ---
+  /// 删除用户-角色绑定关系。
+  ///
+  /// [relationId] 用户角色关系主键。
+  ///
+  /// 删除成功时无返回值；该操作会撤销用户通过该绑定获得的对应角色权限。
+  ///
+  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  ///
+  /// 对应接口：DELETE /api/users/roles/{relationId}
   Future<void> deleteUserRoleBinding({required int relationId}) async {
     final path = "/api/users/roles/$relationId".replaceAll("{format}", "json");
     final headerParams = await _getHeaders();
@@ -469,6 +590,17 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // --- GET /api/users/{userId}/roles?page=&size= ---
+  /// 查询指定用户已绑定的角色关系。
+  ///
+  /// [userId] 用户主键。
+  /// [page] 分页页码，当前客户端默认从 1 开始。
+  /// [size] 每页条数，默认 20。
+  ///
+  /// 返回用户角色绑定关系 Map 列表；无数据时返回空列表。
+  ///
+  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  ///
+  /// 对应接口：GET /api/users/{userId}/roles
   Future<List<Map<String, dynamic>>> listUserRoles({
     required int userId,
     int page = 1,
@@ -498,6 +630,17 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // --- PUT /api/users/role-bindings/{relationId} ---
+  /// 更新用户-角色绑定关系。
+  ///
+  /// [relationId] 用户角色关系主键。
+  /// [body] 更新后的绑定关系请求体。
+  /// [idempotencyKey] 幂等键，用于防止重复提交。
+  ///
+  /// 返回后端返回的绑定关系 Map；后端空响应时返回 `null`。
+  ///
+  /// 抛出 [ApiException]：当 [idempotencyKey] 为空或 HTTP 响应非 2xx 时。
+  ///
+  /// 对应接口：PUT /api/users/role-bindings/{relationId}
   Future<Map<String, dynamic>?> updateUserRoleBinding({
     required int relationId,
     required Map<String, dynamic> body,
@@ -531,6 +674,15 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // --- GET /api/users/role-bindings/{relationId} ---
+  /// 获取单条用户-角色绑定关系。
+  ///
+  /// [relationId] 用户角色关系主键。
+  ///
+  /// 返回绑定关系 Map；后端空响应时返回 `null`。
+  ///
+  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  ///
+  /// 对应接口：GET /api/users/role-bindings/{relationId}
   Future<Map<String, dynamic>?> getUserRoleBinding({
     required int relationId,
   }) async {
@@ -559,6 +711,16 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // --- GET /api/users/role-bindings?page=&size= ---
+  /// 分页获取用户-角色绑定关系列表。
+  ///
+  /// [page] 分页页码，当前客户端默认从 1 开始。
+  /// [size] 每页条数，默认 20。
+  ///
+  /// 返回绑定关系 Map 列表；无数据时返回空列表。
+  ///
+  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  ///
+  /// 对应接口：GET /api/users/role-bindings
   Future<List<Map<String, dynamic>>> listUserRoleBindings({
     int page = 1,
     int size = 20,
@@ -587,6 +749,17 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // --- GET /api/users/role-bindings/by-role/{roleId}?page=&size= ---
+  /// 按角色 ID 查询用户-角色绑定关系列表。
+  ///
+  /// [roleId] 角色主键。
+  /// [page] 分页页码，当前客户端默认从 1 开始。
+  /// [size] 每页条数，默认 20。
+  ///
+  /// 返回绑定了该角色的关系 Map 列表；无数据时返回空列表。
+  ///
+  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  ///
+  /// 对应接口：GET /api/users/role-bindings/by-role/{roleId}
   Future<List<Map<String, dynamic>>> listUserRoleBindingsByRole({
     required int roleId,
     int page = 1,
@@ -617,6 +790,17 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // --- GET /api/users/search/department/prefix?department=&page=&size= ---
+  /// 按部门前缀搜索用户。
+  ///
+  /// [department] 部门名称或编码前缀。
+  /// [page] 分页页码，当前客户端默认从 1 开始。
+  /// [size] 每页条数，默认 20。
+  ///
+  /// 返回 [UserManagement] 列表；无匹配时返回空列表。
+  ///
+  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  ///
+  /// 对应接口：GET /api/users/search/department/prefix
   Future<List<UserManagement>> searchUsersByDepartmentPrefix({
     required String department,
     int page = 1,
@@ -648,6 +832,17 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // --- GET /api/users/search/employee-number?employeeNumber=&page=&size= ---
+  /// 按员工编号搜索用户。
+  ///
+  /// [employeeNumber] 员工编号查询值。
+  /// [page] 分页页码，当前客户端默认从 1 开始。
+  /// [size] 每页条数，默认 20。
+  ///
+  /// 返回 [UserManagement] 列表；无匹配时返回空列表。
+  ///
+  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  ///
+  /// 对应接口：GET /api/users/search/employee-number
   Future<List<UserManagement>> searchUsersByEmployeeNumber({
     required String employeeNumber,
     int page = 1,
@@ -679,6 +874,18 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // --- GET /api/users/search/last-login-range?startTime=&endTime=&page=&size= ---
+  /// 按最后登录时间范围搜索用户。
+  ///
+  /// [startTime] 查询开始时间。
+  /// [endTime] 查询结束时间。
+  /// [page] 分页页码，当前客户端默认从 1 开始。
+  /// [size] 每页条数，默认 20。
+  ///
+  /// 返回 [UserManagement] 列表；无匹配时返回空列表。
+  ///
+  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  ///
+  /// 对应接口：GET /api/users/search/last-login-range
   Future<List<UserManagement>> searchUsersByLastLoginRange({
     required String startTime,
     required String endTime,
@@ -712,6 +919,18 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // --- GET /api/users/role-bindings/search?userId=&roleId=&page=&size= ---
+  /// 按用户 ID 和角色 ID 搜索用户-角色绑定关系。
+  ///
+  /// [userId] 用户主键。
+  /// [roleId] 角色主键。
+  /// [page] 分页页码，当前客户端默认从 1 开始。
+  /// [size] 每页条数，默认 20。
+  ///
+  /// 返回匹配的绑定关系 Map 列表；无匹配时返回空列表。
+  ///
+  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 时。
+  ///
+  /// 对应接口：GET /api/users/role-bindings/search
   Future<List<Map<String, dynamic>>> searchUserRoleBindings({
     required int userId,
     required int roleId,
@@ -744,6 +963,17 @@ class UserManagementControllerApi with BaseApiClient {
     return jsonList.cast<Map<String, dynamic>>();
   }
 
+  /// 按用户状态搜索用户。
+  ///
+  /// [status] 用户状态，例如启用、禁用等后端定义值。
+  /// [page] 分页页码，当前客户端默认从 1 开始。
+  /// [size] 每页条数，默认 20。
+  ///
+  /// 返回 [UserManagement] 列表；无匹配时返回空列表。
+  ///
+  /// 抛出 [ApiException]：当 [status] 为空或 HTTP 响应非 2xx 时。
+  ///
+  /// 对应接口：GET /api/users/search/status
   Future<List<UserManagement>> searchUsersByStatus({
     required String status,
     int page = 1,
@@ -797,6 +1027,15 @@ class UserManagementControllerApi with BaseApiClient {
     );
   }
 
+  /// 根据用户 ID 删除用户。
+  ///
+  /// [userId] 用户主键，不能为空。
+  ///
+  /// 删除成功时无返回值。
+  ///
+  /// 抛出 [ApiException]：当 [userId] 为空或 HTTP 响应非 2xx 时。
+  ///
+  /// 对应接口：DELETE /api/users/{userId}
   Future<void> deleteUser({
     required String userId,
   }) async {
@@ -840,6 +1079,15 @@ class UserManagementControllerApi with BaseApiClient {
     );
   }
 
+  /// 根据用户 ID 获取用户信息。
+  ///
+  /// [userId] 用户主键，不能为空。
+  ///
+  /// 返回 [UserManagement]；后端返回空响应时返回 `null`。
+  ///
+  /// 抛出 [ApiException]：当 [userId] 为空或 HTTP 响应非 2xx 时。
+  ///
+  /// 对应接口：GET /api/users/{userId}
   Future<UserManagement?> getUser({
     required String userId,
   }) async {
@@ -893,6 +1141,17 @@ class UserManagementControllerApi with BaseApiClient {
     );
   }
 
+  /// 更新用户信息。
+  ///
+  /// [userId] 待更新的用户主键，不能为空。
+  /// [userManagement] 更新后的用户数据。
+  /// [idempotencyKey] 幂等键，用于防止重复提交。
+  ///
+  /// 更新成功时无返回值。
+  ///
+  /// 抛出 [ApiException]：当 [userId] 或 [idempotencyKey] 为空，或 HTTP 响应非 2xx 时。
+  ///
+  /// 对应接口：PUT /api/users/{userId}
   Future<void> updateUser({
     required String userId,
     required UserManagement userManagement,
@@ -933,6 +1192,13 @@ class UserManagementControllerApi with BaseApiClient {
         410, "Endpoint removed: DELETE /api/users/username/{username}");
   }
 
+  /// 按用户名删除用户。
+  ///
+  /// [username] 用户名，不能为空。
+  ///
+  /// 当前后端已移除该 REST 接口，调用会抛出 410 [ApiException]。
+  ///
+  /// 对应接口：DELETE /api/users/username/{username}
   Future<void> deleteUserByUsername({
     required String username,
   }) async {
@@ -954,6 +1220,17 @@ class UserManagementControllerApi with BaseApiClient {
     return await _searchUsersByUsernameWithHttpInfo(username: username);
   }
 
+  /// 按用户名获取用户信息。
+  ///
+  /// [username] 用户名，不能为空。
+  ///
+  /// 当前实现委托 [searchUsersByUsername]，使用新版搜索接口获取单个用户。
+  ///
+  /// 返回 [UserManagement]；后端返回空响应时返回 `null`。
+  ///
+  /// 抛出 [ApiException]：当 [username] 为空或 HTTP 响应非 2xx 时。
+  ///
+  /// 对应接口：GET /api/users/search/username/{username}
   Future<UserManagement?> getUserByUsername({
     required String username,
   }) async {
@@ -982,6 +1259,15 @@ class UserManagementControllerApi with BaseApiClient {
     );
   }
 
+  /// 按用户名精确搜索用户。
+  ///
+  /// [username] 用户名，不能为空。
+  ///
+  /// 返回 [UserManagement]；后端返回空响应时返回 `null`。
+  ///
+  /// 抛出 [ApiException]：当 [username] 为空或 HTTP 响应非 2xx 时。
+  ///
+  /// 对应接口：GET /api/users/search/username/{username}
   Future<UserManagement?> searchUsersByUsername({
     required String username,
   }) async {
@@ -1033,6 +1319,15 @@ class UserManagementControllerApi with BaseApiClient {
     );
   }
 
+  /// 获取用户名自动补全候选项。
+  ///
+  /// [prefix] 用户名前缀，不能为空。
+  ///
+  /// 返回用户名字符串列表；无匹配时返回空列表。
+  ///
+  /// 抛出 [ApiException]：当 [prefix] 为空或 HTTP 响应非 2xx 时。
+  ///
+  /// 对应接口：GET /api/users/autocomplete/usernames
   Future<List<String>> autocompleteUsernames({
     required String prefix,
   }) async {
@@ -1069,6 +1364,13 @@ class UserManagementControllerApi with BaseApiClient {
         410, "Endpoint removed: /api/users/autocomplete/statuses");
   }
 
+  /// 获取用户状态自动补全候选项。
+  ///
+  /// [prefix] 状态前缀。
+  ///
+  /// 当前后端已移除该接口，调用会抛出 410 [ApiException]。
+  ///
+  /// 对应接口：GET /api/users/autocomplete/statuses
   Future<List<String>> autocompleteUserStatuses({
     required String prefix,
   }) async {
@@ -1085,6 +1387,13 @@ class UserManagementControllerApi with BaseApiClient {
         410, "Endpoint removed: /api/users/autocomplete/phone-numbers");
   }
 
+  /// 获取用户手机号自动补全候选项。
+  ///
+  /// [prefix] 手机号前缀。
+  ///
+  /// 当前后端已移除该接口，调用会抛出 410 [ApiException]。
+  ///
+  /// 对应接口：GET /api/users/autocomplete/phone-numbers
   Future<List<String>> autocompleteUserPhoneNumbers({
     required String prefix,
   }) async {
@@ -1095,6 +1404,14 @@ class UserManagementControllerApi with BaseApiClient {
   // --- WebSocket Methods ---
 
   // getAllUsers (WebSocket)
+  /// @realtimeApi
+  /// 通过 WebSocket eventbus 获取用户列表。
+  ///
+  /// 返回 [UserManagement] 列表；eventbus result 非列表时返回 `null`。
+  ///
+  /// 抛出 [ApiException]：当 WebSocket 响应包含 `error` 字段时。
+  ///
+  /// 对应实时动作：UserManagementService.getAllUsers
   Future<List<UserManagement>?> eventbusUsersGet() async {
     final msg = {
       "service": "UserManagementService",
@@ -1145,6 +1462,16 @@ class UserManagementControllerApi with BaseApiClient {
     }
   }
 
+  /// @realtimeApi
+  /// 通过 eventbus 获取当前用户信息。
+  ///
+  /// [username] 当前登录用户名。
+  ///
+  /// 返回 [UserManagement]；未找到当前用户时抛出 404 [ApiException]。
+  ///
+  /// 抛出 [ApiException]：当 WebSocket 响应包含 `error` 字段或用户不存在时。
+  ///
+  /// 对应实时动作：UserManagementService.getCurrentUser
   Future<UserManagement> getCurrentUser({
     required String username,
   }) async {
@@ -1156,6 +1483,18 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // updateCurrentUser (WebSocket)
+  /// @realtimeApi
+  /// 通过 WebSocket eventbus 更新当前用户信息。
+  ///
+  /// [username] 当前登录用户名。
+  /// [userManagement] 更新后的用户数据。
+  /// [idempotencyKey] 幂等键，用于防止重复提交。
+  ///
+  /// 更新成功时无返回值。
+  ///
+  /// 抛出 [ApiException]：当 WebSocket 响应包含 `error` 字段时。
+  ///
+  /// 对应实时动作：UserManagementService.updateCurrentUser
   Future<void> eventbusUsersMePut({
     required String username,
     required UserManagement userManagement,
@@ -1180,6 +1519,17 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // createUser (WebSocket)
+  /// @realtimeApi
+  /// 通过 WebSocket eventbus 创建用户。
+  ///
+  /// [userManagement] 待创建的用户数据。
+  /// [idempotencyKey] 幂等键，用于防止重复提交。
+  ///
+  /// 返回创建后的 [UserManagement]；eventbus result 为空时返回 `null`。
+  ///
+  /// 抛出 [ApiException]：当 WebSocket 响应包含 `error` 字段时。
+  ///
+  /// 对应实时动作：UserManagementService.createUser
   Future<UserManagement?> eventbusUsersPost({
     required UserManagement userManagement,
     required String idempotencyKey,
@@ -1207,6 +1557,16 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // getUsersByStatus (WebSocket)
+  /// @realtimeApi
+  /// 通过 WebSocket eventbus 按用户状态获取用户列表。
+  ///
+  /// [status] 用户状态。
+  ///
+  /// 返回 [UserManagement] 列表；eventbus result 非列表时返回 `null`。
+  ///
+  /// 抛出 [ApiException]：当 WebSocket 响应包含 `error` 字段时。
+  ///
+  /// 对应实时动作：UserManagementService.getUsersByStatus
   Future<List<UserManagement>?> eventbusUsersStatusStatusGet({
     required String status,
   }) async {
@@ -1235,6 +1595,16 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // getUsersByType (WebSocket)
+  /// @realtimeApi
+  /// 通过 WebSocket eventbus 按用户类型获取用户列表。
+  ///
+  /// [userType] 用户类型。
+  ///
+  /// 返回 [UserManagement] 列表；eventbus result 非列表时返回 `null`。
+  ///
+  /// 抛出 [ApiException]：当 WebSocket 响应包含 `error` 字段时。
+  ///
+  /// 对应实时动作：UserManagementService.getUsersByType
   Future<List<UserManagement>?> eventbusUsersTypeUserTypeGet({
     required String userType,
   }) async {
@@ -1263,6 +1633,16 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // deleteUser (WebSocket)
+  /// @realtimeApi
+  /// 通过 WebSocket eventbus 按用户 ID 删除用户。
+  ///
+  /// [userId] 用户主键。
+  ///
+  /// 删除成功时无返回值。
+  ///
+  /// 抛出 [ApiException]：当 WebSocket 响应包含 `error` 字段时。
+  ///
+  /// 对应实时动作：UserManagementService.deleteUser
   Future<void> eventbusUsersUserIdDelete({required String userId}) async {
     final msg = {
       "service": "UserManagementService",
@@ -1283,6 +1663,16 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // getUserById (WebSocket)
+  /// @realtimeApi
+  /// 通过 WebSocket eventbus 按用户 ID 获取用户信息。
+  ///
+  /// [userId] 用户主键。
+  ///
+  /// 返回 [UserManagement]；eventbus result 为空时返回 `null`。
+  ///
+  /// 抛出 [ApiException]：当 WebSocket 响应包含 `error` 字段时。
+  ///
+  /// 对应实时动作：UserManagementService.getUserById
   Future<UserManagement?> eventbusUsersUserIdGet({
     required String userId,
   }) async {
@@ -1309,6 +1699,18 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // updateUser (WebSocket)
+  /// @realtimeApi
+  /// 通过 WebSocket eventbus 更新用户信息。
+  ///
+  /// [userId] 待更新的用户主键。
+  /// [userManagement] 更新后的用户数据。
+  /// [idempotencyKey] 幂等键，用于防止重复提交。
+  ///
+  /// 更新成功时无返回值。
+  ///
+  /// 抛出 [ApiException]：当 WebSocket 响应包含 `error` 字段时。
+  ///
+  /// 对应实时动作：UserManagementService.updateUser
   Future<void> eventbusUsersUserIdPut({
     required String userId,
     required UserManagement userManagement,
@@ -1333,6 +1735,16 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // deleteUserByUsername (WebSocket)
+  /// @realtimeApi
+  /// 通过 WebSocket eventbus 按用户名删除用户。
+  ///
+  /// [username] 用户名。
+  ///
+  /// 删除成功时无返回值。
+  ///
+  /// 抛出 [ApiException]：当 WebSocket 响应包含 `error` 字段时。
+  ///
+  /// 对应实时动作：UserManagementService.deleteUserByUsername
   Future<void> eventbusUsersUsernameUsernameDelete({
     required String username,
   }) async {
@@ -1355,6 +1767,16 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // getUserByUsername (WebSocket)
+  /// @realtimeApi
+  /// 通过 WebSocket eventbus 按用户名获取用户信息。
+  ///
+  /// [username] 用户名。
+  ///
+  /// 返回 [UserManagement]；eventbus result 为空时返回 `null`。
+  ///
+  /// 抛出 [ApiException]：当 WebSocket 响应包含 `error` 字段时。
+  ///
+  /// 对应实时动作：UserManagementService.getUserByUsername
   Future<UserManagement?> eventbusUsersUsernameUsernameGet({
     required String username,
   }) async {
@@ -1381,6 +1803,16 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // getUsernameAutocompleteSuggestionsGlobally (WebSocket)
+  /// @realtimeApi
+  /// 通过 WebSocket eventbus 获取全局用户名自动补全候选项。
+  ///
+  /// [prefix] 用户名前缀，不能为空。
+  ///
+  /// 返回用户名字符串列表；无匹配时返回空列表。
+  ///
+  /// 抛出 [ApiException]：当 [prefix] 为空或 WebSocket 响应包含 `error` 字段时。
+  ///
+  /// 对应实时动作：UserManagementService.getUsernameAutocompleteSuggestionsGlobally
   Future<List<String>> eventbusUsersAutocompleteUsernamesGet({
     required String prefix,
   }) async {
@@ -1410,6 +1842,16 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // getStatusAutocompleteSuggestionsGlobally (WebSocket)
+  /// @realtimeApi
+  /// 通过 WebSocket eventbus 获取全局用户状态自动补全候选项。
+  ///
+  /// [prefix] 状态前缀，不能为空。
+  ///
+  /// 返回状态字符串列表；无匹配时返回空列表。
+  ///
+  /// 抛出 [ApiException]：当 [prefix] 为空或 WebSocket 响应包含 `error` 字段时。
+  ///
+  /// 对应实时动作：UserManagementService.getStatusAutocompleteSuggestionsGlobally
   Future<List<String>> eventbusUsersAutocompleteStatusesGet({
     required String prefix,
   }) async {
@@ -1439,6 +1881,16 @@ class UserManagementControllerApi with BaseApiClient {
   }
 
   // getPhoneNumberAutocompleteSuggestionsGlobally (WebSocket)
+  /// @realtimeApi
+  /// 通过 WebSocket eventbus 获取全局手机号自动补全候选项。
+  ///
+  /// [prefix] 手机号前缀，不能为空。
+  ///
+  /// 返回手机号字符串列表；无匹配时返回空列表。
+  ///
+  /// 抛出 [ApiException]：当 [prefix] 为空或 WebSocket 响应包含 `error` 字段时。
+  ///
+  /// 对应实时动作：UserManagementService.getPhoneNumberAutocompleteSuggestionsGlobally
   Future<List<String>> eventbusUsersAutocompletePhoneNumbersGet({
     required String prefix,
   }) async {

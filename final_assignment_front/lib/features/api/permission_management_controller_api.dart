@@ -20,6 +20,11 @@ class PermissionManagementControllerApi with BaseApiClient {
       : apiClient = apiClient ?? defaultApiClient;
 
   /// ä»?SharedPreferences ä¸­è¯»å?jwtToken å¹¶è®¾ç½®å° ApiClient ä¸?
+  /// 使用当前登录态初始化权限管理 API 客户端的 JWT。
+  ///
+  /// 调用权限管理接口前应先完成初始化；权限校验由后端根据当前 JWT 和角色执行。
+  ///
+  /// 抛出 [Exception]：当本地登录态无有效 JWT 时。
   Future<void> initializeWithJwt() async {
     final jwtToken = (await AuthTokenStore.instance.getJwtToken());
     if (jwtToken == null) {
@@ -42,6 +47,13 @@ class PermissionManagementControllerApi with BaseApiClient {
   }
 
   /// GET /api/permissions - è·åæææé?
+  /// 获取权限配置列表。
+  ///
+  /// 返回 [PermissionManagement] 列表；调用方需要具备后端要求的权限管理角色。
+  ///
+  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 或后端角色校验失败时。
+  ///
+  /// 对应接口：GET /api/permissions
   Future<List<PermissionManagement>> listPermissions() async {
     final response = await apiClient.invokeAPI(
       '/api/permissions',
@@ -63,6 +75,15 @@ class PermissionManagementControllerApi with BaseApiClient {
 
   /// DELETE /api/permissions/name/{permissionName} - æ ¹æ®åç§°å é¤æé (ä»
 // ç®¡çå)
+  /// 按权限名称删除权限配置。
+  ///
+  /// [permissionName] 权限名称，不能为空。
+  ///
+  /// 删除成功时无返回值；调用方需要具备后端要求的权限管理角色。
+  ///
+  /// 抛出 [ApiException]：当 [permissionName] 为空、HTTP 响应非 2xx 或后端角色校验失败时。
+  ///
+  /// 对应接口：DELETE /api/permissions/name/{permissionName}
   Future<void> deletePermissionByName({required String permissionName}) async {
     if (permissionName.isEmpty) {
       throw ApiException(400, "Missing required param: permissionName");
@@ -83,6 +104,15 @@ class PermissionManagementControllerApi with BaseApiClient {
   }
 
   /// GET /api/permissions/name/{permissionName} - æ ¹æ®åç§°è·åæé
+  /// 按权限名称获取权限配置。
+  ///
+  /// [permissionName] 权限名称，不能为空。
+  ///
+  /// 返回 [PermissionManagement]；后端返回空响应时返回 `null`。
+  ///
+  /// 抛出 [ApiException]：当 [permissionName] 为空、HTTP 响应非 2xx 或后端角色校验失败时。
+  ///
+  /// 对应接口：GET /api/permissions/name/{permissionName}
   Future<PermissionManagement?> getPermissionByName(
       {required String permissionName}) async {
     if (permissionName.isEmpty) {
@@ -109,6 +139,15 @@ class PermissionManagementControllerApi with BaseApiClient {
 
   /// DELETE /api/permissions/{permissionId} - æ ¹æ®IDå é¤æé (ä»
 // ç®¡çå)
+  /// 按权限 ID 删除权限配置。
+  ///
+  /// [permissionId] 权限主键，不能为空。
+  ///
+  /// 删除成功时无返回值；调用方需要具备后端要求的权限管理角色。
+  ///
+  /// 抛出 [ApiException]：当 [permissionId] 为空、HTTP 响应非 2xx 或后端角色校验失败时。
+  ///
+  /// 对应接口：DELETE /api/permissions/{permissionId}
   Future<void> deletePermission({required String permissionId}) async {
     if (permissionId.isEmpty) {
       throw ApiException(400, "Missing required param: permissionId");
@@ -129,6 +168,15 @@ class PermissionManagementControllerApi with BaseApiClient {
   }
 
   /// GET /api/permissions/{permissionId} - æ ¹æ®IDè·åæé
+  /// 按权限 ID 获取权限配置。
+  ///
+  /// [permissionId] 权限主键，不能为空。
+  ///
+  /// 返回 [PermissionManagement]；后端返回空响应时返回 `null`。
+  ///
+  /// 抛出 [ApiException]：当 [permissionId] 为空、HTTP 响应非 2xx 或后端角色校验失败时。
+  ///
+  /// 对应接口：GET /api/permissions/{permissionId}
   Future<PermissionManagement?> getPermission(
       {required String permissionId}) async {
     if (permissionId.isEmpty) {
@@ -155,6 +203,16 @@ class PermissionManagementControllerApi with BaseApiClient {
 
   /// PUT /api/permissions/{permissionId} - æ´æ°æé (ä»
 // ç®¡çå)
+  /// 更新权限配置。
+  ///
+  /// [permissionId] 待更新的权限主键，不能为空。
+  /// [permissionManagement] 更新后的权限配置。
+  ///
+  /// 返回后端更新后的 [PermissionManagement]；调用方需要具备后端要求的权限管理角色。
+  ///
+  /// 抛出 [ApiException]：当 [permissionId] 为空、HTTP 响应非 2xx 或后端角色校验失败时。
+  ///
+  /// 对应接口：PUT /api/permissions/{permissionId}
   Future<PermissionManagement> updatePermission({
     required String permissionId,
     required PermissionManagement permissionManagement,
@@ -182,6 +240,15 @@ class PermissionManagementControllerApi with BaseApiClient {
 
   /// POST /api/permissions - åå»ºæé (ä»
 // ç®¡çå)
+  /// 创建权限配置。
+  ///
+  /// [permissionManagement] 待创建的权限配置。
+  ///
+  /// 返回后端创建后的 [PermissionManagement]；调用方需要具备后端要求的权限管理角色。
+  ///
+  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 或后端角色校验失败时。
+  ///
+  /// 对应接口：POST /api/permissions
   Future<PermissionManagement> createPermission(
       {required PermissionManagement permissionManagement}) async {
     final response = await apiClient.invokeAPI(
@@ -203,6 +270,15 @@ class PermissionManagementControllerApi with BaseApiClient {
   }
 
   /// GET /api/permissions/search - æ ¹æ®åç§°æ¨¡ç³æç´¢æé
+  /// 按权限名称搜索权限配置。
+  ///
+  /// [name] 权限名称关键字；为空时由后端决定是否返回全部或空结果。
+  ///
+  /// 返回 [PermissionManagement] 列表；调用方需要具备后端要求的权限管理角色。
+  ///
+  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 或后端角色校验失败时。
+  ///
+  /// 对应接口：GET /api/permissions/search
   Future<List<PermissionManagement>> searchPermissions({String? name}) async {
     final response = await apiClient.invokeAPI(
       '/api/permissions/search',
@@ -226,6 +302,14 @@ class PermissionManagementControllerApi with BaseApiClient {
 
   /// GET /api/permissions (WebSocket)
   /// å¯¹åºåç«¯: @WsAction(service="PermissionManagement", action="getAllPermissions")
+  /// @realtimeApi
+  /// 通过 WebSocket eventbus 获取权限配置列表。
+  ///
+  /// 返回 eventbus 原始权限对象列表；result 不是列表时返回 `null`。
+  ///
+  /// 抛出 [ApiException]：当 WebSocket 响应包含 `error` 字段时。
+  ///
+  /// 对应实时动作：PermissionManagement.getAllPermissions
   Future<List<Object>?> eventbusPermissionsGet() async {
     final msg = {
       "service": "PermissionManagement",
@@ -244,6 +328,16 @@ class PermissionManagementControllerApi with BaseApiClient {
 
   /// DELETE /api/permissions/name/{permissionName} (WebSocket)
   /// å¯¹åºåç«¯: @WsAction(service="PermissionManagement", action="deletePermissionByName")
+  /// @realtimeApi
+  /// 通过 WebSocket eventbus 按权限名称删除权限配置。
+  ///
+  /// [permissionName] 权限名称，不能为空。
+  ///
+  /// 返回 `true` 表示 eventbus 未返回错误；调用方需要具备后端要求的权限管理角色。
+  ///
+  /// 抛出 [ApiException]：当 [permissionName] 为空或 WebSocket 响应包含 `error` 字段时。
+  ///
+  /// 对应实时动作：PermissionManagement.deletePermissionByName
   Future<bool> eventbusPermissionsNamePermissionNameDelete(
       {required String permissionName}) async {
     if (permissionName.isEmpty) {
@@ -263,6 +357,16 @@ class PermissionManagementControllerApi with BaseApiClient {
 
   /// GET /api/permissions/name/{permissionName} (WebSocket)
   /// å¯¹åºåç«¯: @WsAction(service="PermissionManagement", action="getPermissionByName")
+  /// @realtimeApi
+  /// 通过 WebSocket eventbus 按权限名称获取权限配置。
+  ///
+  /// [permissionName] 权限名称，不能为空。
+  ///
+  /// 返回 eventbus 原始 result；未找到时可能返回 `null`。
+  ///
+  /// 抛出 [ApiException]：当 [permissionName] 为空或 WebSocket 响应包含 `error` 字段时。
+  ///
+  /// 对应实时动作：PermissionManagement.getPermissionByName
   Future<Object?> eventbusPermissionsNamePermissionNameGet(
       {required String permissionName}) async {
     if (permissionName.isEmpty) {
@@ -282,6 +386,16 @@ class PermissionManagementControllerApi with BaseApiClient {
 
   /// DELETE /api/permissions/{permissionId} (WebSocket)
   /// å¯¹åºåç«¯: @WsAction(service="PermissionManagement", action="deletePermission")
+  /// @realtimeApi
+  /// 通过 WebSocket eventbus 按权限 ID 删除权限配置。
+  ///
+  /// [permissionId] 权限主键字符串，不能为空，内部会转换为整数传给后端。
+  ///
+  /// 返回 `true` 表示 eventbus 未返回错误；调用方需要具备后端要求的权限管理角色。
+  ///
+  /// 抛出 [ApiException]：当 [permissionId] 为空或 WebSocket 响应包含 `error` 字段时。
+  ///
+  /// 对应实时动作：PermissionManagement.deletePermission
   Future<bool> eventbusPermissionsPermissionIdDelete(
       {required String permissionId}) async {
     if (permissionId.isEmpty) {
@@ -301,6 +415,16 @@ class PermissionManagementControllerApi with BaseApiClient {
 
   /// GET /api/permissions/{permissionId} (WebSocket)
   /// å¯¹åºåç«¯: @WsAction(service="PermissionManagement", action="getPermissionById")
+  /// @realtimeApi
+  /// 通过 WebSocket eventbus 按权限 ID 获取权限配置。
+  ///
+  /// [permissionId] 权限主键字符串，不能为空，内部会转换为整数传给后端。
+  ///
+  /// 返回 eventbus 原始 result；未找到时可能返回 `null`。
+  ///
+  /// 抛出 [ApiException]：当 [permissionId] 为空或 WebSocket 响应包含 `error` 字段时。
+  ///
+  /// 对应实时动作：PermissionManagement.getPermissionById
   Future<Object?> eventbusPermissionsPermissionIdGet(
       {required String permissionId}) async {
     if (permissionId.isEmpty) {
@@ -320,6 +444,17 @@ class PermissionManagementControllerApi with BaseApiClient {
 
   /// PUT /api/permissions/{permissionId} (WebSocket)
   /// å¯¹åºåç«¯: @WsAction(service="PermissionManagement", action="updatePermission")
+  /// @realtimeApi
+  /// 通过 WebSocket eventbus 更新权限配置。
+  ///
+  /// [permissionId] 权限主键字符串，不能为空，内部会转换为整数传给后端。
+  /// [permissionManagement] 更新后的权限配置。
+  ///
+  /// 返回 eventbus 原始 result；调用方需要具备后端要求的权限管理角色。
+  ///
+  /// 抛出 [ApiException]：当 [permissionId] 为空或 WebSocket 响应包含 `error` 字段时。
+  ///
+  /// 对应实时动作：PermissionManagement.updatePermission
   Future<Object?> eventbusPermissionsPermissionIdPut({
     required String permissionId,
     required PermissionManagement permissionManagement,
@@ -341,6 +476,16 @@ class PermissionManagementControllerApi with BaseApiClient {
 
   /// POST /api/permissions (WebSocket)
   /// å¯¹åºåç«¯: @WsAction(service="PermissionManagement", action="createPermission")
+  /// @realtimeApi
+  /// 通过 WebSocket eventbus 创建权限配置。
+  ///
+  /// [permissionManagement] 待创建的权限配置。
+  ///
+  /// 返回 eventbus 原始 result；调用方需要具备后端要求的权限管理角色。
+  ///
+  /// 抛出 [ApiException]：当 WebSocket 响应包含 `error` 字段时。
+  ///
+  /// 对应实时动作：PermissionManagement.createPermission
   Future<Object?> eventbusPermissionsPost(
       {required PermissionManagement permissionManagement}) async {
     final msg = {
@@ -357,6 +502,16 @@ class PermissionManagementControllerApi with BaseApiClient {
 
   /// GET /api/permissions/search (WebSocket)
   /// å¯¹åºåç«¯: @WsAction(service="PermissionManagement", action="getPermissionsByNameLike")
+  /// @realtimeApi
+  /// 通过 WebSocket eventbus 按权限名称搜索权限配置。
+  ///
+  /// [name] 权限名称关键字；为空时传递空字符串给后端。
+  ///
+  /// 返回 eventbus 原始权限对象列表；result 不是列表时返回 `null`。
+  ///
+  /// 抛出 [ApiException]：当 WebSocket 响应包含 `error` 字段时。
+  ///
+  /// 对应实时动作：PermissionManagement.getPermissionsByNameLike
   Future<List<Object>?> eventbusPermissionsSearchGet({String? name}) async {
     final msg = {
       "service": "PermissionManagement",
@@ -374,6 +529,17 @@ class PermissionManagementControllerApi with BaseApiClient {
   }
 
   // HTTP: GET /api/permissions/parent/{parentId} - æç¶èç¹æ¥è¯¢æé
+  /// 按父权限 ID 获取子权限列表。
+  ///
+  /// [parentId] 父权限主键。
+  /// [page] 分页页码，当前客户端默认从 1 开始。
+  /// [size] 每页条数，默认 50。
+  ///
+  /// 返回 [PermissionManagement] 列表；调用方需要具备后端要求的权限管理角色。
+  ///
+  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 或后端角色校验失败时。
+  ///
+  /// 对应接口：GET /api/permissions/parent/{parentId}
   Future<List<PermissionManagement>> listPermissionsByParent({
     required int parentId,
     int page = 1,
@@ -401,6 +567,17 @@ class PermissionManagementControllerApi with BaseApiClient {
   }
 
   // HTTP: GET /api/permissions/search/code/prefix
+  /// 按权限编码前缀搜索权限配置。
+  ///
+  /// [permissionCode] 权限编码前缀。
+  /// [page] 分页页码，当前客户端默认从 1 开始。
+  /// [size] 每页条数，默认 50。
+  ///
+  /// 返回 [PermissionManagement] 列表；调用方需要具备后端要求的权限管理角色。
+  ///
+  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 或后端角色校验失败时。
+  ///
+  /// 对应接口：GET /api/permissions/search/code/prefix
   Future<List<PermissionManagement>> searchPermissionsByCodePrefix({
     required String permissionCode,
     int page = 1,
@@ -429,6 +606,17 @@ class PermissionManagementControllerApi with BaseApiClient {
   }
 
   // HTTP: GET /api/permissions/search/code/fuzzy
+  /// 按权限编码模糊搜索权限配置。
+  ///
+  /// [permissionCode] 权限编码关键字，模糊匹配规则由后端定义。
+  /// [page] 分页页码，当前客户端默认从 1 开始。
+  /// [size] 每页条数，默认 50。
+  ///
+  /// 返回 [PermissionManagement] 列表；调用方需要具备后端要求的权限管理角色。
+  ///
+  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 或后端角色校验失败时。
+  ///
+  /// 对应接口：GET /api/permissions/search/code/fuzzy
   Future<List<PermissionManagement>> searchPermissionsByCodeFuzzy({
     required String permissionCode,
     int page = 1,
@@ -457,6 +645,17 @@ class PermissionManagementControllerApi with BaseApiClient {
   }
 
   // HTTP: GET /api/permissions/search/name/prefix
+  /// 按权限名称前缀搜索权限配置。
+  ///
+  /// [permissionName] 权限名称前缀。
+  /// [page] 分页页码，当前客户端默认从 1 开始。
+  /// [size] 每页条数，默认 50。
+  ///
+  /// 返回 [PermissionManagement] 列表；调用方需要具备后端要求的权限管理角色。
+  ///
+  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 或后端角色校验失败时。
+  ///
+  /// 对应接口：GET /api/permissions/search/name/prefix
   Future<List<PermissionManagement>> searchPermissionsByNamePrefix({
     required String permissionName,
     int page = 1,
@@ -485,6 +684,17 @@ class PermissionManagementControllerApi with BaseApiClient {
   }
 
   // HTTP: GET /api/permissions/search/name/fuzzy
+  /// 按权限名称模糊搜索权限配置。
+  ///
+  /// [permissionName] 权限名称关键字，模糊匹配规则由后端定义。
+  /// [page] 分页页码，当前客户端默认从 1 开始。
+  /// [size] 每页条数，默认 50。
+  ///
+  /// 返回 [PermissionManagement] 列表；调用方需要具备后端要求的权限管理角色。
+  ///
+  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 或后端角色校验失败时。
+  ///
+  /// 对应接口：GET /api/permissions/search/name/fuzzy
   Future<List<PermissionManagement>> searchPermissionsByNameFuzzy({
     required String permissionName,
     int page = 1,
@@ -513,6 +723,17 @@ class PermissionManagementControllerApi with BaseApiClient {
   }
 
   // HTTP: GET /api/permissions/search/type
+  /// 按权限类型搜索权限配置。
+  ///
+  /// [permissionType] 权限类型，例如菜单权限、接口权限等后端定义值。
+  /// [page] 分页页码，当前客户端默认从 1 开始。
+  /// [size] 每页条数，默认 50。
+  ///
+  /// 返回 [PermissionManagement] 列表；调用方需要具备后端要求的权限管理角色。
+  ///
+  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 或后端角色校验失败时。
+  ///
+  /// 对应接口：GET /api/permissions/search/type
   Future<List<PermissionManagement>> searchPermissionsByType({
     required String permissionType,
     int page = 1,
@@ -541,6 +762,17 @@ class PermissionManagementControllerApi with BaseApiClient {
   }
 
   // HTTP: GET /api/permissions/search/api-path
+  /// 按后端 API 路径搜索权限配置。
+  ///
+  /// [apiPath] API 路径或路径片段，匹配规则由后端定义。
+  /// [page] 分页页码，当前客户端默认从 1 开始。
+  /// [size] 每页条数，默认 50。
+  ///
+  /// 返回 [PermissionManagement] 列表；调用方需要具备后端要求的权限管理角色。
+  ///
+  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 或后端角色校验失败时。
+  ///
+  /// 对应接口：GET /api/permissions/search/api-path
   Future<List<PermissionManagement>> searchPermissionsByApiPath({
     required String apiPath,
     int page = 1,
@@ -569,6 +801,17 @@ class PermissionManagementControllerApi with BaseApiClient {
   }
 
   // HTTP: GET /api/permissions/search/menu-path
+  /// 按前端菜单路径搜索权限配置。
+  ///
+  /// [menuPath] 菜单路径或路径片段，匹配规则由后端定义。
+  /// [page] 分页页码，当前客户端默认从 1 开始。
+  /// [size] 每页条数，默认 50。
+  ///
+  /// 返回 [PermissionManagement] 列表；调用方需要具备后端要求的权限管理角色。
+  ///
+  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 或后端角色校验失败时。
+  ///
+  /// 对应接口：GET /api/permissions/search/menu-path
   Future<List<PermissionManagement>> searchPermissionsByMenuPath({
     required String menuPath,
     int page = 1,
@@ -597,6 +840,17 @@ class PermissionManagementControllerApi with BaseApiClient {
   }
 
   // HTTP: GET /api/permissions/search/visible
+  /// 按菜单可见性搜索权限配置。
+  ///
+  /// [isVisible] 是否为可见权限或菜单项。
+  /// [page] 分页页码，当前客户端默认从 1 开始。
+  /// [size] 每页条数，默认 50。
+  ///
+  /// 返回 [PermissionManagement] 列表；调用方需要具备后端要求的权限管理角色。
+  ///
+  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 或后端角色校验失败时。
+  ///
+  /// 对应接口：GET /api/permissions/search/visible
   Future<List<PermissionManagement>> searchPermissionsByVisible({
     required bool isVisible,
     int page = 1,
@@ -625,6 +879,17 @@ class PermissionManagementControllerApi with BaseApiClient {
   }
 
   // HTTP: GET /api/permissions/search/external
+  /// 按是否外部链接搜索权限配置。
+  ///
+  /// [isExternal] 是否为外部资源或外部菜单链接。
+  /// [page] 分页页码，当前客户端默认从 1 开始。
+  /// [size] 每页条数，默认 50。
+  ///
+  /// 返回 [PermissionManagement] 列表；调用方需要具备后端要求的权限管理角色。
+  ///
+  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 或后端角色校验失败时。
+  ///
+  /// 对应接口：GET /api/permissions/search/external
   Future<List<PermissionManagement>> searchPermissionsByExternal({
     required bool isExternal,
     int page = 1,
@@ -653,6 +918,17 @@ class PermissionManagementControllerApi with BaseApiClient {
   }
 
   // HTTP: GET /api/permissions/search/status
+  /// 按权限状态搜索权限配置。
+  ///
+  /// [status] 权限状态，例如启用、禁用等后端定义值。
+  /// [page] 分页页码，当前客户端默认从 1 开始。
+  /// [size] 每页条数，默认 50。
+  ///
+  /// 返回 [PermissionManagement] 列表；调用方需要具备后端要求的权限管理角色。
+  ///
+  /// 抛出 [ApiException]：当 HTTP 响应非 2xx 或后端角色校验失败时。
+  ///
+  /// 对应接口：GET /api/permissions/search/status
   Future<List<PermissionManagement>> searchPermissionsByStatus({
     required String status,
     int page = 1,
