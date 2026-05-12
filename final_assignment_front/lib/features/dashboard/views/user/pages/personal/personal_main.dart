@@ -97,7 +97,8 @@ class _PersonalMainPageState extends State<PersonalMainPage> {
         throw Exception('加载用户信息失败');
       }
       final authUserId = user.userId!;
-      final driverId = authUserId; // 当前系统 authUserId 与 driverId 一一对应
+      // 此处 authUserId 与 driverId 当前相同，待后端分离后更新
+      final driverId = authUserId;
       DriverInformation? driverInfo =
           await driverApi.getDriver(driverId: driverId);
       if (driverInfo == null) {
@@ -148,7 +149,8 @@ class _PersonalMainPageState extends State<PersonalMainPage> {
         throw Exception('未找到当前用户信息');
       }
       final authUserId = user.userId!;
-      final driverId = authUserId; // 当前系统 authUserId 与 driverId 一一对应
+      // 此处 authUserId 与 driverId 当前相同，待后端分离后更新
+      final driverId = authUserId;
       final idempotencyKey = generateIdempotencyKey();
       final prefs = await SharedPreferences.getInstance();
       final jwtToken = prefs.getString('jwtToken');

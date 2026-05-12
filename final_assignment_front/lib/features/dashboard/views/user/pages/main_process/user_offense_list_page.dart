@@ -131,7 +131,8 @@ class _UserOffenseListPageState extends State<UserOffenseListPage> {
         throw Exception('User data does not contain userId');
       }
       final authUserId = user!.userId!;
-      final driverId = authUserId; // 当前系统 authUserId 与 driverId 一一对应
+      // 此处 authUserId 与 driverId 当前相同，待后端分离后更新
+      final driverId = authUserId;
       await driverApi.initializeWithJwt();
       var driverInfo = await driverApi.getDriver(driverId: driverId);
       if (driverInfo == null) {

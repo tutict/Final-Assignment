@@ -107,11 +107,14 @@ class _LoginScreenState extends State<LoginScreen>
 
         final userData = result['user'] ?? {};
         debugPrint('登录返回的用户数据: $userData');
-        final int? userIdFromLogin = userData['userId'];
+        final int? authUserIdFromLogin =
+            userData['authUserId'] ?? userData['userId'];
+        final int? driverIdFromLogin =
+            userData['driverId'] ?? result['driverId'];
         String resolvedName = userData['name'] ?? username.split('@').first;
         String resolvedEmail = userData['email'] ?? username;
         debugPrint(
-            '提取的 userId: $userIdFromLogin, 姓名: $resolvedName, 邮箱: $resolvedEmail');
+            '提取的 authUserId: $authUserIdFromLogin, driverId: $driverIdFromLogin, 姓名: $resolvedName, 邮箱: $resolvedEmail');
 
         String driverName = resolvedName;
 
@@ -121,7 +124,8 @@ class _LoginScreenState extends State<LoginScreen>
         await userManagementApi.initializeWithJwt();
         debugPrint('UserManagement API 已初始化');
 
-        int? authUserId = userIdFromLogin;
+        int? authUserId = authUserIdFromLogin;
+        int? driverId = driverIdFromLogin;
         try {
           final userInfo =
               await userManagementApi.searchUsersByUsername(username: username);
@@ -136,8 +140,12 @@ class _LoginScreenState extends State<LoginScreen>
           debugPrint('通过用户名查询用户信息失败: $e');
         }
 
-        if (authUserId != null) {
-          final driverId = authUserId; // 当前系统 authUserId 与 driverId 一一对应
+        if (driverId == null && authUserId != null) {
+          // 此处 authUserId 与 driverId 当前相同，待后端分离后更新
+          driverId = authUserId;
+        }
+
+        if (driverId != null) {
           try {
             final driverInfo = await driverApi.getDriver(driverId: driverId);
             if (driverInfo != null && driverInfo.name != null) {
@@ -166,18 +174,22 @@ class _LoginScreenState extends State<LoginScreen>
             }
           }
         } else {
-          debugPrint('无法获取 userId，跳过 DriverInformation 查询');
+          debugPrint('无法获取 driverId，跳过 DriverInformation 查询');
         }
 
         driverName = driverName.isNotEmpty ? driverName : resolvedName;
         await prefs.setString('driverName', driverName);
         await prefs.setString('userEmail', resolvedEmail);
         if (authUserId != null) {
+          await prefs.setString('authUserId', authUserId.toString());
           await prefs.setString('userId', authUserId.toString());
+        }
+        if (driverId != null) {
+          await prefs.setString('driverId', driverId.toString());
         }
 
         debugPrint(
-            '登录成功 - 角色: $_userRole, 姓名: $driverName, 邮箱: $resolvedEmail');
+            '登录成功 - 角色: $_userRole, authUserId: $authUserId, driverId: $driverId, 姓名: $driverName, 邮箱: $resolvedEmail');
         return null;
       }
       return result['message'] ?? '登录失败';
@@ -232,13 +244,18 @@ class _LoginScreenState extends State<LoginScreen>
           await prefs.setString('userName', username);
 
           final userData = loginResult['user'] ?? {};
-          final int? authUserId = userData['userId'];
+          final int? authUserId = userData['authUserId'] ?? userData['userId'];
+          int? driverId = userData['driverId'] ?? loginResult['driverId'];
           String resolvedName = userData['name'] ?? username.split('@').first;
           String resolvedEmail = userData['email'] ?? username;
 
           String driverName = resolvedName;
-          if (authUserId != null) {
-            final driverId = authUserId; // 当前系统 authUserId 与 driverId 一一对应
+          if (driverId == null && authUserId != null) {
+            // 此处 authUserId 与 driverId 当前相同，待后端分离后更新
+            driverId = authUserId;
+          }
+
+          if (driverId != null) {
             await driverApi.initializeWithJwt();
             final driverInfo = DriverInformation(
               driverId: driverId,
@@ -254,7 +271,11 @@ class _LoginScreenState extends State<LoginScreen>
             driverName = fetchedDriver?.name ?? resolvedName;
             await prefs.setString('driverName', driverName);
             await prefs.setString('userEmail', resolvedEmail);
-            await prefs.setString('userId', authUserId.toString());
+            if (authUserId != null) {
+              await prefs.setString('authUserId', authUserId.toString());
+              await prefs.setString('userId', authUserId.toString());
+            }
+            await prefs.setString('driverId', driverId.toString());
             debugPrint('Driver created and fetched name: $driverName');
           }
 
