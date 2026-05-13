@@ -1,5 +1,9 @@
 package com.tutict.finalassignmentbackend.controller;
 
+import com.tutict.finalassignmentbackend.dto.mapper.UserResponseMapper;
+import com.tutict.finalassignmentbackend.dto.request.UserCreateRequest;
+import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
+import com.tutict.finalassignmentbackend.dto.response.UserResponse;
 import com.tutict.finalassignmentbackend.entity.SysUser;
 import com.tutict.finalassignmentbackend.entity.SysUserRole;
 import com.tutict.finalassignmentbackend.service.SysUserRoleService;
@@ -8,6 +12,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.security.RolesAllowed;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -45,54 +50,60 @@ public class UserManagementController {
 
     @PostMapping
     @Operation(summary = "创建用户")
-    public ResponseEntity<SysUser> createUser(@RequestBody SysUser request,
-                                              @RequestHeader(value = "Idempotency-Key", required = false)
-                                              String idempotencyKey) {
+    public ResponseEntity<ApiResponse<UserResponse>> createUser(@Valid @RequestBody UserCreateRequest request,
+                                                                @RequestHeader(value = "Idempotency-Key", required = false)
+                                                                String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);
         try {
+            SysUser user = UserResponseMapper.toEntity(request);
             if (useKey) {
                 if (sysUserService.shouldSkipProcessing(idempotencyKey)) {
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED)
+                            .body(ApiResponse.error("DUPLICATE_REQUEST", "Duplicate request"));
                 }
-                sysUserService.checkAndInsertIdempotency(idempotencyKey, request, "create");
+                sysUserService.checkAndInsertIdempotency(idempotencyKey, user, "create");
             }
-            SysUser saved = sysUserService.createSysUser(request);
+            SysUser saved = sysUserService.createSysUser(user);
             if (useKey && saved.getUserId() != null) {
                 sysUserService.markHistorySuccess(idempotencyKey, saved.getUserId());
             }
-            return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ApiResponse.ok(toUserResponse(saved)));
         } catch (Exception ex) {
             if (useKey) {
                 sysUserService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
             LOG.log(Level.SEVERE, "Create user failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            return ResponseEntity.status(resolveStatus(ex))
+                    .body(ApiResponse.error("USER_CREATE_FAILED", ex.getMessage()));
         }
     }
 
     @PutMapping("/{userId}")
     @Operation(summary = "更新用户")
-    public ResponseEntity<SysUser> updateUser(@PathVariable Long userId,
-                                              @RequestBody SysUser request,
-                                              @RequestHeader(value = "Idempotency-Key", required = false)
-                                              String idempotencyKey) {
+    public ResponseEntity<ApiResponse<UserResponse>> updateUser(@PathVariable Long userId,
+                                                                @Valid @RequestBody UserCreateRequest request,
+                                                                @RequestHeader(value = "Idempotency-Key", required = false)
+                                                                String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);
         try {
-            request.setUserId(userId);
+            SysUser user = UserResponseMapper.toEntity(request);
+            user.setUserId(userId);
             if (useKey) {
-                sysUserService.checkAndInsertIdempotency(idempotencyKey, request, "update");
+                sysUserService.checkAndInsertIdempotency(idempotencyKey, user, "update");
             }
-            SysUser updated = sysUserService.updateSysUser(request);
+            SysUser updated = sysUserService.updateSysUser(user);
             if (useKey && updated.getUserId() != null) {
                 sysUserService.markHistorySuccess(idempotencyKey, updated.getUserId());
             }
-            return ResponseEntity.ok(updated);
+            return ResponseEntity.ok(ApiResponse.ok(toUserResponse(updated)));
         } catch (Exception ex) {
             if (useKey) {
                 sysUserService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
             LOG.log(Level.SEVERE, "Update user failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            return ResponseEntity.status(resolveStatus(ex))
+                    .body(ApiResponse.error("USER_UPDATE_FAILED", ex.getMessage()));
         }
     }
 
@@ -110,136 +121,147 @@ public class UserManagementController {
 
     @GetMapping("/{userId}")
     @Operation(summary = "查询用户详情")
-    public ResponseEntity<SysUser> getUser(@PathVariable Long userId) {
+    public ResponseEntity<ApiResponse<UserResponse>> getUser(@PathVariable Long userId) {
         try {
             SysUser user = sysUserService.findById(userId);
-            return user == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(user);
+            return user == null
+                    ? ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error("USER_NOT_FOUND", "User not found"))
+                    : ResponseEntity.ok(ApiResponse.ok(toUserResponse(user)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get user failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            return ResponseEntity.status(resolveStatus(ex))
+                    .body(ApiResponse.error("USER_QUERY_FAILED", ex.getMessage()));
         }
     }
 
     @GetMapping
     @Operation(summary = "查询全部用户")
-    public ResponseEntity<List<SysUser>> listUsers() {
+    public ResponseEntity<ApiResponse<List<UserResponse>>> listUsers() {
         try {
-            return ResponseEntity.ok(sysUserService.findAll());
+            return ResponseEntity.ok(ApiResponse.ok(toUserResponses(sysUserService.findAll())));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List users failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            return ResponseEntity.status(resolveStatus(ex))
+                    .body(ApiResponse.error("USER_LIST_FAILED", ex.getMessage()));
         }
     }
 
     @GetMapping("/search/username/{username}")
     @Operation(summary = "按用户名查询用户")
-    public ResponseEntity<SysUser> getByUsername(@PathVariable String username) {
+    public ResponseEntity<ApiResponse<UserResponse>> getByUsername(@PathVariable String username) {
         try {
             SysUser user = sysUserService.findByUsername(username);
-            return user == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(user);
+            return user == null
+                    ? ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ApiResponse.error("USER_NOT_FOUND", "User not found"))
+                    : ResponseEntity.ok(ApiResponse.ok(toUserResponse(user)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Get user by username failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            return ResponseEntity.status(resolveStatus(ex))
+                    .body(ApiResponse.error("USER_QUERY_FAILED", ex.getMessage()));
         }
     }
 
     @GetMapping("/search/username/prefix")
     @Operation(summary = "Search users by username prefix")
-    public ResponseEntity<List<SysUser>> searchByUsernamePrefix(@RequestParam String username,
-                                                                @RequestParam(defaultValue = "1") int page,
-                                                                @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(sysUserService.searchByUsernamePrefix(username, page, size));
+    public ResponseEntity<ApiResponse<List<UserResponse>>> searchByUsernamePrefix(@RequestParam String username,
+                                                                                  @RequestParam(defaultValue = "1") int page,
+                                                                                  @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ApiResponse.ok(toUserResponses(sysUserService.searchByUsernamePrefix(username, page, size))));
     }
 
     @GetMapping("/search/username/fuzzy")
     @Operation(summary = "Search users by username fuzzy")
-    public ResponseEntity<List<SysUser>> searchByUsernameFuzzy(@RequestParam String username,
-                                                               @RequestParam(defaultValue = "1") int page,
-                                                               @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(sysUserService.searchByUsernameFuzzy(username, page, size));
+    public ResponseEntity<ApiResponse<List<UserResponse>>> searchByUsernameFuzzy(@RequestParam String username,
+                                                                                 @RequestParam(defaultValue = "1") int page,
+                                                                                 @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ApiResponse.ok(toUserResponses(sysUserService.searchByUsernameFuzzy(username, page, size))));
     }
 
     @GetMapping("/search/real-name/prefix")
     @Operation(summary = "Search users by real name prefix")
-    public ResponseEntity<List<SysUser>> searchByRealNamePrefix(@RequestParam String realName,
-                                                                @RequestParam(defaultValue = "1") int page,
-                                                                @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(sysUserService.searchByRealNamePrefix(realName, page, size));
+    public ResponseEntity<ApiResponse<List<UserResponse>>> searchByRealNamePrefix(@RequestParam String realName,
+                                                                                  @RequestParam(defaultValue = "1") int page,
+                                                                                  @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ApiResponse.ok(toUserResponses(sysUserService.searchByRealNamePrefix(realName, page, size))));
     }
 
     @GetMapping("/search/real-name/fuzzy")
     @Operation(summary = "Search users by real name fuzzy")
-    public ResponseEntity<List<SysUser>> searchByRealNameFuzzy(@RequestParam String realName,
-                                                               @RequestParam(defaultValue = "1") int page,
-                                                               @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(sysUserService.searchByRealNameFuzzy(realName, page, size));
+    public ResponseEntity<ApiResponse<List<UserResponse>>> searchByRealNameFuzzy(@RequestParam String realName,
+                                                                                 @RequestParam(defaultValue = "1") int page,
+                                                                                 @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ApiResponse.ok(toUserResponses(sysUserService.searchByRealNameFuzzy(realName, page, size))));
     }
 
     @GetMapping("/search/id-card")
     @Operation(summary = "Search users by ID card number")
-    public ResponseEntity<List<SysUser>> searchByIdCard(@RequestParam String idCardNumber,
-                                                        @RequestParam(defaultValue = "1") int page,
-                                                        @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(sysUserService.searchByIdCardNumber(idCardNumber, page, size));
+    public ResponseEntity<ApiResponse<List<UserResponse>>> searchByIdCard(@RequestParam String idCardNumber,
+                                                                          @RequestParam(defaultValue = "1") int page,
+                                                                          @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ApiResponse.ok(toUserResponses(sysUserService.searchByIdCardNumber(idCardNumber, page, size))));
     }
 
     @GetMapping("/search/contact")
     @Operation(summary = "Search users by contact number")
-    public ResponseEntity<List<SysUser>> searchByContact(@RequestParam String contactNumber,
-                                                         @RequestParam(defaultValue = "1") int page,
-                                                         @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(sysUserService.searchByContactNumber(contactNumber, page, size));
+    public ResponseEntity<ApiResponse<List<UserResponse>>> searchByContact(@RequestParam String contactNumber,
+                                                                           @RequestParam(defaultValue = "1") int page,
+                                                                           @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ApiResponse.ok(toUserResponses(sysUserService.searchByContactNumber(contactNumber, page, size))));
     }
 
     @GetMapping("/search/status")
     @Operation(summary = "按状态分页查询用户")
-    public ResponseEntity<List<SysUser>> listByStatus(@RequestParam String status,
-                                                      @RequestParam(defaultValue = "1") int page,
-                                                      @RequestParam(defaultValue = "20") int size) {
+    public ResponseEntity<ApiResponse<List<UserResponse>>> listByStatus(@RequestParam String status,
+                                                                        @RequestParam(defaultValue = "1") int page,
+                                                                        @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(sysUserService.findByStatus(status, page, size));
+            return ResponseEntity.ok(ApiResponse.ok(toUserResponses(sysUserService.findByStatus(status, page, size))));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List users by status failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            return ResponseEntity.status(resolveStatus(ex))
+                    .body(ApiResponse.error("USER_LIST_FAILED", ex.getMessage()));
         }
     }
 
     @GetMapping("/search/department")
     @Operation(summary = "按部门分页查询用户")
-    public ResponseEntity<List<SysUser>> listByDepartment(@RequestParam String department,
-                                                          @RequestParam(defaultValue = "1") int page,
-                                                          @RequestParam(defaultValue = "20") int size) {
+    public ResponseEntity<ApiResponse<List<UserResponse>>> listByDepartment(@RequestParam String department,
+                                                                            @RequestParam(defaultValue = "1") int page,
+                                                                            @RequestParam(defaultValue = "20") int size) {
         try {
-            return ResponseEntity.ok(sysUserService.findByDepartment(department, page, size));
+            return ResponseEntity.ok(ApiResponse.ok(toUserResponses(sysUserService.findByDepartment(department, page, size))));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List users by department failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            return ResponseEntity.status(resolveStatus(ex))
+                    .body(ApiResponse.error("USER_LIST_FAILED", ex.getMessage()));
         }
     }
 
     @GetMapping("/search/department/prefix")
     @Operation(summary = "Search users by department prefix")
-    public ResponseEntity<List<SysUser>> searchByDepartmentPrefix(@RequestParam String department,
-                                                                  @RequestParam(defaultValue = "1") int page,
-                                                                  @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(sysUserService.searchByDepartmentPrefix(department, page, size));
+    public ResponseEntity<ApiResponse<List<UserResponse>>> searchByDepartmentPrefix(@RequestParam String department,
+                                                                                    @RequestParam(defaultValue = "1") int page,
+                                                                                    @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ApiResponse.ok(toUserResponses(sysUserService.searchByDepartmentPrefix(department, page, size))));
     }
 
     @GetMapping("/search/employee-number")
     @Operation(summary = "Search users by employee number")
-    public ResponseEntity<List<SysUser>> searchByEmployeeNumber(@RequestParam String employeeNumber,
-                                                                @RequestParam(defaultValue = "1") int page,
-                                                                @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(sysUserService.searchByEmployeeNumber(employeeNumber, page, size));
+    public ResponseEntity<ApiResponse<List<UserResponse>>> searchByEmployeeNumber(@RequestParam String employeeNumber,
+                                                                                  @RequestParam(defaultValue = "1") int page,
+                                                                                  @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ApiResponse.ok(toUserResponses(sysUserService.searchByEmployeeNumber(employeeNumber, page, size))));
     }
 
     @GetMapping("/search/last-login-range")
     @Operation(summary = "Search users by last login time range")
-    public ResponseEntity<List<SysUser>> searchByLastLoginRange(@RequestParam String startTime,
-                                                                @RequestParam String endTime,
-                                                                @RequestParam(defaultValue = "1") int page,
-                                                                @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(sysUserService.searchByLastLoginTimeRange(startTime, endTime, page, size));
+    public ResponseEntity<ApiResponse<List<UserResponse>>> searchByLastLoginRange(@RequestParam String startTime,
+                                                                                  @RequestParam String endTime,
+                                                                                  @RequestParam(defaultValue = "1") int page,
+                                                                                  @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ApiResponse.ok(toUserResponses(sysUserService.searchByLastLoginTimeRange(startTime, endTime, page, size))));
     }
 
     @PostMapping("/{userId}/roles")
@@ -351,6 +373,19 @@ public class UserManagementController {
                                                             @RequestParam(defaultValue = "1") int page,
                                                             @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(sysUserRoleService.findByUserIdAndRoleId(userId, roleId, page, size));
+    }
+
+    private UserResponse toUserResponse(SysUser user) {
+        return UserResponseMapper.toResponse(user);
+    }
+
+    private List<UserResponse> toUserResponses(List<SysUser> users) {
+        if (users == null || users.isEmpty()) {
+            return List.of();
+        }
+        return users.stream()
+                .map(this::toUserResponse)
+                .toList();
     }
 
     private boolean hasKey(String value) {

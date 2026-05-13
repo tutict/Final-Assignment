@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentbackend.controller;
 
-import com.tutict.finalassignmentbackend.entity.SysUser;
+import com.tutict.finalassignmentbackend.dto.mapper.UserResponseMapper;
+import com.tutict.finalassignmentbackend.dto.response.UserResponse;
 import com.tutict.finalassignmentbackend.service.AuthWsService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -160,7 +161,7 @@ public class AuthController {
                     responseCode = "200",
                     description = "查询成功",
                     content = @Content(mediaType = "application/json",
-                            schema = @Schema(implementation = SysUser.class)))
+                            schema = @Schema(implementation = UserResponse.class)))
             ,
             @ApiResponse(
                     responseCode = "403",
@@ -168,15 +169,19 @@ public class AuthController {
                     content = @Content(mediaType = "application/json",
                             schema = @Schema(type = "object", example = "{\"error\":\"Access denied\"}")))
     })
-    public ResponseEntity<List<SysUser>> getAllUsers() {
+    public ResponseEntity<com.tutict.finalassignmentbackend.dto.response.ApiResponse<List<UserResponse>>> getAllUsers() {
         try {
-            List<SysUser> users = authWsService.getAllUsers();
+            List<UserResponse> users = authWsService.getAllUsers().stream()
+                    .map(UserResponseMapper::toResponse)
+                    .toList();
             LOG.log(Level.INFO, "Fetched {0} users", users.size());
-            return ResponseEntity.ok(users);
+            return ResponseEntity.ok(com.tutict.finalassignmentbackend.dto.response.ApiResponse.ok(users));
         } catch (Exception ex) {
             LOG.log(Level.SEVERE, "GetAllUsers failed: {0}", ex.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(List.of());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(com.tutict.finalassignmentbackend.dto.response.ApiResponse.error(
+                            "AUTH_USERS_QUERY_FAILED",
+                            "Failed to fetch users"));
         }
     }
 }
-

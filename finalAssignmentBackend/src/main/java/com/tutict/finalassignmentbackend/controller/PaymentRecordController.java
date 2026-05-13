@@ -1,6 +1,9 @@
 package com.tutict.finalassignmentbackend.controller;
 
 import com.tutict.finalassignmentbackend.config.statemachine.states.PaymentState;
+import com.tutict.finalassignmentbackend.dto.mapper.PaymentRecordResponseMapper;
+import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
+import com.tutict.finalassignmentbackend.dto.response.PaymentRecordResponse;
 import com.tutict.finalassignmentbackend.entity.PaymentRecord;
 import com.tutict.finalassignmentbackend.payment.governance.PaymentGovernanceClassifier;
 import com.tutict.finalassignmentbackend.payment.governance.PaymentGovernanceLogFactory;
@@ -46,9 +49,9 @@ public class PaymentRecordController {
 
     @PostMapping
     @Operation(summary = "创建支付记录")
-    public ResponseEntity<PaymentRecord> createPayment(@RequestBody PaymentRecord request,
-                                                       @RequestHeader(value = "Idempotency-Key", required = false)
-                                                       String idempotencyKey) {
+    public ResponseEntity<ApiResponse<PaymentRecordResponse>> createPayment(@RequestBody PaymentRecord request,
+                                                                            @RequestHeader(value = "Idempotency-Key", required = false)
+                                                                            String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);
         try {
             if (useKey) {
@@ -60,7 +63,8 @@ public class PaymentRecordController {
                             "create",
                             idempotencyKey
                     ));
-                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).build();
+                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED)
+                            .body(ApiResponse.error("DUPLICATE_REQUEST", "Duplicate request"));
                 }
                 logPaymentGovernance(PaymentGovernanceLogFactory.preMutationKafka(
                         PaymentGovernanceSource.CONTROLLER,
@@ -81,22 +85,24 @@ public class PaymentRecordController {
             if (useKey && saved.getPaymentId() != null) {
                 paymentRecordService.markHistorySuccess(idempotencyKey, saved.getPaymentId());
             }
-            return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ApiResponse.ok(toPaymentResponse(saved)));
         } catch (Exception ex) {
             if (useKey) {
                 paymentRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
             LOG.log(Level.SEVERE, "Create payment record failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            return ResponseEntity.status(resolveStatus(ex))
+                    .body(ApiResponse.error("PAYMENT_CREATE_FAILED", ex.getMessage()));
         }
     }
 
     @PutMapping("/{paymentId}")
     @Operation(summary = "更新支付记录")
-    public ResponseEntity<PaymentRecord> updatePayment(@PathVariable Long paymentId,
-                                                       @RequestBody PaymentRecord request,
-                                                       @RequestHeader(value = "Idempotency-Key", required = false)
-                                                       String idempotencyKey) {
+    public ResponseEntity<ApiResponse<PaymentRecordResponse>> updatePayment(@PathVariable Long paymentId,
+                                                                            @RequestBody PaymentRecord request,
+                                                                            @RequestHeader(value = "Idempotency-Key", required = false)
+                                                                            String idempotencyKey) {
         boolean useKey = hasKey(idempotencyKey);
         try {
             request.setPaymentId(paymentId);
@@ -120,13 +126,14 @@ public class PaymentRecordController {
             if (useKey && updated.getPaymentId() != null) {
                 paymentRecordService.markHistorySuccess(idempotencyKey, updated.getPaymentId());
             }
-            return ResponseEntity.ok(updated);
+            return ResponseEntity.ok(ApiResponse.ok(toPaymentResponse(updated)));
         } catch (Exception ex) {
             if (useKey) {
                 paymentRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
             LOG.log(Level.SEVERE, "Update payment record failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            return ResponseEntity.status(resolveStatus(ex))
+                    .body(ApiResponse.error("PAYMENT_UPDATE_FAILED", ex.getMessage()));
         }
     }
 
@@ -144,100 +151,104 @@ public class PaymentRecordController {
 
     @GetMapping("/{paymentId}")
     @Operation(summary = "查询支付记录详情")
-    public ResponseEntity<PaymentRecord> getPayment(@PathVariable Long paymentId) {
+    public ResponseEntity<ApiResponse<PaymentRecordResponse>> getPayment(@PathVariable Long paymentId) {
         PaymentRecord record = paymentRecordService.findById(paymentId);
-        return record == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(record);
+        return record == null
+                ? ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.error("PAYMENT_NOT_FOUND", "Payment record not found"))
+                : ResponseEntity.ok(ApiResponse.ok(toPaymentResponse(record)));
     }
 
     @GetMapping
     @Operation(summary = "查询全部支付记录")
-    public ResponseEntity<List<PaymentRecord>> listPayments() {
-        return ResponseEntity.ok(paymentRecordService.findAll());
+    public ResponseEntity<ApiResponse<List<PaymentRecordResponse>>> listPayments() {
+        return ResponseEntity.ok(ApiResponse.ok(toPaymentResponses(paymentRecordService.findAll())));
     }
 
     @GetMapping("/fine/{fineId}")
     @Operation(summary = "按罚款记录分页查询支付记录")
-    public ResponseEntity<List<PaymentRecord>> findByFine(@PathVariable Long fineId,
-                                                          @RequestParam(defaultValue = "1") int page,
-                                                          @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(paymentRecordService.findByFineId(fineId, page, size));
+    public ResponseEntity<ApiResponse<List<PaymentRecordResponse>>> findByFine(@PathVariable Long fineId,
+                                                                               @RequestParam(defaultValue = "1") int page,
+                                                                               @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ApiResponse.ok(toPaymentResponses(paymentRecordService.findByFineId(fineId, page, size))));
     }
 
     @GetMapping("/search/payer")
     @Operation(summary = "按缴款人身份证搜索支付记录")
-    public ResponseEntity<List<PaymentRecord>> searchByPayer(@RequestParam("idCard") String idCard,
-                                                             @RequestParam(defaultValue = "1") int page,
-                                                             @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(paymentRecordService.searchByPayerIdCard(idCard, page, size));
+    public ResponseEntity<ApiResponse<List<PaymentRecordResponse>>> searchByPayer(@RequestParam("idCard") String idCard,
+                                                                                  @RequestParam(defaultValue = "1") int page,
+                                                                                  @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ApiResponse.ok(toPaymentResponses(paymentRecordService.searchByPayerIdCard(idCard, page, size))));
     }
 
     @GetMapping("/search/status")
     @Operation(summary = "按支付状态搜索支付记录")
-    public ResponseEntity<List<PaymentRecord>> searchByStatus(@RequestParam String status,
-                                                              @RequestParam(defaultValue = "1") int page,
-                                                              @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(paymentRecordService.searchByPaymentStatus(status, page, size));
+    public ResponseEntity<ApiResponse<List<PaymentRecordResponse>>> searchByStatus(@RequestParam String status,
+                                                                                   @RequestParam(defaultValue = "1") int page,
+                                                                                   @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ApiResponse.ok(toPaymentResponses(paymentRecordService.searchByPaymentStatus(status, page, size))));
     }
 
     @GetMapping("/search/transaction")
     @Operation(summary = "按交易流水号搜索支付记录")
-    public ResponseEntity<List<PaymentRecord>> searchByTransaction(@RequestParam String transactionId,
-                                                                   @RequestParam(defaultValue = "1") int page,
-                                                                   @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(paymentRecordService.searchByTransactionId(transactionId, page, size));
+    public ResponseEntity<ApiResponse<List<PaymentRecordResponse>>> searchByTransaction(@RequestParam String transactionId,
+                                                                                       @RequestParam(defaultValue = "1") int page,
+                                                                                       @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ApiResponse.ok(toPaymentResponses(paymentRecordService.searchByTransactionId(transactionId, page, size))));
     }
 
     @GetMapping("/search/payment-number")
     @Operation(summary = "Search payment records by payment number")
-    public ResponseEntity<List<PaymentRecord>> searchByPaymentNumber(@RequestParam String paymentNumber,
-                                                                     @RequestParam(defaultValue = "1") int page,
-                                                                     @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(paymentRecordService.searchByPaymentNumber(paymentNumber, page, size));
+    public ResponseEntity<ApiResponse<List<PaymentRecordResponse>>> searchByPaymentNumber(@RequestParam String paymentNumber,
+                                                                                         @RequestParam(defaultValue = "1") int page,
+                                                                                         @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ApiResponse.ok(toPaymentResponses(paymentRecordService.searchByPaymentNumber(paymentNumber, page, size))));
     }
 
     @GetMapping("/search/payer-name")
     @Operation(summary = "Search payment records by payer name")
-    public ResponseEntity<List<PaymentRecord>> searchByPayerName(@RequestParam String payerName,
-                                                                 @RequestParam(defaultValue = "1") int page,
-                                                                 @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(paymentRecordService.searchByPayerName(payerName, page, size));
+    public ResponseEntity<ApiResponse<List<PaymentRecordResponse>>> searchByPayerName(@RequestParam String payerName,
+                                                                                      @RequestParam(defaultValue = "1") int page,
+                                                                                      @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ApiResponse.ok(toPaymentResponses(paymentRecordService.searchByPayerName(payerName, page, size))));
     }
 
     @GetMapping("/search/payment-method")
     @Operation(summary = "Search payment records by payment method")
-    public ResponseEntity<List<PaymentRecord>> searchByPaymentMethod(@RequestParam String paymentMethod,
-                                                                     @RequestParam(defaultValue = "1") int page,
-                                                                     @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(paymentRecordService.searchByPaymentMethod(paymentMethod, page, size));
+    public ResponseEntity<ApiResponse<List<PaymentRecordResponse>>> searchByPaymentMethod(@RequestParam String paymentMethod,
+                                                                                         @RequestParam(defaultValue = "1") int page,
+                                                                                         @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ApiResponse.ok(toPaymentResponses(paymentRecordService.searchByPaymentMethod(paymentMethod, page, size))));
     }
 
     @GetMapping("/search/payment-channel")
     @Operation(summary = "Search payment records by payment channel")
-    public ResponseEntity<List<PaymentRecord>> searchByPaymentChannel(@RequestParam String paymentChannel,
-                                                                      @RequestParam(defaultValue = "1") int page,
-                                                                      @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(paymentRecordService.searchByPaymentChannel(paymentChannel, page, size));
+    public ResponseEntity<ApiResponse<List<PaymentRecordResponse>>> searchByPaymentChannel(@RequestParam String paymentChannel,
+                                                                                          @RequestParam(defaultValue = "1") int page,
+                                                                                          @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ApiResponse.ok(toPaymentResponses(paymentRecordService.searchByPaymentChannel(paymentChannel, page, size))));
     }
 
     @GetMapping("/search/time-range")
     @Operation(summary = "Search payment records by payment time range")
-    public ResponseEntity<List<PaymentRecord>> searchByTimeRange(@RequestParam String startTime,
-                                                                 @RequestParam String endTime,
-                                                                 @RequestParam(defaultValue = "1") int page,
-                                                                 @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(paymentRecordService.searchByPaymentTimeRange(startTime, endTime, page, size));
+    public ResponseEntity<ApiResponse<List<PaymentRecordResponse>>> searchByTimeRange(@RequestParam String startTime,
+                                                                                      @RequestParam String endTime,
+                                                                                      @RequestParam(defaultValue = "1") int page,
+                                                                                      @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ApiResponse.ok(toPaymentResponses(paymentRecordService.searchByPaymentTimeRange(startTime, endTime, page, size))));
     }
 
     @PutMapping("/{paymentId}/status/{state}")
     @Operation(summary = "更新支付记录状态")
-    public ResponseEntity<PaymentRecord> updatePaymentStatus(@PathVariable Long paymentId,
-                                                             @PathVariable PaymentState state) {
+    public ResponseEntity<ApiResponse<PaymentRecordResponse>> updatePaymentStatus(@PathVariable Long paymentId,
+                                                                                  @PathVariable PaymentState state) {
         try {
             PaymentRecord updated = paymentRecordService.updatePaymentStatus(paymentId, state);
-            return ResponseEntity.ok(updated);
+            return ResponseEntity.ok(ApiResponse.ok(toPaymentResponse(updated)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Update payment status failed", ex);
-            return ResponseEntity.status(resolveStatus(ex)).build();
+            return ResponseEntity.status(resolveStatus(ex))
+                    .body(ApiResponse.error("PAYMENT_STATUS_UPDATE_FAILED", ex.getMessage()));
         }
     }
 
@@ -253,5 +264,18 @@ public class PaymentRecordController {
 
     private void logPaymentGovernance(String payload) {
         LOG.log(Level.INFO, payload);
+    }
+
+    private PaymentRecordResponse toPaymentResponse(PaymentRecord record) {
+        return PaymentRecordResponseMapper.toResponse(record);
+    }
+
+    private List<PaymentRecordResponse> toPaymentResponses(List<PaymentRecord> records) {
+        if (records == null || records.isEmpty()) {
+            return List.of();
+        }
+        return records.stream()
+                .map(this::toPaymentResponse)
+                .toList();
     }
 }
