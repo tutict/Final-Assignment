@@ -94,10 +94,12 @@ class DeductionRecordModel {
           ? DateTime.tryParse(json['restoreTime'])
           : null,
       restoreReason: json['restoreReason'],
-      createdAt:
-          json['createdAt'] != null ? DateTime.tryParse(json['createdAt']) : null,
-      updatedAt:
-          json['updatedAt'] != null ? DateTime.tryParse(json['updatedAt']) : null,
+      createdAt: json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt'])
+          : null,
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.tryParse(json['updatedAt'])
+          : null,
       remarks: json['remarks'],
     );
   }

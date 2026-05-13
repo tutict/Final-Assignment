@@ -1,3 +1,4 @@
+import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -55,7 +56,7 @@ class ApiClient {
     final bearerAuth = _authentications['bearerAuth'] as HttpBearerAuth;
     bearerAuth.setAccessToken(token);
     if (kDebugMode) {
-      debugPrint('JWT Token set in ApiClient');
+      AppLogger.debug('JWT Token set in ApiClient');
     }
   }
 
@@ -106,7 +107,7 @@ class ApiClient {
           return value;
       }
     } on Exception catch (error, stackTrace) {
-      debugPrint('Deserialization error for $targetType: $error');
+      AppLogger.error('Deserialization error for $targetType: $error');
       throw ApiException.withInner(
         500,
         'Exception during deserialization: $error',
@@ -161,8 +162,8 @@ class ApiClient {
 
       final uri = _buildUri(path, queryParamsList);
       if (kDebugMode) {
-        debugPrint('Request URL: $uri');
-        debugPrint('Final Request Headers: $headerParams');
+        AppLogger.debug('Request URL: $uri');
+        AppLogger.debug('Final Request Headers: $headerParams');
       }
 
       final msgBody =
@@ -178,7 +179,7 @@ class ApiClient {
       ).timeout(const Duration(seconds: 30));
 
       if (kDebugMode) {
-        debugPrint('Response: ${response.statusCode} - ${response.body}');
+        AppLogger.debug('Response: ${response.statusCode} - ${response.body}');
       }
 
       _throwIfErrorResponse(
@@ -329,7 +330,7 @@ class ApiClient {
     _wsStream = _wsChannel!.stream.asBroadcastStream();
 
     if (kDebugMode) {
-      debugPrint('[WebSocket connected] $_wsUrl');
+      AppLogger.debug('[WebSocket connected] $_wsUrl');
     }
   }
 
@@ -398,14 +399,14 @@ class ApiClient {
     final channel = _wsChannel;
     if (channel == null) {
       if (kDebugMode) {
-        debugPrint('[WebSocket] no active connection');
+        AppLogger.debug('[WebSocket] no active connection');
       }
       return;
     }
 
     channel.sink.close();
     if (kDebugMode) {
-      debugPrint('[WebSocket closed] ${_wsUrl ?? ''}');
+      AppLogger.debug('[WebSocket closed] ${_wsUrl ?? ''}');
     }
     _wsChannel = null;
     _wsStream = null;

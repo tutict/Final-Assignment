@@ -1,8 +1,8 @@
+import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'dart:convert';
 
 import 'package:final_assignment_front/features/model/backup_restore.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
-import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
@@ -21,7 +21,8 @@ class BackupRestoreControllerApi with BaseApiClient {
       throw Exception('Not authenticated. Please log in again.');
     }
     apiClient.setJwtToken(jwtToken);
-    debugPrint('Initialized BackupRestoreControllerApi with token: $jwtToken');
+    AppLogger.debug(
+        'Initialized BackupRestoreControllerApi with token: $jwtToken');
   }
 
   String _decodeBodyBytes(http.Response response) {

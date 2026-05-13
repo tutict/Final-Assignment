@@ -174,7 +174,8 @@ class _MainScanState extends State<MainScan> {
                     const BoxConstraints(maxWidth: 260, maxHeight: 260),
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  border: Border.all(color: colorScheme.primary.withValues(alpha: 0.2)),
+                  border: Border.all(
+                      color: colorScheme.primary.withValues(alpha: 0.2)),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: QrImageView(
@@ -183,7 +184,8 @@ class _MainScanState extends State<MainScan> {
                   size: 240,
                   backgroundColor: Colors.white,
                   eyeStyle: QrEyeStyle(color: colorScheme.primary),
-                  dataModuleStyle: QrDataModuleStyle(color: colorScheme.primary),
+                  dataModuleStyle:
+                      QrDataModuleStyle(color: colorScheme.primary),
                 ),
               ),
           ],
@@ -192,8 +194,7 @@ class _MainScanState extends State<MainScan> {
     );
   }
 
-  Widget _buildDetailRow(
-      ThemeData theme, String label, String value) {
+  Widget _buildDetailRow(ThemeData theme, String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(

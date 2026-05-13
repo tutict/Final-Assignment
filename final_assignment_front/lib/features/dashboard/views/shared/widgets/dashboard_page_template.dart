@@ -131,8 +131,8 @@ class DashboardPageTemplate extends StatelessWidget {
       return loadingWidget ??
           Center(
             child: CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(
-                  theme.colorScheme.primary),
+              valueColor:
+                  AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
             ),
           );
     }

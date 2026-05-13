@@ -1,4 +1,5 @@
 // ignore_for_file: use_build_context_synchronously
+import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'package:flutter/material.dart';
 import 'package:final_assignment_front/features/api/vehicle_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
@@ -83,7 +84,7 @@ class _VehicleManagementState extends State<VehicleManagementPage> {
       final decodedToken = JwtDecoder.decode(jwtToken);
       final username = decodedToken['sub'] ?? '';
       if (username.isEmpty) throw Exception('JWT 中未找到用户名');
-      debugPrint('Current username from JWT: $username');
+      AppLogger.debug('Current username from JWT: $username');
 
       await vehicleApi.initializeWithJwt();
       await driverApi.initializeWithJwt();
@@ -95,7 +96,7 @@ class _VehicleManagementState extends State<VehicleManagementPage> {
           userId != null ? await driverApi.getDriver(driverId: userId) : null;
       _currentDriverName = driverInfo?.name ?? username;
       _currentDriverIdCardNumber = driverInfo?.idCardNumber;
-      debugPrint(
+      AppLogger.debug(
           'Current driver name: $_currentDriverName, idCardNumber: $_currentDriverIdCardNumber');
 
       if (_currentDriverIdCardNumber == null ||
@@ -118,13 +119,13 @@ class _VehicleManagementState extends State<VehicleManagementPage> {
       final prefs = await SharedPreferences.getInstance();
       final storedUsername = prefs.getString('userName');
       if (storedUsername == null || storedUsername.isEmpty) {
-        debugPrint('Username not found in local storage');
+        AppLogger.debug('Username not found in local storage');
         return null;
       }
       await userApi.initializeWithJwt();
       return await userApi.searchUsersByUsername(username: storedUsername);
     } catch (e) {
-      debugPrint('Failed to fetch UserManagement: $e');
+      AppLogger.error('Failed to fetch UserManagement: $e');
       return null;
     }
   }
@@ -157,7 +158,7 @@ class _VehicleManagementState extends State<VehicleManagementPage> {
     });
 
     final searchQuery = query?.trim() ?? '';
-    debugPrint(
+    AppLogger.debug(
         'Fetching vehicles with query: $searchQuery, searchType: $_searchType');
 
     try {
@@ -165,7 +166,7 @@ class _VehicleManagementState extends State<VehicleManagementPage> {
         idCard: _currentDriverIdCardNumber!,
       );
 
-      debugPrint(
+      AppLogger.debug(
           'Vehicles fetched: ${vehicles.map((v) => v.toJson()).toList()}');
       setState(() {
         _vehicleList
@@ -221,18 +222,18 @@ class _VehicleManagementState extends State<VehicleManagementPage> {
             ? '您当前没有车辆记录'
             : '';
       }
-      debugPrint('Filtered vehicles: ${_filteredVehicleList.length}');
+      AppLogger.debug('Filtered vehicles: ${_filteredVehicleList.length}');
     });
   }
 
   Future<List<String>> _fetchAutocompleteSuggestions(String prefix) async {
     if (_currentDriverIdCardNumber == null) {
-      debugPrint('Cannot fetch suggestions: idCardNumber is null');
+      AppLogger.debug('Cannot fetch suggestions: idCardNumber is null');
       return [];
     }
     try {
       if (_searchType == 'licensePlate') {
-        debugPrint(
+        AppLogger.debug(
             'Fetching license plate suggestions for idCardNumber: $_currentDriverIdCardNumber, prefix: $prefix');
         final suggestions = await vehicleApi.autocompleteVehiclePlates(
           prefix: prefix,
@@ -243,7 +244,7 @@ class _VehicleManagementState extends State<VehicleManagementPage> {
             .where((s) => s.toLowerCase().contains(prefix.toLowerCase()))
             .toList();
       } else {
-        debugPrint(
+        AppLogger.debug(
             'Fetching vehicle type suggestions for idCardNumber: $_currentDriverIdCardNumber, prefix: $prefix');
         final suggestions = await vehicleApi.autocompleteVehicleTypes(
           prefix: prefix,
@@ -255,7 +256,7 @@ class _VehicleManagementState extends State<VehicleManagementPage> {
             .toList();
       }
     } catch (e) {
-      debugPrint('Failed to fetch autocomplete suggestions: $e');
+      AppLogger.error('Failed to fetch autocomplete suggestions: $e');
       return [];
     }
   }
@@ -316,11 +317,12 @@ class _VehicleManagementState extends State<VehicleManagementPage> {
 
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message, style: const TextStyle(color: Colors.white)),
-        backgroundColor: isError ? Colors.red : Colors.green,
-      ),
+    Get.snackbar(
+      isError ? '错误' : '提示',
+      message,
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: isError ? Colors.red.shade100 : Colors.green.shade100,
+      duration: const Duration(seconds: 3),
     );
   }
 
@@ -611,8 +613,8 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
     final driverInfo =
         userId != null ? await driverApi.getDriver(driverId: userId) : null;
 
-    debugPrint('Fetched UserManagement: ${user?.toJson()}');
-    debugPrint('Fetched DriverInformation: ${driverInfo?.toString()}');
+    AppLogger.debug('Fetched UserManagement: ${user?.toJson()}');
+    AppLogger.debug('Fetched DriverInformation: ${driverInfo?.toString()}');
 
     if (driverInfo == null || driverInfo.name == null) {
       throw Exception(
@@ -624,7 +626,7 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
       _idCardNumberController.text = driverInfo.idCardNumber ?? '';
       _contactNumberController.text =
           driverInfo.contactNumber ?? user?.contactNumber ?? '';
-      debugPrint('Set ownerNameController.text to: ${driverInfo.name}');
+      AppLogger.debug('Set ownerNameController.text to: ${driverInfo.name}');
     });
   }
 
@@ -633,13 +635,13 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
       final prefs = await SharedPreferences.getInstance();
       final storedUsername = prefs.getString('userName');
       if (storedUsername == null || storedUsername.isEmpty) {
-        debugPrint('Username missing when fetching user info');
+        AppLogger.debug('Username missing when fetching user info');
         return null;
       }
       await userApi.initializeWithJwt();
       return await userApi.searchUsersByUsername(username: storedUsername);
     } catch (e) {
-      debugPrint('Error fetching UserManagement: $e');
+      AppLogger.error('Error fetching UserManagement: $e');
       return null;
     }
   }
@@ -729,11 +731,12 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
 
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message, style: const TextStyle(color: Colors.white)),
-        backgroundColor: isError ? Colors.red : Colors.green,
-      ),
+    Get.snackbar(
+      isError ? '错误' : '提示',
+      message,
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: isError ? Colors.red.shade100 : Colors.green.shade100,
+      duration: const Duration(seconds: 3),
     );
   }
 
@@ -1027,13 +1030,13 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
       final prefs = await SharedPreferences.getInstance();
       final storedUsername = prefs.getString('userName');
       if (storedUsername == null || storedUsername.isEmpty) {
-        debugPrint('Username missing when fetching user info');
+        AppLogger.debug('Username missing when fetching user info');
         return null;
       }
       await userApi.initializeWithJwt();
       return await userApi.searchUsersByUsername(username: storedUsername);
     } catch (e) {
-      debugPrint('Failed to fetch UserManagement: $e');
+      AppLogger.error('Failed to fetch UserManagement: $e');
       return null;
     }
   }
@@ -1116,11 +1119,12 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
 
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message, style: const TextStyle(color: Colors.white)),
-        backgroundColor: isError ? Colors.red : Colors.green,
-      ),
+    Get.snackbar(
+      isError ? '错误' : '提示',
+      message,
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: isError ? Colors.red.shade100 : Colors.green.shade100,
+      duration: const Duration(seconds: 3),
     );
   }
 
@@ -1375,13 +1379,13 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
       final prefs = await SharedPreferences.getInstance();
       final storedUsername = prefs.getString('userName');
       if (storedUsername == null || storedUsername.isEmpty) {
-        debugPrint('Username missing when fetching user info');
+        AppLogger.debug('Username missing when fetching user info');
         return null;
       }
       await userApi.initializeWithJwt();
       return await userApi.searchUsersByUsername(username: storedUsername);
     } catch (e) {
-      debugPrint('Failed to fetch UserManagement: $e');
+      AppLogger.error('Failed to fetch UserManagement: $e');
       return null;
     }
   }
@@ -1392,7 +1396,7 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
       await driverApi.initializeWithJwt();
       return await driverApi.getDriver(driverId: userId);
     } catch (e) {
-      debugPrint('Failed to fetch DriverInformation: $e');
+      AppLogger.error('Failed to fetch DriverInformation: $e');
       return null;
     }
   }
@@ -1429,11 +1433,12 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
 
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message, style: const TextStyle(color: Colors.white)),
-        backgroundColor: isError ? Colors.red : Colors.green,
-      ),
+    Get.snackbar(
+      isError ? '错误' : '提示',
+      message,
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: isError ? Colors.red.shade100 : Colors.green.shade100,
+      duration: const Duration(seconds: 3),
     );
   }
 

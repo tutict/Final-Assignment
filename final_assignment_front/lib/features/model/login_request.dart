@@ -33,12 +33,13 @@ class LoginRequest {
     var map = <String, LoginRequest>{};
     if (json.isNotEmpty) {
       json.forEach((String key, dynamic value) =>
-      map[key] = LoginRequest.fromJson(value));
+          map[key] = LoginRequest.fromJson(value));
     }
     return map;
   }
 
-  static Map<String, List<LoginRequest>> mapListFromJson(Map<String, dynamic> json) {
+  static Map<String, List<LoginRequest>> mapListFromJson(
+      Map<String, dynamic> json) {
     var map = <String, List<LoginRequest>>{};
     if (json.isNotEmpty) {
       json.forEach((String key, dynamic value) {

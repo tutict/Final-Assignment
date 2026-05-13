@@ -1,3 +1,4 @@
+import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'dart:async';
 import 'dart:ui';
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
@@ -32,7 +33,7 @@ class _MapPageState extends State<MapPage> {
       try {
         _userDashboardController = Get.find<UserDashboardController>();
       } catch (_) {
-        debugPrint(
+        AppLogger.debug(
             'No ManagerDashboardController or UserDashboardController found');
       }
     }
@@ -57,7 +58,7 @@ class _MapPageState extends State<MapPage> {
         ),
         leading: GestureDetector(
           onTap: () {
-            debugPrint('Back button tapped');
+            AppLogger.debug('Back button tapped');
             if (_dashboardController != null) {
               _dashboardController!.exitSidebarContent();
             } else if (_userDashboardController != null) {
@@ -85,7 +86,7 @@ class _MapPageState extends State<MapPage> {
               userAgentPackageName: '交通违法行为处理管理系统',
               tileProvider: CustomNetworkTileProvider(),
               errorTileCallback: (tile, exception, stackTrace) {
-                debugPrint(
+                AppLogger.debug(
                     "Tile failed to load: $tile, Error: $exception, StackTrace: $stackTrace");
               },
               errorImage: const NetworkImage(
@@ -95,7 +96,7 @@ class _MapPageState extends State<MapPage> {
               attributions: [
                 TextSourceAttribution(
                   'OpenStreetMap contributors',
-                  onTap: () => debugPrint('Tapped OSM attribution'),
+                  onTap: () => AppLogger.debug('Tapped OSM attribution'),
                 ),
               ],
             ),

@@ -1,4 +1,5 @@
 // ignore_for_file: use_build_context_synchronously
+import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'dart:convert';
 
 import 'package:final_assignment_front/core/config/app_config.dart';
@@ -88,17 +89,17 @@ class _VehicleListState extends State<VehicleList> {
 
   Future<bool> _validateJwtToken() async {
     String? jwtToken = (await AuthTokenStore.instance.getJwtToken());
-    debugPrint('Retrieved JWT: $jwtToken');
+    AppLogger.debug('Retrieved JWT: $jwtToken');
     if (jwtToken == null || jwtToken.isEmpty) {
-      debugPrint('JWT token not found or empty');
+      AppLogger.debug('JWT token not found or empty');
       setState(() => _errorMessage = '未授权，请重新登录');
       return false;
     }
     try {
       final decodedToken = JwtDecoder.decode(jwtToken);
-      debugPrint('Decoded JWT: $decodedToken');
+      AppLogger.debug('Decoded JWT: $decodedToken');
       if (JwtDecoder.isExpired(jwtToken)) {
-        debugPrint('JWT token is expired: ${decodedToken['exp']}');
+        AppLogger.debug('JWT token is expired: ${decodedToken['exp']}');
         jwtToken = await _refreshJwtToken();
         if (jwtToken == null) {
           setState(() => _errorMessage = '登录已过期，请重新登录');
@@ -106,17 +107,17 @@ class _VehicleListState extends State<VehicleList> {
         }
         await AuthTokenStore.instance.setJwtToken(jwtToken);
         final newDecodedToken = JwtDecoder.decode(jwtToken);
-        debugPrint('New JWT decoded: $newDecodedToken');
+        AppLogger.debug('New JWT decoded: $newDecodedToken');
         if (JwtDecoder.isExpired(jwtToken)) {
           setState(() => _errorMessage = '新登录信息已过期，请重新登录');
           return false;
         }
         await vehicleApi.initializeWithJwt();
       }
-      debugPrint('JWT token is valid. Subject: ${decodedToken['sub']}');
+      AppLogger.debug('JWT token is valid. Subject: ${decodedToken['sub']}');
       return true;
     } catch (e) {
-      debugPrint('JWT decode error: $e');
+      AppLogger.error('JWT decode error: $e');
       setState(() => _errorMessage = '无效的登录信息，请重新登录');
       return false;
     }
@@ -126,7 +127,7 @@ class _VehicleListState extends State<VehicleList> {
     final prefs = await SharedPreferences.getInstance();
     final refreshToken = prefs.getString('refreshToken');
     if (refreshToken == null) {
-      debugPrint('Refresh token not found');
+      AppLogger.debug('Refresh token not found');
       return null;
     }
     try {
@@ -138,14 +139,14 @@ class _VehicleListState extends State<VehicleList> {
       if (response.statusCode == 200) {
         final newJwt = jsonDecode(response.body)['jwtToken'];
         await AuthTokenStore.instance.setJwtToken(newJwt);
-        debugPrint('Refreshed JWT: $newJwt');
+        AppLogger.debug('Refreshed JWT: $newJwt');
         return newJwt;
       }
-      debugPrint(
+      AppLogger.debug(
           'Failed to refresh JWT: ${response.statusCode} - ${response.body}');
       return null;
     } catch (e) {
-      debugPrint('Refresh token error: $e');
+      AppLogger.error('Refresh token error: $e');
       return null;
     }
   }
@@ -194,16 +195,16 @@ class _VehicleListState extends State<VehicleList> {
             (JwtDecoder.decode(jwtToken)['roles'] is String
                 ? [JwtDecoder.decode(jwtToken)['roles']]
                 : []);
-        debugPrint('User roles from /api/users/me: $roles');
-        debugPrint('Full userData: $userData');
+        AppLogger.debug('User roles from /api/users/me: $roles');
+        AppLogger.debug('Full userData: $userData');
         setState(() => _isAdmin = roles.contains('ADMIN')); // Changed to ADMIN
       } else {
-        debugPrint(
+        AppLogger.debug(
             'Role check failed: Status ${response.statusCode}, Body: ${response.body}');
         throw Exception('验证失败：${response.statusCode}');
       }
     } catch (e) {
-      debugPrint('Error checking role: $e');
+      AppLogger.error('Error checking role: $e');
       setState(() => _errorMessage = '验证角色失败: $e');
     }
   }
@@ -673,24 +674,12 @@ class _VehicleListState extends State<VehicleList> {
 
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    final themeData = controller.currentBodyTheme.value;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          style: TextStyle(
-            color: isError
-                ? themeData.colorScheme.onError
-                : themeData.colorScheme.onPrimary,
-          ),
-        ),
-        backgroundColor: isError
-            ? themeData.colorScheme.error
-            : themeData.colorScheme.primary,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
-        margin: const EdgeInsets.all(10.0),
-      ),
+    Get.snackbar(
+      isError ? '错误' : '提示',
+      message,
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: isError ? Colors.red.shade100 : Colors.green.shade100,
+      duration: const Duration(seconds: 3),
     );
   }
 }
@@ -855,23 +844,12 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
 
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    final themeData = controller.currentBodyTheme.value;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          style: TextStyle(
-              color: isError
-                  ? themeData.colorScheme.onError
-                  : themeData.colorScheme.onPrimary),
-        ),
-        backgroundColor: isError
-            ? themeData.colorScheme.error
-            : themeData.colorScheme.primary,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
-        margin: const EdgeInsets.all(10.0),
-      ),
+    Get.snackbar(
+      isError ? '错误' : '提示',
+      message,
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: isError ? Colors.red.shade100 : Colors.green.shade100,
+      duration: const Duration(seconds: 3),
     );
   }
 
@@ -1269,23 +1247,12 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
 
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    final themeData = controller.currentBodyTheme.value;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          style: TextStyle(
-              color: isError
-                  ? themeData.colorScheme.onError
-                  : themeData.colorScheme.onPrimary),
-        ),
-        backgroundColor: isError
-            ? themeData.colorScheme.error
-            : themeData.colorScheme.primary,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
-        margin: const EdgeInsets.all(10.0),
-      ),
+    Get.snackbar(
+      isError ? '错误' : '提示',
+      message,
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: isError ? Colors.red.shade100 : Colors.green.shade100,
+      duration: const Duration(seconds: 3),
     );
   }
 
@@ -1625,18 +1592,18 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
             (JwtDecoder.decode(jwtToken)['roles'] is String
                 ? [JwtDecoder.decode(jwtToken)['roles']]
                 : []);
-        debugPrint('User roles from /api/users/me: $roles');
-        debugPrint('Full userData: $userData');
+        AppLogger.debug('User roles from /api/users/me: $roles');
+        AppLogger.debug('Full userData: $userData');
         setState(
             () => _isEditable = roles.contains('ADMIN') || // Changed to ADMIN
                 (_currentDriverName == widget.vehicle.ownerName));
       } else {
-        debugPrint(
+        AppLogger.debug(
             'Role check failed: Status ${response.statusCode}, Body: ${response.body}');
         throw Exception('验证失败：${response.statusCode}');
       }
     } catch (e) {
-      debugPrint('Error checking role: $e');
+      AppLogger.error('Error checking role: $e');
       setState(() => _errorMessage = '加载权限失败: $e');
     }
   }
@@ -1663,23 +1630,12 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
 
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    final themeData = controller.currentBodyTheme.value;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          style: TextStyle(
-              color: isError
-                  ? themeData.colorScheme.onError
-                  : themeData.colorScheme.onPrimary),
-        ),
-        backgroundColor: isError
-            ? themeData.colorScheme.error
-            : themeData.colorScheme.primary,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
-        margin: const EdgeInsets.all(10.0),
-      ),
+    Get.snackbar(
+      isError ? '错误' : '提示',
+      message,
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: isError ? Colors.red.shade100 : Colors.green.shade100,
+      duration: const Duration(seconds: 3),
     );
   }
 

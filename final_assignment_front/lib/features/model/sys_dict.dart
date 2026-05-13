@@ -141,13 +141,11 @@ class SysDictModel {
         .toList();
   }
 
-  static Map<String, SysDictModel> mapFromJson(
-      Map<String, dynamic> json) {
+  static Map<String, SysDictModel> mapFromJson(Map<String, dynamic> json) {
     final map = <String, SysDictModel>{};
     if (json.isNotEmpty) {
       json.forEach((key, value) {
-        map[key] =
-            SysDictModel.fromJson(value as Map<String, dynamic>);
+        map[key] = SysDictModel.fromJson(value as Map<String, dynamic>);
       });
     }
     return map;
@@ -158,8 +156,7 @@ class SysDictModel {
     final map = <String, List<SysDictModel>>{};
     if (json.isNotEmpty) {
       json.forEach((key, value) {
-        map[key] =
-            SysDictModel.listFromJson(value as List<dynamic>);
+        map[key] = SysDictModel.listFromJson(value as List<dynamic>);
       });
     }
     return map;

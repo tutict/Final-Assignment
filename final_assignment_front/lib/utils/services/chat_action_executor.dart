@@ -1,3 +1,4 @@
+import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'package:final_assignment_front/features/model/chat_action.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:final_assignment_front/utils/ui/ui_utils.dart';
@@ -45,14 +46,14 @@ class ChatActionExecutor {
         } else if (context != null && action.target != null) {
           Navigator.of(context!).pushNamed(action.target!);
         } else {
-          debugPrint('NAVIGATE handler missing for action: $action');
+          AppLogger.debug('NAVIGATE handler missing for action: $action');
         }
         break;
       case 'FILL_FORM':
         if (onFillForm != null) {
           await onFillForm!(action);
         } else {
-          debugPrint('FILL_FORM handler missing for action: $action');
+          AppLogger.debug('FILL_FORM handler missing for action: $action');
         }
         break;
       case 'CALL_API':
@@ -70,22 +71,22 @@ class ChatActionExecutor {
         }
         break;
       default:
-        debugPrint('Unknown action type: $action');
+        AppLogger.debug('Unknown action type: $action');
     }
   }
 
   Future<void> _callApiFallback(ChatAction action) async {
     if (apiClient == null || action.target == null) {
-      debugPrint('CALL_API fallback missing apiClient/target: $action');
+      AppLogger.debug('CALL_API fallback missing apiClient/target: $action');
       return;
     }
-    await apiClient!.invokeAPI(
-        action.target!, 'GET', [], null, {}, {}, null, []);
+    await apiClient!
+        .invokeAPI(action.target!, 'GET', [], null, {}, {}, null, []);
   }
 
   Future<void> _showModalFallback(ChatAction action) async {
     if (context == null) {
-      debugPrint('SHOW_MODAL fallback missing context: $action');
+      AppLogger.debug('SHOW_MODAL fallback missing context: $action');
       return;
     }
     await AppDialog.showCustomDialog(

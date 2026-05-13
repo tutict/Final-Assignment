@@ -65,7 +65,8 @@ class _Sidebar extends StatelessWidget {
                         ),
                       ],
                       onSelected: (index, value) {
-                        debugPrint("index : $index | label : ${value.label}");
+                        AppLogger.debug(
+                            "index : $index | label : ${value.label}");
                         if (value.routeName == "homePage") {
                           controller.exitSidebarContent();
                         } else {

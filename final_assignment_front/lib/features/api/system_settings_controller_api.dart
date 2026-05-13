@@ -1,8 +1,8 @@
+import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'package:final_assignment_front/features/model/system_settings.dart';
 import 'package:final_assignment_front/features/model/sys_dict.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
-import 'package:flutter/material.dart';
 import 'package:http/http.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
@@ -27,7 +27,8 @@ class SystemSettingsControllerApi with BaseApiClient {
       throw Exception('Not authenticated. Please log in again.');
     }
     apiClient.setJwtToken(jwtToken);
-    debugPrint('Initialized SystemSettingsControllerApi with token: $jwtToken');
+    AppLogger.debug(
+        'Initialized SystemSettingsControllerApi with token: $jwtToken');
   }
 
   String _decodeBodyBytes(Response response) {

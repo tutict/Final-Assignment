@@ -1,8 +1,8 @@
+import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'dart:convert';
 import 'package:final_assignment_front/features/model/login_request.dart';
 import 'package:final_assignment_front/features/model/register_request.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
-import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http; // ç¨äº Response å?MultipartRequest
 import 'package:final_assignment_front/utils/services/api_client.dart';
 
@@ -51,8 +51,8 @@ class AuthControllerApi with BaseApiClient {
     try {
       http.Response response =
           await _loginWithHttpInfo(loginRequest: loginRequest);
-      debugPrint('Login response status: ${response.statusCode}');
-      debugPrint('Login response body: ${response.body}');
+      AppLogger.debug('Login response status: ${response.statusCode}');
+      AppLogger.debug('Login response body: ${response.body}');
 
       if (response.body.isNotEmpty) {
         return jsonDecode(response.body) as Map<String, dynamic>;
@@ -60,7 +60,7 @@ class AuthControllerApi with BaseApiClient {
         return {};
       }
     } catch (e) {
-      debugPrint('Login error: $e');
+      AppLogger.error('Login error: $e');
       rethrow;
     }
   }
@@ -92,8 +92,8 @@ class AuthControllerApi with BaseApiClient {
     try {
       http.Response response =
           await _registerWithHttpInfo(registerRequest: registerRequest);
-      debugPrint('Register response status: ${response.statusCode}');
-      debugPrint('Register response body: ${response.body}');
+      AppLogger.debug('Register response status: ${response.statusCode}');
+      AppLogger.debug('Register response body: ${response.body}');
 
       if (response.body.isNotEmpty) {
         return jsonDecode(response.body) as Map<String, dynamic>;
@@ -103,7 +103,7 @@ class AuthControllerApi with BaseApiClient {
         throw ApiException(response.statusCode, 'Empty response body');
       }
     } catch (e) {
-      debugPrint('Register error: $e');
+      AppLogger.error('Register error: $e');
       rethrow;
     }
   }
@@ -130,8 +130,8 @@ class AuthControllerApi with BaseApiClient {
   Future<Map<String, dynamic>> listAuthUsers() async {
     try {
       http.Response response = await _listAuthUsersWithHttpInfo();
-      debugPrint('Users get response status: ${response.statusCode}');
-      debugPrint('Users get response body: ${response.body}');
+      AppLogger.debug('Users get response status: ${response.statusCode}');
+      AppLogger.debug('Users get response body: ${response.body}');
 
       if (response.body.isNotEmpty) {
         return jsonDecode(response.body) as Map<String, dynamic>;
@@ -139,7 +139,7 @@ class AuthControllerApi with BaseApiClient {
         return {};
       }
     } catch (e) {
-      debugPrint('Users get error: $e');
+      AppLogger.error('Users get error: $e');
       rethrow;
     }
   }
@@ -166,8 +166,8 @@ class AuthControllerApi with BaseApiClient {
   Future<Map<String, dynamic>> listRoles() async {
     try {
       http.Response response = await _listRolesWithHttpInfo();
-      debugPrint('Roles get response status: ${response.statusCode}');
-      debugPrint('Roles get response body: ${response.body}');
+      AppLogger.debug('Roles get response status: ${response.statusCode}');
+      AppLogger.debug('Roles get response body: ${response.body}');
 
       if (response.body.isNotEmpty) {
         return jsonDecode(response.body) as Map<String, dynamic>;
@@ -175,7 +175,7 @@ class AuthControllerApi with BaseApiClient {
         return {};
       }
     } catch (e) {
-      debugPrint('Roles get error: $e');
+      AppLogger.error('Roles get error: $e');
       rethrow;
     }
   }

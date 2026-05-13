@@ -1,3 +1,4 @@
+import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/chat_controller.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
@@ -41,7 +42,7 @@ class _SettingPageState extends State<SettingPage> {
         });
       }
     } catch (e) {
-      debugPrint('Failed to calculate cache size: $e');
+      AppLogger.error('Failed to calculate cache size: $e');
     }
   }
 

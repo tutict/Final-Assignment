@@ -1,3 +1,4 @@
+import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -32,7 +33,7 @@ abstract mixin class BaseApiClient {
     }
     apiClient.setJwtToken(jwtToken);
     if (kDebugMode) {
-      debugPrint('Initialized $runtimeType with token');
+      AppLogger.debug('Initialized $runtimeType with token');
     }
   }
 

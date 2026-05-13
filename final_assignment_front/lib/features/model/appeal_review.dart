@@ -34,8 +34,9 @@ class AppealReviewModel {
       reviewId: json['reviewId'],
       appealId: json['appealId'],
       reviewLevel: json['reviewLevel'],
-      reviewTime:
-          json['reviewTime'] != null ? DateTime.tryParse(json['reviewTime']) : null,
+      reviewTime: json['reviewTime'] != null
+          ? DateTime.tryParse(json['reviewTime'])
+          : null,
       reviewer: json['reviewer'],
       reviewerDept: json['reviewerDept'],
       reviewResult: json['reviewResult'],
@@ -43,10 +44,12 @@ class AppealReviewModel {
       suggestedAction: json['suggestedAction'],
       suggestedFineAmount: (json['suggestedFineAmount'] as num?)?.toDouble(),
       suggestedPoints: json['suggestedPoints'],
-      createdAt:
-          json['createdAt'] != null ? DateTime.tryParse(json['createdAt']) : null,
-      updatedAt:
-          json['updatedAt'] != null ? DateTime.tryParse(json['updatedAt']) : null,
+      createdAt: json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt'])
+          : null,
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.tryParse(json['updatedAt'])
+          : null,
     );
   }
 

@@ -40,8 +40,10 @@ class OffenseScreen extends GetView<OffenseController> {
                   : ActiveProjectCard(
                       title: '违法类型分布',
                       onPressedSeeAll: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('查看违法类型详情')),
+                        Get.snackbar(
+                          '提示',
+                          '查看违法类型详情',
+                          snackPosition: SnackPosition.BOTTOM,
                         );
                       },
                       child: SizedBox(
@@ -61,8 +63,10 @@ class OffenseScreen extends GetView<OffenseController> {
                   : ActiveProjectCard(
                       title: '罚款与扣分趋势',
                       onPressedSeeAll: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('查看时间序列详情')),
+                        Get.snackbar(
+                          '提示',
+                          '查看时间序列详情',
+                          snackPosition: SnackPosition.BOTTOM,
                         );
                       },
                       child: SizedBox(
@@ -83,8 +87,10 @@ class OffenseScreen extends GetView<OffenseController> {
                   : ActiveProjectCard(
                       title: '申诉理由分布',
                       onPressedSeeAll: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('查看申诉理由详情')),
+                        Get.snackbar(
+                          '提示',
+                          '查看申诉理由详情',
+                          snackPosition: SnackPosition.BOTTOM,
                         );
                       },
                       child: SizedBox(
@@ -103,8 +109,10 @@ class OffenseScreen extends GetView<OffenseController> {
                   : ActiveProjectCard(
                       title: '罚款支付状态',
                       onPressedSeeAll: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('查看支付状态详情')),
+                        Get.snackbar(
+                          '提示',
+                          '查看支付状态详情',
+                          snackPosition: SnackPosition.BOTTOM,
                         );
                       },
                       child: SizedBox(
@@ -391,8 +399,10 @@ class OffensePieChartCard extends StatelessWidget {
     return ActiveProjectCard(
       title: title,
       onPressedSeeAll: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("查看详情：$title")),
+        Get.snackbar(
+          '提示',
+          '查看详情：$title',
+          snackPosition: SnackPosition.BOTTOM,
         );
       },
       child: SizedBox(

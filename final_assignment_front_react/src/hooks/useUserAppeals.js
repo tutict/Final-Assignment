@@ -38,7 +38,11 @@ async function fetchUserAppeals(userId) {
         });
         return Array.isArray(appealList) ? appealList : [];
       } catch (error) {
-        return [];
+        console.warn(
+          `[useUserAppeals] 获取申诉失败 offenseId=${offense.offenseId}:`,
+          error?.message
+        );
+        return { __fetchError: true, offenseId: offense.offenseId };
       }
     })
   );

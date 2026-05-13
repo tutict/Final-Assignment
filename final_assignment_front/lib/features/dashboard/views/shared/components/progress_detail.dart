@@ -193,24 +193,18 @@ class _ProgressDetailPageState extends State<ProgressDetailPage> {
     }
   }
 
-  void _showSnackBar(String message,
-      {bool isError = false, required ThemeData themeData}) {
+  void _showSnackBar(
+    String message, {
+    bool isError = false,
+    required ThemeData themeData,
+  }) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          style: TextStyle(
-            color: isError
-                ? themeData.colorScheme.onError
-                : themeData.colorScheme.onPrimary,
-          ),
-        ),
-        backgroundColor: isError
-            ? themeData.colorScheme.error
-            : themeData.colorScheme.primary,
-        duration: const Duration(seconds: 3),
-      ),
+    Get.snackbar(
+      isError ? '错误' : '提示',
+      message,
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: isError ? Colors.red.shade100 : Colors.green.shade100,
+      duration: const Duration(seconds: 3),
     );
   }
 

@@ -196,13 +196,11 @@ class SystemSettings {
         .toList();
   }
 
-  static Map<String, SystemSettings> mapFromJson(
-      Map<String, dynamic> json) {
+  static Map<String, SystemSettings> mapFromJson(Map<String, dynamic> json) {
     final map = <String, SystemSettings>{};
     if (json.isNotEmpty) {
       json.forEach((key, value) {
-        map[key] =
-            SystemSettings.fromJson(value as Map<String, dynamic>);
+        map[key] = SystemSettings.fromJson(value as Map<String, dynamic>);
       });
     }
     return map;
@@ -213,8 +211,7 @@ class SystemSettings {
     final map = <String, List<SystemSettings>>{};
     if (json.isNotEmpty) {
       json.forEach((key, value) {
-        map[key] =
-            SystemSettings.listFromJson(value as List<dynamic>);
+        map[key] = SystemSettings.listFromJson(value as List<dynamic>);
       });
     }
     return map;

@@ -3,6 +3,7 @@ import 'package:final_assignment_front/features/dashboard/controllers/manager_da
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/model/backup_restore.dart';
 import 'package:final_assignment_front/shared/controllers/base_list_controller.dart';
+import 'package:final_assignment_front/shared/utils/error_handler.dart';
 import 'package:final_assignment_front/shared/widgets/index.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:flutter/material.dart';
@@ -101,7 +102,8 @@ class _BackupAndRestoreState extends State<BackupAndRestorePage> {
       await backupApi.initializeWithJwt();
       _apiInitialized = true;
       return true;
-    } catch (_) {
+    } catch (e) {
+      ErrorHandler.showError(e, fallbackMessage: '初始化备份服务失败，请重新登录');
       return false;
     }
   }
@@ -179,11 +181,9 @@ class _BackupAndRestoreState extends State<BackupAndRestorePage> {
   Future<void> _createBackup() async {
     if (!mounted || !_isAdmin) return;
 
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
     if (!await _ensureApiInitialized()) {
-      scaffoldMessenger.showSnackBar(
-        const SnackBar(content: Text('未登录，请重新登录')),
-      );
+      ErrorHandler.showError(Exception('未登录，请重新登录'),
+          fallbackMessage: '未登录，请重新登录');
       return;
     }
 
@@ -205,25 +205,20 @@ class _BackupAndRestoreState extends State<BackupAndRestorePage> {
         idempotencyKey: idempotencyKey,
       );
 
-      scaffoldMessenger.showSnackBar(
-        const SnackBar(content: Text('备份创建成功')),
-      );
+      Get.snackbar('成功', '备份创建成功', snackPosition: SnackPosition.BOTTOM);
       await _loadBackups();
     } catch (e) {
-      scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text('创建备份失败: ${_formatErrorMessage(e)}')),
-      );
+      ErrorHandler.showError(e,
+          fallbackMessage: '创建备份失败: ${_formatErrorMessage(e)}');
     }
   }
 
   Future<void> _updateBackup(int backupId, BackupRestore updatedBackup) async {
     if (!mounted || !_isAdmin) return;
 
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
     if (!await _ensureApiInitialized()) {
-      scaffoldMessenger.showSnackBar(
-        const SnackBar(content: Text('未登录，请重新登录')),
-      );
+      ErrorHandler.showError(Exception('未登录，请重新登录'),
+          fallbackMessage: '未登录，请重新登录');
       return;
     }
 
@@ -235,25 +230,20 @@ class _BackupAndRestoreState extends State<BackupAndRestorePage> {
         backupRestore: payload,
         idempotencyKey: idempotencyKey,
       );
-      scaffoldMessenger.showSnackBar(
-        const SnackBar(content: Text('备份更新成功')),
-      );
+      Get.snackbar('成功', '备份更新成功', snackPosition: SnackPosition.BOTTOM);
       await _loadBackups();
     } catch (e) {
-      scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text('更新备份失败: ${_formatErrorMessage(e)}')),
-      );
+      ErrorHandler.showError(e,
+          fallbackMessage: '更新备份失败: ${_formatErrorMessage(e)}');
     }
   }
 
   Future<void> _restoreBackup(BackupRestore backup) async {
     if (!mounted || !_isAdmin || backup.backupId == null) return;
 
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
     if (!await _ensureApiInitialized()) {
-      scaffoldMessenger.showSnackBar(
-        const SnackBar(content: Text('未登录，请重新登录')),
-      );
+      ErrorHandler.showError(Exception('未登录，请重新登录'),
+          fallbackMessage: '未登录，请重新登录');
       return;
     }
 
@@ -270,45 +260,40 @@ class _BackupAndRestoreState extends State<BackupAndRestorePage> {
         backupRestore: payload,
         idempotencyKey: idempotencyKey,
       );
-      scaffoldMessenger.showSnackBar(
-        const SnackBar(content: Text('恢复备份成功')),
-      );
+      Get.snackbar('成功', '恢复备份成功', snackPosition: SnackPosition.BOTTOM);
       await _loadBackups();
     } catch (e) {
-      scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text('恢复备份失败: ${_formatErrorMessage(e)}')),
-      );
+      ErrorHandler.showError(e,
+          fallbackMessage: '恢复备份失败: ${_formatErrorMessage(e)}');
     }
   }
 
   Future<void> _deleteBackup(int backupId) async {
     if (!mounted || !_isAdmin) return;
 
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
     if (!await _ensureApiInitialized()) {
-      scaffoldMessenger.showSnackBar(
-        const SnackBar(content: Text('未登录，请重新登录')),
-      );
+      ErrorHandler.showError(Exception('未登录，请重新登录'),
+          fallbackMessage: '未登录，请重新登录');
       return;
     }
 
     try {
       await backupApi.deleteBackup(backupId: backupId);
-      scaffoldMessenger.showSnackBar(
-        const SnackBar(content: Text('删除备份成功')),
-      );
+      Get.snackbar('成功', '删除备份成功', snackPosition: SnackPosition.BOTTOM);
       await _loadBackups();
     } catch (e) {
-      scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text('删除备份失败: ${_formatErrorMessage(e)}')),
-      );
+      ErrorHandler.showError(e,
+          fallbackMessage: '删除备份失败: ${_formatErrorMessage(e)}');
     }
   }
 
   void _showSnackBar(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
+    Get.snackbar(
+      '提示',
+      message,
+      snackPosition: SnackPosition.BOTTOM,
+      duration: const Duration(seconds: 3),
     );
   }
 
@@ -741,13 +726,11 @@ class _BackupDetailPageState extends State<BackupDetailPage> {
   Future<void> _updateBackup(int backupId, BackupRestore updatedBackup) async {
     if (!mounted || !_isAdmin) return;
 
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
     setState(() => isLoading.value = true);
 
     if (!await _ensureApiInitialized()) {
-      scaffoldMessenger.showSnackBar(
-        const SnackBar(content: Text('未登录，请重新登录')),
-      );
+      ErrorHandler.showError(Exception('未登录，请重新登录'),
+          fallbackMessage: '未登录，请重新登录');
       setState(() => isLoading.value = false);
       return;
     }
@@ -761,9 +744,7 @@ class _BackupDetailPageState extends State<BackupDetailPage> {
         idempotencyKey: idempotencyKey,
       );
 
-      scaffoldMessenger.showSnackBar(
-        const SnackBar(content: Text('备份更新成功')),
-      );
+      Get.snackbar('成功', '备份更新成功', snackPosition: SnackPosition.BOTTOM);
       setState(() {
         _backup = result;
         isLoading.value = false;
@@ -773,16 +754,18 @@ class _BackupDetailPageState extends State<BackupDetailPage> {
       }
     } catch (e) {
       setState(() => isLoading.value = false);
-      scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text('更新备份失败: ${_formatErrorMessage(e)}')),
-      );
+      ErrorHandler.showError(e,
+          fallbackMessage: '更新备份失败: ${_formatErrorMessage(e)}');
     }
   }
 
   void _showSnackBar(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
+    Get.snackbar(
+      '提示',
+      message,
+      snackPosition: SnackPosition.BOTTOM,
+      duration: const Duration(seconds: 3),
     );
   }
 

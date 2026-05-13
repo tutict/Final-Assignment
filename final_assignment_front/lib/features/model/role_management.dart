@@ -122,8 +122,7 @@ class RoleManagement {
         .toList();
   }
 
-  static Map<String, RoleManagement> mapFromJson(
-      Map<String, dynamic> json) {
+  static Map<String, RoleManagement> mapFromJson(Map<String, dynamic> json) {
     final map = <String, RoleManagement>{};
     if (json.isNotEmpty) {
       json.forEach((key, value) {
@@ -138,8 +137,7 @@ class RoleManagement {
     final map = <String, List<RoleManagement>>{};
     if (json.isNotEmpty) {
       json.forEach((key, value) {
-        map[key] =
-            RoleManagement.listFromJson(value as List<dynamic>);
+        map[key] = RoleManagement.listFromJson(value as List<dynamic>);
       });
     }
     return map;

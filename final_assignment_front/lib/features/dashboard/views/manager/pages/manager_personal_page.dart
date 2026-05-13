@@ -1,3 +1,4 @@
+import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/user_management_controller_api.dart';
@@ -6,6 +7,7 @@ import 'package:final_assignment_front/features/dashboard/controllers/manager_da
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/features/model/driver_information.dart';
 import 'package:final_assignment_front/features/model/user_management.dart';
+import 'package:final_assignment_front/shared/utils/error_handler.dart';
 import 'package:final_assignment_front/shared/widgets/index.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:flutter/cupertino.dart';
@@ -80,14 +82,14 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
 
     try {
       final jwtToken = (await AuthTokenStore.instance.getJwtToken());
-      debugPrint('JWT token loaded for manager profile request');
+      AppLogger.debug('JWT token loaded for manager profile request');
       if (jwtToken == null || jwtToken.isEmpty) {
         throw Exception('JWT Token not found in SharedPreferences');
       }
 
       await userApi.initializeWithJwt();
       await driverApi.initializeWithJwt();
-      debugPrint('UserManagement and Driver APIs initialized with JWT');
+      AppLogger.debug('UserManagement and Driver APIs initialized with JWT');
 
       final decodedToken = JwtDecoder.decode(jwtToken);
       final username = decodedToken['sub']?.toString();
@@ -110,7 +112,7 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
           contactNumber: manager.contactNumber ?? '',
           idCardNumber: '',
         );
-        debugPrint(
+        AppLogger.debug(
             'Creating driver profile for user ${manager.userId} (${manager.username})');
         await driverApi.createDriver(
           driverInformation: newDriver,
@@ -138,7 +140,7 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
       controller?.updateCurrentUser(
           driverInfo?.name ?? '', manager.username ?? '');
     } catch (e) {
-      debugPrint('Load current manager error: $e');
+      AppLogger.error('Load current manager error: $e');
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -154,7 +156,6 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
     if (!mounted) return;
 
     setState(() => _isLoading = true);
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
 
     try {
       final currentManager = _currentManager ?? await _managerFuture;
@@ -210,29 +211,16 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
       await _loadCurrentManager();
 
       if (mounted) {
-        scaffoldMessenger.showSnackBar(
-          SnackBar(
-            content: Text('$field 更新成功！',
-                style: TextStyle(
-                    color: controller?.currentBodyTheme.value.colorScheme
-                            .onPrimaryContainer ??
-                        Colors.black)),
-            backgroundColor:
-                controller?.currentBodyTheme.value.colorScheme.primary ??
-                    Colors.green,
-          ),
+        Get.snackbar(
+          '成功',
+          '$field 更新成功！',
+          snackPosition: SnackPosition.BOTTOM,
         );
       }
     } catch (e) {
-      debugPrint('Update field error: $e');
+      AppLogger.error('Update field error: $e');
       if (mounted) {
-        scaffoldMessenger.showSnackBar(
-          SnackBar(
-            content: Text(_formatErrorMessage(e),
-                style: const TextStyle(color: Colors.white)),
-            backgroundColor: Colors.red,
-          ),
-        );
+        ErrorHandler.showError(e, fallbackMessage: _formatErrorMessage(e));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

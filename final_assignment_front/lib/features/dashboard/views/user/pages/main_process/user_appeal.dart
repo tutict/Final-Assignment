@@ -1,5 +1,7 @@
 // ignore_for_file: use_build_context_synchronously
 import 'dart:convert';
+import 'package:final_assignment_front/config/routes/app_routes.dart';
+import 'package:final_assignment_front/core/auth/auth_service.dart';
 import 'package:final_assignment_front/features/dashboard/bindings/progress_binding.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/progress_controller.dart';
 import 'package:flutter/cupertino.dart';
@@ -15,6 +17,7 @@ import 'package:final_assignment_front/features/model/user_management.dart';
 import 'package:final_assignment_front/shared/widgets/index.dart';
 import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
 import 'package:get/get.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'dart:developer' as developer;
@@ -137,11 +140,26 @@ class _UserAppealPageState extends State<UserAppealPage> {
       final storedUsername = prefs.getString('userName');
       Map<String, dynamic>? decoded;
       try {
-        decoded = _decodeJwt(jwtToken);
-      } catch (_) {}
+        decoded = JwtDecoder.decode(jwtToken);
+      } catch (e, stackTrace) {
+        developer.log(
+          'JWT decode failed',
+          name: 'AuthError',
+          error: e,
+          stackTrace: stackTrace,
+        );
+        if (Get.isRegistered<AuthService>()) {
+          await Get.find<AuthService>().clearTokens();
+        } else {
+          await prefs.remove('jwtToken');
+          await prefs.remove('refreshToken');
+        }
+        Get.offAllNamed(Routes.login);
+        return null;
+      }
       final username = storedUsername?.isNotEmpty == true
           ? storedUsername!
-          : decoded?['sub']?.toString();
+          : decoded['sub']?.toString();
       if (username == null || username.isEmpty) {
         throw Exception('无法确定当前用户');
       }
@@ -625,11 +643,12 @@ class _UserAppealPageState extends State<UserAppealPage> {
 
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message, style: const TextStyle(color: Colors.white)),
-        backgroundColor: isError ? Colors.red : Colors.green,
-      ),
+    Get.snackbar(
+      isError ? '错误' : '提示',
+      message,
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: isError ? Colors.red.shade100 : Colors.green.shade100,
+      duration: const Duration(seconds: 3),
     );
   }
 
@@ -949,11 +968,11 @@ class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
             ElevatedButton(
               onPressed: () async {
                 if (titleController.text.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Text('标题不能为空'),
-                      backgroundColor: themeData.colorScheme.error,
-                    ),
+                  Get.snackbar(
+                    '错误',
+                    '标题不能为空',
+                    snackPosition: SnackPosition.BOTTOM,
+                    backgroundColor: Colors.red.shade100,
                   );
                   return;
                 }

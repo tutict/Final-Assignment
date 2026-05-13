@@ -26,28 +26,20 @@ class _TeamMember extends StatelessWidget {
       children: [
         RichText(
           text: TextSpan(
-            style: Theme.of(context)
-                .textTheme
-                .titleMedium!
-                .copyWith(
+            style: Theme.of(context).textTheme.titleMedium!.copyWith(
                   fontWeight: FontWeight.bold,
                   fontSize: 16, // 增大字体大小，确保清晰可见
                   color: primaryTextColor, // 动态调整为主文本颜色
-                )
-                ,
+                ),
             children: [
               const TextSpan(text: "其他管理员"),
               TextSpan(
                 text: "($totalMember)",
-                style: Theme.of(context)
-                    .textTheme
-                    .bodyMedium!
-                    .copyWith(
+                style: Theme.of(context).textTheme.bodyMedium!.copyWith(
                       fontWeight: FontWeight.normal,
                       fontSize: 14, // 略小字体，用于辅助信息
                       color: secondaryTextColor, // 动态调整为辅助文本颜色
-                    )
-                    ,
+                    ),
               ),
             ],
           ),

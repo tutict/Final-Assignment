@@ -229,8 +229,7 @@ class FineInformation {
         .toList();
   }
 
-  static Map<String, FineInformation> mapFromJson(
-      Map<String, dynamic> json) {
+  static Map<String, FineInformation> mapFromJson(Map<String, dynamic> json) {
     final map = <String, FineInformation>{};
     if (json.isNotEmpty) {
       json.forEach((String key, dynamic value) {

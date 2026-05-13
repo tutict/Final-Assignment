@@ -23,6 +23,7 @@ const appealColumnFields = [
 export default function AppealManagementPage() {
   const [search, setSearch] = useState('');
   const [rejectReason, setRejectReason] = useState('');
+  const [actionError, setActionError] = useState('');
   const {
     isOpen: isDetailOpen,
     activeRow: activeAppeal,
@@ -34,11 +35,14 @@ export default function AppealManagementPage() {
 
   const handleCloseDetail = () => {
     setRejectReason('');
+    setActionError('');
     close();
   };
 
   const handleOpenDetail = (row) => {
+    if (row?.__fetchError) return;
     setRejectReason('');
+    setActionError('');
     open(row);
   };
 
@@ -48,6 +52,7 @@ export default function AppealManagementPage() {
     if (!search.trim()) return rows;
     const query = normalizeText(search);
     return rows.filter((row) =>
+      row.__fetchError ||
       [row.appealReason, row.appellantName, row.processStatus].some((value) =>
         normalizeText(value).includes(query)
       )
@@ -59,17 +64,37 @@ export default function AppealManagementPage() {
   const { confirm: handleConfirmApprove, loading: approving } = useConfirm(
     async () => {
       if (!activeAppeal?.appealId) return;
+      setActionError('');
       await approve(activeAppeal);
     },
-    { onSuccess: handleCloseDetail }
+    {
+      onSuccess: handleCloseDetail,
+      onError: (error) => {
+        setActionError(
+          error?.response?.data?.message ??
+            error?.message ??
+            '审批失败，请重试'
+        );
+      },
+    }
   );
 
   const { confirm: handleConfirmReject, loading: rejecting } = useConfirm(
     async () => {
       if (!activeAppeal?.appealId) return;
+      setActionError('');
       await reject(activeAppeal);
     },
-    { onSuccess: handleCloseDetail }
+    {
+      onSuccess: handleCloseDetail,
+      onError: (error) => {
+        setActionError(
+          error?.response?.data?.message ??
+            error?.message ??
+            '驳回失败，请重试'
+        );
+      },
+    }
   );
 
   const updating = isUpdating || approving || rejecting;
@@ -83,6 +108,9 @@ export default function AppealManagementPage() {
         columns={columns}
         rows={filteredRows}
         onView={handleOpenDetail}
+        getRowErrorMessage={(row) =>
+          row?.__fetchError ? '申诉信息加载失败，请刷新重试' : null
+        }
       />
       <Modal
         isOpen={isDetailOpen}
@@ -112,6 +140,7 @@ export default function AppealManagementPage() {
           </div>
         }
       >
+        {actionError ? <div className="form-error">{actionError}</div> : null}
         {activeAppeal ? (
           <div className="detail-grid">
             <div><strong>申诉ID：</strong>{activeAppeal.appealId}</div>

@@ -58,9 +58,13 @@ class SystemLogs {
     if (logId != null) json['logId'] = logId;
     if (logType != null) json['logType'] = logType;
     if (logContent != null) json['logContent'] = logContent;
-    if (operationTime != null) json['operationTime'] = operationTime!.toIso8601String();
+    if (operationTime != null) {
+      json['operationTime'] = operationTime!.toIso8601String();
+    }
     if (operationUser != null) json['operationUser'] = operationUser;
-    if (operationIpAddress != null) json['operationIpAddress'] = operationIpAddress;
+    if (operationIpAddress != null) {
+      json['operationIpAddress'] = operationIpAddress;
+    }
     if (remarks != null) json['remarks'] = remarks;
     if (idempotencyKey != null) json['idempotencyKey'] = idempotencyKey;
     return json;
@@ -98,13 +102,14 @@ class SystemLogs {
     var map = <String, SystemLogs>{};
     if (json.isNotEmpty) {
       json.forEach((String key, dynamic value) =>
-      map[key] = SystemLogs.fromJson(value as Map<String, dynamic>));
+          map[key] = SystemLogs.fromJson(value as Map<String, dynamic>));
     }
     return map;
   }
 
   // Maps a JSON object with a list of SystemLogs objects as value to a Dart map
-  static Map<String, List<SystemLogs>> mapListFromJson(Map<String, dynamic> json) {
+  static Map<String, List<SystemLogs>> mapListFromJson(
+      Map<String, dynamic> json) {
     var map = <String, List<SystemLogs>>{};
     if (json.isNotEmpty) {
       json.forEach((String key, dynamic value) {

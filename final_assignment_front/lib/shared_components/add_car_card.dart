@@ -73,8 +73,7 @@ class ProgressCard extends StatelessWidget {
                     const Icon(Icons.directions_car, size: 44.0),
                     Text(
                       "机动车",
-                      style: const TextStyle(fontWeight: FontWeight.w700)
-                          ,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
                   ],
                 ),
@@ -88,9 +87,7 @@ class ProgressCard extends StatelessWidget {
                     children: <Widget>[
                       const Icon(Icons.add, size: 24.0),
                       const SizedBox(width: 8.0),
-                      Text("备案机动车信息",
-                          style: const TextStyle(fontSize: 16.0)
-                              ),
+                      Text("备案机动车信息", style: const TextStyle(fontSize: 16.0)),
                     ],
                   ),
                 ),

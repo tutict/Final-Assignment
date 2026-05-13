@@ -166,8 +166,7 @@ class BackupRestore {
         .toList();
   }
 
-  static Map<String, BackupRestore> mapFromJson(
-      Map<String, dynamic> json) {
+  static Map<String, BackupRestore> mapFromJson(Map<String, dynamic> json) {
     final map = <String, BackupRestore>{};
     if (json.isNotEmpty) {
       json.forEach((key, value) {
@@ -182,8 +181,7 @@ class BackupRestore {
     final map = <String, List<BackupRestore>>{};
     if (json.isNotEmpty) {
       json.forEach((key, value) {
-        map[key] =
-            BackupRestore.listFromJson(value as List<dynamic>);
+        map[key] = BackupRestore.listFromJson(value as List<dynamic>);
       });
     }
     return map;

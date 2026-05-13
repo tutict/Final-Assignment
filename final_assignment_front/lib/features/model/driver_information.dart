@@ -89,8 +89,7 @@ class DriverInformation {
       contactNumber: contactNumber ?? this.contactNumber,
       email: email ?? this.email,
       address: address ?? this.address,
-      driverLicenseNumber:
-          driverLicenseNumber ?? this.driverLicenseNumber,
+      driverLicenseNumber: driverLicenseNumber ?? this.driverLicenseNumber,
       licenseType: licenseType ?? this.licenseType,
       allowedVehicleType:
           allowedVehicleType ?? this.allowedVehicleType ?? this.licenseType,
@@ -99,8 +98,7 @@ class DriverInformation {
       expiryDate: expiryDate ?? this.expiryDate,
       issuingAuthority: issuingAuthority ?? this.issuingAuthority,
       currentPoints: currentPoints ?? this.currentPoints,
-      totalDeductedPoints:
-          totalDeductedPoints ?? this.totalDeductedPoints,
+      totalDeductedPoints: totalDeductedPoints ?? this.totalDeductedPoints,
       status: status ?? this.status,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -180,13 +178,11 @@ class DriverInformation {
         .toList();
   }
 
-  static Map<String, DriverInformation> mapFromJson(
-      Map<String, dynamic> json) {
+  static Map<String, DriverInformation> mapFromJson(Map<String, dynamic> json) {
     final map = <String, DriverInformation>{};
     if (json.isNotEmpty) {
       json.forEach((String key, dynamic value) {
-        map[key] =
-            DriverInformation.fromJson(value as Map<String, dynamic>);
+        map[key] = DriverInformation.fromJson(value as Map<String, dynamic>);
       });
     }
     return map;

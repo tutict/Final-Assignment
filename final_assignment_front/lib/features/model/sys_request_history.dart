@@ -131,8 +131,8 @@ class SysRequestHistoryModel {
     final map = <String, SysRequestHistoryModel>{};
     if (json.isNotEmpty) {
       json.forEach((key, value) {
-        map[key] = SysRequestHistoryModel.fromJson(
-            value as Map<String, dynamic>);
+        map[key] =
+            SysRequestHistoryModel.fromJson(value as Map<String, dynamic>);
       });
     }
     return map;
@@ -143,8 +143,7 @@ class SysRequestHistoryModel {
     final map = <String, List<SysRequestHistoryModel>>{};
     if (json.isNotEmpty) {
       json.forEach((key, value) {
-        map[key] = SysRequestHistoryModel.listFromJson(
-            value as List<dynamic>);
+        map[key] = SysRequestHistoryModel.listFromJson(value as List<dynamic>);
       });
     }
     return map;

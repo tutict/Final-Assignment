@@ -144,7 +144,8 @@ class UserDashboard extends GetView<UserDashboardController> with FloatingBase {
                                       .withValues(alpha: 0.95),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.1),
+                                      color:
+                                          Colors.black.withValues(alpha: 0.1),
                                       blurRadius: 12,
                                       offset: const Offset(-2, 0),
                                     ),

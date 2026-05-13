@@ -53,7 +53,8 @@ const TextStyle kBodyTextStyle = TextStyle(
 // 全局按钮样式
 final ButtonStyle kButtonStyle = ElevatedButton.styleFrom(
   backgroundColor: kNotifColor,
-  padding: const EdgeInsets.symmetric(horizontal: kSpacing * 2, vertical: kSpacing),
+  padding:
+      const EdgeInsets.symmetric(horizontal: kSpacing * 2, vertical: kSpacing),
   shape: RoundedRectangleBorder(
     borderRadius: BorderRadius.circular(kBorderRadius),
   ),
@@ -64,6 +65,7 @@ const InputDecoration kInputDecoration = InputDecoration(
   border: OutlineInputBorder(
     borderRadius: BorderRadius.all(Radius.circular(kBorderRadius)),
   ),
-  contentPadding: EdgeInsets.symmetric(horizontal: kSpacing, vertical: kSpacing / 2),
+  contentPadding:
+      EdgeInsets.symmetric(horizontal: kSpacing, vertical: kSpacing / 2),
   hintStyle: TextStyle(color: Colors.grey),
 );

@@ -1,3 +1,4 @@
+import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'package:eva_icons_flutter/eva_icons_flutter.dart';
 import 'package:final_assignment_front/features/dashboard/models/profile.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
@@ -95,7 +96,7 @@ class ProfilTile extends StatelessWidget {
                   const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
               leading: GestureDetector(
                 onTap: () {
-                  debugPrint("Avatar clicked for $displayName");
+                  AppLogger.debug("Avatar clicked for $displayName");
                 },
                 child: CircleAvatar(
                   backgroundImage: data.photo,
@@ -163,7 +164,7 @@ class ProfilTile extends StatelessWidget {
                 borderRadius: BorderRadius.circular(16),
               ),
               onTap: () {
-                debugPrint("Profile tile tapped for $displayName");
+                AppLogger.debug("Profile tile tapped for $displayName");
               },
             ),
           );

@@ -1,4 +1,3 @@
-
 class VehicleInformationDocument {
   int? vehicleId;
   String? licensePlate;

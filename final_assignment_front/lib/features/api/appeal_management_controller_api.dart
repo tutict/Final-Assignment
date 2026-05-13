@@ -1,10 +1,10 @@
+import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'dart:convert';
 
 import 'package:final_assignment_front/features/model/appeal_record.dart';
 import 'package:final_assignment_front/features/model/appeal_review.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
-import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
@@ -23,7 +23,7 @@ class AppealManagementControllerApi with BaseApiClient {
       throw Exception('Not authenticated. Please log in again.');
     }
     apiClient.setJwtToken(jwtToken);
-    debugPrint(
+    AppLogger.debug(
         'Initialized AppealManagementControllerApi with token: $jwtToken');
   }
 

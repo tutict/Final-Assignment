@@ -1,4 +1,5 @@
 // ignore_for_file: use_build_context_synchronously
+import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
@@ -31,7 +32,7 @@ class _LocalCaptchaMainState extends State<LocalCaptchaMain> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_isMounted) {
         _localCaptchaController.refresh();
-        debugPrint('Captcha refreshed on init');
+        AppLogger.debug('Captcha refreshed on init');
       }
     });
   }
@@ -50,7 +51,7 @@ class _LocalCaptchaMainState extends State<LocalCaptchaMain> {
     if (_captchaFormKey.currentState?.validate() ?? false) {
       _captchaFormKey.currentState!.save();
       final validation = _localCaptchaController.validate(_inputCode);
-      debugPrint('Captcha validation: $validation (input: $_inputCode)');
+      AppLogger.debug('Captcha validation: $validation (input: $_inputCode)');
       if (validation == LocalCaptchaValidation.valid) {
         return true; // Validation successful
       } else {
@@ -59,21 +60,18 @@ class _LocalCaptchaMainState extends State<LocalCaptchaMain> {
         _inputController.clear();
         _inputCode = '';
         if (_isMounted) {
-          final themeData = _controller.currentBodyTheme.value;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('验证码错误，请重试',
-                  style:
-                      TextStyle(color: themeData.colorScheme.onErrorContainer)),
-              backgroundColor: themeData.colorScheme.error,
-              duration: const Duration(seconds: 2),
-            ),
+          Get.snackbar(
+            '错误',
+            '验证码错误，请重试',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.red.shade100,
+            duration: const Duration(seconds: 2),
           );
         }
         return false;
       }
     } else {
-      debugPrint('Form validation failed, empty or invalid input');
+      AppLogger.error('Form validation failed, empty or invalid input');
       return false;
     }
   }
@@ -125,8 +123,8 @@ class _LocalCaptchaMainState extends State<LocalCaptchaMain> {
                       caseSensitive: _configFormData.caseSensitive,
                       codeExpireAfter: _configFormData.codeExpireAfter,
                       onCaptchaGenerated: (captcha) {
-                        debugPrint('生成验证码: $captcha');
-                        debugPrint('应用字体大小: ${_configFormData.fontSize}');
+                        AppLogger.debug('生成验证码: $captcha');
+                        AppLogger.debug('应用字体大小: ${_configFormData.fontSize}');
                       },
                     ),
                     const SizedBox(height: 20.0),
@@ -171,7 +169,8 @@ class _LocalCaptchaMainState extends State<LocalCaptchaMain> {
                         fontSize: 16,
                         color: isLight
                             ? themeData.colorScheme.onSurface
-                            : themeData.colorScheme.onSurface.withValues(alpha: 0.95),
+                            : themeData.colorScheme.onSurface
+                                .withValues(alpha: 0.95),
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {

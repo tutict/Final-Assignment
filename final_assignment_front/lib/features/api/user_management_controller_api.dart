@@ -1,7 +1,7 @@
+import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'dart:convert';
 import 'package:final_assignment_front/features/model/user_management.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
-import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:final_assignment_front/utils/services/api_client.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
@@ -27,7 +27,7 @@ class UserManagementControllerApi with BaseApiClient {
       throw Exception('Not authenticated. Please log in again.');
     }
     apiClient.setJwtToken(jwtToken);
-    debugPrint('Initialized JWT: $jwtToken');
+    AppLogger.debug('Initialized JWT: $jwtToken');
   }
 
   // è§£ç ååºä½?
@@ -65,8 +65,8 @@ class UserManagementControllerApi with BaseApiClient {
   Future<List<UserManagement>> listUsers() async {
     try {
       final response = await _listUsersWithHttpInfo();
-      debugPrint('Users get response status: ${response.statusCode}');
-      debugPrint('Users get response body: ${response.body}');
+      AppLogger.debug('Users get response status: ${response.statusCode}');
+      AppLogger.debug('Users get response body: ${response.body}');
 
       if (response.body.isNotEmpty) {
         final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
@@ -75,7 +75,7 @@ class UserManagementControllerApi with BaseApiClient {
         return [];
       }
     } catch (e) {
-      debugPrint('Users get error: $e');
+      AppLogger.error('Users get error: $e');
       rethrow;
     }
   }
@@ -126,8 +126,8 @@ class UserManagementControllerApi with BaseApiClient {
         userManagement: userManagement,
         idempotencyKey: idempotencyKey,
       );
-      debugPrint('Users post response status: ${response.statusCode}');
-      debugPrint('Users post response body: ${response.body}');
+      AppLogger.debug('Users post response status: ${response.statusCode}');
+      AppLogger.debug('Users post response body: ${response.body}');
 
       if (response.body.isNotEmpty) {
         return UserManagement.fromJson(jsonDecode(_decodeBodyBytes(response)));
@@ -137,7 +137,7 @@ class UserManagementControllerApi with BaseApiClient {
         throw ApiException(response.statusCode, 'Empty response body');
       }
     } catch (e) {
-      debugPrint('Users post error: $e');
+      AppLogger.error('Users post error: $e');
       rethrow;
     }
   }
@@ -217,9 +217,10 @@ class UserManagementControllerApi with BaseApiClient {
     try {
       final response = await _searchUsersByDepartmentWithHttpInfo(
           department: department, page: page, size: size);
-      debugPrint(
+      AppLogger.debug(
           'Users search department response status: ${response.statusCode}');
-      debugPrint('Users search department response body: ${response.body}');
+      AppLogger.debug(
+          'Users search department response body: ${response.body}');
 
       if (response.body.isNotEmpty) {
         final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
@@ -228,7 +229,7 @@ class UserManagementControllerApi with BaseApiClient {
         return [];
       }
     } catch (e) {
-      debugPrint('Users search department error: $e');
+      AppLogger.error('Users search department error: $e');
       rethrow;
     }
   }
@@ -865,8 +866,9 @@ class UserManagementControllerApi with BaseApiClient {
     try {
       final response = await _searchUsersByStatusWithHttpInfo(
           status: status, page: page, size: size);
-      debugPrint('Users search status response status: ${response.statusCode}');
-      debugPrint('Users search status response body: ${response.body}');
+      AppLogger.debug(
+          'Users search status response status: ${response.statusCode}');
+      AppLogger.debug('Users search status response body: ${response.body}');
 
       if (response.body.isNotEmpty) {
         final List<dynamic> jsonList = jsonDecode(_decodeBodyBytes(response));
@@ -875,7 +877,7 @@ class UserManagementControllerApi with BaseApiClient {
         return [];
       }
     } catch (e) {
-      debugPrint('Users search status error: $e');
+      AppLogger.error('Users search status error: $e');
       rethrow;
     }
   }
@@ -919,10 +921,10 @@ class UserManagementControllerApi with BaseApiClient {
   }) async {
     try {
       final response = await _deleteUserWithHttpInfo(userId: userId);
-      debugPrint('Users delete response status: ${response.statusCode}');
-      debugPrint('Users delete response body: ${response.body}');
+      AppLogger.debug('Users delete response status: ${response.statusCode}');
+      AppLogger.debug('Users delete response body: ${response.body}');
     } catch (e) {
-      debugPrint('Users delete error: $e');
+      AppLogger.error('Users delete error: $e');
       rethrow;
     }
   }
@@ -964,8 +966,9 @@ class UserManagementControllerApi with BaseApiClient {
   }) async {
     try {
       final response = await _getUserWithHttpInfo(userId: userId);
-      debugPrint('Users userId get response status: ${response.statusCode}');
-      debugPrint('Users userId get response body: ${response.body}');
+      AppLogger.debug(
+          'Users userId get response status: ${response.statusCode}');
+      AppLogger.debug('Users userId get response body: ${response.body}');
 
       if (response.body.isNotEmpty) {
         return UserManagement.fromJson(jsonDecode(_decodeBodyBytes(response)));
@@ -973,7 +976,7 @@ class UserManagementControllerApi with BaseApiClient {
         return null;
       }
     } catch (e) {
-      debugPrint('Users userId get error: $e');
+      AppLogger.error('Users userId get error: $e');
       rethrow;
     }
   }
@@ -1029,10 +1032,11 @@ class UserManagementControllerApi with BaseApiClient {
         userManagement: userManagement,
         idempotencyKey: idempotencyKey,
       );
-      debugPrint('Users userId put response status: ${response.statusCode}');
-      debugPrint('Users userId put response body: ${response.body}');
+      AppLogger.debug(
+          'Users userId put response status: ${response.statusCode}');
+      AppLogger.debug('Users userId put response body: ${response.body}');
     } catch (e) {
-      debugPrint('Users userId put error: $e');
+      AppLogger.error('Users userId put error: $e');
       rethrow;
     }
   }
@@ -1133,9 +1137,9 @@ class UserManagementControllerApi with BaseApiClient {
     try {
       final response =
           await _searchUsersByUsernameWithHttpInfo(username: username);
-      debugPrint(
+      AppLogger.debug(
           'Users search username response status: ${response.statusCode}');
-      debugPrint('Users search username response body: ${response.body}');
+      AppLogger.debug('Users search username response body: ${response.body}');
 
       if (response.body.isNotEmpty) {
         return UserManagement.fromJson(jsonDecode(_decodeBodyBytes(response)));
@@ -1143,7 +1147,7 @@ class UserManagementControllerApi with BaseApiClient {
         return null;
       }
     } catch (e) {
-      debugPrint('Users search username error: $e');
+      AppLogger.error('Users search username error: $e');
       rethrow;
     }
   }
@@ -1187,9 +1191,9 @@ class UserManagementControllerApi with BaseApiClient {
   }) async {
     try {
       final response = await _autocompleteUsernamesWithHttpInfo(prefix: prefix);
-      debugPrint(
+      AppLogger.debug(
           'Users autocomplete usernames response status: ${response.statusCode}');
-      debugPrint(
+      AppLogger.debug(
           'Users autocomplete usernames response body: ${response.body}');
 
       if (response.body.isNotEmpty) {
@@ -1199,7 +1203,7 @@ class UserManagementControllerApi with BaseApiClient {
         return [];
       }
     } catch (e) {
-      debugPrint('Users autocomplete usernames error: $e');
+      AppLogger.error('Users autocomplete usernames error: $e');
       rethrow;
     }
   }
@@ -1269,7 +1273,7 @@ class UserManagementControllerApi with BaseApiClient {
     };
     try {
       final respMap = await apiClient.sendWsMessage(msg);
-      debugPrint('WebSocket users get response: $respMap');
+      AppLogger.debug('WebSocket users get response: $respMap');
 
       if (respMap.containsKey("error")) {
         throw ApiException(400, respMap["error"]);
@@ -1281,7 +1285,7 @@ class UserManagementControllerApi with BaseApiClient {
       }
       return null;
     } catch (e) {
-      debugPrint('WebSocket users get error: $e');
+      AppLogger.error('WebSocket users get error: $e');
       rethrow;
     }
   }
@@ -1296,7 +1300,7 @@ class UserManagementControllerApi with BaseApiClient {
     };
     try {
       final respMap = await apiClient.sendWsMessage(msg);
-      debugPrint('WebSocket users me get response: $respMap');
+      AppLogger.debug('WebSocket users me get response: $respMap');
 
       if (respMap.containsKey("error")) {
         throw ApiException(400, respMap["error"]);
@@ -1306,7 +1310,7 @@ class UserManagementControllerApi with BaseApiClient {
       }
       return null;
     } catch (e) {
-      debugPrint('WebSocket users me get error: $e');
+      AppLogger.error('WebSocket users me get error: $e');
       rethrow;
     }
   }
@@ -1356,13 +1360,13 @@ class UserManagementControllerApi with BaseApiClient {
     };
     try {
       final respMap = await apiClient.sendWsMessage(msg);
-      debugPrint('WebSocket users me put response: $respMap');
+      AppLogger.debug('WebSocket users me put response: $respMap');
 
       if (respMap.containsKey("error")) {
         throw ApiException(400, respMap["error"]);
       }
     } catch (e) {
-      debugPrint('WebSocket users me put error: $e');
+      AppLogger.error('WebSocket users me put error: $e');
       rethrow;
     }
   }
@@ -1390,7 +1394,7 @@ class UserManagementControllerApi with BaseApiClient {
     };
     try {
       final respMap = await apiClient.sendWsMessage(msg);
-      debugPrint('WebSocket users post response: $respMap');
+      AppLogger.debug('WebSocket users post response: $respMap');
 
       if (respMap.containsKey("error")) {
         throw ApiException(400, respMap["error"]);
@@ -1400,7 +1404,7 @@ class UserManagementControllerApi with BaseApiClient {
       }
       return null;
     } catch (e) {
-      debugPrint('WebSocket users post error: $e');
+      AppLogger.error('WebSocket users post error: $e');
       rethrow;
     }
   }
@@ -1426,7 +1430,7 @@ class UserManagementControllerApi with BaseApiClient {
     };
     try {
       final respMap = await apiClient.sendWsMessage(msg);
-      debugPrint('WebSocket users status get response: $respMap');
+      AppLogger.debug('WebSocket users status get response: $respMap');
 
       if (respMap.containsKey("error")) {
         throw ApiException(400, respMap["error"]);
@@ -1438,7 +1442,7 @@ class UserManagementControllerApi with BaseApiClient {
       }
       return null;
     } catch (e) {
-      debugPrint('WebSocket users status get error: $e');
+      AppLogger.error('WebSocket users status get error: $e');
       rethrow;
     }
   }
@@ -1464,7 +1468,7 @@ class UserManagementControllerApi with BaseApiClient {
     };
     try {
       final respMap = await apiClient.sendWsMessage(msg);
-      debugPrint('WebSocket users type get response: $respMap');
+      AppLogger.debug('WebSocket users type get response: $respMap');
 
       if (respMap.containsKey("error")) {
         throw ApiException(400, respMap["error"]);
@@ -1476,7 +1480,7 @@ class UserManagementControllerApi with BaseApiClient {
       }
       return null;
     } catch (e) {
-      debugPrint('WebSocket users type get error: $e');
+      AppLogger.error('WebSocket users type get error: $e');
       rethrow;
     }
   }
@@ -1500,13 +1504,13 @@ class UserManagementControllerApi with BaseApiClient {
     };
     try {
       final respMap = await apiClient.sendWsMessage(msg);
-      debugPrint('WebSocket users delete response: $respMap');
+      AppLogger.debug('WebSocket users delete response: $respMap');
 
       if (respMap.containsKey("error")) {
         throw ApiException(400, respMap["error"]);
       }
     } catch (e) {
-      debugPrint('WebSocket users delete error: $e');
+      AppLogger.error('WebSocket users delete error: $e');
       rethrow;
     }
   }
@@ -1532,7 +1536,7 @@ class UserManagementControllerApi with BaseApiClient {
     };
     try {
       final respMap = await apiClient.sendWsMessage(msg);
-      debugPrint('WebSocket users userId get response: $respMap');
+      AppLogger.debug('WebSocket users userId get response: $respMap');
 
       if (respMap.containsKey("error")) {
         throw ApiException(400, respMap["error"]);
@@ -1542,7 +1546,7 @@ class UserManagementControllerApi with BaseApiClient {
       }
       return null;
     } catch (e) {
-      debugPrint('WebSocket users userId get error: $e');
+      AppLogger.error('WebSocket users userId get error: $e');
       rethrow;
     }
   }
@@ -1572,13 +1576,13 @@ class UserManagementControllerApi with BaseApiClient {
     };
     try {
       final respMap = await apiClient.sendWsMessage(msg);
-      debugPrint('WebSocket users userId put response: $respMap');
+      AppLogger.debug('WebSocket users userId put response: $respMap');
 
       if (respMap.containsKey("error")) {
         throw ApiException(400, respMap["error"]);
       }
     } catch (e) {
-      debugPrint('WebSocket users userId put error: $e');
+      AppLogger.error('WebSocket users userId put error: $e');
       rethrow;
     }
   }
@@ -1604,13 +1608,13 @@ class UserManagementControllerApi with BaseApiClient {
     };
     try {
       final respMap = await apiClient.sendWsMessage(msg);
-      debugPrint('WebSocket users username delete response: $respMap');
+      AppLogger.debug('WebSocket users username delete response: $respMap');
 
       if (respMap.containsKey("error")) {
         throw ApiException(400, respMap["error"]);
       }
     } catch (e) {
-      debugPrint('WebSocket users username delete error: $e');
+      AppLogger.error('WebSocket users username delete error: $e');
       rethrow;
     }
   }
@@ -1636,7 +1640,7 @@ class UserManagementControllerApi with BaseApiClient {
     };
     try {
       final respMap = await apiClient.sendWsMessage(msg);
-      debugPrint('WebSocket users username get response: $respMap');
+      AppLogger.debug('WebSocket users username get response: $respMap');
 
       if (respMap.containsKey("error")) {
         throw ApiException(400, respMap["error"]);
@@ -1646,7 +1650,7 @@ class UserManagementControllerApi with BaseApiClient {
       }
       return null;
     } catch (e) {
-      debugPrint('WebSocket users username get error: $e');
+      AppLogger.error('WebSocket users username get error: $e');
       rethrow;
     }
   }
@@ -1675,7 +1679,8 @@ class UserManagementControllerApi with BaseApiClient {
     };
     try {
       final respMap = await apiClient.sendWsMessage(msg);
-      debugPrint('WebSocket users autocomplete usernames response: $respMap');
+      AppLogger.debug(
+          'WebSocket users autocomplete usernames response: $respMap');
 
       if (respMap.containsKey("error")) {
         throw ApiException(400, respMap["error"]);
@@ -1685,7 +1690,7 @@ class UserManagementControllerApi with BaseApiClient {
       }
       return [];
     } catch (e) {
-      debugPrint('WebSocket users autocomplete usernames error: $e');
+      AppLogger.error('WebSocket users autocomplete usernames error: $e');
       rethrow;
     }
   }
@@ -1714,7 +1719,8 @@ class UserManagementControllerApi with BaseApiClient {
     };
     try {
       final respMap = await apiClient.sendWsMessage(msg);
-      debugPrint('WebSocket users autocomplete statuses response: $respMap');
+      AppLogger.debug(
+          'WebSocket users autocomplete statuses response: $respMap');
 
       if (respMap.containsKey("error")) {
         throw ApiException(400, respMap["error"]);
@@ -1724,7 +1730,7 @@ class UserManagementControllerApi with BaseApiClient {
       }
       return [];
     } catch (e) {
-      debugPrint('WebSocket users autocomplete statuses error: $e');
+      AppLogger.error('WebSocket users autocomplete statuses error: $e');
       rethrow;
     }
   }
@@ -1753,7 +1759,7 @@ class UserManagementControllerApi with BaseApiClient {
     };
     try {
       final respMap = await apiClient.sendWsMessage(msg);
-      debugPrint(
+      AppLogger.debug(
           'WebSocket users autocomplete phone-numbers response: $respMap');
 
       if (respMap.containsKey("error")) {
@@ -1764,7 +1770,7 @@ class UserManagementControllerApi with BaseApiClient {
       }
       return [];
     } catch (e) {
-      debugPrint('WebSocket users autocomplete phone-numbers error: $e');
+      AppLogger.error('WebSocket users autocomplete phone-numbers error: $e');
       rethrow;
     }
   }

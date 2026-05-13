@@ -58,18 +58,16 @@ class SysUserRoleModel {
 
   static List<SysUserRoleModel> listFromJson(List<dynamic> jsonList) {
     return jsonList
-        .map((value) =>
-            SysUserRoleModel.fromJson(value as Map<String, dynamic>))
+        .map(
+            (value) => SysUserRoleModel.fromJson(value as Map<String, dynamic>))
         .toList();
   }
 
-  static Map<String, SysUserRoleModel> mapFromJson(
-      Map<String, dynamic> json) {
+  static Map<String, SysUserRoleModel> mapFromJson(Map<String, dynamic> json) {
     final map = <String, SysUserRoleModel>{};
     if (json.isNotEmpty) {
       json.forEach((key, value) {
-        map[key] =
-            SysUserRoleModel.fromJson(value as Map<String, dynamic>);
+        map[key] = SysUserRoleModel.fromJson(value as Map<String, dynamic>);
       });
     }
     return map;
@@ -80,8 +78,7 @@ class SysUserRoleModel {
     final map = <String, List<SysUserRoleModel>>{};
     if (json.isNotEmpty) {
       json.forEach((key, value) {
-        map[key] =
-            SysUserRoleModel.listFromJson(value as List<dynamic>);
+        map[key] = SysUserRoleModel.listFromJson(value as List<dynamic>);
       });
     }
     return map;

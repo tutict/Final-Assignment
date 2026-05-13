@@ -1,6 +1,7 @@
 // 定义一个包含UI相关实用工具的库
 
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
 // 导入处理底部弹出窗口的文件
 part 'app_bottomsheet.dart';

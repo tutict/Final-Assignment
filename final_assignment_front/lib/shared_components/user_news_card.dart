@@ -152,7 +152,8 @@ class UserNewsCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(12.0),
             color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.8),
             border: Border.all(
-              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
+              color:
+                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
             ),
           ),
           child: Row(

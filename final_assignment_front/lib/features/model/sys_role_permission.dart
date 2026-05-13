@@ -58,8 +58,8 @@ class SysRolePermissionModel {
 
   static List<SysRolePermissionModel> listFromJson(List<dynamic> jsonList) {
     return jsonList
-        .map((value) => SysRolePermissionModel.fromJson(
-            value as Map<String, dynamic>))
+        .map((value) =>
+            SysRolePermissionModel.fromJson(value as Map<String, dynamic>))
         .toList();
   }
 
@@ -68,8 +68,8 @@ class SysRolePermissionModel {
     final map = <String, SysRolePermissionModel>{};
     if (json.isNotEmpty) {
       json.forEach((key, value) {
-        map[key] = SysRolePermissionModel.fromJson(
-            value as Map<String, dynamic>);
+        map[key] =
+            SysRolePermissionModel.fromJson(value as Map<String, dynamic>);
       });
     }
     return map;
@@ -80,8 +80,7 @@ class SysRolePermissionModel {
     final map = <String, List<SysRolePermissionModel>>{};
     if (json.isNotEmpty) {
       json.forEach((key, value) {
-        map[key] = SysRolePermissionModel.listFromJson(
-            value as List<dynamic>);
+        map[key] = SysRolePermissionModel.listFromJson(value as List<dynamic>);
       });
     }
     return map;

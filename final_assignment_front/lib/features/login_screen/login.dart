@@ -1,4 +1,5 @@
 // ignore_for_file: use_build_context_synchronously
+import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'dart:convert';
 import 'dart:math';
 import 'package:final_assignment_front/config/routes/app_routes.dart';
@@ -106,23 +107,23 @@ class _LoginScreenState extends State<LoginScreen>
         await prefs.setString('userName', username);
 
         final userData = result['user'] ?? {};
-        debugPrint('登录返回的用户数据: $userData');
+        AppLogger.debug('登录返回的用户数据: $userData');
         final int? authUserIdFromLogin =
             userData['authUserId'] ?? userData['userId'];
         final int? driverIdFromLogin =
             userData['driverId'] ?? result['driverId'];
         String resolvedName = userData['name'] ?? username.split('@').first;
         String resolvedEmail = userData['email'] ?? username;
-        debugPrint(
+        AppLogger.debug(
             '提取的 authUserId: $authUserIdFromLogin, driverId: $driverIdFromLogin, 姓名: $resolvedName, 邮箱: $resolvedEmail');
 
         String driverName = resolvedName;
 
         await driverApi.initializeWithJwt();
-        debugPrint('Driver API 已初始化');
+        AppLogger.debug('Driver API 已初始化');
         final userManagementApi = UserManagementControllerApi();
         await userManagementApi.initializeWithJwt();
-        debugPrint('UserManagement API 已初始化');
+        AppLogger.debug('UserManagement API 已初始化');
 
         int? authUserId = authUserIdFromLogin;
         int? driverId = driverIdFromLogin;
@@ -134,10 +135,11 @@ class _LoginScreenState extends State<LoginScreen>
             resolvedName =
                 userInfo.realName ?? userInfo.username ?? resolvedName;
             resolvedEmail = userInfo.email ?? resolvedEmail;
-            debugPrint('通过用户名查询获取的 userId: $authUserId, 姓名: $resolvedName');
+            AppLogger.debug(
+                '通过用户名查询获取的 userId: $authUserId, 姓名: $resolvedName');
           }
         } catch (e) {
-          debugPrint('通过用户名查询用户信息失败: $e');
+          AppLogger.error('通过用户名查询用户信息失败: $e');
         }
 
         if (driverId == null && authUserId != null) {
@@ -150,9 +152,9 @@ class _LoginScreenState extends State<LoginScreen>
             final driverInfo = await driverApi.getDriver(driverId: driverId);
             if (driverInfo != null && driverInfo.name != null) {
               driverName = driverInfo.name!;
-              debugPrint('从数据库获取的 driverName: $driverName');
+              AppLogger.debug('从数据库获取的 driverName: $driverName');
             } else {
-              debugPrint('DriverInformation 未找到或 name 为空');
+              AppLogger.debug('DriverInformation 未找到或 name 为空');
             }
           } catch (e) {
             if (e is ApiException && e.code == 404) {
@@ -168,13 +170,13 @@ class _LoginScreenState extends State<LoginScreen>
                 idempotencyKey: idempotencyKey,
               );
               driverName = resolvedName;
-              debugPrint('创建新司机记录，driverName: $driverName');
+              AppLogger.debug('创建新司机记录，driverName: $driverName');
             } else {
-              debugPrint('获取 DriverInformation 失败: $e');
+              AppLogger.error('获取 DriverInformation 失败: $e');
             }
           }
         } else {
-          debugPrint('无法获取 driverId，跳过 DriverInformation 查询');
+          AppLogger.debug('无法获取 driverId，跳过 DriverInformation 查询');
         }
 
         driverName = driverName.isNotEmpty ? driverName : resolvedName;
@@ -188,7 +190,7 @@ class _LoginScreenState extends State<LoginScreen>
           await prefs.setString('driverId', driverId.toString());
         }
 
-        debugPrint(
+        AppLogger.debug(
             '登录成功 - 角色: $_userRole, authUserId: $authUserId, driverId: $driverId, 姓名: $driverName, 邮箱: $resolvedEmail');
         return null;
       }
@@ -196,7 +198,7 @@ class _LoginScreenState extends State<LoginScreen>
     } on ApiException catch (e) {
       return _formatErrorMessage(e, '登录失败');
     } catch (e) {
-      debugPrint('登录中的常规异常: $e');
+      AppLogger.error('登录中的常规异常: $e');
       return '登录异常: $e';
     }
   }
@@ -276,10 +278,10 @@ class _LoginScreenState extends State<LoginScreen>
               await prefs.setString('userId', authUserId.toString());
             }
             await prefs.setString('driverId', driverId.toString());
-            debugPrint('Driver created and fetched name: $driverName');
+            AppLogger.debug('Driver created and fetched name: $driverName');
           }
 
-          debugPrint(
+          AppLogger.debug(
               'Signup and login successful - Role: $_userRole, Name: $driverName, Email: $resolvedEmail');
           return null;
         }
@@ -289,7 +291,7 @@ class _LoginScreenState extends State<LoginScreen>
     } on ApiException catch (e) {
       return _formatErrorMessage(e, '注册失败');
     } catch (e) {
-      debugPrint('General Exception in signup: $e');
+      AppLogger.error('General Exception in signup: $e');
       return '注册异常: $e';
     }
   }
@@ -372,20 +374,18 @@ class _LoginScreenState extends State<LoginScreen>
             ElevatedButton(
               onPressed: () {
                 if (newPasswordController.text.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                        content: Text('新密码不能为空',
-                            style: TextStyle(
-                                color:
-                                    themeData.colorScheme.onErrorContainer))),
+                  Get.snackbar(
+                    '错误',
+                    '新密码不能为空',
+                    snackPosition: SnackPosition.BOTTOM,
+                    backgroundColor: Colors.red.shade100,
                   );
                 } else if (newPasswordController.text.length < 3) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                        content: Text('密码太短',
-                            style: TextStyle(
-                                color:
-                                    themeData.colorScheme.onErrorContainer))),
+                  Get.snackbar(
+                    '错误',
+                    '密码太短',
+                    snackPosition: SnackPosition.BOTTOM,
+                    backgroundColor: Colors.red.shade100,
                   );
                 } else {
                   Navigator.pop(context, true);
@@ -434,13 +434,10 @@ class _LoginScreenState extends State<LoginScreen>
       );
 
       if (response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('密码重置成功，请使用新密码登录',
-                style:
-                    TextStyle(color: themeData.colorScheme.onPrimaryContainer)),
-            backgroundColor: themeData.colorScheme.primary,
-          ),
+        Get.snackbar(
+          '成功',
+          '密码重置成功，请使用新密码登录',
+          snackPosition: SnackPosition.BOTTOM,
         );
         return null;
       } else {
@@ -448,10 +445,10 @@ class _LoginScreenState extends State<LoginScreen>
             response.statusCode, '密码重置失败: ${response.statusCode}');
       }
     } on ApiException catch (e) {
-      debugPrint('Reset Password Error: $e');
+      AppLogger.error('Reset Password Error: $e');
       return _formatErrorMessage(e, '密码重置失败');
     } catch (e) {
-      debugPrint('General Exception in reset password: $e');
+      AppLogger.error('General Exception in reset password: $e');
       return '密码重置异常: $e';
     }
   }

@@ -1,3 +1,4 @@
+import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'package:final_assignment_front/core/errors/app_exception.dart';
 import 'package:final_assignment_front/core/errors/exception_mapper.dart';
 import 'package:final_assignment_front/features/model/vehicle_information.dart';
@@ -187,7 +188,7 @@ class VehicleController extends BaseListController<VehicleInformation> {
       Get.snackbar('操作失败', appException.message);
     }
     if (kDebugMode) {
-      debugPrint('VehicleController error: $appException');
+      AppLogger.error('VehicleController error: $appException');
     }
   }
 }

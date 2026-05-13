@@ -50,7 +50,8 @@ class NotificationBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final bool isLight = theme.brightness == Brightness.light;
-    final Color shadowColor = Colors.black.withValues(alpha: isLight ? 0.1 : 0.15);
+    final Color shadowColor =
+        Colors.black.withValues(alpha: isLight ? 0.1 : 0.15);
     final Color textColor =
         isLight ? Colors.black87 : theme.colorScheme.onSurface;
     final Color iconColor = isLight
@@ -74,7 +75,8 @@ class NotificationBar extends StatelessWidget {
               ? [Colors.white, Colors.grey[50]!]
               : [
                   theme.colorScheme.surface,
-                  theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.8)
+                  theme.colorScheme.surfaceContainerHighest
+                      .withValues(alpha: 0.8)
                 ],
         ),
         boxShadow: [

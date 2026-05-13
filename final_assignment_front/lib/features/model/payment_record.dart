@@ -170,8 +170,8 @@ class PaymentRecordModel {
 
   static List<PaymentRecordModel> listFromJson(List<dynamic> jsonList) {
     return jsonList
-        .map((json) =>
-            PaymentRecordModel.fromJson(json as Map<String, dynamic>))
+        .map(
+            (json) => PaymentRecordModel.fromJson(json as Map<String, dynamic>))
         .toList();
   }
 
@@ -191,8 +191,7 @@ class PaymentRecordModel {
     final map = <String, List<PaymentRecordModel>>{};
     if (json.isNotEmpty) {
       json.forEach((String key, dynamic value) {
-        map[key] =
-            PaymentRecordModel.listFromJson(value as List<dynamic>);
+        map[key] = PaymentRecordModel.listFromJson(value as List<dynamic>);
       });
     }
     return map;

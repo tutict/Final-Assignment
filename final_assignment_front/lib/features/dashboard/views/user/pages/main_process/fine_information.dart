@@ -1,3 +1,6 @@
+import 'package:final_assignment_front/core/utils/app_logger.dart';
+import 'package:final_assignment_front/config/routes/app_routes.dart';
+import 'package:final_assignment_front/core/auth/auth_service.dart';
 import 'package:final_assignment_front/features/api/fine_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/user_management_controller_api.dart';
@@ -63,8 +66,6 @@ class _FineInformationPageState extends State<FineInformationPage> {
         _currentDriverName = await _fetchDriverName(jwtToken);
         if (_currentDriverName != null) {
           await prefs.setString('driverName', _currentDriverName!);
-        } else {
-          _currentDriverName = '黄广龙'; // Fallback, avoid in production
         }
         developer.log('Fetched and stored driver name: $_currentDriverName');
       }
@@ -100,10 +101,25 @@ class _FineInformationPageState extends State<FineInformationPage> {
       Map<String, dynamic>? decoded;
       try {
         decoded = JwtDecoder.decode(jwtToken);
-      } catch (_) {}
+      } catch (e, stackTrace) {
+        developer.log(
+          'JWT decode failed',
+          name: 'AuthError',
+          error: e,
+          stackTrace: stackTrace,
+        );
+        if (Get.isRegistered<AuthService>()) {
+          await Get.find<AuthService>().clearTokens();
+        } else {
+          await prefs.remove('jwtToken');
+          await prefs.remove('refreshToken');
+        }
+        Get.offAllNamed(Routes.login);
+        return null;
+      }
       final username = storedUsername?.isNotEmpty == true
           ? storedUsername!
-          : decoded?['sub']?.toString();
+          : decoded['sub']?.toString();
       if (username == null || username.isEmpty) {
         throw Exception('无法确定当前用户名');
       }
@@ -174,7 +190,7 @@ class _FineInformationPageState extends State<FineInformationPage> {
       });
       developer.log('Generated QR code for fine ${fine.receiptNumber}');
     } catch (e) {
-      debugPrint(
+      AppLogger.debug(
           'Failed to generate QR code for fine ${fine.receiptNumber}: $e');
       _showSnackBar('生成付款码失败: $e', isError: true);
     }
@@ -182,11 +198,12 @@ class _FineInformationPageState extends State<FineInformationPage> {
 
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: isError ? Colors.red : Colors.green,
-      ),
+    Get.snackbar(
+      isError ? '错误' : '提示',
+      message,
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: isError ? Colors.red.shade100 : Colors.green.shade100,
+      duration: const Duration(seconds: 3),
     );
   }
 

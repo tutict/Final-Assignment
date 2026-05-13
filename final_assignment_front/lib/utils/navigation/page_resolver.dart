@@ -1,3 +1,4 @@
+import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/progress_management.dart';
 import 'package:final_assignment_front/features/dashboard/views/manager/pages/sidebar_management/manager_business_processing.dart';
@@ -51,7 +52,7 @@ Widget? resolveDashboardPage(String routeName) {
     case Routes.userOffenseListPage:
       return const UserOffenseListPage();
     default:
-      debugPrint('Unknown route: $routeName');
+      AppLogger.debug('Unknown route: $routeName');
       return const Center(child: Text('Page not found'));
   }
 }

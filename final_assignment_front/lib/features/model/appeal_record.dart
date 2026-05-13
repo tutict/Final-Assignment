@@ -61,8 +61,9 @@ class AppealRecordModel {
       appellantAddress: json['appellantAddress'],
       appealType: json['appealType'],
       appealReason: json['appealReason'],
-      appealTime:
-          json['appealTime'] != null ? DateTime.tryParse(json['appealTime']) : null,
+      appealTime: json['appealTime'] != null
+          ? DateTime.tryParse(json['appealTime'])
+          : null,
       evidenceDescription: json['evidenceDescription'],
       evidenceUrls: json['evidenceUrls'],
       acceptanceStatus: json['acceptanceStatus'],
@@ -72,14 +73,17 @@ class AppealRecordModel {
       acceptanceHandler: json['acceptanceHandler'],
       rejectionReason: json['rejectionReason'],
       processStatus: json['processStatus'],
-      processTime:
-          json['processTime'] != null ? DateTime.tryParse(json['processTime']) : null,
+      processTime: json['processTime'] != null
+          ? DateTime.tryParse(json['processTime'])
+          : null,
       processResult: json['processResult'],
       processHandler: json['processHandler'],
-      createdAt:
-          json['createdAt'] != null ? DateTime.tryParse(json['createdAt']) : null,
-      updatedAt:
-          json['updatedAt'] != null ? DateTime.tryParse(json['updatedAt']) : null,
+      createdAt: json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt'])
+          : null,
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.tryParse(json['updatedAt'])
+          : null,
     );
   }
 

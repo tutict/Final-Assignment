@@ -11,6 +11,8 @@ export default function UserAppealPage() {
     ...entityConfigs.appeals,
     label: '我的申诉',
     queryResult: appealsQuery,
+    errorRowMessage: (row) =>
+      row?.__fetchError ? '申诉信息加载失败，请刷新重试' : null,
   };
 
   return <CrudPage config={config} />;

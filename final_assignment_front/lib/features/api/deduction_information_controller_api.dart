@@ -1,8 +1,8 @@
+import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'dart:convert';
 import 'package:final_assignment_front/features/model/deduction_record.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
-import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
@@ -20,7 +20,7 @@ class DeductionInformationControllerApi with BaseApiClient {
       throw Exception('Not logged in, please login again.');
     }
     apiClient.setJwtToken(jwtToken);
-    debugPrint(
+    AppLogger.debug(
         'Initialized DeductionInformationControllerApi with token: $jwtToken');
   }
 

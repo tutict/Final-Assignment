@@ -1317,25 +1317,12 @@ class AppUtils {
 
   static void showSnackBar(BuildContext context, String message,
       {bool isError = false}) {
-    final themeData =
-        Get.find<ManagerDashboardController>().currentBodyTheme.value;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          style: TextStyle(
-            color: isError
-                ? themeData.colorScheme.onError
-                : themeData.colorScheme.onPrimary,
-          ),
-        ),
-        backgroundColor: isError
-            ? themeData.colorScheme.error
-            : themeData.colorScheme.primary,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
-        margin: const EdgeInsets.all(10.0),
-      ),
+    Get.snackbar(
+      isError ? '错误' : '提示',
+      message,
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: isError ? Colors.red.shade100 : Colors.green.shade100,
+      duration: const Duration(seconds: 3),
     );
   }
 

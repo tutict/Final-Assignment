@@ -282,8 +282,7 @@ class OffenseInformation {
     final map = <String, OffenseInformation>{};
     if (json.isNotEmpty) {
       json.forEach((key, value) {
-        map[key] =
-            OffenseInformation.fromJson(value as Map<String, dynamic>);
+        map[key] = OffenseInformation.fromJson(value as Map<String, dynamic>);
       });
     }
     return map;
@@ -294,8 +293,7 @@ class OffenseInformation {
     final map = <String, List<OffenseInformation>>{};
     if (json.isNotEmpty) {
       json.forEach((key, value) {
-        map[key] =
-            OffenseInformation.listFromJson(value as List<dynamic>);
+        map[key] = OffenseInformation.listFromJson(value as List<dynamic>);
       });
     }
     return map;

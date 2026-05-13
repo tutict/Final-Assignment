@@ -130,7 +130,8 @@ class OffenseTypeDictModel {
 
   static List<OffenseTypeDictModel> listFromJson(List<dynamic> jsonList) {
     return jsonList
-        .map((value) => OffenseTypeDictModel.fromJson(value as Map<String, dynamic>))
+        .map((value) =>
+            OffenseTypeDictModel.fromJson(value as Map<String, dynamic>))
         .toList();
   }
 

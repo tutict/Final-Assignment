@@ -4,9 +4,7 @@ part of 'app_mixins.dart';
 /// 包含方法以验证文本字段和下拉菜单，确保它们不为空。
 mixin ValidatorMixin {
   String? validateTextFieldIsRequired(String? value) {
-    if (value == null || value
-        .trim()
-        .isEmpty) {
+    if (value == null || value.trim().isEmpty) {
       return "此字段是必填项";
     }
     return null;
@@ -24,8 +22,8 @@ mixin ValidationInputMixin {
   /// 验证电子邮件格式的方法。
   bool validateEmail(String email) {
     // 简单示例验证逻辑，可以根据需要进行增强。
-    final emailRegex = RegExp(
-        r'^[a-zA-Z0-9._%-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\$');
+    final emailRegex =
+        RegExp(r'^[a-zA-Z0-9._%-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\$');
     return emailRegex.hasMatch(email);
   }
 }

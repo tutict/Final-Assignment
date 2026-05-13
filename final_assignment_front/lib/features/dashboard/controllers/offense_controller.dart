@@ -1,3 +1,4 @@
+import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'package:final_assignment_front/core/errors/app_exception.dart';
 import 'package:final_assignment_front/core/errors/exception_mapper.dart';
 import 'package:final_assignment_front/features/model/offense_information.dart';
@@ -147,7 +148,7 @@ class OffenseController extends BaseListController<OffenseInformation> {
   @override
   void onAsyncError(Object error, StackTrace stackTrace) {
     if (kDebugMode) {
-      debugPrint('Offense dashboard load failed: ${_mapError(error)}');
+      AppLogger.error('Offense dashboard load failed: ${_mapError(error)}');
     }
   }
 

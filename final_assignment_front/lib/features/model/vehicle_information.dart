@@ -128,8 +128,7 @@ class VehicleInformation {
       registrationDate: registrationDate ?? this.registrationDate,
       issuingAuthority: issuingAuthority ?? this.issuingAuthority,
       status: status ?? this.status,
-      inspectionExpiryDate:
-          inspectionExpiryDate ?? this.inspectionExpiryDate,
+      inspectionExpiryDate: inspectionExpiryDate ?? this.inspectionExpiryDate,
       insuranceExpiryDate: insuranceExpiryDate ?? this.insuranceExpiryDate,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -156,15 +155,12 @@ class VehicleInformation {
       ownerIdCard: json['ownerIdCard'] ?? json['idCardNumber'],
       ownerContact: json['ownerContact'] ?? json['contactNumber'],
       ownerAddress: json['ownerAddress'],
-      firstRegistrationDate:
-          _parseDate(json['firstRegistrationDate']),
+      firstRegistrationDate: _parseDate(json['firstRegistrationDate']),
       registrationDate: _parseDate(json['registrationDate']),
       issuingAuthority: json['issuingAuthority'],
       status: json['status'] ?? json['currentStatus'],
-      inspectionExpiryDate:
-          _parseDate(json['inspectionExpiryDate']),
-      insuranceExpiryDate:
-          _parseDate(json['insuranceExpiryDate']),
+      inspectionExpiryDate: _parseDate(json['inspectionExpiryDate']),
+      insuranceExpiryDate: _parseDate(json['insuranceExpiryDate']),
       createdAt: _parseDateTime(json['createdAt']),
       updatedAt: _parseDateTime(json['updatedAt']),
       createdBy: json['createdBy'],
@@ -192,16 +188,13 @@ class VehicleInformation {
       'ownerContact': ownerContact,
       'contactNumber': ownerContact,
       'ownerAddress': ownerAddress,
-      'firstRegistrationDate':
-          firstRegistrationDate?.toIso8601String(),
+      'firstRegistrationDate': firstRegistrationDate?.toIso8601String(),
       'registrationDate': registrationDate?.toIso8601String(),
       'issuingAuthority': issuingAuthority,
       'status': status,
       'currentStatus': status,
-      'inspectionExpiryDate':
-          inspectionExpiryDate?.toIso8601String(),
-      'insuranceExpiryDate':
-          insuranceExpiryDate?.toIso8601String(),
+      'inspectionExpiryDate': inspectionExpiryDate?.toIso8601String(),
+      'insuranceExpiryDate': insuranceExpiryDate?.toIso8601String(),
       'createdAt': createdAt?.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
       'createdBy': createdBy,
@@ -223,8 +216,7 @@ class VehicleInformation {
     final map = <String, VehicleInformation>{};
     if (json.isNotEmpty) {
       json.forEach((key, value) {
-        map[key] =
-            VehicleInformation.fromJson(value as Map<String, dynamic>);
+        map[key] = VehicleInformation.fromJson(value as Map<String, dynamic>);
       });
     }
     return map;
@@ -235,8 +227,7 @@ class VehicleInformation {
     final map = <String, List<VehicleInformation>>{};
     if (json.isNotEmpty) {
       json.forEach((key, value) {
-        map[key] =
-            VehicleInformation.listFromJson(value as List<dynamic>);
+        map[key] = VehicleInformation.listFromJson(value as List<dynamic>);
       });
     }
     return map;

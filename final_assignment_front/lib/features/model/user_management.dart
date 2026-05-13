@@ -183,8 +183,7 @@ class UserManagement {
         .toList();
   }
 
-  static Map<String, UserManagement> mapFromJson(
-      Map<String, dynamic> json) {
+  static Map<String, UserManagement> mapFromJson(Map<String, dynamic> json) {
     final map = <String, UserManagement>{};
     if (json.isNotEmpty) {
       json.forEach((key, value) {
@@ -199,8 +198,7 @@ class UserManagement {
     final map = <String, List<UserManagement>>{};
     if (json.isNotEmpty) {
       json.forEach((key, value) {
-        map[key] =
-            UserManagement.listFromJson(value as List<dynamic>);
+        map[key] = UserManagement.listFromJson(value as List<dynamic>);
       });
     }
     return map;

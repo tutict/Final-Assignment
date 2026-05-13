@@ -1,3 +1,4 @@
+import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/core/config/app_config.dart';
 import 'package:final_assignment_front/features/api/deduction_information_controller_api.dart';
@@ -175,7 +176,7 @@ class _DeductionManagementState extends State<DeductionManagementPage> {
         headers: {'Authorization': 'Bearer $jwtToken'},
       );
     } catch (e) {
-      debugPrint('Load Deductions Error: $e');
+      AppLogger.error('Load Deductions Error: $e');
       setState(() {
         if (e is ApiException && e.code == 404) {
           _deductions.clear();
@@ -240,25 +241,12 @@ class _DeductionManagementState extends State<DeductionManagementPage> {
 
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    final themeData = controller.currentBodyTheme.value;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          style: TextStyle(
-            color: isError
-                ? themeData.colorScheme.error
-                : themeData.colorScheme.onPrimary,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        backgroundColor: isError
-            ? themeData.colorScheme.error
-            : themeData.colorScheme.primary,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
-        margin: const EdgeInsets.all(10.0),
-      ),
+    Get.snackbar(
+      isError ? '错误' : '提示',
+      message,
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: isError ? Colors.red.shade100 : Colors.green.shade100,
+      duration: const Duration(seconds: 3),
     );
   }
 
@@ -864,25 +852,12 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
 
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    final themeData = controller.currentBodyTheme.value;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          style: TextStyle(
-            color: isError
-                ? themeData.colorScheme.error
-                : themeData.colorScheme.onPrimary,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        backgroundColor: isError
-            ? themeData.colorScheme.error
-            : themeData.colorScheme.primary,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
-        margin: const EdgeInsets.all(10.0),
-      ),
+    Get.snackbar(
+      isError ? '错误' : '提示',
+      message,
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: isError ? Colors.red.shade100 : Colors.green.shade100,
+      duration: const Duration(seconds: 3),
     );
   }
 
@@ -1320,25 +1295,12 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
 
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
-    final themeData = controller.currentBodyTheme.value;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          style: TextStyle(
-            color: isError
-                ? themeData.colorScheme.error
-                : themeData.colorScheme.onPrimary,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        backgroundColor: isError
-            ? themeData.colorScheme.error
-            : themeData.colorScheme.primary,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
-        margin: const EdgeInsets.all(10.0),
-      ),
+    Get.snackbar(
+      isError ? '错误' : '提示',
+      message,
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: isError ? Colors.red.shade100 : Colors.green.shade100,
+      duration: const Duration(seconds: 3),
     );
   }
 

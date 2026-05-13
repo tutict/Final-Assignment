@@ -2,6 +2,7 @@
 import 'dart:developer' as developer;
 
 import 'package:final_assignment_front/config/routes/app_routes.dart';
+import 'package:final_assignment_front/core/auth/auth_service.dart';
 import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/user_management_controller_api.dart';
@@ -118,10 +119,25 @@ class _UserOffenseListPageState extends State<UserOffenseListPage> {
       Map<String, dynamic>? decoded;
       try {
         decoded = JwtDecoder.decode(jwtToken);
-      } catch (_) {}
+      } catch (e, stackTrace) {
+        developer.log(
+          'JWT decode failed',
+          name: 'AuthError',
+          error: e,
+          stackTrace: stackTrace,
+        );
+        if (Get.isRegistered<AuthService>()) {
+          await Get.find<AuthService>().clearTokens();
+        } else {
+          await prefs.remove('jwtToken');
+          await prefs.remove('refreshToken');
+        }
+        Get.offAllNamed(Routes.login);
+        return null;
+      }
       final username = storedUsername?.isNotEmpty == true
           ? storedUsername!
-          : decoded?['sub']?.toString();
+          : decoded['sub']?.toString();
       if (username == null || username.isEmpty) {
         throw Exception('无法确定当前用户名');
       }

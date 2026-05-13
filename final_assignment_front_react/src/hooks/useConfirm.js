@@ -34,7 +34,12 @@ export function useConfirm(action, { onSuccess, onError } = {}) {
       onSuccess?.(result);
       return result;
     } catch (error) {
-      onError?.(error);
+      console.error('[useConfirm] action failed:', error);
+      if (onError) {
+        onError(error);
+      } else {
+        alert(`操作失败：${error?.message ?? '未知错误'}`);
+      }
     } finally {
       setLoading(false);
     }

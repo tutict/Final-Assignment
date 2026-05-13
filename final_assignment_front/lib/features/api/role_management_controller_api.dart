@@ -1,7 +1,7 @@
+import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'package:final_assignment_front/features/model/role_management.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
-import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
@@ -26,7 +26,8 @@ class RoleManagementControllerApi with BaseApiClient {
       throw Exception('Not authenticated. Please log in again.');
     }
     apiClient.setJwtToken(jwtToken);
-    debugPrint('Initialized RoleManagementControllerApi with token: $jwtToken');
+    AppLogger.debug(
+        'Initialized RoleManagementControllerApi with token: $jwtToken');
   }
 
   /// è§£ç ååºä½å­èå°å­ç¬¦ä¸?

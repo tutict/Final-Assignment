@@ -1,3 +1,4 @@
+import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -34,12 +35,12 @@ class ChatController extends GetxController {
 
   void setUserRole(String role) {
     userRole.value = role.toUpperCase();
-    debugPrint('ChatController: User role set to $role');
+    AppLogger.debug('ChatController: User role set to $role');
   }
 
   void toggleWebSearch(bool enable) {
     webSearchEnabled.value = enable;
-    debugPrint('Web search enabled: $enable');
+    AppLogger.debug('Web search enabled: $enable');
   }
 
   Future<void> sendMessage() async {
@@ -47,10 +48,10 @@ class ChatController extends GetxController {
     if (text.isEmpty || isStreaming.value) return;
 
     messages.add(ChatMessage(formalContent: text, isUser: true));
-    debugPrint('添加用户消息: $text');
+    AppLogger.debug('添加用户消息: $text');
 // Add "Thinking..." message
     messages.add(ChatMessage(formalContent: 'THINKING:思考中...', isUser: false));
-    debugPrint('添加思考中消息');
+    AppLogger.debug('添加思考中消息');
     textController.clear();
 
     final cancelToken = CancelToken();
@@ -73,17 +74,17 @@ class ChatController extends GetxController {
         }
 // Skip if chunk already processed
         if (processedChunks.contains(chunk)) {
-          debugPrint('Skipping duplicate chunk: $chunk');
+          AppLogger.debug('Skipping duplicate chunk: $chunk');
           continue;
         }
         processedChunks.add(chunk);
-        debugPrint('Processing chunk: $chunk');
+        AppLogger.debug('Processing chunk: $chunk');
 
         if (chunk.startsWith('[搜索结果]') && webSearchEnabled.value) {
           final result = chunk.substring(7).trim();
           if (result.isNotEmpty) {
             searchResults.add(result);
-            debugPrint('收到搜索结果: $result');
+            AppLogger.debug('收到搜索结果: $result');
           }
           continue;
         }
@@ -96,7 +97,7 @@ class ChatController extends GetxController {
           messages.add(ChatMessage(formalContent: "DeepSeek: ", isUser: false));
           aiMessageIndex = messages.length - 1;
           isFirstMessage = false;
-          debugPrint('移除思考中消息，添加DeepSeek消息');
+          AppLogger.debug('移除思考中消息，添加DeepSeek消息');
         }
 
         chunkBuffer.write(chunk);
@@ -156,7 +157,7 @@ class ChatController extends GetxController {
         String cleanChunk = chunkBuffer.toString();
         if (!processedChunks.contains(cleanChunk)) {
           processedChunks.add(cleanChunk);
-          debugPrint('Processing final chunk: $cleanChunk');
+          AppLogger.debug('Processing final chunk: $cleanChunk');
           List<String> parts = _splitThinkAndFormal(cleanChunk);
           String thinkPart = parts[0];
           String formalPart = parts[1];
@@ -210,10 +211,11 @@ class ChatController extends GetxController {
         if (isFormalStructured) {
           finalThinkContent =
               ''; // Clear thinkContent if formalContent is structured
-          debugPrint(
+          AppLogger.debug(
               'Prioritized structured formalContent, cleared thinkContent');
         } else {
-          debugPrint('Retained thinkContent: non-structured formalContent');
+          AppLogger.debug(
+              'Retained thinkContent: non-structured formalContent');
         }
       }
 
@@ -223,13 +225,13 @@ class ChatController extends GetxController {
         isUser: false,
       );
 
-      debugPrint('AI 流完成: $text');
+      AppLogger.debug('AI 流完成: $text');
     } catch (e) {
       if (cancelToken.isCanceled) {
-        debugPrint('AI stream canceled by user.');
+        AppLogger.debug('AI stream canceled by user.');
         return;
       }
-      debugPrint('流式 AI 响应错误: $e');
+      AppLogger.error('流式 AI 响应错误: $e');
       _showFriendlyError('AI 响应失败，请稍后重试。', details: e.toString());
 // Remove "Thinking..." message on error
       if (messages.isNotEmpty &&
@@ -269,12 +271,12 @@ class ChatController extends GetxController {
 
   void toggleWordStreaming(bool enable) {
     enableWordStreaming.value = enable;
-    debugPrint('Word streaming: $enable');
+    AppLogger.debug('Word streaming: $enable');
   }
 
   void setWordStreamDelay(int ms) {
     wordStreamDelayMs.value = ms.clamp(50, 300);
-    debugPrint('Word stream delay set to: $ms ms');
+    AppLogger.debug('Word stream delay set to: $ms ms');
   }
 
   void clearMessages() {
@@ -286,7 +288,7 @@ class ChatController extends GetxController {
   void _showFriendlyError(String title, {String? details}) {
     final context = Get.context;
     if (context == null) {
-      debugPrint('No context available for error dialog. $title $details');
+      AppLogger.error('No context available for error dialog. $title $details');
       return;
     }
     final detailText = details == null || details.trim().isEmpty

@@ -100,7 +100,8 @@ class _ProgressIndicator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool isLight = Theme.of(context).brightness == Brightness.light;
-    final Color progressColor = isLight ? Theme.of(context).primaryColor : Colors.blueAccent;
+    final Color progressColor =
+        isLight ? Theme.of(context).primaryColor : Colors.blueAccent;
     return CircularPercentIndicator(
       radius: 45,
       lineWidth: 4.0,

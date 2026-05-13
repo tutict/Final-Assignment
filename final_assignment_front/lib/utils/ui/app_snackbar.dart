@@ -82,22 +82,18 @@ class AppSnackbar {
         break;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          style: themeData.textTheme.bodyMedium?.copyWith(color: onColor),
-        ),
-        backgroundColor: backgroundColor,
-        behavior: SnackBarBehavior.floating,
-        action: actionText != null
-            ? SnackBarAction(
-                label: actionText,
-                onPressed: onAction ?? () {},
-                textColor: onColor,
-              )
-            : null,
-      ),
+    Get.snackbar(
+      '',
+      message,
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: backgroundColor,
+      colorText: onColor,
+      mainButton: actionText != null
+          ? TextButton(
+              onPressed: onAction ?? () {},
+              child: Text(actionText, style: TextStyle(color: onColor)),
+            )
+          : null,
     );
   }
 }

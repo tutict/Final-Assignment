@@ -1,3 +1,4 @@
+import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/config/themes/app_theme.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
@@ -5,6 +6,7 @@ import 'package:final_assignment_front/features/api/offense_information_controll
 import 'package:final_assignment_front/features/api/role_management_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/models/profile.dart';
 import 'package:final_assignment_front/features/model/offense_information.dart';
+import 'package:final_assignment_front/shared/utils/error_handler.dart';
 import 'package:final_assignment_front/shared_components/case_card.dart';
 import 'package:final_assignment_front/shared_components/project_card.dart';
 import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
@@ -87,7 +89,10 @@ class ManagerDashboardController extends GetxController {
       await offenseApi.initializeWithJwt();
       await roleApi.initializeWithJwt();
     } else {
-      _showErrorSnackBar('请先登录以访问管理功能');
+      ErrorHandler.showError(
+        Exception('请先登录以访问管理功能'),
+        fallbackMessage: '请先登录以访问管理功能',
+      );
       _redirectToLogin();
     }
   }
@@ -99,7 +104,7 @@ class ManagerDashboardController extends GetxController {
         throw Exception('权限不足：仅管理员可访问此功能');
       }
     } catch (e) {
-      _showErrorSnackBar('令牌验证失败：$e');
+      ErrorHandler.showError(e, fallbackMessage: '令牌验证失败，请重新登录');
       _redirectToLogin();
       rethrow;
     }
@@ -114,7 +119,7 @@ class ManagerDashboardController extends GetxController {
       name: name,
       email: email,
     );
-    debugPrint(
+    AppLogger.debug(
         'ManagerDashboardController updated - Name: $name, Email: $email');
     _saveUserToPrefs(name, email, 'ADMIN');
   }
@@ -228,13 +233,13 @@ class ManagerDashboardController extends GetxController {
       caseCardDataList.where((task) => task.type == type).toList();
 
   void navigateToPage(String routeName) {
-    debugPrint('导航至: $routeName');
+    AppLogger.debug('导航至: $routeName');
     selectedPage.value = pageResolver?.call(routeName);
     isShowingSidebarContent.value = true;
   }
 
   void exitSidebarContent() {
-    debugPrint('退出侧边栏内容');
+    AppLogger.debug('退出侧边栏内容');
     isShowingSidebarContent.value = false;
     selectedPage.value = null;
   }
@@ -270,7 +275,7 @@ class ManagerDashboardController extends GetxController {
       }
       return typeCountMap;
     } catch (e) {
-      debugPrint('Error fetching offense distribution: $e');
+      ErrorHandler.showError(e, fallbackMessage: '无法加载违法类型分布');
       return {};
     }
   }
@@ -280,21 +285,9 @@ class ManagerDashboardController extends GetxController {
       await _validateTokenAndRole();
       return await offenseApi.listOffenses();
     } catch (e) {
-      debugPrint('Failed to fetch offense information: $e');
-      _showErrorSnackBar('无法加载违法行为信息: $e');
+      ErrorHandler.showError(e, fallbackMessage: '无法加载违法行为信息');
       return [];
     }
-  }
-
-  void _showErrorSnackBar(String message) {
-    Get.snackbar(
-      '错误',
-      message,
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: Colors.red.withValues(alpha: 0.9),
-      colorText: Colors.white,
-      duration: const Duration(seconds: 3),
-    );
   }
 
   void _redirectToLogin() {

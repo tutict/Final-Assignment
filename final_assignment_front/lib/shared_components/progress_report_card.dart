@@ -79,7 +79,8 @@ class ProgressReportCard extends StatelessWidget {
                 const SizedBox(height: 8), // 减少间距
                 _ProgressRichText(value1: "${data.task}", value2: " 申诉"),
                 const SizedBox(height: 6), // 减少间距
-                _ProgressRichText(value1: "${data.doneTask}", value2: " 已处理的申诉"),
+                _ProgressRichText(
+                    value1: "${data.doneTask}", value2: " 已处理的申诉"),
                 const SizedBox(height: 6), // 减少间距
                 _ProgressRichText(
                     value1: "${data.undoneTask}", value2: " 未处理的申诉"),

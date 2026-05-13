@@ -361,14 +361,15 @@ class AppTheme {
       outline: palette.outline,
       outlineVariant: palette.outline.withValues(alpha: 0.72),
       shadow: palette.shadow,
-      scrim: Colors.black.withValues(alpha: brightness == Brightness.light ? 0.2 : 0.45),
+      scrim: Colors.black
+          .withValues(alpha: brightness == Brightness.light ? 0.2 : 0.45),
     );
 
     final isLight = brightness == Brightness.light;
-    final textColor = isLight ? const Color(0xFF102033) : const Color(0xFFF3F7FF);
-    final mutedTextColor = isLight
-        ? const Color(0xFF516174)
-        : const Color(0xFFC0CCDC);
+    final textColor =
+        isLight ? const Color(0xFF102033) : const Color(0xFFF3F7FF);
+    final mutedTextColor =
+        isLight ? const Color(0xFF516174) : const Color(0xFFC0CCDC);
     final textTheme = _textTheme(textColor, mutedTextColor);
 
     return ThemeData(
@@ -398,7 +399,8 @@ class AppTheme {
             : palette.surfaceAlt.withValues(alpha: 0.88),
       ),
       appBarTheme: AppBarTheme(
-        backgroundColor: palette.scaffold.withValues(alpha: isLight ? 0.92 : 0.94),
+        backgroundColor:
+            palette.scaffold.withValues(alpha: isLight ? 0.92 : 0.94),
         foregroundColor: textColor,
         elevation: 0,
         scrolledUnderElevation: 0,
@@ -458,14 +460,16 @@ class AppTheme {
       ),
       cardTheme: CardThemeData(
         color: palette.surface,
-        surfaceTintColor: palette.surfaceTint.withValues(alpha: isLight ? 0.08 : 0.16),
+        surfaceTintColor:
+            palette.surfaceTint.withValues(alpha: isLight ? 0.08 : 0.16),
         elevation: 0,
         shadowColor: Colors.transparent,
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(ThemeStyles.cardBorderRadius),
           side: BorderSide(
-            color: colorScheme.outlineVariant.withValues(alpha: isLight ? 0.32 : 0.5),
+            color: colorScheme.outlineVariant
+                .withValues(alpha: isLight ? 0.32 : 0.5),
           ),
         ),
       ),
@@ -511,7 +515,8 @@ class AppTheme {
       ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
-        backgroundColor: isLight ? const Color(0xFF102033) : const Color(0xFFE6EEF9),
+        backgroundColor:
+            isLight ? const Color(0xFF102033) : const Color(0xFFE6EEF9),
         contentTextStyle: textTheme.bodyMedium?.copyWith(
           color: isLight ? Colors.white : const Color(0xFF0B1421),
           fontWeight: FontWeight.w600,

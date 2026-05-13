@@ -171,8 +171,7 @@ class PermissionManagement {
     final map = <String, PermissionManagement>{};
     if (json.isNotEmpty) {
       json.forEach((key, value) {
-        map[key] =
-            PermissionManagement.fromJson(value as Map<String, dynamic>);
+        map[key] = PermissionManagement.fromJson(value as Map<String, dynamic>);
       });
     }
     return map;
@@ -183,8 +182,7 @@ class PermissionManagement {
     final map = <String, List<PermissionManagement>>{};
     if (json.isNotEmpty) {
       json.forEach((key, value) {
-        map[key] =
-            PermissionManagement.listFromJson(value as List<dynamic>);
+        map[key] = PermissionManagement.listFromJson(value as List<dynamic>);
       });
     }
     return map;

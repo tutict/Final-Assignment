@@ -1,3 +1,4 @@
+import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'dart:convert';
 import 'package:final_assignment_front/features/model/login_log.dart';
 import 'package:final_assignment_front/features/model/operation_log.dart';
@@ -5,7 +6,6 @@ import 'package:final_assignment_front/features/model/sys_request_history.dart';
 import 'package:final_assignment_front/features/model/system_logs.dart';
 import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:final_assignment_front/utils/services/api_client.dart';
-import 'package:flutter/material.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 import 'package:http/http.dart' as http;
 
@@ -28,7 +28,8 @@ class SystemLogsControllerApi with BaseApiClient {
       throw Exception('JWT token not found in SharedPreferences');
     }
     _apiClient.setJwtToken(jwtToken);
-    debugPrint('Initialized SystemLogsControllerApi with token: $jwtToken');
+    AppLogger.debug(
+        'Initialized SystemLogsControllerApi with token: $jwtToken');
   }
 
   String _decode(http.Response r) => decodeBodyBytes(r);

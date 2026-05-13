@@ -1,4 +1,3 @@
-
 import 'package:flutter/widgets.dart';
 
 part 'navigation_mixin.dart';

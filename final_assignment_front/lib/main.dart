@@ -1,3 +1,4 @@
+import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'package:final_assignment_front/core/auth/auth_service.dart';
 import 'package:final_assignment_front/core/lifecycle/app_lifecycle_observer.dart';
 import 'package:final_assignment_front/core/network/interceptor.dart';
@@ -24,9 +25,9 @@ void main() {
 
 void _warmUpIntl() {
   initializeDateFormatting('zh_CN', null).then((_) {
-    debugPrint('Date formatting initialized for zh_CN');
+    AppLogger.debug('Date formatting initialized for zh_CN');
   }).catchError((e) {
-    debugPrint('Failed to initialize date formatting: $e');
+    AppLogger.error('Failed to initialize date formatting: $e');
   });
 }
 

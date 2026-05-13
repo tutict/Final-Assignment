@@ -33,6 +33,7 @@ function normalizeFields(config, allowedNames) {
 export default function CrudPage({ config }) {
   const [search, setSearch] = useState('');
   const [formData, setFormData] = useState({});
+  const [formError, setFormError] = useState('');
   const {
     isOpen: isModalOpen,
     activeRow: editing,
@@ -88,25 +89,31 @@ export default function CrudPage({ config }) {
     if (!deferredSearch.trim()) return rows;
     const query = normalizeText(deferredSearch);
     return rows.filter((row) =>
+      config.errorRowMessage?.(row) ||
       displayFields.some((field) => normalizeText(row?.[field.name]).includes(query))
     );
-  }, [rows, displayFields, deferredSearch]);
+  }, [rows, displayFields, deferredSearch, config]);
 
   const columns = useMemo(() => buildColumns(displayFields), [displayFields]);
 
   const handleOpenCreate = () => {
     if (!canMutate) return;
+    setFormError('');
     setFormData({});
     open();
   };
 
   const handleEdit = (row) => {
     if (!canMutate) return;
+    setFormError('');
     setFormData(row || {});
     open(row);
   };
 
-  const handleCloseModal = () => close();
+  const handleCloseModal = () => {
+    setFormError('');
+    close();
+  };
 
   const { confirm: handleConfirmDelete, loading: deleteLoading } = useConfirm(async (row) => {
     if (!canMutate) return;
@@ -120,6 +127,7 @@ export default function CrudPage({ config }) {
   const { confirm: handleConfirmSave, loading: saveLoading } = useConfirm(
     async () => {
       if (!canMutate) return;
+      setFormError('');
       const editableFieldNames = editableFields.map((field) => field.name);
       const basePayload = editableFieldNames.reduce((acc, key) => {
         acc[key] = formData[key];
@@ -134,7 +142,16 @@ export default function CrudPage({ config }) {
         await createMutation.mutateAsync(payload);
       }
     },
-    { onSuccess: handleCloseModal }
+    {
+      onSuccess: handleCloseModal,
+      onError: (error) => {
+        setFormError(
+          error?.response?.data?.message ??
+            error?.message ??
+            '保存失败，请稍后重试'
+        );
+      },
+    }
   );
 
   if (useCustomPage) {
@@ -174,6 +191,7 @@ export default function CrudPage({ config }) {
         rows={filteredRows}
         onEdit={canMutate ? handleEdit : undefined}
         onDelete={canMutate ? handleConfirmDelete : undefined}
+        getRowErrorMessage={config.errorRowMessage}
       />
       <Modal
         isOpen={isModalOpen}
@@ -196,10 +214,14 @@ export default function CrudPage({ config }) {
         }
         wide
       >
+        {formError ? <div className="form-error">{formError}</div> : null}
         <EntityForm
           fields={editableFields}
           value={formData}
-          onChange={(name, value) => setFormData((prev) => ({ ...prev, [name]: value }))}
+          onChange={(name, value) => {
+            if (formError) setFormError('');
+            setFormData((prev) => ({ ...prev, [name]: value }));
+          }}
           disabledFields={[config.idField]}
         />
       </Modal>
