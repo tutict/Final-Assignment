@@ -40,8 +40,7 @@ public class OffenseRecordKafkaListener {
     @KafkaListener(topics = "offense_record_create", groupId = "offenseRecordGroup", concurrency = "3")
     public void onOffenseRecordCreate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                       @Payload String message) {
-        log.log(Level.INFO, "Received Kafka message for OffenseRecord create: {0}", message);
-        // 使用虚拟线程异步处理，避免阻塞监听线程
+        log.log(Level.INFO, "Received Kafka message for OffenseRecord create (payload omitted)");
         Thread.ofVirtual().start(() -> processMessage(asKey(rawKey), message, "create"));
     }
 
@@ -49,8 +48,7 @@ public class OffenseRecordKafkaListener {
     @KafkaListener(topics = "offense_record_update", groupId = "offenseRecordGroup", concurrency = "3")
     public void onOffenseRecordUpdate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                       @Payload String message) {
-        log.log(Level.INFO, "Received Kafka message for OffenseRecord update: {0}", message);
-        // 使用虚拟线程异步处理，避免阻塞监听线程
+        log.log(Level.INFO, "Received Kafka message for OffenseRecord update (payload omitted)");
         Thread.ofVirtual().start(() -> processMessage(asKey(rawKey), message, "update"));
     }
 
@@ -102,18 +100,14 @@ public class OffenseRecordKafkaListener {
             throw ex;
         }
     }
-
-    // 反序列化消息体
     private OffenseRecord deserializeMessage(String message) {
         try {
             return objectMapper.readValue(message, OffenseRecord.class);
         } catch (Exception ex) {
-            log.log(Level.SEVERE, "Failed to deserialize OffenseRecord message: {0}", message);
+            log.log(Level.SEVERE, "Failed to deserialize OffenseRecord message (payload omitted)");
             return null;
         }
     }
-
-    // 将 Kafka key 转为字符串
     private String asKey(byte[] rawKey) {
         return rawKey == null ? null : new String(rawKey);
     }

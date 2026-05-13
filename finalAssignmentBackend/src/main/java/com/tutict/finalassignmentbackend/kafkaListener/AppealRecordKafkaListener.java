@@ -34,8 +34,7 @@ public class AppealRecordKafkaListener {
     @KafkaListener(topics = "appeal_record_create", groupId = "appealRecordGroup", concurrency = "3")
     public void onAppealRecordCreate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                      @Payload String message) {
-        log.log(Level.INFO, "Received Kafka message for AppealRecord create: {0}", message);
-        // 使用虚拟线程异步处理，避免阻塞监听线程
+        log.log(Level.INFO, "Received Kafka message for AppealRecord create (payload omitted)");
         Thread.ofVirtual().start(() -> processMessage(asKey(rawKey), message, "create"));
     }
 
@@ -43,8 +42,7 @@ public class AppealRecordKafkaListener {
     @KafkaListener(topics = "appeal_record_update", groupId = "appealRecordGroup", concurrency = "3")
     public void onAppealRecordUpdate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                      @Payload String message) {
-        log.log(Level.INFO, "Received Kafka message for AppealRecord update: {0}", message);
-        // 使用虚拟线程异步处理，避免阻塞监听线程
+        log.log(Level.INFO, "Received Kafka message for AppealRecord update (payload omitted)");
         Thread.ofVirtual().start(() -> processMessage(asKey(rawKey), message, "update"));
     }
 
@@ -86,18 +84,14 @@ public class AppealRecordKafkaListener {
             throw ex;
         }
     }
-
-    // 反序列化消息体
     private AppealRecord deserializeMessage(String message) {
         try {
             return objectMapper.readValue(message, AppealRecord.class);
         } catch (Exception ex) {
-            log.log(Level.SEVERE, "Failed to deserialize appeal record message: {0}", message);
+            log.log(Level.SEVERE, "Failed to deserialize appeal record message (payload omitted)");
             return null;
         }
     }
-
-    // 将 Kafka key 转为字符串
     private String asKey(byte[] rawKey) {
         return rawKey == null ? null : new String(rawKey);
     }

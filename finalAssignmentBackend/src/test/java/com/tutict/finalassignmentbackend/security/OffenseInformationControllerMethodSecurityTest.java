@@ -1,5 +1,6 @@
 package com.tutict.finalassignmentbackend.security;
 
+import com.tutict.finalassignmentbackend.config.CorsProperties;
 import com.tutict.finalassignmentbackend.config.SecurityConfig;
 import com.tutict.finalassignmentbackend.config.login.jwt.TokenProvider;
 import com.tutict.finalassignmentbackend.controller.OffenseInformationController;
@@ -88,7 +89,7 @@ class OffenseInformationControllerMethodSecurityTest {
     @Configuration
     @EnableWebMvc
     @EnableWebSecurity
-    @Import({SecurityConfig.class, TokenProvider.class})
+    @Import({SecurityConfig.class, TokenProvider.class, CorsProperties.class})
     static class TestConfig {
 
         @Bean

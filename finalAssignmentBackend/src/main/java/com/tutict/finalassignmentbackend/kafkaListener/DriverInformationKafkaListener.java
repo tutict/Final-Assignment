@@ -34,8 +34,7 @@ public class DriverInformationKafkaListener {
     @KafkaListener(topics = "driver_information_create", groupId = "driverInformationGroup", concurrency = "3")
     public void onDriverInformationCreate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                           @Payload String message) {
-        log.log(Level.INFO, "Received Kafka message for DriverInformation create: {0}", message);
-        // 使用虚拟线程异步处理，避免阻塞监听线程
+        log.log(Level.INFO, "Received Kafka message for DriverInformation create (payload omitted)");
         Thread.ofVirtual().start(() -> processMessage(asKey(rawKey), message, "create"));
     }
 
@@ -43,8 +42,7 @@ public class DriverInformationKafkaListener {
     @KafkaListener(topics = "driver_information_update", groupId = "driverInformationGroup", concurrency = "3")
     public void onDriverInformationUpdate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                           @Payload String message) {
-        log.log(Level.INFO, "Received Kafka message for DriverInformation update: {0}", message);
-        // 使用虚拟线程异步处理，避免阻塞监听线程
+        log.log(Level.INFO, "Received Kafka message for DriverInformation update (payload omitted)");
         Thread.ofVirtual().start(() -> processMessage(asKey(rawKey), message, "update"));
     }
 
@@ -85,18 +83,14 @@ public class DriverInformationKafkaListener {
             throw ex;
         }
     }
-
-    // 反序列化消息体
     private DriverInformation deserializeMessage(String message) {
         try {
             return objectMapper.readValue(message, DriverInformation.class);
         } catch (Exception ex) {
-            log.log(Level.SEVERE, "Failed to deserialize driver message: {0}", message);
+            log.log(Level.SEVERE, "Failed to deserialize driver message (payload omitted)");
             return null;
         }
     }
-
-    // 将 Kafka key 转为字符串
     private String asKey(byte[] rawKey) {
         return rawKey == null ? null : new String(rawKey);
     }

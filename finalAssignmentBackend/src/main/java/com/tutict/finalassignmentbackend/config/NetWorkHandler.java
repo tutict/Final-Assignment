@@ -22,8 +22,11 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
 import java.lang.reflect.Method;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static io.vertx.core.Vertx.vertx;
 
@@ -46,11 +49,15 @@ public class NetWorkHandler extends AbstractVerticle {
     WsActionRegistry wsActionRegistry;
 
     private final ObjectMapper objectMapper;
+    private final CorsProperties corsProperties;
     private WebClient webClient;
 
-    public NetWorkHandler(TokenProvider tokenProvider, ObjectMapper objectMapper) {
+    public NetWorkHandler(TokenProvider tokenProvider,
+                          ObjectMapper objectMapper,
+                          CorsProperties corsProperties) {
         this.tokenProvider = tokenProvider;
         this.objectMapper = objectMapper;
+        this.corsProperties = corsProperties;
     }
 
     @PostConstruct
@@ -76,10 +83,18 @@ public class NetWorkHandler extends AbstractVerticle {
 
         router.route("/eventbus/*").handler(ctx -> {
             HttpServerRequest request = ctx.request();
+            String token = extractTokenFromHandshake(request);
+            if (token == null || !tokenProvider.validateToken(token)) {
+                log.warn("Rejected unauthenticated WebSocket handshake, path={}", request.path());
+                ctx.response().setStatusCode(401).setStatusMessage("Unauthorized").end();
+                return;
+            }
+
+            String username = tokenProvider.getUsernameFromToken(token);
             request.toWebSocket().onSuccess(ws -> {
                 log.info("WebSocket 连接已建立, path={}", ws.path());
                 if (ws.path().contains("/eventbus")) {
-                    handleWebSocketConnection(ws);
+                    handleWebSocketConnection(ws, username);
                 } else {
                     ws.close((short) 1003, "Unsupported path").onSuccess(success ->
                             log.info("关闭 {} WebSocket 连接成功 {}", ws.path(), success)
@@ -115,29 +130,39 @@ public class NetWorkHandler extends AbstractVerticle {
                 "Sec-WebSocket-Version", "Sec-WebSocket-Protocol", "Content-Type", "Accept"
         );
 
+        List<String> allowedOrigins = corsProperties.getAllowedOrigins();
         router.route().handler(CorsHandler.create()
-                .addOrigin("*")
+                .addOrigins(allowedOrigins)
                 .allowedHeaders(allowedHeaders)
                 .allowedMethod(io.vertx.core.http.HttpMethod.GET)
                 .allowedMethod(io.vertx.core.http.HttpMethod.POST)
                 .allowedMethod(io.vertx.core.http.HttpMethod.PUT)
-                .allowedMethod(io.vertx.core.http.HttpMethod.OPTIONS));
+                .allowedMethod(io.vertx.core.http.HttpMethod.DELETE)
+                .allowedMethod(io.vertx.core.http.HttpMethod.OPTIONS)
+                .allowCredentials(true));
     }
 
-    private void handleWebSocketConnection(ServerWebSocket ws) {
+    private String extractTokenFromHandshake(HttpServerRequest request) {
+        String authorization = request.getHeader("Authorization");
+        if (authorization != null && authorization.startsWith("Bearer ")) {
+            return authorization.substring(7);
+        }
+
+        String accessToken = request.params().get("access_token");
+        if (accessToken != null && !accessToken.isBlank()) {
+            return accessToken;
+        }
+
+        String token = request.params().get("token");
+        return token != null && !token.isBlank() ? token : null;
+    }
+
+    private void handleWebSocketConnection(ServerWebSocket ws, String username) {
         ws.frameHandler(frame -> {
             if (frame.isText()) {
                 String message = frame.textData();
                 try {
                     JsonNode root = objectMapper.readTree(message);
-                    String token = root.path("token").asText(null);
-
-                    if (token == null || !tokenProvider.validateToken(token)) {
-                        log.warn("Invalid token, closing WS");
-                        ws.close((short) 1000, "Invalid token").onSuccess(result -> log.info("WebSocket closed due to invalid token: {}", result))
-                                .onFailure(failure -> log.error("Error closing WebSocket: {}", failure.getMessage(), failure));
-                        return;
-                    }
 
                     String service = root.path("service").asText(null);
                     String action = root.path("action").asText(null);
@@ -152,8 +177,8 @@ public class NetWorkHandler extends AbstractVerticle {
                         return;
                     }
 
-                    log.info("Received service={}, action={}, idempotencyKey={}, args={}",
-                            service, action, idempotencyKey, argsArray);
+                    log.info("Received service={}, action={}, idempotencyKey={}, argsCount={}, user={}",
+                            service, action, idempotencyKey, argsArray.size(), username);
 
                     WsActionRegistry.HandlerMethod handler = wsActionRegistry.getHandler(service, action);
                     if (handler == null) {
@@ -254,17 +279,17 @@ public class NetWorkHandler extends AbstractVerticle {
         MultiMap headers = MultiMap.caseInsensitiveMultiMap();
         request.headers().forEach(entry -> {
             headers.add(entry.getKey(), entry.getValue());
-            log.info("[{}] Forwarded header: {} = {}", requestId, entry.getKey(), entry.getValue());
         });
+        log.debug("[{}] Forward headers: {}", requestId, sanitizeHeaders(headers));
 
         MultiMap queryParams = request.params();
-        log.info("[{}] Query params: {}", requestId, queryParams);
+        log.debug("[{}] Query params: {}", requestId, sanitizeParameters(queryParams));
 
         HttpMethod method = request.method();
         var httpRequest = webClient.requestAbs(method, targetUrl).putHeaders(headers);
 
         if (method == HttpMethod.GET || method == HttpMethod.DELETE) {
-            log.info("[{}] Forwarding {} request with query params: {}", requestId, method, queryParams);
+            log.info("[{}] Forwarding {} request with query param names: {}", requestId, method, queryParams.names());
             httpRequest.send()
                     .onSuccess(response -> handleResponse(request, response, requestId))
                     .onFailure(failure -> {
@@ -285,7 +310,7 @@ public class NetWorkHandler extends AbstractVerticle {
                                 });
                     } else if (contentType != null && contentType.toLowerCase().contains("text/plain")) {
                         String rawBody = body.toString();
-                        log.info("[{}] Raw body for {}: {}", requestId, method, rawBody);
+                        log.debug("[{}] Request body length for {}: {} bytes", requestId, method, body.length());
                         httpRequest.putHeader("Content-Type", contentType);
                         httpRequest.sendBuffer(Buffer.buffer(rawBody))
                                 .onSuccess(response -> handleResponse(request, response, requestId))
@@ -295,7 +320,7 @@ public class NetWorkHandler extends AbstractVerticle {
                                 });
                     } else if (contentType != null && contentType.toLowerCase().contains("application/json")) {
                         JsonObject jsonBody = body.toJsonObject();
-                        log.info("[{}] JSON body for {}: {}", requestId, method, jsonBody);
+                        log.debug("[{}] Request body length for {}: {} bytes", requestId, method, body.length());
                         httpRequest.putHeader("Content-Type", "application/json");
                         httpRequest.sendJsonObject(jsonBody)
                                 .onSuccess(response -> handleResponse(request, response, requestId))
@@ -322,9 +347,11 @@ public class NetWorkHandler extends AbstractVerticle {
 
     private void handleResponse(HttpServerRequest request, HttpResponse<io.vertx.core.buffer.Buffer> response, String requestId) {
         log.info("[{}] Response status code: {}", requestId, response.statusCode());
-        log.info("[{}] Response headers: {}", requestId, response.headers());
+        log.debug("[{}] Response headers: {}", requestId, sanitizeHeaders(response.headers()));
         String responseBody = response.bodyAsString();
-        log.info("[{}] Backend response body: {}", requestId, responseBody != null ? responseBody : "null");
+        log.debug("[{}] Backend response body length: {} bytes",
+                requestId,
+                responseBody != null ? responseBody.length() : 0);
 
         HttpServerResponse clientResponse = request.response();
         clientResponse.setStatusCode(response.statusCode());
@@ -351,5 +378,41 @@ public class NetWorkHandler extends AbstractVerticle {
             clientResponse.putHeader("Content-Type", "application/json");
             clientResponse.end();
         }
+    }
+
+    private Map<String, String> sanitizeHeaders(MultiMap headers) {
+        return headers.entries().stream()
+                .filter(entry -> !isSensitiveHeader(entry.getKey()))
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        Map.Entry::getValue,
+                        (first, ignored) -> first));
+    }
+
+    private boolean isSensitiveHeader(String headerName) {
+        return headerName != null
+                && ("Authorization".equalsIgnoreCase(headerName)
+                || "Cookie".equalsIgnoreCase(headerName)
+                || "Set-Cookie".equalsIgnoreCase(headerName));
+    }
+
+    private Map<String, String> sanitizeParameters(MultiMap params) {
+        return params.entries().stream()
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        entry -> isSensitiveParameter(entry.getKey()) ? "[REDACTED]" : entry.getValue(),
+                        (first, ignored) -> first));
+    }
+
+    private boolean isSensitiveParameter(String parameterName) {
+        if (parameterName == null) {
+            return false;
+        }
+        String lowerName = parameterName.toLowerCase();
+        return lowerName.contains("token")
+                || lowerName.contains("password")
+                || lowerName.contains("authorization")
+                || lowerName.contains("idcard")
+                || lowerName.contains("phone");
     }
 }

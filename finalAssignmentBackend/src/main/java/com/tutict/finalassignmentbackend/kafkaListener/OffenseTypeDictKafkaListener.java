@@ -34,8 +34,7 @@ public class OffenseTypeDictKafkaListener {
     @KafkaListener(topics = "offense_type_dict_create", groupId = "offenseTypeDictGroup", concurrency = "3")
     public void onOffenseTypeDictCreate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                         @Payload String message) {
-        log.log(Level.INFO, "Received Kafka message for OffenseTypeDict create: {0}", message);
-        // 使用虚拟线程异步处理，避免阻塞监听线程
+        log.log(Level.INFO, "Received Kafka message for OffenseTypeDict create (payload omitted)");
         Thread.ofVirtual().start(() -> processMessage(asKey(rawKey), message, "create"));
     }
 
@@ -43,8 +42,7 @@ public class OffenseTypeDictKafkaListener {
     @KafkaListener(topics = "offense_type_dict_update", groupId = "offenseTypeDictGroup", concurrency = "3")
     public void onOffenseTypeDictUpdate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                         @Payload String message) {
-        log.log(Level.INFO, "Received Kafka message for OffenseTypeDict update: {0}", message);
-        // 使用虚拟线程异步处理，避免阻塞监听线程
+        log.log(Level.INFO, "Received Kafka message for OffenseTypeDict update (payload omitted)");
         Thread.ofVirtual().start(() -> processMessage(asKey(rawKey), message, "update"));
     }
 
@@ -84,18 +82,14 @@ public class OffenseTypeDictKafkaListener {
             throw ex;
         }
     }
-
-    // 反序列化消息体
     private OffenseTypeDict deserializeMessage(String message) {
         try {
             return objectMapper.readValue(message, OffenseTypeDict.class);
         } catch (Exception ex) {
-            log.log(Level.SEVERE, "Failed to deserialize OffenseTypeDict message: {0}", message);
+            log.log(Level.SEVERE, "Failed to deserialize OffenseTypeDict message (payload omitted)");
             return null;
         }
     }
-
-    // 将 Kafka key 转为字符串
     private String asKey(byte[] rawKey) {
         return rawKey == null ? null : new String(rawKey);
     }

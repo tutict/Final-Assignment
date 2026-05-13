@@ -34,8 +34,7 @@ public class DeductionRecordKafkaListener {
     @KafkaListener(topics = "deduction_record_create", groupId = "deductionRecordGroup", concurrency = "3")
     public void onDeductionRecordCreate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                         @Payload String message) {
-        log.log(Level.INFO, "Received Kafka message for DeductionRecord create: {0}", message);
-        // 使用虚拟线程异步处理，避免阻塞监听线程
+        log.log(Level.INFO, "Received Kafka message for DeductionRecord create (payload omitted)");
         Thread.ofVirtual().start(() -> processMessage(asKey(rawKey), message, "create"));
     }
 
@@ -43,8 +42,7 @@ public class DeductionRecordKafkaListener {
     @KafkaListener(topics = "deduction_record_update", groupId = "deductionRecordGroup", concurrency = "3")
     public void onDeductionRecordUpdate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                         @Payload String message) {
-        log.log(Level.INFO, "Received Kafka message for DeductionRecord update: {0}", message);
-        // 使用虚拟线程异步处理，避免阻塞监听线程
+        log.log(Level.INFO, "Received Kafka message for DeductionRecord update (payload omitted)");
         Thread.ofVirtual().start(() -> processMessage(asKey(rawKey), message, "update"));
     }
 
@@ -85,18 +83,14 @@ public class DeductionRecordKafkaListener {
             throw ex;
         }
     }
-
-    // 反序列化消息体
     private DeductionRecord deserializeMessage(String message) {
         try {
             return objectMapper.readValue(message, DeductionRecord.class);
         } catch (Exception ex) {
-            log.log(Level.SEVERE, "Failed to deserialize DeductionRecord message: {0}", message);
+            log.log(Level.SEVERE, "Failed to deserialize DeductionRecord message (payload omitted)");
             return null;
         }
     }
-
-    // 将 Kafka key 转为字符串
     private String asKey(byte[] rawKey) {
         return rawKey == null ? null : new String(rawKey);
     }

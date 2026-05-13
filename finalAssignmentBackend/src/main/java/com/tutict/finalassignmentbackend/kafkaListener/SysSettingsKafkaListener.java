@@ -31,16 +31,14 @@ public class SysSettingsKafkaListener {
     // 监听 Kafka 消息
     @KafkaListener(topics = "sys_settings_create", groupId = "sysSettingsGroup", concurrency = "3")
     public void onSysSettingsCreateReceived(String message) {
-        log.log(Level.INFO, "Received Kafka message for create: {0}", message);
-        // 使用虚拟线程异步处理，避免阻塞监听线程
+        log.log(Level.INFO, "Received Kafka message for create (payload omitted)");
         Thread.ofVirtual().start(() -> processMessage(message, "create"));
     }
 
     // 监听 Kafka 消息
     @KafkaListener(topics = "sys_settings_update", groupId = "sysSettingsGroup", concurrency = "3")
     public void onSysSettingsUpdateReceived(String message) {
-        log.log(Level.INFO, "Received Kafka message for update: {0}", message);
-        // 使用虚拟线程异步处理，避免阻塞监听线程
+        log.log(Level.INFO, "Received Kafka message for update (payload omitted)");
         Thread.ofVirtual().start(() -> processMessage(message, "update"));
     }
 
@@ -57,19 +55,17 @@ public class SysSettingsKafkaListener {
                 log.log(Level.WARNING, "Unsupported action: {0}", action);
                 return;
             }
-            log.info(String.format("SysSettings %s action processed successfully: %s", action, entity));
+            log.info(String.format("SysSettings %s action processed successfully", action));
         } catch (Exception e) {
-            log.log(Level.SEVERE, String.format("Error processing %s SysSettings message: %s", action, message), e);
+            log.log(Level.SEVERE, String.format("Error processing %s SysSettings message (payload omitted)", action), e);
             throw new RuntimeException(String.format("Failed to process %s SysSettings message", action), e);
         }
     }
-
-    // 反序列化消息体
     private SysSettings deserializeMessage(String message) {
         try {
             return objectMapper.readValue(message, SysSettings.class);
         } catch (Exception e) {
-            log.log(Level.SEVERE, "Failed to deserialize message: {0}", message);
+            log.log(Level.SEVERE, "Failed to deserialize message (payload omitted)");
             throw new RuntimeException("Failed to deserialize message", e);
         }
     }

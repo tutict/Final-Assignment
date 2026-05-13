@@ -39,8 +39,7 @@ public class PaymentRecordKafkaListener {
     @KafkaListener(topics = "payment_record_create", groupId = "paymentRecordGroup", concurrency = "3")
     public void onPaymentRecordCreate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                       @Payload String message) {
-        log.log(Level.INFO, "Received Kafka message for PaymentRecord create: {0}", message);
-        // 使用虚拟线程异步处理，避免阻塞监听线程
+        log.log(Level.INFO, "Received Kafka message for PaymentRecord create (payload omitted)");
         Thread.ofVirtual().start(() -> processMessage(asKey(rawKey), message, "create"));
     }
 
@@ -48,8 +47,7 @@ public class PaymentRecordKafkaListener {
     @KafkaListener(topics = "payment_record_update", groupId = "paymentRecordGroup", concurrency = "3")
     public void onPaymentRecordUpdate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                       @Payload String message) {
-        log.log(Level.INFO, "Received Kafka message for PaymentRecord update: {0}", message);
-        // 使用虚拟线程异步处理，避免阻塞监听线程
+        log.log(Level.INFO, "Received Kafka message for PaymentRecord update (payload omitted)");
         Thread.ofVirtual().start(() -> processMessage(asKey(rawKey), message, "update"));
     }
 
@@ -104,18 +102,14 @@ public class PaymentRecordKafkaListener {
             throw ex;
         }
     }
-
-    // 反序列化消息体
     private PaymentRecord deserializeMessage(String message) {
         try {
             return objectMapper.readValue(message, PaymentRecord.class);
         } catch (Exception ex) {
-            log.log(Level.SEVERE, "Failed to deserialize PaymentRecord message: {0}", message);
+            log.log(Level.SEVERE, "Failed to deserialize PaymentRecord message (payload omitted)");
             return null;
         }
     }
-
-    // 将 Kafka key 转为字符串
     private String asKey(byte[] rawKey) {
         return rawKey == null ? null : new String(rawKey);
     }

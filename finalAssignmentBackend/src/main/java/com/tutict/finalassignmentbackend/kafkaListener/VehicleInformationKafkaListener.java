@@ -31,16 +31,14 @@ public class VehicleInformationKafkaListener {
     // 监听 Kafka 消息
     @KafkaListener(topics = "vehicle_information_create", groupId = "vehicleInformationGroup", concurrency = "3")
     public void onVehicleInformationCreateReceived(String message) {
-        log.log(Level.INFO, "Received Kafka message for create: {0}", message);
-        // 使用虚拟线程异步处理，避免阻塞监听线程
+        log.log(Level.INFO, "Received Kafka message for create (payload omitted)");
         Thread.ofVirtual().start(() -> processMessage(message, "create"));
     }
 
     // 监听 Kafka 消息
     @KafkaListener(topics = "vehicle_information_update", groupId = "vehicleInformationGroup", concurrency = "3")
     public void onVehicleInformationUpdateReceived(String message) {
-        log.log(Level.INFO, "Received Kafka message for update: {0}", message);
-        // 使用虚拟线程异步处理，避免阻塞监听线程
+        log.log(Level.INFO, "Received Kafka message for update (payload omitted)");
         Thread.ofVirtual().start(() -> processMessage(message, "update"));
     }
 
@@ -57,19 +55,17 @@ public class VehicleInformationKafkaListener {
                 log.log(Level.WARNING, "Unsupported action: {0}", action);
                 return;
             }
-            log.info(String.format("VehicleInformation %s action processed successfully: %s", action, entity));
+            log.info(String.format("VehicleInformation %s action processed successfully", action));
         } catch (Exception e) {
-            log.log(Level.SEVERE, String.format("Error processing %s VehicleInformation message: %s", action, message), e);
+            log.log(Level.SEVERE, String.format("Error processing %s VehicleInformation message (payload omitted)", action), e);
             throw new RuntimeException(String.format("Failed to process %s VehicleInformation message", action), e);
         }
     }
-
-    // 反序列化消息体
     private VehicleInformation deserializeMessage(String message) {
         try {
             return objectMapper.readValue(message, VehicleInformation.class);
         } catch (Exception e) {
-            log.log(Level.SEVERE, "Failed to deserialize message: {0}", message);
+            log.log(Level.SEVERE, "Failed to deserialize message (payload omitted)");
             throw new RuntimeException("Failed to deserialize message", e);
         }
     }

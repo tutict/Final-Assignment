@@ -51,3 +51,8 @@ jwt:
   public-key: ${JWT_PUBLIC_KEY:}
   access-token-expiration: ${JWT_ACCESS_EXPIRATION:3600}
   refresh-token-expiration: ${JWT_REFRESH_EXPIRATION:604800}
+
+cors:
+  allowed-origins:
+    - ${FRONTEND_URL:http://localhost:3000}
+    - ${FLUTTER_URL:http://localhost:8080}

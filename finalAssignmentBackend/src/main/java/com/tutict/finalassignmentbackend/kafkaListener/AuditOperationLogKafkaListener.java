@@ -34,8 +34,7 @@ public class AuditOperationLogKafkaListener {
     @KafkaListener(topics = "audit_operation_log_create", groupId = "auditOperationLogGroup", concurrency = "3")
     public void onAuditOperationLogCreateReceived(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                                   @Payload String message) {
-        log.log(Level.INFO, "Received Kafka message for create: {0}", message);
-        // 使用虚拟线程异步处理，避免阻塞监听线程
+        log.log(Level.INFO, "Received Kafka message for create (payload omitted)");
         Thread.ofVirtual().start(() -> processMessage(asKey(rawKey), message, "create"));
     }
 
@@ -43,8 +42,7 @@ public class AuditOperationLogKafkaListener {
     @KafkaListener(topics = "audit_operation_log_update", groupId = "auditOperationLogGroup", concurrency = "3")
     public void onAuditOperationLogUpdateReceived(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                                   @Payload String message) {
-        log.log(Level.INFO, "Received Kafka message for update: {0}", message);
-        // 使用虚拟线程异步处理，避免阻塞监听线程
+        log.log(Level.INFO, "Received Kafka message for update (payload omitted)");
         Thread.ofVirtual().start(() -> processMessage(asKey(rawKey), message, "update"));
     }
 
@@ -80,23 +78,19 @@ public class AuditOperationLogKafkaListener {
         } catch (Exception e) {
             auditOperationLogService.markHistoryFailure(idempotencyKey, e.getMessage());
             log.log(Level.SEVERE,
-                    String.format("Error processing %s AuditOperationLog message (key=%s): %s", action, idempotencyKey, message),
+                    String.format("Error processing %s AuditOperationLog message (key=%s, payload omitted)", action, idempotencyKey),
                     e);
             throw e;
         }
     }
-
-    // 反序列化消息体
     private AuditOperationLog deserializeMessage(String message) {
         try {
             return objectMapper.readValue(message, AuditOperationLog.class);
         } catch (Exception e) {
-            log.log(Level.SEVERE, "Failed to deserialize message: {0}", message);
+            log.log(Level.SEVERE, "Failed to deserialize message (payload omitted)");
             return null;
         }
     }
-
-    // 将 Kafka key 转为字符串
     private String asKey(byte[] rawKey) {
         return rawKey == null ? null : new String(rawKey);
     }

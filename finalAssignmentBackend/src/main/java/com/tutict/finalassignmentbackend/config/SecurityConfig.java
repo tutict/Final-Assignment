@@ -16,9 +16,11 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 @Configuration
 @EnableMethodSecurity(jsr250Enabled = true, prePostEnabled = true, securedEnabled = true)
@@ -26,15 +28,27 @@ public class SecurityConfig {
 
     private final TokenProvider tokenProvider;
     private final TokenBlacklistService tokenBlacklistService;
+    private final CorsProperties corsProperties;
 
-    public SecurityConfig(TokenProvider tokenProvider, TokenBlacklistService tokenBlacklistService) {
+    public SecurityConfig(TokenProvider tokenProvider,
+                          TokenBlacklistService tokenBlacklistService,
+                          CorsProperties corsProperties) {
         this.tokenProvider = tokenProvider;
         this.tokenBlacklistService = tokenBlacklistService;
+        this.corsProperties = corsProperties;
     }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+                .cors(cors -> cors.configurationSource(request -> {
+                    CorsConfiguration config = new CorsConfiguration();
+                    config.setAllowedOrigins(corsProperties.getAllowedOrigins());
+                    config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+                    config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+                    config.setAllowCredentials(true);
+                    return config;
+                }))
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authz -> authz
