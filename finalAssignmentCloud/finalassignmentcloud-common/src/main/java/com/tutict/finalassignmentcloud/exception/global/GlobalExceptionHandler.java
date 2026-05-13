@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentcloud.exception.global;
 
 import com.github.dockerjava.api.exception.UnauthorizedException;
+import com.tutict.finalassignmentcloud.dto.response.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -9,6 +10,8 @@ import org.apache.kafka.common.errors.ResourceNotFoundException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.BindException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
@@ -54,6 +57,20 @@ public class GlobalExceptionHandler {
                                                                         HttpServletRequest request) {
         logger.log(Level.WARNING, "禁止访问: {0}", ex.getMessage());
         return buildResponse(HttpStatus.FORBIDDEN, "禁止访问: " + ex.getMessage(), request, null);
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAccessDenied(AccessDeniedException ex) {
+        logger.log(Level.WARNING, "Access denied: {0}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(ApiResponse.error("FORBIDDEN", "\u60a8\u6ca1\u6709\u6743\u9650\u6267\u884c\u6b64\u64cd\u4f5c"));
+    }
+
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleUnauthorized(AuthenticationException ex) {
+        logger.log(Level.WARNING, "Unauthorized: {0}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(ApiResponse.error("UNAUTHORIZED", "\u8bf7\u5148\u767b\u5f55"));
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
@@ -139,4 +156,3 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(status).body(body);
     }
 }
-
