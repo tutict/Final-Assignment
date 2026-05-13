@@ -4,7 +4,7 @@ import PageLayout from '../../components/PageLayout.jsx';
 import DataTable from '../../components/DataTable.jsx';
 import SearchBar from '../../components/SearchBar.jsx';
 import Modal from '../../components/Modal.jsx';
-import EntityForm from '../../components/EntityForm.jsx';
+import EntityForm, { validateEntityForm } from '../../components/EntityForm.jsx';
 import { useConfirm } from '../../hooks/useConfirm.js';
 import { useModalState } from '../../hooks/useModalState.js';
 import {
@@ -34,6 +34,7 @@ export default function CrudPage({ config }) {
   const [search, setSearch] = useState('');
   const [formData, setFormData] = useState({});
   const [formError, setFormError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
   const {
     isOpen: isModalOpen,
     activeRow: editing,
@@ -99,6 +100,7 @@ export default function CrudPage({ config }) {
   const handleOpenCreate = () => {
     if (!canMutate) return;
     setFormError('');
+    setFieldErrors({});
     setFormData({});
     open();
   };
@@ -106,12 +108,14 @@ export default function CrudPage({ config }) {
   const handleEdit = (row) => {
     if (!canMutate) return;
     setFormError('');
+    setFieldErrors({});
     setFormData(row || {});
     open(row);
   };
 
   const handleCloseModal = () => {
     setFormError('');
+    setFieldErrors({});
     close();
   };
 
@@ -153,6 +157,18 @@ export default function CrudPage({ config }) {
       },
     }
   );
+
+  const handleSaveClick = () => {
+    const errors = validateEntityForm(editableFields, formData);
+    if (Object.keys(errors).length > 0) {
+      setFormError('');
+      setFieldErrors(errors);
+      return;
+    }
+
+    setFieldErrors({});
+    handleConfirmSave();
+  };
 
   if (useCustomPage) {
     return (
@@ -205,7 +221,7 @@ export default function CrudPage({ config }) {
             <button
               type="button"
               className="primary"
-              onClick={handleConfirmSave}
+              onClick={handleSaveClick}
               disabled={saveLoading || deleteLoading}
             >
               保存
@@ -220,9 +236,17 @@ export default function CrudPage({ config }) {
           value={formData}
           onChange={(name, value) => {
             if (formError) setFormError('');
+            if (fieldErrors[name]) {
+              setFieldErrors((prev) => {
+                const next = { ...prev };
+                delete next[name];
+                return next;
+              });
+            }
             setFormData((prev) => ({ ...prev, [name]: value }));
           }}
           disabledFields={[config.idField]}
+          fieldErrors={fieldErrors}
         />
       </Modal>
     </PageLayout>

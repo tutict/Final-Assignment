@@ -397,12 +397,19 @@ a {
 }
 
 .form-field input,
-.form-field textarea {
+.form-field textarea,
+.form-field select {
   border-radius: 10px;
   border: 1px solid var(--border);
   padding: 8px 10px;
   background: var(--panel);
   color: var(--text);
+}
+
+.field-error {
+  color: var(--danger);
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .form-error {

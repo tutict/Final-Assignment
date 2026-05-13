@@ -1,4 +1,20 @@
 ﻿import { API_PATHS } from '../constants/apiPaths.js';
+import { ROLES } from '../constants/roles.js';
+
+const OFFENSE_PROCESS_STATUSES = [
+  'Unprocessed',
+  'Processing',
+  'Processed',
+  'Appealing',
+  'Appeal_Approved',
+  'Appeal_Rejected',
+  'Cancelled',
+];
+const FINE_PAYMENT_STATUSES = ['Unpaid', 'Partial', 'Paid', 'Overdue', 'Waived'];
+const PHONE_PATTERN = /^1[3-9]\d{9}$/;
+const ID_CARD_PATTERN = /^\d{17}[\dXx]$/;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const LICENSE_PLATE_PATTERN = /^[\u4e00-\u9fa5][A-Za-z][A-Za-z0-9]{5,6}$/;
 
 export const entityConfigs = {
   /**
@@ -166,7 +182,12 @@ export const entityConfigs = {
       // 后端字段：offenseCode | 来源：OffenseInformation.offenseCode
       { name: 'offenseNumber', type: 'String' },
       // 后端字段：offenseNumber | 来源：OffenseInformation.offenseNumber
-      { name: 'offenseTime', type: 'DateTime' },
+      {
+        name: 'offenseTime',
+        type: 'DateTime',
+        label: '违法时间',
+        validation: { required: true },
+      },
       // 后端字段：offenseTime | 违法实际发生时间
       // 区别于 createdAt：createdAt 是记录创建时间
       { name: 'offenseLocation', type: 'String' },
@@ -193,7 +214,16 @@ export const entityConfigs = {
       // 后端字段：enforcementOfficer | 来源：OffenseInformation.enforcementOfficer
       { name: 'enforcementDevice', type: 'String' },
       // 后端字段：enforcementDevice | 来源：OffenseInformation.enforcementDevice
-      { name: 'processStatus', type: 'String' },
+      {
+        name: 'processStatus',
+        type: 'String',
+        label: '处理状态',
+        validation: {
+          required: true,
+          enum: OFFENSE_PROCESS_STATUSES,
+          message: '请选择有效的处理状态',
+        },
+      },
       // 后端字段：processStatus | 枚举来源：后端 OffenseProcessState；前端展示见 STATUS/STATUSES 常量
       // 枚举：Unprocessed / Processing / Processed / Appealing / Appeal_Approved / Appeal_Rejected / Cancelled
       // 由后端 workflow/state machine 控制；不在 editableFields 中，前端表单不应直接修改
@@ -202,7 +232,17 @@ export const entityConfigs = {
       // 表示违法通知送达进度；@todo 确认通知失败是否使用额外枚举值
       { name: 'notificationTime', type: 'DateTime' },
       // 后端字段：notificationTime | 来源：OffenseInformation.notificationTime
-      { name: 'fineAmount', type: 'double' },
+      {
+        name: 'fineAmount',
+        type: 'double',
+        label: '罚款金额',
+        validation: {
+          required: true,
+          min: 0,
+          max: 100000,
+          message: '罚款金额须在 0 ~ 100,000 之间',
+        },
+      },
       // 后端字段：fineAmount | 来源：OffenseInformation.fineAmount
       { name: 'deductedPoints', type: 'int' },
       // 后端字段：deductedPoints | 来源：OffenseInformation.deductedPoints
@@ -229,7 +269,15 @@ export const entityConfigs = {
       // @readonly 审计时间字段，由后端生成或维护
       { name: 'remarks', type: 'String' },
       // 后端字段：remarks | 来源：OffenseInformation.remarks
-      { name: 'licensePlate', type: 'String' },
+      {
+        name: 'licensePlate',
+        type: 'String',
+        label: '车牌号',
+        validation: {
+          pattern: LICENSE_PLATE_PATTERN,
+          message: '请输入有效的车牌号',
+        },
+      },
       // 后端字段：licensePlate | @deprecated 兼容聚合展示字段，不属于 OffenseRecord 核心表字段
       // @todo 确认是否来自车辆关联查询或视图 DTO
       { name: 'driverName', type: 'String' },
@@ -318,7 +366,17 @@ export const entityConfigs = {
       // 一条违法记录可生成对应罚款记录，具体唯一性由后端约束确认
       { name: 'fineNumber', type: 'String' },
       // 后端字段：fineNumber | 来源：FineInformation.fineNumber
-      { name: 'fineAmount', type: 'double' },
+      {
+        name: 'fineAmount',
+        type: 'double',
+        label: '罚款金额',
+        validation: {
+          required: true,
+          min: 0,
+          max: 100000,
+          message: '罚款金额须在 0 ~ 100,000 之间',
+        },
+      },
       // 后端字段：fineAmount | 基础罚款金额
       // 通常与 lateFee 共同计算 totalAmount，最终金额以后端返回为准
       { name: 'lateFee', type: 'double' },
@@ -337,7 +395,16 @@ export const entityConfigs = {
       // 后端字段：handler | 来源：FineInformation.handler
       { name: 'approver', type: 'String' },
       // 后端字段：approver | 来源：FineInformation.approver
-      { name: 'paymentStatus', type: 'String' },
+      {
+        name: 'paymentStatus',
+        type: 'String',
+        label: '支付状态',
+        validation: {
+          required: true,
+          enum: FINE_PAYMENT_STATUSES,
+          message: '请选择有效的支付状态',
+        },
+      },
       // 后端字段：paymentStatus | 枚举：Unpaid / Partial / Paid / Overdue / Waived
       // 支付状态，描述缴款进度；区别于 status 的罚单记录状态
       { name: 'paidAmount', type: 'double' },
@@ -540,9 +607,27 @@ export const entityConfigs = {
       // 后端字段：appealNumber | 来源：AppealRecord.appealNumber
       { name: 'appellantName', type: 'String' },
       // 后端字段：appellantName | 来源：AppealRecord.appellantName
-      { name: 'appellantIdCard', type: 'String' },
+      {
+        name: 'appellantIdCard',
+        type: 'String',
+        label: '身份证号',
+        validation: {
+          required: true,
+          pattern: ID_CARD_PATTERN,
+          message: '请输入有效的 18 位身份证号',
+        },
+      },
       // 后端字段：appellantIdCard | 来源：AppealRecord.appellantIdCard
-      { name: 'appellantContact', type: 'String' },
+      {
+        name: 'appellantContact',
+        type: 'String',
+        label: '联系电话',
+        validation: {
+          required: true,
+          pattern: PHONE_PATTERN,
+          message: '请输入有效的 11 位手机号',
+        },
+      },
       // 后端字段：appellantContact | 来源：AppealRecord.appellantContact
       { name: 'appellantEmail', type: 'String' },
       // 后端字段：appellantEmail | 来源：AppealRecord.appellantEmail
@@ -672,7 +757,15 @@ export const entityConfigs = {
       { name: 'contactNumber', type: 'String' },
       // 后端字段：contactNumber | 联系电话
       // @sensitive 涉及个人联系方式，前端展示需脱敏
-      { name: 'email', type: 'String' },
+      {
+        name: 'email',
+        type: 'String',
+        label: '邮箱',
+        validation: {
+          pattern: EMAIL_PATTERN,
+          message: '请输入有效的邮箱地址',
+        },
+      },
       // 后端字段：email | 来源：SysUser.email
       { name: 'department', type: 'String' },
       // 后端字段：department | 来源：SysUser.department
@@ -683,6 +776,17 @@ export const entityConfigs = {
       { name: 'status', type: 'String' },
       // 后端字段：status | 枚举：Active / Inactive / Locked / Expired
       // 用户账号状态，区别于驾驶证、车辆或角色状态
+      {
+        name: 'role',
+        type: 'String',
+        label: '角色',
+        validation: {
+          required: true,
+          enum: Object.values(ROLES),
+          message: '请选择有效的用户角色',
+        },
+      },
+      // 前端字段：role | 注册/权限上下文使用的角色编码，枚举来源：ROLES 常量
       { name: 'accountExpiryDate', type: 'DateTime' },
       // 后端字段：accountExpiryDate | 来源：SysUser.accountExpiryDate
       { name: 'loginFailures', type: 'int' },

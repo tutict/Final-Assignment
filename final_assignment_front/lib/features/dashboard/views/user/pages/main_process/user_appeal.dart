@@ -367,6 +367,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
     final TextEditingController contactController = TextEditingController(
         text: driverInfo?.contactNumber ?? user?.contactNumber ?? '');
     final TextEditingController reasonController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
     int? selectedOffenseId;
     bool isSubmitting = false; // 新增：防止重复提交
 
@@ -395,10 +396,12 @@ class _UserAppealPageState extends State<UserAppealPage> {
             child: Padding(
               padding: const EdgeInsets.all(12.0),
               child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
                     Text(
                       '提交申诉',
                       style: themeData.textTheme.titleMedium?.copyWith(
@@ -433,7 +436,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
                       validator: (value) => value == null ? '请选择一个违法记录' : null,
                     ),
                     const SizedBox(height: 12.0),
-                    TextField(
+                    TextFormField(
                       controller: nameController,
                       readOnly: isNameReadOnly,
                       decoration: InputDecoration(
@@ -456,10 +459,16 @@ class _UserAppealPageState extends State<UserAppealPage> {
                                 size: 18, color: themeData.colorScheme.primary)
                             : null,
                       ),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return '请输入申诉人姓名';
+                        }
+                        return null;
+                      },
                       style: TextStyle(color: themeData.colorScheme.onSurface),
                     ),
                     const SizedBox(height: 12.0),
-                    TextField(
+                    TextFormField(
                       controller: idCardController,
                       readOnly: isIdCardReadOnly,
                       decoration: InputDecoration(
@@ -482,11 +491,21 @@ class _UserAppealPageState extends State<UserAppealPage> {
                                 size: 18, color: themeData.colorScheme.primary)
                             : null,
                       ),
-                      keyboardType: TextInputType.number,
+                      keyboardType: TextInputType.text,
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return '请输入身份证号';
+                        }
+                        final idRegex = RegExp(r'^\d{17}[\dXx]$');
+                        if (!idRegex.hasMatch(value.trim())) {
+                          return '请输入有效的 18 位身份证号';
+                        }
+                        return null;
+                      },
                       style: TextStyle(color: themeData.colorScheme.onSurface),
                     ),
                     const SizedBox(height: 12.0),
-                    TextField(
+                    TextFormField(
                       controller: contactController,
                       readOnly: isContactReadOnly,
                       decoration: InputDecoration(
@@ -510,10 +529,20 @@ class _UserAppealPageState extends State<UserAppealPage> {
                             : null,
                       ),
                       keyboardType: TextInputType.phone,
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return '请输入联系电话';
+                        }
+                        final phoneRegex = RegExp(r'^1[3-9]\d{9}$');
+                        if (!phoneRegex.hasMatch(value.trim())) {
+                          return '请输入有效的 11 位手机号';
+                        }
+                        return null;
+                      },
                       style: TextStyle(color: themeData.colorScheme.onSurface),
                     ),
                     const SizedBox(height: 12.0),
-                    TextField(
+                    TextFormField(
                       controller: reasonController,
                       decoration: InputDecoration(
                         labelText: '申诉原因 *',
@@ -529,6 +558,12 @@ class _UserAppealPageState extends State<UserAppealPage> {
                         ),
                       ),
                       maxLines: 3,
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return '请输入申诉原因';
+                        }
+                        return null;
+                      },
                       style: TextStyle(color: themeData.colorScheme.onSurface),
                     ),
                     const SizedBox(height: 16.0),
@@ -558,29 +593,11 @@ class _UserAppealPageState extends State<UserAppealPage> {
                                   final String reason =
                                       reasonController.text.trim();
 
-                                  if (selectedOffenseId == null ||
-                                      name.isEmpty ||
-                                      idCard.isEmpty ||
-                                      contact.isEmpty ||
-                                      reason.isEmpty) {
-                                    _showSnackBar('请填写所有必填字段', isError: true);
+                                  if (!(formKey.currentState?.validate() ??
+                                      false)) {
                                     setState(() => isSubmitting = false);
                                     return;
                                   }
-                                  // final RegExp idCardRegExp =
-                                  //     RegExp(r'^\d{15}$|^\d{17}[\dXx]$');
-                                  // final RegExp contactRegExp = RegExp(r'^\d{10,15}$');
-
-                                  // if (!idCardRegExp.hasMatch(idCard)) {
-                                  //   _showSnackBar('身份证号码格式不正确', isError: true);
-                                  //   setState(() => isSubmitting = false);
-                                  //   return;
-                                  // }
-                                  // if (!contactRegExp.hasMatch(contact)) {
-                                  //   _showSnackBar('联系电话格式不正确', isError: true);
-                                  //   setState(() => isSubmitting = false);
-                                  //   return;
-                                  // }
 
                                   final newAppeal = AppealRecordModel(
                                     offenseId: selectedOffenseId,
@@ -625,7 +642,8 @@ class _UserAppealPageState extends State<UserAppealPage> {
                         ),
                       ],
                     ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
