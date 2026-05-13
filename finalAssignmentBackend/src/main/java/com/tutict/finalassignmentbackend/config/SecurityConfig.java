@@ -2,6 +2,7 @@ package com.tutict.finalassignmentbackend.config;
 
 import com.tutict.finalassignmentbackend.config.login.jwt.JwtAuthenticationFilter;
 import com.tutict.finalassignmentbackend.config.login.jwt.TokenProvider;
+import com.tutict.finalassignmentbackend.service.TokenBlacklistService;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -24,9 +25,11 @@ import java.nio.charset.StandardCharsets;
 public class SecurityConfig {
 
     private final TokenProvider tokenProvider;
+    private final TokenBlacklistService tokenBlacklistService;
 
-    public SecurityConfig(TokenProvider tokenProvider) {
+    public SecurityConfig(TokenProvider tokenProvider, TokenBlacklistService tokenBlacklistService) {
         this.tokenProvider = tokenProvider;
+        this.tokenBlacklistService = tokenBlacklistService;
     }
 
     @Bean
@@ -56,7 +59,7 @@ public class SecurityConfig {
 
     @Bean
     public JwtAuthenticationFilter jwtAuthenticationFilter() {
-        return new JwtAuthenticationFilter(tokenProvider);
+        return new JwtAuthenticationFilter(tokenProvider, tokenBlacklistService);
     }
 
     @Bean

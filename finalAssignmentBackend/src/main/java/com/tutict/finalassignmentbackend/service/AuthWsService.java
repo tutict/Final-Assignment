@@ -2,6 +2,8 @@ package com.tutict.finalassignmentbackend.service;
 
 import com.tutict.finalassignmentbackend.config.login.jwt.TokenProvider;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
+import com.tutict.finalassignmentbackend.dto.request.RefreshRequest;
+import com.tutict.finalassignmentbackend.dto.response.TokenResponse;
 import com.tutict.finalassignmentbackend.entity.AuditLoginLog;
 import com.tutict.finalassignmentbackend.entity.SysRole;
 import com.tutict.finalassignmentbackend.entity.SysUser;
@@ -19,10 +21,11 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Locale;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -39,6 +42,8 @@ public class AuthWsService {
     private final SysRoleService sysRoleService;
     private final SysUserRoleService sysUserRoleService;
     private final PasswordEncoder passwordEncoder;
+    private final RefreshTokenService refreshTokenService;
+    private final TokenBlacklistService tokenBlacklistService;
 
     @Autowired
     public AuthWsService(TokenProvider tokenProvider,
@@ -46,13 +51,17 @@ public class AuthWsService {
                          SysUserService sysUserService,
                          SysRoleService sysRoleService,
                          SysUserRoleService sysUserRoleService,
-                         PasswordEncoder passwordEncoder) {
+                         PasswordEncoder passwordEncoder,
+                         RefreshTokenService refreshTokenService,
+                         TokenBlacklistService tokenBlacklistService) {
         this.tokenProvider = tokenProvider;
         this.auditLoginLogService = auditLoginLogService;
         this.sysUserService = sysUserService;
         this.sysRoleService = sysRoleService;
         this.sysUserRoleService = sysUserRoleService;
         this.passwordEncoder = passwordEncoder;
+        this.refreshTokenService = refreshTokenService;
+        this.tokenBlacklistService = tokenBlacklistService;
     }
 
     @CacheEvict(cacheNames = "AuthCache", allEntries = true)
@@ -64,29 +73,12 @@ public class AuthWsService {
         SysUser user = sysUserService.findByUsername(loginRequest.getUsername());
 
         if (user != null && authenticateUser(user, loginRequest.getPassword())) {
-            RoleAggregation aggregation = aggregateRoles(user.getUserId());
+            RoleAggregation aggregation = requireRoles(user, loginRequest.getUsername());
             List<String> roles = aggregation.getRoleNames();
-            if (roles.isEmpty()) {
-                logger.severe(() -> String.format("No roles found for user: %s", loginRequest.getUsername()));
-                recordFailedLogin(loginRequest.getUsername(), "NO_ROLES_ASSIGNED");
-                throw new RuntimeException("No roles assigned to user.");
-            }
             String rolesString = String.join(",", roles);
-            String roleCodesCsv = String.join(",", aggregation.getRoleCodes());
-            String roleTypesCsv = String.join(",", aggregation.getRoleTypes());
+            String jwtToken = issueAccessToken(user, aggregation, rolesString);
+            String refreshToken = refreshTokenService.createRefreshToken(user.getUserId());
             String dataScopeCode = aggregation.getDataScope().getCode();
-
-            boolean claimsSupported = StringUtils.hasText(roleCodesCsv)
-                    && StringUtils.hasText(roleTypesCsv)
-                    && tokenProvider.validateRoleClaims(roleCodesCsv, roleTypesCsv, dataScopeCode);
-
-            String jwtToken;
-            if (claimsSupported) {
-                jwtToken = tokenProvider.createEnhancedToken(user.getUsername(), roleCodesCsv, roleTypesCsv, dataScopeCode);
-            } else {
-                logger.warning(() -> String.format("角色声明不完整, 回退使用基础 token, user=%s", user.getUsername()));
-                jwtToken = tokenProvider.createToken(user.getUsername(), rolesString);
-            }
 
             boolean systemRole = tokenProvider.hasSystemRole(jwtToken);
             boolean businessRole = tokenProvider.hasBusinessRole(jwtToken);
@@ -94,17 +86,23 @@ public class AuthWsService {
 
             logger.info(() -> String.format("User authenticated successfully (WS): %s with roles: %s",
                     loginRequest.getUsername(), rolesString));
-            return Map.of(
-                    "jwtToken", jwtToken,
-                    "username", user.getUsername(),
-                    "roles", roles,
-                    "roleCodes", aggregation.getRoleCodes(),
-                    "roleTypes", aggregation.getRoleTypes(),
-                    "dataScope", dataScopeCode,
-                    "systemRole", systemRole,
-                    "businessRole", businessRole,
-                    "departmentScope", hasDepartmentScope
-            );
+
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("jwtToken", jwtToken);
+            result.put("accessToken", jwtToken);
+            result.put("refreshToken", refreshToken);
+            result.put("tokenType", "Bearer");
+            result.put("expiresIn", tokenProvider.getAccessTokenExpirationSeconds());
+            result.put("refreshTokenExpiresIn", refreshTokenService.getRefreshTokenExpirationSeconds());
+            result.put("username", user.getUsername());
+            result.put("roles", roles);
+            result.put("roleCodes", aggregation.getRoleCodes());
+            result.put("roleTypes", aggregation.getRoleTypes());
+            result.put("dataScope", dataScopeCode);
+            result.put("systemRole", systemRole);
+            result.put("businessRole", businessRole);
+            result.put("departmentScope", hasDepartmentScope);
+            return result;
         }
 
         logger.severe(() -> String.format("Authentication failed (WS) for user: %s", loginRequest.getUsername()));
@@ -113,15 +111,54 @@ public class AuthWsService {
     }
 
     @Transactional
+    public TokenResponse refresh(RefreshRequest request) {
+        if (request == null || !StringUtils.hasText(request.getRefreshToken())) {
+            throw new BadCredentialsException("Refresh token is required");
+        }
+        Long userId = refreshTokenService.validateRefreshToken(request.getRefreshToken());
+        SysUser user = sysUserService.findById(userId);
+        if (user == null) {
+            throw new BadCredentialsException("Refresh token user no longer exists");
+        }
+
+        RoleAggregation aggregation = requireRoles(user, user.getUsername());
+        String accessToken = issueAccessToken(user, aggregation, String.join(",", aggregation.getRoleNames()));
+        String newRefreshToken = refreshTokenService.rotateRefreshToken(userId, request.getRefreshToken());
+
+        return TokenResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(newRefreshToken)
+                .expiresIn(tokenProvider.getAccessTokenExpirationSeconds())
+                .tokenType("Bearer")
+                .build();
+    }
+
+    @Transactional
+    public void logout(String username, String bearerToken) {
+        if (!StringUtils.hasText(username)) {
+            throw new BadCredentialsException("Authenticated user is required");
+        }
+        SysUser user = sysUserService.findByUsername(username);
+        if (user == null) {
+            throw new BadCredentialsException("Authenticated user no longer exists");
+        }
+
+        refreshTokenService.revokeUserTokens(user.getUserId());
+
+        String token = extractBearerToken(bearerToken);
+        long remaining = tokenProvider.getExpirationMs(token);
+        tokenBlacklistService.blacklist(token, remaining);
+    }
+
+    @Transactional
     @CacheEvict(cacheNames = {"AuthCache", "usernameExistsCache"}, allEntries = true)
     @WsAction(service = "AuthWsService", action = "registerUser")
     public String registerUser(RegisterRequest registerRequest) {
         validateRegisterRequest(registerRequest);
-        logger.info(() -> String.format("尝试注册用户: %s", registerRequest.getUsername()));
+        logger.info(() -> String.format("Registering user: %s", registerRequest.getUsername()));
 
         if (sysUserService.isUsernameExists(registerRequest.getUsername())) {
-            logger.severe(() -> String.format("用户名已存在: %s", registerRequest.getUsername()));
-            throw new RuntimeException("用户名已存在: " + registerRequest.getUsername());
+            throw new RuntimeException("Username already exists: " + registerRequest.getUsername());
         }
 
         String idempotencyKey = registerRequest.getIdempotencyKey();
@@ -131,8 +168,8 @@ public class AuthWsService {
             try {
                 sysUserService.checkAndInsertIdempotency(idempotencyKey, probe, "create");
             } catch (RuntimeException e) {
-                logger.log(Level.WARNING, "幂等性检查失败 {0}, 错误: {1}", new Object[]{idempotencyKey, e.getMessage()});
-                throw new RuntimeException("注册失败: 重复请求", e);
+                logger.log(Level.WARNING, "Duplicate register request detected, key={0}", idempotencyKey);
+                throw new RuntimeException("Register request duplicated", e);
             }
         }
 
@@ -144,18 +181,16 @@ public class AuthWsService {
         newUser.setCreatedAt(LocalDateTime.now());
         newUser.setUpdatedAt(LocalDateTime.now());
         sysUserService.createSysUser(newUser);
-        logger.info(() -> String.format("用户创建成功: %s", registerRequest.getUsername()));
 
         SysUser savedUser = sysUserService.findByUsername(registerRequest.getUsername());
         if (savedUser == null) {
-            logger.warning(() -> String.format("无法获取新建用户: %s", registerRequest.getUsername()));
-            throw new RuntimeException("用户创建失败，无法获取用户信息");
+            throw new RuntimeException("User registration failed: user was not persisted");
         }
 
         SysRole role = resolveOrCreateRole(registerRequest.getRole());
         assignRole(savedUser, role);
 
-        logger.info(() -> String.format("用户注册成功: %s", registerRequest.getUsername()));
+        logger.info(() -> String.format("User registered successfully: %s", registerRequest.getUsername()));
         return "CREATED";
     }
 
@@ -170,14 +205,45 @@ public class AuthWsService {
         return users;
     }
 
+    private RoleAggregation requireRoles(SysUser user, String usernameForLog) {
+        RoleAggregation aggregation = aggregateRoles(user.getUserId());
+        if (aggregation.getRoleNames().isEmpty()) {
+            logger.severe(() -> String.format("No roles found for user: %s", usernameForLog));
+            recordFailedLogin(usernameForLog, "NO_ROLES_ASSIGNED");
+            throw new RuntimeException("No roles assigned to user.");
+        }
+        return aggregation;
+    }
+
+    private String issueAccessToken(SysUser user, RoleAggregation aggregation, String rolesString) {
+        String roleCodesCsv = String.join(",", aggregation.getRoleCodes());
+        String roleTypesCsv = String.join(",", aggregation.getRoleTypes());
+        String dataScopeCode = aggregation.getDataScope().getCode();
+
+        boolean claimsSupported = StringUtils.hasText(roleCodesCsv)
+                && StringUtils.hasText(roleTypesCsv)
+                && tokenProvider.validateRoleClaims(roleCodesCsv, roleTypesCsv, dataScopeCode);
+
+        if (claimsSupported) {
+            return tokenProvider.createEnhancedToken(user.getUsername(), roleCodesCsv, roleTypesCsv, dataScopeCode);
+        }
+        logger.warning(() -> String.format("Falling back to basic JWT claims for user=%s", user.getUsername()));
+        return tokenProvider.createToken(user.getUsername(), rolesString);
+    }
+
+    private String extractBearerToken(String bearerToken) {
+        if (!StringUtils.hasText(bearerToken) || !bearerToken.startsWith("Bearer ")) {
+            throw new BadCredentialsException("Bearer access token is required");
+        }
+        return bearerToken.substring(7);
+    }
+
     private void validateLoginRequest(LoginRequest loginRequest) {
         Objects.requireNonNull(loginRequest, "Login request must not be null");
         if (!StringUtils.hasText(loginRequest.getUsername())) {
-            logger.severe("Authentication failed: username is null or empty");
             throw new RuntimeException("Invalid username");
         }
         if (!StringUtils.hasText(loginRequest.getPassword())) {
-            logger.severe("Authentication failed: password is null or empty");
             throw new RuntimeException("Invalid password");
         }
     }
@@ -185,10 +251,10 @@ public class AuthWsService {
     private void validateRegisterRequest(RegisterRequest registerRequest) {
         Objects.requireNonNull(registerRequest, "Register request must not be null");
         if (!StringUtils.hasText(registerRequest.getUsername())) {
-            throw new IllegalArgumentException("用户名不能为空");
+            throw new IllegalArgumentException("Username must not be blank");
         }
         if (!StringUtils.hasText(registerRequest.getPassword())) {
-            throw new IllegalArgumentException("密码不能为空");
+            throw new IllegalArgumentException("Password must not be blank");
         }
     }
 

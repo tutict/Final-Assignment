@@ -1,6 +1,8 @@
 package com.tutict.finalassignmentbackend.controller;
 
 import com.tutict.finalassignmentbackend.dto.mapper.UserResponseMapper;
+import com.tutict.finalassignmentbackend.dto.request.RefreshRequest;
+import com.tutict.finalassignmentbackend.dto.response.TokenResponse;
 import com.tutict.finalassignmentbackend.dto.response.UserResponse;
 import com.tutict.finalassignmentbackend.service.AuthWsService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -13,13 +15,16 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.security.PermitAll;
 import jakarta.annotation.security.RolesAllowed;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -147,6 +152,22 @@ public class AuthController {
                     return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                             .body(Map.of("error", "Internal server error"));
                 });
+    }
+
+    @PostMapping("/refresh")
+    @PermitAll
+    public ResponseEntity<com.tutict.finalassignmentbackend.dto.response.ApiResponse<TokenResponse>> refresh(
+            @Valid @RequestBody RefreshRequest request) {
+        TokenResponse response = authWsService.refresh(request);
+        return ResponseEntity.ok(com.tutict.finalassignmentbackend.dto.response.ApiResponse.ok(response));
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<com.tutict.finalassignmentbackend.dto.response.ApiResponse<Void>> logout(
+            @RequestHeader("Authorization") String bearerToken,
+            @AuthenticationPrincipal String username) {
+        authWsService.logout(username, bearerToken);
+        return ResponseEntity.ok(com.tutict.finalassignmentbackend.dto.response.ApiResponse.ok(null));
     }
 
     @GetMapping("/users")

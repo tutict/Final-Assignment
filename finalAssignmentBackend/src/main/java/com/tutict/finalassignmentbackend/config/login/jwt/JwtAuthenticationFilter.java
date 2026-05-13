@@ -1,5 +1,10 @@
 package com.tutict.finalassignmentbackend.config.login.jwt;
 
+import com.tutict.finalassignmentbackend.service.TokenBlacklistService;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -7,11 +12,6 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
-
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
 import java.util.List;
@@ -22,9 +22,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final Logger logger = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
     private final TokenProvider tokenProvider;
+    private final TokenBlacklistService tokenBlacklistService;
 
-    public JwtAuthenticationFilter(TokenProvider tokenProvider) {
+    public JwtAuthenticationFilter(TokenProvider tokenProvider, TokenBlacklistService tokenBlacklistService) {
         this.tokenProvider = tokenProvider;
+        this.tokenBlacklistService = tokenBlacklistService;
     }
 
     @Override
@@ -32,6 +34,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
         String jwt = getJwtFromRequest(request);
         logger.debug("JWT present for request {}: {}", request.getRequestURI(), jwt != null);
+
+        if (jwt != null && tokenBlacklistService.isBlacklisted(jwt)) {
+            logger.warn("Rejected blacklisted JWT for request {}", request.getRequestURI());
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            return;
+        }
 
         if (jwt != null && tokenProvider.validateToken(jwt)) {
             String username = tokenProvider.getUsernameFromToken(jwt);

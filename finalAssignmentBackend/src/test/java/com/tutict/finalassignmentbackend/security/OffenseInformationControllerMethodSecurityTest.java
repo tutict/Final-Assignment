@@ -4,6 +4,7 @@ import com.tutict.finalassignmentbackend.config.SecurityConfig;
 import com.tutict.finalassignmentbackend.config.login.jwt.TokenProvider;
 import com.tutict.finalassignmentbackend.controller.OffenseInformationController;
 import com.tutict.finalassignmentbackend.service.OffenseRecordService;
+import com.tutict.finalassignmentbackend.service.TokenBlacklistService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -21,6 +22,7 @@ import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 
 import java.util.List;
 
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
@@ -28,7 +30,11 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringJUnitWebConfig(classes = OffenseInformationControllerMethodSecurityTest.TestConfig.class)
-@TestPropertySource(properties = "jwt.secret.key=MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=")
+@TestPropertySource(properties = {
+        "jwt.secret=0123456789abcdef0123456789abcdef",
+        "jwt.algorithm=HS256",
+        "jwt.access-token-expiration=3600"
+})
 class OffenseInformationControllerMethodSecurityTest {
 
     @Autowired
@@ -40,12 +46,16 @@ class OffenseInformationControllerMethodSecurityTest {
     @Autowired
     private OffenseRecordService offenseRecordService;
 
+    @Autowired
+    private TokenBlacklistService tokenBlacklistService;
+
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        reset(offenseRecordService);
+        reset(offenseRecordService, tokenBlacklistService);
         when(offenseRecordService.findAll()).thenReturn(List.of());
+        when(tokenBlacklistService.isBlacklisted(anyString())).thenReturn(false);
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
                 .apply(springSecurity())
                 .build();
@@ -84,6 +94,11 @@ class OffenseInformationControllerMethodSecurityTest {
         @Bean
         OffenseRecordService offenseRecordService() {
             return Mockito.mock(OffenseRecordService.class);
+        }
+
+        @Bean
+        TokenBlacklistService tokenBlacklistService() {
+            return Mockito.mock(TokenBlacklistService.class);
         }
 
         @Bean

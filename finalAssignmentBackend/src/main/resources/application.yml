@@ -41,3 +41,13 @@ rag:
     vector-weight: 0.6
     bm25-weight: 0.4
     min-score: 0.2
+
+jwt:
+  # Production must inject this through JWT_SECRET. TokenProvider refuses CHANGE_ME_IN_PRODUCTION.
+  secret: ${JWT_SECRET:CHANGE_ME_IN_PRODUCTION}
+  # HS256 is the local fallback. Use RS256 in production with JWT_PRIVATE_KEY and JWT_PUBLIC_KEY.
+  algorithm: ${JWT_ALGORITHM:HS256}
+  private-key: ${JWT_PRIVATE_KEY:}
+  public-key: ${JWT_PUBLIC_KEY:}
+  access-token-expiration: ${JWT_ACCESS_EXPIRATION:3600}
+  refresh-token-expiration: ${JWT_REFRESH_EXPIRATION:604800}
