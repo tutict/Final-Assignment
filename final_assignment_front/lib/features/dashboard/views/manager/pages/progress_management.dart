@@ -10,6 +10,7 @@ import 'package:final_assignment_front/utils/ui/ui_utils.dart' as ui;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
 
 class ProgressManagementPage extends StatelessWidget {
   const ProgressManagementPage({super.key});
@@ -158,7 +159,7 @@ class ProgressManagementPage extends StatelessWidget {
                                                   ),
                                                   onSelected: (value) {
                                                     if (value == 'edit') {
-                                                      Get.toNamed(
+                                                      NavigationHelper.toNamed(
                                                               Routes
                                                                   .progressDetailPage,
                                                               arguments: item)
@@ -274,7 +275,7 @@ class ProgressManagementPage extends StatelessWidget {
                                                   ],
                                                 )
                                               : null,
-                                          onTap: () => Get.toNamed(
+                                          onTap: () => NavigationHelper.toNamed(
                                                   Routes.progressDetailPage,
                                                   arguments: item)
                                               ?.then((result) {

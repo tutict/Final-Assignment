@@ -14,6 +14,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
 
 class ManagerDashboardController extends GetxController {
   final scaffoldKey = GlobalKey<ScaffoldState>();
@@ -291,7 +292,7 @@ class ManagerDashboardController extends GetxController {
   }
 
   void _redirectToLogin() {
-    Get.offAllNamed(Routes.login);
+    NavigationHelper.offAllNamed(Routes.login);
   }
 
   void updateScrollDirection(ScrollController scrollController) {

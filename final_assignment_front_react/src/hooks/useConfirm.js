@@ -23,6 +23,7 @@
  * - loading 只覆盖当前 Hook 实例的 action 执行过程，调用方应据此禁用确认按钮。
  */
 import { useState } from 'react';
+import { getErrorMessage } from '../utils/errorMessages.js';
 
 export function useConfirm(action, { onSuccess, onError } = {}) {
   const [loading, setLoading] = useState(false);
@@ -38,7 +39,7 @@ export function useConfirm(action, { onSuccess, onError } = {}) {
       if (onError) {
         onError(error);
       } else {
-        alert(`操作失败：${error?.message ?? '未知错误'}`);
+        alert(getErrorMessage(error));
       }
     } finally {
       setLoading(false);

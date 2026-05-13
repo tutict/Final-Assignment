@@ -10,6 +10,7 @@ import 'package:final_assignment_front/shared/dialogs/app_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
 
 class OnlineProcessingProgress extends StatelessWidget {
   const OnlineProcessingProgress({super.key});
@@ -156,7 +157,7 @@ class OnlineProcessingProgress extends StatelessWidget {
                                         ),
                                         onSelected: (value) {
                                           if (value == 'view') {
-                                            Get.toNamed(
+                                            NavigationHelper.toNamed(
                                                     Routes.progressDetailPage,
                                                     arguments: item)
                                                 ?.then((result) {
@@ -217,7 +218,7 @@ class OnlineProcessingProgress extends StatelessWidget {
                                           ),
                                         ],
                                       ),
-                                      onTap: () => Get.toNamed(
+                                      onTap: () => NavigationHelper.toNamed(
                                               Routes.progressDetailPage,
                                               arguments: item)
                                           ?.then((result) {

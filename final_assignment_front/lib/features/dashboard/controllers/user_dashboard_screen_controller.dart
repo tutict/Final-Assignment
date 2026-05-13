@@ -15,6 +15,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
 
 /// UserDashboardController 管理用户主页的主线控制器，包含主要的进入流程、数据处理和界面的控制。
 
@@ -158,7 +159,7 @@ class UserDashboardController extends GetxController {
   }
 
   void _redirectToLogin() {
-    Get.offAllNamed(Routes.login);
+    NavigationHelper.offAllNamed(Routes.login);
   }
 
   void _showErrorSnackBar(String message) {

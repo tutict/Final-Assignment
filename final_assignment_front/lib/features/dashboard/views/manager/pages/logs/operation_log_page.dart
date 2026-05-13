@@ -16,6 +16,7 @@ import 'package:intl/intl.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
+import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
 
 String generateIdempotencyKey() {
   return const Uuid().v4();
@@ -99,7 +100,7 @@ class _OperationLogPageState extends State<OperationLogPage> {
     setState(() => _isLoading = true);
     try {
       if (!await _validateJwtToken()) {
-        Get.offAllNamed(Routes.login);
+        NavigationHelper.offAllNamed(Routes.login);
         return;
       }
       await _checkUserRole();
@@ -118,7 +119,7 @@ class _OperationLogPageState extends State<OperationLogPage> {
   Future<void> _checkUserRole() async {
     try {
       if (!await _validateJwtToken()) {
-        Get.offAllNamed(Routes.login);
+        NavigationHelper.offAllNamed(Routes.login);
         return;
       }
       final prefs = await SharedPreferences.getInstance();
@@ -158,7 +159,7 @@ class _OperationLogPageState extends State<OperationLogPage> {
 
     try {
       if (!await _validateJwtToken()) {
-        Get.offAllNamed(Routes.login);
+        NavigationHelper.offAllNamed(Routes.login);
         return;
       }
       List<OperationLog> logs = [];
@@ -393,7 +394,7 @@ class _OperationLogPageState extends State<OperationLogPage> {
                 onPressed: () async {
                   if (formKey.currentState!.validate()) {
                     if (!await _validateJwtToken()) {
-                      Get.offAllNamed(Routes.login);
+                      NavigationHelper.offAllNamed(Routes.login);
                       return;
                     }
                     try {
@@ -533,7 +534,7 @@ class _OperationLogPageState extends State<OperationLogPage> {
                 onPressed: () async {
                   if (formKey.currentState!.validate()) {
                     if (!await _validateJwtToken()) {
-                      Get.offAllNamed(Routes.login);
+                      NavigationHelper.offAllNamed(Routes.login);
                       return;
                     }
                     try {
@@ -584,7 +585,7 @@ class _OperationLogPageState extends State<OperationLogPage> {
 
     if (confirmed == true) {
       if (!await _validateJwtToken()) {
-        Get.offAllNamed(Routes.login);
+        NavigationHelper.offAllNamed(Routes.login);
         return;
       }
       try {
@@ -839,7 +840,7 @@ class _OperationLogPageState extends State<OperationLogPage> {
                                     padding: const EdgeInsets.only(top: 20.0),
                                     child: ElevatedButton(
                                       onPressed: () =>
-                                          Get.offAllNamed(Routes.login),
+                                          NavigationHelper.offAllNamed(Routes.login),
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor:
                                             themeData.colorScheme.primary,

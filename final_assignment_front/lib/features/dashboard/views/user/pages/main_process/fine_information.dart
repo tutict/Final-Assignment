@@ -15,6 +15,7 @@ import 'package:get/get.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:developer' as developer;
+import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
 
 class FineInformationPage extends StatefulWidget {
   const FineInformationPage({super.key});
@@ -114,7 +115,7 @@ class _FineInformationPageState extends State<FineInformationPage> {
           await prefs.remove('jwtToken');
           await prefs.remove('refreshToken');
         }
-        Get.offAllNamed(Routes.login);
+        NavigationHelper.offAllNamed(Routes.login);
         return null;
       }
       final username = storedUsername?.isNotEmpty == true

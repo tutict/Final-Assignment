@@ -4,6 +4,7 @@ import DataTable from '../../components/DataTable.jsx';
 import ErrorStateView from '../../components/ErrorStateView.jsx';
 import { useSystemLogs } from '../../hooks/useSystemLogs.js';
 import { buildColumns } from '../../utils/buildColumns.js';
+import { getErrorMessage } from '../../utils/errorMessages.js';
 
 const loginLogFields = [
   { key: 'username', label: '用户名' },
@@ -28,18 +29,21 @@ export default function SystemLogPage() {
     data: overviewData,
     isLoading: overviewLoading,
     isError: overviewError,
+    error: overviewQueryError,
     refetch: refetchOverview,
   } = overview;
   const {
     data: loginLogRows,
     isLoading: loginLogsLoading,
     isError: loginLogsError,
+    error: loginLogsQueryError,
     refetch: refetchLoginLogs,
   } = loginLogs;
   const {
     data: operationLogRows,
     isLoading: operationLogsLoading,
     isError: operationLogsError,
+    error: operationLogsQueryError,
     refetch: refetchOperationLogs,
   } = operationLogs;
 
@@ -47,7 +51,7 @@ export default function SystemLogPage() {
     <PageLayout title="系统日志" subtitle="系统运行概览与近期审计">
       {overviewError ? (
         <ErrorStateView
-          message="系统日志统计加载失败"
+          message={getErrorMessage(overviewQueryError)}
           onRetry={refetchOverview}
         />
       ) : null}
@@ -73,7 +77,7 @@ export default function SystemLogPage() {
         <h3>近期登录日志</h3>
         {loginLogsError ? (
           <ErrorStateView
-            message="登录日志加载失败"
+            message={getErrorMessage(loginLogsQueryError)}
             onRetry={refetchLoginLogs}
           />
         ) : null}
@@ -87,7 +91,7 @@ export default function SystemLogPage() {
         <h3>近期操作日志</h3>
         {operationLogsError ? (
           <ErrorStateView
-            message="操作日志加载失败"
+            message={getErrorMessage(operationLogsQueryError)}
             onRetry={refetchOperationLogs}
           />
         ) : null}

@@ -17,6 +17,7 @@ import 'package:intl/intl.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
+import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
 
 String formatDateTime(DateTime? dateTime) {
   if (dateTime == null) return '未提供';
@@ -110,7 +111,7 @@ class _SystemLogPageState extends State<SystemLogPage> {
     });
     try {
       if (!await _validateJwtToken()) {
-        Get.offAllNamed(Routes.login);
+        NavigationHelper.offAllNamed(Routes.login);
         return;
       }
       await logApi.initializeWithJwt();
@@ -161,7 +162,7 @@ class _SystemLogPageState extends State<SystemLogPage> {
     }
     try {
       if (!await _validateJwtToken()) {
-        Get.offAllNamed(Routes.login);
+        NavigationHelper.offAllNamed(Routes.login);
         return;
       }
       await logApi.initializeWithJwt();
@@ -527,7 +528,7 @@ class _SystemLogPageState extends State<SystemLogPage> {
             ),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: () => Get.offAllNamed(Routes.login),
+              onPressed: () => NavigationHelper.offAllNamed(Routes.login),
               style: ElevatedButton.styleFrom(
                 backgroundColor: themeData.colorScheme.primary,
                 foregroundColor: themeData.colorScheme.onPrimary,

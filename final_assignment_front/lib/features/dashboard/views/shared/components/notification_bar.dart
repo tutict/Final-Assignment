@@ -4,6 +4,7 @@ import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/constants/app_constants.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
 
 // 数据模型，包含通知栏的配置信息，支持 const 构造函数
 class NotificationBarData {
@@ -24,7 +25,7 @@ class NotificationBarData {
 void navigateToPage(String routeName) {
   developer.log('Navigating to route: $routeName');
   try {
-    Get.toNamed(routeName);
+    NavigationHelper.toNamed(routeName);
   } catch (e) {
     developer.log('Navigation error: $e', stackTrace: StackTrace.current);
     Get.snackbar('错误', '无法导航到目标页面，请重试');

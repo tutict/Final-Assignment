@@ -14,6 +14,7 @@ import {
   updateEntity,
 } from '../../api/entities.js';
 import { buildColumns } from '../../utils/buildColumns.js';
+import { getErrorMessage } from '../../utils/errorMessages.js';
 import { humanizeKey, normalizeText } from '../../utils/format.js';
 
 function normalizeFields(config, allowedNames) {
@@ -149,11 +150,7 @@ export default function CrudPage({ config }) {
     {
       onSuccess: handleCloseModal,
       onError: (error) => {
-        setFormError(
-          error?.response?.data?.message ??
-            error?.message ??
-            '保存失败，请稍后重试'
-        );
+        setFormError(getErrorMessage(error));
       },
     }
   );
@@ -201,7 +198,7 @@ export default function CrudPage({ config }) {
         actions={search !== deferredSearch ? <span className="search-hint">筛选中...</span> : null}
       />
       {isLoading ? <div className="placeholder">加载中...</div> : null}
-      {error ? <div className="form-error">加载失败，请检查后端服务。</div> : null}
+      {error ? <div className="form-error">{getErrorMessage(error)}</div> : null}
       <DataTable
         columns={columns}
         rows={filteredRows}

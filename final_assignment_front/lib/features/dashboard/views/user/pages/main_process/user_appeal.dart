@@ -21,6 +21,7 @@ import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/user_dashboard_screen_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'dart:developer' as developer;
+import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
 
 String generateIdempotencyKey() {
   return DateTime.now().millisecondsSinceEpoch.toString();
@@ -154,7 +155,7 @@ class _UserAppealPageState extends State<UserAppealPage> {
           await prefs.remove('jwtToken');
           await prefs.remove('refreshToken');
         }
-        Get.offAllNamed(Routes.login);
+        NavigationHelper.offAllNamed(Routes.login);
         return null;
       }
       final username = storedUsername?.isNotEmpty == true
@@ -1139,7 +1140,7 @@ class _UserAppealDetailPageState extends State<UserAppealDetailPage> {
                                             ),
                                             trailing: const Icon(
                                                 Icons.arrow_forward_ios),
-                                            onTap: () => Get.toNamed(
+                                            onTap: () => NavigationHelper.toNamed(
                                                 '/progressDetail',
                                                 arguments: item),
                                           ))

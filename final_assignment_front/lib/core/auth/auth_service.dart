@@ -8,6 +8,7 @@ import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
 
 class AuthenticatedUser {
   const AuthenticatedUser({
@@ -199,7 +200,7 @@ class AuthService extends GetxService {
 
     for (var i = 0; i < 50; i++) {
       if (Get.context != null && Get.currentRoute != Routes.login) {
-        Get.offAllNamed(Routes.login);
+        NavigationHelper.offAllNamed(Routes.login);
         break;
       }
       await Future<void>.delayed(const Duration(milliseconds: 100));

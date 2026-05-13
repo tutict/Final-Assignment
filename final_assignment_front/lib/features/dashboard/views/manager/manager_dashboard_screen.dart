@@ -28,6 +28,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
 
 part 'components/header.dart';
 
@@ -370,7 +371,7 @@ class DashboardScreen extends GetView<ManagerDashboardController> {
       padding: const EdgeInsets.symmetric(horizontal: kSpacing),
       child: ActiveProjectCard(
         onPressedSeeAll: () {
-          Get.toNamed(Routes.offenseScreen);
+          NavigationHelper.toNamed(Routes.offenseScreen);
         },
         child: Container(
           height: gridHeight,

@@ -2,6 +2,7 @@
 class Routes {
   /// 首页路由
   static const dashboard = RoutePaths.dashboard;
+  static const home = RoutePaths.dashboard;
 
   /// 登录页面路由
   static const login = RoutePaths.login;

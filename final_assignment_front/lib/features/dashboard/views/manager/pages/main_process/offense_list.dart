@@ -18,6 +18,7 @@ import 'package:http/http.dart' as http;
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
+import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
 
 // Utility methods for validation
 bool isValidLicensePlate(String value) {
@@ -148,7 +149,7 @@ class _OffenseListPageState extends State<OffenseList> {
   Future<void> _checkUserRole() async {
     try {
       if (!await _validateJwtToken()) {
-        Get.offAllNamed(Routes.login);
+        NavigationHelper.offAllNamed(Routes.login);
         return;
       }
       final jwtToken = (await AuthTokenStore.instance.getJwtToken())!;

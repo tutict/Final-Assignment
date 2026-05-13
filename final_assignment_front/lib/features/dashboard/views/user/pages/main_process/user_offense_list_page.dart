@@ -17,6 +17,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
 
 String generateIdempotencyKey() {
   return DateTime.now().millisecondsSinceEpoch.toString();
@@ -132,7 +133,7 @@ class _UserOffenseListPageState extends State<UserOffenseListPage> {
           await prefs.remove('jwtToken');
           await prefs.remove('refreshToken');
         }
-        Get.offAllNamed(Routes.login);
+        NavigationHelper.offAllNamed(Routes.login);
         return null;
       }
       final username = storedUsername?.isNotEmpty == true
@@ -179,12 +180,12 @@ class _UserOffenseListPageState extends State<UserOffenseListPage> {
     setState(() => _isLoading = true);
     try {
       if (!await _validateJwtToken()) {
-        Get.offAllNamed(Routes.login);
+        NavigationHelper.offAllNamed(Routes.login);
         return;
       }
       if (_driverName.isEmpty) {
         setState(() => _errorMessage = '无法获取司机姓名，请重新登录');
-        Get.offAllNamed(Routes.login);
+        NavigationHelper.offAllNamed(Routes.login);
         return;
       }
       await offenseApi.initializeWithJwt();
@@ -215,7 +216,7 @@ class _UserOffenseListPageState extends State<UserOffenseListPage> {
 
     try {
       if (!await _validateJwtToken()) {
-        Get.offAllNamed(Routes.login);
+        NavigationHelper.offAllNamed(Routes.login);
         return;
       }
       final offenses = _searchController.text.isNotEmpty
@@ -435,7 +436,7 @@ class _UserOffenseListPageState extends State<UserOffenseListPage> {
                 Padding(
                   padding: const EdgeInsets.only(top: 16.0),
                   child: ElevatedButton(
-                    onPressed: () => Get.offAllNamed(Routes.login),
+                    onPressed: () => NavigationHelper.offAllNamed(Routes.login),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: themeData.colorScheme.primary,
                       foregroundColor: themeData.colorScheme.onPrimary,
@@ -504,7 +505,7 @@ class _UserOffenseListPageState extends State<UserOffenseListPage> {
                                             const EdgeInsets.only(top: 16.0),
                                         child: ElevatedButton(
                                           onPressed: () =>
-                                              Get.offAllNamed(Routes.login),
+                                              NavigationHelper.offAllNamed(Routes.login),
                                           style: ElevatedButton.styleFrom(
                                             backgroundColor:
                                                 themeData.colorScheme.primary,

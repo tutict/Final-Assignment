@@ -5,6 +5,7 @@ import 'package:final_assignment_front/features/dashboard/controllers/chat_contr
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
+import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
 
 class ManagerSettingPage extends StatefulWidget {
   const ManagerSettingPage({super.key});
@@ -38,7 +39,7 @@ class _ManageSettingPage extends State<ManagerSettingPage> {
       final chatController = Get.find<ChatController>();
       chatController.clearMessages();
     }
-    Get.offAllNamed(Routes.login);
+    NavigationHelper.offAllNamed(Routes.login);
   }
 
   void _saveSettings() {

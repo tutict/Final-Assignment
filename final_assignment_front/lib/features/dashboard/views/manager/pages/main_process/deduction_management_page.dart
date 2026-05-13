@@ -15,6 +15,7 @@ import 'package:intl/intl.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
+import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
 
 class DeductionManagementPage extends StatefulWidget {
   const DeductionManagementPage({super.key});
@@ -89,7 +90,7 @@ class _DeductionManagementState extends State<DeductionManagementPage> {
     setState(() => _isLoading = true);
     try {
       if (!await _validateJwtToken()) {
-        Get.offAllNamed(Routes.login);
+        NavigationHelper.offAllNamed(Routes.login);
         return;
       }
       await deductionApi.initializeWithJwt();
@@ -128,7 +129,7 @@ class _DeductionManagementState extends State<DeductionManagementPage> {
 
     try {
       if (!await _validateJwtToken()) {
-        Get.offAllNamed(Routes.login);
+        NavigationHelper.offAllNamed(Routes.login);
         return;
       }
       List<DeductionRecordModel> deductions = [];
@@ -325,7 +326,7 @@ class _DeductionManagementState extends State<DeductionManagementPage> {
             Padding(
               padding: const EdgeInsets.only(top: 16.0),
               child: ElevatedButton(
-                onPressed: () => Get.offAllNamed(Routes.login),
+                onPressed: () => NavigationHelper.offAllNamed(Routes.login),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: themeData.colorScheme.primary,
                   foregroundColor: themeData.colorScheme.onPrimary,
@@ -735,7 +736,7 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
     setState(() => _isLoading = true);
     try {
       if (!await _validateJwtToken()) {
-        Get.offAllNamed(Routes.login);
+        NavigationHelper.offAllNamed(Routes.login);
         return;
       }
       await deductionApi.initializeWithJwt();
@@ -761,7 +762,7 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
   Future<void> _fetchOffenseSuggestions() async {
     try {
       if (!await _validateJwtToken()) {
-        Get.offAllNamed(Routes.login);
+        NavigationHelper.offAllNamed(Routes.login);
         return;
       }
       final offenses = await offenseApi.listOffenses();
@@ -809,7 +810,7 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
       return;
     }
     if (!await _validateJwtToken()) {
-      Get.offAllNamed(Routes.login);
+      NavigationHelper.offAllNamed(Routes.login);
       return;
     }
     setState(() => _isLoading = true);
@@ -1174,7 +1175,7 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
     setState(() => _isLoading = true);
     try {
       if (!await _validateJwtToken()) {
-        Get.offAllNamed(Routes.login);
+        NavigationHelper.offAllNamed(Routes.login);
         return;
       }
       await deductionApi.initializeWithJwt();
@@ -1200,7 +1201,7 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
   Future<void> _fetchOffenseSuggestions() async {
     try {
       if (!await _validateJwtToken()) {
-        Get.offAllNamed(Routes.login);
+        NavigationHelper.offAllNamed(Routes.login);
         return;
       }
       final offenses = await offenseApi.listOffenses();
@@ -1248,7 +1249,7 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
       return;
     }
     if (!await _validateJwtToken()) {
-      Get.offAllNamed(Routes.login);
+      NavigationHelper.offAllNamed(Routes.login);
       return;
     }
     setState(() => _isLoading = true);

@@ -22,6 +22,7 @@ import 'package:logging/logging.dart';
 
 import 'package:final_assignment_front/features/model/register_request.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
+import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
 
 String generateIdempotencyKey() => const Uuid().v4();
 
@@ -163,7 +164,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
     });
     try {
       if (!await _validateJwtToken()) {
-        Get.offAllNamed(Routes.login);
+        NavigationHelper.offAllNamed(Routes.login);
         return;
       }
       await userApi.initializeWithJwt();
@@ -231,7 +232,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
 
     try {
       if (!await _validateJwtToken()) {
-        Get.offAllNamed(Routes.login);
+        NavigationHelper.offAllNamed(Routes.login);
         return;
       }
       List<UserManagement> users = [];
@@ -322,7 +323,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
   Future<List<String>> _fetchAutocompleteSuggestions(String prefix) async {
     try {
       if (!await _validateJwtToken()) {
-        Get.offAllNamed(Routes.login);
+        NavigationHelper.offAllNamed(Routes.login);
         return [];
       }
       final lowerPrefix = prefix.toLowerCase();
@@ -613,7 +614,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                 onPressed: () async {
                   if (formKey.currentState!.validate()) {
                     if (!await _validateJwtToken()) {
-                      Get.offAllNamed(Routes.login);
+                      NavigationHelper.offAllNamed(Routes.login);
                       return;
                     }
                     final username = usernameController.text.trim();
@@ -819,7 +820,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                 onPressed: () async {
                   if (formKey.currentState!.validate()) {
                     if (!await _validateJwtToken()) {
-                      Get.offAllNamed(Routes.login);
+                      NavigationHelper.offAllNamed(Routes.login);
                       return;
                     }
                     final username = usernameController.text.trim();
@@ -888,7 +889,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
 
     if (confirmed == true) {
       if (!await _validateJwtToken()) {
-        Get.offAllNamed(Routes.login);
+        NavigationHelper.offAllNamed(Routes.login);
         return;
       }
       try {
@@ -1012,7 +1013,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                                     padding: const EdgeInsets.only(top: 20.0),
                                     child: ElevatedButton(
                                       onPressed: () =>
-                                          Get.offAllNamed(Routes.login),
+                                          NavigationHelper.offAllNamed(Routes.login),
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor:
                                             themeData.colorScheme.primary,

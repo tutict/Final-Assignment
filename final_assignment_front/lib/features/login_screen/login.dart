@@ -16,6 +16,7 @@ import 'package:flutter_login/flutter_login.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
+import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
 
 String generateIdempotencyKey() {
   return DateTime.now().millisecondsSinceEpoch.toString();
@@ -625,7 +626,7 @@ class _LoginScreenState extends State<LoginScreen>
                 recoverPasswordIntro: '重置密码',
               ),
               onSubmitAnimationCompleted: () {
-                Get.offAllNamed(_userRole == 'ADMIN'
+                NavigationHelper.offAllNamed(_userRole == 'ADMIN'
                     ? Routes.dashboard
                     : Routes.userDashboard);
               },

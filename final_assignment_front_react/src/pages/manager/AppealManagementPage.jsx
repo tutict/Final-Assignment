@@ -7,6 +7,7 @@ import { useAppealManagement } from '../../hooks/useAppealManagement.js';
 import { useConfirm } from '../../hooks/useConfirm.js';
 import { useModalState } from '../../hooks/useModalState.js';
 import { buildColumns } from '../../utils/buildColumns.js';
+import { getErrorMessage } from '../../utils/errorMessages.js';
 import { normalizeText } from '../../utils/format.js';
 import { canApprove, canReject } from '../../utils/workflowPermissions.js';
 import { getStatusLabel } from '../../utils/statusLabels.js';
@@ -31,7 +32,7 @@ export default function AppealManagementPage() {
     close,
   } = useModalState();
 
-  const { data, isLoading, isError, approve, reject, isUpdating } = useAppealManagement();
+  const { data, isLoading, isError, error, approve, reject, isUpdating } = useAppealManagement();
 
   const handleCloseDetail = () => {
     setRejectReason('');
@@ -70,11 +71,7 @@ export default function AppealManagementPage() {
     {
       onSuccess: handleCloseDetail,
       onError: (error) => {
-        setActionError(
-          error?.response?.data?.message ??
-            error?.message ??
-            '审批失败，请重试'
-        );
+        setActionError(getErrorMessage(error));
       },
     }
   );
@@ -88,11 +85,7 @@ export default function AppealManagementPage() {
     {
       onSuccess: handleCloseDetail,
       onError: (error) => {
-        setActionError(
-          error?.response?.data?.message ??
-            error?.message ??
-            '驳回失败，请重试'
-        );
+        setActionError(getErrorMessage(error));
       },
     }
   );
@@ -103,7 +96,7 @@ export default function AppealManagementPage() {
     <PageLayout title="申诉管理" subtitle="申诉审核与处理结果确认">
       <SearchBar value={search} onChange={setSearch} placeholder="搜索申诉原因/申诉人/处理状态" />
       {isLoading ? <div className="placeholder">加载中...</div> : null}
-      {isError ? <div className="form-error">加载失败，请检查后端服务。</div> : null}
+      {isError ? <div className="form-error">{getErrorMessage(error)}</div> : null}
       <DataTable
         columns={columns}
         rows={filteredRows}

@@ -15,6 +15,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
+import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
 
 String generateIdempotencyKey() {
   return DateTime.now().millisecondsSinceEpoch.toString();
@@ -235,7 +236,7 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
     if (Get.isRegistered<ChatController>()) {
       Get.find<ChatController>().clearMessages();
     }
-    Get.offAllNamed(Routes.login);
+    NavigationHelper.offAllNamed(Routes.login);
   }
 
   String _formatErrorMessage(dynamic error) {

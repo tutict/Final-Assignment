@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:get/Get.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
+import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
 
 class SettingPage extends StatefulWidget {
   const SettingPage({super.key});
@@ -58,7 +59,7 @@ class _SettingPageState extends State<SettingPage> {
       final chatController = Get.find<ChatController>();
       chatController.clearMessages();
     }
-    Get.offAllNamed(Routes.login);
+    NavigationHelper.offAllNamed(Routes.login);
   }
 
   void _showSuccessDialog(String message) {

@@ -22,6 +22,7 @@ import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
+import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
 
 String generateIdempotencyKey() {
   return const Uuid().v4();
@@ -146,7 +147,7 @@ class _AppealManagementAdminState extends State<ManagerAppealManagementPage> {
     setState(() => _isLoading = true);
     try {
       if (!await _validateJwtToken()) {
-        Get.offAllNamed(Routes.login);
+        NavigationHelper.offAllNamed(Routes.login);
         return;
       }
       await appealApi.initializeWithJwt();
@@ -169,7 +170,7 @@ class _AppealManagementAdminState extends State<ManagerAppealManagementPage> {
   Future<void> _checkUserRole() async {
     try {
       if (!await _validateJwtToken()) {
-        Get.offAllNamed(Routes.login);
+        NavigationHelper.offAllNamed(Routes.login);
         return;
       }
       final jwtToken = (await AuthTokenStore.instance.getJwtToken())!;
@@ -268,7 +269,7 @@ class _AppealManagementAdminState extends State<ManagerAppealManagementPage> {
 
   Future<List<AppealRecordModel>> _fetchAllAppeals({int pageSize = 50}) async {
     if (!await _validateJwtToken()) {
-      Get.offAllNamed(Routes.login);
+      NavigationHelper.offAllNamed(Routes.login);
       return [];
     }
     await appealApi.initializeWithJwt();
@@ -610,7 +611,7 @@ class _AppealManagementAdminState extends State<ManagerAppealManagementPage> {
                                 onRetry: _errorMessage.contains('未授权') ||
                                         _errorMessage.contains('登录') ||
                                         _errorMessage.contains('权限不足')
-                                    ? () => Get.offAllNamed(Routes.login)
+                                    ? () => NavigationHelper.offAllNamed(Routes.login)
                                     : null,
                               ))
                         : _filteredAppeals.isEmpty
@@ -739,7 +740,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
     setState(() => _isLoading = true);
     try {
       if (!await _validateJwtToken()) {
-        Get.offAllNamed(Routes.login);
+        NavigationHelper.offAllNamed(Routes.login);
         return;
       }
       await appealApi.initializeWithJwt();
@@ -756,7 +757,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
   Future<void> _checkUserRole() async {
     try {
       if (!await _validateJwtToken()) {
-        Get.offAllNamed(Routes.login);
+        NavigationHelper.offAllNamed(Routes.login);
         return;
       }
       final jwtToken = (await AuthTokenStore.instance.getJwtToken())!;
@@ -832,7 +833,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
     AppealProcessEventType event,
   ) async {
     if (!await _validateJwtToken()) {
-      Get.offAllNamed(Routes.login);
+      NavigationHelper.offAllNamed(Routes.login);
       throw ApiException(401, '未授权');
     }
     final jwtToken = await AuthTokenStore.instance.getJwtToken();
@@ -1087,7 +1088,7 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
                       onRetry: _errorMessage.contains('未授权') ||
                               _errorMessage.contains('登录') ||
                               _errorMessage.contains('权限不足')
-                          ? () => Get.offAllNamed(Routes.login)
+                          ? () => NavigationHelper.offAllNamed(Routes.login)
                           : null,
                     )
                   : CupertinoScrollbar(
