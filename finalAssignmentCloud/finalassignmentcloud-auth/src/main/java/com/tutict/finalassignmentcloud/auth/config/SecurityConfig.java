@@ -7,9 +7,10 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
-
 
 @Configuration
 public class SecurityConfig {
@@ -23,13 +24,20 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(AbstractHttpConfigurer::disable) // 禁用 CSRF，因为使用 JWT 无状态认证
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // 无状态会话
+                .csrf(AbstractHttpConfigurer::disable)
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authz -> authz
-                        .requestMatchers("/api/auth/register", "/api/auth/login", "/api/ai/chat", "/api/ai/chat/actions", "/api/auth/refresh", "/api/users/me/password", "/actuator/health").permitAll() // 公开端点
-                        .anyRequest().authenticated()) // 其他所有请求需要认证
-                .addFilterBefore(jwtAuthenticationFilter(), AnonymousAuthenticationFilter.class); // JWT 过滤器在匿名过滤器之前
-
+                        .requestMatchers(
+                                "/api/auth/register",
+                                "/api/auth/login",
+                                "/api/ai/chat",
+                                "/api/ai/chat/actions",
+                                "/api/auth/refresh",
+                                "/api/users/me/password",
+                                "/actuator/health"
+                        ).permitAll()
+                        .anyRequest().authenticated())
+                .addFilterBefore(jwtAuthenticationFilter(), AnonymousAuthenticationFilter.class);
         return http.build();
     }
 
@@ -37,5 +45,9 @@ public class SecurityConfig {
     public JwtAuthenticationFilter jwtAuthenticationFilter() {
         return new JwtAuthenticationFilter(tokenProvider);
     }
-}
 
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder(12);
+    }
+}

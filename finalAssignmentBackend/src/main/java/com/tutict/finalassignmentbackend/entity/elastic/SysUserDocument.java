@@ -43,24 +43,6 @@ public class SysUserDocument implements Serializable {
                     @InnerField(suffix = "pinyin", type = FieldType.Text, analyzer = "pinyin_analyzer", searchAnalyzer = "pinyin_analyzer")
             }
     )
-    private String password;
-
-    @MultiField(
-            mainField = @Field(type = FieldType.Text, analyzer = "ik_max_word", searchAnalyzer = "ik_max_word"),
-            otherFields = {
-                    @InnerField(suffix = "keyword", type = FieldType.Keyword),
-                    @InnerField(suffix = "pinyin", type = FieldType.Text, analyzer = "pinyin_analyzer", searchAnalyzer = "pinyin_analyzer")
-            }
-    )
-    private String salt;
-
-    @MultiField(
-            mainField = @Field(type = FieldType.Text, analyzer = "ik_max_word", searchAnalyzer = "ik_max_word"),
-            otherFields = {
-                    @InnerField(suffix = "keyword", type = FieldType.Keyword),
-                    @InnerField(suffix = "pinyin", type = FieldType.Text, analyzer = "pinyin_analyzer", searchAnalyzer = "pinyin_analyzer")
-            }
-    )
     private String realName;
 
     @MultiField(
@@ -199,8 +181,6 @@ public class SysUserDocument implements Serializable {
         SysUserDocument doc = new SysUserDocument();
         doc.setUserId(entity.getUserId());
         doc.setUsername(entity.getUsername());
-        doc.setPassword(entity.getPassword());
-        doc.setSalt(entity.getSalt());
         doc.setRealName(entity.getRealName());
         doc.setIdCardNumber(entity.getIdCardNumber());
         doc.setGender(entity.getGender());
@@ -228,8 +208,6 @@ public class SysUserDocument implements Serializable {
         SysUser entity = new SysUser();
         entity.setUserId(this.userId);
         entity.setUsername(this.username);
-        entity.setPassword(this.password);
-        entity.setSalt(this.salt);
         entity.setRealName(this.realName);
         entity.setIdCardNumber(this.idCardNumber);
         entity.setGender(this.gender);

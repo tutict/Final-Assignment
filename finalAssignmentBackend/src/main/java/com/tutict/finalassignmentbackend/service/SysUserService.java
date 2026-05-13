@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -24,6 +25,7 @@ import java.time.format.DateTimeParseException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.regex.Pattern;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -34,24 +36,29 @@ public class SysUserService {
 
     private static final Logger LOG = Logger.getLogger(SysUserService.class.getName());
     private static final String CACHE_NAME = "sysUserCache";
+    private static final Pattern BCRYPT_PATTERN =
+            Pattern.compile("\\A\\$2[aby]\\$\\d{2}\\$[./A-Za-z0-9]{53}\\z");
 
     private final SysUserMapper sysUserMapper;
     private final SysRequestHistoryMapper sysRequestHistoryMapper;
     private final SysUserSearchRepository sysUserSearchRepository;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
+    private final PasswordEncoder passwordEncoder;
 
     @Autowired
     public SysUserService(SysUserMapper sysUserMapper,
                           SysRequestHistoryMapper sysRequestHistoryMapper,
                           SysUserSearchRepository sysUserSearchRepository,
                           KafkaTemplate<String, String> kafkaTemplate,
-                          ObjectMapper objectMapper) {
+                          ObjectMapper objectMapper,
+                          PasswordEncoder passwordEncoder) {
         this.sysUserMapper = sysUserMapper;
         this.sysRequestHistoryMapper = sysRequestHistoryMapper;
         this.sysUserSearchRepository = sysUserSearchRepository;
         this.kafkaTemplate = kafkaTemplate;
         this.objectMapper = objectMapper;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Transactional
@@ -72,6 +79,7 @@ public class SysUserService {
         history.setUpdatedAt(LocalDateTime.now());
         sysRequestHistoryMapper.insert(history);
 
+        encodePasswordIfNecessary(sysUser);
         sendKafkaMessage("sys_user_" + action, idempotencyKey, sysUser);
 
         history.setBusinessStatus("SUCCESS");
@@ -85,6 +93,7 @@ public class SysUserService {
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
     public SysUser createSysUser(SysUser sysUser) {
         validateSysUser(sysUser);
+        encodePasswordIfNecessary(sysUser);
         sysUserMapper.insert(sysUser);
         syncToIndexAfterCommit(sysUser);
         return sysUser;
@@ -95,6 +104,7 @@ public class SysUserService {
     public SysUser updateSysUser(SysUser sysUser) {
         validateSysUser(sysUser);
         requirePositive(sysUser.getUserId());
+        encodePasswordIfNecessary(sysUser);
         int rows = sysUserMapper.updateById(sysUser);
         if (rows == 0) {
             throw new IllegalStateException("SysUser not found for id=" + sysUser.getUserId());
@@ -447,6 +457,16 @@ public class SysUserService {
         }
         if (isBlank(sysUser.getStatus())) {
             sysUser.setStatus("Active");
+        }
+    }
+
+    private void encodePasswordIfNecessary(SysUser sysUser) {
+        if (sysUser == null || isBlank(sysUser.getPassword())) {
+            return;
+        }
+        if (!BCRYPT_PATTERN.matcher(sysUser.getPassword()).matches()) {
+            sysUser.setPassword(passwordEncoder.encode(sysUser.getPassword()));
+            sysUser.setSalt(null);
         }
     }
 

@@ -41,7 +41,10 @@ public class SysUser implements Serializable {
 
     /**
      * 密码盐值
+     *
+     * @deprecated BCrypt includes its own salt. This field is retained only for legacy data migration.
      */
+    @Deprecated
     @TableField("salt")
     private String salt;
 
@@ -166,4 +169,3 @@ public class SysUser implements Serializable {
     @TableField("remarks")
     private String remarks;
 }
-

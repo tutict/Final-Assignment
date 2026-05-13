@@ -15,6 +15,8 @@ import feign.FeignException;
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -39,16 +41,19 @@ public class AuthWsService {
     private final AuditLogClient auditLogClient;
     private final UserClient userClient;
     private final RoleClient roleClient;
+    private final PasswordEncoder passwordEncoder;
 
     @Autowired
     public AuthWsService(TokenProvider tokenProvider,
                          AuditLogClient auditLogClient,
                          UserClient userClient,
-                         RoleClient roleClient) {
+                         RoleClient roleClient,
+                         PasswordEncoder passwordEncoder) {
         this.tokenProvider = tokenProvider;
         this.auditLogClient = auditLogClient;
         this.userClient = userClient;
         this.roleClient = roleClient;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @CacheEvict(cacheNames = "AuthCache", allEntries = true)
@@ -106,7 +111,7 @@ public class AuthWsService {
 
         logger.severe(() -> String.format("Authentication failed (WS) for user: %s", loginRequest.getUsername()));
         recordFailedLogin(loginRequest.getUsername(), "INVALID_CREDENTIALS");
-        throw new RuntimeException("Invalid username or password.");
+        throw new BadCredentialsException("Invalid username or password.");
     }
 
     @Transactional
@@ -125,7 +130,8 @@ public class AuthWsService {
 
         SysUser newUser = new SysUser();
         newUser.setUsername(registerRequest.getUsername());
-        newUser.setPassword(registerRequest.getPassword()); // TODO: hash password
+        newUser.setPassword(passwordEncoder.encode(registerRequest.getPassword()));
+        newUser.setSalt(null);
         newUser.setStatus("Active");
         newUser.setCreatedAt(LocalDateTime.now());
         newUser.setUpdatedAt(LocalDateTime.now());
@@ -181,7 +187,7 @@ public class AuthWsService {
     }
 
     private boolean authenticateUser(SysUser user, String password) {
-        return Objects.equals(user.getPassword(), password);
+        return StringUtils.hasText(user.getPassword()) && passwordEncoder.matches(password, user.getPassword());
     }
 
     private SysRole resolveOrCreateRole(String requestedRole) {
