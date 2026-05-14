@@ -5,6 +5,7 @@ import com.tutict.finalassignmentbackend.model.ai.ChatActionResponse;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
@@ -45,7 +46,8 @@ public class ChatAgent {
             logger.warn("Parameter 'massage' has been deprecated, please use 'message' instead.");
         }
 
-        logger.info("AI chat request received. message={}, webSearch={}", userMessage, webSearch);
+        logger.info("AI chat request received. length={}, webSearch={}, traceId={}",
+                userMessage.length(), webSearch, MDC.get("traceId"));
 
         Prompt prompt = buildPrompt(userMessage, webSearch);
         return chatModel.stream(prompt);
@@ -57,7 +59,8 @@ public class ChatAgent {
             logger.warn("Parameter 'massage' has been deprecated, please use 'message' instead.");
         }
 
-        logger.info("AI chat actions request received. message={}, webSearch={}", userMessage, webSearch);
+        logger.info("AI chat actions request received. length={}, webSearch={}, traceId={}",
+                userMessage.length(), webSearch, MDC.get("traceId"));
 
         Prompt prompt = buildActionPrompt(userMessage, webSearch);
         ChatResponse response = callWithTimeout(prompt);

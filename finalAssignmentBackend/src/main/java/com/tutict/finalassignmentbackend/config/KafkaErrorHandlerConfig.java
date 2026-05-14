@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentbackend.config;
 
 import com.fasterxml.jackson.core.JsonParseException;
+import com.tutict.finalassignmentbackend.observability.TraceIdRecordInterceptor;
 import org.apache.kafka.common.TopicPartition;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -44,6 +45,7 @@ public class KafkaErrorHandlerConfig {
                 new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory);
         factory.setCommonErrorHandler(kafkaErrorHandler);
+        factory.setRecordInterceptor(new TraceIdRecordInterceptor());
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
         return factory;
     }

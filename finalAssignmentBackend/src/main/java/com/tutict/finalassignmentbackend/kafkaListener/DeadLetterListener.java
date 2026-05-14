@@ -14,15 +14,12 @@ public class DeadLetterListener {
     private static final Logger log = Logger.getLogger(DeadLetterListener.class.getName());
 
     @KafkaListener(topics = {
-            "offense-topic.DLT",
-            "payment-topic.DLT",
-            "appeal-topic.DLT",
-            "offense_record_create.DLT",
-            "offense_record_update.DLT",
-            "payment_record_create.DLT",
-            "payment_record_update.DLT",
-            "appeal_record_create.DLT",
-            "appeal_record_update.DLT"
+            "${kafka.topics.offense.create-dlt:offense_record_create.DLT}",
+            "${kafka.topics.offense.update-dlt:offense_record_update.DLT}",
+            "${kafka.topics.payment.create-dlt:payment_record_create.DLT}",
+            "${kafka.topics.payment.update-dlt:payment_record_update.DLT}",
+            "${kafka.topics.appeal.create-dlt:appeal_record_create.DLT}",
+            "${kafka.topics.appeal.update-dlt:appeal_record_update.DLT}"
     }, groupId = "deadLetterMonitorGroup")
     public void onDeadLetter(ConsumerRecord<String, String> record, Acknowledgment ack) {
         log.log(Level.SEVERE,

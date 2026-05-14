@@ -1,5 +1,8 @@
 package com.tutict.finalassignmentbackend.ai.provider;
 
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Metrics;
+import io.micrometer.core.instrument.Timer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -22,15 +25,24 @@ public class AiProviderRegistry {
 
     private final Map<String, AiProvider> providers;
     private final AiProviderProperties properties;
+    private final MeterRegistry meterRegistry;
     private final Map<String, AtomicInteger> failures = new ConcurrentHashMap<>();
     private final Map<String, CachedHealth> healthCache = new ConcurrentHashMap<>();
 
-    public AiProviderRegistry(List<AiProvider> providers, AiProviderProperties properties) {
+    public AiProviderRegistry(List<AiProvider> providers,
+                              AiProviderProperties properties) {
+        this(providers, properties, Metrics.globalRegistry);
+    }
+
+    public AiProviderRegistry(List<AiProvider> providers,
+                              AiProviderProperties properties,
+                              MeterRegistry meterRegistry) {
         this.providers = new LinkedHashMap<>();
         for (AiProvider provider : providers) {
             this.providers.put(normalize(provider.providerName()), provider);
         }
         this.properties = properties;
+        this.meterRegistry = meterRegistry;
     }
 
     public AiProvider lookup(String providerName) {
@@ -59,12 +71,19 @@ public class AiProviderRegistry {
         if (circuitOpen(primary)) {
             return fallback.complete(prompt, options).map(result -> withProvider(result, fallback.providerName()));
         }
+        Timer.Sample sample = Timer.start(meterRegistry);
         return primary.complete(prompt, options)
                 .timeout(options.timeout())
                 .retry(options.retryAttempts())
                 .map(result -> withProvider(result, primary.providerName()))
-                .doOnSuccess(ignored -> resetFailures(primary))
-                .doOnError(error -> recordFailure(primary, error))
+                .doOnSuccess(ignored -> {
+                    resetFailures(primary);
+                    recordAiRequest(sample, primary.providerName(), "complete", "success");
+                })
+                .doOnError(error -> {
+                    recordFailure(primary, error);
+                    recordAiRequest(sample, primary.providerName(), "complete", "error");
+                })
                 .onErrorResume(error -> fallback.complete(prompt, options)
                         .timeout(options.timeout())
                         .map(result -> withProvider(result, fallback.providerName())));
@@ -102,12 +121,19 @@ public class AiProviderRegistry {
         if (circuitOpen(primary)) {
             return fallbackStream(fallback, prompt, options, "circuit_open");
         }
+        Timer.Sample sample = Timer.start(meterRegistry);
         return primary.stream(prompt, options)
                 .timeout(options.streamingTimeout())
                 .retry(options.retryAttempts())
                 .map(token -> token.withMetadata("provider", primary.providerName()))
-                .doOnComplete(() -> resetFailures(primary))
-                .doOnError(error -> recordFailure(primary, error))
+                .doOnComplete(() -> {
+                    resetFailures(primary);
+                    recordAiRequest(sample, primary.providerName(), "stream", "success");
+                })
+                .doOnError(error -> {
+                    recordFailure(primary, error);
+                    recordAiRequest(sample, primary.providerName(), "stream", "error");
+                })
                 .onErrorResume(error -> fallbackStream(fallback, prompt, options, error.getClass().getSimpleName()));
     }
 
@@ -164,6 +190,15 @@ public class AiProviderRegistry {
         Map<String, Object> metadata = new LinkedHashMap<>(message.metadata());
         metadata.put("provider", providerName);
         return new AiMessage(message.text(), metadata);
+    }
+
+    private void recordAiRequest(Timer.Sample sample, String providerName, String mode, String status) {
+        sample.stop(meterRegistry.timer(
+                "ai.request",
+                "provider", providerName,
+                "mode", mode,
+                "status", status
+        ));
     }
 
     private record CachedHealth(ProviderHealth health, Instant createdAt) {

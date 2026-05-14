@@ -25,9 +25,12 @@ public class AIChatSearchService {
     private final GraalPyContext graalPyContext;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final long timeoutSeconds;
 
-    public AIChatSearchService(GraalPyContext context) {
+    public AIChatSearchService(GraalPyContext context,
+                               @org.springframework.beans.factory.annotation.Value("${ai.search.timeout-seconds:30}") long timeoutSeconds) {
         this.graalPyContext = context;
+        this.timeoutSeconds = timeoutSeconds;
         try {
             graalPyContext.eval(
                     """
@@ -94,7 +97,7 @@ public class AIChatSearchService {
         Future<Value> future = executor.submit(() -> graalPyContext.eval(pythonCode));
         Value pyResult;
         try {
-            pyResult = future.get(30, TimeUnit.SECONDS);
+            pyResult = future.get(timeoutSeconds, TimeUnit.SECONDS);
         } catch (TimeoutException e) {
             future.cancel(true);
             logger.error("GraalPy 执行超时，query='{}'", query, e);

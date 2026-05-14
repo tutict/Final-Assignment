@@ -38,7 +38,7 @@ public class OffenseRecordKafkaListener {
     }
 
     // 监听 Kafka 消息
-    @KafkaListener(topics = "offense_record_create", groupId = "offenseRecordGroup", concurrency = "3")
+    @KafkaListener(topics = "${kafka.topics.offense.create:offense_record_create}", groupId = "offenseRecordGroup", concurrency = "3")
     public void onOffenseRecordCreate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                       @Payload String message,
                                       Acknowledgment ack) {
@@ -48,7 +48,7 @@ public class OffenseRecordKafkaListener {
     }
 
     // 监听 Kafka 消息
-    @KafkaListener(topics = "offense_record_update", groupId = "offenseRecordGroup", concurrency = "3")
+    @KafkaListener(topics = "${kafka.topics.offense.update:offense_record_update}", groupId = "offenseRecordGroup", concurrency = "3")
     public void onOffenseRecordUpdate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                       @Payload String message,
                                       Acknowledgment ack) {

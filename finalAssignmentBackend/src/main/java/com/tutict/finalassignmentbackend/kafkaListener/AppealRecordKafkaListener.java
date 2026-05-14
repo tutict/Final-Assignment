@@ -32,7 +32,7 @@ public class AppealRecordKafkaListener {
     }
 
     // 监听 Kafka 消息
-    @KafkaListener(topics = "appeal_record_create", groupId = "appealRecordGroup", concurrency = "3")
+    @KafkaListener(topics = "${kafka.topics.appeal.create:appeal_record_create}", groupId = "appealRecordGroup", concurrency = "3")
     public void onAppealRecordCreate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                      @Payload String message,
                                       Acknowledgment ack) {
@@ -42,7 +42,7 @@ public class AppealRecordKafkaListener {
     }
 
     // 监听 Kafka 消息
-    @KafkaListener(topics = "appeal_record_update", groupId = "appealRecordGroup", concurrency = "3")
+    @KafkaListener(topics = "${kafka.topics.appeal.update:appeal_record_update}", groupId = "appealRecordGroup", concurrency = "3")
     public void onAppealRecordUpdate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                      @Payload String message,
                                       Acknowledgment ack) {

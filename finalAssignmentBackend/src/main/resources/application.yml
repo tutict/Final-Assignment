@@ -4,6 +4,8 @@ ai:
       enabled: false
     stream:
       keepalive: PT15S
+  search:
+    timeout-seconds: ${AI_SEARCH_TIMEOUT:30}
   provider:
     primary: mock
     fallback: noop
@@ -14,8 +16,8 @@ ai:
     health-cache-ttl: PT30S
   ollama:
     enabled: true
-    base-url: http://localhost:11434
-    chat-model: qwen3:8b
+    base-url: ${OLLAMA_URL:http://localhost:11434}
+    chat-model: ${OLLAMA_CHAT_MODEL:qwen3:8b}
   openai-compatible:
     enabled: false
     base-url: ""
@@ -58,6 +60,9 @@ cors:
     - ${FLUTTER_URL:http://localhost:8080}
 
 spring:
+  datasource:
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:root}
   kafka:
     producer:
       acks: all
@@ -65,3 +70,37 @@ spring:
       retries: 2147483647
       properties:
         max.in.flight.requests.per.connection: 5
+
+backend:
+  url: ${BACKEND_URL:http://localhost}
+
+kafka:
+  topics:
+    offense:
+      create: ${KAFKA_TOPIC_OFFENSE_CREATE:offense_record_create}
+      update: ${KAFKA_TOPIC_OFFENSE_UPDATE:offense_record_update}
+      create-dlt: ${KAFKA_TOPIC_OFFENSE_CREATE_DLT:offense_record_create.DLT}
+      update-dlt: ${KAFKA_TOPIC_OFFENSE_UPDATE_DLT:offense_record_update.DLT}
+    payment:
+      create: ${KAFKA_TOPIC_PAYMENT_CREATE:payment_record_create}
+      update: ${KAFKA_TOPIC_PAYMENT_UPDATE:payment_record_update}
+      create-dlt: ${KAFKA_TOPIC_PAYMENT_CREATE_DLT:payment_record_create.DLT}
+      update-dlt: ${KAFKA_TOPIC_PAYMENT_UPDATE_DLT:payment_record_update.DLT}
+    appeal:
+      create: ${KAFKA_TOPIC_APPEAL_CREATE:appeal_record_create}
+      update: ${KAFKA_TOPIC_APPEAL_UPDATE:appeal_record_update}
+      create-dlt: ${KAFKA_TOPIC_APPEAL_CREATE_DLT:appeal_record_create.DLT}
+      update-dlt: ${KAFKA_TOPIC_APPEAL_UPDATE_DLT:appeal_record_update.DLT}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] [%X{traceId}] %-5level %logger{36} - %msg%n"

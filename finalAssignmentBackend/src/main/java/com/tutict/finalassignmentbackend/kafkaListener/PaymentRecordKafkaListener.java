@@ -37,7 +37,7 @@ public class PaymentRecordKafkaListener {
     }
 
     // 监听 Kafka 消息
-    @KafkaListener(topics = "payment_record_create", groupId = "paymentRecordGroup", concurrency = "3")
+    @KafkaListener(topics = "${kafka.topics.payment.create:payment_record_create}", groupId = "paymentRecordGroup", concurrency = "3")
     public void onPaymentRecordCreate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                       @Payload String message,
                                       Acknowledgment ack) {
@@ -47,7 +47,7 @@ public class PaymentRecordKafkaListener {
     }
 
     // 监听 Kafka 消息
-    @KafkaListener(topics = "payment_record_update", groupId = "paymentRecordGroup", concurrency = "3")
+    @KafkaListener(topics = "${kafka.topics.payment.update:payment_record_update}", groupId = "paymentRecordGroup", concurrency = "3")
     public void onPaymentRecordUpdate(@Header(value = KafkaHeaders.RECEIVED_KEY, required = false) byte[] rawKey,
                                       @Payload String message,
                                       Acknowledgment ack) {
