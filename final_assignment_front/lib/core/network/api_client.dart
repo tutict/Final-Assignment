@@ -39,6 +39,7 @@ class ApiClient {
   WebSocketChannel? _wsChannel;
   Stream<dynamic>? _wsStream;
   String? _wsUrl;
+  static Completer<bool>? _refreshCompleter;
 
   static http.Client _createHttpClient() {
     final rawClient = client_factory.createHttpClient();
@@ -134,7 +135,8 @@ class ApiClient {
       Map<String, String> formParams,
       String? nullableContentType,
       List<String> authNames,
-      {Set<int> passThroughStatusCodes = const {}}) async {
+      {Set<int> passThroughStatusCodes = const {},
+      bool isRetry = false}) async {
     try {
       final normalizedMethod = method.toUpperCase();
       if (normalizedMethod == 'WS_CONNECT') {
@@ -182,6 +184,33 @@ class ApiClient {
         AppLogger.debug('Response: ${response.statusCode} - ${response.body}');
       }
 
+      if (response.statusCode == 401 &&
+          !isRetry &&
+          authNames.contains('bearerAuth') &&
+          !passThroughStatusCodes.contains(401)) {
+        final refreshed = await _safeRefreshToken();
+        if (refreshed) {
+          return invokeAPI(
+            path,
+            method,
+            queryParams,
+            body,
+            Map<String, String>.from(headerParams),
+            formParams,
+            nullableContentType,
+            authNames,
+            passThroughStatusCodes: passThroughStatusCodes,
+            isRetry: true,
+          );
+        }
+        await _clearSessionAndRedirect();
+        throw const AppException(
+          type: AppErrorType.unauthorized,
+          message: 'Login expired',
+          statusCode: 401,
+        );
+      }
+
       _throwIfErrorResponse(
         response,
         passThroughStatusCodes: passThroughStatusCodes,
@@ -218,6 +247,43 @@ class ApiClient {
     if (exception.type != AppErrorType.unauthorized) return;
     if (!Get.isRegistered<AuthService>()) return;
     await Get.find<AuthService>().handleUnauthorized();
+  }
+
+  Future<bool> _safeRefreshToken() async {
+    if (_refreshCompleter != null) {
+      return _refreshCompleter!.future;
+    }
+
+    _refreshCompleter = Completer<bool>();
+    try {
+      if (!Get.isRegistered<AuthService>()) {
+        _refreshCompleter!.complete(false);
+        return false;
+      }
+      final result = await Get.find<AuthService>().refreshJwtToken();
+      if (result) {
+        final token = await AuthTokenStore.instance.getJwtToken();
+        if (token != null && token.isNotEmpty) {
+          setJwtToken(token);
+        }
+      }
+      _refreshCompleter!.complete(result);
+      return result;
+    } catch (_) {
+      if (!_refreshCompleter!.isCompleted) {
+        _refreshCompleter!.complete(false);
+      }
+      return false;
+    } finally {
+      _refreshCompleter = null;
+    }
+  }
+
+  Future<void> _clearSessionAndRedirect() async {
+    if (!Get.isRegistered<AuthService>()) return;
+    final authService = Get.find<AuthService>();
+    await authService.clearTokens();
+    await authService.redirectToLogin(clearStoredTokens: false);
   }
 
   Future<void> _refreshJwtForAuth(List<String> authNames) async {

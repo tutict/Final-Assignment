@@ -89,6 +89,45 @@ class _LoginScreenState extends State<LoginScreen>
     return rolesFromJwt; // e.g., "USER" or "ADMIN"
   }
 
+  String? _stringValue(Object? value) {
+    if (value == null) return null;
+    final text = value.toString();
+    return text.isEmpty ? null : text;
+  }
+
+  Future<void> _saveLoginTokens(
+    Map<String, dynamic> result,
+    SharedPreferences prefs,
+    String accessToken,
+  ) async {
+    await AuthTokenStore.instance.setJwtToken(accessToken);
+
+    final refreshToken = _stringValue(result['refreshToken']);
+    if (refreshToken != null) {
+      await prefs.setString('refreshToken', refreshToken);
+      await prefs.setString('refresh_token', refreshToken);
+    }
+
+    final userData = result['user'];
+    final authUserId = result['authUserId'] ??
+        result['userId'] ??
+        (userData is Map ? userData['authUserId'] ?? userData['userId'] : null);
+    final driverId = result['driverId'] ??
+        (userData is Map ? userData['driverId'] : null);
+
+    if (authUserId != null) {
+      final value = authUserId.toString();
+      await prefs.setString('authUserId', value);
+      await prefs.setString('auth_user_id', value);
+      await prefs.setString('userId', value);
+    }
+    if (driverId != null) {
+      final value = driverId.toString();
+      await prefs.setString('driverId', value);
+      await prefs.setString('driver_id', value);
+    }
+  }
+
   Future<String?> _authUser(LoginData data) async {
     final username = data.name.trim();
     final password = data.password.trim();
@@ -98,12 +137,12 @@ class _LoginScreenState extends State<LoginScreen>
         loginRequest: LoginRequest(username: username, password: password),
       );
 
-      if (result.containsKey('jwtToken')) {
-        final jwtToken = result['jwtToken'];
-        final decodedJwt = _decodeJwt(jwtToken);
+      final accessToken = _stringValue(result['accessToken'] ?? result['jwtToken']);
+      if (accessToken != null) {
+        final decodedJwt = _decodeJwt(accessToken);
         _userRole = determineRole(decodedJwt['roles'] ?? 'USER');
         final prefs = await SharedPreferences.getInstance();
-        await AuthTokenStore.instance.setJwtToken(jwtToken);
+        await _saveLoginTokens(result, prefs, accessToken);
         await prefs.setString('userRole', _userRole!);
         await prefs.setString('userName', username);
 
@@ -185,10 +224,12 @@ class _LoginScreenState extends State<LoginScreen>
         await prefs.setString('userEmail', resolvedEmail);
         if (authUserId != null) {
           await prefs.setString('authUserId', authUserId.toString());
+          await prefs.setString('auth_user_id', authUserId.toString());
           await prefs.setString('userId', authUserId.toString());
         }
         if (driverId != null) {
           await prefs.setString('driverId', driverId.toString());
+          await prefs.setString('driver_id', driverId.toString());
         }
 
         AppLogger.debug(
@@ -237,12 +278,13 @@ class _LoginScreenState extends State<LoginScreen>
           loginRequest: LoginRequest(username: username, password: password),
         );
 
-        if (loginResult.containsKey('jwtToken')) {
-          final jwtToken = loginResult['jwtToken'];
-          final decodedJwt = _decodeJwt(jwtToken);
+        final accessToken =
+            _stringValue(loginResult['accessToken'] ?? loginResult['jwtToken']);
+        if (accessToken != null) {
+          final decodedJwt = _decodeJwt(accessToken);
           _userRole = determineRole(decodedJwt['roles'] ?? 'USER');
           final prefs = await SharedPreferences.getInstance();
-          await AuthTokenStore.instance.setJwtToken(jwtToken);
+          await _saveLoginTokens(loginResult, prefs, accessToken);
           await prefs.setString('userRole', _userRole!);
           await prefs.setString('userName', username);
 
@@ -276,9 +318,11 @@ class _LoginScreenState extends State<LoginScreen>
             await prefs.setString('userEmail', resolvedEmail);
             if (authUserId != null) {
               await prefs.setString('authUserId', authUserId.toString());
+              await prefs.setString('auth_user_id', authUserId.toString());
               await prefs.setString('userId', authUserId.toString());
             }
             await prefs.setString('driverId', driverId.toString());
+            await prefs.setString('driver_id', driverId.toString());
             AppLogger.debug('Driver created and fetched name: $driverName');
           }
 

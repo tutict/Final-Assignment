@@ -22,6 +22,7 @@ import 'package:final_assignment_front/features/dashboard/controllers/user_dashb
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
 import 'dart:developer' as developer;
 import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
+import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
 String generateIdempotencyKey() {
   return DateTime.now().millisecondsSinceEpoch.toString();
@@ -83,12 +84,19 @@ class _UserAppealPageState extends State<UserAppealPage> {
   }
 
   Future<void> _loadAppealsAndCheckRole() async {
-    setState(() => _isLoading = true);
+      setState(() => _isLoading = true);
     try {
       final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken');
+      String? jwtToken = await AuthTokenStore.instance.getJwtToken();
       if (jwtToken == null) {
         throw Exception('未登录，请重新登录');
+      }
+      if (JwtDecoder.isExpired(jwtToken)) {
+        final refreshed = await Get.find<AuthService>().refreshJwtToken();
+        jwtToken = await AuthTokenStore.instance.getJwtToken();
+        if (!refreshed || jwtToken == null || JwtDecoder.isExpired(jwtToken)) {
+          throw Exception('登录已过期，请重新登录');
+        }
       }
       await appealApi.initializeWithJwt();
       await driverApi.initializeWithJwt();

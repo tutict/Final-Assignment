@@ -1,8 +1,7 @@
-import 'dart:convert';
 import 'dart:developer' as developer;
 
 import 'package:final_assignment_front/config/routes/app_routes.dart';
-import 'package:final_assignment_front/core/config/app_config.dart';
+import 'package:final_assignment_front/core/auth/auth_service.dart';
 import 'package:final_assignment_front/features/api/system_logs_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
@@ -12,10 +11,8 @@ import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
 
@@ -65,12 +62,12 @@ class _SystemLogPageState extends State<SystemLogPage> {
     try {
       JwtDecoder.decode(jwtToken);
       if (JwtDecoder.isExpired(jwtToken)) {
-        jwtToken = await _refreshJwtToken();
-        if (jwtToken == null || JwtDecoder.isExpired(jwtToken)) {
+        final refreshed = await Get.find<AuthService>().refreshJwtToken();
+        jwtToken = await AuthTokenStore.instance.getJwtToken();
+        if (!refreshed || jwtToken == null || JwtDecoder.isExpired(jwtToken)) {
           setState(() => _errorMessage = '登录已过期，请重新登录');
           return false;
         }
-        await AuthTokenStore.instance.setJwtToken(jwtToken);
         await logApi.initializeWithJwt();
       }
       return true;
@@ -78,30 +75,6 @@ class _SystemLogPageState extends State<SystemLogPage> {
       setState(() => _errorMessage = '无效的登录信息，请重新登录');
       return false;
     }
-  }
-
-  Future<String?> _refreshJwtToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    final refreshToken = prefs.getString('refreshToken');
-    if (refreshToken == null) return null;
-    try {
-      final response = await http.post(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/auth/refresh'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'refreshToken': refreshToken}),
-      );
-      if (response.statusCode == 200) {
-        final newJwt = jsonDecode(response.body)['jwtToken'] as String?;
-        if (newJwt != null) {
-          await AuthTokenStore.instance.setJwtToken(newJwt);
-        }
-        return newJwt;
-      }
-    } catch (e) {
-      developer.log('Failed to refresh JWT token: $e',
-          stackTrace: StackTrace.current);
-    }
-    return null;
   }
 
   Future<void> _initialize() async {
@@ -180,7 +153,7 @@ class _SystemLogPageState extends State<SystemLogPage> {
           stackTrace: StackTrace.current);
       setState(() {
         if (e is ApiException && e.code == 403) {
-          _errorMessage = '未授权，请重新登录';
+          _errorMessage = '您没有权限查看系统日志';
         } else {
           _errorMessage = '加载系统日志失败: ${_formatErrorMessage(e)}';
         }

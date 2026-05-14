@@ -156,7 +156,7 @@ class LogController extends BaseListController<Object> {
         await action();
       },
       errorMessageBuilder: (error) => error is ApiException && error.code == 403
-          ? 'Unauthorized'
+          ? 'Forbidden'
           : error.toString(),
       onError: _handleError,
     );
@@ -180,7 +180,7 @@ class LogController extends BaseListController<Object> {
     );
 
     if (error is ApiException && error.code == 403) {
-      errorMessage.value = 'Unauthorized';
+      errorMessage.value = 'Forbidden';
       return;
     }
 

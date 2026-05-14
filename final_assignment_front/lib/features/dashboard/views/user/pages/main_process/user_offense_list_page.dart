@@ -18,6 +18,7 @@ import 'package:get/get.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
+import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
 String generateIdempotencyKey() {
   return DateTime.now().millisecondsSinceEpoch.toString();
@@ -76,21 +77,26 @@ class _UserOffenseListPageState extends State<UserOffenseListPage> {
 
   Future<bool> _validateJwtToken() async {
     final prefs = await SharedPreferences.getInstance();
-    String? jwtToken = prefs.getString('jwtToken');
+    String? jwtToken = await AuthTokenStore.instance.getJwtToken();
     if (jwtToken == null || jwtToken.isEmpty) {
       setState(() => _errorMessage = '未授权，请重新登录');
       return false;
     }
     try {
-      final decodedToken = JwtDecoder.decode(jwtToken);
+      var decodedToken = JwtDecoder.decode(jwtToken);
+      if (JwtDecoder.isExpired(jwtToken)) {
+        final refreshed = await Get.find<AuthService>().refreshJwtToken();
+        jwtToken = await AuthTokenStore.instance.getJwtToken();
+        if (!refreshed || jwtToken == null || JwtDecoder.isExpired(jwtToken)) {
+          setState(() => _errorMessage = '登录已过期，请重新登录');
+          return false;
+        }
+        decodedToken = JwtDecoder.decode(jwtToken);
+      }
       final roles = decodedToken['roles']?.toString().split(',') ?? [];
       _isUser = roles.contains('USER');
       if (!_isUser) {
         setState(() => _errorMessage = '权限不足：仅用户可访问此页面');
-        return false;
-      }
-      if (JwtDecoder.isExpired(jwtToken)) {
-        setState(() => _errorMessage = '登录已过期，请重新登录');
         return false;
       }
       await userApi.initializeWithJwt();
@@ -255,7 +261,7 @@ class _UserOffenseListPageState extends State<UserOffenseListPage> {
           _errorMessage = '未找到违法记录';
           _hasMore = false;
         } else if (e.toString().contains('403')) {
-          _errorMessage = '未授权，请重新登录';
+          _errorMessage = '您没有权限查看违法记录';
         } else {
           _errorMessage = '获取违法记录失败: ${_formatErrorMessage(e)}';
         }

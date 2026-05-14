@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
 
 import 'package:final_assignment_front/config/routes/app_routes.dart';
 import 'package:final_assignment_front/core/config/app_config.dart';
+import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
@@ -40,6 +42,7 @@ class AuthService extends GetxService {
   final http.Client _client;
   final Duration refreshSkew;
   bool _isRedirecting = false;
+  Completer<bool>? _refreshCompleter;
 
   Future<bool> ensureValidSession({bool redirectIfInvalid = false}) async {
     final token = await AuthTokenStore.instance.getJwtToken();
@@ -53,8 +56,11 @@ class AuthService extends GetxService {
     try {
       final decodedToken = JwtDecoder.decode(token);
       if (_shouldRefresh(token, decodedToken)) {
-        final refreshedToken = await refreshJwtToken();
-        if (refreshedToken == null || JwtDecoder.isExpired(refreshedToken)) {
+        final refreshed = await refreshJwtToken();
+        final refreshedToken = await AuthTokenStore.instance.getJwtToken();
+        if (!refreshed ||
+            refreshedToken == null ||
+            JwtDecoder.isExpired(refreshedToken)) {
           await clearTokens();
           if (redirectIfInvalid) {
             await redirectToLogin(clearStoredTokens: false);
@@ -114,12 +120,38 @@ class AuthService extends GetxService {
     }
   }
 
-  Future<String?> refreshJwtToken() async {
+  Future<bool> refreshJwtToken() async {
+    if (_refreshCompleter != null) {
+      return _refreshCompleter!.future;
+    }
+
+    _refreshCompleter = Completer<bool>();
+    try {
+      final result = await _refreshJwtTokenInternal();
+      _refreshCompleter!.complete(result);
+      return result;
+    } catch (error, stackTrace) {
+      if (!_refreshCompleter!.isCompleted) {
+        _refreshCompleter!.complete(false);
+      }
+      AppLogger.error(
+        'Token refresh failed',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      return false;
+    } finally {
+      _refreshCompleter = null;
+    }
+  }
+
+  Future<bool> _refreshJwtTokenInternal() async {
     final prefs = await SharedPreferences.getInstance();
-    final refreshToken = prefs.getString('refreshToken');
+    final refreshToken =
+        prefs.getString('refresh_token') ?? prefs.getString('refreshToken');
     if (refreshToken == null || refreshToken.isEmpty) {
       developer.log('No refresh token found');
-      return null;
+      return false;
     }
 
     try {
@@ -133,48 +165,42 @@ class AuthService extends GetxService {
 
       if (response.statusCode != 200 || response.body.isEmpty) {
         developer.log('JWT refresh failed: ${response.statusCode}');
-        return null;
+        return false;
       }
 
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      final newJwt = body['jwtToken']?.toString();
+      final data = body['success'] == true && body['data'] is Map
+          ? Map<String, dynamic>.from(body['data'] as Map)
+          : body;
+      final newJwt =
+          (data['accessToken'] ?? data['jwtToken'])?.toString();
       if (newJwt == null || newJwt.isEmpty) {
-        developer.log('JWT refresh response did not contain jwtToken');
-        return null;
+        developer.log('JWT refresh response did not contain accessToken');
+        return false;
       }
 
       await AuthTokenStore.instance.setJwtToken(newJwt);
-      final newRefreshToken = body['refreshToken']?.toString();
+      final newRefreshToken = data['refreshToken']?.toString();
       if (newRefreshToken != null && newRefreshToken.isNotEmpty) {
         await prefs.setString('refreshToken', newRefreshToken);
+        await prefs.setString('refresh_token', newRefreshToken);
       }
       developer.log('JWT token refreshed successfully');
-      return newJwt;
+      return true;
     } catch (error, stackTrace) {
       developer.log(
         'Error refreshing JWT token',
         error: error,
         stackTrace: stackTrace,
       );
-      return null;
+      return false;
     }
   }
 
   Future<void> handleForbidden({String? source}) async {
-    if (_isRedirecting || Get.currentRoute == Routes.login) {
-      return;
-    }
-
     developer.log(
-      'Handling 403${source == null ? '' : ' from $source'}',
+      'Forbidden${source == null ? '' : ' from $source'}',
     );
-    final refreshedToken = await refreshJwtToken();
-    if (refreshedToken != null && !JwtDecoder.isExpired(refreshedToken)) {
-      return;
-    }
-
-    await clearTokens();
-    await redirectToLogin(clearStoredTokens: false);
   }
 
   Future<void> handleUnauthorized({String? source}) async {
@@ -213,6 +239,44 @@ class AuthService extends GetxService {
     await AuthTokenStore.instance.clearJwtToken();
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('refreshToken');
+    await prefs.remove('refresh_token');
+    await prefs.remove('authUserId');
+    await prefs.remove('auth_user_id');
+    await prefs.remove('driverId');
+    await prefs.remove('driver_id');
+    await prefs.remove('userId');
+    await prefs.remove('userRole');
+    await prefs.remove('userName');
+    await prefs.remove('driverName');
+    await prefs.remove('userEmail');
+  }
+
+  Future<void> clearToken() => clearTokens();
+
+  Future<void> logout() async {
+    try {
+      final token = await AuthTokenStore.instance.getJwtToken();
+      if (token != null && token.isNotEmpty) {
+        await _client
+            .post(
+              Uri.parse('${AppConfig.apiBaseUrl}/api/auth/logout'),
+              headers: {
+                'Authorization': 'Bearer $token',
+                'Content-Type': 'application/json',
+              },
+            )
+            .timeout(const Duration(seconds: 5));
+      }
+    } catch (error, stackTrace) {
+      AppLogger.error(
+        'Logout API failed',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    } finally {
+      await clearTokens();
+      NavigationHelper.offAllNamed(Routes.login);
+    }
   }
 
   bool _shouldRefresh(String token, Map<String, dynamic> decodedToken) {

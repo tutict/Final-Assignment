@@ -2,6 +2,7 @@
 import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'dart:convert';
 
+import 'package:final_assignment_front/core/auth/auth_service.dart';
 import 'package:final_assignment_front/core/config/app_config.dart';
 import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/vehicle_information_controller_api.dart';
@@ -17,7 +18,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:jwt_decoder/jwt_decoder.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
 // Utility methods for validation
@@ -100,12 +100,12 @@ class _VehicleListState extends State<VehicleList> {
       AppLogger.debug('Decoded JWT: $decodedToken');
       if (JwtDecoder.isExpired(jwtToken)) {
         AppLogger.debug('JWT token is expired: ${decodedToken['exp']}');
-        jwtToken = await _refreshJwtToken();
-        if (jwtToken == null) {
+        final refreshed = await Get.find<AuthService>().refreshJwtToken();
+        jwtToken = await AuthTokenStore.instance.getJwtToken();
+        if (!refreshed || jwtToken == null) {
           setState(() => _errorMessage = '登录已过期，请重新登录');
           return false;
         }
-        await AuthTokenStore.instance.setJwtToken(jwtToken);
         final newDecodedToken = JwtDecoder.decode(jwtToken);
         AppLogger.debug('New JWT decoded: $newDecodedToken');
         if (JwtDecoder.isExpired(jwtToken)) {
@@ -120,34 +120,6 @@ class _VehicleListState extends State<VehicleList> {
       AppLogger.error('JWT decode error: $e');
       setState(() => _errorMessage = '无效的登录信息，请重新登录');
       return false;
-    }
-  }
-
-  Future<String?> _refreshJwtToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    final refreshToken = prefs.getString('refreshToken');
-    if (refreshToken == null) {
-      AppLogger.debug('Refresh token not found');
-      return null;
-    }
-    try {
-      final response = await http.post(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/auth/refresh'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'refreshToken': refreshToken}),
-      );
-      if (response.statusCode == 200) {
-        final newJwt = jsonDecode(response.body)['jwtToken'];
-        await AuthTokenStore.instance.setJwtToken(newJwt);
-        AppLogger.debug('Refreshed JWT: $newJwt');
-        return newJwt;
-      }
-      AppLogger.debug(
-          'Failed to refresh JWT: ${response.statusCode} - ${response.body}');
-      return null;
-    } catch (e) {
-      AppLogger.error('Refresh token error: $e');
-      return null;
     }
   }
 
@@ -246,7 +218,7 @@ class _VehicleListState extends State<VehicleList> {
     } catch (e) {
       setState(() {
         if (e.toString().contains('403')) {
-          _errorMessage = '未授权，请重新登录';
+          _errorMessage = '您没有权限查看车辆信息';
         } else if (e.toString().contains('404')) {
           _vehicleList.clear();
           _filteredVehicleList.clear();
@@ -715,15 +687,19 @@ class _AddVehiclePageState extends State<AddVehiclePage> {
       Get.find<ManagerDashboardController>();
 
   Future<bool> _validateJwtToken() async {
-    final jwtToken = (await AuthTokenStore.instance.getJwtToken());
+    String? jwtToken = await AuthTokenStore.instance.getJwtToken();
     if (jwtToken == null || jwtToken.isEmpty) {
       _showSnackBar('未授权，请重新登录', isError: true);
       return false;
     }
     try {
       if (JwtDecoder.isExpired(jwtToken)) {
-        _showSnackBar('登录已过期，请重新登录', isError: true);
-        return false;
+        final refreshed = await Get.find<AuthService>().refreshJwtToken();
+        jwtToken = await AuthTokenStore.instance.getJwtToken();
+        if (!refreshed || jwtToken == null || JwtDecoder.isExpired(jwtToken)) {
+          _showSnackBar('登录已过期，请重新登录', isError: true);
+          return false;
+        }
       }
       return true;
     } catch (e) {
@@ -1109,15 +1085,19 @@ class _EditVehiclePageState extends State<EditVehiclePage> {
       Get.find<ManagerDashboardController>();
 
   Future<bool> _validateJwtToken() async {
-    final jwtToken = (await AuthTokenStore.instance.getJwtToken());
+    String? jwtToken = await AuthTokenStore.instance.getJwtToken();
     if (jwtToken == null || jwtToken.isEmpty) {
       _showSnackBar('未授权，请重新登录', isError: true);
       return false;
     }
     try {
       if (JwtDecoder.isExpired(jwtToken)) {
-        _showSnackBar('登录已过期，请重新登录', isError: true);
-        return false;
+        final refreshed = await Get.find<AuthService>().refreshJwtToken();
+        jwtToken = await AuthTokenStore.instance.getJwtToken();
+        if (!refreshed || jwtToken == null || JwtDecoder.isExpired(jwtToken)) {
+          _showSnackBar('登录已过期，请重新登录', isError: true);
+          return false;
+        }
       }
       return true;
     } catch (e) {
@@ -1480,15 +1460,19 @@ class _VehicleDetailPageState extends State<VehicleDetailPage> {
       Get.find<ManagerDashboardController>();
 
   Future<bool> _validateJwtToken() async {
-    final jwtToken = (await AuthTokenStore.instance.getJwtToken());
+    String? jwtToken = await AuthTokenStore.instance.getJwtToken();
     if (jwtToken == null || jwtToken.isEmpty) {
       setState(() => _errorMessage = '未授权，请重新登录');
       return false;
     }
     try {
       if (JwtDecoder.isExpired(jwtToken)) {
-        setState(() => _errorMessage = '登录已过期，请重新登录');
-        return false;
+        final refreshed = await Get.find<AuthService>().refreshJwtToken();
+        jwtToken = await AuthTokenStore.instance.getJwtToken();
+        if (!refreshed || jwtToken == null || JwtDecoder.isExpired(jwtToken)) {
+          setState(() => _errorMessage = '登录已过期，请重新登录');
+          return false;
+        }
       }
       return true;
     } catch (e) {

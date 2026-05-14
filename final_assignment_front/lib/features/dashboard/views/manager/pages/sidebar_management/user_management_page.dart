@@ -1,8 +1,7 @@
 // ignore_for_file: use_build_context_synchronously
 import 'dart:async';
-import 'dart:convert';
 import 'package:final_assignment_front/config/routes/app_routes.dart';
-import 'package:final_assignment_front/core/config/app_config.dart';
+import 'package:final_assignment_front/core/auth/auth_service.dart';
 import 'package:final_assignment_front/features/api/auth_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
@@ -14,9 +13,7 @@ import 'package:final_assignment_front/utils/helpers/api_exception.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:http/http.dart' as http;
 import 'package:jwt_decoder/jwt_decoder.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import 'package:logging/logging.dart';
 
@@ -100,13 +97,13 @@ class _UserManagementPageState extends State<UserManagementPage> {
     try {
       final decodedToken = JwtDecoder.decode(jwtToken);
       if (JwtDecoder.isExpired(jwtToken)) {
-        jwtToken = await _refreshJwtToken();
-        if (jwtToken == null) {
+        final refreshed = await Get.find<AuthService>().refreshJwtToken();
+        jwtToken = await AuthTokenStore.instance.getJwtToken();
+        if (!refreshed || jwtToken == null) {
           setState(() => _errorMessage = '登录已过期，请重新登录');
           _logger.warning('JWT token refresh failed');
           return false;
         }
-        await AuthTokenStore.instance.setJwtToken(jwtToken);
         if (JwtDecoder.isExpired(jwtToken)) {
           setState(() => _errorMessage = '新登录信息已过期，请重新登录');
           _logger.warning('Refreshed JWT token is expired');
@@ -121,39 +118,6 @@ class _UserManagementPageState extends State<UserManagementPage> {
       setState(() => _errorMessage = '无效的登录信息，请重新登录: $e');
       _logger.severe('JWT validation failed: $e', StackTrace.current);
       return false;
-    }
-  }
-
-  Future<String?> _refreshJwtToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    final refreshToken = prefs.getString('refreshToken');
-    if (refreshToken == null) {
-      _logger.warning('No refresh token found');
-      return null;
-    }
-    try {
-      final response = await http.post(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/auth/refresh'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'refreshToken': refreshToken}),
-      );
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final newJwt = data['jwtToken'];
-        final newRefreshToken = data['refreshToken'];
-        await AuthTokenStore.instance.setJwtToken(newJwt);
-        if (newRefreshToken != null) {
-          await prefs.setString('refreshToken', newRefreshToken);
-        }
-        _logger.info('JWT token refreshed successfully');
-        return newJwt;
-      }
-      _logger.warning(
-          'Refresh token request failed: ${response.statusCode} - ${response.body}');
-      return null;
-    } catch (e) {
-      _logger.severe('Error refreshing JWT token: $e', StackTrace.current);
-      return null;
     }
   }
 
@@ -301,7 +265,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
         if (e is ApiException) {
           switch (e.code) {
             case 403:
-              _errorMessage = '未授权，请重新登录';
+              _errorMessage = '您没有权限查看用户信息';
               break;
             case 404:
               _errorMessage = '未找到符合条件的用户';

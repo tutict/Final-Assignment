@@ -1,5 +1,6 @@
 import 'package:final_assignment_front/core/utils/app_logger.dart';
 import 'package:final_assignment_front/config/routes/app_routes.dart';
+import 'package:final_assignment_front/core/auth/auth_service.dart';
 import 'package:final_assignment_front/core/config/app_config.dart';
 import 'package:final_assignment_front/features/api/deduction_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
@@ -16,6 +17,7 @@ import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
+import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
 class DeductionManagementPage extends StatefulWidget {
   const DeductionManagementPage({super.key});
@@ -68,16 +70,19 @@ class _DeductionManagementState extends State<DeductionManagementPage> {
   }
 
   Future<bool> _validateJwtToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    final jwtToken = prefs.getString('jwtToken');
+    String? jwtToken = await AuthTokenStore.instance.getJwtToken();
     if (jwtToken == null || jwtToken.isEmpty) {
       setState(() => _errorMessage = '未授权，请重新登录');
       return false;
     }
     try {
       if (JwtDecoder.isExpired(jwtToken)) {
-        setState(() => _errorMessage = '登录已过期，请重新登录');
-        return false;
+        final refreshed = await Get.find<AuthService>().refreshJwtToken();
+        jwtToken = await AuthTokenStore.instance.getJwtToken();
+        if (!refreshed || jwtToken == null || JwtDecoder.isExpired(jwtToken)) {
+          setState(() => _errorMessage = '登录已过期，请重新登录');
+          return false;
+        }
       }
       return true;
     } catch (e) {
@@ -185,7 +190,7 @@ class _DeductionManagementState extends State<DeductionManagementPage> {
           _errorMessage = '未找到符合条件的扣分记录';
           _hasMore = false;
         } else if (e.toString().contains('403')) {
-          _errorMessage = '未授权，请重新登录';
+          _errorMessage = '您没有权限查看扣分记录';
         } else {
           _errorMessage = '获取扣分记录失败: ${_formatErrorMessage(e)}';
         }
@@ -714,16 +719,19 @@ class _AddDeductionPageState extends State<AddDeductionPage> {
   }
 
   Future<bool> _validateJwtToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    final jwtToken = prefs.getString('jwtToken');
+    String? jwtToken = await AuthTokenStore.instance.getJwtToken();
     if (jwtToken == null || jwtToken.isEmpty) {
       _showSnackBar('未授权，请重新登录', isError: true);
       return false;
     }
     try {
       if (JwtDecoder.isExpired(jwtToken)) {
-        _showSnackBar('登录已过期，请重新登录', isError: true);
-        return false;
+        final refreshed = await Get.find<AuthService>().refreshJwtToken();
+        jwtToken = await AuthTokenStore.instance.getJwtToken();
+        if (!refreshed || jwtToken == null || JwtDecoder.isExpired(jwtToken)) {
+          _showSnackBar('登录已过期，请重新登录', isError: true);
+          return false;
+        }
       }
       return true;
     } catch (e) {
@@ -1153,16 +1161,19 @@ class _EditDeductionPageState extends State<EditDeductionPage> {
   }
 
   Future<bool> _validateJwtToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    final jwtToken = prefs.getString('jwtToken');
+    String? jwtToken = await AuthTokenStore.instance.getJwtToken();
     if (jwtToken == null || jwtToken.isEmpty) {
       _showSnackBar('未授权，请重新登录', isError: true);
       return false;
     }
     try {
       if (JwtDecoder.isExpired(jwtToken)) {
-        _showSnackBar('登录已过期，请重新登录', isError: true);
-        return false;
+        final refreshed = await Get.find<AuthService>().refreshJwtToken();
+        jwtToken = await AuthTokenStore.instance.getJwtToken();
+        if (!refreshed || jwtToken == null || JwtDecoder.isExpired(jwtToken)) {
+          _showSnackBar('登录已过期，请重新登录', isError: true);
+          return false;
+        }
       }
       return true;
     } catch (e) {

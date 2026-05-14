@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/Get.dart';
-import 'package:final_assignment_front/config/routes/app_routes.dart';
+import 'package:final_assignment_front/core/auth/auth_service.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/chat_controller.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
-import 'package:final_assignment_front/utils/services/auth_token_store.dart';
-import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
 
 class ManagerSettingPage extends StatefulWidget {
   const ManagerSettingPage({super.key});
@@ -34,12 +32,11 @@ class _ManageSettingPage extends State<ManagerSettingPage> {
   }
 
   Future<void> _logout() async {
-    await AuthTokenStore.instance.clearJwtToken();
     if (Get.isRegistered<ChatController>()) {
       final chatController = Get.find<ChatController>();
       chatController.clearMessages();
     }
-    NavigationHelper.offAllNamed(Routes.login);
+    await Get.find<AuthService>().logout();
   }
 
   void _saveSettings() {

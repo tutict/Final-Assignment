@@ -280,10 +280,6 @@ class ApiRequestLoggingInterceptor extends GetxService {
     required int statusCode,
     required int elapsedMilliseconds,
   }) async {
-    if (statusCode == 401 && !_isAuthRefresh(uri)) {
-      await authService.handleUnauthorized(source: uri.path);
-    }
-
     if (!_shouldLog(uri)) return;
     await logWriter.writeApiRequest(
       uri: uri,

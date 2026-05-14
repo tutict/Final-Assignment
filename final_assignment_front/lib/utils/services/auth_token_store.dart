@@ -12,7 +12,7 @@ class AuthTokenStore {
   Future<void> _ensureLoaded() async {
     if (_loaded) return;
     _prefs ??= await SharedPreferences.getInstance();
-    _jwtToken = _prefs!.getString('jwtToken');
+    _jwtToken = _prefs!.getString('jwt_token') ?? _prefs!.getString('jwtToken');
     _loaded = true;
   }
 
@@ -29,8 +29,10 @@ class AuthTokenStore {
     _prefs ??= await SharedPreferences.getInstance();
     if (token == null || token.isEmpty) {
       await _prefs!.remove('jwtToken');
+      await _prefs!.remove('jwt_token');
     } else {
       await _prefs!.setString('jwtToken', token);
+      await _prefs!.setString('jwt_token', token);
     }
   }
 

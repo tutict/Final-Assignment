@@ -1,5 +1,5 @@
 import 'package:final_assignment_front/core/utils/app_logger.dart';
-import 'package:final_assignment_front/config/routes/app_routes.dart';
+import 'package:final_assignment_front/core/auth/auth_service.dart';
 import 'package:final_assignment_front/features/api/driver_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/user_management_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/chat_controller.dart';
@@ -15,7 +15,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
-import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
 
 String generateIdempotencyKey() {
   return DateTime.now().millisecondsSinceEpoch.toString();
@@ -232,11 +231,10 @@ class _ManagerPersonalPageState extends State<ManagerPersonalPage> {
     final confirmed = await _showConfirmationDialog('确认退出', '您确定要退出登录吗？');
     if (!confirmed) return;
 
-    await AuthTokenStore.instance.clearJwtToken();
     if (Get.isRegistered<ChatController>()) {
       Get.find<ChatController>().clearMessages();
     }
-    NavigationHelper.offAllNamed(Routes.login);
+    await Get.find<AuthService>().logout();
   }
 
   String _formatErrorMessage(dynamic error) {

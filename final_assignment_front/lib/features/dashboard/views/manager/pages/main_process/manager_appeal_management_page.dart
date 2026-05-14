@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 
 import 'package:final_assignment_front/config/routes/app_routes.dart';
+import 'package:final_assignment_front/core/auth/auth_service.dart';
 import 'package:final_assignment_front/core/config/app_config.dart';
 import 'package:final_assignment_front/features/api/appeal_management_controller_api.dart';
 import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
@@ -19,7 +20,6 @@ import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
@@ -92,12 +92,12 @@ class _AppealManagementAdminState extends State<ManagerAppealManagementPage> {
     }
     try {
       if (JwtDecoder.isExpired(jwtToken)) {
-        jwtToken = await _refreshJwtToken();
-        if (jwtToken == null) {
+        final refreshed = await Get.find<AuthService>().refreshJwtToken();
+        jwtToken = await AuthTokenStore.instance.getJwtToken();
+        if (!refreshed || jwtToken == null) {
           setState(() => _errorMessage = '登录已过期，请重新登录');
           return false;
         }
-        await AuthTokenStore.instance.setJwtToken(jwtToken);
         if (JwtDecoder.isExpired(jwtToken)) {
           setState(() => _errorMessage = '新登录信息已过期，请重新登录');
           return false;
@@ -111,35 +111,6 @@ class _AppealManagementAdminState extends State<ManagerAppealManagementPage> {
       developer.log('JWT validation failed: $e',
           stackTrace: StackTrace.current);
       return false;
-    }
-  }
-
-  Future<String?> _refreshJwtToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    final refreshToken = prefs.getString('refreshToken');
-    if (refreshToken == null) {
-      developer.log('No refresh token found');
-      return null;
-    }
-    try {
-      final response = await http.post(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/auth/refresh'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'refreshToken': refreshToken}),
-      );
-      if (response.statusCode == 200) {
-        final newJwt = jsonDecode(response.body)['jwtToken'];
-        await AuthTokenStore.instance.setJwtToken(newJwt);
-        developer.log('JWT token refreshed successfully');
-        return newJwt;
-      }
-      developer.log(
-          'Refresh token request failed: ${response.statusCode} - ${response.body}');
-      return null;
-    } catch (e) {
-      developer.log('Error refreshing JWT token: $e',
-          stackTrace: StackTrace.current);
-      return null;
     }
   }
 
@@ -327,7 +298,7 @@ class _AppealManagementAdminState extends State<ManagerAppealManagementPage> {
         _appeals.clear();
         _filteredAppeals.clear();
         if (e is ApiException && e.code == 403) {
-          _errorMessage = '未授权，请重新登录';
+          _errorMessage = '您没有权限查看申诉信息';
         } else {
           _errorMessage = '加载申诉信息失败: ${_formatErrorMessage(e)}';
         }
@@ -685,12 +656,12 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
     }
     try {
       if (JwtDecoder.isExpired(jwtToken)) {
-        jwtToken = await _refreshJwtToken();
-        if (jwtToken == null) {
+        final refreshed = await Get.find<AuthService>().refreshJwtToken();
+        jwtToken = await AuthTokenStore.instance.getJwtToken();
+        if (!refreshed || jwtToken == null) {
           setState(() => _errorMessage = '登录已过期，请重新登录');
           return false;
         }
-        await AuthTokenStore.instance.setJwtToken(jwtToken);
         if (JwtDecoder.isExpired(jwtToken)) {
           setState(() => _errorMessage = '新登录信息已过期，请重新登录');
           return false;
@@ -704,35 +675,6 @@ class _AppealDetailPageState extends State<AppealDetailPage> {
       developer.log('JWT validation failed: $e',
           stackTrace: StackTrace.current);
       return false;
-    }
-  }
-
-  Future<String?> _refreshJwtToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    final refreshToken = prefs.getString('refreshToken');
-    if (refreshToken == null) {
-      developer.log('No refresh token found');
-      return null;
-    }
-    try {
-      final response = await http.post(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/auth/refresh'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'refreshToken': refreshToken}),
-      );
-      if (response.statusCode == 200) {
-        final newJwt = jsonDecode(response.body)['jwtToken'];
-        await AuthTokenStore.instance.setJwtToken(newJwt);
-        developer.log('JWT token refreshed successfully');
-        return newJwt;
-      }
-      developer.log(
-          'Refresh token request failed: ${response.statusCode} - ${response.body}');
-      return null;
-    } catch (e) {
-      developer.log('Error refreshing JWT token: $e',
-          stackTrace: StackTrace.current);
-      return null;
     }
   }
 

@@ -190,7 +190,7 @@ class _VehicleManagementState extends State<VehicleManagementPage> {
           _hasMore = false;
         } else {
           _errorMessage =
-              e.toString().contains('403') ? '未授权，请重新登录' : '获取车辆信息失败: $e';
+              e.toString().contains('403') ? '您没有权限查看车辆信息' : '获取车辆信息失败: $e';
         }
       });
     } finally {

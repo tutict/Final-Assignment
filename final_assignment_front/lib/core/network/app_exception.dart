@@ -87,7 +87,7 @@ class AppException implements Exception {
     if (statusCode == 403) {
       return AppException(
         type: AppErrorType.forbidden,
-        message: '无权限执行此操作',
+        message: fallback?.isNotEmpty == true ? fallback! : '您没有权限执行此操作',
         statusCode: statusCode,
         originalError: originalError,
       );

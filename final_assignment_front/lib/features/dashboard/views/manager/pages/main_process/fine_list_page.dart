@@ -1,5 +1,6 @@
 // ignore_for_file: use_build_context_synchronously
 import 'dart:convert';
+import 'package:final_assignment_front/core/auth/auth_service.dart';
 import 'package:final_assignment_front/core/config/app_config.dart';
 import 'package:final_assignment_front/features/api/offense_information_controller_api.dart';
 import 'package:final_assignment_front/features/api/vehicle_information_controller_api.dart';
@@ -17,7 +18,6 @@ import 'package:final_assignment_front/utils/helpers/app_helpers.dart';
 import 'package:final_assignment_front/utils/workflow_permissions.dart';
 import 'package:get/get.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
@@ -100,12 +100,12 @@ class _FineListState extends State<FineListPage> {
     }
     try {
       if (JwtDecoder.isExpired(jwtToken)) {
-        jwtToken = await _refreshJwtToken();
-        if (jwtToken == null) {
+        final refreshed = await Get.find<AuthService>().refreshJwtToken();
+        jwtToken = await AuthTokenStore.instance.getJwtToken();
+        if (!refreshed || jwtToken == null) {
           setState(() => _errorMessage = '登录已过期，请重新登录');
           return false;
         }
-        await AuthTokenStore.instance.setJwtToken(jwtToken);
         if (JwtDecoder.isExpired(jwtToken)) {
           setState(() => _errorMessage = '新登录信息已过期，请重新登录');
           return false;
@@ -116,27 +116,6 @@ class _FineListState extends State<FineListPage> {
     } catch (e) {
       setState(() => _errorMessage = '无效的登录信息，请重新登录');
       return false;
-    }
-  }
-
-  Future<String?> _refreshJwtToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    final refreshToken = prefs.getString('refreshToken');
-    if (refreshToken == null) return null;
-    try {
-      final response = await http.post(
-        Uri.parse('${AppConfig.apiBaseUrl}/api/auth/refresh'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'refreshToken': refreshToken}),
-      );
-      if (response.statusCode == 200) {
-        final newJwt = jsonDecode(response.body)['jwtToken'];
-        await AuthTokenStore.instance.setJwtToken(newJwt);
-        return newJwt;
-      }
-      return null;
-    } catch (e) {
-      return null;
     }
   }
 
@@ -273,7 +252,7 @@ class _FineListState extends State<FineListPage> {
     } catch (e) {
       setState(() {
         if (e.toString().contains('403')) {
-          _errorMessage = '未授权，请重新登录';
+          _errorMessage = '您没有权限查看罚款记录';
         } else if (e.toString().contains('404')) {
           _errorMessage = '未找到罚款记录';
           _hasMore = false;
@@ -785,15 +764,19 @@ class _AddFinePageState extends State<AddFinePage> {
   }
 
   Future<bool> _validateJwtToken() async {
-    final jwtToken = (await AuthTokenStore.instance.getJwtToken());
+    String? jwtToken = await AuthTokenStore.instance.getJwtToken();
     if (jwtToken == null || jwtToken.isEmpty) {
       _showSnackBar('未授权，请重新登录', isError: true);
       return false;
     }
     try {
       if (JwtDecoder.isExpired(jwtToken)) {
-        _showSnackBar('登录已过期，请重新登录', isError: true);
-        return false;
+        final refreshed = await Get.find<AuthService>().refreshJwtToken();
+        jwtToken = await AuthTokenStore.instance.getJwtToken();
+        if (!refreshed || jwtToken == null || JwtDecoder.isExpired(jwtToken)) {
+          _showSnackBar('登录已过期，请重新登录', isError: true);
+          return false;
+        }
       }
       return true;
     } catch (e) {
@@ -1268,15 +1251,19 @@ class _FineDetailPageState extends State<FineDetailPage> {
   }
 
   Future<bool> _validateJwtToken() async {
-    final jwtToken = (await AuthTokenStore.instance.getJwtToken());
+    String? jwtToken = await AuthTokenStore.instance.getJwtToken();
     if (jwtToken == null || jwtToken.isEmpty) {
       setState(() => _errorMessage = '未授权，请重新登录');
       return false;
     }
     try {
       if (JwtDecoder.isExpired(jwtToken)) {
-        setState(() => _errorMessage = '登录已过期，请重新登录');
-        return false;
+        final refreshed = await Get.find<AuthService>().refreshJwtToken();
+        jwtToken = await AuthTokenStore.instance.getJwtToken();
+        if (!refreshed || jwtToken == null || JwtDecoder.isExpired(jwtToken)) {
+          setState(() => _errorMessage = '登录已过期，请重新登录');
+          return false;
+        }
       }
       return true;
     } catch (e) {

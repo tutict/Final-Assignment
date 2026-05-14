@@ -2,6 +2,7 @@
 import 'dart:developer' as developer;
 
 import 'package:final_assignment_front/config/routes/app_routes.dart';
+import 'package:final_assignment_front/core/auth/auth_service.dart';
 import 'package:final_assignment_front/features/api/operation_log_controller_api.dart';
 import 'package:final_assignment_front/features/dashboard/controllers/manager_dashboard_controller.dart';
 import 'package:final_assignment_front/features/dashboard/views/shared/widgets/dashboard_page_template.dart';
@@ -17,6 +18,7 @@ import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
+import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
 String generateIdempotencyKey() {
   return const Uuid().v4();
@@ -77,16 +79,19 @@ class _OperationLogPageState extends State<OperationLogPage> {
   }
 
   Future<bool> _validateJwtToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    final jwtToken = prefs.getString('jwtToken');
+    String? jwtToken = await AuthTokenStore.instance.getJwtToken();
     if (jwtToken == null || jwtToken.isEmpty) {
       setState(() => _errorMessage = '未授权，请重新登录');
       return false;
     }
     try {
       if (JwtDecoder.isExpired(jwtToken)) {
-        setState(() => _errorMessage = '登录已过期，请重新登录');
-        return false;
+        final refreshed = await Get.find<AuthService>().refreshJwtToken();
+        jwtToken = await AuthTokenStore.instance.getJwtToken();
+        if (!refreshed || jwtToken == null || JwtDecoder.isExpired(jwtToken)) {
+          setState(() => _errorMessage = '登录已过期，请重新登录');
+          return false;
+        }
       }
       await logApi.initializeWithJwt();
       return true;
@@ -214,7 +219,7 @@ class _OperationLogPageState extends State<OperationLogPage> {
           _errorMessage = '未找到符合条件的日志记录';
           _hasMore = false;
         } else if (e.toString().contains('403')) {
-          _errorMessage = '未授权，请重新登录';
+          _errorMessage = '您没有权限查看日志信息';
         } else {
           _errorMessage = '加载日志信息失败: ${_formatErrorMessage(e)}';
         }

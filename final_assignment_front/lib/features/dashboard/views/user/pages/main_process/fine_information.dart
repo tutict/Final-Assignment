@@ -16,6 +16,7 @@ import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:developer' as developer;
 import 'package:final_assignment_front/shared/utils/navigation_helper.dart';
+import 'package:final_assignment_front/utils/services/auth_token_store.dart';
 
 class FineInformationPage extends StatefulWidget {
   const FineInformationPage({super.key});
@@ -61,7 +62,14 @@ class _FineInformationPageState extends State<FineInformationPage> {
     });
     try {
       final prefs = await SharedPreferences.getInstance();
-      final jwtToken = prefs.getString('jwtToken');
+      String? jwtToken = await AuthTokenStore.instance.getJwtToken();
+      if (jwtToken != null && JwtDecoder.isExpired(jwtToken)) {
+        final refreshed = await Get.find<AuthService>().refreshJwtToken();
+        jwtToken = await AuthTokenStore.instance.getJwtToken();
+        if (!refreshed || jwtToken == null || JwtDecoder.isExpired(jwtToken)) {
+          throw Exception('登录已过期，请重新登录');
+        }
+      }
       _currentDriverName = prefs.getString('driverName');
       if (_currentDriverName == null && jwtToken != null) {
         _currentDriverName = await _fetchDriverName(jwtToken);
