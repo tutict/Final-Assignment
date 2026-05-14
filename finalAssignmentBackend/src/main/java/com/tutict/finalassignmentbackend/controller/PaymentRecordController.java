@@ -8,6 +8,8 @@ import com.tutict.finalassignmentbackend.entity.PaymentRecord;
 import com.tutict.finalassignmentbackend.payment.governance.PaymentGovernanceClassifier;
 import com.tutict.finalassignmentbackend.payment.governance.PaymentGovernanceLogFactory;
 import com.tutict.finalassignmentbackend.payment.governance.PaymentGovernanceSource;
+import com.tutict.finalassignmentbackend.payment.exception.PaymentDuplicateRequestException;
+import com.tutict.finalassignmentbackend.payment.exception.PaymentOptimisticLockException;
 import com.tutict.finalassignmentbackend.service.PaymentRecordService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -55,7 +57,7 @@ public class PaymentRecordController {
         boolean useKey = hasKey(idempotencyKey);
         try {
             if (useKey) {
-                if (paymentRecordService.shouldSkipProcessing(idempotencyKey)) {
+                if (paymentRecordService.isDuplicateIdempotencyKey(idempotencyKey)) {
                     logPaymentGovernance(PaymentGovernanceLogFactory.noOpSuppressed(
                             PaymentGovernanceSource.CONTROLLER,
                             paymentGovernanceClassifier.classifyControllerMutation("create", true),
@@ -73,7 +75,6 @@ public class PaymentRecordController {
                         "create",
                         idempotencyKey
                 ));
-                paymentRecordService.checkAndInsertIdempotency(idempotencyKey, request, "create");
             }
             logPaymentGovernance(PaymentGovernanceLogFactory.shadowClassification(
                     PaymentGovernanceSource.CONTROLLER,
@@ -81,14 +82,13 @@ public class PaymentRecordController {
                     request,
                     "create"
             ));
-            PaymentRecord saved = paymentRecordService.createPaymentRecord(request);
-            if (useKey && saved.getPaymentId() != null) {
-                paymentRecordService.markHistorySuccess(idempotencyKey, saved.getPaymentId());
-            }
+            PaymentRecord saved = useKey
+                    ? paymentRecordService.createPaymentRecord(request, idempotencyKey)
+                    : paymentRecordService.createPaymentRecord(request);
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(ApiResponse.ok(toPaymentResponse(saved)));
         } catch (Exception ex) {
-            if (useKey) {
+            if (useKey && !(ex instanceof PaymentDuplicateRequestException)) {
                 paymentRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
             LOG.log(Level.SEVERE, "Create payment record failed", ex);
@@ -107,6 +107,10 @@ public class PaymentRecordController {
         try {
             request.setPaymentId(paymentId);
             if (useKey) {
+                if (paymentRecordService.isDuplicateIdempotencyKey(idempotencyKey)) {
+                    return ResponseEntity.status(HttpStatus.ALREADY_REPORTED)
+                            .body(ApiResponse.error("DUPLICATE_REQUEST", "Duplicate request"));
+                }
                 logPaymentGovernance(PaymentGovernanceLogFactory.preMutationKafka(
                         PaymentGovernanceSource.CONTROLLER,
                         paymentGovernanceClassifier.classifyPreMutationKafka("update"),
@@ -114,7 +118,6 @@ public class PaymentRecordController {
                         "update",
                         idempotencyKey
                 ));
-                paymentRecordService.checkAndInsertIdempotency(idempotencyKey, request, "update");
             }
             logPaymentGovernance(PaymentGovernanceLogFactory.shadowClassification(
                     PaymentGovernanceSource.CONTROLLER,
@@ -122,13 +125,12 @@ public class PaymentRecordController {
                     request,
                     "update"
             ));
-            PaymentRecord updated = paymentRecordService.updatePaymentRecord(request);
-            if (useKey && updated.getPaymentId() != null) {
-                paymentRecordService.markHistorySuccess(idempotencyKey, updated.getPaymentId());
-            }
+            PaymentRecord updated = useKey
+                    ? paymentRecordService.updatePaymentRecord(request, idempotencyKey)
+                    : paymentRecordService.updatePaymentRecord(request);
             return ResponseEntity.ok(ApiResponse.ok(toPaymentResponse(updated)));
         } catch (Exception ex) {
-            if (useKey) {
+            if (useKey && !(ex instanceof PaymentDuplicateRequestException)) {
                 paymentRecordService.markHistoryFailure(idempotencyKey, ex.getMessage());
             }
             LOG.log(Level.SEVERE, "Update payment record failed", ex);
@@ -240,11 +242,20 @@ public class PaymentRecordController {
 
     @PutMapping("/{paymentId}/status/{state}")
     @Operation(summary = "更新支付记录状态")
-    public ResponseEntity<ApiResponse<PaymentRecordResponse>> updatePaymentStatus(@PathVariable Long paymentId,
-                                                                                  @PathVariable PaymentState state) {
+    public ResponseEntity<ApiResponse<Void>> updatePaymentStatus(@PathVariable Long paymentId,
+                                                                 @PathVariable PaymentState state,
+                                                                 @RequestHeader(value = "Idempotency-Key", required = true)
+                                                                 String idempotencyKey) {
         try {
-            PaymentRecord updated = paymentRecordService.updatePaymentStatus(paymentId, state);
-            return ResponseEntity.ok(ApiResponse.ok(toPaymentResponse(updated)));
+            if (paymentRecordService.isDuplicateIdempotencyKey(idempotencyKey)) {
+                return ResponseEntity.status(HttpStatus.ALREADY_REPORTED)
+                        .body(ApiResponse.ok(null));
+            }
+            paymentRecordService.updatePaymentStatus(paymentId, state, idempotencyKey);
+            return ResponseEntity.ok(ApiResponse.ok(null));
+        } catch (PaymentDuplicateRequestException ex) {
+            return ResponseEntity.status(HttpStatus.ALREADY_REPORTED)
+                    .body(ApiResponse.ok(null));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Update payment status failed", ex);
             return ResponseEntity.status(resolveStatus(ex))
@@ -257,6 +268,12 @@ public class PaymentRecordController {
     }
 
     private HttpStatus resolveStatus(Exception ex) {
+        if (ex instanceof PaymentDuplicateRequestException) {
+            return HttpStatus.ALREADY_REPORTED;
+        }
+        if (ex instanceof PaymentOptimisticLockException) {
+            return HttpStatus.CONFLICT;
+        }
         return (ex instanceof IllegalArgumentException || ex instanceof IllegalStateException)
                 ? HttpStatus.BAD_REQUEST
                 : HttpStatus.INTERNAL_SERVER_ERROR;

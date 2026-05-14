@@ -150,15 +150,15 @@ class OffenseGovernanceHardeningTest {
         existing.setOffenseCode("CURRENT-CODE");
         existing.setProcessStatus(OffenseProcessState.UNPROCESSED.getCode());
         when(offenseRecordMapper.selectById(20L)).thenReturn(existing);
+        when(offenseRecordMapper.update(org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.any())).thenReturn(1);
 
         OffenseRecord updated = service.updateProcessStatus(20L, OffenseProcessState.PROCESSING);
 
         assertThat(updated.getProcessStatus()).isEqualTo(OffenseProcessState.PROCESSING.getCode());
-        ArgumentCaptor<OffenseRecord> captor = ArgumentCaptor.forClass(OffenseRecord.class);
-        verify(offenseRecordMapper).updateById(captor.capture());
-        assertThat(captor.getValue().getOffenseId()).isEqualTo(20L);
-        assertThat(captor.getValue().getOffenseCode()).isEqualTo("CURRENT-CODE");
-        assertThat(captor.getValue().getProcessStatus()).isEqualTo(OffenseProcessState.PROCESSING.getCode());
+        verify(offenseRecordMapper).update(org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.any());
+        assertThat(updated.getOffenseId()).isEqualTo(20L);
+        assertThat(updated.getOffenseCode()).isEqualTo("CURRENT-CODE");
+        assertThat(updated.getProcessStatus()).isEqualTo(OffenseProcessState.PROCESSING.getCode());
         verifyNoInteractions(kafkaTemplate);
         verify(searchRepository, never()).save(any());
 

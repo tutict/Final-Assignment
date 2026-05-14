@@ -1,5 +1,6 @@
 package com.tutict.finalassignmentbackend.appeal.application;
 
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.tutict.finalassignmentbackend.appeal.cache.AppealCachePolicy;
 import com.tutict.finalassignmentbackend.appeal.domain.AppealRecordDomainService;
 import com.tutict.finalassignmentbackend.appeal.domain.AppealUpdateMergeCoordinator;
@@ -148,6 +149,7 @@ public class AppealRecordApplicationService {
         return merged;
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public AppealRecord updateProcessStatus(Long appealId, AppealProcessState newState) {
         domainService.validateAppealId(appealId);
         AppealRecord existing = appealRecordMapper.selectById(appealId);
@@ -169,13 +171,27 @@ public class AppealRecordApplicationService {
                 WORKFLOW_UPDATE_CALLER
         );
         merged.setUpdatedAt(LocalDateTime.now());
-        int rows = appealRecordMapper.updateById(merged);
+        UpdateWrapper<AppealRecord> updateWrapper = new UpdateWrapper<AppealRecord>()
+                .eq("appeal_id", appealId)
+                .set("process_status", merged.getProcessStatus())
+                .set("updated_at", merged.getUpdatedAt());
+        applyAppealStatusPrecondition(updateWrapper, existing.getProcessStatus());
+        int rows = appealRecordMapper.update(null, updateWrapper);
         if (workflowDecisionPolicy.isMissingMutation(rows)) {
-            throw new IllegalStateException("Appeal not found: " + appealId);
+            throw new IllegalStateException("Appeal status has already been processed; refresh and retry");
         }
         searchIndexer.indexAfterCommit(merged);
         cachePolicy.onWrite();
         return merged;
+    }
+
+    private void applyAppealStatusPrecondition(UpdateWrapper<AppealRecord> updateWrapper,
+                                               String currentProcessStatus) {
+        if (currentProcessStatus == null) {
+            updateWrapper.isNull("process_status");
+        } else {
+            updateWrapper.eq("process_status", currentProcessStatus);
+        }
     }
 
     @Transactional

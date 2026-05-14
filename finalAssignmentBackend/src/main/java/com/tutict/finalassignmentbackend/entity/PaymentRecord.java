@@ -117,6 +117,10 @@ public class PaymentRecord implements Serializable {
     @TableField("payment_status")
     private String paymentStatus;
 
+    @TableField("version")
+    @Version
+    private Integer version;
+
     /**
      * 退款金额 (元)
      */

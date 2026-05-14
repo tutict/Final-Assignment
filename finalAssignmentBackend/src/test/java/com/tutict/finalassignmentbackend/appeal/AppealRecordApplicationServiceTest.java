@@ -177,17 +177,15 @@ class AppealRecordApplicationServiceTest {
         existing.setAppellantName("Stable Name");
         existing.setProcessStatus(AppealProcessState.UNPROCESSED.getCode());
         when(appealRecordMapper.selectById(10L)).thenReturn(existing);
-        when(appealRecordMapper.updateById(org.mockito.ArgumentMatchers.any(AppealRecord.class))).thenReturn(1);
-        ArgumentCaptor<AppealRecord> merged = ArgumentCaptor.forClass(AppealRecord.class);
+        when(appealRecordMapper.update(org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.any())).thenReturn(1);
 
         AppealRecord updated = service.updateProcessStatus(10L, AppealProcessState.UNDER_REVIEW);
 
-        verify(appealRecordMapper).updateById(merged.capture());
-        verify(searchIndexer).indexAfterCommit(merged.getValue());
+        verify(appealRecordMapper).update(org.mockito.ArgumentMatchers.isNull(), org.mockito.ArgumentMatchers.any());
+        verify(searchIndexer).indexAfterCommit(updated);
         verify(cachePolicy).onWrite();
-        assertThat(updated).isSameAs(merged.getValue());
-        assertThat(merged.getValue().getAppellantName()).isEqualTo("Stable Name");
-        assertThat(merged.getValue().getProcessStatus()).isEqualTo(AppealProcessState.UNDER_REVIEW.getCode());
+        assertThat(updated.getAppellantName()).isEqualTo("Stable Name");
+        assertThat(updated.getProcessStatus()).isEqualTo(AppealProcessState.UNDER_REVIEW.getCode());
     }
 
     @Test

@@ -9,6 +9,8 @@ import com.tutict.finalassignmentbackend.config.statemachine.states.PaymentState
 import com.tutict.finalassignmentbackend.entity.AppealRecord;
 import com.tutict.finalassignmentbackend.entity.OffenseRecord;
 import com.tutict.finalassignmentbackend.entity.PaymentRecord;
+import com.tutict.finalassignmentbackend.payment.exception.PaymentDuplicateRequestException;
+import com.tutict.finalassignmentbackend.payment.exception.PaymentOptimisticLockException;
 import com.tutict.finalassignmentbackend.service.AppealRecordService;
 import com.tutict.finalassignmentbackend.service.OffenseRecordService;
 import com.tutict.finalassignmentbackend.service.PaymentRecordService;
@@ -22,6 +24,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.logging.Level;
@@ -72,10 +75,15 @@ public class WorkflowController {
     @PostMapping("/payments/{paymentId}/events/{event}")
     @Operation(summary = "触发支付状态事件")
     public ResponseEntity<PaymentRecord> triggerPaymentEvent(@PathVariable Long paymentId,
-                                                             @PathVariable PaymentEvent event) {
+                                                             @PathVariable PaymentEvent event,
+                                                             @RequestHeader(value = "Idempotency-Key", required = true)
+                                                             String idempotencyKey) {
         PaymentRecord record = paymentRecordService.findById(paymentId);
         if (record == null) {
             return ResponseEntity.notFound().build();
+        }
+        if (paymentRecordService.isDuplicateIdempotencyKey(idempotencyKey)) {
+            return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).body(record);
         }
         PaymentState currentState = resolvePaymentState(record.getPaymentStatus());
         PaymentState newState = stateMachineService.processPaymentState(paymentId, currentState, event);
@@ -83,8 +91,14 @@ public class WorkflowController {
             LOG.log(Level.WARNING, "Payment {0} event {1} rejected at state {2}", new Object[]{paymentId, event, currentState});
             return ResponseEntity.status(HttpStatus.CONFLICT).body(record);
         }
-        PaymentRecord updated = paymentRecordService.updatePaymentStatus(paymentId, newState);
-        return ResponseEntity.ok(updated);
+        try {
+            PaymentRecord updated = paymentRecordService.updatePaymentStatus(paymentId, newState, idempotencyKey);
+            return ResponseEntity.ok(updated);
+        } catch (PaymentDuplicateRequestException ex) {
+            return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).body(record);
+        } catch (PaymentOptimisticLockException ex) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(record);
+        }
     }
 
     @PostMapping("/appeals/{appealId}/events/{event}")
@@ -120,4 +134,3 @@ public class WorkflowController {
         return state != null ? state : AppealProcessState.UNPROCESSED;
     }
 }
-

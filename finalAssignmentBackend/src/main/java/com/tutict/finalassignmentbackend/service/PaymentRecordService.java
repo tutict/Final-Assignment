@@ -2,7 +2,6 @@ package com.tutict.finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.config.statemachine.states.PaymentState;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.PaymentRecord;
@@ -12,11 +11,15 @@ import com.tutict.finalassignmentbackend.mapper.PaymentRecordMapper;
 import com.tutict.finalassignmentbackend.mapper.SysRequestHistoryMapper;
 import com.tutict.finalassignmentbackend.payment.governance.PaymentGovernanceClassifier;
 import com.tutict.finalassignmentbackend.payment.governance.PaymentGovernanceLogFactory;
+import com.tutict.finalassignmentbackend.payment.exception.PaymentDuplicateRequestException;
+import com.tutict.finalassignmentbackend.payment.exception.PaymentOptimisticLockException;
+import com.tutict.finalassignmentbackend.payment.messaging.PaymentRecordKafkaEvent;
 import com.tutict.finalassignmentbackend.repository.PaymentRecordSearchRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -40,51 +43,37 @@ public class PaymentRecordService {
     private final PaymentRecordMapper paymentRecordMapper;
     private final SysRequestHistoryMapper sysRequestHistoryMapper;
     private final PaymentRecordSearchRepository paymentRecordSearchRepository;
-    private final KafkaTemplate<String, String> kafkaTemplate;
-    private final ObjectMapper objectMapper;
+    private final ApplicationEventPublisher applicationEventPublisher;
     private final PaymentGovernanceClassifier paymentGovernanceClassifier;
 
     @Autowired
     public PaymentRecordService(PaymentRecordMapper paymentRecordMapper,
                                 SysRequestHistoryMapper sysRequestHistoryMapper,
                                 PaymentRecordSearchRepository paymentRecordSearchRepository,
-                                KafkaTemplate<String, String> kafkaTemplate,
-                                ObjectMapper objectMapper) {
+                                ApplicationEventPublisher applicationEventPublisher) {
         this.paymentRecordMapper = paymentRecordMapper;
         this.sysRequestHistoryMapper = sysRequestHistoryMapper;
         this.paymentRecordSearchRepository = paymentRecordSearchRepository;
-        this.kafkaTemplate = kafkaTemplate;
-        this.objectMapper = objectMapper;
+        this.applicationEventPublisher = applicationEventPublisher;
         this.paymentGovernanceClassifier = new PaymentGovernanceClassifier();
     }
 
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
     @WsAction(service = "PaymentRecordService", action = "checkAndInsertIdempotency")
     public void checkAndInsertIdempotency(String idempotencyKey, PaymentRecord paymentRecord, String action) {
         Objects.requireNonNull(paymentRecord, "PaymentRecord must not be null");
-        if (sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey) != null) {
-            throw new RuntimeException("Duplicate payment record request detected");
-        }
-
-        SysRequestHistory history = new SysRequestHistory();
-        history.setIdempotencyKey(idempotencyKey);
-        history.setBusinessStatus("PROCESSING");
-        history.setCreatedAt(LocalDateTime.now());
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.insert(history);
-
-        // 利用 Kafka 广播支付事件结果，以便审计和对账
-        sendKafkaMessage("payment_record_" + action, idempotencyKey, paymentRecord);
-
-        history.setBusinessStatus("SUCCESS");
-        history.setBusinessId(paymentRecord.getPaymentId());
-        history.setRequestParams("PENDING");
-        history.setUpdatedAt(LocalDateTime.now());
-        sysRequestHistoryMapper.updateById(history);
+        insertProcessingHistory(
+                idempotencyKey,
+                "PAYMENT_" + normalizeAction(action),
+                "POST",
+                "/api/payments",
+                paymentRecord.getPaymentId(),
+                "PROCESSING"
+        );
     }
 
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
     public PaymentRecord createPaymentRecord(PaymentRecord paymentRecord) {
         validatePaymentRecord(paymentRecord);
@@ -93,20 +82,88 @@ public class PaymentRecordService {
         return paymentRecord;
     }
 
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
+    public PaymentRecord createPaymentRecord(PaymentRecord paymentRecord, String idempotencyKey) {
+        validatePaymentRecord(paymentRecord);
+        SysRequestHistory history = insertProcessingHistory(
+                idempotencyKey,
+                "PAYMENT_CREATE",
+                "POST",
+                "/api/payments",
+                paymentRecord.getPaymentId(),
+                "PROCESSING"
+        );
+        paymentRecordMapper.insert(paymentRecord);
+        applicationEventPublisher.publishEvent(
+                new PaymentRecordKafkaEvent("payment_record_create", idempotencyKey, paymentRecord)
+        );
+        markHistorySuccess(history, paymentRecord.getPaymentId());
+        syncToIndexAfterCommit(paymentRecord);
+        return paymentRecord;
+    }
+
+    @Transactional(rollbackFor = Exception.class)
     @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
     public PaymentRecord updatePaymentRecord(PaymentRecord paymentRecord) {
         validatePaymentRecord(paymentRecord);
         requirePositive(paymentRecord.getPaymentId(), "Payment ID");
         int rows = paymentRecordMapper.updateById(paymentRecord);
         if (rows == 0) {
-            throw new IllegalStateException("No PaymentRecord updated for id=" + paymentRecord.getPaymentId());
+            throw new PaymentOptimisticLockException("Payment record was updated concurrently; refresh and retry");
         }
         syncToIndexAfterCommit(paymentRecord);
         return paymentRecord;
     }
 
+    @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
+    public PaymentRecord updatePaymentRecord(PaymentRecord paymentRecord, String idempotencyKey) {
+        validatePaymentRecord(paymentRecord);
+        requirePositive(paymentRecord.getPaymentId(), "Payment ID");
+        SysRequestHistory history = insertProcessingHistory(
+                idempotencyKey,
+                "PAYMENT_UPDATE",
+                "PUT",
+                "/api/payments/" + paymentRecord.getPaymentId(),
+                paymentRecord.getPaymentId(),
+                "PROCESSING"
+        );
+        int rows = paymentRecordMapper.updateById(paymentRecord);
+        if (rows == 0) {
+            throw new PaymentOptimisticLockException("Payment record was updated concurrently; refresh and retry");
+        }
+        applicationEventPublisher.publishEvent(
+                new PaymentRecordKafkaEvent("payment_record_update", idempotencyKey, paymentRecord)
+        );
+        markHistorySuccess(history, paymentRecord.getPaymentId());
+        syncToIndexAfterCommit(paymentRecord);
+        return paymentRecord;
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
     public PaymentRecord updatePaymentStatus(Long paymentId, PaymentState newState) {
+        return updatePaymentStatusInCurrentTransaction(paymentId, newState);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
+    public PaymentRecord updatePaymentStatus(Long paymentId, PaymentState newState, String idempotencyKey) {
+        SysRequestHistory history = insertProcessingHistory(
+                idempotencyKey,
+                "PAYMENT_STATUS_UPDATE",
+                "PUT",
+                "/api/payments/" + paymentId + "/status/" + (newState == null ? "" : newState.getCode()),
+                paymentId,
+                "PROCESSING"
+        );
+        PaymentRecord updated = updatePaymentStatusInCurrentTransaction(paymentId, newState);
+        markHistorySuccess(history, paymentId);
+        return updated;
+    }
+
+    private PaymentRecord updatePaymentStatusInCurrentTransaction(Long paymentId, PaymentState newState) {
         requirePositive(paymentId, "Payment ID");
         PaymentRecord existing = paymentRecordMapper.selectById(paymentId);
         if (existing == null) {
@@ -117,10 +174,12 @@ public class PaymentRecordService {
                 existing,
                 newState == null ? null : newState.getCode()
         ));
-        // 工作流只允许更新状态枚举值，其他字段由业务接口维护
         existing.setPaymentStatus(newState != null ? newState.getCode() : existing.getPaymentStatus());
         existing.setUpdatedAt(LocalDateTime.now());
-        paymentRecordMapper.updateById(existing);
+        int updated = paymentRecordMapper.updateById(existing);
+        if (updated == 0) {
+            throw new PaymentOptimisticLockException("Payment status was updated concurrently; refresh and retry");
+        }
         syncToIndexAfterCommit(existing);
         return existing;
     }
@@ -326,6 +385,10 @@ public class PaymentRecordService {
                 && "DONE".equalsIgnoreCase(history.getRequestParams());
     }
 
+    public boolean isDuplicateIdempotencyKey(String idempotencyKey) {
+        return !isBlank(idempotencyKey) && sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey) != null;
+    }
+
     public void markHistorySuccess(String idempotencyKey, Long paymentId) {
         SysRequestHistory history = sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey);
         if (history == null) {
@@ -351,7 +414,6 @@ public class PaymentRecordService {
         sysRequestHistoryMapper.updateById(history);
     }
 
-    // 通过事务回调，确保只有数据库提交成功后才刷新 ES，避免脏数据
     private void syncToIndexAfterCommit(PaymentRecord paymentRecord) {
         if (paymentRecord == null) {
             return;
@@ -376,14 +438,42 @@ public class PaymentRecordService {
         return records;
     }
 
-    private void sendKafkaMessage(String topic, String idempotencyKey, PaymentRecord paymentRecord) {
-        try {
-            String payload = objectMapper.writeValueAsString(paymentRecord);
-            kafkaTemplate.send(topic, idempotencyKey, payload);
-        } catch (Exception ex) {
-            log.log(Level.SEVERE, "Failed to send PaymentRecord Kafka message", ex);
-            throw new RuntimeException("Failed to send PaymentRecord event", ex);
+    private SysRequestHistory insertProcessingHistory(String idempotencyKey,
+                                                      String businessType,
+                                                      String requestMethod,
+                                                      String requestUrl,
+                                                      Long businessId,
+                                                      String requestParams) {
+        if (isBlank(idempotencyKey)) {
+            throw new IllegalArgumentException("Idempotency-Key must not be blank");
         }
+        if (sysRequestHistoryMapper.selectByIdempotencyKey(idempotencyKey) != null) {
+            throw new PaymentDuplicateRequestException("Duplicate payment request detected");
+        }
+        SysRequestHistory history = new SysRequestHistory();
+        history.setIdempotencyKey(idempotencyKey);
+        history.setRequestMethod(requestMethod);
+        history.setRequestUrl(requestUrl);
+        history.setRequestParams(requestParams);
+        history.setBusinessType(businessType);
+        history.setBusinessId(businessId);
+        history.setBusinessStatus("PROCESSING");
+        history.setCreatedAt(LocalDateTime.now());
+        history.setUpdatedAt(LocalDateTime.now());
+        try {
+            sysRequestHistoryMapper.insert(history);
+        } catch (DataIntegrityViolationException ex) {
+            throw new PaymentDuplicateRequestException("Duplicate payment request detected", ex);
+        }
+        return history;
+    }
+
+    private void markHistorySuccess(SysRequestHistory history, Long paymentId) {
+        history.setBusinessStatus("SUCCESS");
+        history.setBusinessId(paymentId);
+        history.setRequestParams("DONE");
+        history.setUpdatedAt(LocalDateTime.now());
+        sysRequestHistoryMapper.updateById(history);
     }
 
     private void validatePaymentRecord(PaymentRecord paymentRecord) {
@@ -427,6 +517,10 @@ public class PaymentRecordService {
         return value == null || value.trim().isEmpty();
     }
 
+    private String normalizeAction(String action) {
+        return isBlank(action) ? "UNKNOWN" : action.trim().toUpperCase();
+    }
+
     private String truncate(String value) {
         if (value == null) {
             return null;
@@ -434,7 +528,6 @@ public class PaymentRecordService {
         return value.length() <= 500 ? value : value.substring(0, 500);
     }
 
-    // 批量操作时同样复用 afterCommit 钩子，降低对 ES 的写入频率
     private void logReadRepairGovernance(Long paymentId, int recordCount) {
         if (recordCount <= 0) {
             return;

@@ -1,6 +1,7 @@
 package com.tutict.finalassignmentbackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.config.statemachine.states.OffenseProcessState;
@@ -183,7 +184,7 @@ public class OffenseRecordService {
         return guarded;
     }
 
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public OffenseRecord updateProcessStatus(Long offenseId, OffenseProcessState newState) {
         MutationSideEffectPolicy policy = semanticIntentClassifier.classifyWorkflow();
         requirePositive(offenseId, "Offense ID");
@@ -213,9 +214,26 @@ public class OffenseRecordService {
             logGovernance(Level.INFO, decision);
         }
         OffenseRecord merged = updateMergeCoordinator.merge(existing, incoming, SemanticEventType.WORKFLOW);
-        offenseRecordMapper.updateById(merged);
+        UpdateWrapper<OffenseRecord> updateWrapper = new UpdateWrapper<OffenseRecord>()
+                .eq("offense_id", offenseId)
+                .set("process_status", merged.getProcessStatus())
+                .set("updated_at", merged.getUpdatedAt());
+        applyOffenseStatusPrecondition(updateWrapper, existing.getProcessStatus());
+        int rows = offenseRecordMapper.update(null, updateWrapper);
+        if (rows == 0) {
+            throw new IllegalStateException("Offense record status has already been processed; refresh and retry");
+        }
         syncToIndexAfterCommit(policy, merged);
         return merged;
+    }
+
+    private void applyOffenseStatusPrecondition(UpdateWrapper<OffenseRecord> updateWrapper,
+                                                String currentProcessStatus) {
+        if (currentProcessStatus == null) {
+            updateWrapper.isNull("process_status");
+        } else {
+            updateWrapper.eq("process_status", currentProcessStatus);
+        }
     }
 
     public void shadowCompareKafkaUpdateMerge(OffenseRecord incoming) {
