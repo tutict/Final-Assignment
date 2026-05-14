@@ -149,6 +149,22 @@ public class AuditLoginLogService {
         return fromDb;
     }
 
+    @Transactional(readOnly = true)
+    public long count() {
+        return auditLoginLogMapper.selectCount(null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<AuditLoginLog> findRecent(int limit) {
+        QueryWrapper<AuditLoginLog> wrapper = new QueryWrapper<>();
+        wrapper.orderByDesc("login_time");
+        Page<AuditLoginLog> mpPage = new Page<>(1, Math.max(limit, 1));
+        auditLoginLogMapper.selectPage(mpPage, wrapper);
+        List<AuditLoginLog> records = mpPage.getRecords();
+        syncBatchToIndexAfterCommit(records);
+        return records;
+    }
+
     @Cacheable(cacheNames = CACHE_NAME, key = "'username:' + #username + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
     public List<AuditLoginLog> searchByUsername(String username, int page, int size) {
         if (isBlank(username)) {

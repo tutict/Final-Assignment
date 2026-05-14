@@ -11,6 +11,7 @@ import com.tutict.finalassignmentbackend.repository.VehicleInformationSearchRepo
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.elasticsearch.core.SearchHit;
@@ -34,7 +35,8 @@ import java.util.stream.StreamSupport;
 public class VehicleInformationService {
 
     private static final Logger log = Logger.getLogger(VehicleInformationService.class.getName());
-    private static final String CACHE_NAME = "vehicleCache";
+    private static final String VEHICLE_INFO_CACHE = "vehicleInfo";
+    private static final String VEHICLE_INFO_LIST_CACHE = "vehicleInfoList";
 
     private final VehicleInformationMapper vehicleInformationMapper;
     private final SysRequestHistoryMapper sysRequestHistoryMapper;
@@ -53,7 +55,7 @@ public class VehicleInformationService {
     }
 
     @Transactional
-    @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
+    @CacheEvict(cacheNames = VEHICLE_INFO_LIST_CACHE, allEntries = true)
     @WsAction(service = "VehicleInformationService", action = "checkAndInsertIdempotency")
     public void checkAndInsertIdempotency(String idempotencyKey, VehicleInformation vehicleInformation, String action) {
         Objects.requireNonNull(vehicleInformation, "Vehicle information cannot be null");
@@ -78,7 +80,7 @@ public class VehicleInformationService {
     }
 
     @Transactional
-    @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
+    @CacheEvict(cacheNames = VEHICLE_INFO_LIST_CACHE, allEntries = true)
     public VehicleInformation createVehicleInformation(VehicleInformation vehicleInformation) {
         validateVehicle(vehicleInformation);
         vehicleInformationMapper.insert(vehicleInformation);
@@ -87,7 +89,10 @@ public class VehicleInformationService {
     }
 
     @Transactional
-    @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
+    @Caching(evict = {
+            @CacheEvict(cacheNames = VEHICLE_INFO_CACHE, key = "#vehicleInformation.vehicleId"),
+            @CacheEvict(cacheNames = VEHICLE_INFO_LIST_CACHE, allEntries = true)
+    })
     @WsAction(service = "VehicleInformationService", action = "updateVehicleInformation")
     public VehicleInformation updateVehicleInformation(VehicleInformation vehicleInformation) {
         validateVehicleId(vehicleInformation);
@@ -100,7 +105,10 @@ public class VehicleInformationService {
     }
 
     @Transactional
-    @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
+    @Caching(evict = {
+            @CacheEvict(cacheNames = VEHICLE_INFO_CACHE, key = "#vehicleId"),
+            @CacheEvict(cacheNames = VEHICLE_INFO_LIST_CACHE, allEntries = true)
+    })
     public void deleteVehicleInformation(long vehicleId) {
         validateVehicleId(vehicleId);
         int rows = vehicleInformationMapper.deleteById(vehicleId);
@@ -111,7 +119,7 @@ public class VehicleInformationService {
     }
 
     @Transactional
-    @CacheEvict(cacheNames = CACHE_NAME, allEntries = true)
+    @CacheEvict(cacheNames = VEHICLE_INFO_LIST_CACHE, allEntries = true)
     public void deleteVehicleInformationByLicensePlate(String licensePlate) {
         validateInput(licensePlate, "Invalid license plate");
         QueryWrapper<VehicleInformation> wrapper = new QueryWrapper<>();
@@ -132,7 +140,7 @@ public class VehicleInformationService {
         });
     }
 
-    @Cacheable(cacheNames = CACHE_NAME, key = "#vehicleId", unless = "#result == null")
+    @Cacheable(cacheNames = VEHICLE_INFO_CACHE, key = "#vehicleId", unless = "#result == null")
     @WsAction(service = "VehicleInformationService", action = "getVehicleInformationById")
     public VehicleInformation getVehicleInformationById(long vehicleId) {
         validateVehicleId(vehicleId);
@@ -147,7 +155,7 @@ public class VehicleInformationService {
                 });
     }
 
-    @Cacheable(cacheNames = CACHE_NAME, key = "'all'", unless = "#result == null || #result.isEmpty()")
+    @Cacheable(cacheNames = VEHICLE_INFO_LIST_CACHE, key = "'all'", unless = "#result == null || #result.isEmpty()")
     @WsAction(service = "VehicleInformationService", action = "getAllVehicleInformation")
     public List<VehicleInformation> getAllVehicleInformation() {
         List<VehicleInformation> fromIndex = StreamSupport.stream(
@@ -165,7 +173,7 @@ public class VehicleInformationService {
         return db;
     }
 
-    @Cacheable(cacheNames = CACHE_NAME, key = "'plate:' + #licensePlate")
+    @Cacheable(cacheNames = VEHICLE_INFO_LIST_CACHE, key = "'plate:' + #licensePlate")
     public VehicleInformation getVehicleInformationByLicensePlate(String licensePlate) {
         validateInput(licensePlate, "Invalid license plate");
         QueryWrapper<VehicleInformation> wrapper = new QueryWrapper<>();
@@ -177,7 +185,7 @@ public class VehicleInformationService {
         return entity;
     }
 
-    @Cacheable(cacheNames = CACHE_NAME, key = "'license:global:' + #prefix + ':' + #maxSuggestions")
+    @Cacheable(cacheNames = VEHICLE_INFO_LIST_CACHE, key = "'license:global:' + #prefix + ':' + #maxSuggestions")
     public List<String> getVehicleInformationByLicensePlateGlobally(String prefix, int maxSuggestions) {
         validateInput(prefix, "Invalid license plate prefix");
         Pageable pageable = PageRequest.of(0, Math.max(maxSuggestions, 1));
@@ -186,7 +194,7 @@ public class VehicleInformationService {
         return mapLicensePlateSuggestions(hits);
     }
 
-    @Cacheable(cacheNames = CACHE_NAME, key = "'type:' + #vehicleType")
+    @Cacheable(cacheNames = VEHICLE_INFO_LIST_CACHE, key = "'type:' + #vehicleType")
     public List<VehicleInformation> getVehicleInformationByType(String vehicleType) {
         validateInput(vehicleType, "Invalid vehicle type");
         QueryWrapper<VehicleInformation> wrapper = new QueryWrapper<>();
@@ -194,7 +202,7 @@ public class VehicleInformationService {
         return vehicleInformationMapper.selectList(wrapper);
     }
 
-    @Cacheable(cacheNames = CACHE_NAME, key = "'owner:' + #ownerName")
+    @Cacheable(cacheNames = VEHICLE_INFO_LIST_CACHE, key = "'owner:' + #ownerName")
     public List<VehicleInformation> getVehicleInformationByOwnerName(String ownerName) {
         validateInput(ownerName, "Invalid owner name");
         QueryWrapper<VehicleInformation> wrapper = new QueryWrapper<>();
@@ -202,7 +210,7 @@ public class VehicleInformationService {
         return vehicleInformationMapper.selectList(wrapper);
     }
 
-    @Cacheable(cacheNames = CACHE_NAME, key = "'idcard:' + #idCardNumber")
+    @Cacheable(cacheNames = VEHICLE_INFO_LIST_CACHE, key = "'idcard:' + #idCardNumber")
     public List<VehicleInformation> getVehicleInformationByIdCardNumber(String idCardNumber) {
         validateInput(idCardNumber, "Invalid ID card number");
         QueryWrapper<VehicleInformation> wrapper = new QueryWrapper<>();
@@ -210,7 +218,7 @@ public class VehicleInformationService {
         return vehicleInformationMapper.selectList(wrapper);
     }
 
-    @Cacheable(cacheNames = CACHE_NAME, key = "'status:' + #status")
+    @Cacheable(cacheNames = VEHICLE_INFO_LIST_CACHE, key = "'status:' + #status")
     public List<VehicleInformation> getVehicleInformationByStatus(String status) {
         validateInput(status, "Invalid status");
         QueryWrapper<VehicleInformation> wrapper = new QueryWrapper<>();
@@ -218,7 +226,7 @@ public class VehicleInformationService {
         return vehicleInformationMapper.selectList(wrapper);
     }
 
-    @Cacheable(cacheNames = CACHE_NAME, key = "'ownerNameSearch:' + #ownerName + ':' + #page + ':' + #size")
+    @Cacheable(cacheNames = VEHICLE_INFO_LIST_CACHE, key = "'ownerNameSearch:' + #ownerName + ':' + #page + ':' + #size")
     public List<VehicleInformation> searchByOwnerName(String ownerName, int page, int size) {
         validateInput(ownerName, "Invalid owner name");
         validatePagination(page, size);
@@ -233,7 +241,7 @@ public class VehicleInformationService {
         return vehicleInformationMapper.selectList(wrapper);
     }
 
-    @Cacheable(cacheNames = CACHE_NAME, key = "'ownerIdCardSearch:' + #ownerIdCard + ':' + #page + ':' + #size")
+    @Cacheable(cacheNames = VEHICLE_INFO_LIST_CACHE, key = "'ownerIdCardSearch:' + #ownerIdCard + ':' + #page + ':' + #size")
     public List<VehicleInformation> searchByOwnerIdCard(String ownerIdCard, int page, int size) {
         validateInput(ownerIdCard, "Invalid owner id card");
         validatePagination(page, size);
@@ -248,7 +256,7 @@ public class VehicleInformationService {
         return vehicleInformationMapper.selectList(wrapper);
     }
 
-    @Cacheable(cacheNames = CACHE_NAME, key = "'statusSearch:' + #status + ':' + #page + ':' + #size")
+    @Cacheable(cacheNames = VEHICLE_INFO_LIST_CACHE, key = "'statusSearch:' + #status + ':' + #page + ':' + #size")
     public List<VehicleInformation> searchByStatus(String status, int page, int size) {
         validateInput(status, "Invalid status");
         validatePagination(page, size);
@@ -263,7 +271,7 @@ public class VehicleInformationService {
         return vehicleInformationMapper.selectList(wrapper);
     }
 
-    @Cacheable(cacheNames = CACHE_NAME, key = "'search:' + #query + ':' + #page + ':' + #size")
+    @Cacheable(cacheNames = VEHICLE_INFO_LIST_CACHE, key = "'search:' + #query + ':' + #page + ':' + #size")
     public List<VehicleInformation> searchVehicles(String query, int page, int size) {
         validatePagination(page, size);
         if (query == null || query.trim().isEmpty()) {
@@ -284,7 +292,7 @@ public class VehicleInformationService {
         return list.subList(fromIndex, toIndex);
     }
 
-    @Cacheable(cacheNames = CACHE_NAME, key = "'autocomplete:me:' + #idCardNumber + ':' + #prefix + ':' + #maxSuggestions")
+    @Cacheable(cacheNames = VEHICLE_INFO_LIST_CACHE, key = "'autocomplete:me:' + #idCardNumber + ':' + #prefix + ':' + #maxSuggestions")
     public List<String> getLicensePlateAutocompleteSuggestions(String prefix, int maxSuggestions, String idCardNumber) {
         validateInput(idCardNumber, "Invalid ID card number");
         validateInput(prefix, "Invalid license plate prefix");
@@ -294,7 +302,7 @@ public class VehicleInformationService {
         return mapLicensePlateSuggestions(hits);
     }
 
-    @Cacheable(cacheNames = CACHE_NAME, key = "'autocomplete:type:me:' + #idCardNumber + ':' + #prefix + ':' + #maxSuggestions")
+    @Cacheable(cacheNames = VEHICLE_INFO_LIST_CACHE, key = "'autocomplete:type:me:' + #idCardNumber + ':' + #prefix + ':' + #maxSuggestions")
     public List<String> getVehicleTypeAutocompleteSuggestions(String idCardNumber, String prefix, int maxSuggestions) {
         validateInput(idCardNumber, "Invalid ID card number");
         validateInput(prefix, "Invalid vehicle type prefix");
@@ -304,7 +312,7 @@ public class VehicleInformationService {
         return mapVehicleTypeSuggestions(hits);
     }
 
-    @Cacheable(cacheNames = CACHE_NAME, key = "'autocomplete:type:global:' + #prefix + ':' + #maxSuggestions")
+    @Cacheable(cacheNames = VEHICLE_INFO_LIST_CACHE, key = "'autocomplete:type:global:' + #prefix + ':' + #maxSuggestions")
     public List<String> getVehicleTypesByPrefixGlobally(String prefix, int maxSuggestions) {
         validateInput(prefix, "Invalid vehicle type prefix");
         QueryWrapper<VehicleInformation> wrapper = new QueryWrapper<>();
@@ -318,7 +326,7 @@ public class VehicleInformationService {
                 .collect(Collectors.toList());
     }
 
-    @Cacheable(cacheNames = CACHE_NAME, key = "'exists:' + #licensePlate")
+    @Cacheable(cacheNames = VEHICLE_INFO_LIST_CACHE, key = "'exists:' + #licensePlate")
     public boolean isLicensePlateExists(String licensePlate) {
         validateInput(licensePlate, "Invalid license plate");
         QueryWrapper<VehicleInformation> wrapper = new QueryWrapper<>();

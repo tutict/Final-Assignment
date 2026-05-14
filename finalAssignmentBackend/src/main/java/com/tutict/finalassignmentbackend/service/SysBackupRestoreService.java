@@ -3,6 +3,7 @@ package com.tutict.finalassignmentbackend.service;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tutict.finalassignmentbackend.common.PageRequest;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.SysBackupRestore;
 import com.tutict.finalassignmentbackend.entity.SysRequestHistory;
@@ -145,6 +146,24 @@ public class SysBackupRestoreService {
         List<SysBackupRestore> fromDb = sysBackupRestoreMapper.selectList(null);
         syncBatchToIndexAfterCommit(fromDb);
         return fromDb;
+    }
+
+    @Transactional(readOnly = true)
+    public Page<SysBackupRestore> findPage(PageRequest pageRequest) {
+        QueryWrapper<SysBackupRestore> wrapper = new QueryWrapper<>();
+        wrapper.orderByDesc("backup_time");
+        return fetchPageFromDatabase(wrapper, pageRequest);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<SysBackupRestore> findByStatus(String status, PageRequest pageRequest) {
+        if (isBlank(status)) {
+            return findPage(pageRequest);
+        }
+        QueryWrapper<SysBackupRestore> wrapper = new QueryWrapper<>();
+        wrapper.eq("status", status)
+                .orderByDesc("backup_time");
+        return fetchPageFromDatabase(wrapper, pageRequest);
     }
 
     @Cacheable(cacheNames = CACHE_NAME, key = "'backupType:' + #backupType + ':' + #page + ':' + #size",
@@ -352,6 +371,13 @@ public class SysBackupRestoreService {
         List<SysBackupRestore> records = mpPage.getRecords();
         syncBatchToIndexAfterCommit(records);
         return records;
+    }
+
+    private Page<SysBackupRestore> fetchPageFromDatabase(QueryWrapper<SysBackupRestore> wrapper, PageRequest pageRequest) {
+        Page<SysBackupRestore> mpPage = new Page<>(pageRequest.toMyBatisPage(), pageRequest.getSize());
+        sysBackupRestoreMapper.selectPage(mpPage, wrapper);
+        syncBatchToIndexAfterCommit(mpPage.getRecords());
+        return mpPage;
     }
 
     private List<SysBackupRestore> mapHits(org.springframework.data.elasticsearch.core.SearchHits<SysBackupRestoreDocument> hits) {

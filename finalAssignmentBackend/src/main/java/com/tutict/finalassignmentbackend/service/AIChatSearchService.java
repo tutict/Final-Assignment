@@ -94,8 +94,9 @@ public class AIChatSearchService {
         Future<Value> future = executor.submit(() -> graalPyContext.eval(pythonCode));
         Value pyResult;
         try {
-            pyResult = future.get(5, TimeUnit.MINUTES);
+            pyResult = future.get(30, TimeUnit.SECONDS);
         } catch (TimeoutException e) {
+            future.cancel(true);
             logger.error("GraalPy 执行超时，query='{}'", query, e);
             throw new RuntimeException("搜索超时: " + e.getMessage(), e);
         } catch (ExecutionException e) {

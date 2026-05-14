@@ -1,8 +1,11 @@
 package com.tutict.finalassignmentbackend.controller;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.tutict.finalassignmentbackend.common.PageRequest;
 import com.tutict.finalassignmentbackend.dto.mapper.UserResponseMapper;
 import com.tutict.finalassignmentbackend.dto.request.UserCreateRequest;
 import com.tutict.finalassignmentbackend.dto.response.ApiResponse;
+import com.tutict.finalassignmentbackend.dto.response.PageResponse;
 import com.tutict.finalassignmentbackend.dto.response.UserResponse;
 import com.tutict.finalassignmentbackend.entity.SysUser;
 import com.tutict.finalassignmentbackend.entity.SysUserRole;
@@ -135,9 +138,15 @@ public class UserManagementController {
 
     @GetMapping
     @Operation(summary = "查询全部用户")
-    public ResponseEntity<ApiResponse<List<UserResponse>>> listUsers() {
+    public ResponseEntity<ApiResponse<PageResponse<UserResponse>>> listUsers(@Valid PageRequest pageRequest) {
         try {
-            return ResponseEntity.ok(ApiResponse.ok(toUserResponses(sysUserService.findAll())));
+            Page<SysUser> page = sysUserService.findPage(pageRequest);
+            PageResponse<UserResponse> response = PageResponse.of(
+                    toUserResponses(page.getRecords()),
+                    page.getTotal(),
+                    pageRequest.getPage(),
+                    pageRequest.getSize());
+            return ResponseEntity.ok(ApiResponse.ok(response));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List users failed", ex);
             return ResponseEntity.status(resolveStatus(ex))

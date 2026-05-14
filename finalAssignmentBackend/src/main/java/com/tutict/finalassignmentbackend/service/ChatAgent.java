@@ -2,6 +2,7 @@ package com.tutict.finalassignmentbackend.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tutict.finalassignmentbackend.model.ai.ChatActionResponse;
+import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.messages.UserMessage;
@@ -14,15 +15,24 @@ import reactor.core.publisher.Flux;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 @Service
 public class ChatAgent {
 
     private static final Logger logger = LoggerFactory.getLogger(ChatAgent.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final long CHAT_TIMEOUT_SECONDS = 30;
 
     private final OllamaChatModel chatModel;
     private final AIChatSearchService aiChatSearchService;
+    private final ExecutorService aiExecutor = Executors.newFixedThreadPool(
+            Math.max(2, Runtime.getRuntime().availableProcessors() / 2)
+    );
 
     public ChatAgent(OllamaChatModel chatModel, AIChatSearchService aiChatSearchService) {
         this.chatModel = chatModel;
@@ -50,9 +60,26 @@ public class ChatAgent {
         logger.info("AI chat actions request received. message={}, webSearch={}", userMessage, webSearch);
 
         Prompt prompt = buildActionPrompt(userMessage, webSearch);
-        ChatResponse response = chatModel.call(prompt);
+        ChatResponse response = callWithTimeout(prompt);
         String content = extractResponseText(response);
         return parseActionResponse(content);
+    }
+
+    private ChatResponse callWithTimeout(Prompt prompt) {
+        CompletableFuture<ChatResponse> future = CompletableFuture.supplyAsync(
+                () -> chatModel.call(prompt),
+                aiExecutor);
+        try {
+            return future.get(CHAT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        } catch (TimeoutException ex) {
+            future.cancel(true);
+            throw new IllegalStateException("AI response timed out after " + CHAT_TIMEOUT_SECONDS + " seconds", ex);
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("AI response was interrupted", ex);
+        } catch (Exception ex) {
+            throw new IllegalStateException("AI response failed", ex);
+        }
     }
 
     private Prompt buildPrompt(String userMessage, boolean webSearch) {
@@ -215,5 +242,10 @@ public class ChatAgent {
             }
         }
         return builder;
+    }
+
+    @PreDestroy
+    public void shutdown() {
+        aiExecutor.shutdownNow();
     }
 }

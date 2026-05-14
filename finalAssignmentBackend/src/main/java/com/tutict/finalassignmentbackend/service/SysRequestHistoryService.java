@@ -143,6 +143,11 @@ public class SysRequestHistoryService {
         return fromDb;
     }
 
+    @Transactional(readOnly = true)
+    public long count() {
+        return sysRequestHistoryMapper.selectCount(null);
+    }
+
     @Cacheable(cacheNames = CACHE_NAME, key = "'status:' + #status + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
     public List<SysRequestHistory> findByBusinessStatus(String status, int page, int size) {
         if (isBlank(status)) {

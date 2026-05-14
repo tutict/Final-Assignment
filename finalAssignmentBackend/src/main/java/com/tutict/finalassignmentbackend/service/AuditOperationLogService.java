@@ -149,6 +149,22 @@ public class AuditOperationLogService {
         return fromDb;
     }
 
+    @Transactional(readOnly = true)
+    public long count() {
+        return auditOperationLogMapper.selectCount(null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<AuditOperationLog> findRecent(int limit) {
+        QueryWrapper<AuditOperationLog> wrapper = new QueryWrapper<>();
+        wrapper.orderByDesc("operation_time");
+        Page<AuditOperationLog> mpPage = new Page<>(1, Math.max(limit, 1));
+        auditOperationLogMapper.selectPage(mpPage, wrapper);
+        List<AuditOperationLog> records = mpPage.getRecords();
+        syncBatchToIndexAfterCommit(records);
+        return records;
+    }
+
     @Cacheable(cacheNames = CACHE_NAME, key = "'module:' + #module + ':' + #page + ':' + #size", unless = "#result == null || #result.isEmpty()")
     public List<AuditOperationLog> searchByModule(String module, int page, int size) {
         if (isBlank(module)) {

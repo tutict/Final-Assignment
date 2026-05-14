@@ -1,5 +1,8 @@
 package com.tutict.finalassignmentbackend.controller;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.tutict.finalassignmentbackend.common.PageRequest;
+import com.tutict.finalassignmentbackend.dto.response.PageResponse;
 import com.tutict.finalassignmentbackend.entity.SysBackupRestore;
 import com.tutict.finalassignmentbackend.service.SysBackupRestoreService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -23,7 +26,6 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/system/backup")
@@ -119,16 +121,17 @@ public class BackupRestoreController {
 
     @GetMapping
     @Operation(summary = "查询备份/还原任务列表")
-    public ResponseEntity<List<SysBackupRestore>> list(@RequestParam(value = "status", required = false) String status) {
+    public ResponseEntity<PageResponse<SysBackupRestore>> list(@RequestParam(value = "status", required = false) String status,
+                                                               @Valid PageRequest pageRequest) {
         try {
-            List<SysBackupRestore> all = backupRestoreService.findAll();
-            if (status == null || status.isBlank()) {
-                return ResponseEntity.ok(all);
-            }
-            List<SysBackupRestore> filtered = all.stream()
-                    .filter(item -> status.equalsIgnoreCase(item.getStatus()))
-                    .collect(Collectors.toList());
-            return ResponseEntity.ok(filtered);
+            Page<SysBackupRestore> page = status == null || status.isBlank()
+                    ? backupRestoreService.findPage(pageRequest)
+                    : backupRestoreService.findByStatus(status, pageRequest);
+            return ResponseEntity.ok(PageResponse.of(
+                    page.getRecords(),
+                    page.getTotal(),
+                    pageRequest.getPage(),
+                    pageRequest.getSize()));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "List backup tasks failed", ex);
             return ResponseEntity.status(resolveStatus(ex)).build();

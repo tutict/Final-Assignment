@@ -23,7 +23,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/system/logs")
@@ -51,9 +50,9 @@ public class SystemLogsController {
     public ResponseEntity<Map<String, Object>> overview() {
         try {
             Map<String, Object> result = new HashMap<>();
-            result.put("loginLogCount", auditLoginLogService.findAll().size());
-            result.put("operationLogCount", auditOperationLogService.findAll().size());
-            result.put("requestHistoryCount", sysRequestHistoryService.findAll().size());
+            result.put("loginLogCount", auditLoginLogService.count());
+            result.put("operationLogCount", auditOperationLogService.count());
+            result.put("requestHistoryCount", sysRequestHistoryService.count());
             return ResponseEntity.ok(result);
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Fetch log overview failed", ex);
@@ -65,10 +64,7 @@ public class SystemLogsController {
     @Operation(summary = "最近的登录日志")
     public ResponseEntity<List<AuditLoginLog>> recentLoginLogs(@RequestParam(defaultValue = "10") int limit) {
         try {
-            List<AuditLoginLog> recent = auditLoginLogService.findAll().stream()
-                    .limit(Math.max(limit, 1))
-                    .collect(Collectors.toList());
-            return ResponseEntity.ok(recent);
+            return ResponseEntity.ok(auditLoginLogService.findRecent(normalizeLimit(limit)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Fetch recent login logs failed", ex);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
@@ -79,10 +75,7 @@ public class SystemLogsController {
     @Operation(summary = "最近的操作日志")
     public ResponseEntity<List<AuditOperationLog>> recentOperationLogs(@RequestParam(defaultValue = "10") int limit) {
         try {
-            List<AuditOperationLog> recent = auditOperationLogService.findAll().stream()
-                    .limit(Math.max(limit, 1))
-                    .collect(Collectors.toList());
-            return ResponseEntity.ok(recent);
+            return ResponseEntity.ok(auditOperationLogService.findRecent(normalizeLimit(limit)));
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Fetch recent operation logs failed", ex);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
@@ -172,5 +165,9 @@ public class SystemLogsController {
                                                                             @RequestParam(defaultValue = "1") int page,
                                                                             @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(sysRequestHistoryService.searchByCreatedAtRange(startTime, endTime, page, size));
+    }
+
+    private int normalizeLimit(int limit) {
+        return Math.min(Math.max(limit, 1), 100);
     }
 }

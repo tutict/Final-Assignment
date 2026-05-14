@@ -3,6 +3,7 @@ package com.tutict.finalassignmentbackend.service;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tutict.finalassignmentbackend.common.PageRequest;
 import com.tutict.finalassignmentbackend.config.websocket.WsAction;
 import com.tutict.finalassignmentbackend.entity.SysRequestHistory;
 import com.tutict.finalassignmentbackend.entity.SysUser;
@@ -157,6 +158,14 @@ public class SysUserService {
         List<SysUser> fromDb = sysUserMapper.selectList(null);
         syncBatchToIndexAfterCommit(fromDb);
         return fromDb;
+    }
+
+    @Transactional(readOnly = true)
+    public Page<SysUser> findPage(PageRequest pageRequest) {
+        Page<SysUser> mpPage = new Page<>(pageRequest.toMyBatisPage(), pageRequest.getSize());
+        sysUserMapper.selectPage(mpPage, null);
+        syncBatchToIndexAfterCommit(mpPage.getRecords());
+        return mpPage;
     }
 
     @Cacheable(cacheNames = CACHE_NAME, key = "'usernamePrefix:' + #username + ':' + #page + ':' + #size",
